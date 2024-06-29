@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/account_compression.json`.
  */
 export type AccountCompression = {
-    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
     metadata: {
         name: 'accountCompression';
         version: '0.4.1';

@@ -7,11 +7,7 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-
-import {
-    IDL,
-    LightSystemProgram as LightSystemProgramIDL,
-} from '../idls/light_system_program';
+import { LightSystem } from '../idls';
 import { useWallet } from '../wallet';
 import {
     CompressedAccount,
@@ -31,6 +27,7 @@ import {
     validateSufficientBalance,
 } from '../utils/validation';
 import { packNewAddressParams, NewAddressParams } from '../utils';
+import { readFileSync } from 'node:fs';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -205,9 +202,9 @@ export class LightSystemProgram {
         'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN',
     );
 
-    private static _program: Program<LightSystemProgramIDL> | null = null;
+    private static _program: Program<LightSystem> | null = null;
 
-    static get program(): Program<LightSystemProgramIDL> {
+    static get program(): Program<LightSystem> {
         if (!this._program) {
             this.initializeProgram();
         }
@@ -247,7 +244,8 @@ export class LightSystemProgram {
                 },
             );
             setProvider(mockProvider);
-            this._program = new Program(IDL, this.programId, mockProvider);
+            const LightSystemIDL = JSON.parse(readFileSync(new URL('../idls/light_system_program.json', import.meta.url), 'utf8'));
+            this._program = new Program(LightSystemIDL as unknown as LightSystem, mockProvider);
         }
     }
 
@@ -394,7 +392,7 @@ export class LightSystemProgram {
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(ixData)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -454,7 +452,7 @@ export class LightSystemProgram {
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -520,7 +518,7 @@ export class LightSystemProgram {
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -582,7 +580,7 @@ export class LightSystemProgram {
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,

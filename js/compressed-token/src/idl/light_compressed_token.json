@@ -1,0 +1,1176 @@
+{
+  "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M",
+  "metadata": {
+    "name": "light_compressed_token",
+    "version": "0.4.1",
+    "spec": "0.1.0",
+    "description": "Generalized token compression on Solana",
+    "repository": "https://github.com/Lightprotocol/light-protocol"
+  },
+  "instructions": [
+    {
+      "name": "approve",
+      "discriminator": [
+        69,
+        74,
+        217,
+        36,
+        115,
+        117,
+        97,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "burn",
+      "discriminator": [
+        116,
+        110,
+        29,
+        56,
+        107,
+        219,
+        42,
+        93
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "create_token_pool",
+      "docs": [
+        "This instruction expects a mint account to be created in a separate",
+        "token program instruction with token authority as mint authority. This",
+        "instruction creates a token pool account for that mint owned by token",
+        "authority."
+      ],
+      "discriminator": [
+        23,
+        169,
+        27,
+        122,
+        147,
+        169,
+        209,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_pool_pda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "freeze",
+      "discriminator": [
+        255,
+        91,
+        207,
+        84,
+        251,
+        194,
+        254,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "mint"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "mint_to",
+      "docs": [
+        "Mints tokens from an spl token mint to a list of compressed accounts.",
+        "Minted tokens are transferred to a pool account owned by the compressed",
+        "token program. The instruction creates one compressed output account for",
+        "every amount and pubkey input pair one output compressed account."
+      ],
+      "discriminator": [
+        241,
+        34,
+        48,
+        186,
+        37,
+        179,
+        123,
+        192
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_pool_pda",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "merkle_tree",
+          "writable": true
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "public_keys",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "amounts",
+          "type": {
+            "vec": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "revoke",
+      "discriminator": [
+        170,
+        23,
+        31,
+        34,
+        133,
+        173,
+        93,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "thaw",
+      "discriminator": [
+        226,
+        249,
+        34,
+        57,
+        189,
+        21,
+        177,
+        101
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "mint"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "transfer",
+      "discriminator": [
+        163,
+        52,
+        200,
+        231,
+        140,
+        3,
+        69,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "cpi_authority_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "light_system_program",
+          "address": "9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL"
+        },
+        {
+          "name": "registered_program_pda"
+        },
+        {
+          "name": "noop_program"
+        },
+        {
+          "name": "account_compression_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  112,
+                  105,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                122,
+                247,
+                228,
+                253,
+                125,
+                235,
+                168,
+                178,
+                118,
+                247,
+                148,
+                132,
+                87,
+                69,
+                138,
+                249,
+                48,
+                38,
+                162,
+                157,
+                101,
+                94,
+                204,
+                195,
+                59,
+                23,
+                183,
+                138,
+                180,
+                125,
+                89,
+                223
+              ]
+            }
+          }
+        },
+        {
+          "name": "account_compression_program",
+          "address": "M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U"
+        },
+        {
+          "name": "self_program",
+          "address": "6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M"
+        },
+        {
+          "name": "token_pool_pda",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "compress_or_decompress_token_account",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "optional": true,
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "inputs",
+          "type": "bytes"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "RegisteredProgram",
+      "discriminator": [
+        31,
+        251,
+        180,
+        235,
+        3,
+        116,
+        50,
+        4
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SignerCheckFailed",
+      "msg": "Signer check failed"
+    },
+    {
+      "code": 6001,
+      "name": "CreateTransferInstructionFailed",
+      "msg": "Create transfer instruction failed"
+    },
+    {
+      "code": 6002,
+      "name": "AccountNotFound",
+      "msg": "Account not found"
+    },
+    {
+      "code": 6003,
+      "name": "SerializationError",
+      "msg": "Serialization error"
+    }
+  ],
+  "types": [
+    {
+      "name": "RegisteredProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "registered_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "group_authority_pda",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}

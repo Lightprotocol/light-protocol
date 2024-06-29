@@ -1,0 +1,2948 @@
+account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression)
+├── aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized)
+│   ├── proc-macro2 v1.0.86
+│   │   └── unicode-ident v1.0.12
+│   ├── quote v1.0.36
+│   │   └── proc-macro2 v1.0.86 (*)
+│   └── syn v2.0.68
+│       ├── proc-macro2 v1.0.86 (*)
+│       ├── quote v1.0.36 (*)
+│       └── unicode-ident v1.0.12
+├── anchor-lang v0.30.1
+│   ├── anchor-attribute-access-control v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1
+│   │   │   ├── anyhow v1.0.86
+│   │   │   ├── bs58 v0.5.1
+│   │   │   ├── cargo_toml v0.19.2
+│   │   │   │   ├── serde v1.0.203
+│   │   │   │   │   └── serde_derive v1.0.203 (proc-macro)
+│   │   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │       └── syn v2.0.68 (*)
+│   │   │   │   └── toml v0.8.14
+│   │   │   │       ├── serde v1.0.203 (*)
+│   │   │   │       ├── serde_spanned v0.6.6
+│   │   │   │       │   └── serde v1.0.203 (*)
+│   │   │   │       ├── toml_datetime v0.6.6
+│   │   │   │       │   └── serde v1.0.203 (*)
+│   │   │   │       └── toml_edit v0.22.14
+│   │   │   │           ├── indexmap v2.2.6
+│   │   │   │           │   ├── equivalent v1.0.1
+│   │   │   │           │   └── hashbrown v0.14.5
+│   │   │   │           ├── serde v1.0.203 (*)
+│   │   │   │           ├── serde_spanned v0.6.6 (*)
+│   │   │   │           ├── toml_datetime v0.6.6 (*)
+│   │   │   │           └── winnow v0.6.13
+│   │   │   ├── heck v0.3.3
+│   │   │   │   └── unicode-segmentation v1.11.0
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   ├── quote v1.0.36 (*)
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── serde_json v1.0.118
+│   │   │   │   ├── itoa v1.0.11
+│   │   │   │   ├── ryu v1.0.18
+│   │   │   │   └── serde v1.0.203 (*)
+│   │   │   ├── sha2 v0.10.8
+│   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   ├── cpufeatures v0.2.12
+│   │   │   │   │   └── libc v0.2.155
+│   │   │   │   └── digest v0.10.7
+│   │   │   │       ├── block-buffer v0.10.4
+│   │   │   │       │   └── generic-array v0.14.7
+│   │   │   │       │       └── typenum v1.17.0
+│   │   │   │       │       [build-dependencies]
+│   │   │   │       │       └── version_check v0.9.4
+│   │   │   │       └── crypto-common v0.1.6
+│   │   │   │           ├── generic-array v0.14.7 (*)
+│   │   │   │           └── typenum v1.17.0
+│   │   │   ├── syn v1.0.109
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── unicode-ident v1.0.12
+│   │   │   └── thiserror v1.0.61
+│   │   │       └── thiserror-impl v1.0.61 (proc-macro)
+│   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │           ├── quote v1.0.36 (*)
+│   │   │           └── syn v2.0.68 (*)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-attribute-account v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── bs58 v0.5.1
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-attribute-constant v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-attribute-error v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-attribute-event v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-attribute-program v0.30.1 (proc-macro)
+│   │   ├── anchor-lang-idl v0.1.1
+│   │   │   ├── anchor-lang-idl-spec v0.1.0
+│   │   │   │   ├── anyhow v1.0.86
+│   │   │   │   └── serde v1.0.203 (*)
+│   │   │   ├── anyhow v1.0.86
+│   │   │   ├── heck v0.3.3 (*)
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   └── sha2 v0.10.8 (*)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── anyhow v1.0.86
+│   │   ├── bs58 v0.5.1
+│   │   ├── heck v0.3.3 (*)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   ├── serde_json v1.0.118 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-derive-accounts v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-derive-serde v0.30.1 (proc-macro)
+│   │   ├── anchor-syn v0.30.1 (*)
+│   │   ├── borsh-derive-internal v0.10.3
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   ├── quote v1.0.36 (*)
+│   │   │   └── syn v1.0.109 (*)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-derive-space v0.30.1 (proc-macro)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v1.0.109 (*)
+│   ├── anchor-lang-idl v0.1.1
+│   │   ├── anchor-lang-idl-spec v0.1.0 (*)
+│   │   ├── anyhow v1.0.86
+│   │   ├── regex v1.10.5
+│   │   │   ├── aho-corasick v1.1.3
+│   │   │   │   └── memchr v2.7.4
+│   │   │   ├── memchr v2.7.4
+│   │   │   ├── regex-automata v0.4.7
+│   │   │   │   ├── aho-corasick v1.1.3 (*)
+│   │   │   │   ├── memchr v2.7.4
+│   │   │   │   └── regex-syntax v0.8.4
+│   │   │   └── regex-syntax v0.8.4
+│   │   ├── serde v1.0.203
+│   │   │   └── serde_derive v1.0.203 (proc-macro) (*)
+│   │   └── serde_json v1.0.118 (*)
+│   ├── arrayref v0.3.7
+│   ├── base64 v0.21.7
+│   ├── bincode v1.3.3
+│   │   └── serde v1.0.203 (*)
+│   ├── borsh v0.10.3
+│   │   ├── borsh-derive v0.10.3 (proc-macro)
+│   │   │   ├── borsh-derive-internal v0.10.3 (*)
+│   │   │   ├── borsh-schema-derive-internal v0.10.3
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── proc-macro-crate v0.1.5
+│   │   │   │   └── toml v0.5.11
+│   │   │   │       └── serde v1.0.203 (*)
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   └── syn v1.0.109 (*)
+│   │   └── hashbrown v0.13.2
+│   │       └── ahash v0.8.11
+│   │           ├── cfg-if v1.0.0
+│   │           ├── getrandom v0.2.15
+│   │           │   ├── cfg-if v1.0.0
+│   │           │   └── libc v0.2.155
+│   │           ├── once_cell v1.19.0
+│   │           └── zerocopy v0.7.34
+│   │           [build-dependencies]
+│   │           └── version_check v0.9.4
+│   ├── bytemuck v1.16.1
+│   │   └── bytemuck_derive v1.7.0 (proc-macro)
+│   │       ├── proc-macro2 v1.0.86 (*)
+│   │       ├── quote v1.0.36 (*)
+│   │       └── syn v2.0.68 (*)
+│   ├── getrandom v0.2.15 (*)
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   ├── ark-bn254 v0.4.0
+│   │   │   ├── ark-ec v0.4.2
+│   │   │   │   ├── ark-ff v0.4.2
+│   │   │   │   │   ├── ark-ff-asm v0.4.2 (proc-macro)
+│   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   ├── ark-ff-macros v0.4.2 (proc-macro)
+│   │   │   │   │   │   ├── num-bigint v0.4.6
+│   │   │   │   │   │   │   ├── num-integer v0.1.46
+│   │   │   │   │   │   │   │   └── num-traits v0.2.19
+│   │   │   │   │   │   │   │       [build-dependencies]
+│   │   │   │   │   │   │   │       └── autocfg v1.3.0
+│   │   │   │   │   │   │   └── num-traits v0.2.19 (*)
+│   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   ├── ark-serialize v0.4.2
+│   │   │   │   │   │   ├── ark-serialize-derive v0.4.2 (proc-macro)
+│   │   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   │   ├── ark-std v0.4.0
+│   │   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   ├── rand v0.8.5
+│   │   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   │   ├── rand_chacha v0.3.1
+│   │   │   │   │   │   │   │   │   ├── ppv-lite86 v0.2.17
+│   │   │   │   │   │   │   │   │   └── rand_core v0.6.4
+│   │   │   │   │   │   │   │   │       └── getrandom v0.2.15 (*)
+│   │   │   │   │   │   │   │   └── rand_core v0.6.4 (*)
+│   │   │   │   │   │   │   └── rayon v1.10.0
+│   │   │   │   │   │   │       ├── either v1.13.0
+│   │   │   │   │   │   │       └── rayon-core v1.12.1
+│   │   │   │   │   │   │           ├── crossbeam-deque v0.8.5
+│   │   │   │   │   │   │           │   ├── crossbeam-epoch v0.9.18
+│   │   │   │   │   │   │           │   │   └── crossbeam-utils v0.8.20
+│   │   │   │   │   │   │           │   └── crossbeam-utils v0.8.20
+│   │   │   │   │   │   │           └── crossbeam-utils v0.8.20
+│   │   │   │   │   │   ├── digest v0.10.7
+│   │   │   │   │   │   │   ├── block-buffer v0.10.4 (*)
+│   │   │   │   │   │   │   ├── crypto-common v0.1.6 (*)
+│   │   │   │   │   │   │   └── subtle v2.4.1
+│   │   │   │   │   │   └── num-bigint v0.4.6
+│   │   │   │   │   │       ├── num-integer v0.1.46 (*)
+│   │   │   │   │   │       ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │       ├── rand v0.8.5 (*)
+│   │   │   │   │   │       └── serde v1.0.203 (*)
+│   │   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   │   ├── derivative v2.2.0 (proc-macro)
+│   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   ├── digest v0.10.7 (*)
+│   │   │   │   │   ├── itertools v0.10.5
+│   │   │   │   │   │   └── either v1.13.0
+│   │   │   │   │   ├── num-bigint v0.4.6 (*)
+│   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   ├── paste v1.0.15 (proc-macro)
+│   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   └── zeroize v1.3.0
+│   │   │   │   │       └── zeroize_derive v1.4.2 (proc-macro)
+│   │   │   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │           ├── quote v1.0.36 (*)
+│   │   │   │   │           └── syn v2.0.68 (*)
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── rustc_version v0.4.0
+│   │   │   │   │       └── semver v1.0.23
+│   │   │   │   ├── ark-poly v0.4.2
+│   │   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   │   ├── derivative v2.2.0 (proc-macro) (*)
+│   │   │   │   │   ├── hashbrown v0.13.2 (*)
+│   │   │   │   │   └── rayon v1.10.0 (*)
+│   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   ├── derivative v2.2.0 (proc-macro) (*)
+│   │   │   │   ├── hashbrown v0.13.2 (*)
+│   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   └── ark-std v0.4.0 (*)
+│   │   ├── ark-ec v0.4.2 (*)
+│   │   ├── ark-ff v0.4.2 (*)
+│   │   ├── ark-serialize v0.4.2 (*)
+│   │   ├── base64 v0.21.7
+│   │   ├── bincode v1.3.3 (*)
+│   │   ├── bitflags v2.6.0
+│   │   │   └── serde v1.0.203 (*)
+│   │   ├── blake3 v1.5.1
+│   │   │   ├── arrayref v0.3.7
+│   │   │   ├── arrayvec v0.7.4
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   ├── constant_time_eq v0.3.0
+│   │   │   └── digest v0.10.7 (*)
+│   │   │   [build-dependencies]
+│   │   │   └── cc v1.0.99
+│   │   │       ├── jobserver v0.1.31
+│   │   │       │   └── libc v0.2.155
+│   │   │       ├── libc v0.2.155
+│   │   │       └── once_cell v1.19.0
+│   │   ├── borsh v0.9.3
+│   │   │   ├── borsh-derive v0.9.3 (proc-macro)
+│   │   │   │   ├── borsh-derive-internal v0.9.3
+│   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   ├── borsh-schema-derive-internal v0.9.3
+│   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   ├── proc-macro-crate v0.1.5 (*)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   └── hashbrown v0.11.2
+│   │   │       └── ahash v0.7.8
+│   │   │           ├── getrandom v0.2.15 (*)
+│   │   │           └── once_cell v1.19.0
+│   │   │           [build-dependencies]
+│   │   │           └── version_check v0.9.4
+│   │   ├── borsh v0.10.3 (*)
+│   │   ├── borsh v1.5.1
+│   │   │   └── borsh-derive v1.5.1 (proc-macro)
+│   │   │       ├── once_cell v1.19.0
+│   │   │       ├── proc-macro-crate v3.1.0
+│   │   │       │   └── toml_edit v0.21.1
+│   │   │       │       ├── indexmap v2.2.6 (*)
+│   │   │       │       ├── toml_datetime v0.6.6 (*)
+│   │   │       │       └── winnow v0.5.40
+│   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │       ├── quote v1.0.36 (*)
+│   │   │       ├── syn v2.0.68 (*)
+│   │   │       └── syn_derive v0.1.8 (proc-macro)
+│   │   │           ├── proc-macro-error v1.0.4
+│   │   │           │   ├── proc-macro-error-attr v1.0.4 (proc-macro)
+│   │   │           │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │           │   │   └── quote v1.0.36 (*)
+│   │   │           │   │   [build-dependencies]
+│   │   │           │   │   └── version_check v0.9.4
+│   │   │           │   ├── proc-macro2 v1.0.86 (*)
+│   │   │           │   ├── quote v1.0.36 (*)
+│   │   │           │   └── syn v1.0.109 (*)
+│   │   │           │   [build-dependencies]
+│   │   │           │   └── version_check v0.9.4
+│   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │           ├── quote v1.0.36 (*)
+│   │   │           └── syn v2.0.68 (*)
+│   │   │   [build-dependencies]
+│   │   │   └── cfg_aliases v0.2.1
+│   │   ├── bs58 v0.4.0
+│   │   ├── bv v0.11.1
+│   │   │   └── serde v1.0.203 (*)
+│   │   │   [build-dependencies]
+│   │   │   └── feature-probe v0.1.1
+│   │   ├── bytemuck v1.16.1 (*)
+│   │   ├── curve25519-dalek v3.2.1
+│   │   │   ├── byteorder v1.5.0
+│   │   │   ├── digest v0.9.0
+│   │   │   │   └── generic-array v0.14.7
+│   │   │   │       ├── serde v1.0.203 (*)
+│   │   │   │       └── typenum v1.17.0
+│   │   │   │       [build-dependencies]
+│   │   │   │       └── version_check v0.9.4
+│   │   │   ├── rand_core v0.5.1
+│   │   │   │   └── getrandom v0.1.16
+│   │   │   │       ├── cfg-if v1.0.0
+│   │   │   │       └── libc v0.2.155
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── subtle v2.4.1
+│   │   │   └── zeroize v1.3.0 (*)
+│   │   ├── itertools v0.10.5 (*)
+│   │   ├── lazy_static v1.5.0
+│   │   ├── libc v0.2.155
+│   │   ├── libsecp256k1 v0.6.0
+│   │   │   ├── arrayref v0.3.7
+│   │   │   ├── base64 v0.12.3
+│   │   │   ├── digest v0.9.0 (*)
+│   │   │   ├── hmac-drbg v0.3.0
+│   │   │   │   ├── digest v0.9.0 (*)
+│   │   │   │   ├── generic-array v0.14.7 (*)
+│   │   │   │   └── hmac v0.8.1
+│   │   │   │       ├── crypto-mac v0.8.0
+│   │   │   │       │   ├── generic-array v0.14.7 (*)
+│   │   │   │       │   └── subtle v2.4.1
+│   │   │   │       └── digest v0.9.0 (*)
+│   │   │   ├── libsecp256k1-core v0.2.2
+│   │   │   │   ├── crunchy v0.2.2
+│   │   │   │   ├── digest v0.9.0 (*)
+│   │   │   │   └── subtle v2.4.1
+│   │   │   ├── rand v0.7.3
+│   │   │   │   ├── getrandom v0.1.16 (*)
+│   │   │   │   ├── libc v0.2.155
+│   │   │   │   ├── rand_chacha v0.2.2
+│   │   │   │   │   ├── ppv-lite86 v0.2.17
+│   │   │   │   │   └── rand_core v0.5.1 (*)
+│   │   │   │   └── rand_core v0.5.1 (*)
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── sha2 v0.9.9
+│   │   │   │   ├── block-buffer v0.9.0
+│   │   │   │   │   ├── block-padding v0.2.1
+│   │   │   │   │   └── generic-array v0.14.7 (*)
+│   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   ├── cpufeatures v0.2.12 (*)
+│   │   │   │   ├── digest v0.9.0 (*)
+│   │   │   │   └── opaque-debug v0.3.1
+│   │   │   └── typenum v1.17.0
+│   │   │   [build-dependencies]
+│   │   │   ├── libsecp256k1-gen-ecmult v0.2.1
+│   │   │   │   └── libsecp256k1-core v0.2.2
+│   │   │   │       ├── crunchy v0.2.2
+│   │   │   │       ├── digest v0.9.0
+│   │   │   │       │   └── generic-array v0.14.7 (*)
+│   │   │   │       └── subtle v2.4.1
+│   │   │   └── libsecp256k1-gen-genmult v0.2.1
+│   │   │       └── libsecp256k1-core v0.2.2 (*)
+│   │   ├── light-poseidon v0.2.0
+│   │   │   ├── ark-bn254 v0.4.0 (*)
+│   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   ├── num-bigint v0.4.6 (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   ├── log v0.4.22
+│   │   ├── memoffset v0.9.1
+│   │   │   [build-dependencies]
+│   │   │   └── autocfg v1.3.0
+│   │   ├── num-bigint v0.4.6 (*)
+│   │   ├── num-derive v0.4.2 (proc-macro)
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   ├── quote v1.0.36 (*)
+│   │   │   └── syn v2.0.68 (*)
+│   │   ├── num-traits v0.2.19 (*)
+│   │   ├── rand v0.8.5 (*)
+│   │   ├── rustversion v1.0.17 (proc-macro)
+│   │   ├── serde v1.0.203 (*)
+│   │   ├── serde_bytes v0.11.15
+│   │   │   └── serde v1.0.203 (*)
+│   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   ├── serde_json v1.0.118 (*)
+│   │   ├── sha2 v0.10.8 (*)
+│   │   ├── sha3 v0.10.8
+│   │   │   ├── digest v0.10.7 (*)
+│   │   │   └── keccak v0.1.5
+│   │   │       └── cpufeatures v0.2.12 (*)
+│   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   ├── block-buffer v0.10.4 (*)
+│   │   │   ├── bs58 v0.4.0
+│   │   │   ├── bv v0.11.1 (*)
+│   │   │   ├── either v1.13.0
+│   │   │   ├── generic-array v0.14.7 (*)
+│   │   │   ├── im v15.1.0
+│   │   │   │   ├── bitmaps v2.1.0
+│   │   │   │   │   └── typenum v1.17.0
+│   │   │   │   ├── rand_core v0.6.4 (*)
+│   │   │   │   ├── rand_xoshiro v0.6.0
+│   │   │   │   │   └── rand_core v0.6.4 (*)
+│   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   ├── sized-chunks v0.6.5
+│   │   │   │   │   ├── bitmaps v2.1.0 (*)
+│   │   │   │   │   └── typenum v1.17.0
+│   │   │   │   └── typenum v1.17.0
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── version_check v0.9.4
+│   │   │   ├── lazy_static v1.5.0
+│   │   │   ├── log v0.4.22
+│   │   │   ├── memmap2 v0.5.10
+│   │   │   │   └── libc v0.2.155
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── serde_bytes v0.11.15 (*)
+│   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   ├── sha2 v0.10.8 (*)
+│   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v2.0.68 (*)
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   ├── subtle v2.4.1
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   │   [build-dependencies]
+│   │   │   └── rustc_version v0.4.0 (*)
+│   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   ├── solana-sdk-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   ├── bs58 v0.4.0
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   ├── quote v1.0.36 (*)
+│   │   │   ├── rustversion v1.0.17 (proc-macro)
+│   │   │   └── syn v2.0.68 (*)
+│   │   ├── thiserror v1.0.61 (*)
+│   │   ├── tiny-bip39 v0.8.2
+│   │   │   ├── anyhow v1.0.86
+│   │   │   ├── hmac v0.8.1 (*)
+│   │   │   ├── once_cell v1.19.0
+│   │   │   ├── pbkdf2 v0.4.0
+│   │   │   │   └── crypto-mac v0.8.0 (*)
+│   │   │   ├── rand v0.7.3 (*)
+│   │   │   ├── rustc-hash v1.1.0
+│   │   │   ├── sha2 v0.9.9 (*)
+│   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   ├── unicode-normalization v0.1.23
+│   │   │   │   └── tinyvec v1.6.1
+│   │   │   │       └── tinyvec_macros v0.1.1
+│   │   │   └── zeroize v1.3.0 (*)
+│   │   ├── wasm-bindgen v0.2.92
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   └── wasm-bindgen-macro v0.2.92 (proc-macro)
+│   │   │       ├── quote v1.0.36 (*)
+│   │   │       └── wasm-bindgen-macro-support v0.2.92
+│   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │           ├── quote v1.0.36 (*)
+│   │   │           ├── syn v2.0.68 (*)
+│   │   │           ├── wasm-bindgen-backend v0.2.92
+│   │   │           │   ├── bumpalo v3.16.0
+│   │   │           │   ├── log v0.4.22
+│   │   │           │   ├── once_cell v1.19.0
+│   │   │           │   ├── proc-macro2 v1.0.86 (*)
+│   │   │           │   ├── quote v1.0.36 (*)
+│   │   │           │   ├── syn v2.0.68 (*)
+│   │   │           │   └── wasm-bindgen-shared v0.2.92
+│   │   │           └── wasm-bindgen-shared v0.2.92
+│   │   └── zeroize v1.3.0 (*)
+│   │   [build-dependencies]
+│   │   ├── cc v1.0.99 (*)
+│   │   └── rustc_version v0.4.0 (*)
+│   └── thiserror v1.0.61 (*)
+├── bytemuck v1.16.1 (*)
+├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec)
+│   ├── bytemuck v1.16.1 (*)
+│   ├── memoffset v0.9.1 (*)
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   └── thiserror v1.0.61 (*)
+│   [dev-dependencies]
+│   └── rand v0.8.5 (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent)
+│   ├── borsh v0.10.3 (*)
+│   ├── bytemuck v1.16.1 (*)
+│   ├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+│   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher)
+│   │   ├── ark-bn254 v0.4.0 (*)
+│   │   ├── light-poseidon v0.2.0 (*)
+│   │   ├── sha2 v0.10.8 (*)
+│   │   ├── sha3 v0.10.8 (*)
+│   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── thiserror v1.0.61 (*)
+│   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils)
+│   │   ├── anyhow v1.0.86
+│   │   ├── ark-bn254 v0.4.0 (*)
+│   │   ├── ark-ff v0.4.2 (*)
+│   │   ├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+│   │   ├── num-bigint v0.4.6 (*)
+│   │   ├── rand v0.8.5 (*)
+│   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── thiserror v1.0.61 (*)
+│   │   [dev-dependencies]
+│   │   ├── bytemuck v1.16.1 (*)
+│   │   └── memoffset v0.9.1 (*)
+│   ├── memoffset v0.8.0
+│   │   [build-dependencies]
+│   │   └── autocfg v1.3.0
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   └── thiserror v1.0.61 (*)
+│   [dev-dependencies]
+│   ├── ark-bn254 v0.4.0 (*)
+│   ├── ark-ff v0.4.2 (*)
+│   ├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set)
+│   │   ├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+│   │   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   │   ├── memoffset v0.9.1 (*)
+│   │   ├── num-bigint v0.4.6 (*)
+│   │   ├── num-traits v0.2.19 (*)
+│   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── thiserror v1.0.61 (*)
+│   │   [dev-dependencies]
+│   │   ├── ark-bn254 v0.4.0 (*)
+│   │   ├── ark-ff v0.4.2 (*)
+│   │   └── rand v0.8.5 (*)
+│   ├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference)
+│   │   ├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+│   │   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   │   └── thiserror v1.0.61 (*)
+│   ├── num-bigint v0.4.6 (*)
+│   ├── num-traits v0.2.19 (*)
+│   ├── rand v0.8.5 (*)
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── spl-account-compression v0.3.0
+│   │   ├── anchor-lang v0.29.0
+│   │   │   ├── anchor-attribute-access-control v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0
+│   │   │   │   │   ├── anyhow v1.0.86
+│   │   │   │   │   ├── bs58 v0.5.1
+│   │   │   │   │   ├── heck v0.3.3 (*)
+│   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   ├── sha2 v0.10.8 (*)
+│   │   │   │   │   ├── syn v1.0.109 (*)
+│   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-attribute-account v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── bs58 v0.5.1
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-attribute-constant v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-attribute-error v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-attribute-event v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-attribute-program v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-derive-accounts v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-derive-serde v0.29.0 (proc-macro)
+│   │   │   │   ├── anchor-syn v0.29.0 (*)
+│   │   │   │   ├── borsh-derive-internal v0.10.3 (*)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── anchor-derive-space v0.29.0 (proc-macro)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── arrayref v0.3.7
+│   │   │   ├── base64 v0.13.1
+│   │   │   ├── bincode v1.3.3 (*)
+│   │   │   ├── borsh v0.10.3 (*)
+│   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   ├── getrandom v0.2.15 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   ├── bytemuck v1.16.1 (*)
+│   │   ├── spl-concurrent-merkle-tree v0.2.0
+│   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   └── spl-noop v0.2.0
+│   │       └── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── spl-concurrent-merkle-tree v0.2.0 (*)
+│   └── tokio v1.38.0
+│       ├── bytes v1.6.0
+│       ├── libc v0.2.155
+│       ├── mio v0.8.11
+│       │   └── libc v0.2.155
+│       ├── num_cpus v1.16.0
+│       │   └── libc v0.2.155
+│       ├── parking_lot v0.12.3
+│       │   ├── lock_api v0.4.12
+│       │   │   └── scopeguard v1.2.0
+│       │   │   [build-dependencies]
+│       │   │   └── autocfg v1.3.0
+│       │   └── parking_lot_core v0.9.10
+│       │       ├── cfg-if v1.0.0
+│       │       ├── libc v0.2.155
+│       │       └── smallvec v1.13.2
+│       ├── pin-project-lite v0.2.14
+│       ├── signal-hook-registry v1.4.2
+│       │   └── libc v0.2.155
+│       ├── socket2 v0.5.7
+│       │   └── libc v0.2.155
+│       └── tokio-macros v2.3.0 (proc-macro)
+│           ├── proc-macro2 v1.0.86 (*)
+│           ├── quote v1.0.36 (*)
+│           └── syn v2.0.68 (*)
+├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap)
+│   └── anchor-lang v0.30.1 (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed)
+│   ├── borsh v0.10.3 (*)
+│   ├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+│   ├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+│   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   ├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+│   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   ├── memoffset v0.9.1 (*)
+│   ├── num-bigint v0.4.6 (*)
+│   ├── num-traits v0.2.19 (*)
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   └── thiserror v1.0.61 (*)
+│   [dev-dependencies]
+│   ├── rand v0.8.5 (*)
+│   └── thiserror v1.0.61 (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   ├── assert_matches v1.5.0
+│   ├── base64 v0.21.7
+│   ├── bincode v1.3.3 (*)
+│   ├── bitflags v2.6.0 (*)
+│   ├── borsh v1.5.1 (*)
+│   ├── bs58 v0.4.0
+│   ├── bytemuck v1.16.1 (*)
+│   ├── byteorder v1.5.0
+│   ├── chrono v0.4.38
+│   │   ├── iana-time-zone v0.1.60
+│   │   │   └── core-foundation-sys v0.8.6
+│   │   ├── num-traits v0.2.19 (*)
+│   │   └── serde v1.0.203 (*)
+│   ├── derivation-path v0.2.0
+│   ├── digest v0.10.7 (*)
+│   ├── ed25519-dalek v1.0.1
+│   │   ├── curve25519-dalek v3.2.1 (*)
+│   │   ├── ed25519 v1.5.3
+│   │   │   └── signature v1.6.4
+│   │   ├── rand v0.7.3 (*)
+│   │   ├── serde v1.0.203 (*)
+│   │   ├── sha2 v0.9.9 (*)
+│   │   └── zeroize v1.3.0 (*)
+│   ├── ed25519-dalek-bip32 v0.2.0
+│   │   ├── derivation-path v0.2.0
+│   │   ├── ed25519-dalek v1.0.1 (*)
+│   │   ├── hmac v0.12.1
+│   │   │   └── digest v0.10.7 (*)
+│   │   └── sha2 v0.10.8 (*)
+│   ├── generic-array v0.14.7 (*)
+│   ├── hmac v0.12.1 (*)
+│   ├── itertools v0.10.5 (*)
+│   ├── lazy_static v1.5.0
+│   ├── libsecp256k1 v0.6.0 (*)
+│   ├── log v0.4.22
+│   ├── memmap2 v0.5.10 (*)
+│   ├── num-derive v0.4.2 (proc-macro) (*)
+│   ├── num-traits v0.2.19 (*)
+│   ├── num_enum v0.7.2
+│   │   └── num_enum_derive v0.7.2 (proc-macro)
+│   │       ├── proc-macro-crate v3.1.0 (*)
+│   │       ├── proc-macro2 v1.0.86 (*)
+│   │       ├── quote v1.0.36 (*)
+│   │       └── syn v2.0.68 (*)
+│   ├── pbkdf2 v0.11.0
+│   │   └── digest v0.10.7 (*)
+│   ├── qstring v0.7.2
+│   │   └── percent-encoding v2.3.1
+│   ├── qualifier_attr v0.2.2 (proc-macro)
+│   │   ├── proc-macro2 v1.0.86 (*)
+│   │   ├── quote v1.0.36 (*)
+│   │   └── syn v2.0.68 (*)
+│   ├── rand v0.7.3 (*)
+│   ├── rand v0.8.5 (*)
+│   ├── rustversion v1.0.17 (proc-macro)
+│   ├── serde v1.0.203 (*)
+│   ├── serde_bytes v0.11.15 (*)
+│   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   ├── serde_json v1.0.118 (*)
+│   ├── serde_with v2.3.3
+│   │   ├── serde v1.0.203 (*)
+│   │   └── serde_with_macros v2.3.3 (proc-macro)
+│   │       ├── darling v0.20.9
+│   │       │   ├── darling_core v0.20.9
+│   │       │   │   ├── fnv v1.0.7
+│   │       │   │   ├── ident_case v1.0.1
+│   │       │   │   ├── proc-macro2 v1.0.86 (*)
+│   │       │   │   ├── quote v1.0.36 (*)
+│   │       │   │   ├── strsim v0.11.1
+│   │       │   │   └── syn v2.0.68 (*)
+│   │       │   └── darling_macro v0.20.9 (proc-macro)
+│   │       │       ├── darling_core v0.20.9 (*)
+│   │       │       ├── quote v1.0.36 (*)
+│   │       │       └── syn v2.0.68 (*)
+│   │       ├── proc-macro2 v1.0.86 (*)
+│   │       ├── quote v1.0.36 (*)
+│   │       └── syn v2.0.68 (*)
+│   ├── sha2 v0.10.8 (*)
+│   ├── sha3 v0.10.8 (*)
+│   ├── siphasher v0.3.11
+│   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-logger v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   ├── env_logger v0.9.3
+│   │   │   ├── atty v0.2.14
+│   │   │   │   └── libc v0.2.155
+│   │   │   ├── humantime v2.1.0
+│   │   │   ├── log v0.4.22
+│   │   │   ├── regex v1.10.5 (*)
+│   │   │   └── termcolor v1.4.1
+│   │   ├── lazy_static v1.5.0
+│   │   └── log v0.4.22
+│   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-sdk-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── thiserror v1.0.61 (*)
+│   ├── uriparse v0.6.4
+│   │   ├── fnv v1.0.7
+│   │   └── lazy_static v1.5.0
+│   └── wasm-bindgen v0.2.92 (*)
+│   [build-dependencies]
+│   └── rustc_version v0.4.0 (*)
+└── solana-security-txt v1.1.1
+
+account-compression-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/account-compression-test)
+[dev-dependencies]
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── anchor-spl v0.30.1
+│   ├── anchor-lang v0.30.1 (*)
+│   ├── spl-associated-token-account v3.0.2
+│   │   ├── assert_matches v1.5.0
+│   │   ├── borsh v1.5.1 (*)
+│   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   ├── num-traits v0.2.19 (*)
+│   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   ├── spl-token v4.0.0
+│   │   │   ├── arrayref v0.3.7
+│   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   ├── num-derive v0.3.3 (proc-macro)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v1.0.109 (*)
+│   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   ├── num_enum v0.6.1
+│   │   │   │   └── num_enum_derive v0.6.1 (proc-macro)
+│   │   │   │       ├── proc-macro-crate v1.3.1
+│   │   │   │       │   ├── once_cell v1.19.0
+│   │   │   │       │   └── toml_edit v0.19.15
+│   │   │   │       │       ├── indexmap v2.2.6 (*)
+│   │   │   │       │       ├── toml_datetime v0.6.6 (*)
+│   │   │   │       │       └── winnow v0.5.40
+│   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │       └── syn v2.0.68 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   ├── spl-token-2022 v3.0.2
+│   │   │   ├── arrayref v0.3.7
+│   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   ├── num_enum v0.7.2 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-security-txt v1.1.1
+│   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   ├── aes-gcm-siv v0.10.3
+│   │   │   │   │   ├── aead v0.4.3
+│   │   │   │   │   │   └── generic-array v0.14.7 (*)
+│   │   │   │   │   ├── aes v0.7.5
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   ├── cipher v0.3.0
+│   │   │   │   │   │   │   └── generic-array v0.14.7 (*)
+│   │   │   │   │   │   ├── cpufeatures v0.2.12 (*)
+│   │   │   │   │   │   └── opaque-debug v0.3.1
+│   │   │   │   │   ├── cipher v0.3.0 (*)
+│   │   │   │   │   ├── ctr v0.8.0
+│   │   │   │   │   │   └── cipher v0.3.0 (*)
+│   │   │   │   │   ├── polyval v0.5.3
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   ├── cpufeatures v0.2.12 (*)
+│   │   │   │   │   │   ├── opaque-debug v0.3.1
+│   │   │   │   │   │   └── universal-hash v0.4.1
+│   │   │   │   │   │       ├── generic-array v0.14.7 (*)
+│   │   │   │   │   │       └── subtle v2.4.1
+│   │   │   │   │   ├── subtle v2.4.1
+│   │   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   │   ├── base64 v0.21.7
+│   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   ├── curve25519-dalek v3.2.1 (*)
+│   │   │   │   ├── getrandom v0.1.16 (*)
+│   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   ├── merlin v3.0.0
+│   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   ├── keccak v0.1.5 (*)
+│   │   │   │   │   ├── rand_core v0.6.4 (*)
+│   │   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   ├── rand v0.7.3 (*)
+│   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   ├── sha3 v0.9.1
+│   │   │   │   │   ├── block-buffer v0.9.0 (*)
+│   │   │   │   │   ├── digest v0.9.0 (*)
+│   │   │   │   │   ├── keccak v0.1.5 (*)
+│   │   │   │   │   └── opaque-debug v0.3.1
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── subtle v2.4.1
+│   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   ├── spl-memo v4.0.0
+│   │   │   │   └── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── spl-pod v0.2.2
+│   │   │   │   ├── borsh v1.5.1 (*)
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   └── spl-program-error v0.4.1
+│   │   │   │       ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │       ├── num-traits v0.2.19 (*)
+│   │   │   │       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │       ├── spl-program-error-derive v0.4.1 (proc-macro)
+│   │   │   │       │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │       │   ├── quote v1.0.36 (*)
+│   │   │   │       │   ├── sha2 v0.10.8 (*)
+│   │   │   │       │   └── syn v2.0.68 (*)
+│   │   │   │       └── thiserror v1.0.61 (*)
+│   │   │   ├── spl-token v4.0.0 (*)
+│   │   │   ├── spl-token-group-interface v0.2.3
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── spl-discriminator v0.2.2
+│   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── spl-discriminator-derive v0.2.0 (proc-macro)
+│   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │       ├── spl-discriminator-syn v0.2.0
+│   │   │   │   │       │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       │   ├── quote v1.0.36 (*)
+│   │   │   │   │       │   ├── sha2 v0.10.8 (*)
+│   │   │   │   │       │   ├── syn v2.0.68 (*)
+│   │   │   │   │       │   └── thiserror v1.0.61 (*)
+│   │   │   │   │       └── syn v2.0.68 (*)
+│   │   │   │   ├── spl-pod v0.2.2 (*)
+│   │   │   │   └── spl-program-error v0.4.1 (*)
+│   │   │   ├── spl-token-metadata-interface v0.3.3
+│   │   │   │   ├── borsh v1.5.1 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── spl-discriminator v0.2.2 (*)
+│   │   │   │   ├── spl-pod v0.2.2 (*)
+│   │   │   │   ├── spl-program-error v0.4.1 (*)
+│   │   │   │   └── spl-type-length-value v0.4.3
+│   │   │   │       ├── bytemuck v1.16.1 (*)
+│   │   │   │       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │       ├── spl-discriminator v0.2.2 (*)
+│   │   │   │       ├── spl-pod v0.2.2 (*)
+│   │   │   │       └── spl-program-error v0.4.1 (*)
+│   │   │   ├── spl-transfer-hook-interface v0.6.3
+│   │   │   │   ├── arrayref v0.3.7
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── spl-discriminator v0.2.2 (*)
+│   │   │   │   ├── spl-pod v0.2.2 (*)
+│   │   │   │   ├── spl-program-error v0.4.1 (*)
+│   │   │   │   ├── spl-tlv-account-resolution v0.6.3
+│   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── spl-discriminator v0.2.2 (*)
+│   │   │   │   │   ├── spl-pod v0.2.2 (*)
+│   │   │   │   │   ├── spl-program-error v0.4.1 (*)
+│   │   │   │   │   └── spl-type-length-value v0.4.3 (*)
+│   │   │   │   └── spl-type-length-value v0.4.3 (*)
+│   │   │   ├── spl-type-length-value v0.4.3 (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   └── thiserror v1.0.61 (*)
+│   ├── spl-pod v0.2.2 (*)
+│   ├── spl-token v4.0.0 (*)
+│   ├── spl-token-2022 v3.0.2 (*)
+│   ├── spl-token-group-interface v0.2.3 (*)
+│   └── spl-token-metadata-interface v0.3.3 (*)
+├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token)
+│   ├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+│   ├── aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized) (*)
+│   ├── anchor-lang v0.30.1 (*)
+│   ├── anchor-spl v0.30.1 (*)
+│   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   ├── light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap) (*)
+│   ├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system)
+│   │   ├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+│   │   ├── aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized) (*)
+│   │   ├── anchor-lang v0.30.1 (*)
+│   │   ├── groth16-solana v0.0.3
+│   │   │   ├── ark-bn254 v0.4.0 (*)
+│   │   │   ├── ark-ec v0.4.2 (*)
+│   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   ├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+│   │   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   │   ├── light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap) (*)
+│   │   ├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+│   │   ├── light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light)
+│   │   │   ├── bs58 v0.4.0
+│   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   ├── quote v1.0.36 (*)
+│   │   │   └── syn v1.0.109 (*)
+│   │   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   │   ├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier)
+│   │   │   ├── borsh v0.10.3 (*)
+│   │   │   ├── groth16-solana v0.0.3 (*)
+│   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   └── thiserror v1.0.61 (*)
+│   │   │   [dev-dependencies]
+│   │   │   ├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client)
+│   │   │   │   ├── ark-bn254 v0.4.0 (*)
+│   │   │   │   ├── ark-crypto-primitives v0.4.0
+│   │   │   │   │   ├── ark-ec v0.4.2 (*)
+│   │   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   │   ├── ark-relations v0.4.0
+│   │   │   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   │   │   ├── tracing v0.1.40
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   │   ├── tracing-attributes v0.1.27 (proc-macro)
+│   │   │   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │   └── syn v2.0.68 (*)
+│   │   │   │   │   │   │   └── tracing-core v0.1.32
+│   │   │   │   │   │   │       └── once_cell v1.19.0
+│   │   │   │   │   │   └── tracing-subscriber v0.2.25
+│   │   │   │   │   │       └── tracing-core v0.1.32 (*)
+│   │   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   │   ├── ark-snark v0.4.0
+│   │   │   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   │   │   ├── ark-relations v0.4.0 (*)
+│   │   │   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   │   │   └── ark-std v0.4.0 (*)
+│   │   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   │   ├── blake2 v0.10.6
+│   │   │   │   │   │   └── digest v0.10.7 (*)
+│   │   │   │   │   ├── derivative v2.2.0 (proc-macro) (*)
+│   │   │   │   │   ├── digest v0.10.7 (*)
+│   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   └── sha2 v0.10.8 (*)
+│   │   │   │   ├── ark-ec v0.4.2 (*)
+│   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   ├── ark-groth16 v0.4.0
+│   │   │   │   │   ├── ark-crypto-primitives v0.4.0 (*)
+│   │   │   │   │   ├── ark-ec v0.4.2 (*)
+│   │   │   │   │   ├── ark-ff v0.4.2 (*)
+│   │   │   │   │   ├── ark-poly v0.4.2 (*)
+│   │   │   │   │   ├── ark-relations v0.4.0 (*)
+│   │   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   │   └── rayon v1.10.0 (*)
+│   │   │   │   ├── ark-relations v0.4.0 (*)
+│   │   │   │   ├── ark-serialize v0.4.2 (*)
+│   │   │   │   ├── ark-std v0.4.0 (*)
+│   │   │   │   ├── borsh v0.10.3 (*)
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── color-eyre v0.6.2
+│   │   │   │   │   ├── backtrace v0.3.71
+│   │   │   │   │   │   ├── addr2line v0.21.0
+│   │   │   │   │   │   │   └── gimli v0.28.1
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   ├── miniz_oxide v0.7.4
+│   │   │   │   │   │   │   └── adler v1.0.2
+│   │   │   │   │   │   ├── object v0.32.2
+│   │   │   │   │   │   │   └── memchr v2.7.4
+│   │   │   │   │   │   └── rustc-demangle v0.1.24
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── cc v1.0.99 (*)
+│   │   │   │   │   ├── color-spantrace v0.2.1
+│   │   │   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   │   │   ├── owo-colors v3.5.0
+│   │   │   │   │   │   ├── tracing-core v0.1.32 (*)
+│   │   │   │   │   │   └── tracing-error v0.2.0
+│   │   │   │   │   │       ├── tracing v0.1.40 (*)
+│   │   │   │   │   │       └── tracing-subscriber v0.3.18
+│   │   │   │   │   │           ├── sharded-slab v0.1.7
+│   │   │   │   │   │           │   └── lazy_static v1.5.0
+│   │   │   │   │   │           ├── thread_local v1.1.8
+│   │   │   │   │   │           │   ├── cfg-if v1.0.0
+│   │   │   │   │   │           │   └── once_cell v1.19.0
+│   │   │   │   │   │           └── tracing-core v0.1.32 (*)
+│   │   │   │   │   ├── eyre v0.6.12
+│   │   │   │   │   │   ├── indenter v0.3.3
+│   │   │   │   │   │   └── once_cell v1.19.0
+│   │   │   │   │   ├── indenter v0.3.3
+│   │   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   │   ├── owo-colors v3.5.0
+│   │   │   │   │   └── tracing-error v0.2.0 (*)
+│   │   │   │   ├── env_logger v0.10.2
+│   │   │   │   │   ├── humantime v2.1.0
+│   │   │   │   │   ├── is-terminal v0.4.12
+│   │   │   │   │   │   └── libc v0.2.155
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── regex v1.10.5 (*)
+│   │   │   │   │   └── termcolor v1.4.1
+│   │   │   │   ├── groth16-solana v0.0.3 (*)
+│   │   │   │   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   │   │   │   ├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+│   │   │   │   ├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+│   │   │   │   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   │   │   │   ├── log v0.4.22
+│   │   │   │   ├── num-bigint v0.4.6 (*)
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   ├── reqwest v0.11.27
+│   │   │   │   │   ├── async-compression v0.4.11
+│   │   │   │   │   │   ├── brotli v6.0.0
+│   │   │   │   │   │   │   ├── alloc-no-stdlib v2.0.4
+│   │   │   │   │   │   │   ├── alloc-stdlib v0.2.2
+│   │   │   │   │   │   │   │   └── alloc-no-stdlib v2.0.4
+│   │   │   │   │   │   │   └── brotli-decompressor v4.0.1
+│   │   │   │   │   │   │       ├── alloc-no-stdlib v2.0.4
+│   │   │   │   │   │   │       └── alloc-stdlib v0.2.2 (*)
+│   │   │   │   │   │   ├── flate2 v1.0.30
+│   │   │   │   │   │   │   ├── crc32fast v1.4.2
+│   │   │   │   │   │   │   │   └── cfg-if v1.0.0
+│   │   │   │   │   │   │   └── miniz_oxide v0.7.4 (*)
+│   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   ├── memchr v2.7.4
+│   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   ├── encoding_rs v0.8.34
+│   │   │   │   │   │   └── cfg-if v1.0.0
+│   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   ├── futures-util v0.3.30
+│   │   │   │   │   │   ├── futures-channel v0.3.30
+│   │   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   │   └── futures-sink v0.3.30
+│   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   ├── futures-io v0.3.30
+│   │   │   │   │   │   ├── futures-macro v0.3.30 (proc-macro)
+│   │   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   └── syn v2.0.68 (*)
+│   │   │   │   │   │   ├── futures-sink v0.3.30
+│   │   │   │   │   │   ├── futures-task v0.3.30
+│   │   │   │   │   │   ├── memchr v2.7.4
+│   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   ├── pin-utils v0.1.0
+│   │   │   │   │   │   └── slab v0.4.9
+│   │   │   │   │   │       [build-dependencies]
+│   │   │   │   │   │       └── autocfg v1.3.0
+│   │   │   │   │   ├── h2 v0.3.26
+│   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   ├── fnv v1.0.7
+│   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   ├── futures-sink v0.3.30
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── http v0.2.12
+│   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   ├── fnv v1.0.7
+│   │   │   │   │   │   │   └── itoa v1.0.11
+│   │   │   │   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   │   │   │   ├── slab v0.4.9 (*)
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   ├── tokio-util v0.7.11
+│   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   │   ├── futures-sink v0.3.30
+│   │   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   │   └── tracing v0.1.40 (*)
+│   │   │   │   │   ├── http v0.2.12 (*)
+│   │   │   │   │   ├── http-body v0.4.6
+│   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   ├── http v0.2.12 (*)
+│   │   │   │   │   │   └── pin-project-lite v0.2.14
+│   │   │   │   │   ├── hyper v0.14.29
+│   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   ├── futures-channel v0.3.30 (*)
+│   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── h2 v0.3.26 (*)
+│   │   │   │   │   │   ├── http v0.2.12 (*)
+│   │   │   │   │   │   ├── http-body v0.4.6 (*)
+│   │   │   │   │   │   ├── httparse v1.9.4
+│   │   │   │   │   │   ├── httpdate v1.0.3
+│   │   │   │   │   │   ├── itoa v1.0.11
+│   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   ├── socket2 v0.5.7 (*)
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   ├── tower-service v0.3.2
+│   │   │   │   │   │   ├── tracing v0.1.40 (*)
+│   │   │   │   │   │   └── want v0.3.1
+│   │   │   │   │   │       └── try-lock v0.2.5
+│   │   │   │   │   ├── hyper-rustls v0.24.2
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── http v0.2.12 (*)
+│   │   │   │   │   │   ├── hyper v0.14.29 (*)
+│   │   │   │   │   │   ├── rustls v0.21.12
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── ring v0.17.8
+│   │   │   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   │   │   ├── getrandom v0.2.15 (*)
+│   │   │   │   │   │   │   │   ├── spin v0.9.8
+│   │   │   │   │   │   │   │   └── untrusted v0.9.0
+│   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   └── cc v1.0.99 (*)
+│   │   │   │   │   │   │   ├── rustls-webpki v0.101.7
+│   │   │   │   │   │   │   │   ├── ring v0.17.8 (*)
+│   │   │   │   │   │   │   │   └── untrusted v0.9.0
+│   │   │   │   │   │   │   └── sct v0.7.1
+│   │   │   │   │   │   │       ├── ring v0.17.8 (*)
+│   │   │   │   │   │   │       └── untrusted v0.9.0
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   └── tokio-rustls v0.24.1
+│   │   │   │   │   │       ├── rustls v0.21.12 (*)
+│   │   │   │   │   │       └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── hyper-tls v0.5.0
+│   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   ├── hyper v0.14.29 (*)
+│   │   │   │   │   │   ├── native-tls v0.2.12
+│   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   ├── security-framework v2.11.0
+│   │   │   │   │   │   │   │   ├── bitflags v2.6.0 (*)
+│   │   │   │   │   │   │   │   ├── core-foundation v0.9.4
+│   │   │   │   │   │   │   │   │   ├── core-foundation-sys v0.8.6
+│   │   │   │   │   │   │   │   │   └── libc v0.2.155
+│   │   │   │   │   │   │   │   ├── core-foundation-sys v0.8.6
+│   │   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   │   └── security-framework-sys v2.11.0
+│   │   │   │   │   │   │   │       ├── core-foundation-sys v0.8.6
+│   │   │   │   │   │   │   │       └── libc v0.2.155
+│   │   │   │   │   │   │   ├── security-framework-sys v2.11.0 (*)
+│   │   │   │   │   │   │   └── tempfile v3.10.1
+│   │   │   │   │   │   │       ├── cfg-if v1.0.0
+│   │   │   │   │   │   │       ├── fastrand v2.1.0
+│   │   │   │   │   │   │       └── rustix v0.38.34
+│   │   │   │   │   │   │           ├── bitflags v2.6.0 (*)
+│   │   │   │   │   │   │           ├── errno v0.3.9
+│   │   │   │   │   │   │           │   └── libc v0.2.155
+│   │   │   │   │   │   │           └── libc v0.2.155
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   └── tokio-native-tls v0.3.1
+│   │   │   │   │   │       ├── native-tls v0.2.12 (*)
+│   │   │   │   │   │       └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── ipnet v2.9.0
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── mime v0.3.17
+│   │   │   │   │   ├── mime_guess v2.0.4
+│   │   │   │   │   │   ├── mime v0.3.17
+│   │   │   │   │   │   └── unicase v2.7.0
+│   │   │   │   │   │       [build-dependencies]
+│   │   │   │   │   │       └── version_check v0.9.4
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── unicase v2.7.0 (*)
+│   │   │   │   │   ├── native-tls v0.2.12 (*)
+│   │   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   │   ├── percent-encoding v2.3.1
+│   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   ├── rustls-pemfile v1.0.4
+│   │   │   │   │   │   └── base64 v0.21.7
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   ├── serde_urlencoded v0.7.1
+│   │   │   │   │   │   ├── form_urlencoded v1.2.1
+│   │   │   │   │   │   │   └── percent-encoding v2.3.1
+│   │   │   │   │   │   ├── itoa v1.0.11
+│   │   │   │   │   │   ├── ryu v1.0.18
+│   │   │   │   │   │   └── serde v1.0.203 (*)
+│   │   │   │   │   ├── sync_wrapper v0.1.2
+│   │   │   │   │   ├── system-configuration v0.5.1
+│   │   │   │   │   │   ├── bitflags v1.3.2
+│   │   │   │   │   │   ├── core-foundation v0.9.4 (*)
+│   │   │   │   │   │   └── system-configuration-sys v0.5.0
+│   │   │   │   │   │       ├── core-foundation-sys v0.8.6
+│   │   │   │   │   │       └── libc v0.2.155
+│   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   ├── tokio-native-tls v0.3.1 (*)
+│   │   │   │   │   ├── tokio-rustls v0.24.1 (*)
+│   │   │   │   │   ├── tokio-util v0.7.11 (*)
+│   │   │   │   │   ├── tower-service v0.3.2
+│   │   │   │   │   ├── url v2.5.2
+│   │   │   │   │   │   ├── form_urlencoded v1.2.1 (*)
+│   │   │   │   │   │   ├── idna v0.5.0
+│   │   │   │   │   │   │   ├── unicode-bidi v0.3.15
+│   │   │   │   │   │   │   └── unicode-normalization v0.1.23 (*)
+│   │   │   │   │   │   └── percent-encoding v2.3.1
+│   │   │   │   │   └── webpki-roots v0.25.4
+│   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── sysinfo v0.30.12
+│   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   ├── core-foundation-sys v0.8.6
+│   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   └── rayon v1.10.0 (*)
+│   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   │   [dev-dependencies]
+│   │   │   │   └── duct v0.13.7
+│   │   │   │       ├── libc v0.2.155
+│   │   │   │       ├── once_cell v1.19.0
+│   │   │   │       ├── os_pipe v1.2.0
+│   │   │   │       │   └── libc v0.2.155
+│   │   │   │       └── shared_child v1.0.0
+│   │   │   │           └── libc v0.2.155
+│   │   │   ├── reqwest v0.11.27 (*)
+│   │   │   └── tokio v1.38.0 (*)
+│   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── solana-security-txt v1.1.1
+│   │   [dev-dependencies]
+│   │   └── rand v0.8.5 (*)
+│   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-security-txt v1.1.1
+│   └── spl-token v3.5.0
+│       ├── arrayref v0.3.7
+│       ├── bytemuck v1.16.1 (*)
+│       ├── num-derive v0.3.3 (proc-macro) (*)
+│       ├── num-traits v0.2.19 (*)
+│       ├── num_enum v0.5.11
+│       │   └── num_enum_derive v0.5.11 (proc-macro)
+│       │       ├── proc-macro-crate v1.3.1 (*)
+│       │       ├── proc-macro2 v1.0.86 (*)
+│       │       ├── quote v1.0.36 (*)
+│       │       └── syn v1.0.109 (*)
+│       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│       └── thiserror v1.0.61 (*)
+│   [dev-dependencies]
+│   └── rand v0.8.5 (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils)
+│   ├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+│   ├── anchor-lang v0.30.1 (*)
+│   ├── anchor-spl v0.30.1 (*)
+│   ├── anyhow v1.0.86
+│   ├── ark-ff v0.4.2 (*)
+│   ├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+│   ├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+│   ├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+│   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   ├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+│   ├── light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light) (*)
+│   ├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+│   ├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+│   ├── light-registry v0.4.1 (/Users/tsv/Developer/light-protocol/programs/registry)
+│   │   ├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+│   │   ├── aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized) (*)
+│   │   ├── anchor-lang v0.30.1 (*)
+│   │   ├── bytemuck v1.16.1 (*)
+│   │   ├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+│   │   ├── light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap) (*)
+│   │   ├── light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light) (*)
+│   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   [dev-dependencies]
+│   │   ├── light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light) (*)
+│   │   ├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   ├── assert_matches v1.5.0
+│   │   │   ├── async-trait v0.1.80 (proc-macro)
+│   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   └── syn v2.0.68 (*)
+│   │   │   ├── base64 v0.21.7
+│   │   │   ├── bincode v1.3.3 (*)
+│   │   │   ├── chrono-humanize v0.2.3
+│   │   │   │   └── chrono v0.4.38 (*)
+│   │   │   ├── crossbeam-channel v0.5.13
+│   │   │   │   └── crossbeam-utils v0.8.20
+│   │   │   ├── log v0.4.22
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   ├── solana-accounts-db v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   ├── arrayref v0.3.7
+│   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   ├── blake3 v1.5.1 (*)
+│   │   │   │   ├── bv v0.11.1 (*)
+│   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   ├── bzip2 v0.4.4
+│   │   │   │   │   ├── bzip2-sys v0.1.11+1.0.8
+│   │   │   │   │   │   └── libc v0.2.155
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   ├── cc v1.0.99 (*)
+│   │   │   │   │   │   └── pkg-config v0.3.30
+│   │   │   │   │   └── libc v0.2.155
+│   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   ├── dashmap v5.5.3
+│   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   ├── hashbrown v0.14.5
+│   │   │   │   │   ├── lock_api v0.4.12 (*)
+│   │   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   │   ├── parking_lot_core v0.9.10 (*)
+│   │   │   │   │   └── rayon v1.10.0 (*)
+│   │   │   │   ├── flate2 v1.0.30 (*)
+│   │   │   │   ├── fnv v1.0.7
+│   │   │   │   ├── im v15.1.0 (*)
+│   │   │   │   ├── index_list v0.2.11
+│   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   ├── log v0.4.22
+│   │   │   │   ├── lz4 v1.25.0
+│   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   └── lz4-sys v1.9.5
+│   │   │   │   │       └── libc v0.2.155
+│   │   │   │   │       [build-dependencies]
+│   │   │   │   │       └── cc v1.0.99 (*)
+│   │   │   │   ├── memmap2 v0.5.10 (*)
+│   │   │   │   ├── modular-bitfield v0.11.2
+│   │   │   │   │   ├── modular-bitfield-impl v0.11.2 (proc-macro)
+│   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   ├── num_cpus v1.16.0 (*)
+│   │   │   │   ├── num_enum v0.7.2 (*)
+│   │   │   │   ├── ouroboros v0.15.6
+│   │   │   │   │   ├── aliasable v0.1.3
+│   │   │   │   │   └── ouroboros_macro v0.15.6 (proc-macro)
+│   │   │   │   │       ├── Inflector v0.11.4
+│   │   │   │   │       ├── proc-macro-error v1.0.4 (*)
+│   │   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │       └── syn v1.0.109 (*)
+│   │   │   │   ├── percentage v0.1.0
+│   │   │   │   │   └── num v0.2.1
+│   │   │   │   │       ├── num-bigint v0.2.6
+│   │   │   │   │       │   ├── num-integer v0.1.46 (*)
+│   │   │   │   │       │   └── num-traits v0.2.19 (*)
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── autocfg v1.3.0
+│   │   │   │   │       ├── num-complex v0.2.4
+│   │   │   │   │       │   └── num-traits v0.2.19 (*)
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── autocfg v1.3.0
+│   │   │   │   │       ├── num-integer v0.1.46 (*)
+│   │   │   │   │       ├── num-iter v0.1.45
+│   │   │   │   │       │   ├── num-integer v0.1.46 (*)
+│   │   │   │   │       │   └── num-traits v0.2.19 (*)
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── autocfg v1.3.0
+│   │   │   │   │       ├── num-rational v0.2.4
+│   │   │   │   │       │   ├── num-bigint v0.2.6 (*)
+│   │   │   │   │       │   ├── num-integer v0.1.46 (*)
+│   │   │   │   │       │   └── num-traits v0.2.19 (*)
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── autocfg v1.3.0
+│   │   │   │   │       └── num-traits v0.2.19 (*)
+│   │   │   │   ├── qualifier_attr v0.2.2 (proc-macro) (*)
+│   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   ├── regex v1.10.5 (*)
+│   │   │   │   ├── seqlock v0.2.0
+│   │   │   │   │   └── parking_lot v0.12.3 (*)
+│   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   ├── smallvec v1.13.2
+│   │   │   │   ├── solana-bucket-map v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── bv v0.11.1 (*)
+│   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── memmap2 v0.5.10 (*)
+│   │   │   │   │   ├── modular-bitfield v0.11.2 (*)
+│   │   │   │   │   ├── num_enum v0.7.2 (*)
+│   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── tempfile v3.10.1 (*)
+│   │   │   │   ├── solana-config-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   ├── chrono v0.4.38 (*)
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── eager v0.1.0
+│   │   │   │   │   │   ├── enum-iterator v1.5.0
+│   │   │   │   │   │   │   └── enum-iterator-derive v1.4.0 (proc-macro)
+│   │   │   │   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │       └── syn v2.0.68 (*)
+│   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   ├── percentage v0.1.0 (*)
+│   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   │   ├── gethostname v0.2.3
+│   │   │   │   │   │   │   │   └── libc v0.2.155
+│   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── reqwest v0.11.27 (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana_rbpf v0.8.0
+│   │   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   │   ├── combine v3.8.1
+│   │   │   │   │   │   │   │   ├── ascii v0.9.3
+│   │   │   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   │   │   ├── either v1.13.0
+│   │   │   │   │   │   │   │   ├── memchr v2.7.4
+│   │   │   │   │   │   │   │   └── unreachable v1.0.0
+│   │   │   │   │   │   │   │       └── void v1.0.2
+│   │   │   │   │   │   │   ├── goblin v0.5.4
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── plain v0.2.3
+│   │   │   │   │   │   │   │   └── scroll v0.11.0
+│   │   │   │   │   │   │   │       └── scroll_derive v0.11.1 (proc-macro)
+│   │   │   │   │   │   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   │           ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │           └── syn v2.0.68 (*)
+│   │   │   │   │   │   │   ├── hash32 v0.2.1
+│   │   │   │   │   │   │   │   └── byteorder v1.5.0
+│   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   ├── rustc-demangle v0.1.24
+│   │   │   │   │   │   │   ├── scroll v0.11.0 (*)
+│   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-nohash-hasher v0.2.1
+│   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-rayon-threadlimit v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   └── num_cpus v1.16.0 (*)
+│   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-stake-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── solana-config-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │       ├── bincode v1.3.3 (*)
+│   │   │   │   │       ├── log v0.4.22
+│   │   │   │   │       ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │       ├── num-traits v0.2.19 (*)
+│   │   │   │   │       ├── serde v1.0.203 (*)
+│   │   │   │   │       ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │       ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │       └── thiserror v1.0.61 (*)
+│   │   │   │   │       [build-dependencies]
+│   │   │   │   │       └── rustc_version v0.4.0 (*)
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   ├── solana-system-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── static_assertions v1.1.0
+│   │   │   │   ├── strum v0.24.1
+│   │   │   │   │   └── strum_macros v0.24.3 (proc-macro)
+│   │   │   │   │       ├── heck v0.4.1
+│   │   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │       ├── rustversion v1.0.17 (proc-macro)
+│   │   │   │   │       └── syn v1.0.109 (*)
+│   │   │   │   ├── strum_macros v0.24.3 (proc-macro) (*)
+│   │   │   │   ├── tar v0.4.41
+│   │   │   │   │   ├── filetime v0.2.23
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   └── libc v0.2.155
+│   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   └── xattr v1.3.1
+│   │   │   │   │       └── rustix v0.38.34 (*)
+│   │   │   │   ├── tempfile v3.10.1 (*)
+│   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   ├── solana-banks-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   ├── borsh v1.5.1 (*)
+│   │   │   │   ├── futures v0.3.30
+│   │   │   │   │   ├── futures-channel v0.3.30 (*)
+│   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   ├── futures-executor v0.3.30
+│   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   ├── futures-task v0.3.30
+│   │   │   │   │   │   └── futures-util v0.3.30 (*)
+│   │   │   │   │   ├── futures-io v0.3.30
+│   │   │   │   │   ├── futures-sink v0.3.30
+│   │   │   │   │   ├── futures-task v0.3.30
+│   │   │   │   │   └── futures-util v0.3.30 (*)
+│   │   │   │   ├── solana-banks-interface v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── tarpc v0.29.0
+│   │   │   │   │       ├── anyhow v1.0.86
+│   │   │   │   │       ├── fnv v1.0.7
+│   │   │   │   │       ├── futures v0.3.30 (*)
+│   │   │   │   │       ├── humantime v2.1.0
+│   │   │   │   │       ├── opentelemetry v0.17.0
+│   │   │   │   │       │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │       │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │       │   ├── futures-channel v0.3.30 (*)
+│   │   │   │   │       │   ├── futures-executor v0.3.30 (*)
+│   │   │   │   │       │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │       │   ├── lazy_static v1.5.0
+│   │   │   │   │       │   ├── percent-encoding v2.3.1
+│   │   │   │   │       │   ├── pin-project v1.1.5
+│   │   │   │   │       │   │   └── pin-project-internal v1.1.5 (proc-macro)
+│   │   │   │   │       │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │       │   │       └── syn v2.0.68 (*)
+│   │   │   │   │       │   ├── rand v0.8.5 (*)
+│   │   │   │   │       │   └── thiserror v1.0.61 (*)
+│   │   │   │   │       ├── pin-project v1.1.5 (*)
+│   │   │   │   │       ├── rand v0.8.5 (*)
+│   │   │   │   │       ├── serde v1.0.203 (*)
+│   │   │   │   │       ├── static_assertions v1.1.0
+│   │   │   │   │       ├── tarpc-plugins v0.12.0 (proc-macro)
+│   │   │   │   │       │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       │   ├── quote v1.0.36 (*)
+│   │   │   │   │       │   └── syn v1.0.109 (*)
+│   │   │   │   │       ├── thiserror v1.0.61 (*)
+│   │   │   │   │       ├── tokio v1.38.0 (*)
+│   │   │   │   │       ├── tokio-serde v0.8.0
+│   │   │   │   │       │   ├── bincode v1.3.3 (*)
+│   │   │   │   │       │   ├── bytes v1.6.0
+│   │   │   │   │       │   ├── educe v0.4.23 (proc-macro)
+│   │   │   │   │       │   │   ├── enum-ordinalize v3.1.15 (proc-macro)
+│   │   │   │   │       │   │   │   ├── num-bigint v0.4.6 (*)
+│   │   │   │   │       │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │       │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │       │   │   │   └── syn v2.0.68 (*)
+│   │   │   │   │       │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │       │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │       │   │   └── syn v1.0.109 (*)
+│   │   │   │   │       │   ├── futures-core v0.3.30
+│   │   │   │   │       │   ├── futures-sink v0.3.30
+│   │   │   │   │       │   ├── pin-project v1.1.5 (*)
+│   │   │   │   │       │   ├── serde v1.0.203 (*)
+│   │   │   │   │       │   └── serde_json v1.0.118 (*)
+│   │   │   │   │       ├── tokio-util v0.6.10
+│   │   │   │   │       │   ├── bytes v1.6.0
+│   │   │   │   │       │   ├── futures-core v0.3.30
+│   │   │   │   │       │   ├── futures-sink v0.3.30
+│   │   │   │   │       │   ├── log v0.4.22
+│   │   │   │   │       │   ├── pin-project-lite v0.2.14
+│   │   │   │   │       │   ├── slab v0.4.9 (*)
+│   │   │   │   │       │   └── tokio v1.38.0 (*)
+│   │   │   │   │       ├── tracing v0.1.40 (*)
+│   │   │   │   │       └── tracing-opentelemetry v0.17.4
+│   │   │   │   │           ├── once_cell v1.19.0
+│   │   │   │   │           ├── opentelemetry v0.17.0 (*)
+│   │   │   │   │           ├── tracing v0.1.40 (*)
+│   │   │   │   │           ├── tracing-core v0.1.32 (*)
+│   │   │   │   │           └── tracing-subscriber v0.3.18 (*)
+│   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── tarpc v0.29.0 (*)
+│   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   └── tokio-serde v0.8.0 (*)
+│   │   │   ├── solana-banks-interface v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-banks-server v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   ├── futures v0.3.30 (*)
+│   │   │   │   ├── solana-accounts-db v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-banks-interface v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   ├── dashmap v5.5.3 (*)
+│   │   │   │   │   ├── futures v0.3.30 (*)
+│   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   │   │   ├── indicatif v0.17.8
+│   │   │   │   │   │   ├── console v0.15.8
+│   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   └── unicode-width v0.1.13
+│   │   │   │   │   │   ├── number_prefix v0.4.0
+│   │   │   │   │   │   ├── portable-atomic v1.6.0
+│   │   │   │   │   │   └── unicode-width v0.1.13
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── quinn v0.10.2
+│   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   ├── quinn-proto v0.10.6
+│   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   ├── ring v0.16.20
+│   │   │   │   │   │   │   │   └── untrusted v0.7.1
+│   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   └── cc v1.0.99 (*)
+│   │   │   │   │   │   │   ├── rustc-hash v1.1.0
+│   │   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   │   ├── rustls-native-certs v0.6.3
+│   │   │   │   │   │   │   │   ├── rustls-pemfile v1.0.4 (*)
+│   │   │   │   │   │   │   │   └── security-framework v2.11.0 (*)
+│   │   │   │   │   │   │   ├── slab v0.4.9 (*)
+│   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   ├── tinyvec v1.6.1 (*)
+│   │   │   │   │   │   │   └── tracing v0.1.40 (*)
+│   │   │   │   │   │   ├── quinn-udp v0.4.1
+│   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   ├── socket2 v0.5.7 (*)
+│   │   │   │   │   │   │   └── tracing v0.1.40 (*)
+│   │   │   │   │   │   ├── rustc-hash v1.1.0
+│   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   └── tracing v0.1.40 (*)
+│   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   ├── solana-connection-cache v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   │   ├── rcgen v0.10.0
+│   │   │   │   │   │   │   ├── pem v1.1.1
+│   │   │   │   │   │   │   │   └── base64 v0.13.1
+│   │   │   │   │   │   │   ├── ring v0.16.20 (*)
+│   │   │   │   │   │   │   ├── time v0.3.36
+│   │   │   │   │   │   │   │   ├── deranged v0.3.11
+│   │   │   │   │   │   │   │   │   └── powerfmt v0.2.0
+│   │   │   │   │   │   │   │   ├── itoa v1.0.11
+│   │   │   │   │   │   │   │   ├── num-conv v0.1.0
+│   │   │   │   │   │   │   │   ├── powerfmt v0.2.0
+│   │   │   │   │   │   │   │   ├── time-core v0.1.2
+│   │   │   │   │   │   │   │   └── time-macros v0.2.18 (proc-macro)
+│   │   │   │   │   │   │   │       ├── num-conv v0.1.0
+│   │   │   │   │   │   │   │       └── time-core v0.1.2
+│   │   │   │   │   │   │   └── yasna v0.5.2
+│   │   │   │   │   │   │       └── time v0.3.36 (*)
+│   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-pubsub-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── reqwest v0.11.27 (*)
+│   │   │   │   │   │   ├── semver v1.0.23
+│   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   │   ├── solana-account-decoder v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── Inflector v0.11.4
+│   │   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   │   └── regex v1.10.5 (*)
+│   │   │   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   │   ├── bs58 v0.4.0
+│   │   │   │   │   │   │   ├── bv v0.11.1 (*)
+│   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   │   │   ├── solana-config-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── spl-token v4.0.0 (*)
+│   │   │   │   │   │   │   ├── spl-token-2022 v1.0.0
+│   │   │   │   │   │   │   │   ├── arrayref v0.3.7
+│   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   │   ├── num_enum v0.7.2 (*)
+│   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-security-txt v1.1.1
+│   │   │   │   │   │   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── spl-memo v4.0.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-pod v0.1.0
+│   │   │   │   │   │   │   │   │   ├── borsh v0.10.3 (*)
+│   │   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   └── spl-program-error v0.3.0
+│   │   │   │   │   │   │   │   │       ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   │   │   │       ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   │   │       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │       ├── spl-program-error-derive v0.3.2 (proc-macro)
+│   │   │   │   │   │   │   │   │       │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   │   │       │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │   │       │   ├── sha2 v0.10.8 (*)
+│   │   │   │   │   │   │   │   │       │   └── syn v2.0.68 (*)
+│   │   │   │   │   │   │   │   │       └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   │   ├── spl-token v4.0.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-token-group-interface v0.1.0
+│   │   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   ├── spl-discriminator v0.1.0
+│   │   │   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   │   └── spl-discriminator-derive v0.1.2 (proc-macro)
+│   │   │   │   │   │   │   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │   │   │       ├── spl-discriminator-syn v0.1.2
+│   │   │   │   │   │   │   │   │   │       │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   │   │   │       │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │   │   │       │   ├── sha2 v0.10.8 (*)
+│   │   │   │   │   │   │   │   │   │       │   ├── syn v2.0.68 (*)
+│   │   │   │   │   │   │   │   │   │       │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   │   │   │       └── syn v2.0.68 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-pod v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   └── spl-program-error v0.3.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-token-metadata-interface v0.2.0
+│   │   │   │   │   │   │   │   │   ├── borsh v0.10.3 (*)
+│   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   ├── spl-discriminator v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-pod v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-program-error v0.3.0 (*)
+│   │   │   │   │   │   │   │   │   └── spl-type-length-value v0.3.0
+│   │   │   │   │   │   │   │   │       ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │       ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │       ├── spl-discriminator v0.1.0 (*)
+│   │   │   │   │   │   │   │   │       ├── spl-pod v0.1.0 (*)
+│   │   │   │   │   │   │   │   │       └── spl-program-error v0.3.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-transfer-hook-interface v0.4.1
+│   │   │   │   │   │   │   │   │   ├── arrayref v0.3.7
+│   │   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   ├── spl-discriminator v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-pod v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-program-error v0.3.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-tlv-account-resolution v0.5.1
+│   │   │   │   │   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   │   ├── spl-discriminator v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   │   ├── spl-pod v0.1.0 (*)
+│   │   │   │   │   │   │   │   │   │   ├── spl-program-error v0.3.0 (*)
+│   │   │   │   │   │   │   │   │   │   └── spl-type-length-value v0.3.0 (*)
+│   │   │   │   │   │   │   │   │   └── spl-type-length-value v0.3.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-type-length-value v0.3.0 (*)
+│   │   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   ├── spl-token-group-interface v0.1.0 (*)
+│   │   │   │   │   │   │   ├── spl-token-metadata-interface v0.2.0 (*)
+│   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   └── zstd v0.11.2+zstd.1.5.2
+│   │   │   │   │   │   │       └── zstd-safe v5.0.2+zstd.1.5.2
+│   │   │   │   │   │   │           ├── libc v0.2.155
+│   │   │   │   │   │   │           └── zstd-sys v2.0.11+zstd.1.5.6
+│   │   │   │   │   │   │               [build-dependencies]
+│   │   │   │   │   │   │               ├── cc v1.0.99 (*)
+│   │   │   │   │   │   │               └── pkg-config v0.3.30
+│   │   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   │   │   ├── bs58 v0.4.0
+│   │   │   │   │   │   │   ├── jsonrpc-core v18.0.0
+│   │   │   │   │   │   │   │   ├── futures v0.3.30 (*)
+│   │   │   │   │   │   │   │   ├── futures-executor v0.3.30 (*)
+│   │   │   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   │   └── serde_json v1.0.118 (*)
+│   │   │   │   │   │   │   ├── reqwest v0.11.27 (*)
+│   │   │   │   │   │   │   ├── semver v1.0.23
+│   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   │   │   ├── solana-account-decoder v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-transaction-status v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   │   ├── Inflector v0.11.4 (*)
+│   │   │   │   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   │   │   ├── borsh v0.10.3 (*)
+│   │   │   │   │   │   │   │   ├── bs58 v0.4.0
+│   │   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   │   │   │   ├── solana-account-decoder v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── spl-associated-token-account v2.3.0
+│   │   │   │   │   │   │   │   │   ├── assert_matches v1.5.0
+│   │   │   │   │   │   │   │   │   ├── borsh v0.10.3 (*)
+│   │   │   │   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   │   ├── spl-token v4.0.0 (*)
+│   │   │   │   │   │   │   │   │   ├── spl-token-2022 v1.0.0 (*)
+│   │   │   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   │   ├── spl-memo v4.0.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-token v4.0.0 (*)
+│   │   │   │   │   │   │   │   ├── spl-token-2022 v1.0.0 (*)
+│   │   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   ├── solana-version v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── semver v1.0.23
+│   │   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   │   │   ├── spl-token-2022 v1.0.0 (*)
+│   │   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   ├── tokio-stream v0.1.15
+│   │   │   │   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   │   ├── tokio-tungstenite v0.20.1
+│   │   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   │   ├── tokio-rustls v0.24.1 (*)
+│   │   │   │   │   │   │   ├── tungstenite v0.20.1
+│   │   │   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   │   ├── data-encoding v2.6.0
+│   │   │   │   │   │   │   │   ├── http v0.2.12 (*)
+│   │   │   │   │   │   │   │   ├── httparse v1.9.4
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   │   │   ├── sha1 v0.10.6
+│   │   │   │   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   │   │   │   ├── cpufeatures v0.2.12 (*)
+│   │   │   │   │   │   │   │   │   └── digest v0.10.7 (*)
+│   │   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   │   ├── url v2.5.2 (*)
+│   │   │   │   │   │   │   │   ├── utf-8 v0.7.6
+│   │   │   │   │   │   │   │   └── webpki-roots v0.24.0
+│   │   │   │   │   │   │   │       └── rustls-webpki v0.101.7 (*)
+│   │   │   │   │   │   │   └── webpki-roots v0.25.4
+│   │   │   │   │   │   ├── tungstenite v0.20.1 (*)
+│   │   │   │   │   │   └── url v2.5.2 (*)
+│   │   │   │   │   ├── solana-quic-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── async-mutex v1.4.0
+│   │   │   │   │   │   │   └── event-listener v2.5.3
+│   │   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   │   ├── futures v0.3.30 (*)
+│   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── quinn v0.10.2 (*)
+│   │   │   │   │   │   ├── quinn-proto v0.10.6 (*)
+│   │   │   │   │   │   ├── rcgen v0.10.0 (*)
+│   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   ├── solana-connection-cache v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-net-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   │   ├── clap v3.2.25
+│   │   │   │   │   │   │   │   ├── atty v0.2.14 (*)
+│   │   │   │   │   │   │   │   ├── bitflags v1.3.2
+│   │   │   │   │   │   │   │   ├── clap_lex v0.2.4
+│   │   │   │   │   │   │   │   │   └── os_str_bytes v6.6.1
+│   │   │   │   │   │   │   │   ├── indexmap v1.9.3
+│   │   │   │   │   │   │   │   │   └── hashbrown v0.12.3
+│   │   │   │   │   │   │   │   │       └── ahash v0.7.8 (*)
+│   │   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   │   └── autocfg v1.3.0
+│   │   │   │   │   │   │   │   ├── once_cell v1.19.0
+│   │   │   │   │   │   │   │   ├── strsim v0.10.0
+│   │   │   │   │   │   │   │   ├── termcolor v1.4.1
+│   │   │   │   │   │   │   │   └── textwrap v0.16.1
+│   │   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── nix v0.26.4
+│   │   │   │   │   │   │   │   ├── bitflags v1.3.2
+│   │   │   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   │   ├── memoffset v0.7.1
+│   │   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   │   └── autocfg v1.3.0
+│   │   │   │   │   │   │   │   └── pin-utils v0.1.0
+│   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   │   ├── socket2 v0.5.7 (*)
+│   │   │   │   │   │   │   ├── solana-logger v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-version v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   │   └── url v2.5.2 (*)
+│   │   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-streamer v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── async-channel v1.9.0
+│   │   │   │   │   │   │   │   ├── concurrent-queue v2.5.0
+│   │   │   │   │   │   │   │   │   └── crossbeam-utils v0.8.20
+│   │   │   │   │   │   │   │   ├── event-listener v2.5.3
+│   │   │   │   │   │   │   │   └── futures-core v0.3.30
+│   │   │   │   │   │   │   ├── bytes v1.6.0
+│   │   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   │   ├── histogram v0.6.9
+│   │   │   │   │   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── nix v0.26.4 (*)
+│   │   │   │   │   │   │   ├── pem v1.1.1 (*)
+│   │   │   │   │   │   │   ├── percentage v0.1.0 (*)
+│   │   │   │   │   │   │   ├── pkcs8 v0.8.0
+│   │   │   │   │   │   │   │   ├── der v0.5.1
+│   │   │   │   │   │   │   │   │   └── const-oid v0.7.1
+│   │   │   │   │   │   │   │   ├── spki v0.5.4
+│   │   │   │   │   │   │   │   │   ├── base64ct v1.6.0
+│   │   │   │   │   │   │   │   │   └── der v0.5.1 (*)
+│   │   │   │   │   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   │   │   │   │   ├── quinn v0.10.2 (*)
+│   │   │   │   │   │   │   ├── quinn-proto v0.10.6 (*)
+│   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   ├── rcgen v0.10.0 (*)
+│   │   │   │   │   │   │   ├── rustls v0.21.12 (*)
+│   │   │   │   │   │   │   ├── smallvec v1.13.2
+│   │   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-perf v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   │   ├── ahash v0.8.11 (*)
+│   │   │   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   │   │   ├── bv v0.11.1 (*)
+│   │   │   │   │   │   │   │   ├── curve25519-dalek v3.2.1 (*)
+│   │   │   │   │   │   │   │   ├── dlopen2 v0.5.0
+│   │   │   │   │   │   │   │   │   ├── dlopen2_derive v0.3.0 (proc-macro)
+│   │   │   │   │   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   │   │   │   └── syn v2.0.68 (*)
+│   │   │   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   │   │   └── once_cell v1.19.0
+│   │   │   │   │   │   │   │   ├── fnv v1.0.7
+│   │   │   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-rayon-threadlimit v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   └── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   │   │   │   └── x509-parser v0.14.0
+│   │   │   │   │   │   │       ├── asn1-rs v0.5.2
+│   │   │   │   │   │   │       │   ├── asn1-rs-derive v0.4.0 (proc-macro)
+│   │   │   │   │   │   │       │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │       │   │   ├── syn v1.0.109 (*)
+│   │   │   │   │   │   │       │   │   └── synstructure v0.12.6
+│   │   │   │   │   │   │       │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       │   │       ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │       │   │       ├── syn v1.0.109 (*)
+│   │   │   │   │   │   │       │   │       └── unicode-xid v0.2.4
+│   │   │   │   │   │   │       │   ├── asn1-rs-impl v0.1.0 (proc-macro)
+│   │   │   │   │   │   │       │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │       │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   │   │       │   ├── displaydoc v0.2.5 (proc-macro)
+│   │   │   │   │   │   │       │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │       │   │   └── syn v2.0.68 (*)
+│   │   │   │   │   │   │       │   ├── nom v7.1.3
+│   │   │   │   │   │   │       │   │   ├── memchr v2.7.4
+│   │   │   │   │   │   │       │   │   └── minimal-lexical v0.2.1
+│   │   │   │   │   │   │       │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │       │   ├── rusticata-macros v4.1.0
+│   │   │   │   │   │   │       │   │   └── nom v7.1.3 (*)
+│   │   │   │   │   │   │       │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │       │   └── time v0.3.36 (*)
+│   │   │   │   │   │   │       ├── base64 v0.13.1
+│   │   │   │   │   │   │       ├── data-encoding v2.6.0
+│   │   │   │   │   │   │       ├── der-parser v8.2.0
+│   │   │   │   │   │   │       │   ├── asn1-rs v0.5.2 (*)
+│   │   │   │   │   │   │       │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │   │   │   │   │       │   ├── nom v7.1.3 (*)
+│   │   │   │   │   │   │       │   ├── num-bigint v0.4.6 (*)
+│   │   │   │   │   │   │       │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │       │   └── rusticata-macros v4.1.0 (*)
+│   │   │   │   │   │   │       ├── lazy_static v1.5.0
+│   │   │   │   │   │   │       ├── nom v7.1.3 (*)
+│   │   │   │   │   │   │       ├── oid-registry v0.6.1
+│   │   │   │   │   │   │       │   └── asn1-rs v0.5.2 (*)
+│   │   │   │   │   │   │       ├── rusticata-macros v4.1.0 (*)
+│   │   │   │   │   │   │       ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │       └── time v0.3.36 (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── solana-rpc-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── bs58 v0.4.0
+│   │   │   │   │   │   ├── indicatif v0.17.8 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── reqwest v0.11.27 (*)
+│   │   │   │   │   │   ├── semver v1.0.23
+│   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   │   ├── solana-account-decoder v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-transaction-status v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-version v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-rpc-client-nonce-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── clap v2.34.0
+│   │   │   │   │   │   │   ├── ansi_term v0.12.1
+│   │   │   │   │   │   │   ├── atty v0.2.14 (*)
+│   │   │   │   │   │   │   ├── bitflags v1.3.2
+│   │   │   │   │   │   │   ├── strsim v0.8.0
+│   │   │   │   │   │   │   ├── textwrap v0.11.0
+│   │   │   │   │   │   │   │   └── unicode-width v0.1.13
+│   │   │   │   │   │   │   ├── unicode-width v0.1.13
+│   │   │   │   │   │   │   └── vec_map v0.8.2
+│   │   │   │   │   │   ├── solana-clap-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── chrono v0.4.38 (*)
+│   │   │   │   │   │   │   ├── clap v2.34.0 (*)
+│   │   │   │   │   │   │   ├── rpassword v7.3.1
+│   │   │   │   │   │   │   │   ├── libc v0.2.155
+│   │   │   │   │   │   │   │   └── rtoolbox v0.0.2
+│   │   │   │   │   │   │   │       └── libc v0.2.155
+│   │   │   │   │   │   │   ├── solana-remote-wallet v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   │   ├── console v0.15.8 (*)
+│   │   │   │   │   │   │   │   ├── dialoguer v0.10.4
+│   │   │   │   │   │   │   │   │   ├── console v0.15.8 (*)
+│   │   │   │   │   │   │   │   │   ├── shell-words v1.1.0
+│   │   │   │   │   │   │   │   │   ├── tempfile v3.10.1 (*)
+│   │   │   │   │   │   │   │   │   └── zeroize v1.3.0 (*)
+│   │   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   │   │   │   │   │   ├── qstring v0.7.2 (*)
+│   │   │   │   │   │   │   │   ├── semver v1.0.23
+│   │   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   │   └── uriparse v0.6.4 (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   │   ├── tiny-bip39 v0.8.2 (*)
+│   │   │   │   │   │   │   ├── uriparse v0.6.4 (*)
+│   │   │   │   │   │   │   └── url v2.5.2 (*)
+│   │   │   │   │   │   ├── solana-rpc-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-streamer v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-thin-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   │   ├── solana-connection-cache v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-rpc-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-tpu-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   │   │   │   ├── indicatif v0.17.8 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   │   ├── solana-connection-cache v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-pubsub-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-rpc-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── solana-udp-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── async-trait v0.1.80 (proc-macro) (*)
+│   │   │   │   │   │   ├── solana-connection-cache v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-net-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-streamer v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   └── tokio v1.38.0 (*)
+│   │   │   │   ├── solana-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── aquamarine v0.3.3 (proc-macro)
+│   │   │   │   │   │   ├── include_dir v0.7.4
+│   │   │   │   │   │   │   └── include_dir_macros v0.7.4 (proc-macro)
+│   │   │   │   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │       └── quote v1.0.36 (*)
+│   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   ├── proc-macro-error v1.0.4 (*)
+│   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   ├── arrayref v0.3.7
+│   │   │   │   │   ├── base64 v0.21.7
+│   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   ├── blake3 v1.5.1 (*)
+│   │   │   │   │   ├── bv v0.11.1 (*)
+│   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   ├── bzip2 v0.4.4 (*)
+│   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   ├── dashmap v5.5.3 (*)
+│   │   │   │   │   ├── dir-diff v0.3.3
+│   │   │   │   │   │   └── walkdir v2.5.0
+│   │   │   │   │   │       └── same-file v1.0.6
+│   │   │   │   │   ├── flate2 v1.0.30 (*)
+│   │   │   │   │   ├── fnv v1.0.7
+│   │   │   │   │   ├── im v15.1.0 (*)
+│   │   │   │   │   ├── index_list v0.2.11
+│   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── lru v0.7.8
+│   │   │   │   │   │   └── hashbrown v0.12.3 (*)
+│   │   │   │   │   ├── lz4 v1.25.0 (*)
+│   │   │   │   │   ├── memmap2 v0.5.10 (*)
+│   │   │   │   │   ├── mockall v0.11.4
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   ├── downcast v0.11.0
+│   │   │   │   │   │   ├── fragile v2.0.0
+│   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   ├── mockall_derive v0.11.4 (proc-macro)
+│   │   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   │   ├── proc-macro2 v1.0.86 (*)
+│   │   │   │   │   │   │   ├── quote v1.0.36 (*)
+│   │   │   │   │   │   │   └── syn v1.0.109 (*)
+│   │   │   │   │   │   ├── predicates v2.1.5
+│   │   │   │   │   │   │   ├── difflib v0.4.0
+│   │   │   │   │   │   │   ├── float-cmp v0.9.0
+│   │   │   │   │   │   │   │   └── num-traits v0.2.19 (*)
+│   │   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   │   ├── normalize-line-endings v0.3.0
+│   │   │   │   │   │   │   ├── predicates-core v1.0.6
+│   │   │   │   │   │   │   └── regex v1.10.5 (*)
+│   │   │   │   │   │   └── predicates-tree v1.0.9
+│   │   │   │   │   │       ├── predicates-core v1.0.6
+│   │   │   │   │   │       └── termtree v0.4.1
+│   │   │   │   │   ├── modular-bitfield v0.11.2 (*)
+│   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   ├── num_cpus v1.16.0 (*)
+│   │   │   │   │   ├── num_enum v0.7.2 (*)
+│   │   │   │   │   ├── ouroboros v0.15.6 (*)
+│   │   │   │   │   ├── percentage v0.1.0 (*)
+│   │   │   │   │   ├── qualifier_attr v0.2.2 (proc-macro) (*)
+│   │   │   │   │   ├── rand v0.8.5 (*)
+│   │   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   │   ├── regex v1.10.5 (*)
+│   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   ├── serde_json v1.0.118 (*)
+│   │   │   │   │   ├── solana-accounts-db v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-address-lookup-table-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   ├── solana-bpf-loader-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── bincode v1.3.3 (*)
+│   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   ├── libsecp256k1 v0.6.0 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── scopeguard v1.2.0
+│   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana_rbpf v0.8.0 (*)
+│   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   ├── solana-bucket-map v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-compute-budget-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-config-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-cost-model v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── lazy_static v1.5.0
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── solana-address-lookup-table-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-bpf-loader-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-compute-budget-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-config-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-loader-v4-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   │   └── solana_rbpf v0.8.0 (*)
+│   │   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-stake-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-system-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-loader-v4-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-perf v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-rayon-threadlimit v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-stake-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-system-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-version v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-vote v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   │   ├── itertools v0.10.5 (*)
+│   │   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   │   ├── serde v1.0.203 (*)
+│   │   │   │   │   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-frozen-abi-macro v1.18.17 (proc-macro) (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── thiserror v1.0.61 (*)
+│   │   │   │   │   │   [build-dependencies]
+│   │   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   │   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-zk-token-proof-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   │   ├── bytemuck v1.16.1 (*)
+│   │   │   │   │   │   ├── num-derive v0.4.2 (proc-macro) (*)
+│   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   │   └── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-zk-token-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── static_assertions v1.1.0
+│   │   │   │   │   ├── strum v0.24.1 (*)
+│   │   │   │   │   ├── strum_macros v0.24.3 (proc-macro) (*)
+│   │   │   │   │   ├── symlink v0.1.0
+│   │   │   │   │   ├── tar v0.4.41 (*)
+│   │   │   │   │   ├── tempfile v3.10.1 (*)
+│   │   │   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   │   │   └── zstd v0.11.2+zstd.1.5.2 (*)
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── rustc_version v0.4.0 (*)
+│   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── solana-send-transaction-service v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   │   │   │   ├── crossbeam-channel v0.5.13 (*)
+│   │   │   │   │   ├── log v0.4.22
+│   │   │   │   │   ├── solana-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-measure v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-metrics v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   │   └── solana-tpu-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   │   ├── tarpc v0.29.0 (*)
+│   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   └── tokio-serde v0.8.0 (*)
+│   │   │   ├── solana-bpf-loader-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-logger v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-program-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-runtime v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   │   ├── solana_rbpf v0.8.0 (*)
+│   │   │   ├── test-case v3.3.1
+│   │   │   │   └── test-case-macros v3.3.1 (proc-macro)
+│   │   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │   │       ├── quote v1.0.36 (*)
+│   │   │   │       ├── syn v2.0.68 (*)
+│   │   │   │       └── test-case-core v3.3.1
+│   │   │   │           ├── cfg-if v1.0.0
+│   │   │   │           ├── proc-macro2 v1.0.86 (*)
+│   │   │   │           ├── quote v1.0.36 (*)
+│   │   │   │           └── syn v2.0.68 (*)
+│   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   └── tokio v1.38.0 (*)
+│   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── tokio v1.38.0 (*)
+│   ├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+│   ├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+│   ├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+│   ├── log v0.4.22
+│   ├── memoffset v0.9.1 (*)
+│   ├── num-bigint v0.4.6 (*)
+│   ├── num-traits v0.2.19 (*)
+│   ├── photon-api v0.28.1 (/Users/tsv/Developer/light-protocol/photon-api)
+│   │   ├── reqwest v0.11.27 (*)
+│   │   ├── serde v1.0.203 (*)
+│   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   ├── serde_json v1.0.118 (*)
+│   │   ├── serde_with v2.3.3 (*)
+│   │   ├── url v2.5.2 (*)
+│   │   └── uuid v1.9.1
+│   │       ├── getrandom v0.2.15 (*)
+│   │       └── serde v1.0.203 (*)
+│   ├── rand v0.8.5 (*)
+│   ├── reqwest v0.11.27 (*)
+│   ├── solana-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-transaction-status v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── spl-token v3.5.0 (*)
+│   ├── thiserror v1.0.61 (*)
+│   └── tokio v1.38.0 (*)
+│   [dev-dependencies]
+│   └── rand v0.8.5 (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+├── memoffset v0.9.1 (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.11.27 (*)
+├── serde_json v1.0.118 (*)
+├── solana-cli-output v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   ├── Inflector v0.11.4 (*)
+│   ├── base64 v0.21.7
+│   ├── chrono v0.4.38 (*)
+│   ├── clap v2.34.0 (*)
+│   ├── console v0.15.8 (*)
+│   ├── humantime v2.1.0
+│   ├── indicatif v0.17.8 (*)
+│   ├── pretty-hex v0.3.0
+│   ├── semver v1.0.23
+│   ├── serde v1.0.203 (*)
+│   ├── serde_json v1.0.118 (*)
+│   ├── solana-account-decoder v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-clap-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-cli-config v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b)
+│   │   ├── dirs-next v2.0.0
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   └── dirs-sys-next v0.1.2
+│   │   │       └── libc v0.2.155
+│   │   ├── lazy_static v1.5.0
+│   │   ├── serde v1.0.203 (*)
+│   │   ├── serde_derive v1.0.203 (proc-macro) (*)
+│   │   ├── serde_yaml v0.9.34+deprecated
+│   │   │   ├── indexmap v2.2.6 (*)
+│   │   │   ├── itoa v1.0.11
+│   │   │   ├── ryu v1.0.18
+│   │   │   ├── serde v1.0.203 (*)
+│   │   │   └── unsafe-libyaml v0.2.11
+│   │   ├── solana-clap-utils v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   │   └── url v2.5.2 (*)
+│   ├── solana-rpc-client-api v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-transaction-status v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   ├── solana-vote-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+│   └── spl-memo v4.0.0 (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+├── thiserror v1.0.61 (*)
+└── tokio v1.38.0 (*)
+
+aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized) (*)
+
+compressed-token-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/compressed-token-test)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+└── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+[dev-dependencies]
+├── anchor-spl v0.30.1 (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.11.27 (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+e2e-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/e2e-test)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+├── solana-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+└── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+[dev-dependencies]
+├── anchor-spl v0.30.1 (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── rand v0.8.5 (*)
+├── reqwest v0.11.27 (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-concurrent-merkle-tree v0.2.0 (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+forester v0.2.1 (/Users/tsv/Developer/light-protocol/forester)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── bincode v1.3.3 (*)
+├── borsh v0.10.3 (*)
+├── bs58 v0.4.0
+├── chrono v0.4.38 (*)
+├── clap v4.5.8
+│   ├── clap_builder v4.5.8
+│   │   ├── anstream v0.6.14
+│   │   │   ├── anstyle v1.0.7
+│   │   │   ├── anstyle-parse v0.2.4
+│   │   │   │   └── utf8parse v0.2.2
+│   │   │   ├── anstyle-query v1.1.0
+│   │   │   ├── colorchoice v1.0.1
+│   │   │   ├── is_terminal_polyfill v1.70.0
+│   │   │   └── utf8parse v0.2.2
+│   │   ├── anstyle v1.0.7
+│   │   ├── clap_lex v0.7.1
+│   │   └── strsim v0.11.1
+│   └── clap_derive v4.5.8 (proc-macro)
+│       ├── heck v0.5.0
+│       ├── proc-macro2 v1.0.86 (*)
+│       ├── quote v1.0.36 (*)
+│       └── syn v2.0.68 (*)
+├── config v0.14.0
+│   ├── async-trait v0.1.80 (proc-macro) (*)
+│   ├── convert_case v0.6.0
+│   │   └── unicode-segmentation v1.11.0
+│   ├── json5 v0.4.1
+│   │   ├── pest v2.7.10
+│   │   │   ├── memchr v2.7.4
+│   │   │   ├── thiserror v1.0.61 (*)
+│   │   │   └── ucd-trie v0.1.6
+│   │   ├── pest_derive v2.7.10 (proc-macro)
+│   │   │   ├── pest v2.7.10 (*)
+│   │   │   └── pest_generator v2.7.10
+│   │   │       ├── pest v2.7.10 (*)
+│   │   │       ├── pest_meta v2.7.10
+│   │   │       │   ├── once_cell v1.19.0
+│   │   │       │   └── pest v2.7.10 (*)
+│   │   │       │   [build-dependencies]
+│   │   │       │   └── sha2 v0.10.8 (*)
+│   │   │       ├── proc-macro2 v1.0.86 (*)
+│   │   │       ├── quote v1.0.36 (*)
+│   │   │       └── syn v2.0.68 (*)
+│   │   └── serde v1.0.203 (*)
+│   ├── lazy_static v1.5.0
+│   ├── nom v7.1.3 (*)
+│   ├── pathdiff v0.2.1
+│   ├── ron v0.8.1
+│   │   ├── base64 v0.21.7
+│   │   ├── bitflags v2.6.0 (*)
+│   │   ├── serde v1.0.203 (*)
+│   │   └── serde_derive v1.0.203 (proc-macro) (*)
+│   ├── rust-ini v0.19.0
+│   │   ├── cfg-if v1.0.0
+│   │   └── ordered-multimap v0.6.0
+│   │       ├── dlv-list v0.5.2
+│   │       │   └── const-random v0.1.18
+│   │       │       └── const-random-macro v0.1.16 (proc-macro)
+│   │       │           ├── getrandom v0.2.15
+│   │       │           │   ├── cfg-if v1.0.0
+│   │       │           │   └── libc v0.2.155
+│   │       │           ├── once_cell v1.19.0
+│   │       │           └── tiny-keccak v2.0.2
+│   │       │               └── crunchy v0.2.2
+│   │       └── hashbrown v0.13.2 (*)
+│   ├── serde v1.0.203 (*)
+│   ├── serde_json v1.0.118 (*)
+│   ├── toml v0.8.14 (*)
+│   └── yaml-rust v0.4.5
+│       └── linked-hash-map v0.5.6
+├── env_logger v0.11.3
+│   ├── anstream v0.6.14 (*)
+│   ├── anstyle v1.0.7
+│   ├── env_filter v0.1.0
+│   │   ├── log v0.4.22
+│   │   └── regex v1.10.5 (*)
+│   ├── humantime v2.1.0
+│   └── log v0.4.22
+├── futures v0.3.30 (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-registry v0.4.1 (/Users/tsv/Developer/light-protocol/programs/registry) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── log v0.4.22
+├── photon-api v0.28.1 (/Users/tsv/Developer/light-protocol/photon-api) (*)
+├── reqwest v0.11.27 (*)
+├── serde v1.0.203 (*)
+├── serde_json v1.0.118 (*)
+├── solana-client v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-transaction-status v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── sysinfo v0.30.12 (*)
+├── thiserror v1.0.61 (*)
+├── time v0.3.36 (*)
+├── tiny-bip39 v0.8.2 (*)
+├── tokio v1.38.0 (*)
+└── tokio-util v0.7.11 (*)
+[dev-dependencies]
+├── function_name v0.3.0
+│   └── function_name-proc-macro v0.3.0 (proc-macro)
+├── light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── rand v0.8.5 (*)
+├── rstest v0.18.2
+│   ├── futures v0.3.30 (*)
+│   ├── futures-timer v3.0.3
+│   └── rstest_macros v0.18.2 (proc-macro)
+│       ├── cfg-if v1.0.0
+│       ├── glob v0.3.1
+│       ├── proc-macro2 v1.0.86 (*)
+│       ├── quote v1.0.36 (*)
+│       ├── regex v1.10.5 (*)
+│       ├── relative-path v1.9.3
+│       ├── syn v2.0.68 (*)
+│       └── unicode-ident v1.0.12
+│       [build-dependencies]
+│       └── rustc_version v0.4.0 (*)
+│   [build-dependencies]
+│   └── rustc_version v0.4.0 (*)
+└── serial_test v2.0.0
+    ├── dashmap v5.5.3 (*)
+    ├── futures v0.3.30 (*)
+    ├── lazy_static v1.5.0
+    ├── log v0.4.22
+    ├── parking_lot v0.12.3 (*)
+    └── serial_test_derive v2.0.0 (proc-macro)
+        ├── proc-macro2 v1.0.86 (*)
+        ├── quote v1.0.36 (*)
+        └── syn v2.0.68 (*)
+
+light-bounded-vec v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/bounded-vec) (*)
+
+light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+
+light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+
+light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+
+light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+
+light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap) (*)
+
+light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+
+light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light) (*)
+
+light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+
+light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+
+light-registry v0.4.1 (/Users/tsv/Developer/light-protocol/programs/registry) (*)
+
+light-sdk v0.2.1 (/Users/tsv/Developer/light-protocol/sdk)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── aligned-sized v0.2.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/aligned-sized) (*)
+├── anchor-lang v0.30.1 (*)
+├── borsh v0.10.3 (*)
+├── bytemuck v1.16.1 (*)
+├── groth16-solana v0.0.3 (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-heap v0.2.1 (/Users/tsv/Developer/light-protocol/heap) (*)
+├── light-macros v0.4.1 (proc-macro) (/Users/tsv/Developer/light-protocol/macros/light) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+└── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+[dev-dependencies]
+├── lazy_static v1.5.0
+├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-merkle-tree-reference v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/reference) (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── rand v0.8.5 (*)
+├── reqwest v0.12.4
+│   ├── base64 v0.22.1
+│   ├── bytes v1.6.0
+│   ├── encoding_rs v0.8.34 (*)
+│   ├── futures-core v0.3.30
+│   ├── futures-util v0.3.30 (*)
+│   ├── h2 v0.4.5
+│   │   ├── atomic-waker v1.1.2
+│   │   ├── bytes v1.6.0
+│   │   ├── fnv v1.0.7
+│   │   ├── futures-core v0.3.30
+│   │   ├── futures-sink v0.3.30
+│   │   ├── http v1.1.0
+│   │   │   ├── bytes v1.6.0
+│   │   │   ├── fnv v1.0.7
+│   │   │   └── itoa v1.0.11
+│   │   ├── indexmap v2.2.6 (*)
+│   │   ├── slab v0.4.9 (*)
+│   │   ├── tokio v1.38.0 (*)
+│   │   ├── tokio-util v0.7.11 (*)
+│   │   └── tracing v0.1.40 (*)
+│   ├── http v1.1.0 (*)
+│   ├── http-body v1.0.0
+│   │   ├── bytes v1.6.0
+│   │   └── http v1.1.0 (*)
+│   ├── http-body-util v0.1.2
+│   │   ├── bytes v1.6.0
+│   │   ├── futures-util v0.3.30 (*)
+│   │   ├── http v1.1.0 (*)
+│   │   ├── http-body v1.0.0 (*)
+│   │   └── pin-project-lite v0.2.14
+│   ├── hyper v1.3.1
+│   │   ├── bytes v1.6.0
+│   │   ├── futures-channel v0.3.30 (*)
+│   │   ├── futures-util v0.3.30 (*)
+│   │   ├── h2 v0.4.5 (*)
+│   │   ├── http v1.1.0 (*)
+│   │   ├── http-body v1.0.0 (*)
+│   │   ├── httparse v1.9.4
+│   │   ├── itoa v1.0.11
+│   │   ├── pin-project-lite v0.2.14
+│   │   ├── smallvec v1.13.2
+│   │   ├── tokio v1.38.0 (*)
+│   │   └── want v0.3.1 (*)
+│   ├── hyper-tls v0.6.0
+│   │   ├── bytes v1.6.0
+│   │   ├── http-body-util v0.1.2 (*)
+│   │   ├── hyper v1.3.1 (*)
+│   │   ├── hyper-util v0.1.5
+│   │   │   ├── bytes v1.6.0
+│   │   │   ├── futures-channel v0.3.30 (*)
+│   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   ├── http v1.1.0 (*)
+│   │   │   ├── http-body v1.0.0 (*)
+│   │   │   ├── hyper v1.3.1 (*)
+│   │   │   ├── pin-project-lite v0.2.14
+│   │   │   ├── socket2 v0.5.7 (*)
+│   │   │   ├── tokio v1.38.0 (*)
+│   │   │   ├── tower v0.4.13
+│   │   │   │   ├── futures-core v0.3.30
+│   │   │   │   ├── futures-util v0.3.30 (*)
+│   │   │   │   ├── pin-project v1.1.5 (*)
+│   │   │   │   ├── pin-project-lite v0.2.14
+│   │   │   │   ├── tokio v1.38.0 (*)
+│   │   │   │   ├── tower-layer v0.3.2
+│   │   │   │   └── tower-service v0.3.2
+│   │   │   ├── tower-service v0.3.2
+│   │   │   └── tracing v0.1.40 (*)
+│   │   ├── native-tls v0.2.12 (*)
+│   │   ├── tokio v1.38.0 (*)
+│   │   ├── tokio-native-tls v0.3.1 (*)
+│   │   └── tower-service v0.3.2
+│   ├── hyper-util v0.1.5 (*)
+│   ├── ipnet v2.9.0
+│   ├── log v0.4.22
+│   ├── mime v0.3.17
+│   ├── native-tls v0.2.12 (*)
+│   ├── once_cell v1.19.0
+│   ├── percent-encoding v2.3.1
+│   ├── pin-project-lite v0.2.14
+│   ├── rustls-pemfile v2.1.2
+│   │   ├── base64 v0.22.1
+│   │   └── rustls-pki-types v1.7.0
+│   ├── serde v1.0.203 (*)
+│   ├── serde_urlencoded v0.7.1 (*)
+│   ├── sync_wrapper v0.1.2
+│   ├── system-configuration v0.5.1 (*)
+│   ├── tokio v1.38.0 (*)
+│   ├── tokio-native-tls v0.3.1 (*)
+│   ├── tower-service v0.3.2
+│   └── url v2.5.2 (*)
+├── serde_json v1.0.118 (*)
+├── solana-banks-interface v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-cli-output v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+└── tokio v1.38.0 (*)
+
+light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+
+light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+
+light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+
+light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+
+light-wasm-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/hasher.rs/src/wasm)
+├── ark-bn254 v0.4.0 (*)
+├── ark-ff v0.4.2 (*)
+├── blake2b_simd v1.0.2
+│   ├── arrayref v0.3.7
+│   ├── arrayvec v0.7.4
+│   └── constant_time_eq v0.3.0
+├── console_error_panic_hook v0.1.7
+│   ├── cfg-if v1.0.0
+│   └── wasm-bindgen v0.2.92 (*)
+├── hex v0.4.3
+├── js-sys v0.3.69
+│   └── wasm-bindgen v0.2.92 (*)
+├── light-poseidon v0.2.0 (*)
+├── num-bigint v0.4.6 (*)
+├── thiserror v1.0.61 (*)
+├── wasm-bindgen v0.2.92 (*)
+└── web-sys v0.3.69
+    ├── js-sys v0.3.69 (*)
+    └── wasm-bindgen v0.2.92 (*)
+
+photon-api v0.28.1 (/Users/tsv/Developer/light-protocol/photon-api) (*)
+
+registry-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/registry-test)
+[dev-dependencies]
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── anchor-spl v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-registry v0.4.1 (/Users/tsv/Developer/light-protocol/programs/registry) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.11.27 (*)
+├── serde_json v1.0.118 (*)
+├── solana-cli-output v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+system-cpi-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/system-cpi-test)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-registry v0.4.1 (/Users/tsv/Developer/light-protocol/programs/registry) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+└── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+[dev-dependencies]
+├── anchor-spl v0.30.1 (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.11.27 (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+system-test v0.2.1 (/Users/tsv/Developer/light-protocol/test-programs/system-test)
+[dev-dependencies]
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── anchor-spl v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.11.27 (*)
+├── serde_json v1.0.118 (*)
+├── solana-cli-output v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+token-escrow v0.2.1 (/Users/tsv/Developer/light-protocol/examples/token-escrow/programs/token-escrow)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anchor-lang v0.30.1 (*)
+├── light-compressed-token v0.4.1 (/Users/tsv/Developer/light-protocol/programs/compressed-token) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-sdk v0.2.1 (/Users/tsv/Developer/light-protocol/sdk) (*)
+├── light-system-program v0.4.1 (/Users/tsv/Developer/light-protocol/programs/system) (*)
+├── light-verifier v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/verifier) (*)
+└── solana-sdk v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+[dev-dependencies]
+├── anchor-spl v0.30.1 (*)
+├── light-prover-client v0.2.1 (/Users/tsv/Developer/light-protocol/circuit-lib/light-prover-client) (*)
+├── light-test-utils v0.2.1 (/Users/tsv/Developer/light-protocol/test-utils) (*)
+├── num-bigint v0.4.6 (*)
+├── num-traits v0.2.19 (*)
+├── reqwest v0.12.4 (*)
+├── solana-program-test v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+├── spl-token v3.5.0 (*)
+└── tokio v1.38.0 (*)
+
+xtask v0.2.1 (/Users/tsv/Developer/light-protocol/xtask)
+├── account-compression v0.4.1 (/Users/tsv/Developer/light-protocol/programs/account-compression) (*)
+├── anyhow v1.0.86
+├── ark-bn254 v0.4.0 (*)
+├── ark-ff v0.4.2 (*)
+├── clap v4.5.8 (*)
+├── groth16-solana v0.0.3 (*)
+├── light-concurrent-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/concurrent) (*)
+├── light-hash-set v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hash-set) (*)
+├── light-hasher v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/hasher) (*)
+├── light-indexed-merkle-tree v0.2.1 (/Users/tsv/Developer/light-protocol/merkle-tree/indexed) (*)
+├── light-utils v0.2.1 (/Users/tsv/Developer/light-protocol/utils) (*)
+├── num-bigint v0.4.6 (*)
+├── quote v1.0.36 (*)
+├── rand v0.8.5 (*)
+├── sha2 v0.10.8 (*)
+├── solana-program v1.18.17 (https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904b) (*)
+└── tabled v0.15.0
+    ├── papergrid v0.11.0
+    │   ├── bytecount v0.6.8
+    │   ├── fnv v1.0.7
+    │   └── unicode-width v0.1.13
+    ├── tabled_derive v0.7.0 (proc-macro)
+    │   ├── heck v0.4.1
+    │   ├── proc-macro-error v1.0.4 (*)
+    │   ├── proc-macro2 v1.0.86 (*)
+    │   ├── quote v1.0.36 (*)
+    │   └── syn v1.0.109 (*)
+    └── unicode-width v0.1.13

@@ -3,6 +3,7 @@ import nodePolyfills from 'rollup-plugin-polyfill-node';
 import dts from 'rollup-plugin-dts';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
 
 const rolls = (fmt, env) => ({
     input: 'src/index.ts',
@@ -14,6 +15,7 @@ const rolls = (fmt, env) => ({
     },
     external: ['@solana/web3.js', '@coral-xyz/anchor'],
     plugins: [
+        json(),
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
             outDir: `dist/${fmt}/${env}`,

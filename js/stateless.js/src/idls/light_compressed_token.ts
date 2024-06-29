@@ -1,5 +1,5 @@
 export type LightCompressedToken = {
-    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
     metadata: {
         name: 'light_compressed_token';
         version: '0.4.1';
@@ -48,7 +48,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -82,49 +82,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -178,7 +178,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -212,49 +212,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -379,7 +379,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -413,49 +413,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -530,7 +530,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -564,45 +564,45 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'merkle_tree';
@@ -610,7 +610,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -672,7 +672,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -706,49 +706,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -759,168 +759,6 @@ export type LightCompressedToken = {
                 {
                     name: 'inputs';
                     type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'stub_idl_build';
-            docs: [
-                'This function is a stub to allow Anchor to include the input types in',
-                'the IDL. It should not be included in production builds nor be called in',
-                'practice.',
-            ];
-            discriminator: [118, 99, 238, 243, 8, 167, 251, 168];
-            accounts: [
-                {
-                    name: 'fee_payer';
-                    writable: true;
-                    signer: true;
-                },
-                {
-                    name: 'authority';
-                    signer: true;
-                },
-                {
-                    name: 'cpi_authority_pda';
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const';
-                                value: [
-                                    99,
-                                    112,
-                                    105,
-                                    95,
-                                    97,
-                                    117,
-                                    116,
-                                    104,
-                                    111,
-                                    114,
-                                    105,
-                                    116,
-                                    121,
-                                ];
-                            },
-                        ];
-                    };
-                },
-                {
-                    name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
-                },
-                {
-                    name: 'registered_program_pda';
-                },
-                {
-                    name: 'noop_program';
-                },
-                {
-                    name: 'account_compression_authority';
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const';
-                                value: [
-                                    99,
-                                    112,
-                                    105,
-                                    95,
-                                    97,
-                                    117,
-                                    116,
-                                    104,
-                                    111,
-                                    114,
-                                    105,
-                                    116,
-                                    121,
-                                ];
-                            },
-                        ];
-                        program: {
-                            kind: 'const';
-                            value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
-                                228,
-                                6,
-                                139,
-                                125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
-                                148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
-                            ];
-                        };
-                    };
-                },
-                {
-                    name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
-                },
-                {
-                    name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
-                },
-                {
-                    name: 'token_pool_pda';
-                    writable: true;
-                    optional: true;
-                },
-                {
-                    name: 'compress_or_decompress_token_account';
-                    writable: true;
-                    optional: true;
-                },
-                {
-                    name: 'token_program';
-                    optional: true;
-                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-                },
-                {
-                    name: 'system_program';
-                    address: '11111111111111111111111111111111';
-                },
-            ];
-            args: [
-                {
-                    name: '_inputs1';
-                    type: {
-                        defined: {
-                            name: 'CompressedTokenInstructionDataTransfer';
-                        };
-                    };
-                },
-                {
-                    name: '_inputs2';
-                    type: {
-                        defined: {
-                            name: 'TokenData';
-                        };
-                    };
                 },
             ];
         },
@@ -964,7 +802,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -998,49 +836,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'system_program';
@@ -1097,7 +935,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program';
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
                 },
                 {
                     name: 'registered_program_pda';
@@ -1131,49 +969,49 @@ export type LightCompressedToken = {
                         program: {
                             kind: 'const';
                             value: [
-                                30,
-                                193,
-                                178,
-                                123,
-                                205,
-                                181,
+                                122,
+                                247,
                                 228,
-                                6,
-                                139,
+                                253,
                                 125,
-                                78,
-                                222,
-                                202,
-                                109,
-                                151,
-                                70,
-                                186,
-                                17,
-                                32,
-                                135,
-                                5,
-                                154,
-                                189,
-                                133,
-                                11,
+                                235,
+                                168,
+                                178,
+                                118,
+                                247,
                                 148,
-                                97,
-                                140,
-                                115,
-                                182,
-                                99,
-                                45,
+                                132,
+                                87,
+                                69,
+                                138,
+                                249,
+                                48,
+                                38,
+                                162,
+                                157,
+                                101,
+                                94,
+                                204,
+                                195,
+                                59,
+                                23,
+                                183,
+                                138,
+                                180,
+                                125,
+                                89,
+                                223,
                             ];
                         };
                     };
                 },
                 {
                     name: 'account_compression_program';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'self_program';
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M';
                 },
                 {
                     name: 'token_pool_pda';
@@ -1342,23 +1180,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'AccountState';
-            repr: {
-                kind: 'rust';
-            };
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'Initialized';
-                    },
-                    {
-                        name: 'Frozen';
-                    },
-                ];
-            };
-        },
-        {
             name: 'CompressedAccount';
             type: {
                 kind: 'struct';
@@ -1474,83 +1295,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedTokenInstructionDataTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedProof';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'mint';
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'delegated_transfer';
-                        docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
-                            'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
-                        ];
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'DelegatedTransfer';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'input_token_data_with_context';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'InputTokenDataWithContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'output_compressed_accounts';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'PackedTokenTransferOutputData';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'is_compress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compress_or_decompress_amount';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'cpi_context';
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedCpiContext';
-                                };
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
             name: 'CpiContextAccount';
             docs: [
                 'Collects instruction data without executing a compressed transaction.',
@@ -1580,122 +1324,6 @@ export type LightCompressedToken = {
                                 };
                             };
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'DelegatedTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'delegate_change_account_index';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InputTokenDataWithContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'amount';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'delegate_index';
-                        type: {
-                            option: 'u8';
-                        };
-                    },
-                    {
-                        name: 'merkle_context';
-                        type: {
-                            defined: {
-                                name: 'PackedMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'root_index';
-                        type: 'u16';
-                    },
-                    {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InstructionDataInvoke';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedProof';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'input_compressed_accounts_with_merkle_context';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'PackedCompressedAccountWithMerkleContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'output_compressed_accounts';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'OutputCompressedAccountWithPackedContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'relay_fee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'new_address_params';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'NewAddressParamsPacked';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'compress_or_decompress_lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'is_compress';
-                        type: 'bool';
                     },
                 ];
             };
@@ -1817,22 +1445,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'MerkleTreeSequenceNumber';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'pubkey';
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'seq';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
             name: 'NewAddressParamsPacked';
             type: {
                 kind: 'struct';
@@ -1930,110 +1542,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'PackedTokenTransferOutputData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'amount';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'merkle_tree_index';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PublicTransactionEvent';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'input_compressed_account_hashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'output_compressed_account_hashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'output_compressed_accounts';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'OutputCompressedAccountWithPackedContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'output_leaf_indices';
-                        type: {
-                            vec: 'u32';
-                        };
-                    },
-                    {
-                        name: 'sequence_numbers';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'MerkleTreeSequenceNumber';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'relay_fee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'is_compress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compress_or_decompress_lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'pubkey_array';
-                        type: {
-                            vec: 'pubkey';
-                        };
-                    },
-                    {
-                        name: 'message';
-                        type: {
-                            option: 'bytes';
-                        };
-                    },
-                ];
-            };
-        },
-        {
             name: 'RegisteredProgram';
             type: {
                 kind: 'struct';
@@ -2125,52 +1633,10 @@ export type LightCompressedToken = {
                 ];
             };
         },
-        {
-            name: 'TokenData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'mint';
-                        docs: ['The mint associated with this account'];
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'owner';
-                        docs: ['The owner of this account.'];
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'amount';
-                        docs: ['The amount of tokens this account holds.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'delegate';
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ];
-                        type: {
-                            option: 'pubkey';
-                        };
-                    },
-                    {
-                        name: 'state';
-                        docs: ["The account's state"];
-                        type: {
-                            defined: {
-                                name: 'AccountState';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
     ];
 };
 export const IDL: LightCompressedToken = {
-    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
     metadata: {
         name: 'light_compressed_token',
         version: '0.4.1',
@@ -2208,7 +1674,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2231,21 +1697,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2288,7 +1754,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2311,21 +1777,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2428,7 +1894,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2451,21 +1917,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2529,7 +1995,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2552,17 +2018,17 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'merkle_tree',
@@ -2570,7 +2036,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2621,7 +2087,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2644,21 +2110,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2669,118 +2135,6 @@ export const IDL: LightCompressedToken = {
                 {
                     name: 'inputs',
                     type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'stub_idl_build',
-            docs: [
-                'This function is a stub to allow Anchor to include the input types in',
-                'the IDL. It should not be included in production builds nor be called in',
-                'practice.',
-            ],
-            discriminator: [118, 99, 238, 243, 8, 167, 251, 168],
-            accounts: [
-                {
-                    name: 'fee_payer',
-                    writable: true,
-                    signer: true,
-                },
-                {
-                    name: 'authority',
-                    signer: true,
-                },
-                {
-                    name: 'cpi_authority_pda',
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const',
-                                value: [
-                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
-                                    114, 105, 116, 121,
-                                ],
-                            },
-                        ],
-                    },
-                },
-                {
-                    name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
-                },
-                {
-                    name: 'registered_program_pda',
-                },
-                {
-                    name: 'noop_program',
-                },
-                {
-                    name: 'account_compression_authority',
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const',
-                                value: [
-                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
-                                    114, 105, 116, 121,
-                                ],
-                            },
-                        ],
-                        program: {
-                            kind: 'const',
-                            value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
-                            ],
-                        },
-                    },
-                },
-                {
-                    name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
-                },
-                {
-                    name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
-                },
-                {
-                    name: 'token_pool_pda',
-                    writable: true,
-                    optional: true,
-                },
-                {
-                    name: 'compress_or_decompress_token_account',
-                    writable: true,
-                    optional: true,
-                },
-                {
-                    name: 'token_program',
-                    optional: true,
-                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-                },
-                {
-                    name: 'system_program',
-                    address: '11111111111111111111111111111111',
-                },
-            ],
-            args: [
-                {
-                    name: '_inputs1',
-                    type: {
-                        defined: {
-                            name: 'CompressedTokenInstructionDataTransfer',
-                        },
-                    },
-                },
-                {
-                    name: '_inputs2',
-                    type: {
-                        defined: {
-                            name: 'TokenData',
-                        },
-                    },
                 },
             ],
         },
@@ -2813,7 +2167,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2836,21 +2190,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'system_program',
@@ -2896,7 +2250,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'light_system_program',
-                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL',
                 },
                 {
                     name: 'registered_program_pda',
@@ -2919,21 +2273,21 @@ export const IDL: LightCompressedToken = {
                         program: {
                             kind: 'const',
                             value: [
-                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
-                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
-                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
-                                45,
+                                122, 247, 228, 253, 125, 235, 168, 178, 118,
+                                247, 148, 132, 87, 69, 138, 249, 48, 38, 162,
+                                157, 101, 94, 204, 195, 59, 23, 183, 138, 180,
+                                125, 89, 223,
                             ],
                         },
                     },
                 },
                 {
                     name: 'account_compression_program',
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U',
                 },
                 {
                     name: 'self_program',
-                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                    address: '6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M',
                 },
                 {
                     name: 'token_pool_pda',
@@ -3102,23 +2456,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'AccountState',
-            repr: {
-                kind: 'rust',
-            },
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'Initialized',
-                    },
-                    {
-                        name: 'Frozen',
-                    },
-                ],
-            },
-        },
-        {
             name: 'CompressedAccount',
             type: {
                 kind: 'struct',
@@ -3234,83 +2571,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'CompressedTokenInstructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedProof',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'mint',
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'delegated_transfer',
-                        docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
-                            'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
-                        ],
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'DelegatedTransfer',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'input_token_data_with_context',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'InputTokenDataWithContext',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'output_compressed_accounts',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'PackedTokenTransferOutputData',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'is_compress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compress_or_decompress_amount',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'cpi_context',
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedCpiContext',
-                                },
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
             name: 'CpiContextAccount',
             docs: [
                 'Collects instruction data without executing a compressed transaction.',
@@ -3340,122 +2600,6 @@ export const IDL: LightCompressedToken = {
                                 },
                             },
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'DelegatedTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'delegate_change_account_index',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InputTokenDataWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegate_index',
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                    {
-                        name: 'merkle_context',
-                        type: {
-                            defined: {
-                                name: 'PackedMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'root_index',
-                        type: 'u16',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataInvoke',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'CompressedProof',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'input_compressed_accounts_with_merkle_context',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'PackedCompressedAccountWithMerkleContext',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'output_compressed_accounts',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'OutputCompressedAccountWithPackedContext',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'relay_fee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'new_address_params',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'NewAddressParamsPacked',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'compress_or_decompress_lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'is_compress',
-                        type: 'bool',
                     },
                 ],
             },
@@ -3577,22 +2721,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'MerkleTreeSequenceNumber',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'pubkey',
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'seq',
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
             name: 'NewAddressParamsPacked',
             type: {
                 kind: 'struct',
@@ -3690,110 +2818,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'PackedTokenTransferOutputData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'merkle_tree_index',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PublicTransactionEvent',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'input_compressed_account_hashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'output_compressed_account_hashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'output_compressed_accounts',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'OutputCompressedAccountWithPackedContext',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'output_leaf_indices',
-                        type: {
-                            vec: 'u32',
-                        },
-                    },
-                    {
-                        name: 'sequence_numbers',
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'MerkleTreeSequenceNumber',
-                                },
-                            },
-                        },
-                    },
-                    {
-                        name: 'relay_fee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'is_compress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compress_or_decompress_lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'pubkey_array',
-                        type: {
-                            vec: 'pubkey',
-                        },
-                    },
-                    {
-                        name: 'message',
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-        {
             name: 'RegisteredProgram',
             type: {
                 kind: 'struct',
@@ -3879,48 +2903,6 @@ export const IDL: LightCompressedToken = {
                         type: {
                             defined: {
                                 name: 'MerkleTreeMetadata',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TokenData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'mint',
-                        docs: ['The mint associated with this account'],
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'owner',
-                        docs: ['The owner of this account.'],
-                        type: 'pubkey',
-                    },
-                    {
-                        name: 'amount',
-                        docs: ['The amount of tokens this account holds.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegate',
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ],
-                        type: {
-                            option: 'pubkey',
-                        },
-                    },
-                    {
-                        name: 'state',
-                        docs: ["The account's state"],
-                        type: {
-                            defined: {
-                                name: 'AccountState',
                             },
                         },
                     },

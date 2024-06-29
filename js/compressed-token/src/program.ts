@@ -6,7 +6,7 @@ import {
     Connection,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
-import { IDL, LightCompressedToken } from './idl/light_compressed_token';
+import { CompressedToken } from './idl';
 import {
     CompressedProof,
     LightSystemProgram,
@@ -32,6 +32,7 @@ import {
 } from '@solana/spl-token';
 import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
+import { readFileSync } from 'node:fs';
 
 type CompressParams = {
     /**
@@ -384,10 +385,10 @@ export class CompressedTokenProgram {
         'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN',
     );
 
-    private static _program: Program<LightCompressedToken> | null = null;
+    private static _program: Program<CompressedToken> | null = null;
 
     /** @internal */
-    static get program(): Program<LightCompressedToken> {
+    static get program(): Program<CompressedToken> {
         if (!this._program) {
             this.initializeProgram();
         }
@@ -414,7 +415,9 @@ export class CompressedTokenProgram {
                 confirmConfig,
             );
             setProvider(mockProvider);
-            this._program = new Program(IDL, this.programId, mockProvider);
+
+            const LightCompressedTokenIDL = JSON.parse(readFileSync(new URL('../idl/light_compressed_token.json', import.meta.url), 'utf8'));
+            this._program = new Program(LightCompressedTokenIDL as unknown as CompressedToken, mockProvider);
         }
     }
 
@@ -482,14 +485,14 @@ export class CompressedTokenProgram {
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
         const ix = await this.program.methods
-            .createTokenPool()
-            .accounts({
+            .create_token_pool()
+            .accountsPartial({
                 mint,
-                feePayer,
-                tokenPoolPda,
-                systemProgram: SystemProgram.programId,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+                fee_payer: feePayer,
+                token_pool_pda: tokenPoolPda,
+                system_program: SystemProgram.programId,
+                token_program: TOKEN_PROGRAM_ID,
+                cpi_authority_pda: this.deriveCpiAuthorityPda,
             })
             .instruction();
 
@@ -511,23 +514,24 @@ export class CompressedTokenProgram {
 
         const toPubkeys = toArray(toPubkey);
         const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts)
-            .accounts({
-                feePayer,
+            .mint_to(toPubkeys, amounts)
+            .accountsPartial({
+                fee_payer: feePayer,
                 authority,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+                cpi_authority_pda: this.deriveCpiAuthorityPda,
                 mint,
-                tokenPoolPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: systemKeys.registeredProgramPda,
-                noopProgram: systemKeys.noopProgram,
-                accountCompressionAuthority:
+                token_pool_pda: tokenPoolPda,
+                token_program: TOKEN_PROGRAM_ID,
+                light_system_program: LightSystemProgram.programId,
+                registered_program_pda: systemKeys.registeredProgramPda,
+                noop_program: systemKeys.noopProgram,
+                account_compression_authority:
                     systemKeys.accountCompressionAuthority,
-                accountCompressionProgram: systemKeys.accountCompressionProgram,
-                merkleTree:
+                account_compression_program: systemKeys.accountCompressionProgram,
+                merkle_tree:
                     merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
-                selfProgram: this.programId,
+                self_program: this.programId,
+                system_program: SystemProgram.programId,
             })
             .instruction();
         return instruction;
@@ -632,19 +636,17 @@ export class CompressedTokenProgram {
 
         const instruction = await this.program.methods
             .transfer(encodedData)
-            .accounts({
-                feePayer: payer!,
+            .accountsPartial({
+                fee_payer: payer!,
                 authority: currentOwner!,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: registeredProgramPda,
-                noopProgram: noopProgram,
-                accountCompressionAuthority: accountCompressionAuthority,
-                accountCompressionProgram: accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: null,
-                compressOrDecompressTokenAccount: null,
-                tokenProgram: null,
+                cpi_authority_pda: this.deriveCpiAuthorityPda,
+                light_system_program: LightSystemProgram.programId,
+                registered_program_pda: registeredProgramPda,
+                noop_program: noopProgram,
+                account_compression_authority: accountCompressionAuthority,
+                account_compression_program: accountCompressionProgram,
+                self_program: this.programId,
+                system_program: SystemProgram.programId,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -713,19 +715,19 @@ export class CompressedTokenProgram {
 
         const instruction = await this.program.methods
             .transfer(encodedData)
-            .accounts({
-                feePayer: payer,
+            .accountsPartial({
+                fee_payer: payer,
                 authority: owner,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: registeredProgramPda,
-                noopProgram: noopProgram,
-                accountCompressionAuthority: accountCompressionAuthority,
-                accountCompressionProgram: accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: this.deriveTokenPoolPda(mint),
-                compressOrDecompressTokenAccount: source, // token
-                tokenProgram: TOKEN_PROGRAM_ID,
+                cpi_authority_pda: this.deriveCpiAuthorityPda,
+                light_system_program: LightSystemProgram.programId,
+                registered_program_pda: registeredProgramPda,
+                noop_program: noopProgram,
+                account_compression_authority: accountCompressionAuthority,
+                account_compression_program: accountCompressionProgram,
+                self_program: this.programId,
+                token_pool_pda: this.deriveTokenPoolPda(mint),
+                compress_or_decompress_token_account: source, // token
+                token_program: TOKEN_PROGRAM_ID,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -795,19 +797,19 @@ export class CompressedTokenProgram {
 
         const instruction = await this.program.methods
             .transfer(encodedData)
-            .accounts({
-                feePayer: payer,
+            .accountsPartial({
+                fee_payer: payer,
                 authority: currentOwner,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: registeredProgramPda,
-                noopProgram: noopProgram,
-                accountCompressionAuthority: accountCompressionAuthority,
-                accountCompressionProgram: accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: this.deriveTokenPoolPda(mint),
-                compressOrDecompressTokenAccount: toAddress,
-                tokenProgram: TOKEN_PROGRAM_ID,
+                cpi_authority_pda: this.deriveCpiAuthorityPda,
+                light_system_program: LightSystemProgram.programId,
+                registered_program_pda: registeredProgramPda,
+                noop_program: noopProgram,
+                account_compression_authority: accountCompressionAuthority,
+                account_compression_program: accountCompressionProgram,
+                self_program: this.programId,
+                token_pool_pda: this.deriveTokenPoolPda(mint),
+                compress_or_decompress_token_account: toAddress,
+                token_program: TOKEN_PROGRAM_ID,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();

@@ -1,6 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/tsconfig",
     "compilerOptions": {
+        "resolveJsonModule": true,
         "importHelpers": true,
         "outDir": "./dist",
         "esModuleInterop": true,
@@ -14,5 +15,5 @@
         "types": ["vitest/importMeta", "node"],
         "skipLibCheck": true
     },
-    "include": ["./src/**/*.ts", "playwright.config.ts", "rollup.config.js"]
+    "include": ["./src/**/*.ts", "src/**/*.json", "playwright.config.ts", "rollup.config.js"]
 }

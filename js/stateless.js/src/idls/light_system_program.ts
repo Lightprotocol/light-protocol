@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/light_system_program.json`.
  */
 export type LightSystemProgram = {
-    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+    address: '9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL';
     metadata: {
         name: 'lightSystemProgram';
         version: '0.4.1';
@@ -57,76 +57,76 @@ export type LightSystemProgram = {
                             {
                                 kind: 'const';
                                 value: [
-                                    30,
-                                    193,
-                                    178,
-                                    123,
-                                    205,
-                                    181,
+                                    122,
+                                    247,
                                     228,
-                                    6,
-                                    139,
+                                    253,
                                     125,
-                                    78,
-                                    222,
-                                    202,
-                                    109,
-                                    151,
-                                    70,
-                                    186,
-                                    17,
-                                    32,
-                                    135,
-                                    5,
-                                    154,
-                                    189,
-                                    133,
-                                    11,
+                                    235,
+                                    168,
+                                    178,
+                                    118,
+                                    247,
                                     148,
-                                    97,
-                                    140,
-                                    115,
-                                    182,
-                                    99,
-                                    45,
+                                    132,
+                                    87,
+                                    69,
+                                    138,
+                                    249,
+                                    48,
+                                    38,
+                                    162,
+                                    157,
+                                    101,
+                                    94,
+                                    204,
+                                    195,
+                                    59,
+                                    23,
+                                    183,
+                                    138,
+                                    180,
+                                    125,
+                                    89,
+                                    223,
                                 ];
                             },
                         ];
                         program: {
                             kind: 'const';
                             value: [
-                                197,
-                                169,
-                                105,
-                                146,
-                                134,
-                                28,
-                                104,
-                                160,
-                                187,
-                                158,
-                                169,
-                                55,
-                                19,
-                                248,
-                                76,
-                                72,
-                                135,
-                                16,
-                                199,
-                                23,
-                                77,
-                                214,
-                                122,
-                                11,
+                                5,
+                                41,
+                                183,
+                                51,
+                                223,
+                                226,
+                                6,
+                                143,
+                                39,
+                                89,
+                                245,
+                                240,
+                                191,
+                                162,
+                                53,
+                                191,
+                                118,
                                 47,
-                                88,
-                                29,
-                                184,
+                                134,
+                                180,
+                                213,
+                                25,
+                                153,
+                                162,
+                                127,
+                                46,
+                                146,
+                                16,
+                                126,
+                                15,
+                                255,
                                 67,
-                                42,
-                                66,
-                                194,
                             ];
                         };
                     };
@@ -161,7 +161,7 @@ export type LightSystemProgram = {
                 },
                 {
                     name: 'accountCompressionProgram';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'solPoolPda';
@@ -226,76 +226,76 @@ export type LightSystemProgram = {
                             {
                                 kind: 'const';
                                 value: [
-                                    30,
-                                    193,
-                                    178,
-                                    123,
-                                    205,
-                                    181,
+                                    122,
+                                    247,
                                     228,
-                                    6,
-                                    139,
+                                    253,
                                     125,
-                                    78,
-                                    222,
-                                    202,
-                                    109,
-                                    151,
-                                    70,
-                                    186,
-                                    17,
-                                    32,
-                                    135,
-                                    5,
-                                    154,
-                                    189,
-                                    133,
-                                    11,
+                                    235,
+                                    168,
+                                    178,
+                                    118,
+                                    247,
                                     148,
-                                    97,
-                                    140,
-                                    115,
-                                    182,
-                                    99,
-                                    45,
+                                    132,
+                                    87,
+                                    69,
+                                    138,
+                                    249,
+                                    48,
+                                    38,
+                                    162,
+                                    157,
+                                    101,
+                                    94,
+                                    204,
+                                    195,
+                                    59,
+                                    23,
+                                    183,
+                                    138,
+                                    180,
+                                    125,
+                                    89,
+                                    223,
                                 ];
                             },
                         ];
                         program: {
                             kind: 'const';
                             value: [
-                                197,
-                                169,
-                                105,
-                                146,
-                                134,
-                                28,
-                                104,
-                                160,
-                                187,
-                                158,
-                                169,
-                                55,
-                                19,
-                                248,
-                                76,
-                                72,
-                                135,
-                                16,
-                                199,
-                                23,
-                                77,
-                                214,
-                                122,
-                                11,
+                                5,
+                                41,
+                                183,
+                                51,
+                                223,
+                                226,
+                                6,
+                                143,
+                                39,
+                                89,
+                                245,
+                                240,
+                                191,
+                                162,
+                                53,
+                                191,
+                                118,
                                 47,
-                                88,
-                                29,
-                                184,
+                                134,
+                                180,
+                                213,
+                                25,
+                                153,
+                                162,
+                                127,
+                                46,
+                                146,
+                                16,
+                                126,
+                                15,
+                                255,
                                 67,
-                                42,
-                                66,
-                                194,
                             ];
                         };
                     };
@@ -330,7 +330,7 @@ export type LightSystemProgram = {
                 },
                 {
                     name: 'accountCompressionProgram';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                    address: 'M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U';
                 },
                 {
                     name: 'invokingProgram';
@@ -380,200 +380,6 @@ export type LightSystemProgram = {
                 {
                     name: 'inputs';
                     type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'stubIdlBuild';
-            docs: [
-                'This function is a stub to allow Anchor to include the input types in',
-                'the IDL. It should not be included in production builds nor be called in',
-                'practice.',
-            ];
-            discriminator: [118, 99, 238, 243, 8, 167, 251, 168];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    writable: true;
-                    signer: true;
-                },
-                {
-                    name: 'authority';
-                    signer: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const';
-                                value: [
-                                    30,
-                                    193,
-                                    178,
-                                    123,
-                                    205,
-                                    181,
-                                    228,
-                                    6,
-                                    139,
-                                    125,
-                                    78,
-                                    222,
-                                    202,
-                                    109,
-                                    151,
-                                    70,
-                                    186,
-                                    17,
-                                    32,
-                                    135,
-                                    5,
-                                    154,
-                                    189,
-                                    133,
-                                    11,
-                                    148,
-                                    97,
-                                    140,
-                                    115,
-                                    182,
-                                    99,
-                                    45,
-                                ];
-                            },
-                        ];
-                        program: {
-                            kind: 'const';
-                            value: [
-                                197,
-                                169,
-                                105,
-                                146,
-                                134,
-                                28,
-                                104,
-                                160,
-                                187,
-                                158,
-                                169,
-                                55,
-                                19,
-                                248,
-                                76,
-                                72,
-                                135,
-                                16,
-                                199,
-                                23,
-                                77,
-                                214,
-                                122,
-                                11,
-                                47,
-                                88,
-                                29,
-                                184,
-                                67,
-                                42,
-                                66,
-                                194,
-                            ];
-                        };
-                    };
-                },
-                {
-                    name: 'noopProgram';
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const';
-                                value: [
-                                    99,
-                                    112,
-                                    105,
-                                    95,
-                                    97,
-                                    117,
-                                    116,
-                                    104,
-                                    111,
-                                    114,
-                                    105,
-                                    116,
-                                    121,
-                                ];
-                            },
-                        ];
-                    };
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
-                },
-                {
-                    name: 'solPoolPda';
-                    writable: true;
-                    optional: true;
-                    pda: {
-                        seeds: [
-                            {
-                                kind: 'const';
-                                value: [
-                                    115,
-                                    111,
-                                    108,
-                                    95,
-                                    112,
-                                    111,
-                                    111,
-                                    108,
-                                    95,
-                                    112,
-                                    100,
-                                    97,
-                                ];
-                            },
-                        ];
-                    };
-                },
-                {
-                    name: 'decompressionRecipient';
-                    writable: true;
-                    optional: true;
-                },
-                {
-                    name: 'systemProgram';
-                    address: '11111111111111111111111111111111';
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs1';
-                    type: {
-                        defined: {
-                            name: 'instructionDataInvoke';
-                        };
-                    };
-                },
-                {
-                    name: 'inputs2';
-                    type: {
-                        defined: {
-                            name: 'instructionDataInvokeCpi';
-                        };
-                    };
-                },
-                {
-                    name: 'inputs3';
-                    type: {
-                        defined: {
-                            name: 'publicTransactionEvent';
-                        };
-                    };
                 },
             ];
         },
@@ -919,70 +725,6 @@ export type LightSystemProgram = {
             };
         },
         {
-            name: 'instructionDataInvoke';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: {
-                                    name: 'compressedProof';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'packedCompressedAccountWithMerkleContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'outputCompressedAccountWithPackedContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'newAddressParamsPacked';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
             name: 'instructionDataInvokeCpi';
             type: {
                 kind: 'struct';
@@ -1099,22 +841,6 @@ export type LightSystemProgram = {
             };
         },
         {
-            name: 'merkleTreeSequenceNumber';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'pubkey';
-                        type: 'pubkey';
-                    },
-                    {
-                        name: 'seq';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
             name: 'newAddressParamsPacked';
             type: {
                 kind: 'struct';
@@ -1207,84 +933,6 @@ export type LightSystemProgram = {
                     {
                         name: 'leafIndex';
                         type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'publicTransactionEvent';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'inputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'outputCompressedAccountWithPackedContext';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputLeafIndices';
-                        type: {
-                            vec: 'u32';
-                        };
-                    },
-                    {
-                        name: 'sequenceNumbers';
-                        type: {
-                            vec: {
-                                defined: {
-                                    name: 'merkleTreeSequenceNumber';
-                                };
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'pubkeyArray';
-                        type: {
-                            vec: 'pubkey';
-                        };
-                    },
-                    {
-                        name: 'message';
-                        type: {
-                            option: 'bytes';
-                        };
                     },
                 ];
             };
