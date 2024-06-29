@@ -492,7 +492,15 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             let proof = relayer_merkle_tree
                 .get_proof_of_leaf(merkle_tree.current_index(), false)
                 .unwrap();
+            assert_eq!(
+                address_bundle.new_element,
+                indexed_changelog_entry.element.into(),
+            );
             assert_eq!(indexed_changelog_entry.proof.as_slice(), proof.as_slice());
+            assert_eq!(
+                indexed_changelog_entry.changelog_index,
+                merkle_tree.changelog_index()
+            );
         }
     }
 
