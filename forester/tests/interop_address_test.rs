@@ -119,7 +119,7 @@ async fn test_photon_interop_address() {
     let mut rpc = SolanaRpcConnection::new(services_config.rpc_url, None);
 
     // Airdrop because currently TestEnv.new() transfers funds from get_payer.
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
         .unwrap();
 

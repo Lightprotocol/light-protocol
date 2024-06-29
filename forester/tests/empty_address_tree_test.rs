@@ -59,7 +59,7 @@ async fn empty_address_tree_test() {
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
         .unwrap();
 

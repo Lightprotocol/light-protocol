@@ -216,17 +216,13 @@ where
         .await;
         let payer = rpc.get_payer().insecure_clone();
 
-        airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000_000)
+        airdrop_lamports(&mut rpc, &payer.pubkey(), 1_000_000_000_000)
             .await
             .unwrap();
 
-        airdrop_lamports(
-            &mut rpc,
-            &env_accounts.forester.pubkey(),
-            100_000_000_000_000,
-        )
-        .await
-        .unwrap();
+        airdrop_lamports(&mut rpc, &env_accounts.forester.pubkey(), 1_000_000_000_000)
+            .await
+            .unwrap();
         let mut thread_rng = ThreadRng::default();
         let random_seed = thread_rng.next_u64();
         let seed: u64 = seed.unwrap_or(random_seed);
