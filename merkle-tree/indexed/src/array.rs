@@ -346,6 +346,10 @@ where
         low_element_index: I,
         value: &BigUint,
     ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
+        if self.len() == ELEMENTS {
+            return Err(IndexedMerkleTreeError::ArrayFull);
+        }
+
         let old_low_element = &self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.

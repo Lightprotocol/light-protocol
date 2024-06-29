@@ -345,7 +345,7 @@ impl HashSet {
     ///
     /// Uses the optional `current_sequence_number` arguments for checking the
     /// validity of the element.
-    fn find_element_index(
+    pub fn find_element_index(
         &self,
         value: &BigUint,
         current_sequence_number: Option<usize>,

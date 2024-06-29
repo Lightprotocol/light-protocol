@@ -1,9 +1,11 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::errors::AccountCompressionErrorCode;
 use account_compression::{
     self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
 };
 use anchor_lang::{system_program, InstructionData};
+use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{airdrop_lamports, test_env::SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
@@ -194,5 +196,11 @@ async fn test_create_and_update_group() {
         &vec![&context.get_payer(), &other_program_keypair],
         latest_blockhash,
     );
-    context.process_transaction(transaction).await.unwrap_err();
+    let result = context.process_transaction(transaction).await;
+    assert_rpc_error(
+        result,
+        0,
+        AccountCompressionErrorCode::InvalidAuthority.into(),
+    )
+    .unwrap();
 }
