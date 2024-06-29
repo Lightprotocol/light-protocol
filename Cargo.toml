@@ -3,15 +3,10 @@ resolver = "2"
 members = [
     "hasher.rs/src/wasm",
     "heap",
-    "circuit-lib/light-prover-client",
-    "circuit-lib/verifier",
-    "macros/aligned-sized",
-    "macros/light",
+    "circuit-lib/*",
+    "macros/*",
     "merkle-tree/*",
-    "programs/account-compression",
-    "programs/system",
-    "programs/compressed-token",
-    "programs/registry",
+    "programs/*",
     "test-utils",
     "utils",
     "xtask",
@@ -37,8 +32,8 @@ solana-client = "=1.18.17"
 solana-cli-output = "=1.18.17"
 solana-transaction-status = "=1.18.17"
 
-anchor-lang = "=0.30.1"
-anchor-spl = "=0.30.1"
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/sergeytimoshin/agave", branch = "v1.18.17-enforce-cpi-tracking" }

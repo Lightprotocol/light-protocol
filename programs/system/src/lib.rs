@@ -11,7 +11,7 @@ pub mod utils;
 use errors::SystemProgramError;
 use sdk::event::PublicTransactionEvent;
 
-declare_id!("354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ");
+declare_id!("9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -68,16 +68,4 @@ pub mod light_system_program {
         process_invoke_cpi(ctx, inputs)
     }
 
-    /// This function is a stub to allow Anchor to include the input types in
-    /// the IDL. It should not be included in production builds nor be called in
-    /// practice.
-    #[cfg(feature = "idl-build")]
-    pub fn stub_idl_build<'info>(
-        _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
-        _inputs1: InstructionDataInvoke,
-        _inputs2: InstructionDataInvokeCpi,
-        _inputs3: PublicTransactionEvent,
-    ) -> Result<()> {
-        Err(SystemProgramError::InstructionNotCallable.into())
-    }
 }

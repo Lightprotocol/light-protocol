@@ -12,7 +12,7 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
-declare_id!("EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7");
+declare_id!("M9w4GyHwyaZJUhsTC5vu6Hcvm4kUe63VKXdRWmMbJ3U");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -26,12 +26,12 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
+    use super::*;
+
     use self::{
         initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
         insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
     };
-
-    use super::*;
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,

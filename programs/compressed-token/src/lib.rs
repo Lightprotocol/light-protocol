@@ -14,7 +14,7 @@ pub use instructions::*;
 pub mod burn;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
-declare_id!("26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr");
+declare_id!("6kvxACq6SVLMiWbfsWACAFuZutrD2F1J9G8rb9CDao4M");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -94,17 +94,6 @@ pub mod light_compressed_token {
         burn::process_burn(ctx, inputs)
     }
 
-    /// This function is a stub to allow Anchor to include the input types in
-    /// the IDL. It should not be included in production builds nor be called in
-    /// practice.
-    #[cfg(feature = "idl-build")]
-    pub fn stub_idl_build<'info>(
-        _ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
-        _inputs1: CompressedTokenInstructionDataTransfer,
-        _inputs2: TokenData,
-    ) -> Result<()> {
-        Err(ErrorCode::InstructionNotCallable.into())
-    }
 }
 
 #[error_code]
