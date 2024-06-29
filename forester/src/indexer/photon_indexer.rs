@@ -1,14 +1,11 @@
-use std::str::FromStr;
-
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_test_utils::indexer::{
-    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
-};
-use solana_sdk::bs58;
-
+use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use log::info;
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
+use solana_sdk::bs58;
+use std::fmt::Debug;
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -25,6 +22,15 @@ impl PhotonIndexer {
     }
 }
 
+impl Debug for PhotonIndexer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhotonIndexer")
+            .field("configuration", &self.configuration)
+            .field("configuration", &self.configuration)
+            .finish()
+    }
+}
+
 impl Clone for PhotonIndexer {
     fn clone(&self) -> Self {
         PhotonIndexer {
@@ -38,6 +44,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
+        info!("Getting proofs for {:?}", hashes);
         let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
             params: hashes,
             ..Default::default()
@@ -109,14 +116,6 @@ impl Indexer for PhotonIndexer {
         Ok(hashes)
     }
 
-    async fn get_address_tree_proof(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _address: [u8; 32],
-    ) -> Result<MerkleProofWithAddressContext, IndexerError> {
-        unimplemented!("only needed for testing")
-    }
-
     async fn get_multiple_new_address_proofs(
         &self,
         _merkle_tree_pubkey: [u8; 32],
@@ -126,6 +125,8 @@ impl Indexer for PhotonIndexer {
             params: vec![bs58::encode(address).into_string()],
             ..Default::default()
         };
+
+        info!("Request: {:?}", request);
 
         let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
             &self.configuration,
@@ -137,41 +138,35 @@ impl Indexer for PhotonIndexer {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
         }
 
+        info!("Result: {:?}", result);
         let proofs: photon_api::models::MerkleContextWithNewAddressProof =
             result.unwrap().result.unwrap().value[0].clone();
 
-        // TODO: use decode_hash
-        let tree_pubkey = Pubkey::from_str(&proofs.merkle_tree).unwrap();
-        let low_address_value = Pubkey::from_str(&proofs.lower_range_address).unwrap();
-        let next_address_value = Pubkey::from_str(&proofs.higher_range_address).unwrap();
+        let tree_pubkey = decode_hash(&proofs.merkle_tree);
+        let low_address_value = decode_hash(&proofs.lower_range_address);
+        let next_address_value = decode_hash(&proofs.higher_range_address);
         Ok(NewAddressProofWithContext {
-            merkle_tree: tree_pubkey.to_bytes(),
+            merkle_tree: tree_pubkey,
             low_address_index: proofs.low_element_leaf_index as u64,
-            low_address_value: low_address_value.to_bytes(),
+            low_address_value,
             low_address_next_index: proofs.next_index as u64,
-            low_address_next_value: next_address_value.to_bytes(),
+            low_address_next_value: next_address_value,
             low_address_proof: {
-                let proof_vec: Vec<[u8; 32]> = proofs
+                let mut proof_vec: Vec<[u8; 32]> = proofs
                     .proof
                     .iter()
                     .map(|x: &String| decode_hash(x))
                     .collect();
-                proof_vec
+                proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                let mut proof_arr = [[0u8; 32]; 16];
+                proof_arr.copy_from_slice(&proof_vec);
+                proof_arr
             },
             root: decode_hash(&proofs.root),
-            root_seq: proofs.root_seq as i64,
+            root_seq: proofs.root_seq,
+            new_low_element: None,
+            new_element: None,
+            new_element_next_value: None,
         })
-    }
-
-    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {
-        unimplemented!("only needed for testing")
-    }
-
-    fn address_tree_updated(
-        &mut self,
-        _merkle_tree_pubkey: [u8; 32],
-        _context: MerkleProofWithAddressContext,
-    ) {
-        unimplemented!("only needed for testing")
     }
 }

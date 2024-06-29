@@ -13,6 +13,7 @@ use light_system_program::sdk::{
     event::PublicTransactionEvent,
     invoke::get_sol_pool_pda,
 };
+use log::debug;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::account::ReadableAccount;
@@ -216,8 +217,8 @@ pub fn assert_public_transaction_event(
             .iter_mut()
             .find(|x| x.pubkey == merkle_tree_pubkey);
         if index.is_none() {
-            println!("reference sequence numbers: {:?}", sequence_numbers);
-            println!("event: {:?}", event);
+            debug!("reference sequence numbers: {:?}", sequence_numbers);
+            debug!("event: {:?}", event);
             panic!(
                 "merkle tree pubkey not found in sequence numbers : {:?}",
                 merkle_tree_pubkey
@@ -263,14 +264,17 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             snapshot.accounts.merkle_tree,
         )
         .await;
+        debug!("sequence number: {:?}", merkle_tree.next_index() as u64);
+        debug!("next index: {:?}", snapshot.next_index);
+        debug!("prev sequence number: {:?}", snapshot.num_added_accounts);
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
             seq: merkle_tree.sequence_number() as u64,
         });
         if merkle_tree.root() == snapshot.root {
-            println!("deduped_snapshots: {:?}", deduped_snapshots);
-            println!("i: {:?}", i);
-            panic!("merkle tree root update failed");
+            debug!("deduped_snapshots: {:?}", deduped_snapshots);
+            debug!("i: {:?}", i);
+            panic!("merkle tree root update failed, it should have updated but didn't");
         }
         assert_eq!(
             merkle_tree.next_index(),
@@ -284,26 +288,15 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
 
         if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
             // The following lines are just debug prints
-            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
+            debug!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
             for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
                 .iter()
                 .enumerate()
             {
-                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
+                debug!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
             }
             for i in 0..16 {
-                println!("root {} {:?}", i, merkle_tree.roots.get(i));
-            }
-            for i in 0..5 {
-                test_indexer_merkle_tree
-                    .merkle_tree
-                    .update(&[0u8; 32], 15 - i)
-                    .unwrap();
-                println!(
-                    "roll back root {} {:?}",
-                    15 - i,
-                    test_indexer_merkle_tree.merkle_tree.root()
-                );
+                debug!("root {} {:?}", i, merkle_tree.roots.get(i));
             }
 
             panic!("merkle tree root update failed");

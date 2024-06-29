@@ -19,6 +19,7 @@ use light_registry::sdk::{
 };
 use light_registry::{get_forester_epoch_pda_address, ForesterEpoch, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::debug;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -75,12 +76,12 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                println!("element to nullify: {:?}", bucket.value_bytes());
+                debug!("element to nullify: {:?}", bucket.value_bytes());
                 let leaf_index: usize = state_tree_bundle
                     .merkle_tree
                     .get_leaf_index(&bucket.value_bytes())
                     .unwrap();
-                println!("leaf_index: {:?}", leaf_index);
+                debug!("leaf_index: {:?}", leaf_index);
                 compressed_account_to_nullify.push((i, bucket.value_bytes()));
             }
         }
@@ -93,7 +94,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
-        println!("nullifying leaf: {:?}", leaf_index);
+        debug!("nullifying leaf: {:?}", leaf_index);
 
         let proof: Vec<[u8; 32]> = state_tree_bundle
             .merkle_tree
@@ -110,6 +111,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
             indices: vec![leaf_index as u64],
             proofs: vec![proof],
+            derivation: forester.pubkey(),
         });
         let instructions = [ix];
 
@@ -155,9 +157,9 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
-        println!("locally nullifying leaf_index {}", leaf_index);
-        println!("compressed_account {:?}", compressed_account);
-        println!(
+        debug!("locally nullifying leaf_index {}", leaf_index);
+        debug!("compressed_account {:?}", compressed_account);
+        debug!(
             "merkle tree pubkey {:?}",
             state_tree_bundle.accounts.merkle_tree
         );
@@ -230,10 +232,10 @@ pub async fn assert_forester_counter<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let account = rpc.get_anchor_account::<ForesterEpoch>(pubkey).await;
     if account.counter != pre + num_nullified {
-        println!("account.counter: {}", account.counter);
-        println!("pre: {}", pre);
-        println!("num_nullified: {}", num_nullified);
-        println!("forester pubkey: {:?}", pubkey);
+        debug!("account.counter: {}", account.counter);
+        debug!("pre: {}", pre);
+        debug!("num_nullified: {}", num_nullified);
+        debug!("forester pubkey: {:?}", pubkey);
         return Err(RpcError::CustomError(
             "Forester counter not updated correctly".to_string(),
         ));
@@ -436,7 +438,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 )
                 .await;
 
-            let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+            let (old_low_address, _) = relayer_indexing_array
                 .find_low_element_for_nonexistent(&address.value_biguint())
                 .unwrap();
             let address_bundle = relayer_indexing_array
@@ -556,7 +558,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             program_id: ID,
             accounts: vec![
                 AccountMeta::new(forester.pubkey(), true),
-                AccountMeta::new(account_compression::ID, false),
+                AccountMeta::new(ID, false),
                 AccountMeta::new(address_queue_pubkey, false),
                 AccountMeta::new(address_merkle_tree_pubkey, false),
                 AccountMeta::new(NOOP_PROGRAM_ID, false),
@@ -579,7 +581,7 @@ pub async fn insert_addresses<R: RpcConnection>(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<Signature, RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
     let accounts = account_compression::accounts::InsertIntoQueues {

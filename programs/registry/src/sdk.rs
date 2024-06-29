@@ -169,12 +169,13 @@ pub struct CreateNullifyInstructionInputs {
     pub leaves_queue_indices: Vec<u16>,
     pub indices: Vec<u64>,
     pub proofs: Vec<Vec<[u8; 32]>>,
+    pub derivation: Pubkey,
 }
 
 pub fn create_nullify_instruction(inputs: CreateNullifyInstructionInputs) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.authority).0;
-
+    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.derivation).0;
+    log::info!("registered_forester_pda: {:?}", registered_forester_pda);
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
         bump,

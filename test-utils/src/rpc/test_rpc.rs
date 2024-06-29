@@ -9,6 +9,7 @@ use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
+use std::fmt::{Debug, Formatter};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
@@ -16,6 +17,12 @@ use crate::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
+}
+
+impl Debug for ProgramTestRpcConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ProgramTestRpcConnection")
+    }
 }
 
 impl RpcConnection for ProgramTestRpcConnection {

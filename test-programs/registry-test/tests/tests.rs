@@ -120,6 +120,7 @@ async fn failing_test_forester() {
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
+            derivation: payer.pubkey(),
         };
         let mut ix = create_nullify_instruction(inputs);
         // Swap the derived forester pda with an initialized but invalid one.
@@ -228,11 +229,11 @@ async fn update_forester_on_testnet() {
         .await
         .unwrap();
     let forester_epoch_account =
-        Pubkey::from_str("8KEKiyAMugpKq9XCGzx81UtTBuytByW8arm9EaBVpD5k").unwrap();
+        Pubkey::from_str("DFiGEbaz75wSdqy9bpeWacqLWrqAwWBfqh4iSYtejiwK").unwrap();
     let forester_epoch = rpc
         .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
         .await;
-    println!("ForesterEpoch: {:?}", forester_epoch_account);
+    println!("ForesterEpoch: {:?}", forester_epoch);
     assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
 
     let updated_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();

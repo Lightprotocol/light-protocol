@@ -8,6 +8,8 @@ pub struct Cli {
 }
 #[derive(Subcommand)]
 pub enum Commands {
+    NullifyState,
+    NullifyAddresses,
     Nullify,
     Subscribe,
     Index,

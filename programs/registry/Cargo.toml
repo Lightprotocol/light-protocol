@@ -32,6 +32,7 @@ account-compression = { version = "0.4.1", path = "../account-compression", feat
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
+log = "0.4"
 
 [dev-dependencies]
 solana-program-test = { workspace = true }

@@ -1,20 +1,31 @@
-use std::collections::HashMap;
+#[derive(Debug)]
+pub struct ForesterQueueData {
+    pub(crate) accounts_to_nullify: Vec<ForesterQueueAccountData>,
+}
+
+impl ForesterQueueData {
+    pub(crate) fn new(accounts_to_nullify: Vec<ForesterQueueAccountData>) -> Self {
+        Self {
+            accounts_to_nullify,
+        }
+    }
+}
 
 #[derive(Debug)]
-pub struct StateQueueData {
-    pub change_log_index: usize,
-    pub sequence_number: usize,
-    pub compressed_accounts_to_nullify: Vec<Account>,
-    pub compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, u64)>,
+pub struct ForesterQueueAccountData {
+    pub account: ForesterQueueAccount,
+    pub proof: Vec<[u8; 32]>,
+    pub leaf_index: u64,
+    pub root_seq: u64,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Account {
+pub struct ForesterQueueAccount {
     pub hash: [u8; 32],
     pub index: usize,
 }
 
-impl Account {
+impl ForesterQueueAccount {
     pub fn hash_string(&self) -> String {
         bs58::encode(&self.hash).into_string()
     }
