@@ -1,6 +1,10 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 use crate::get_indexed_merkle_tree;
+use crate::registry::{
+    create_rollover_address_merkle_tree_instructions,
+    create_rollover_state_merkle_tree_instructions,
+};
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
@@ -271,4 +275,60 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
             new_address_queue.sequence_threshold,
         );
     }
+}
+
+pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
+    payer: &Keypair,
+    context: &mut R,
+    new_queue_keypair: &Keypair,
+    new_address_merkle_tree_keypair: &Keypair,
+    old_merkle_tree_pubkey: &Pubkey,
+    old_queue_pubkey: &Pubkey,
+) -> Result<solana_sdk::signature::Signature, RpcError> {
+    let instructions = create_rollover_address_merkle_tree_instructions(
+        context,
+        &payer.pubkey(),
+        new_queue_keypair,
+        new_address_merkle_tree_keypair,
+        old_merkle_tree_pubkey,
+        old_queue_pubkey,
+    )
+    .await;
+    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+        blockhash,
+    );
+    context.process_transaction(transaction).await
+}
+
+pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
+    payer: &Keypair,
+    context: &mut R,
+    new_queue_keypair: &Keypair,
+    new_address_merkle_tree_keypair: &Keypair,
+    cpi_context: &Keypair,
+    old_merkle_tree_pubkey: &Pubkey,
+    old_queue_pubkey: &Pubkey,
+) -> Result<solana_sdk::signature::Signature, RpcError> {
+    let instructions = create_rollover_state_merkle_tree_instructions(
+        context,
+        &payer.pubkey(),
+        new_queue_keypair,
+        new_address_merkle_tree_keypair,
+        old_merkle_tree_pubkey,
+        old_queue_pubkey,
+        &cpi_context.pubkey(),
+    )
+    .await;
+    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+        blockhash,
+    );
+    context.process_transaction(transaction).await
 }

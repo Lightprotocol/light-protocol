@@ -1075,6 +1075,11 @@ export type AccountCompression = {
             name: 'SizeMismatch';
             msg: 'SizeMismatch';
         },
+        {
+            code: 6020;
+            name: 'InsufficientRolloverFee';
+            msg: 'InsufficientRolloverFee';
+        },
     ];
 };
 
@@ -2154,6 +2159,11 @@ export const IDL: AccountCompression = {
             code: 6019,
             name: 'SizeMismatch',
             msg: 'SizeMismatch',
+        },
+        {
+            code: 6020,
+            name: 'InsufficientRolloverFee',
+            msg: 'InsufficientRolloverFee',
         },
     ],
 };

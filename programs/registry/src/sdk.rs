@@ -241,6 +241,7 @@ pub fn create_rollover_instruction(
     inputs: CreateRolloverMerkleTreeInstructionInputs,
 ) -> Instruction {
     let (cpi_authority, _) = crate::sdk::get_cpi_authority_pda();
+    println!("cpi_authority: {:?}", cpi_authority);
     let registered_program_pda = get_registered_program_pda(&crate::ID);
     let registered_forester_pda = get_forester_epoch_pda_address(&inputs.authority).0;
     let accounts = crate::accounts::RolloverMerkleTreeAndQueue {

@@ -16,6 +16,7 @@ use solana_sdk::{
 };
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
+pub mod address_merkle_tree_config;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;

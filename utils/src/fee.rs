@@ -9,6 +9,9 @@ pub fn compute_rollover_fee(
     if rollover_threshold > 100 {
         return Err(UtilsError::InvalidRolloverThreshold);
     }
+    if rollover_threshold == 0 {
+        return Ok(rent);
+    }
     // rent / (total_number_of_leaves * (rollover_threshold / 100))
     // (with ceil division)
     Ok((rent * 100).div_ceil(number_of_transactions * rollover_threshold))

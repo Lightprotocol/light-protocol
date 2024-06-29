@@ -15,6 +15,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
+    #[account(mut)]
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -52,10 +53,12 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     assert_size_equal(
         &ctx.accounts.old_queue.to_account_info(),
         &ctx.accounts.new_queue.to_account_info(),
+        "Queue size mismatch",
     )?;
     assert_size_equal(
         &ctx.accounts.old_address_merkle_tree.to_account_info(),
         &ctx.accounts.new_address_merkle_tree.to_account_info(),
+        "Merkle tree size mismatch",
     )?;
     let (queue_metadata, height) = {
         let (merkle_tree_metadata, queue_metadata) = {
@@ -143,8 +146,11 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn assert_size_equal(a: &AccountInfo, b: &AccountInfo) -> Result<()> {
+pub fn assert_size_equal(a: &AccountInfo, b: &AccountInfo, err_str: &str) -> Result<()> {
     if a.data_len() != b.data_len() {
+        msg!("a: {}", a.data_len());
+        msg!("b: {}", b.data_len());
+        msg!("{}", err_str);
         return err!(crate::errors::AccountCompressionErrorCode::SizeMismatch);
     }
     Ok(())

@@ -21,6 +21,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
+    #[account(mut)]
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -57,10 +58,12 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
     assert_size_equal(
         &ctx.accounts.old_nullifier_queue.to_account_info(),
         &ctx.accounts.new_nullifier_queue.to_account_info(),
+        "Queue size mismatch",
     )?;
     assert_size_equal(
         &ctx.accounts.old_state_merkle_tree.to_account_info(),
         &ctx.accounts.new_state_merkle_tree.to_account_info(),
+        "Merkle tree size mismatch",
     )?;
     let queue_metadata = {
         let (merkle_tree_metadata, queue_metadata) = {

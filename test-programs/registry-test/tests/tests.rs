@@ -189,6 +189,7 @@ async fn failing_test_forester() {
     {
         let new_nullifier_queue_keypair = Keypair::new();
         let new_state_merkle_tree_keypair = Keypair::new();
+        let new_cpi_context = Keypair::new();
         let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let authority = rpc.get_payer().insecure_clone();
         let mut instructions = create_rollover_state_merkle_tree_instructions(
@@ -198,6 +199,7 @@ async fn failing_test_forester() {
             &new_state_merkle_tree_keypair,
             &env.merkle_tree_pubkey,
             &env.nullifier_queue_pubkey,
+            &new_cpi_context.pubkey(),
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.

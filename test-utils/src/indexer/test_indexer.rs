@@ -458,6 +458,15 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             self.address_merkle_trees.len() as u64,
         )
         .await;
+        self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
+    }
+
+    pub fn add_address_merkle_tree_accounts(
+        &mut self,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
         let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             queue: queue_keypair.pubkey(),

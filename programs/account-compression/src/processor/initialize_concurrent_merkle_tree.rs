@@ -34,21 +34,23 @@ pub fn process_initialize_state_merkle_tree(
                         .map_err(ProgramError::from)?
                         + compute_rollover_fee(rollover_threshold, *height, queue_rent)
                             .map_err(ProgramError::from)?;
-                if (rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100
-                    <= queue_rent + merkle_tree_rent
-                {
-                    msg!("rollover_fee: {}", rollover_fee);
-                    msg!("rollover_threshold: {}", rollover_threshold);
-                    msg!("height: {}", height);
-                    msg!("merkle_tree_rent: {}", merkle_tree_rent);
-                    msg!("queue_rent: {}", queue_rent);
-                    msg!(
+                if rollover_fee != queue_rent + merkle_tree_rent {
+                    if (rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100
+                        < queue_rent + merkle_tree_rent
+                    {
+                        msg!("rollover_fee: {}", rollover_fee);
+                        msg!("rollover_threshold: {}", rollover_threshold);
+                        msg!("height: {}", height);
+                        msg!("merkle_tree_rent: {}", merkle_tree_rent);
+                        msg!("queue_rent: {}", queue_rent);
+                        msg!(
                         "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
                         ((rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100), queue_rent + merkle_tree_rent
                     );
-                    return err!(
-                        crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee
-                    );
+                        return err!(
+                            crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee
+                        );
+                    }
                 }
                 rollover_fee
             }
