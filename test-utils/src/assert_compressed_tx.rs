@@ -1,10 +1,7 @@
 use crate::get_concurrent_merkle_tree;
+use crate::indexer::Indexer;
 use crate::rpc::rpc_connection::RpcConnection;
-use crate::{
-    get_hash_set,
-    indexer::{StateMerkleTreeAccounts, TestIndexer},
-    AccountZeroCopy,
-};
+use crate::{get_hash_set, indexer::StateMerkleTreeAccounts, AccountZeroCopy};
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
@@ -19,10 +16,14 @@ use num_traits::FromBytes;
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::pubkey::Pubkey;
 
-pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>
-{
+pub struct AssertCompressedTransactionInputs<
+    'a,
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+> {
     pub rpc: &'a mut R,
-    pub test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    pub test_indexer: &'a mut I,
     pub output_compressed_accounts: &'a [CompressedAccount],
     pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
@@ -48,8 +49,12 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE, R>,
+pub async fn assert_compressed_transaction<
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+>(
+    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE, R, I>,
 ) {
     // CHECK 1
     assert_created_compressed_accounts(
@@ -249,10 +254,14 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_merkle_tree_after_tx<
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
 ) -> Vec<MerkleTreeSequenceNumber> {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
@@ -281,7 +290,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             snapshot.next_index + snapshot.num_added_accounts
         );
         let test_indexer_merkle_tree = test_indexer
-            .state_merkle_trees
+            .get_state_merkle_trees_mut()
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
             .expect("merkle tree not found in test indexer");

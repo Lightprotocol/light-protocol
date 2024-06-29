@@ -12,19 +12,36 @@ use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
-pub enum PipelineStage<T: Indexer, R: RpcConnection> {
-    FetchQueueData(PipelineContext<T, R>),
-    FetchProofs(PipelineContext<T, R>, ForesterQueueData),
-    NullifyAccount(PipelineContext<T, R>, ForesterQueueAccountData),
-    UpdateIndexer(PipelineContext<T, R>, ForesterQueueAccountData),
+pub enum PipelineStage<
+    const INDEXED_ARRAY_SIZE: usize,
+    T: Indexer<INDEXED_ARRAY_SIZE, R>,
+    R: RpcConnection,
+> {
+    FetchQueueData(PipelineContext<INDEXED_ARRAY_SIZE, T, R>),
+    FetchProofs(PipelineContext<INDEXED_ARRAY_SIZE, T, R>, ForesterQueueData),
+    NullifyAccount(
+        PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
+        ForesterQueueAccountData,
+    ),
+    UpdateIndexer(
+        PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
+        ForesterQueueAccountData,
+    ),
     Complete,
 }
 
-pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
+pub async fn setup_state_pipeline<
+    const INDEXED_ARRAY_SIZE: usize,
+    T: Indexer<INDEXED_ARRAY_SIZE, R>,
+    R: RpcConnection,
+>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
     config: Arc<ForesterConfig>,
-) -> (mpsc::Sender<PipelineStage<T, R>>, mpsc::Receiver<()>) {
+) -> (
+    mpsc::Sender<PipelineStage<INDEXED_ARRAY_SIZE, T, R>>,
+    mpsc::Receiver<()>,
+) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
     let (completion_tx, completion_rx) = mpsc::channel(1);
@@ -44,6 +61,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
         indexer: indexer.clone(),
         rpc: rpc.clone(),
         config: config.clone(),
+        successful_nullifications: Arc::new(Mutex::new(0)),
     };
 
     tokio::spawn(async move {

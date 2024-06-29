@@ -19,15 +19,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-pub struct StateProcessor<T: Indexer, R: RpcConnection> {
-    pub input: mpsc::Receiver<PipelineStage<T, R>>,
-    pub output: mpsc::Sender<PipelineStage<T, R>>,
+pub struct StateProcessor<
+    const INDEXED_ARRAY_SIZE: usize,
+    T: Indexer<INDEXED_ARRAY_SIZE, R>,
+    R: RpcConnection,
+> {
+    pub input: mpsc::Receiver<PipelineStage<INDEXED_ARRAY_SIZE, T, R>>,
+    pub output: mpsc::Sender<PipelineStage<INDEXED_ARRAY_SIZE, T, R>>,
     pub backpressure: BackpressureControl,
     pub shutdown: Arc<AtomicBool>,
     pub close_output: mpsc::Receiver<()>,
 }
 
-impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
+impl<const INDEXED_ARRAY_SIZE: usize, T: Indexer<INDEXED_ARRAY_SIZE, R>, R: RpcConnection>
+    StateProcessor<INDEXED_ARRAY_SIZE, T, R>
+{
     pub(crate) async fn process(&mut self) {
         debug!("Starting StateProcessor process");
         loop {
@@ -135,12 +141,13 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
     }
 
     pub(crate) async fn fetch_queue_data(
-        context: PipelineContext<T, R>,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
+        context: PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
+    ) -> Result<PipelineStage<INDEXED_ARRAY_SIZE, T, R>, ForesterError> {
         let PipelineContext {
             indexer: _,
             rpc,
             config,
+            successful_nullifications: _,
         } = &context;
 
         let accounts_to_nullify: Vec<ForesterQueueAccountData> = {
@@ -160,13 +167,14 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
 
     async fn fetch_proofs(
         &self,
-        context: PipelineContext<T, R>,
+        context: PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
         queue_data: ForesterQueueData,
-    ) -> Result<Vec<PipelineStage<T, R>>, ForesterError> {
+    ) -> Result<Vec<PipelineStage<INDEXED_ARRAY_SIZE, T, R>>, ForesterError> {
         let PipelineContext {
             indexer,
             rpc: _,
             config: _,
+            successful_nullifications: _,
         } = &context;
         debug!(
             "Fetching proofs for {} accounts",
@@ -219,13 +227,14 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
 
     async fn nullify_account(
         &self,
-        context: PipelineContext<T, R>,
+        context: PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
         account_data: ForesterQueueAccountData,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
+    ) -> Result<PipelineStage<INDEXED_ARRAY_SIZE, T, R>, ForesterError> {
         let PipelineContext {
             indexer: _,
             rpc,
             config,
+            successful_nullifications: _,
         } = &context;
 
         debug!("Nullifying account: {}", account_data.account.hash_string());
@@ -296,13 +305,14 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
 
     async fn update_indexer(
         &self,
-        context: PipelineContext<T, R>,
+        context: PipelineContext<INDEXED_ARRAY_SIZE, T, R>,
         account_data: ForesterQueueAccountData,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
+    ) -> Result<PipelineStage<INDEXED_ARRAY_SIZE, T, R>, ForesterError> {
         let PipelineContext {
             indexer,
             rpc: _,
             config,
+            successful_nullifications: _,
         } = &context;
 
         debug!(

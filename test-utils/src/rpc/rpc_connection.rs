@@ -9,7 +9,7 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;
 
-pub trait RpcConnection: Send + Sync + Debug + 'static {
+pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
     fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
