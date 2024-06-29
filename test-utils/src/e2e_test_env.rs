@@ -68,16 +68,17 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
-use ark_ff::Zero;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_utils::rand::gen_prime;
 use solana_sdk::signature::Signature;
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
-use crate::address_merkle_tree_config::get_address_bundle_config;
+use crate::address_merkle_tree_config::{
+    address_tree_ready_for_rollover, state_tree_ready_for_rollover,
+};
 use crate::address_tree_rollover::{
-    perform_address_merkle_tree_roll_over, perform_address_merkle_tree_roll_over_forester,
-    perform_state_merkle_tree_roll_over_forester,
+    assert_rolled_over_address_merkle_tree_and_queue,
+    perform_address_merkle_tree_roll_over_forester, perform_state_merkle_tree_roll_over_forester,
 };
 use crate::indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
@@ -89,7 +90,7 @@ use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
     mint_tokens_helper,
 };
-use crate::state_tree_rollover::perform_state_merkle_tree_roll_over;
+use crate::state_tree_rollover::assert_rolled_over_pair;
 use crate::system_program::{
     compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
 };
@@ -99,10 +100,7 @@ use crate::test_env::{
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::transaction_params::{FeeConfig, TransactionParams};
-use crate::{
-    airdrop_lamports, assert_merkle_tree, get_concurrent_merkle_tree, get_hash_set,
-    get_indexed_merkle_tree, AccountZeroCopy,
-};
+use crate::{airdrop_lamports, AccountZeroCopy};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
@@ -144,6 +142,8 @@ pub struct Stats {
     pub create_pda: u64,
     pub create_state_mt: u64,
     pub create_address_mt: u64,
+    pub rolledover_state_trees: u64,
+    pub rolledover_address_trees: u64,
 }
 
 impl Stats {
@@ -161,6 +161,11 @@ impl Stats {
         println!("Create pda {}", self.create_pda);
         println!("Create state mt {}", self.create_state_mt);
         println!("Create address mt {}", self.create_address_mt);
+        println!("Rolled over state trees {}", self.rolledover_state_trees);
+        println!(
+            "Rolled over address trees {}",
+            self.rolledover_address_trees
+        );
     }
 }
 
@@ -211,13 +216,17 @@ where
         .await;
         let payer = rpc.get_payer().insecure_clone();
 
-        airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
+        airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000_000)
             .await
             .unwrap();
 
-        airdrop_lamports(&mut rpc, &env_accounts.forester.pubkey(), 100_000_000_000)
-            .await
-            .unwrap();
+        airdrop_lamports(
+            &mut rpc,
+            &env_accounts.forester.pubkey(),
+            100_000_000_000_000,
+        )
+        .await
+        .unwrap();
         let mut thread_rng = ThreadRng::default();
         let random_seed = thread_rng.next_u64();
         let seed: u64 = seed.unwrap_or(random_seed);
@@ -256,7 +265,7 @@ where
     pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
 
-        rpc.airdrop_lamports(&keypair.pubkey(), LAMPORTS_PER_SOL * 50)
+        rpc.airdrop_lamports(&keypair.pubkey(), LAMPORTS_PER_SOL * 5000)
             .await
             .unwrap();
         User {
@@ -293,6 +302,12 @@ where
     /// 1. Add a new keypair
     /// 2. Create a new state Merkle tree
     pub async fn activate_general_actions(&mut self) {
+        // If we want to test rollovers we set the threshold to 0 for all newly created trees
+        let rollover_threshold = if self.general_action_config.rollover.is_some() {
+            Some(0)
+        } else {
+            None
+        };
         if self
             .rng
             .gen_bool(self.general_action_config.add_keypair.unwrap_or_default())
@@ -306,7 +321,7 @@ where
                 .create_state_mt
                 .unwrap_or_default(),
         ) {
-            self.create_state_tree(None).await;
+            self.create_state_tree(rollover_threshold).await;
             self.stats.create_state_mt += 1;
         }
 
@@ -315,7 +330,7 @@ where
                 .create_address_mt
                 .unwrap_or_default(),
         ) {
-            self.create_address_tree(None).await;
+            self.create_address_tree(rollover_threshold).await;
             self.stats.create_address_mt += 1;
         }
 
@@ -346,6 +361,47 @@ where
                 )
                 .await
                 .unwrap();
+            }
+        }
+
+        for index in 0..self.indexer.state_merkle_trees.len() {
+            let is_read_for_rollover = state_tree_ready_for_rollover(
+                &mut self.rpc,
+                self.indexer.state_merkle_trees[index].accounts.merkle_tree,
+            )
+            .await;
+            if self
+                .rng
+                .gen_bool(self.general_action_config.rollover.unwrap_or_default())
+                && is_read_for_rollover
+            {
+                println!("\n --------------------------------------------------\n\t\t Rollover State Merkle Tree\n --------------------------------------------------");
+
+                self.rollover_state_merkle_tree_and_queue(index)
+                    .await
+                    .unwrap();
+                self.stats.rolledover_state_trees += 1;
+            }
+        }
+
+        for index in 0..self.indexer.address_merkle_trees.len() {
+            let is_read_for_rollover = address_tree_ready_for_rollover(
+                &mut self.rpc,
+                self.indexer.address_merkle_trees[index]
+                    .accounts
+                    .merkle_tree,
+            )
+            .await;
+            if self
+                .rng
+                .gen_bool(self.general_action_config.rollover.unwrap_or_default())
+                && is_read_for_rollover
+            {
+                println!("\n --------------------------------------------------\n\t\t Rollover Address Merkle Tree\n --------------------------------------------------");
+                self.rollover_address_merkle_tree_and_queue(index)
+                    .await
+                    .unwrap();
+                self.stats.rolledover_address_trees += 1;
             }
         }
     }
@@ -590,43 +646,6 @@ where
         {
             self.transfer_sol(user_index).await;
         }
-    }
-
-    // TODO: add to actions after multiple Merkle tree support
-    pub async fn roll_over_state_mt(&mut self, index: usize) {
-        let bundle = self.indexer.state_merkle_trees[index].accounts;
-        let new_nullifier_queue_keypair = Keypair::new();
-        let new_merkle_tree_keypair = Keypair::new();
-        perform_state_merkle_tree_roll_over(
-            &mut self.rpc,
-            &new_nullifier_queue_keypair,
-            &new_merkle_tree_keypair,
-            &bundle.merkle_tree,
-            &bundle.nullifier_queue,
-            &StateMerkleTreeConfig::default(),
-            &NullifierQueueConfig::default(),
-            None,
-        )
-        .await
-        .unwrap();
-        let new_cpi_signature_keypair = Keypair::new();
-        crate::test_env::init_cpi_context_account(
-            &mut self.rpc,
-            &new_merkle_tree_keypair.pubkey(),
-            &new_cpi_signature_keypair,
-            &self.payer,
-        )
-        .await;
-
-        self.indexer
-            .add_state_merkle_tree(
-                &mut self.rpc,
-                &new_merkle_tree_keypair,
-                &new_nullifier_queue_keypair,
-                &new_cpi_signature_keypair,
-                None,
-            )
-            .await;
     }
 
     pub async fn transfer_sol_deterministic(
@@ -1072,6 +1091,11 @@ where
         let new_merkle_tree_keypair = Keypair::new();
         // TODO: move into registry program
         let new_cpi_signature_keypair = Keypair::new();
+        let fee_payer_balance = self
+            .rpc
+            .get_balance(&self.indexer.payer.pubkey())
+            .await
+            .unwrap();
         perform_state_merkle_tree_roll_over_forester(
             &self.indexer.payer,
             &mut self.rpc,
@@ -1083,7 +1107,16 @@ where
         )
         .await
         .unwrap();
-
+        assert_rolled_over_pair(
+            &self.indexer.payer.pubkey(),
+            &mut self.rpc,
+            &fee_payer_balance,
+            &bundle.merkle_tree,
+            &bundle.nullifier_queue,
+            &new_merkle_tree_keypair.pubkey(),
+            &new_nullifier_queue_keypair.pubkey(),
+        )
+        .await;
         crate::test_env::init_cpi_context_account(
             &mut self.rpc,
             &new_merkle_tree_keypair.pubkey(),
@@ -1115,6 +1148,12 @@ where
         let bundle = self.indexer.address_merkle_trees[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
+        let fee_payer_balance = self
+            .rpc
+            .get_balance(&self.indexer.payer.pubkey())
+            .await
+            .unwrap();
+        println!("prior balance {}", fee_payer_balance);
         perform_address_merkle_tree_roll_over_forester(
             &self.indexer.payer,
             &mut self.rpc,
@@ -1124,6 +1163,16 @@ where
             &bundle.queue,
         )
         .await?;
+        assert_rolled_over_address_merkle_tree_and_queue(
+            &self.indexer.payer.pubkey(),
+            &mut self.rpc,
+            &fee_payer_balance,
+            &bundle.merkle_tree,
+            &bundle.queue,
+            &new_merkle_tree_keypair.pubkey(),
+            &new_nullifier_queue_keypair.pubkey(),
+        )
+        .await;
         self.indexer.add_address_merkle_tree_accounts(
             &new_merkle_tree_keypair,
             &new_nullifier_queue_keypair,
@@ -1363,6 +1412,7 @@ pub struct GeneralActionConfig {
     pub create_address_mt: Option<f64>,
     pub nullify_compressed_accounts: Option<f64>,
     pub empty_address_queue: Option<f64>,
+    pub rollover: Option<f64>,
 }
 impl Default for GeneralActionConfig {
     fn default() -> Self {
@@ -1372,6 +1422,7 @@ impl Default for GeneralActionConfig {
             create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(0.2),
             empty_address_queue: Some(0.2),
+            rollover: None,
         }
     }
 }
@@ -1384,6 +1435,17 @@ impl GeneralActionConfig {
             create_address_mt: None,
             nullify_compressed_accounts: None,
             empty_address_queue: None,
+            rollover: None,
+        }
+    }
+    pub fn test_with_rollover() -> Self {
+        Self {
+            add_keypair: Some(0.3),
+            create_state_mt: Some(1.0),
+            create_address_mt: Some(1.0),
+            nullify_compressed_accounts: Some(0.2),
+            empty_address_queue: Some(0.2),
+            rollover: Some(0.5),
         }
     }
 }

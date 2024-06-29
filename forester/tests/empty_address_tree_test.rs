@@ -84,6 +84,7 @@ async fn empty_address_tree_test() {
             create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(0.0),
             empty_address_queue: Some(0.0),
+            rollover: None,
         },
         0,
         None,

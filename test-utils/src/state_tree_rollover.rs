@@ -145,6 +145,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
 }
 
 pub async fn assert_rolled_over_pair<R: RpcConnection>(
+    payer: &Pubkey,
     rpc: &mut R,
     fee_payer_prior_balance: &u64,
     old_merkle_tree_pubkey: &Pubkey,
@@ -262,12 +263,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
             new_queue_account.get_lamports(),
         );
     }
-    let fee_payer_post_balance = rpc
-        .get_account(rpc.get_payer().pubkey())
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
+    let fee_payer_post_balance = rpc.get_account(*payer).await.unwrap().unwrap().lamports;
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     let old_address_queue =

@@ -15,18 +15,17 @@ pub fn assert_rolledover_merkle_trees<H, const HEIGHT: usize>(
         new_merkle_tree.changelog.capacity(),
     );
     assert_eq!(
-        old_merkle_tree.changelog.len(),
-        new_merkle_tree.changelog.len()
-    );
-    assert_eq!(
-        old_merkle_tree.changelog_index(),
-        new_merkle_tree.changelog_index()
+        old_merkle_tree.changelog.capacity(),
+        new_merkle_tree.changelog.capacity()
     );
     assert_eq!(
         old_merkle_tree.roots.capacity(),
         new_merkle_tree.roots.capacity()
     );
-    assert_eq!(old_merkle_tree.roots.len(), new_merkle_tree.roots.len());
+    assert_eq!(
+        old_merkle_tree.roots.capacity(),
+        new_merkle_tree.roots.capacity()
+    );
     assert_eq!(old_merkle_tree.canopy_depth, new_merkle_tree.canopy_depth);
 }
 

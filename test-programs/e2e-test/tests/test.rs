@@ -32,7 +32,7 @@ async fn test_10000_all() {
         rpc,
         &env_accounts,
         KeypairActionConfig::all_default_no_fee_assert(),
-        GeneralActionConfig::default(),
+        GeneralActionConfig::test_with_rollover(),
         10000,
         None,
     )
@@ -40,6 +40,7 @@ async fn test_10000_all() {
     env.execute_rounds().await;
 }
 
+#[ignore = "This is an example for the forester, remove once moved"]
 #[tokio::test]
 async fn test_address_tree_rollover() {
     // Will fail after inserting 500 addresses since the local indexed array is full
@@ -55,10 +56,6 @@ async fn test_address_tree_rollover() {
     )
     .await;
 
-    // TODO: rollover should fail if the fee amount is insufficient, which
-    // should never happen but we can add an option to opt out of the
-    // reimbursement
-
     // remove address tree so that the address is created in the address that is
     // created next
     env.indexer.address_merkle_trees.remove(0);
@@ -71,6 +68,7 @@ async fn test_address_tree_rollover() {
     env.rollover_address_merkle_tree_and_queue(0).await.unwrap();
 }
 
+#[ignore = "This is an example for the forester, remove once moved"]
 #[tokio::test]
 async fn test_state_tree_rollover() {
     // Will fail after inserting 500 addresses since the local indexed array is full
@@ -85,10 +83,6 @@ async fn test_state_tree_rollover() {
         None,
     )
     .await;
-
-    // TODO: rollover should fail if the fee amount is insufficient, which
-    // should never happen but we can add an option to opt out of the
-    // reimbursement
 
     // remove address tree so that the address is created in the address that is
     // created next

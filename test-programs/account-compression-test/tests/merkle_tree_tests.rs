@@ -827,8 +827,9 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await
     .unwrap();
-
+    let payer: Keypair = context.get_payer().insecure_clone();
     assert_rolled_over_pair(
+        &payer.pubkey(),
         &mut context,
         &signer_prior_balance,
         &merkle_tree_pubkey,

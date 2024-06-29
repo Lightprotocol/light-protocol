@@ -75,7 +75,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
-    if state_merkle_tree_config.close_threshold != None {
+    if state_merkle_tree_config.close_threshold.is_some() {
         unimplemented!("Close threshold not supported.");
     }
 

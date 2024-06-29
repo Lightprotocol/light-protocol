@@ -10,7 +10,7 @@ use account_compression::{
 };
 use light_hasher::Poseidon;
 use num_traits::Zero;
-use solana_sdk::account_utils::State;
+use solana_sdk::pubkey::Pubkey;
 
 pub async fn get_address_bundle_config<R: RpcConnection>(
     rpc: &mut R,
@@ -73,8 +73,7 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
     )
     .await
     .deserialized()
-    .metadata
-    .clone();
+    .metadata;
     let address_queue =
         unsafe { get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await };
     let queue_config = NullifierQueueConfig {
@@ -89,8 +88,7 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
         )
         .await
         .deserialized()
-        .metadata
-        .clone();
+        .metadata;
     let address_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
         rpc,
         state_tree_bundle.merkle_tree,
@@ -114,4 +112,57 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
         close_threshold: None,
     };
     (address_merkle_tree_config, queue_config)
+}
+
+pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
+    rpc: &mut R,
+    merkle_tree: Pubkey,
+) -> bool {
+    let account =
+        AccountZeroCopy::<account_compression::AddressMerkleTreeAccount>::new(rpc, merkle_tree)
+            .await;
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(account.account.data.len())
+        .await
+        .unwrap();
+    let address_tree_meta_data = account.deserialized().metadata;
+
+    let address_tree =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            rpc,
+            merkle_tree,
+        )
+        .await;
+    // rollover threshold is reached
+    address_tree.next_index()
+        >= ((1 << address_tree.merkle_tree.height)
+            * address_tree_meta_data.rollover_metadata.rollover_threshold
+            / 100) as usize
+                // hash sufficient funds for rollover
+&& account.account.lamports >= rent_exemption * 2
+               // has not been rolled over
+ && address_tree_meta_data.rollover_metadata.rolledover_slot == u64::MAX
+}
+
+pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
+    rpc: &mut R,
+    merkle_tree: Pubkey,
+) -> bool {
+    let account = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree).await;
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(account.account.data.len())
+        .await
+        .unwrap();
+    let tree_meta_data = account.deserialized().metadata;
+    let tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(rpc, merkle_tree)
+            .await;
+
+    // rollover threshold is reached
+    tree.next_index()
+        >= ((1 << tree.height) * tree_meta_data.rollover_metadata.rollover_threshold / 100) as usize
+        // hash sufficient funds for rollover
+        && account.account.lamports >= rent_exemption * 2
+        // has not been rolled over
+        && tree_meta_data.rollover_metadata.rolledover_slot == u64::MAX
 }

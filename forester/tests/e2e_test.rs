@@ -126,6 +126,7 @@ async fn test_1_all() {
             create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(1.0),
             empty_address_queue: Some(1.0),
+            rollover: None,
         },
         1,
         None,
