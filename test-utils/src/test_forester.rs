@@ -638,7 +638,7 @@ pub async fn insert_addresses<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
         Some(&context.get_payer().pubkey()),
-        &[&context.get_payer(), &context.get_payer()],
+        &[&context.get_payer()],
         latest_blockhash,
     );
     context.process_transaction(transaction).await

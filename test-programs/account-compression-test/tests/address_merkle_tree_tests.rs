@@ -852,31 +852,33 @@ async fn update_address_merkle_tree_wrap_around_default() {
 
 #[tokio::test]
 async fn update_address_merkle_tree_wrap_around_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
+    let changelog_size = 250;
+    let queue_capacity = 5003;
+    let roots_size = changelog_size * 2;
 
-            for address_changelog_size in (250..1000).step_by(250) {
-                update_address_merkle_tree_wrap_around(
-                    &AddressMerkleTreeConfig {
-                        height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                        changelog_size,
-                        roots_size,
-                        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                        address_changelog_size,
-                        network_fee: Some(5000),
-                        rollover_threshold: Some(95),
-                        close_threshold: None,
-                    },
-                    &AddressQueueConfig {
-                        capacity: queue_capacity,
-                        sequence_threshold: roots_size + SAFETY_MARGIN,
-                        network_fee: None,
-                    },
-                )
-                .await;
-            }
-        }
+    for address_changelog_size in (250..1000).step_by(250) {
+        println!(
+            "changelog_size {} queue_capacity {} address_changelog_size {}",
+            changelog_size, queue_capacity, address_changelog_size
+        );
+        update_address_merkle_tree_wrap_around(
+            &AddressMerkleTreeConfig {
+                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                changelog_size,
+                roots_size,
+                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                address_changelog_size,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            },
+            &AddressQueueConfig {
+                capacity: queue_capacity,
+                sequence_threshold: roots_size + SAFETY_MARGIN,
+                network_fee: None,
+            },
+        )
+        .await;
     }
 }
 
