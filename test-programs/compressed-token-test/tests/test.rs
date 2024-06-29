@@ -11,7 +11,6 @@ use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
-use solana_sdk::program_error::ProgramError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 use light_compressed_token::get_token_pool_pda;
