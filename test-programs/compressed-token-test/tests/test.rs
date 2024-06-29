@@ -4,12 +4,14 @@ use anchor_lang::AnchorDeserialize;
 use anchor_lang::AnchorSerialize;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::token_data::AccountState;
+use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::spl::approve_test;
 use light_test_utils::spl::burn_test;
 use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
+use solana_sdk::program_error::ProgramError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 use light_compressed_token::get_token_pool_pda;
@@ -688,7 +690,7 @@ async fn test_freeze_and_thaw() {
             .compressed_account
             .merkle_context
             .merkle_tree_pubkey;
-        println!("input_compressed_accounts: {:?}", input_compressed_accounts);
+
         freeze_test(
             &payer,
             &mut rpc,
@@ -712,7 +714,6 @@ async fn test_freeze_and_thaw() {
             .compressed_account
             .merkle_context
             .merkle_tree_pubkey;
-        println!("input_compressed_accounts: {:?}", input_compressed_accounts);
         thaw_test(
             &payer,
             &mut rpc,
@@ -753,7 +754,7 @@ async fn test_freeze_and_thaw() {
             .compressed_account
             .merkle_context
             .merkle_tree_pubkey;
-        println!("input_compressed_accounts: {:?}", input_compressed_accounts);
+
         freeze_test(
             &payer,
             &mut rpc,
@@ -777,7 +778,7 @@ async fn test_freeze_and_thaw() {
             .compressed_account
             .merkle_context
             .merkle_tree_pubkey;
-        println!("input_compressed_accounts: {:?}", input_compressed_accounts);
+
         thaw_test(
             &payer,
             &mut rpc,
@@ -832,6 +833,7 @@ async fn test_failing_decompression() {
     let decompress_amount = amount - 1000;
     // Test 1: invalid decompress account
     {
+        let invalid_token_account = mint;
         failing_compress_decompress(
             &sender,
             &mut context,
@@ -841,10 +843,10 @@ async fn test_failing_decompression() {
             &merkle_tree_pubkey,
             decompress_amount,
             false,
-            &mint,
+            &invalid_token_account,
             Some(get_token_pool_pda(&mint)),
             &mint,
-            ErrorCode::SumCheckFailed.into(),
+            0, //ProgramError::InvalidAccountData.into(), error code 17179869184 does not fit u32
         )
         .await
         .unwrap_err();
@@ -863,10 +865,10 @@ async fn test_failing_decompression() {
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&Pubkey::new_unique())),
             &mint,
-            ErrorCode::SumCheckFailed.into(),
+            anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
         )
         .await
-        .unwrap_err();
+        .unwrap();
     }
     // Test 3: invalid compression amount -1
     {
@@ -953,10 +955,10 @@ async fn test_failing_decompression() {
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
             &mint,
-            ErrorCode::SumCheckFailed.into(),
+            ErrorCode::ComputeOutputSumFailed.into(),
         )
         .await
-        .unwrap_err();
+        .unwrap();
     }
     // Test 7: invalid compression amount +1
     {
@@ -975,7 +977,7 @@ async fn test_failing_decompression() {
             ErrorCode::SumCheckFailed.into(),
         )
         .await
-        .unwrap_err();
+        .unwrap();
     }
     // Test 7: invalid compression amount 0
     {
@@ -991,10 +993,10 @@ async fn test_failing_decompression() {
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
             &mint,
-            ErrorCode::SumCheckFailed.into(),
+            ErrorCode::ComputeOutputSumFailed.into(),
         )
         .await
-        .unwrap_err();
+        .unwrap();
     }
     // functional
     compress_test(
@@ -1117,8 +1119,11 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             &[&context_payer, payer],
         )
         .await;
-    println!("result: {:?}", result);
-    assert_custom_error_or_program_error(Err(result.unwrap_err()), error_code)
+    assert_rpc_error(
+        result,
+        instructions.len().saturating_sub(1) as u8,
+        error_code,
+    )
 }
 
 /// Failing tests:

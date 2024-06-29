@@ -14,7 +14,7 @@ use account_compression::{
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
-    zero_copy::ConcurrentMerkleTreeZeroCopyMut, ConcurrentMerkleTree26,
+    zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
