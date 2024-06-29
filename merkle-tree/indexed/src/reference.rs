@@ -78,6 +78,14 @@ where
         Ok(())
     }
 
+    pub fn get_path_of_leaf(
+        &self,
+        index: usize,
+        full: bool,
+    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+        self.merkle_tree.get_path_of_leaf(index, full)
+    }
+
     pub fn get_proof_of_leaf(
         &self,
         index: usize,

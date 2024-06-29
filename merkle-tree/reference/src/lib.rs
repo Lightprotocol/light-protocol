@@ -104,6 +104,13 @@ where
         Ok(())
     }
 
+    pub fn append_batch(&mut self, leaves: &[&[u8; 32]]) -> Result<(), HasherError> {
+        for leaf in leaves {
+            self.append(leaf)?;
+        }
+        Ok(())
+    }
+
     pub fn update(
         &mut self,
         leaf: &[u8; 32],

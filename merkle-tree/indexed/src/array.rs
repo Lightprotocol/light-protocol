@@ -18,6 +18,20 @@ where
     pub next_index: I,
 }
 
+impl<I> From<RawIndexedElement<I>> for IndexedElement<I>
+where
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    fn from(value: RawIndexedElement<I>) -> Self {
+        IndexedElement {
+            index: value.index,
+            value: BigUint::from_bytes_be(&value.value),
+            next_index: value.next_index,
+        }
+    }
+}
+
 impl<I> PartialEq for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,

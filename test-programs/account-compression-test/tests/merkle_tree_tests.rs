@@ -7,16 +7,13 @@ use account_compression::{
     queue_from_bytes_copy,
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    utils::constants::{
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS,
-    },
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueType,
     StateMerkleTreeAccount, StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
-    event::MerkleTreeEvent, zero_copy::ConcurrentMerkleTreeZeroCopyMut, ConcurrentMerkleTree26,
+    event::MerkleTreeEvent, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
@@ -249,14 +246,10 @@ async fn test_full_nullifier_queue(
     .await;
     let leaf: [u8; 32] = bigint_to_be_bytes_array(&1.to_biguint().unwrap()).unwrap();
     // append a leaf so that we have a leaf to nullify
-    let mut reference_merkle_tree_1 = ConcurrentMerkleTree26::<Poseidon>::new(
+    let mut reference_merkle_tree_1 = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         STATE_MERKLE_TREE_HEIGHT as usize,
-        STATE_MERKLE_TREE_CHANGELOG as usize,
-        STATE_MERKLE_TREE_ROOTS as usize,
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-    )
-    .unwrap();
-    reference_merkle_tree_1.init().unwrap();
+    );
     functional_3_append_leaves_to_merkle_tree(
         &mut rpc,
         &mut [&mut reference_merkle_tree_1],
@@ -981,14 +974,10 @@ async fn test_append_functional_and_failing(
             )
         })
         .collect::<Vec<(u8, [u8; 32])>>();
-    let mut reference_merkle_tree_1 = ConcurrentMerkleTree26::<Poseidon>::new(
+    let mut reference_merkle_tree_1 = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         STATE_MERKLE_TREE_HEIGHT as usize,
-        STATE_MERKLE_TREE_CHANGELOG as usize,
-        STATE_MERKLE_TREE_ROOTS as usize,
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-    )
-    .unwrap();
-    reference_merkle_tree_1.init().unwrap();
+    );
     functional_3_append_leaves_to_merkle_tree(
         &mut context,
         &mut [&mut reference_merkle_tree_1],
@@ -1003,14 +992,10 @@ async fn test_append_functional_and_failing(
         (2, [3u8; 32]),
         (3, [4u8; 32]),
     ];
-    let mut reference_merkle_tree_2 = ConcurrentMerkleTree26::<Poseidon>::new(
+    let mut reference_merkle_tree_2 = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         STATE_MERKLE_TREE_HEIGHT as usize,
-        STATE_MERKLE_TREE_CHANGELOG as usize,
-        STATE_MERKLE_TREE_ROOTS as usize,
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-    )
-    .unwrap();
-    reference_merkle_tree_2.init().unwrap();
+    );
     // CHECK: 5 append leaves to multiple merkle trees not-ordered
     functional_3_append_leaves_to_merkle_tree(
         &mut context,
@@ -1115,14 +1100,10 @@ async fn test_nullify_leaves(
     .await;
 
     let elements = vec![(0, [1u8; 32]), (0, [2u8; 32])];
-    let mut reference_merkle_tree = ConcurrentMerkleTree26::<Poseidon>::new(
+    let mut reference_merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         merkle_tree_config.height as usize,
-        merkle_tree_config.changelog_size as usize,
-        merkle_tree_config.roots_size as usize,
         merkle_tree_config.canopy_depth as usize,
-    )
-    .unwrap();
-    reference_merkle_tree.init().unwrap();
+    );
     functional_3_append_leaves_to_merkle_tree(
         &mut context,
         &mut [&mut reference_merkle_tree],
@@ -1682,7 +1663,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
 
 pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     context: &mut R,
-    reference_merkle_trees: &mut [&mut ConcurrentMerkleTree26<Poseidon>],
+    reference_merkle_trees: &mut [&mut light_merkle_tree_reference::MerkleTree<Poseidon>],
     merkle_tree_pubkeys: &Vec<Pubkey>,
     leaves: &Vec<(u8, [u8; 32])>,
 ) {
@@ -1742,11 +1723,21 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
                 .await;
         assert_eq!(merkle_tree.next_index(), next_index + num_leaves as usize);
         let leaves: Vec<&[u8; 32]> = leaves.iter().map(|leaf| leaf).collect();
-        (*reference_merkle_trees[*mt_index])
-            .append_batch(&leaves)
-            .unwrap();
-        assert_eq!(merkle_tree.root(), reference_merkle_trees[*mt_index].root());
+
+        let reference_merkle_tree = &mut reference_merkle_trees[*mt_index];
+        reference_merkle_tree.append_batch(&leaves).unwrap();
+
+        assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
         assert_eq!(lamports + roll_over_fee, post_account_mt.lamports);
+
+        let changelog_entry = merkle_tree
+            .changelog
+            .get(merkle_tree.changelog_index())
+            .unwrap();
+        let path = reference_merkle_tree
+            .get_path_of_leaf(merkle_tree.current_index(), true)
+            .unwrap();
+        assert_eq!(changelog_entry.path.as_slice(), path.as_slice());
     }
 }
 
