@@ -216,7 +216,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
         array_element.sequence_number(),
         Some(
             onchain_merkle_tree.sequence_number()
-                + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+                + onchain_merkle_tree.roots.capacity() as usize
                 + SAFETY_MARGIN as usize
         )
     );
