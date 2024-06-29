@@ -883,8 +883,9 @@ async fn address_merkle_tree_and_queue_rollover(
     )
     .await
     .unwrap();
-
+    let payer: Keypair = context.get_payer().insecure_clone();
     assert_rolled_over_address_merkle_tree_and_queue(
+        &payer.pubkey(),
         &mut context,
         &signer_prior_balance,
         &address_merkle_tree_pubkey,

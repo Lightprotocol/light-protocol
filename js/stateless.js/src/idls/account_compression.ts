@@ -253,7 +253,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -590,7 +590,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -1075,6 +1075,11 @@ export type AccountCompression = {
             name: 'SizeMismatch';
             msg: 'SizeMismatch';
         },
+        {
+            code: 6020;
+            name: 'InsufficientRolloverFee';
+            msg: 'InsufficientRolloverFee';
+        },
     ];
 };
 
@@ -1333,7 +1338,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -1670,7 +1675,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -2154,6 +2159,11 @@ export const IDL: AccountCompression = {
             code: 6019,
             name: 'SizeMismatch',
             msg: 'SizeMismatch',
+        },
+        {
+            code: 6020,
+            name: 'InsufficientRolloverFee',
+            msg: 'InsufficientRolloverFee',
         },
     ],
 };

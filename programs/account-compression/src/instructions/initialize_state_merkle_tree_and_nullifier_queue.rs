@@ -75,10 +75,8 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
-    // Will be used to configure rollover fees for additional accounts (cpi
-    // context account).
-    if additional_rent != 0 {
-        unimplemented!("Additional rent is not supported.");
+    if state_merkle_tree_config.close_threshold.is_some() {
+        unimplemented!("Close threshold not supported.");
     }
 
     process_initialize_state_merkle_tree(

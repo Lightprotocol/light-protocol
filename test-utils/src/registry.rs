@@ -1,6 +1,11 @@
+use crate::address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config};
+use crate::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{create_account_instruction, rpc::errors::RpcError};
-use account_compression::{AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount};
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
+    StateMerkleTreeConfig,
+};
 use light_registry::sdk::{
     create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
     CreateRolloverMerkleTreeInstructionInputs,
@@ -81,18 +86,24 @@ pub struct RentExemption {
     pub lamports: u64,
 }
 
-// TODO: add aligned size trait so that we can pass accounts as generic
 pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnection>(
     rpc: &mut R,
+    address_merkle_tree_config: &AddressMerkleTreeConfig,
+    address_queue_config: &AddressQueueConfig,
 ) -> (RentExemption, RentExemption) {
-    let queue_size =
-        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
-            .unwrap();
+    let queue_size = QueueAccount::size(address_queue_config.capacity as usize).unwrap();
+
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
         .unwrap();
-    let tree_size = AddressMerkleTreeAccount::LEN;
+    let tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+        address_merkle_tree_config.height as usize,
+        address_merkle_tree_config.changelog_size as usize,
+        address_merkle_tree_config.roots_size as usize,
+        address_merkle_tree_config.canopy_depth as usize,
+        address_merkle_tree_config.address_changelog_size as usize,
+    );
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
@@ -111,15 +122,21 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnecti
 
 pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection>(
     rpc: &mut R,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
 ) -> (RentExemption, RentExemption) {
-    let queue_size =
-        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
-            .unwrap();
+    let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
         .unwrap();
-    let tree_size = StateMerkleTreeAccount::LEN;
+    let tree_size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
@@ -144,8 +161,21 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
 ) -> Vec<Instruction> {
+    let (merkle_tree_config, queue_config) = get_address_bundle_config(
+        rpc,
+        AddressMerkleTreeAccounts {
+            merkle_tree: *merkle_tree_pubkey,
+            queue: *nullifier_queue_pubkey,
+        },
+    )
+    .await;
     let (merkle_tree_rent_exemption, queue_rent_exemption) =
-        get_rent_exemption_for_address_merkle_tree_and_queue(rpc).await;
+        get_rent_exemption_for_address_merkle_tree_and_queue(
+            rpc,
+            &merkle_tree_config,
+            &queue_config,
+        )
+        .await;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,
@@ -213,9 +243,20 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     new_state_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
+    cpi_context: &Pubkey,
 ) -> Vec<Instruction> {
+    let (merkle_tree_config, queue_config) = get_state_bundle_config(
+        rpc,
+        StateMerkleTreeAccounts {
+            merkle_tree: *merkle_tree_pubkey,
+            nullifier_queue: *nullifier_queue_pubkey,
+            cpi_context: *cpi_context,
+        },
+    )
+    .await;
     let (state_merkle_tree_rent_exemption, queue_rent_exemption) =
-        get_rent_exemption_for_state_merkle_tree_and_queue(rpc).await;
+        get_rent_exemption_for_state_merkle_tree_and_queue(rpc, &merkle_tree_config, &queue_config)
+            .await;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,

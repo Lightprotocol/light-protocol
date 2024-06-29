@@ -56,7 +56,7 @@ async fn test_state_tree_nullifier() {
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
         .unwrap();
 
@@ -101,7 +101,7 @@ async fn test_1_all() {
     let env_accounts = get_test_env_accounts();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
         .unwrap();
 
@@ -126,6 +126,7 @@ async fn test_1_all() {
             create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(1.0),
             empty_address_queue: Some(1.0),
+            rollover: None,
         },
         1,
         None,

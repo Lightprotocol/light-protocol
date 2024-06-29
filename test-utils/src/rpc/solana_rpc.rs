@@ -290,6 +290,7 @@ impl RpcConnection for SolanaRpcConnection {
             .request_airdrop(to, lamports)
             .map_err(RpcError::from)?;
         // TODO: Find a different way this can result in an infinite loop
+        println!("Airdrop signature: {:?}", signature);
         loop {
             let confirmed = self
                 .client

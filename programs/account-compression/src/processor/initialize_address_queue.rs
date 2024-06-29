@@ -33,11 +33,13 @@ pub fn process_initialize_address_queue<'info>(
                 .map_err(ProgramError::from)?
                 + compute_rollover_fee(rollover_threshold, height, queue_rent)
                     .map_err(ProgramError::from)?;
-            if (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
-                <= queue_rent + merkle_tree_rent
-            {
-                return err!(crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee);
-            }
+            check_rollover_fee_sufficient(
+                rollover_fee,
+                queue_rent,
+                merkle_tree_rent,
+                rollover_threshold,
+                height,
+            )?;
             rollover_fee
         } else {
             0
@@ -68,5 +70,31 @@ pub fn process_initialize_address_queue<'info>(
         .map_err(ProgramError::from)?;
     }
 
+    Ok(())
+}
+
+pub fn check_rollover_fee_sufficient(
+    rollover_fee: u64,
+    queue_rent: u64,
+    merkle_tree_rent: u64,
+    rollover_threshold: u64,
+    height: u32,
+) -> Result<()> {
+    if rollover_fee != queue_rent + merkle_tree_rent
+        && (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
+            < queue_rent + merkle_tree_rent
+    {
+        msg!("rollover_fee: {}", rollover_fee);
+        msg!("rollover_threshold: {}", rollover_threshold);
+        msg!("height: {}", height);
+        msg!("merkle_tree_rent: {}", merkle_tree_rent);
+        msg!("queue_rent: {}", queue_rent);
+        msg!(
+            "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
+            ((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100),
+            queue_rent + merkle_tree_rent
+        );
+        return err!(crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee);
+    }
     Ok(())
 }

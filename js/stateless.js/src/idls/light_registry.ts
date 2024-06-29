@@ -304,7 +304,7 @@ export type LightRegistry = {
                 },
                 {
                     name: 'authority';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                 },
                 {
@@ -360,7 +360,7 @@ export type LightRegistry = {
                 },
                 {
                     name: 'authority';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                 },
                 {
@@ -840,7 +840,7 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'authority',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                 },
                 {
@@ -896,7 +896,7 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'authority',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                 },
                 {

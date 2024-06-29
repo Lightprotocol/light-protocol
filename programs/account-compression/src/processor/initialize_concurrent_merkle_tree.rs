@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
 use crate::{
-    state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init, AccessMetadata,
-    RolloverMetadata,
+    initialize_address_queue::check_rollover_fee_sufficient, state::StateMerkleTreeAccount,
+    state_merkle_tree_from_bytes_zero_copy_init, AccessMetadata, RolloverMetadata,
 };
 
 #[allow(unused_variables)]
@@ -34,22 +34,13 @@ pub fn process_initialize_state_merkle_tree(
                         .map_err(ProgramError::from)?
                         + compute_rollover_fee(rollover_threshold, *height, queue_rent)
                             .map_err(ProgramError::from)?;
-                if (rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100
-                    <= queue_rent + merkle_tree_rent
-                {
-                    msg!("rollover_fee: {}", rollover_fee);
-                    msg!("rollover_threshold: {}", rollover_threshold);
-                    msg!("height: {}", height);
-                    msg!("merkle_tree_rent: {}", merkle_tree_rent);
-                    msg!("queue_rent: {}", queue_rent);
-                    msg!(
-                        "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
-                        ((rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100), queue_rent + merkle_tree_rent
-                    );
-                    return err!(
-                        crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee
-                    );
-                }
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    queue_rent,
+                    merkle_tree_rent,
+                    rollover_threshold,
+                    *height,
+                )?;
                 rollover_fee
             }
             None => 0,

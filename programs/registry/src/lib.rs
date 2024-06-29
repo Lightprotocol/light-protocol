@@ -369,6 +369,7 @@ pub struct RolloverMerkleTreeAndQueue<'info> {
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpoch>,
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
