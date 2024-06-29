@@ -13,7 +13,8 @@ use account_compression::{
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
-    event::MerkleTreeEvent, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
+    errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
+    zero_copy::ConcurrentMerkleTreeZeroCopyMut, ConcurrentMerkleTree26,
 };
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
@@ -219,7 +220,6 @@ async fn test_full_nullifier_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    println!("SEQUENCE THRESHOLD: {}", queue_config.sequence_threshold);
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -1089,7 +1089,7 @@ async fn test_nullify_leaves(
 
     let other_merkle_tree_keypair = Keypair::new();
     let invalid_nullifier_queue_keypair = Keypair::new();
-    let invalid_nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
+    let invalid_nullifier_queue_pubkey = invalid_nullifier_queue_keypair.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
@@ -1149,6 +1149,9 @@ async fn test_nullify_leaves(
     let element_index = reference_merkle_tree
         .get_leaf_index(&elements[0].1)
         .unwrap() as u64;
+    let element_one_index = reference_merkle_tree
+        .get_leaf_index(&elements[1].1)
+        .unwrap() as u64;
     nullify(
         &mut context,
         &merkle_tree_pubkey,
@@ -1180,7 +1183,7 @@ async fn test_nullify_leaves(
             .unwrap();
         index as u16
     };
-    nullify(
+    let result = nullify(
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
@@ -1191,13 +1194,16 @@ async fn test_nullify_leaves(
         valid_leaf_queue_index,
         invalid_element_index,
     )
-    .await
-    .unwrap_err();
+    .await;
+    assert_rpc_error(
+        result, 0, 10008, // Invalid proof
+    )
+    .unwrap();
 
     // 3. nullify with invalid leaf queue index
     let valid_element_index = 1;
     let invalid_leaf_queue_index = 0;
-    nullify(
+    let result = nullify(
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
@@ -1208,12 +1214,12 @@ async fn test_nullify_leaves(
         invalid_leaf_queue_index,
         valid_element_index,
     )
-    .await
-    .unwrap_err();
+    .await;
+    assert_rpc_error(result, 0, AccountCompressionErrorCode::LeafNotFound.into()).unwrap();
 
     // 4. nullify with invalid change log index
     let invalid_changelog_index = 0;
-    nullify(
+    let result = nullify(
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
@@ -1221,12 +1227,17 @@ async fn test_nullify_leaves(
         &mut reference_merkle_tree,
         &elements[1].1,
         invalid_changelog_index,
-        leaf_queue_index as u16,
-        element_index,
+        valid_leaf_queue_index as u16,
+        element_one_index,
     )
-    .await
-    .unwrap_err();
-
+    .await;
+    // returns LeafNotFound why?
+    assert_rpc_error(
+        result,
+        0,
+        ConcurrentMerkleTreeError::CannotUpdateLeaf.into(),
+    )
+    .unwrap();
     // 5. nullify other leaf
     nullify(
         &mut context,
@@ -1244,7 +1255,7 @@ async fn test_nullify_leaves(
 
     // 6. nullify leaf with nullifier queue that is not associated with the
     // merkle tree
-    nullify(
+    let result = nullify(
         &mut context,
         &merkle_tree_pubkey,
         &invalid_nullifier_queue_pubkey,
@@ -1252,11 +1263,16 @@ async fn test_nullify_leaves(
         &mut reference_merkle_tree,
         &elements[0].1,
         2,
-        0,
+        valid_leaf_queue_index as u16,
         element_index,
     )
-    .await
-    .unwrap_err();
+    .await;
+    assert_rpc_error(
+        result,
+        0,
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+    )
+    .unwrap();
 }
 
 #[tokio::test]
@@ -1330,7 +1346,7 @@ async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
 ) {
     let payer = context.get_payer().insecure_clone();
 
-    insert_into_single_nullifier_queue(
+    let result = insert_into_single_nullifier_queue(
         &elements,
         &payer,
         &payer,
@@ -1338,8 +1354,13 @@ async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
         merkle_tree_pubkey,
         context,
     )
-    .await
-    .unwrap_err();
+    .await;
+    assert_rpc_error(
+        result,
+        0,
+        HashSetError::ElementAlreadyExists.into(), // Invalid proof
+    )
+    .unwrap();
 }
 
 async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
@@ -1352,7 +1373,7 @@ async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
     airdrop_lamports(rpc, &invalid_signer.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    insert_into_single_nullifier_queue(
+    let result = insert_into_single_nullifier_queue(
         &elements,
         &invalid_signer,
         &invalid_signer,
@@ -1360,8 +1381,13 @@ async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
         merkle_tree_pubkey,
         rpc,
     )
-    .await
-    .unwrap_err();
+    .await;
+    assert_rpc_error(
+        result,
+        0,
+        AccountCompressionErrorCode::InvalidAuthority.into(),
+    )
+    .unwrap();
 }
 
 async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
@@ -1871,10 +1897,6 @@ pub async fn nullify<R: RpcConnection>(
     assert_eq!(
         array_element.sequence_number(),
         Some(merkle_tree.sequence_number() + nullifier_queue_config.sequence_threshold as usize)
-    );
-    println!(
-        "ARRAY ELEMENT SEQ NUM: {}",
-        array_element.sequence_number().unwrap()
     );
     let event = event.unwrap().0;
     match event {

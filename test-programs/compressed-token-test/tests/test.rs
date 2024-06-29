@@ -1117,7 +1117,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             &[&context_payer, payer],
         )
         .await;
-    println!("error_code {:?}", error_code);
+    println!("result: {:?}", result);
     assert_custom_error_or_program_error(Err(result.unwrap_err()), error_code)
 }
 
