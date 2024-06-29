@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-
 pub mod invoke;
 pub use invoke::instruction::*;
 pub mod invoke_cpi;
@@ -11,7 +10,7 @@ pub mod utils;
 use errors::SystemProgramError;
 use sdk::event::PublicTransactionEvent;
 
-declare_id!("9H1yjuq1gCLwQArXphX3aFKkeWZ7oK3i3C45HcfNGgdL");
+declare_id!("2k4dpbM3XmRUS6BMbhAqb3pBuNsJ1tixK7Ac4gnAYPnn");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

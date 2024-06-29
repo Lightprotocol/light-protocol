@@ -31,7 +31,7 @@ solana-program-test = "=1.18.17"
 solana-client = "=1.18.17"
 solana-cli-output = "=1.18.17"
 solana-transaction-status = "=1.18.17"
-
+spl-token = "4"
 anchor-lang = "0.30.1"
 anchor-spl = "0.30.1"
 

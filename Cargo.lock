@@ -7111,7 +7111,7 @@ dependencies = [
  "solana-cli-output",
  "solana-program-test",
  "solana-sdk",
- "spl-token 3.5.0",
+ "spl-token 4.0.0",
  "tokio",
 ]
 
