@@ -288,36 +288,4 @@ mod test {
             Err(SystemProgramError::WriteAccessCheckFailed.into())
         );
     }
-
-    // #[test]
-    // fn test_check_program_owner_state_merkle_tree() {
-    //     let authority = Pubkey::new_unique();
-    //     let mut state_merkle_tree_account = StateMerkleTreeAccount::default();
-    //     state_merkle_tree_account
-    //         .metadata
-    //         .access_metadata
-    //         .program_owner = authority;
-    //     let mut lamports = 0;
-    //     let merkle_tree_pubkey = Pubkey::new_unique();
-    //     let account_info = AccountInfo::new(
-    //         &merkle_tree_pubkey,
-    //         false,
-    //         false,
-    //         &mut lamports,
-    //         &mut state_merkle_tree_account.try_into().unwrap(),
-    //         &authority,
-    //         false,
-    //         0,
-    //     );
-
-    //     assert_eq!(
-    //         check_program_owner_state_merkle_tree(&account_info, &Some(authority)),
-    //         Ok((0, None, 1))
-    //     );
-
-    //     assert_eq!(
-    //         check_program_owner_state_merkle_tree(&account_info, &None),
-    //         Err(SystemProgramError::InvalidMerkleTreeOwner.into())
-    //     );
-    // }
 }

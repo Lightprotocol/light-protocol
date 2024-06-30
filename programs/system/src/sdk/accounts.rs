@@ -15,8 +15,3 @@ pub trait SignerAccounts<'info> {
     fn get_fee_payer(&self) -> &Signer<'info>;
     fn get_authority(&self) -> &Signer<'info>;
 }
-
-// pub trait InvokeCpiAccounts<'info> {
-//     fn get_invoking_program(&self) -> &UncheckedAccount<'info>;
-//     fn get_cpi_context_account(&mut self) -> &mut Option<Account<'info, CpiContextAccount>>;
-// }

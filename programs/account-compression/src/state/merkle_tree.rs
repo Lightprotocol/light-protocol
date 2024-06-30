@@ -13,7 +13,6 @@ pub struct MerkleTreeMetadata {
     pub next_merkle_tree: Pubkey,
 }
 
-// TODO: unit test
 impl MerkleTreeMetadata {
     pub fn init(
         &mut self,
