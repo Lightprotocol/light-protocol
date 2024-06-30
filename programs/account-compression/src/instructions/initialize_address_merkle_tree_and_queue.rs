@@ -59,16 +59,6 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
-    if merkle_tree_config.close_threshold.is_some() {
-        unimplemented!("Close threshold not supported.");
-    }
-    if merkle_tree_config.height != 26 {
-        unimplemented!("Height other than 26 not supported.");
-    }
-    if merkle_tree_config.canopy_depth != 10 {
-        unimplemented!("Canopy depth other than 10 not supported.");
-    }
-
     let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),

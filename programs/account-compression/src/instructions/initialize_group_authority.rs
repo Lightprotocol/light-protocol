@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use crate::{config_accounts::GroupAuthority, utils::constants::GROUP_AUTHORITY_SEED};
+use crate::{state::GroupAuthority, utils::constants::GROUP_AUTHORITY_SEED};
 
 #[derive(Accounts)]
 pub struct InitializeGroupAuthority<'info> {
