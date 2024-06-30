@@ -25,7 +25,7 @@ pub struct QueueMetadata {
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum QueueType {
-    NullifierQueue = 1, // Explicitly assign values to the enum variants
+    NullifierQueue = 1,
     AddressQueue = 2,
 }
 
@@ -36,7 +36,7 @@ pub fn check_queue_type(queue_type: &u64, expected_queue_type: &QueueType) -> Re
         Ok(())
     }
 }
-
+// TODO: unit test
 impl QueueMetadata {
     pub fn init(
         &mut self,

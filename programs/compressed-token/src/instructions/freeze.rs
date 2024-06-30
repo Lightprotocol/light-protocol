@@ -13,9 +13,8 @@ pub struct FreezeInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    /// CHECK: this account
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    /// CHECK: this account is checked in account compression program
+    pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
@@ -30,10 +29,7 @@ pub struct FreezeInstruction<'info> {
 }
 
 impl<'info> InvokeAccounts<'info> for FreezeInstruction<'info> {
-    fn get_registered_program_pda(
-        &self,
-    ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
-    {
+    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
         &self.registered_program_pda
     }
 

@@ -15,6 +15,7 @@ use crate::{
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
 #[derive(Accounts)]
 pub struct InvokeInstruction<'info> {
+    /// Fee payer needs to be mutable to pay rollover and protocol fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -22,8 +23,7 @@ pub struct InvokeInstruction<'info> {
     #[account(
     seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
     )]
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
@@ -52,10 +52,7 @@ impl<'info> SignerAccounts<'info> for InvokeInstruction<'info> {
 }
 
 impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
-    fn get_registered_program_pda(
-        &self,
-    ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
-    {
+    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
         &self.registered_program_pda
     }
 
@@ -82,6 +79,7 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     }
 }
 
+// TODO; make all options
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,

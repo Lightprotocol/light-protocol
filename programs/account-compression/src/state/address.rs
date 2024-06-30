@@ -23,7 +23,7 @@ impl GroupAccess for AddressMerkleTreeAccount {
     fn get_owner(&self) -> &Pubkey {
         &self.metadata.access_metadata.owner
     }
-
+    // TODO: rename to get_program_owner
     fn get_delegate(&self) -> &Pubkey {
         &self.metadata.access_metadata.program_owner
     }

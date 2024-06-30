@@ -8,3 +8,4 @@ pub struct GroupAuthority {
     pub authority: Pubkey,
     pub seed: Pubkey,
 }
+// TODO: move to state

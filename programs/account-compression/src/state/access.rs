@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, Debug, PartialEq, Default)]
 pub struct AccessMetadata {
     /// Owner of the Merkle tree.
     pub owner: Pubkey,
+    // TODO: clean up all mention of delegate
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub program_owner: Pubkey,
 }

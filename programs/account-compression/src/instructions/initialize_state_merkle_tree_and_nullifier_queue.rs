@@ -78,6 +78,12 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     if state_merkle_tree_config.close_threshold.is_some() {
         unimplemented!("Close threshold not supported.");
     }
+    if state_merkle_tree_config.height != 26 {
+        unimplemented!("Height other than 26 not supported.");
+    }
+    if state_merkle_tree_config.canopy_depth != 10 {
+        unimplemented!("Canopy depth other than 10 not supported.");
+    }
 
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,

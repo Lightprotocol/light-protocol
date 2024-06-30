@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::{errors::AccountCompressionErrorCode, AccessMetadata, RolloverMetadata};
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, Debug, PartialEq, Default)]
 pub struct MerkleTreeMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
@@ -13,6 +13,7 @@ pub struct MerkleTreeMetadata {
     pub next_merkle_tree: Pubkey,
 }
 
+// TODO: unit test
 impl MerkleTreeMetadata {
     pub fn init(
         &mut self,

@@ -26,8 +26,12 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     )?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpda_process_cpi_context");
-    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(inputs, &mut ctx)
-    {
+    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(
+        inputs,
+        &mut ctx.accounts.cpi_context_account,
+        ctx.accounts.fee_payer.key(),
+        ctx.remaining_accounts,
+    ) {
         Ok(Some(inputs)) => inputs,
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
