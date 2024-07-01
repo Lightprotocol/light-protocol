@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
-pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
+pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
     pub output: mpsc::Sender<AddressPipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
@@ -32,7 +32,7 @@ pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
     pub close_output: mpsc::Receiver<()>,
 }
 
-impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
+impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         debug!("Starting AddressProcessor process");
         loop {

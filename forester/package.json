@@ -9,7 +9,7 @@
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
     "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
     "build": "cargo build",
-    "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
+    "test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
 
     "test-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify-state",
 
@@ -19,8 +19,6 @@
     "test-indexer": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
     "address-tree-test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test empty_address_tree_test -- --nocapture",
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
-    "tree-info": "RUST_LOG=info RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
-    "queue-info": "RUST_MIN_STACK=8388608 cargo test queue_info_test -- --nocapture",
     "test-1000": "pnpm restart-validator && pnpm transfer && pnpm nullify && pnpm transfer && pnpm nullify",
     "transfer-100k": "ts-node scripts/generate_100k.ts",
     "subscribe": "RUST_MIN_STACK=8388608 cargo run -- subscribe",

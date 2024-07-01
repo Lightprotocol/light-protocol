@@ -19,7 +19,7 @@ use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::MerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::{create_mint_helper, TestIndexer};
+use light_test_utils::indexer::{create_mint_helper, Indexer, TestIndexer};
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::spl::mint_tokens_helper;

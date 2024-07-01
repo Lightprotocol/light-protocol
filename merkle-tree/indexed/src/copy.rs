@@ -1,5 +1,6 @@
 use std::{fmt, marker::PhantomData, ops::Deref};
 
+use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 use light_bounded_vec::CyclicBoundedVecMetadata;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
@@ -7,8 +8,6 @@ use light_concurrent_merkle_tree::{
 use light_hasher::Hasher;
 use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-
-use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
 pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
@@ -56,6 +55,21 @@ where
         let indexed_changelog_metadata: CyclicBoundedVecMetadata =
             unsafe { read_value_at(bytes, &mut offset) };
 
+        println!("merkle_tree.height: {:?}", merkle_tree.height);
+        println!(
+            "merkle_tree.changelog.capacity(): {:?}",
+            merkle_tree.changelog.capacity()
+        );
+        println!(
+            "merkle_tree.roots.capacity(): {:?}",
+            merkle_tree.roots.capacity()
+        );
+        println!("merkle_tree.canopy_depth: {:?}", merkle_tree.canopy_depth);
+        println!(
+            "indexed_changelog_metadata.capacity(): {:?}",
+            indexed_changelog_metadata.capacity()
+        );
+
         let expected_size = IndexedMerkleTree::<H, I, HEIGHT, NET_HEIGHT>::size_in_account(
             merkle_tree.height,
             merkle_tree.changelog.capacity(),
@@ -63,6 +77,7 @@ where
             merkle_tree.canopy_depth,
             indexed_changelog_metadata.capacity(),
         );
+        println!("expected_size: {:?}", expected_size);
         if bytes.len() < expected_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::BufferSize(expected_size, bytes.len()),

@@ -105,7 +105,6 @@ where
         self.update_upper_layers(i)?;
 
         self.sequence_number += 1;
-
         Ok(())
     }
 
@@ -128,7 +127,6 @@ where
         self.update_upper_layers(leaf_index)?;
 
         self.sequence_number += 1;
-
         Ok(())
     }
 

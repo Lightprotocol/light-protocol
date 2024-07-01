@@ -11,7 +11,7 @@ use light_system_program::sdk::compressed_account::{
 
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::{create_mint_helper, TestIndexer, TokenDataWithContext};
+use light_test_utils::indexer::{create_mint_helper, Indexer, TestIndexer, TokenDataWithContext};
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::spl::mint_tokens_helper;
@@ -162,8 +162,7 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -288,7 +287,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda.clone(),
+        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
     };
 
     perform_create_pda_failing(
@@ -331,7 +330,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda.clone(),
+        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
     };
     perform_create_pda_failing(
         &mut test_indexer,
@@ -384,7 +383,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda.clone(),
+        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
     };
     let seed = [4u8; 32];
     let data = [5u8; 31];
@@ -659,7 +658,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
-        &[&payer, &invalid_fee_payer],
+        &[payer, &invalid_fee_payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
     let result = rpc.process_transaction(transaction).await;

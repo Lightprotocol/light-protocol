@@ -68,10 +68,31 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
-use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
-use light_utils::rand::gen_prime;
+use num_bigint::{BigUint, RandBigInt};
+use num_traits::Num;
+use rand::distributions::uniform::{SampleRange, SampleUniform};
+use rand::prelude::SliceRandom;
+use rand::rngs::{StdRng, ThreadRng};
+use rand::{Rng, RngCore, SeedableRng};
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::Keypair;
 use solana_sdk::signature::Signature;
+use solana_sdk::signer::{SeedDerivable, Signer};
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
+
+use account_compression::utils::constants::{
+    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
+};
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    SAFETY_MARGIN,
+};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::rand::gen_prime;
 
 use crate::address_merkle_tree_config::{
     address_tree_ready_for_rollover, state_tree_ready_for_rollover,
@@ -81,8 +102,8 @@ use crate::address_tree_rollover::{
     perform_address_merkle_tree_roll_over_forester, perform_state_merkle_tree_roll_over_forester,
 };
 use crate::indexer::{
-    create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
-    StateMerkleTreeAccounts, StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
+    create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer,
+    StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
 };
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
@@ -101,27 +122,6 @@ use crate::test_env::{
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::transaction_params::{FeeConfig, TransactionParams};
 use crate::{airdrop_lamports, AccountZeroCopy};
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
-    SAFETY_MARGIN,
-};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use num_bigint::{BigUint, RandBigInt};
-use num_traits::Num;
-use rand::distributions::uniform::{SampleRange, SampleUniform};
-use rand::prelude::SliceRandom;
-use rand::rngs::{StdRng, ThreadRng};
-use rand::{Rng, RngCore, SeedableRng};
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::{SeedDerivable, Signer};
 
 pub struct User {
     pub keypair: Keypair,
@@ -169,9 +169,9 @@ impl Stats {
     }
 }
 
-pub struct E2ETestEnv<R: RpcConnection> {
+pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
     pub payer: Keypair,
-    pub indexer: TestIndexer<R>,
+    pub indexer: I,
     pub users: Vec<User>,
     pub mints: Vec<Pubkey>,
     pub rpc: R,
@@ -183,37 +183,20 @@ pub struct E2ETestEnv<R: RpcConnection> {
     pub stats: Stats,
 }
 
-impl<R: RpcConnection> E2ETestEnv<R>
+impl<R: RpcConnection, I: Indexer<R>> E2ETestEnv<R, I>
 where
     R: RpcConnection,
+    I: Indexer<R>,
 {
     pub async fn new(
         mut rpc: R,
+        mut indexer: I,
         env_accounts: &EnvAccounts,
         keypair_action_config: KeypairActionConfig,
         general_action_config: GeneralActionConfig,
         rounds: u64,
         seed: Option<u64>,
     ) -> Self {
-        let inclusion = keypair_action_config.transfer_sol.is_some()
-            || keypair_action_config.transfer_spl.is_some();
-        let non_inclusion = keypair_action_config.create_address.is_some();
-        let mut indexer = TestIndexer::<R>::new(
-            vec![StateMerkleTreeAccounts {
-                merkle_tree: env_accounts.merkle_tree_pubkey,
-                nullifier_queue: env_accounts.nullifier_queue_pubkey,
-                cpi_context: env_accounts.cpi_context_account_pubkey,
-            }],
-            vec![AddressMerkleTreeAccounts {
-                merkle_tree: env_accounts.address_merkle_tree_pubkey,
-                queue: env_accounts.address_merkle_tree_queue_pubkey,
-            }],
-            env_accounts.forester.insecure_clone(),
-            env_accounts.group_pda,
-            inclusion,
-            non_inclusion,
-        )
-        .await;
         let payer = rpc.get_payer().insecure_clone();
 
         airdrop_lamports(&mut rpc, &payer.pubkey(), 1_000_000_000_000)
@@ -335,10 +318,10 @@ where
                 .nullify_compressed_accounts
                 .unwrap_or_default(),
         ) {
-            for state_tree_bundle in self.indexer.state_merkle_trees.iter_mut() {
+            let payer = self.indexer.get_payer().insecure_clone();
+            for state_tree_bundle in self.indexer.get_state_merkle_trees_mut().iter_mut() {
                 println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
-                nullify_compressed_accounts(&mut self.rpc, &self.indexer.payer, state_tree_bundle)
-                    .await;
+                nullify_compressed_accounts(&mut self.rpc, &payer, state_tree_bundle).await;
             }
         }
 
@@ -347,23 +330,22 @@ where
                 .empty_address_queue
                 .unwrap_or_default(),
         ) {
-            for address_merkle_tree_bundle in self.indexer.address_merkle_trees.iter_mut() {
+            let payer = self.indexer.get_payer().insecure_clone();
+            for address_merkle_tree_bundle in self.indexer.get_address_merkle_trees_mut().iter_mut()
+            {
                 println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
-                empty_address_queue_test(
-                    &self.indexer.payer,
-                    &mut self.rpc,
-                    address_merkle_tree_bundle,
-                    false,
-                )
+                empty_address_queue_test(&payer, &mut self.rpc, address_merkle_tree_bundle, false)
                 .await
                 .unwrap();
             }
         }
 
-        for index in 0..self.indexer.state_merkle_trees.len() {
+        for index in 0..self.indexer.get_state_merkle_trees().len() {
             let is_read_for_rollover = state_tree_ready_for_rollover(
                 &mut self.rpc,
-                self.indexer.state_merkle_trees[index].accounts.merkle_tree,
+                self.indexer.get_state_merkle_trees()[index]
+                    .accounts
+                    .merkle_tree,
             )
             .await;
             if self
@@ -380,10 +362,10 @@ where
             }
         }
 
-        for index in 0..self.indexer.address_merkle_trees.len() {
+        for index in 0..self.indexer.get_address_merkle_trees().len() {
             let is_read_for_rollover = address_tree_ready_for_rollover(
                 &mut self.rpc,
-                self.indexer.address_merkle_trees[index]
+                self.indexer.get_address_merkle_trees()[index]
                     .accounts
                     .merkle_tree,
             )
@@ -467,7 +449,9 @@ where
                 nullifier_queue_keypair.pubkey(),
             )
             .await;
-        self.indexer.state_merkle_trees.push(StateMerkleTreeBundle {
+        self.indexer
+            .get_state_merkle_trees_mut()
+            .push(StateMerkleTreeBundle {
             rollover_fee: state_tree_account
                 .deserialized()
                 .metadata
@@ -520,7 +504,7 @@ where
             None,
             &config,
             &AddressQueueConfig::default(),
-            self.indexer.address_merkle_trees.len() as u64,
+            self.indexer.get_address_merkle_trees().len() as u64,
         )
         .await;
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
@@ -540,7 +524,7 @@ where
         )
         .await;
         self.indexer
-            .address_merkle_trees
+            .get_address_merkle_trees_mut()
             .push(AddressMerkleTreeBundle {
                 rollover_fee: queue_account
                     .deserialized()
@@ -650,7 +634,9 @@ where
         to: &Pubkey,
     ) -> Result<Signature, RpcError> {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        let output_merkle_tree = self.indexer.get_state_merkle_trees()[0]
+            .accounts
+            .merkle_tree;
         let recipients = vec![*to];
         transfer_compressed_sol_test(
             &mut self.rpc,
@@ -765,8 +751,10 @@ where
 
     pub async fn compress_sol_deterministic(&mut self, from: &Keypair, amount: u64) {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree = self.indexer.get_state_merkle_trees()[0]
+            .accounts
+            .merkle_tree;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -785,7 +773,7 @@ where
             false,
             amount,
             &output_merkle_tree,
-            transaction_paramets,
+            transaction_parameters,
         )
         .await
         .unwrap();
@@ -805,7 +793,7 @@ where
         //     self.rng.gen_bool(0.5)
         // };
         let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -824,7 +812,7 @@ where
             create_output_compressed_accounts_for_input_accounts,
             amount,
             &output_merkle_tree,
-            transaction_paramets,
+            transaction_parameters,
         )
         .await
         .unwrap();
@@ -1081,19 +1069,19 @@ where
     pub async fn rollover_state_merkle_tree_and_queue(
         &mut self,
         index: usize,
-    ) -> std::result::Result<(), RpcError> {
-        let bundle = self.indexer.state_merkle_trees[index].accounts;
+    ) -> Result<(), RpcError> {
+        let bundle = self.indexer.get_state_merkle_trees()[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         // TODO: move into registry program
         let new_cpi_signature_keypair = Keypair::new();
         let fee_payer_balance = self
             .rpc
-            .get_balance(&self.indexer.payer.pubkey())
+            .get_balance(&self.indexer.get_payer().pubkey())
             .await
             .unwrap();
         perform_state_merkle_tree_roll_over_forester(
-            &self.indexer.payer,
+            self.indexer.get_payer(),
             &mut self.rpc,
             &new_nullifier_queue_keypair,
             &new_merkle_tree_keypair,
@@ -1104,7 +1092,7 @@ where
         .await
         .unwrap();
         assert_rolled_over_pair(
-            &self.indexer.payer.pubkey(),
+            &self.indexer.get_payer().pubkey(),
             &mut self.rpc,
             &fee_payer_balance,
             &bundle.merkle_tree,
@@ -1121,7 +1109,9 @@ where
         )
         .await;
 
-        self.indexer.state_merkle_trees.push(StateMerkleTreeBundle {
+        self.indexer
+            .get_state_merkle_trees_mut()
+            .push(StateMerkleTreeBundle {
             // TODO: fetch correct fee when this property is used
             rollover_fee: 0,
             accounts: StateMerkleTreeAccounts {
@@ -1134,24 +1124,24 @@ where
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
             )),
         });
-        std::result::Result::Ok(())
+        Ok(())
     }
 
     pub async fn rollover_address_merkle_tree_and_queue(
         &mut self,
         index: usize,
     ) -> Result<(), RpcError> {
-        let bundle = self.indexer.address_merkle_trees[index].accounts;
+        let bundle = self.indexer.get_address_merkle_trees()[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         let fee_payer_balance = self
             .rpc
-            .get_balance(&self.indexer.payer.pubkey())
+            .get_balance(&self.indexer.get_payer().pubkey())
             .await
             .unwrap();
         println!("prior balance {}", fee_payer_balance);
         perform_address_merkle_tree_roll_over_forester(
-            &self.indexer.payer,
+            self.indexer.get_payer(),
             &mut self.rpc,
             &new_nullifier_queue_keypair,
             &new_merkle_tree_keypair,
@@ -1160,7 +1150,7 @@ where
         )
         .await?;
         assert_rolled_over_address_merkle_tree_and_queue(
-            &self.indexer.payer.pubkey(),
+            &self.indexer.get_payer().pubkey(),
             &mut self.rpc,
             &fee_payer_balance,
             &bundle.merkle_tree,
@@ -1202,12 +1192,16 @@ where
             let range_max: usize = std::cmp::min(
                 self.keypair_action_config
                     .max_output_accounts
-                    .unwrap_or(self.indexer.state_merkle_trees.len() as u64),
-                self.indexer.state_merkle_trees.len() as u64,
+                    .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
+                self.indexer.get_state_merkle_trees().len() as u64,
             ) as usize;
 
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);
-            pubkeys.push(self.indexer.state_merkle_trees[index].accounts.merkle_tree);
+            pubkeys.push(
+                self.indexer.get_state_merkle_trees()[index]
+                    .accounts
+                    .merkle_tree,
+            );
         }
         pubkeys.sort();
         pubkeys
@@ -1217,14 +1211,21 @@ where
         let mut pubkeys = vec![];
         let mut queue_pubkeys = vec![];
         for _ in 0..num {
-            let index =
-                Self::safe_gen_range(&mut self.rng, 0..self.indexer.address_merkle_trees.len(), 0);
+            let index = Self::safe_gen_range(
+                &mut self.rng,
+                0..self.indexer.get_address_merkle_trees().len(),
+                0,
+            );
             pubkeys.push(
-                self.indexer.address_merkle_trees[index]
+                self.indexer.get_address_merkle_trees()[index]
                     .accounts
                     .merkle_tree,
             );
-            queue_pubkeys.push(self.indexer.address_merkle_trees[index].accounts.queue);
+            queue_pubkeys.push(
+                self.indexer.get_address_merkle_trees()[index]
+                    .accounts
+                    .queue,
+            );
         }
         (pubkeys, queue_pubkeys)
     }
@@ -1239,13 +1240,15 @@ where
         let token_accounts_with_mint;
         let mint;
         if user_token_accounts.is_empty() {
-            mint = self.indexer.token_compressed_accounts[self
+            mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
-                .gen_range(0..self.indexer.token_compressed_accounts.len())]
+                .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
             .token_data
             .mint;
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
-            let mt_pubkey = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+            let mt_pubkey = self.indexer.get_state_merkle_trees()[0]
+                .accounts
+                .merkle_tree;
             mint_tokens_helper(
                 &mut self.rpc,
                 &mut self.indexer,
@@ -1312,6 +1315,14 @@ pub struct KeypairActionConfig {
 }
 
 impl KeypairActionConfig {
+    pub fn inclusion(&self) -> bool {
+        self.transfer_sol.is_some() || self.transfer_spl.is_some()
+    }
+
+    pub fn non_inclusion(&self) -> bool {
+        self.create_address.is_some()
+    }
+
     pub fn sol_default() -> Self {
         Self {
             compress_sol: Some(0.5),

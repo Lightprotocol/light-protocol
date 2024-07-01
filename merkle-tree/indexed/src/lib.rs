@@ -84,6 +84,16 @@ where
         canopy_depth: usize,
         indexed_changelog_size: usize,
     ) -> usize {
+        println!(
+            "CMT size: {:?}",
+            ConcurrentMerkleTree::<H, HEIGHT>::size_in_account(
+                height,
+                changelog_size,
+                roots_size,
+                canopy_depth,
+            )
+        );
+
         ConcurrentMerkleTree::<H, HEIGHT>::size_in_account(
             height,
             changelog_size,

@@ -1,6 +1,7 @@
 use forester::indexer::PhotonIndexer;
 use forester::utils::LightValidatorConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
@@ -25,7 +26,7 @@ async fn test_photon_interop_address() {
     let env_accounts = get_test_env_accounts();
 
     let forester_config = forester_config();
-    let mut rpc = SolanaRpcConnection::new(forester_config.external_services.rpc_url, None);
+    let mut rpc = SolanaRpcConnection::new(forester_config.external_services.rpc_url.clone(), None);
 
     // Airdrop because currently TestEnv.new() transfers funds from get_payer.
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -36,8 +37,17 @@ async fn test_photon_interop_address() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &forester_config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
+        indexer,
         &env_accounts,
         keypair_action_config(),
         general_action_config(),
@@ -46,8 +56,11 @@ async fn test_photon_interop_address() {
     )
     .await;
 
-    let photon_indexer =
-        PhotonIndexer::new(forester_config.external_services.indexer_url.to_string());
+    let indexer_rpc = SolanaRpcConnection::new(forester_config.external_services.rpc_url, None);
+    let photon_indexer = PhotonIndexer::new(
+        forester_config.external_services.indexer_url.to_string(),
+        indexer_rpc,
+    );
 
     // Insert value into address queue
     info!("Creating address 1");

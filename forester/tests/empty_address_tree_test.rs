@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use forester::{init_rpc, nullify_addresses};
 use light_test_utils::e2e_test_env::E2ETestEnv;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -24,8 +25,17 @@ async fn empty_address_tree_test() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &forester_config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
+        indexer,
         &env_accounts,
         keypair_action_config(),
         general_action_config(),
@@ -34,10 +44,9 @@ async fn empty_address_tree_test() {
     )
     .await;
 
-    let config = Arc::new(forester_config.clone());
-    let rpc = init_rpc(&config, true).await;
+    let config = Arc::new(forester_config);
+    let rpc = init_rpc(config.clone(), true).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
 
     for _ in 0..10 {

@@ -1,5 +1,4 @@
 use crate::config::ForesterConfig;
-use crate::indexer::PhotonIndexer;
 use crate::nullifier::address::setup_address_pipeline;
 use crate::nullifier::state::setup_state_pipeline;
 use light_test_utils::indexer::Indexer;
@@ -14,7 +13,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub async fn subscribe_state(config: Arc<ForesterConfig>) {
+pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<tokio::sync::Mutex<R>>,
+    indexer: Arc<tokio::sync::Mutex<I>>,
+) {
     debug!(
         "Subscribe to state tree changes. Queue: {}. Merkle tree: {}",
         config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
@@ -43,7 +46,8 @@ pub async fn subscribe_state(config: Arc<ForesterConfig>) {
             match account_subscription_receiver.recv() {
                 Ok(_) => {
                     debug!("nullify request received");
-                    nullify_state(Arc::clone(&config)).await;
+                    // nullify_state(Arc::clone(&config)).await;
+                    nullify_state(Arc::clone(&config), rpc.clone(), indexer.clone()).await;
                 }
                 Err(e) => {
                     warn!("account subscription error: {:?}", e);
@@ -54,16 +58,15 @@ pub async fn subscribe_state(config: Arc<ForesterConfig>) {
     }
 }
 
-pub async fn nullify_state(config: Arc<ForesterConfig>) {
+pub async fn nullify_state<I: Indexer<R>, R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<tokio::sync::Mutex<R>>,
+    indexer: Arc<tokio::sync::Mutex<I>>,
+) {
     debug!(
         "Run state tree nullifier. Queue: {}. Merkle tree: {}",
         config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
     );
-    let rpc = init_rpc(&config, false).await;
-    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-        config.external_services.indexer_url.to_string(),
-    )));
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
     let (input_tx, mut completion_rx) = setup_state_pipeline(indexer, rpc, config).await;
     let result = completion_rx.recv().await;
@@ -81,7 +84,7 @@ pub async fn nullify_state(config: Arc<ForesterConfig>) {
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-pub async fn nullify_addresses<I: Indexer, R: RpcConnection>(
+pub async fn nullify_addresses<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc: Arc<tokio::sync::Mutex<R>>,
     indexer: Arc<tokio::sync::Mutex<I>>,
@@ -107,7 +110,7 @@ pub async fn nullify_addresses<I: Indexer, R: RpcConnection>(
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-pub async fn init_rpc(config: &Arc<ForesterConfig>, airdrop: bool) -> SolanaRpcConnection {
+pub async fn init_rpc(config: Arc<ForesterConfig>, airdrop: bool) -> SolanaRpcConnection {
     let mut rpc = SolanaRpcConnection::new(
         config.external_services.rpc_url.clone(),
         Some(CommitmentConfig {
