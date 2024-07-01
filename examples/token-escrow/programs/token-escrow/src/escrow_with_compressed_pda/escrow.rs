@@ -78,14 +78,12 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         lamports: None,
         merkle_tree_index: output_state_merkle_tree_account_indices[0],
     };
-    msg!("escrow_token_data: {:?}", escrow_token_data);
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[escrow_token_data],
         &ctx.accounts.signer.key(),
         output_state_merkle_tree_account_indices[1],
     );
-    msg!("escrow change_token_data: {:?}", change_token_data);
     let output_compressed_accounts = vec![escrow_token_data, change_token_data];
 
     cpi_compressed_token_transfer_pda(
@@ -97,7 +95,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         proof.clone(),
         cpi_context,
     )?;
-    msg!("escrow compressed tokens with compressed pda");
     cpi_compressed_pda_transfer(
         ctx,
         proof,

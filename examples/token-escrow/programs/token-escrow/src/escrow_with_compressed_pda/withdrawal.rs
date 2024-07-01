@@ -44,14 +44,12 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
         lamports: None,
         merkle_tree_index: output_state_merkle_tree_account_indices[0],
     };
-    msg!("withdrawal_token_data: {:?}", withdrawal_token_data);
     let escrow_change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[withdrawal_token_data],
         &ctx.accounts.token_owner_pda.key(),
         output_state_merkle_tree_account_indices[1],
     );
-    msg!("escrow_change_token_data: {:?}", escrow_change_token_data);
     let output_compressed_accounts = vec![withdrawal_token_data, escrow_change_token_data];
     cpi_compressed_token_withdrawal(
         &ctx,
