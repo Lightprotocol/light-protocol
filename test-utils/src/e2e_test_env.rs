@@ -335,8 +335,8 @@ where
             {
                 println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
                 empty_address_queue_test(&payer, &mut self.rpc, address_merkle_tree_bundle, false)
-                    .await
-                    .unwrap();
+                .await
+                .unwrap();
             }
         }
 
@@ -452,18 +452,18 @@ where
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
-                rollover_fee: state_tree_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: StateMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    nullifier_queue: nullifier_queue_keypair.pubkey(),
-                    cpi_context: cpi_context_keypair.pubkey(),
-                },
-                merkle_tree,
-            });
+            rollover_fee: state_tree_account
+                .deserialized()
+                .metadata
+                .rollover_metadata
+                .rollover_fee as i64,
+            accounts: StateMerkleTreeAccounts {
+                merkle_tree: merkle_tree_keypair.pubkey(),
+                nullifier_queue: nullifier_queue_keypair.pubkey(),
+                cpi_context: cpi_context_keypair.pubkey(),
+            },
+            merkle_tree,
+        });
         // TODO: Add assert
     }
 
@@ -1112,18 +1112,18 @@ where
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
-                // TODO: fetch correct fee when this property is used
-                rollover_fee: 0,
-                accounts: StateMerkleTreeAccounts {
-                    merkle_tree: new_merkle_tree_keypair.pubkey(),
-                    nullifier_queue: new_nullifier_queue_keypair.pubkey(),
-                    cpi_context: new_cpi_signature_keypair.pubkey(),
-                },
-                merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
-                    STATE_MERKLE_TREE_HEIGHT as usize,
-                    STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-                )),
-            });
+            // TODO: fetch correct fee when this property is used
+            rollover_fee: 0,
+            accounts: StateMerkleTreeAccounts {
+                merkle_tree: new_merkle_tree_keypair.pubkey(),
+                nullifier_queue: new_nullifier_queue_keypair.pubkey(),
+                cpi_context: new_cpi_signature_keypair.pubkey(),
+            },
+            merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+            )),
+        });
         Ok(())
     }
 

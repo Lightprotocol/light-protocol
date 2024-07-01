@@ -22,15 +22,15 @@ async fn test_10_all() {
 
     let mut env =
         E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
+        rpc,
             indexer,
-            &env_accounts,
-            KeypairActionConfig::all_default(),
-            GeneralActionConfig::default(),
-            10,
-            None,
-        )
-        .await;
+        &env_accounts,
+        KeypairActionConfig::all_default(),
+        GeneralActionConfig::default(),
+        10,
+        None,
+    )
+    .await;
     env.execute_rounds().await;
 }
 
@@ -52,15 +52,15 @@ async fn test_10000_all() {
 
     let mut env =
         E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
+        rpc,
             indexer,
-            &env_accounts,
-            KeypairActionConfig::all_default_no_fee_assert(),
-            GeneralActionConfig::test_with_rollover(),
-            10000,
-            None,
-        )
-        .await;
+        &env_accounts,
+        KeypairActionConfig::all_default_no_fee_assert(),
+        GeneralActionConfig::test_with_rollover(),
+        10000,
+        None,
+    )
+    .await;
     env.execute_rounds().await;
 }
 
@@ -81,15 +81,15 @@ async fn test_address_tree_rollover() {
 
     let mut env =
         E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
+        rpc,
             indexer,
-            &env_accounts,
-            KeypairActionConfig::all_default_no_fee_assert(),
-            GeneralActionConfig::default(),
-            0,
-            None,
-        )
-        .await;
+        &env_accounts,
+        KeypairActionConfig::all_default_no_fee_assert(),
+        GeneralActionConfig::default(),
+        0,
+        None,
+    )
+    .await;
 
     // remove address tree so that the address is created in the address that is
     // created next
@@ -120,15 +120,15 @@ async fn test_state_tree_rollover() {
 
     let mut env =
         E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
+        rpc,
             indexer,
-            &env_accounts,
-            KeypairActionConfig::all_default_no_fee_assert(),
-            GeneralActionConfig::default(),
-            0,
-            None,
-        )
-        .await;
+        &env_accounts,
+        KeypairActionConfig::all_default_no_fee_assert(),
+        GeneralActionConfig::default(),
+        0,
+        None,
+    )
+    .await;
 
     // remove address tree so that the address is created in the address that is
     // created next
