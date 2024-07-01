@@ -5,7 +5,7 @@ use super::constants::CPI_AUTHORITY_PDA_SEED;
 
 pub trait GroupAccess {
     fn get_owner(&self) -> &Pubkey;
-    fn get_delegate(&self) -> &Pubkey;
+    fn get_program_owner(&self) -> &Pubkey;
 }
 
 pub trait GroupAccounts<'info> {

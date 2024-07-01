@@ -8,7 +8,7 @@ use super::account::CpiContextAccount;
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     sdk::{
-        accounts::{InvokeAccounts, InvokeCpiAccounts, SignerAccounts},
+        accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::PackedCompressedAccountWithMerkleContext,
         CompressedCpiContext,
     },
@@ -17,6 +17,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct InvokeCpiInstruction<'info> {
+    /// Fee payer needs to be mutable to pay rollover and protocol fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -24,8 +25,7 @@ pub struct InvokeCpiInstruction<'info> {
     #[account(
     seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
     )]
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: checked in emit_event.rs.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK:
@@ -47,15 +47,6 @@ pub struct InvokeCpiInstruction<'info> {
     pub cpi_context_account: Option<Account<'info, CpiContextAccount>>,
 }
 
-impl<'info> InvokeCpiAccounts<'info> for InvokeCpiInstruction<'info> {
-    fn get_invoking_program(&self) -> &UncheckedAccount<'info> {
-        &self.invoking_program
-    }
-    fn get_cpi_context_account(&mut self) -> &mut Option<Account<'info, CpiContextAccount>> {
-        &mut self.cpi_context_account
-    }
-}
-
 impl<'info> SignerAccounts<'info> for InvokeCpiInstruction<'info> {
     fn get_fee_payer(&self) -> &Signer<'info> {
         &self.fee_payer
@@ -67,10 +58,7 @@ impl<'info> SignerAccounts<'info> for InvokeCpiInstruction<'info> {
 }
 
 impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
-    fn get_registered_program_pda(
-        &self,
-    ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
-    {
+    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
         &self.registered_program_pda
     }
 

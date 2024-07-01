@@ -53,7 +53,7 @@ pub mod light_system_program {
             InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
 
         input_compressed_accounts_signer_check(&inputs, &ctx.accounts.authority.key())?;
-        process(inputs, None, ctx)
+        process(inputs, None, ctx, 0)
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(

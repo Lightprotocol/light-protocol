@@ -18,3 +18,6 @@ pub use queue::*;
 
 pub mod rollover;
 pub use rollover::*;
+
+pub mod group_authority;
+pub use group_authority::*;

@@ -62,4 +62,8 @@ pub enum SystemProgramError {
     InstructionNotCallable,
     #[msg("CpiContextFeePayerMismatch")]
     CpiContextFeePayerMismatch,
+    #[msg("CpiContextAssociatedMerkleTreeMismatch")]
+    CpiContextAssociatedMerkleTreeMismatch,
+    #[msg("NoInputs")]
+    NoInputs,
 }

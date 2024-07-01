@@ -192,3 +192,108 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         Ok(network_fee)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
+
+    #[test]
+    fn test_cpi_signer_check() {
+        for _ in 0..1000 {
+            let seeds = [1, 2, 3];
+            let invoking_program = Pubkey::new_unique();
+            let (derived_signer, bump) =
+                Pubkey::find_program_address(&[&seeds[..]], &invoking_program);
+            assert_eq!(
+                cpi_signer_check(
+                    &vec![seeds.to_vec(), vec![bump]],
+                    &invoking_program,
+                    &derived_signer
+                ),
+                Ok(())
+            );
+
+            let authority = Pubkey::new_unique();
+            let seeds = vec![vec![1, 2, 3], vec![bump]];
+            let invoking_program = Pubkey::new_unique();
+            assert!(
+                cpi_signer_check(&seeds, &invoking_program, &authority)
+                    == Err(ProgramError::InvalidSeeds.into())
+                    || cpi_signer_check(&seeds, &invoking_program, &authority)
+                        == Err(SystemProgramError::CpiSignerCheckFailed.into())
+            );
+        }
+    }
+
+    #[test]
+    fn test_input_compressed_accounts_signer_check() {
+        let authority = Pubkey::new_unique();
+        let mut compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: authority,
+                ..CompressedAccount::default()
+            },
+            ..PackedCompressedAccountWithMerkleContext::default()
+        };
+
+        assert_eq!(
+            input_compressed_accounts_signer_check(
+                &[compressed_account_with_context.clone()],
+                &authority
+            ),
+            Ok(())
+        );
+
+        compressed_account_with_context.compressed_account.owner = Pubkey::new_unique();
+        assert_eq!(
+            input_compressed_accounts_signer_check(&[compressed_account_with_context], &authority),
+            Err(SystemProgramError::SignerCheckFailed.into())
+        );
+    }
+
+    #[test]
+    fn test_output_compressed_accounts_write_access_check() {
+        let authority = Pubkey::new_unique();
+        let compressed_account = CompressedAccount {
+            owner: authority,
+            data: Some(CompressedAccountData::default()),
+            ..CompressedAccount::default()
+        };
+        let output_compressed_account = OutputCompressedAccountWithPackedContext {
+            compressed_account,
+            ..OutputCompressedAccountWithPackedContext::default()
+        };
+
+        assert_eq!(
+            output_compressed_accounts_write_access_check(&[output_compressed_account], &authority),
+            Ok(())
+        );
+
+        // Invalid program owner but no data should succeed
+        let compressed_account = CompressedAccount {
+            owner: Pubkey::new_unique(),
+            ..CompressedAccount::default()
+        };
+        let mut output_compressed_account = OutputCompressedAccountWithPackedContext {
+            compressed_account,
+            ..OutputCompressedAccountWithPackedContext::default()
+        };
+
+        assert_eq!(
+            output_compressed_accounts_write_access_check(
+                &[output_compressed_account.clone()],
+                &authority
+            ),
+            Ok(())
+        );
+
+        // Invalid program owner and data should fail
+        output_compressed_account.compressed_account.data = Some(CompressedAccountData::default());
+
+        assert_eq!(
+            output_compressed_accounts_write_access_check(&[output_compressed_account], &authority),
+            Err(SystemProgramError::WriteAccessCheckFailed.into())
+        );
+    }
+}

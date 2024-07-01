@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use account_compression::{config_accounts::GroupAuthority, program::AccountCompression};
+use account_compression::{program::AccountCompression, state::GroupAuthority};
 use anchor_lang::prelude::*;
 
 pub mod forester;

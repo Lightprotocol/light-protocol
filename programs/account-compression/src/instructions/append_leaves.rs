@@ -30,7 +30,7 @@ impl GroupAccess for StateMerkleTreeAccount {
         &self.metadata.access_metadata.owner
     }
 
-    fn get_delegate(&self) -> &Pubkey {
+    fn get_program_owner(&self) -> &Pubkey {
         &self.metadata.access_metadata.program_owner
     }
 }

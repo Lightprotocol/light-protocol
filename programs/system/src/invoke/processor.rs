@@ -11,9 +11,10 @@ use crate::{
         emit_event::emit_state_transition_event,
         nullify_state::insert_nullifiers,
         sol_compression::compress_or_decompress_lamports,
+        sum_check::sum_check,
         verify_state_proof::{
             fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts,
-            sum_check, verify_state_proof,
+            verify_state_proof,
         },
     },
     sdk::accounts::{InvokeAccounts, SignerAccounts},
@@ -55,6 +56,7 @@ pub fn process<
     mut inputs: InstructionDataInvoke,
     invoking_program: Option<Pubkey>,
     ctx: Context<'a, 'b, 'c, 'info, A>,
+    cpi_context_inputs: usize,
 ) -> Result<()> {
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");
@@ -93,7 +95,11 @@ pub fn process<
         vec![None; num_input_compressed_accounts + num_new_addresses];
     let mut output_leaf_indices = vec![0u32; num_output_compressed_accounts];
     let mut output_compressed_account_hashes = vec![[0u8; 32]; num_output_compressed_accounts];
-    let hashed_pubkeys_capacity = ctx.remaining_accounts.len() + 1 + num_output_compressed_accounts;
+    // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
+    // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
+    // + number of times cpi context account was filled.
+    let hashed_pubkeys_capacity =
+        1 + ctx.remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
     // Verify state and or address proof ---------------------------------------------------
@@ -113,7 +119,7 @@ pub fn process<
         {
             hash_input_compressed_accounts(
                 ctx.remaining_accounts,
-                &inputs,
+                &inputs.input_compressed_accounts_with_merkle_context,
                 &mut input_compressed_account_hashes,
                 &mut compressed_account_addresses,
                 &mut hashed_pubkeys,

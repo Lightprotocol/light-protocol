@@ -27,13 +27,7 @@ pub struct InsertIntoQueues<'info> {
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
-pub fn process_insert_into_queues<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    MerkleTreeAccount: Owner + ZeroCopy, // SequenceNumber,
->(
+pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: Owner + ZeroCopy>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     elements: &'a [[u8; 32]],
     queue_type: QueueType,

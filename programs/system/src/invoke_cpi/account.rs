@@ -18,7 +18,6 @@ pub struct CpiContextAccount {
     pub context: Vec<InstructionDataInvokeCpi>,
 }
 
-// this is not secure
 impl CpiContextAccount {
     pub fn init(&mut self, associated_merkle_tree: Pubkey) {
         self.associated_merkle_tree = associated_merkle_tree;

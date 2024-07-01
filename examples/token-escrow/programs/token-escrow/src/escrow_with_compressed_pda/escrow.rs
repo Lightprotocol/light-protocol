@@ -95,7 +95,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         proof.clone(),
         cpi_context,
     )?;
-    msg!("escrow compressed tokens with compressed pda");
     cpi_compressed_pda_transfer(
         ctx,
         proof,
