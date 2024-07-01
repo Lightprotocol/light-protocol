@@ -92,6 +92,10 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         );
         return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
     }
+    if state_merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
     let minimum_sequence_threshold = state_merkle_tree_config.roots_size + SAFETY_MARGIN;
     if nullifier_queue_config.sequence_threshold < minimum_sequence_threshold {
         msg!(

@@ -52,4 +52,6 @@ pub enum AccountCompressionErrorCode {
     UnsupportedCanopyDepth,
     #[msg("Invalid sequence threshold")]
     InvalidSequenceThreshold,
+    #[msg("Unsupported close threshold")]
+    UnsupportedCloseThreshold,
 }

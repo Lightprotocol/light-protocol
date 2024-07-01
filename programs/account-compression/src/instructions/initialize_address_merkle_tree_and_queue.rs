@@ -76,6 +76,10 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         );
         return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
     }
+    if merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
     let minimum_sequence_threshold = merkle_tree_config.roots_size + SAFETY_MARGIN;
     if queue_config.sequence_threshold < minimum_sequence_threshold {
         msg!(
