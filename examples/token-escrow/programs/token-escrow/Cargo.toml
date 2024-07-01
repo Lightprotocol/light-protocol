@@ -39,5 +39,5 @@ tokio = "1.36.0"
 light-prover-client = { path = "../../../../circuit-lib/light-prover-client", version = "0.2.1" }
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
-spl-token = "3.5.0"
+spl-token = "4.0.0"
 anchor-spl = { workspace = true }

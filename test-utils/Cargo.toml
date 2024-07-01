@@ -26,7 +26,7 @@ account-compression = { path = "../programs/account-compression", version = "0.4
 light-compressed-token = { path = "../programs/compressed-token", version = "0.4.1", features = ["cpi"] }
 light-system-program = { path = "../programs/system", version = "0.4.1", features = ["cpi"] }
 light-registry = { path = "../programs/registry", version = "0.4.1", features = ["cpi"] }
-spl-token = { version="3.5.0", features = ["no-entrypoint"] }
+spl-token = { version="4.0.0", features = ["no-entrypoint"] }
 solana-transaction-status = { workspace = true }
 tokio = "1.36"
 light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.2.1" }
