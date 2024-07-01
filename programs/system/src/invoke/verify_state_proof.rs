@@ -1,4 +1,5 @@
 use crate::{
+    errors::SystemProgramError,
     sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
     NewAddressParamsPacked,
 };
@@ -20,12 +21,18 @@ use std::mem;
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
+pub fn fetch_input_compressed_account_roots<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + Bumps,
+>(
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
-    for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
+    for (i, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
     {
@@ -38,18 +45,15 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
             &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
         )
         .map_err(ProgramError::from)?;
+        let fetched_roots = &merkle_tree.roots;
 
-        let fetched_roots = merkle_tree
-            .roots
-            .get(input_compressed_accounts_with_merkle_context[j].root_index as usize)
-            .unwrap();
-
-        roots[j] = *fetched_roots;
+        roots[i] = fetched_roots[input_compressed_account_with_context.root_index as usize];
     }
     Ok(())
 }
 
 #[inline(never)]
+#[heap_neutral]
 pub fn fetch_roots_address_merkle_tree<
     'a,
     'b,
@@ -61,9 +65,9 @@ pub fn fetch_roots_address_merkle_tree<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
-    for (j, index_mt_account) in new_address_params.iter().enumerate() {
+    for (i, new_address_param) in new_address_params.iter().enumerate() {
         let merkle_tree = ctx.remaining_accounts
-            [index_mt_account.address_merkle_tree_account_index as usize]
+            [new_address_param.address_merkle_tree_account_index as usize]
             .to_account_info();
         let merkle_tree = merkle_tree.try_borrow_data()?;
         check_discriminator::<AddressMerkleTreeAccount>(&merkle_tree)?;
@@ -74,7 +78,7 @@ pub fn fetch_roots_address_merkle_tree<
             .map_err(ProgramError::from)?;
         let fetched_roots = &merkle_tree.roots;
 
-        roots[j] = fetched_roots[index_mt_account.address_merkle_tree_root_index as usize];
+        roots[i] = fetched_roots[new_address_param.address_merkle_tree_root_index as usize];
     }
     Ok(())
 }
@@ -99,6 +103,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .unwrap()
         .0;
     hashed_pubkeys.push((owner_pubkey, hashed_owner));
+    #[allow(unused)]
     let mut current_hashed_mt = [0u8; 32];
 
     let mut current_mt_index: i16 = -1;
@@ -114,8 +119,16 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             Some(address) => addresses[j] = Some(*address),
             None => {}
         };
+
+        #[allow(clippy::comparison_chain)]
         if current_mt_index
-            != input_compressed_account_with_context
+            == input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as i16
+        {
+            // Do nothing, but it is the most common case.
+        } else if current_mt_index
+            < input_compressed_account_with_context
                 .merkle_context
                 .merkle_tree_pubkey_index as i16
         {
@@ -131,6 +144,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .unwrap()
                 .0;
             hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
+        } else {
+            return err!(SystemProgramError::InputMerkleTreeIndicesNotInOrder);
         }
         // Without cpi context all input compressed accounts have the same owner.
         // With cpi context the owners will be different.

@@ -47,6 +47,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     light_heap::bench_sbf_start!("acp_create_queue_map");
 
     let mut queue_map = QueueMap::new();
+    // Deduplicate tree and queue pairs.
+    // So that we iterate over every pair only once,
+    // and pay rollover fees only once.
     for i in (0..ctx.remaining_accounts.len()).step_by(2) {
         let queue: &AccountInfo<'info> = ctx.remaining_accounts.get(i).unwrap();
         let merkle_tree = ctx.remaining_accounts.get(i + 1).unwrap();

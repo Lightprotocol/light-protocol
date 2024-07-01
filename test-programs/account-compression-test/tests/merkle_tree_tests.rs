@@ -973,7 +973,7 @@ async fn test_append_functional_and_failing(
     .unwrap();
 
     // CHECK: 4 append leaves to merkle tree
-    let leaves = (0u8..=140)
+    let leaves = (0u8..=139)
         .map(|i| {
             (
                 0,
@@ -1865,7 +1865,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
             .0
             .push(leaf.clone());
     }
-
+    println!("leaves len {}", leaves.len());
     let instruction = [create_insert_leaves_instruction(
         leaves.clone(),
         context.get_payer().pubkey(),

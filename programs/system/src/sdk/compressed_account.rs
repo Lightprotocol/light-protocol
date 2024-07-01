@@ -96,7 +96,7 @@ pub struct CompressedAccountData {
 }
 
 /// Hashing scheme:
-/// H()
+/// H(owner || leaf_index || merkle_tree_pubkey || lamports || address || data.discriminator || data.data_hash)
 impl CompressedAccount {
     pub fn hash_with_hashed_values<H: Hasher>(
         &self,
@@ -163,7 +163,13 @@ mod tests {
     use solana_sdk::signature::{Keypair, Signer};
 
     use super::*;
-
+    /// Tests:
+    /// 1. functional with all inputs set
+    /// 2. no data
+    /// 3. no address
+    /// 4. no address and no lamports
+    /// 5. no address and no data
+    /// 6. no address, no data, no lamports
     #[test]
     fn test_compressed_account_hash() {
         let owner = Keypair::new().pubkey();
@@ -267,6 +273,35 @@ mod tests {
         assert_ne!(hash, no_address_hash);
         assert_ne!(no_data_hash, no_address_hash);
 
+        // no address no lamports
+        let compressed_account = CompressedAccount {
+            owner,
+            lamports: 0,
+            address: None,
+            data: Some(data.clone()),
+        };
+        let no_address_no_lamports_hash = compressed_account
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
+            .unwrap();
+        let hash_manual = Poseidon::hashv(&[
+            hash_to_bn254_field_size_be(&owner.to_bytes())
+                .unwrap()
+                .0
+                .as_slice(),
+            leaf_index.to_le_bytes().as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0
+                .as_slice(),
+            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
+            &data.data_hash,
+        ])
+        .unwrap();
+        assert_eq!(no_address_no_lamports_hash, hash_manual);
+        assert_ne!(hash, no_address_no_lamports_hash);
+        assert_ne!(no_data_hash, no_address_no_lamports_hash);
+        assert_ne!(no_address_hash, no_address_no_lamports_hash);
+
         // no address and no data
         let compressed_account = CompressedAccount {
             owner,
@@ -296,6 +331,7 @@ mod tests {
         assert_ne!(hash, no_address_no_data_hash);
         assert_ne!(no_data_hash, no_address_no_data_hash);
         assert_ne!(no_address_hash, no_address_no_data_hash);
+        assert_ne!(no_address_no_lamports_hash, no_address_no_data_hash);
 
         // no address, no data, no lamports
         let compressed_account = CompressedAccount {
@@ -324,5 +360,9 @@ mod tests {
         assert_ne!(hash, no_address_no_data_no_lamports_hash);
         assert_ne!(no_data_hash, no_address_no_data_no_lamports_hash);
         assert_ne!(no_address_hash, no_address_no_data_no_lamports_hash);
+        assert_ne!(
+            no_address_no_lamports_hash,
+            no_address_no_data_no_lamports_hash
+        );
     }
 }

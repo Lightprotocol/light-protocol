@@ -33,15 +33,12 @@ pub mod light_system_program {
     };
     use super::*;
 
-    pub fn init_cpi_context_account(_ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
-        use account_compression::state_merkle_tree_from_bytes_zero_copy_mut;
-
-        let merkle_tree_account = _ctx.accounts.associated_merkle_tree.to_account_info();
-        let mut data = merkle_tree_account.try_borrow_mut_data()?;
-        state_merkle_tree_from_bytes_zero_copy_mut(&mut data)?;
-        _ctx.accounts
+    pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
+        // Check that Merkle tree is initialized.
+        ctx.accounts.associated_merkle_tree.load()?;
+        ctx.accounts
             .cpi_context_account
-            .init(_ctx.accounts.associated_merkle_tree.key());
+            .init(ctx.accounts.associated_merkle_tree.key());
         Ok(())
     }
 
@@ -52,7 +49,10 @@ pub mod light_system_program {
         let inputs: InstructionDataInvoke =
             InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
 
-        input_compressed_accounts_signer_check(&inputs, &ctx.accounts.authority.key())?;
+        input_compressed_accounts_signer_check(
+            &inputs.input_compressed_accounts_with_merkle_context,
+            &ctx.accounts.authority.key(),
+        )?;
         process(inputs, None, ctx, 0)
     }
 
