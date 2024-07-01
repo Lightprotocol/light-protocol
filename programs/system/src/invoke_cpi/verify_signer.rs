@@ -200,22 +200,30 @@ mod test {
 
     #[test]
     fn test_cpi_signer_check() {
-        let seeds = [1, 2, 3];
-        let invoking_program = Pubkey::new_unique();
-        let derived_signer =
-            Pubkey::create_program_address(&[&seeds[..]], &invoking_program).unwrap();
-        assert_eq!(
-            cpi_signer_check(&vec![seeds.to_vec()], &invoking_program, &derived_signer),
-            Ok(())
-        );
+        for _ in 0..1000 {
+            let seeds = [1, 2, 3];
+            let invoking_program = Pubkey::new_unique();
+            let (derived_signer, bump) =
+                Pubkey::find_program_address(&[&seeds[..]], &invoking_program);
+            assert_eq!(
+                cpi_signer_check(
+                    &vec![seeds.to_vec(), vec![bump]],
+                    &invoking_program,
+                    &derived_signer
+                ),
+                Ok(())
+            );
 
-        let authority = Pubkey::new_unique();
-        let seeds = vec![vec![1, 2, 3]];
-        let invoking_program = Pubkey::new_unique();
-        assert_eq!(
-            cpi_signer_check(&seeds, &invoking_program, &authority),
-            Err(SystemProgramError::CpiSignerCheckFailed.into())
-        );
+            let authority = Pubkey::new_unique();
+            let seeds = vec![vec![1, 2, 3], vec![bump]];
+            let invoking_program = Pubkey::new_unique();
+            assert!(
+                cpi_signer_check(&seeds, &invoking_program, &authority)
+                    == Err(ProgramError::InvalidSeeds.into())
+                    || cpi_signer_check(&seeds, &invoking_program, &authority)
+                        == Err(SystemProgramError::CpiSignerCheckFailed.into())
+            );
+        }
     }
 
     #[test]
