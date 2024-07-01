@@ -41,7 +41,7 @@ tokio = "1.36.0"
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
-spl-token = "3.5.0"
+spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = "0.8"
 spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false}
