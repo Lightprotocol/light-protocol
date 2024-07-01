@@ -193,7 +193,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
             queue_config.clone(),
         );
     let c_ix =
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(10_000_000);
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
     let transaction = Transaction::new_signed_with_payer(
         &[
             c_ix,
