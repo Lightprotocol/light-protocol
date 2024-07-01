@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 
-// TODO: check that all errors are used
 #[error_code]
 pub enum SystemProgramError {
     #[msg("Sum check failed")]
