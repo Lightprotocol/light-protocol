@@ -1651,6 +1651,25 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .unwrap();
     }
+    for invalid_height in (27..50).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+        )
+        .unwrap();
+    }
     for invalid_canopy_depth in (0..10).step_by(3) {
         let mut merkle_tree_config = merkle_tree_config.clone();
         merkle_tree_config.canopy_depth = invalid_canopy_depth;

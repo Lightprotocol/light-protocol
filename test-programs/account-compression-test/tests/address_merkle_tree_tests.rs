@@ -28,7 +28,10 @@ use light_test_utils::{
     test_env::create_address_merkle_tree_and_queue_account,
     test_forester::{empty_address_queue_test, insert_addresses},
 };
-use light_test_utils::{airdrop_lamports, rpc::rpc_connection::RpcConnection};
+use light_test_utils::{
+    airdrop_lamports,
+    rpc::{errors::RpcError, rpc_connection::RpcConnection},
+};
 use light_test_utils::{get_indexed_merkle_tree, transaction_params::FeeConfig};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
@@ -36,7 +39,7 @@ use rand::thread_rng;
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     pubkey::Pubkey,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
 
@@ -147,6 +150,65 @@ async fn test_address_queue_and_tree_functional_custom() {
     }
 }
 
+async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
+    context: &mut R,
+    payer: &Keypair,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+    merkle_tree_size: usize,
+    queue_size: usize,
+) -> Result<Signature, RpcError> {
+    let queue_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        queue_size,
+        context
+            .get_minimum_balance_for_rent_exemption(queue_size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(&queue_keypair),
+    );
+    let mt_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        merkle_tree_size,
+        context
+            .get_minimum_balance_for_rent_exemption(merkle_tree_size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(&merkle_tree_keypair),
+    );
+
+    let instruction =
+        account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+            0,
+            payer.pubkey(),
+            payer.pubkey(),
+            None,
+            merkle_tree_keypair.pubkey(),
+            queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+        );
+    let c_ix =
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(10_000_000);
+    let transaction = Transaction::new_signed_with_payer(
+        &[
+            c_ix,
+            queue_account_create_ix,
+            mt_account_create_ix,
+            instruction,
+        ],
+        Some(&payer.pubkey()),
+        &vec![&payer, &queue_keypair, &merkle_tree_keypair],
+        context.get_latest_blockhash().await.unwrap(),
+    );
+
+    context.process_transaction(transaction.clone()).await
+}
+
 #[tokio::test]
 async fn test_address_queue_and_tree_invalid_sizes() {
     let mut program_test = ProgramTest::default();
@@ -183,58 +245,148 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         >()..valid_tree_size)
             .step_by(200_000)
         {
-            let queue_account_create_ix = create_account_instruction(
-                &payer.pubkey(),
-                invalid_queue_size,
-                context
-                    .get_minimum_balance_for_rent_exemption(invalid_queue_size)
-                    .await
-                    .unwrap(),
-                &account_compression::ID,
-                Some(&address_queue_keypair),
-            );
-            let mt_account_create_ix = create_account_instruction(
-                &payer.pubkey(),
+            let result = initialize_address_merkle_tree_and_queue(
+                &mut context,
+                &payer,
+                &address_merkle_tree_keypair,
+                &address_queue_keypair,
+                &merkle_tree_config,
+                &queue_config,
                 invalid_tree_size,
-                context
-                    .get_minimum_balance_for_rent_exemption(invalid_tree_size)
-                    .await
-                    .unwrap(),
-                &account_compression::ID,
-                Some(&address_merkle_tree_keypair),
-            );
-
-            let instruction =  account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
-                0,
-                payer.pubkey(),
-                payer.pubkey(),
-                None,
-                address_merkle_tree_keypair.pubkey(),
-                address_queue_keypair.pubkey(),
-                merkle_tree_config.clone(),
-                queue_config.clone(),
-            );
-            let c_ix = solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
-                10_000_000,
-            );
-            let transaction = Transaction::new_signed_with_payer(
-                &[
-                    c_ix,
-                    queue_account_create_ix,
-                    mt_account_create_ix,
-                    instruction,
-                ],
-                Some(&payer.pubkey()),
-                &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
-                context.get_latest_blockhash().await.unwrap(),
-            );
-
-            let result = context.process_transaction(transaction.clone()).await;
+                invalid_queue_size,
+            )
+            .await;
             assert_rpc_error(
                 result, 3, 9006, // HashSetError::BufferSize
             )
             .unwrap()
         }
+    }
+}
+
+#[tokio::test]
+async fn test_address_queue_and_tree_invalid_config() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    let context = program_test.start_with_context().await;
+    let mut context = ProgramTestRpcConnection { context };
+    let payer = context.get_payer().insecure_clone();
+
+    let address_merkle_tree_keypair = Keypair::new();
+    let address_queue_keypair = Keypair::new();
+
+    let queue_config = AddressQueueConfig::default();
+    let merkle_tree_config = AddressMerkleTreeConfig::default();
+
+    let queue_size = account_compression::state::QueueAccount::size(
+        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
+    )
+    .unwrap();
+    let tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+
+    for invalid_height in (0..26).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+        )
+        .unwrap();
+    }
+    for invalid_height in (27..50).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+        )
+        .unwrap();
+    }
+    for invalid_canopy_depth in (0..10).step_by(3) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.canopy_depth = invalid_canopy_depth;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 6022, // AccountCompressionErrorCode::UnsupportedCanopyDepth
+        )
+        .unwrap();
+    }
+    for invalid_close_threshold in (0..100).step_by(20) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.close_threshold = Some(invalid_close_threshold);
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 6024, // AccountCompressionErrorCode::UnsupportedCloseThreshold
+        )
+        .unwrap();
+    }
+    for invalid_sequence_threshold in
+        (0..merkle_tree_config.roots_size + SAFETY_MARGIN).step_by(200)
+    {
+        let mut queue_config = queue_config.clone();
+        queue_config.sequence_threshold = invalid_sequence_threshold;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 6023, // AccountCompressionErrorCode::InvalidSequenceThreshold
+        )
+        .unwrap();
     }
 }
 
