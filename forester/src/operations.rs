@@ -11,27 +11,15 @@ use light_hasher::Poseidon;
 use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::SolanaRpcConnection;
 use log::{debug, info, warn};
 use solana_client::pubsub_client::PubsubClient;
 use solana_client::rpc_config::RpcAccountInfoConfig;
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use solana_sdk::signature::Signer;
+use solana_sdk::commitment_config::CommitmentConfig;
 use std::mem;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
-
-pub async fn setup_rpc(config: Arc<ForesterConfig>) -> RpcPool<SolanaRpcConnection> {
-    let mut connections: Vec<Arc<Mutex<SolanaRpcConnection>>> = Vec::new();
-    for _ in 0..20 {
-        let rpc = init_rpc::<SolanaRpcConnection>(config.clone(), false).await;
-        let rpc = Arc::new(Mutex::new(rpc));
-        connections.push(rpc);
-    }
-    RpcPool::new(connections)
-}
 
 pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
@@ -67,7 +55,6 @@ pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
             match account_subscription_receiver.recv() {
                 Ok(_) => {
                     debug!("nullify request received");
-                    // nullify_state(Arc::clone(&config)).await;
                     nullify_state(Arc::clone(&config), rpc_pool, indexer.clone()).await;
                 }
                 Err(e) => {
@@ -177,32 +164,14 @@ pub async fn nullify_addresses<I: Indexer<R>, R: RpcConnection>(
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-pub async fn init_rpc<R: RpcConnection>(config: Arc<ForesterConfig>, airdrop: bool) -> R {
-    let mut rpc = R::new(
-        config.external_services.rpc_url.clone(),
-        Some(CommitmentConfig {
-            commitment: CommitmentLevel::Confirmed,
-        }),
-    );
-
-    if airdrop {
-        rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
-            .await
-            .unwrap();
-    }
-
-    rpc
-}
-
 pub async fn fetch_state_queue_data<R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc_pool: RpcPool<R>,
+    rpc: Arc<Mutex<R>>,
 ) -> Result<Vec<ForesterQueueAccountData>, ForesterError> {
     debug!("Fetching state queue data");
     let state_queue_pubkey = config.nullifier_queue_pubkey;
-
-    let rpc = rpc_pool.get_connection().await;
-    let mut nullifier_queue_account = (*rpc.lock().await)
+    let mut rpc = rpc.lock().await;
+    let mut nullifier_queue_account = rpc
         .get_account(state_queue_pubkey)
         .await
         .map_err(|e| {
@@ -241,15 +210,11 @@ pub async fn fetch_state_queue_data<R: RpcConnection>(
 
 pub async fn fetch_address_queue_data<R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc_pool: RpcPool<R>,
+    rpc: Arc<Mutex<R>>,
 ) -> Result<Vec<ForesterQueueAccount>, ForesterError> {
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
-
-    let rpc = rpc_pool.get_connection().await;
-    let mut account = (*rpc.lock().await)
-        .get_account(address_queue_pubkey)
-        .await?
-        .unwrap();
+    let mut rpc = rpc.lock().await;
+    let mut account = rpc.get_account(address_queue_pubkey).await?.unwrap();
     let address_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };

@@ -13,9 +13,9 @@ mod operations;
 
 pub use config::ForesterConfig;
 pub use operations::{
-    fetch_address_queue_data, fetch_state_queue_data, init_rpc, nullify_addresses, nullify_state,
-    setup_rpc, subscribe_addresses, subscribe_state,
+    fetch_address_queue_data, fetch_state_queue_data, nullify_addresses, nullify_state,
+    subscribe_addresses, subscribe_state,
 };
-pub use rpc_pool::RpcPool;
+pub use rpc_pool::{init_rpc, RpcPool};
 pub use settings::init_config;
 pub use utils::account::{get_address_queue_length, get_state_queue_length};

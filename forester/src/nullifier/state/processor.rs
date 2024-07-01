@@ -110,10 +110,13 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
             )));
         }
 
-        let mut queue_data =
-            fetch_state_queue_data(context.config.clone(), context.rpc_pool.clone()).await?;
-        let mut rng = thread_rng();
-        queue_data.shuffle(&mut rng);
+        let mut queue_data = {
+            let rpc = context.rpc_pool.get_connection().await;
+            let mut queue_data = fetch_state_queue_data(context.config.clone(), rpc).await?;
+            let mut rng = thread_rng();
+            queue_data.shuffle(&mut rng);
+            queue_data
+        };
 
         info!("Fetched state queue data len: {:?}", queue_data.len());
         if queue_data.is_empty() {

@@ -600,6 +600,23 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .cloned()
             .collect()
     }
+
+    fn add_address_merkle_tree_accounts(
+        &mut self,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        _owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
+        let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: queue_keypair.pubkey(),
+        };
+        self.address_merkle_trees
+            .push(Self::add_address_merkle_tree_bundle(
+                address_merkle_tree_accounts,
+            ));
+        address_merkle_tree_accounts
+    }
 }
 
 impl<R: RpcConnection> TestIndexer<R> {
@@ -742,23 +759,6 @@ impl<R: RpcConnection> TestIndexer<R> {
         )
         .await;
         self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
-    }
-
-    pub fn add_address_merkle_tree_accounts(
-        &mut self,
-        merkle_tree_keypair: &Keypair,
-        queue_keypair: &Keypair,
-        _owning_program_id: Option<Pubkey>,
-    ) -> AddressMerkleTreeAccounts {
-        let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
-            merkle_tree: merkle_tree_keypair.pubkey(),
-            queue: queue_keypair.pubkey(),
-        };
-        self.address_merkle_trees
-            .push(Self::add_address_merkle_tree_bundle(
-                address_merkle_tree_accounts,
-            ));
-        address_merkle_tree_accounts
     }
 
     pub async fn add_state_merkle_tree(

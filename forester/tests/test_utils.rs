@@ -88,6 +88,7 @@ pub fn forester_config() -> ForesterConfig {
         batch_size: 1,
         max_retries: 5,
         cu_limit: 1_000_000,
+        rpc_pool_size: 20,
     }
 }
 
