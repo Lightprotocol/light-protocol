@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 
-// TODO: check that all errors are used
 #[error_code]
 pub enum SystemProgramError {
     #[msg("Sum check failed")]
@@ -68,5 +67,5 @@ pub enum SystemProgramError {
     #[msg("Input merkle tree indices are not in ascending order.")]
     InputMerkleTreeIndicesNotInOrder,
     #[msg("Output merkle tree indices are not in ascending order.")]
-    OutputMerkleTreeIndicesNotInOrder, // TODO: adapt failing tests
+    OutputMerkleTreeIndicesNotInOrder,
 }

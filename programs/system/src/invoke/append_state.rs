@@ -118,7 +118,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     let num_leaves = output_compressed_account_hashes.len();
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
-    let mut num_accounts = 0;
+    let mut index_merkle_tree_account = 0;
 
     // Anchor instruction signature.
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
@@ -162,7 +162,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             account_infos.push(account_info);
 
             num_leaves_in_tree = 0;
-            num_accounts += 1;
+            index_merkle_tree_account += 1;
         } else {
             // Check 2.
             // Output Merkle tree indices must be in order since we use the
@@ -220,7 +220,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                 &output_compressed_account_indices[j],
             )?;
         // - 1 since we want the index of the next account index.
-        instruction_data.extend_from_slice(&[num_accounts - 1]);
+        instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
     Ok(instruction_data)

@@ -296,7 +296,8 @@ export type AccountCompression = {
         {
             name: 'initializeGroupAuthority';
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access',
+                'to the same Merkle trees by registering the programs to the group)',
             ];
             accounts: [
                 {
@@ -531,7 +532,7 @@ export type AccountCompression = {
                     };
                 },
                 {
-                    name: 'indices';
+                    name: 'leafIndices';
                     type: {
                         vec: 'u64';
                     };
@@ -633,22 +634,6 @@ export type AccountCompression = {
     ];
     accounts: [
         {
-            name: 'groupAuthority';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'authority';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seed';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'registeredProgram';
             type: {
                 kind: 'struct';
@@ -677,7 +662,7 @@ export type AccountCompression = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -694,6 +679,22 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'groupAuthority';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'authority';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seed';
+                        type: 'publicKey';
                     },
                 ];
             };
@@ -987,96 +988,86 @@ export type AccountCompression = {
         },
         {
             code: 6002;
-            name: 'InvalidVerifier';
-            msg: 'InvalidVerifier';
-        },
-        {
-            code: 6003;
             name: 'NumberOfLeavesMismatch';
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
         },
         {
-            code: 6004;
+            code: 6003;
             name: 'InvalidNoopPubkey';
             msg: 'Provided noop program public key is invalid';
         },
         {
-            code: 6005;
+            code: 6004;
             name: 'NumberOfChangeLogIndicesMismatch';
             msg: 'Number of change log indices mismatch';
         },
         {
-            code: 6006;
+            code: 6005;
             name: 'NumberOfIndicesMismatch';
             msg: 'Number of indices mismatch';
         },
         {
-            code: 6007;
+            code: 6006;
             name: 'NumberOfProofsMismatch';
             msg: 'NumberOfProofsMismatch';
         },
         {
-            code: 6008;
+            code: 6007;
             name: 'InvalidMerkleProof';
             msg: 'InvalidMerkleProof';
         },
         {
-            code: 6009;
-            name: 'InvalidMerkleTree';
-            msg: 'InvalidMerkleTree';
-        },
-        {
-            code: 6010;
+            code: 6008;
             name: 'LeafNotFound';
             msg: 'Could not find the leaf in the queue';
         },
         {
-            code: 6011;
+            code: 6009;
             name: 'MerkleTreeAndQueueNotAssociated';
             msg: 'MerkleTreeAndQueueNotAssociated';
         },
         {
-            code: 6012;
+            code: 6010;
             name: 'MerkleTreeAlreadyRolledOver';
             msg: 'MerkleTreeAlreadyRolledOver';
         },
         {
-            code: 6013;
+            code: 6011;
             name: 'NotReadyForRollover';
             msg: 'NotReadyForRollover';
         },
         {
-            code: 6014;
+            code: 6012;
             name: 'RolloverNotConfigured';
             msg: 'RolloverNotConfigured';
         },
         {
-            code: 6015;
+            code: 6013;
             name: 'NotAllLeavesProcessed';
             msg: 'NotAllLeavesProcessed';
         },
         {
-            code: 6016;
+            code: 6014;
             name: 'InvalidQueueType';
             msg: 'InvalidQueueType';
         },
         {
-            code: 6017;
+            code: 6015;
             name: 'InputElementsEmpty';
             msg: 'InputElementsEmpty';
         },
         {
-            code: 6018;
+            code: 6016;
             name: 'NoLeavesForMerkleTree';
             msg: 'NoLeavesForMerkleTree';
         },
         {
-            code: 6019;
+            code: 6017;
             name: 'SizeMismatch';
             msg: 'SizeMismatch';
         },
         {
-            code: 6020;
+            code: 6018;
             name: 'InsufficientRolloverFee';
             msg: 'InsufficientRolloverFee';
         },
@@ -1381,7 +1372,8 @@ export const IDL: AccountCompression = {
         {
             name: 'initializeGroupAuthority',
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access',
+                'to the same Merkle trees by registering the programs to the group)',
             ],
             accounts: [
                 {
@@ -1616,7 +1608,7 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
-                    name: 'indices',
+                    name: 'leafIndices',
                     type: {
                         vec: 'u64',
                     },
@@ -1718,22 +1710,6 @@ export const IDL: AccountCompression = {
     ],
     accounts: [
         {
-            name: 'groupAuthority',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'authority',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seed',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'registeredProgram',
             type: {
                 kind: 'struct',
@@ -1762,7 +1738,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -1779,6 +1755,22 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'groupAuthority',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'authority',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seed',
+                        type: 'publicKey',
                     },
                 ],
             },
@@ -2072,96 +2064,86 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6002,
-            name: 'InvalidVerifier',
-            msg: 'InvalidVerifier',
-        },
-        {
-            code: 6003,
             name: 'NumberOfLeavesMismatch',
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.',
         },
         {
-            code: 6004,
+            code: 6003,
             name: 'InvalidNoopPubkey',
             msg: 'Provided noop program public key is invalid',
         },
         {
-            code: 6005,
+            code: 6004,
             name: 'NumberOfChangeLogIndicesMismatch',
             msg: 'Number of change log indices mismatch',
         },
         {
-            code: 6006,
+            code: 6005,
             name: 'NumberOfIndicesMismatch',
             msg: 'Number of indices mismatch',
         },
         {
-            code: 6007,
+            code: 6006,
             name: 'NumberOfProofsMismatch',
             msg: 'NumberOfProofsMismatch',
         },
         {
-            code: 6008,
+            code: 6007,
             name: 'InvalidMerkleProof',
             msg: 'InvalidMerkleProof',
         },
         {
-            code: 6009,
-            name: 'InvalidMerkleTree',
-            msg: 'InvalidMerkleTree',
-        },
-        {
-            code: 6010,
+            code: 6008,
             name: 'LeafNotFound',
             msg: 'Could not find the leaf in the queue',
         },
         {
-            code: 6011,
+            code: 6009,
             name: 'MerkleTreeAndQueueNotAssociated',
             msg: 'MerkleTreeAndQueueNotAssociated',
         },
         {
-            code: 6012,
+            code: 6010,
             name: 'MerkleTreeAlreadyRolledOver',
             msg: 'MerkleTreeAlreadyRolledOver',
         },
         {
-            code: 6013,
+            code: 6011,
             name: 'NotReadyForRollover',
             msg: 'NotReadyForRollover',
         },
         {
-            code: 6014,
+            code: 6012,
             name: 'RolloverNotConfigured',
             msg: 'RolloverNotConfigured',
         },
         {
-            code: 6015,
+            code: 6013,
             name: 'NotAllLeavesProcessed',
             msg: 'NotAllLeavesProcessed',
         },
         {
-            code: 6016,
+            code: 6014,
             name: 'InvalidQueueType',
             msg: 'InvalidQueueType',
         },
         {
-            code: 6017,
+            code: 6015,
             name: 'InputElementsEmpty',
             msg: 'InputElementsEmpty',
         },
         {
-            code: 6018,
+            code: 6016,
             name: 'NoLeavesForMerkleTree',
             msg: 'NoLeavesForMerkleTree',
         },
         {
-            code: 6019,
+            code: 6017,
             name: 'SizeMismatch',
             msg: 'SizeMismatch',
         },
         {
-            code: 6020,
+            code: 6018,
             name: 'InsufficientRolloverFee',
             msg: 'InsufficientRolloverFee',
         },

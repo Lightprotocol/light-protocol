@@ -17,7 +17,6 @@ pub fn input_compressed_accounts_signer_check(
         .try_for_each(
             |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
                 if compressed_account_with_context.compressed_account.owner == *authority {
-                    println!("ok");
                     Ok(())
                 } else {
                     msg!(
