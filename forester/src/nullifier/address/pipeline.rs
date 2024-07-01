@@ -1,6 +1,8 @@
 use crate::config::ForesterConfig;
 use crate::nullifier::address::AddressProcessor;
+use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
+use crate::RpcPool;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
@@ -13,8 +15,8 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer<R>, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
-    ProcessAddressQueue(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
-    UpdateAddressMerkleTree(PipelineContext<T, R>, ForesterQueueAccount),
+    FetchProofs(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
+    UpdateAddressMerkleTree(PipelineContext<T, R>, Vec<ForesterAddressQueueAccountData>),
     Complete,
 }
 
@@ -22,7 +24,7 @@ impl<T: Indexer<R>, R: RpcConnection> Display for AddressPipelineStage<T, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AddressPipelineStage::FetchAddressQueueData(_) => write!(f, "FetchAddressQueueData"),
-            AddressPipelineStage::ProcessAddressQueue(_, _) => write!(f, "ProcessAddressQueue"),
+            AddressPipelineStage::FetchProofs(_, _) => write!(f, "FetchProofs"),
             AddressPipelineStage::UpdateAddressMerkleTree(_, _) => {
                 write!(f, "UpdateAddressMerkleTree")
             }
@@ -33,7 +35,7 @@ impl<T: Indexer<R>, R: RpcConnection> Display for AddressPipelineStage<T, R> {
 
 pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
-    rpc: Arc<Mutex<R>>,
+    rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
 ) -> (mpsc::Sender<AddressPipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
@@ -48,12 +50,13 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
         backpressure: BackpressureControl::new(config.concurrency_limit),
         shutdown: shutdown.clone(),
         close_output: close_output_rx,
+        address_queue: Arc::new(Mutex::new(Vec::new())),
     };
 
     let input_tx_clone = input_tx.clone();
     let context = PipelineContext {
         indexer: indexer.clone(),
-        rpc: rpc.clone(),
+        rpc_pool,
         config: config.clone(),
         successful_nullifications: Arc::new(Mutex::new(0)),
     };
@@ -78,8 +81,24 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
                         .await
                         .unwrap();
                 }
-                AddressPipelineStage::ProcessAddressQueue(_, _) => {
-                    input_tx_clone.send(result).await.unwrap();
+                AddressPipelineStage::FetchProofs(_, queue_data) => {
+                    if queue_data.is_empty() {
+                        // If the batch is empty, it means we've processed all addresses
+                        // So we go back to FetchAddressQueueData to either get the next batch or fetch new addresses
+                        input_tx_clone
+                            .send(AddressPipelineStage::FetchAddressQueueData(context.clone()))
+                            .await
+                            .unwrap();
+                    } else {
+                        // If we have addresses in the batch, proceed with fetching proofs
+                        input_tx_clone
+                            .send(AddressPipelineStage::FetchProofs(
+                                context.clone(),
+                                queue_data,
+                            ))
+                            .await
+                            .unwrap();
+                    }
                 }
                 AddressPipelineStage::Complete => {
                     debug!("Processing complete, signaling completion.");

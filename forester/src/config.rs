@@ -14,7 +14,6 @@ pub struct ForesterConfig {
     pub concurrency_limit: usize,
     pub batch_size: usize,
     pub max_retries: usize,
-    pub max_concurrent_batches: usize,
 }
 
 impl Clone for ForesterConfig {
@@ -30,7 +29,6 @@ impl Clone for ForesterConfig {
             concurrency_limit: self.concurrency_limit,
             batch_size: self.batch_size,
             max_retries: self.max_retries,
-            max_concurrent_batches: self.max_concurrent_batches,
         }
     }
 }

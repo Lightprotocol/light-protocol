@@ -4,12 +4,17 @@ use account_compression::initialize_address_merkle_tree::{AnchorDeserialize, Pub
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::instruction::Instruction;
 use solana_sdk::account::{Account, AccountSharedData};
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::hash::Hash;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;
 
 pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
+    fn new<U: ToString>(_url: U, _commitment_config: Option<CommitmentConfig>) -> Self {
+        unimplemented!()
+    }
+
     fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],

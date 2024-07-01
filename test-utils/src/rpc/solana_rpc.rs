@@ -55,13 +55,6 @@ impl Debug for SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
-        let payer = Keypair::new();
-        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
-        let client = RpcClient::new_with_commitment(url, commitment_config);
-        Self { client, payer }
-    }
-
     fn parse_inner_instructions<T: AnchorDeserialize>(
         &self,
         signature: Signature,
@@ -133,6 +126,13 @@ impl Clone for SolanaRpcConnection {
 }
 
 impl RpcConnection for SolanaRpcConnection {
+    fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
+        let payer = Keypair::new();
+        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
+        let client = RpcClient::new_with_commitment(url, commitment_config);
+        Self { client, payer }
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
