@@ -568,7 +568,7 @@ describe('rpc-interop', () => {
         assert.notEqual(signatures2[0].signature, signatures3[0].signature);
     });
 
-    it.only('[test-rpc missing] getCompressedTransaction should match', async () => {
+    it('[test-rpc missing] getCompressedTransaction should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,
         );
@@ -578,29 +578,8 @@ describe('rpc-interop', () => {
         );
 
         /// is transfer
-        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 0);
-        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 1);
-    });
-
-    it.only('[debug]test', async () => {
-        const endpoint = 'https://zk-testnet.helius.dev:8899';
-        const compressionEndpoint = 'https://zk-testnet.helius.dev:8784';
-        const signature =
-            '3kUQxxj3kxm91teqb31UDspMd3NsLB1272pYRWCEj79scRooFDApM8fkhPQt5yBKgLP9y8VVEdLUPpDWC2QfUnqX';
-
-        const connection: Rpc = createRpc(
-            endpoint,
-            compressionEndpoint,
-            undefined,
-            {
-                commitment: 'processed',
-            },
-        );
-
-        const response =
-            await connection.getTransactionWithCompressionInfo(signature);
-
-        console.log(response);
+        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
+        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
     });
 
     // TODO(photon): Fix 'internal server error'

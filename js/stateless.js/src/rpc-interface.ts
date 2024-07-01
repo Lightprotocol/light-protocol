@@ -136,8 +136,15 @@ const BN254FromString = coerce(instance(BN), string(), value => {
     return createBN254(value, 'base58');
 });
 
-const BNFromInt = coerce(instance(BN), number(), value => bn(value));
-const BNFromBase10String = coerce(instance(BN), string(), value => bn(value));
+const BNFromInt = coerce(instance(BN), number(), value => {
+    // Check if the number is safe
+    if (Number.isSafeInteger(value)) {
+        return bn(value);
+    } else {
+        // Convert to string if the number is unsafe
+        return bn(value.toString(), 10);
+    }
+});
 
 /**
  * @internal

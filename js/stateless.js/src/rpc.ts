@@ -843,29 +843,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null> {
-        console.log('@getTransactionWithCompressionInfo');
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getTransactionWithCompressionInfo',
             { signature },
-        );
-        console.log('JSON.stringify(unsafeRes)', JSON.stringify(unsafeRes));
-
-        console.log('@getTransactionWithCompressionInfo unsafeRes', unsafeRes);
-        console.log(
-            '@getTransactionWithCompressionInfo TRY CLOSED ACCOUNTS',
-            unsafeRes.result.compressionInfo.closedAccounts,
-        );
-        console.log(
-            '@getTransactionWithCompressionInfo TRY OPENED ACCOUNTS',
-            unsafeRes.result.compressionInfo.openedAccounts,
         );
 
         const res = create(
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
         );
-        console.log('@getTransactionWithCompressionInfo res', res);
 
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
