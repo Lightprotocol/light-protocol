@@ -203,7 +203,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                         context.config.clone(),
                         account_data.clone(),
                     )
-                    .await
+                        .await
                     {
                         Ok(true) => {
                             tx.send((true, account_data)).await.unwrap();

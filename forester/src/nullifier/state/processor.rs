@@ -204,7 +204,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                         account_data.proof.clone(),
                         account_data.root_seq,
                     )
-                    .await
+                        .await
                     {
                         Ok(true) => {
                             tx.send((true, account_data)).await.unwrap();

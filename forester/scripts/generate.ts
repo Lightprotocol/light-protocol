@@ -12,8 +12,8 @@ import { randomBytes } from 'tweetnacl';
 
 const LAMPORTS = 1000 * LAMPORTS_PER_SOL;
 const COMPRESS_AMOUNT = LAMPORTS_PER_SOL;
-const TOTAL_NUMBER_OF_TRANSFERS = 10000;
-const NUMBER_OF_CONCURRENT_TRANSFERS = 10;
+const TOTAL_NUMBER_OF_TRANSFERS = 10;
+const NUMBER_OF_CONCURRENT_TRANSFERS = 1;
 const TRANSFER_AMOUNT = 10;
 
 const payerKeypairs = generateKeypairs(NUMBER_OF_CONCURRENT_TRANSFERS);
@@ -47,8 +47,8 @@ function localRpc(): Rpc {
 }
 
 function zkTestnetRpc(): Rpc {
-    let validatorUrl = 'https://zk-testnet.helius.dev:8899';
-    let photonUrl = 'https://zk-testnet.helius.dev:8784';
+    let validatorUrl = 'http://zk-testnet.helius.dev:8923';
+    let photonUrl = 'http://zk-testnet.helius.dev:8785';
     let proverUrl = 'https://zk-testnet.helius.dev:3001';
 
     return createRpc(validatorUrl, photonUrl, proverUrl);
@@ -56,7 +56,7 @@ function zkTestnetRpc(): Rpc {
 
 
 async function prefillNullifierQueue() {
-    const rpc = localRpc();
+    const rpc = zkTestnetRpc();
 
     await Promise.all([
         ...payerKeypairs.map(async payer => await airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey })),
@@ -80,7 +80,7 @@ async function prefillNullifierQueue() {
     for (let i = 0; i < TOTAL_NUMBER_OF_TRANSFERS; i += NUMBER_OF_CONCURRENT_TRANSFERS) {
         const transferPromises = [];
         for (let j = 0; j < NUMBER_OF_CONCURRENT_TRANSFERS; j++) {
-            transferPromises.push(transferAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
+            //transferPromises.push(transferAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
             transferPromises.push(createAccountAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
         }
         await Promise.all(transferPromises);
