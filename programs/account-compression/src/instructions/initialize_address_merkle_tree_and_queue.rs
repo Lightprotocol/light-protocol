@@ -83,7 +83,8 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     let minimum_sequence_threshold = merkle_tree_config.roots_size + SAFETY_MARGIN;
     if queue_config.sequence_threshold < minimum_sequence_threshold {
         msg!(
-            "Sequence threshold should be at least {}",
+            "Invalid sequence threshold: {}. Should be at least {}",
+            queue_config.sequence_threshold,
             minimum_sequence_threshold
         );
         return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);

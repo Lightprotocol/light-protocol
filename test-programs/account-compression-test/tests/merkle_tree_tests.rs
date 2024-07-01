@@ -1552,7 +1552,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
                 merkle_tree_pubkey,
                 queue_keypair.pubkey(),
                 merkle_tree_config.clone(),
-                NullifierQueueConfig::default(),
+                queue_config.clone(),
                 None,
                 1,
                 0,
