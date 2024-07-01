@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::{
+    errors::AccountCompressionErrorCode,
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::QueueAccount,
@@ -9,7 +10,7 @@ use crate::{
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
         ADDRESS_MERKLE_TREE_ROOTS,
     },
-    AddressMerkleTreeAccount, NullifierQueueConfig,
+    AddressMerkleTreeAccount, NullifierQueueConfig, SAFETY_MARGIN,
 };
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
@@ -59,6 +60,36 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
+    if merkle_tree_config.height as u64 != ADDRESS_MERKLE_TREE_HEIGHT {
+        msg!(
+            "Unsupported Merkle tree height: {}. The only currently supported height is: {}",
+            merkle_tree_config.height,
+            ADDRESS_MERKLE_TREE_HEIGHT
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedHeight);
+    }
+    if merkle_tree_config.canopy_depth != ADDRESS_MERKLE_TREE_CANOPY_DEPTH {
+        msg!(
+            "Unsupported canopy depth: {}. The only currently supported depth is: {}",
+            merkle_tree_config.canopy_depth,
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
+    }
+    if merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
+    let minimum_sequence_threshold = merkle_tree_config.roots_size + SAFETY_MARGIN;
+    if queue_config.sequence_threshold < minimum_sequence_threshold {
+        msg!(
+            "Invalid sequence threshold: {}. Should be at least {}",
+            queue_config.sequence_threshold,
+            minimum_sequence_threshold
+        );
+        return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
+    }
+
     let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),

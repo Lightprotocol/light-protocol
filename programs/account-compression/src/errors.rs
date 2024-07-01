@@ -46,4 +46,12 @@ pub enum AccountCompressionErrorCode {
     SizeMismatch,
     #[msg("InsufficientRolloverFee")]
     InsufficientRolloverFee,
+    #[msg("Unsupported Merkle tree height")]
+    UnsupportedHeight,
+    #[msg("Unsupported canopy depth")]
+    UnsupportedCanopyDepth,
+    #[msg("Invalid sequence threshold")]
+    InvalidSequenceThreshold,
+    #[msg("Unsupported close threshold")]
+    UnsupportedCloseThreshold,
 }

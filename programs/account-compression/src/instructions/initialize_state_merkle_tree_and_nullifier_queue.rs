@@ -1,4 +1,5 @@
 use crate::{
+    errors::AccountCompressionErrorCode,
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
     initialize_nullifier_queue::process_initialize_nullifier_queue,
     state::{QueueAccount, StateMerkleTreeAccount},
@@ -75,6 +76,36 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
+    if state_merkle_tree_config.height as u64 != STATE_MERKLE_TREE_HEIGHT {
+        msg!(
+            "Unsupported Merkle tree height: {}. The only currently supported height is: {}",
+            state_merkle_tree_config.height,
+            STATE_MERKLE_TREE_HEIGHT
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedHeight);
+    }
+    if state_merkle_tree_config.canopy_depth != STATE_MERKLE_TREE_CANOPY_DEPTH {
+        msg!(
+            "Unsupported canopy depth: {}. The only currently supported depth is: {}",
+            state_merkle_tree_config.canopy_depth,
+            STATE_MERKLE_TREE_CANOPY_DEPTH
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
+    }
+    if state_merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
+    let minimum_sequence_threshold = state_merkle_tree_config.roots_size + SAFETY_MARGIN;
+    if nullifier_queue_config.sequence_threshold < minimum_sequence_threshold {
+        msg!(
+            "Invalid sequence threshold: {}. Should be at least: {}",
+            nullifier_queue_config.sequence_threshold,
+            minimum_sequence_threshold
+        );
+        return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
+    }
+
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,
         index,
