@@ -5,18 +5,26 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
-pub struct PipelineContext<T: Indexer, R: RpcConnection> {
+pub struct PipelineContext<
+    const INDEXED_ARRAY_SIZE: usize,
+    T: Indexer<INDEXED_ARRAY_SIZE, R>,
+    R: RpcConnection,
+> {
     pub indexer: Arc<Mutex<T>>,
     pub rpc: Arc<Mutex<R>>,
     pub config: Arc<ForesterConfig>,
+    pub successful_nullifications: Arc<Mutex<usize>>,
 }
 
-impl<T: Indexer, R: RpcConnection> Clone for PipelineContext<T, R> {
+impl<const INDEXED_ARRAY_SIZE: usize, T: Indexer<INDEXED_ARRAY_SIZE, R>, R: RpcConnection> Clone
+    for PipelineContext<INDEXED_ARRAY_SIZE, T, R>
+{
     fn clone(&self) -> Self {
         PipelineContext {
             indexer: Arc::clone(&self.indexer),
             rpc: Arc::clone(&self.rpc),
             config: Arc::clone(&self.config),
+            successful_nullifications: Arc::clone(&self.successful_nullifications),
         }
     }
 }

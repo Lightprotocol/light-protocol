@@ -1,10 +1,6 @@
-use crate::{
-    assert_compressed_tx::{
-        assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
-        assert_public_transaction_event, MerkleTreeTestSnapShot,
-    },
-    indexer::{TestIndexer, TokenDataWithContext},
-};
+use anchor_lang::AnchorSerialize;
+use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
+
 use light_compressed_token::{
     get_token_pool_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
@@ -12,10 +8,16 @@ use light_compressed_token::{
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
-use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
+use crate::indexer::Indexer;
 use crate::rpc::rpc_connection::RpcConnection;
-use anchor_lang::AnchorSerialize;
+use crate::{
+    assert_compressed_tx::{
+        assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
+        assert_public_transaction_event, MerkleTreeTestSnapShot,
+    },
+    indexer::TokenDataWithContext,
+};
 
 /// General token tx assert:
 /// 1. outputs created
@@ -26,9 +28,13 @@ use anchor_lang::AnchorSerialize;
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_transfer<
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+>(
     context: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
     input_compressed_account_hashes: &[[u8; 32]],
@@ -81,8 +87,12 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     );
 }
 
-pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+pub fn assert_compressed_token_accounts<
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+>(
+    test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
     delegates: Option<Vec<Option<Pubkey>>>,
@@ -98,7 +108,7 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
             index += 1;
         }
         let pos = test_indexer
-            .token_compressed_accounts
+            .get_token_compressed_accounts()
             .iter()
             .position(|x| {
                 x.token_data.owner == out_compressed_account.owner
@@ -106,7 +116,7 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
             })
             .expect("transfer recipient compressed account not found in mock indexer");
         let transfer_recipient_token_compressed_account =
-            test_indexer.token_compressed_accounts[pos].clone();
+            test_indexer.get_token_compressed_accounts()[pos].clone();
         assert_eq!(
             transfer_recipient_token_compressed_account
                 .token_data
@@ -157,13 +167,17 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
             light_compressed_token::ID
         );
 
-        if !test_indexer.token_compressed_accounts.iter().any(|x| {
-            x.compressed_account.merkle_context.leaf_index as usize
-                == output_merkle_tree_snapshots[i].next_index + index
-        }) {
+        if !test_indexer
+            .get_token_compressed_accounts()
+            .iter()
+            .any(|x| {
+                x.compressed_account.merkle_context.leaf_index as usize
+                    == output_merkle_tree_snapshots[i].next_index + index
+            })
+        {
             println!(
                 "token_compressed_accounts {:?}",
-                test_indexer.token_compressed_accounts
+                test_indexer.get_token_compressed_accounts()
             );
             println!("snapshot {:?}", output_merkle_tree_snapshots[i]);
             println!("index {:?}", index);
@@ -173,9 +187,14 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_mint_to<
+    'a,
+    const INDEXED_ARRAY_SIZE: usize,
+    R: RpcConnection,
+    I: Indexer<INDEXED_ARRAY_SIZE, R>,
+>(
     rpc: &mut R,
-    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &'a mut I,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],

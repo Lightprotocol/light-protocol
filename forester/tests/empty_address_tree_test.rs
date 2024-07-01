@@ -11,6 +11,7 @@ use forester::{init_rpc, nullify_addresses, ForesterConfig};
 use light_hasher::Poseidon;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::get_indexed_merkle_tree;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -18,26 +19,98 @@ use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR
 use log::{info, LevelFilter};
 use solana_sdk::signature::{Keypair, Signer};
 
-async fn init() {
-    let _ = env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
-    )
-    .is_test(true)
-    .try_init();
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn empty_address_tree_test_with_test_indexer() {
+    setup_logger();
+    spawn_test_validator().await;
+    let env_accounts = get_test_env_accounts();
+    let forester_config = setup_forester();
 
-    let config = LightValidatorConfig {
-        enable_indexer: false,
-        ..LightValidatorConfig::default()
-    };
-    spawn_validator(config).await;
+    let rpc = setup_solana_rpc(SolanaRpcUrl::Localnet).await;
+    let indexer: TestIndexer<500, SolanaRpcConnection> = TestIndexer::init_from_env(
+        &forester_config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env =
+        E2ETestEnv::<500, SolanaRpcConnection, TestIndexer<500, SolanaRpcConnection>>::new(
+            rpc,
+            indexer,
+            &env_accounts,
+            keypair_action_config(),
+            general_action_config(),
+            0,
+            None,
+        )
+        .await;
+
+    let forester_config = Arc::new(forester_config.clone());
+    let rpc = init_rpc(&forester_config, true).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
+
+    for _ in 0..10 {
+        env.create_address(None).await;
+    }
+
+    assert_ne!(
+        get_address_queue_length(&forester_config, &mut env.rpc).await,
+        0
+    );
+    info!(
+        "Address merkle tree: nullifying queue of {} accounts...",
+        get_address_queue_length(&forester_config, &mut env.rpc).await
+    );
+
+    nullify_addresses(forester_config.clone(), rpc, indexer).await;
+    assert_eq!(
+        get_address_queue_length(&forester_config, &mut env.rpc).await,
+        0
+    );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn empty_address_tree_test() {
-    init().await;
+fn keypair_action_config() -> KeypairActionConfig {
+    KeypairActionConfig {
+        compress_sol: Some(1.0),
+        decompress_sol: Some(0.5),
+        transfer_sol: Some(1.0),
+        create_address: Some(1.0),
+        compress_spl: None,
+        decompress_spl: None,
+        mint_spl: None,
+        transfer_spl: None,
+        max_output_accounts: Some(3),
+        fee_assert: true,
+    }
+}
+
+fn general_action_config() -> GeneralActionConfig {
+    GeneralActionConfig {
+        add_keypair: Some(1.0),
+        create_state_mt: Some(0.0),
+        create_address_mt: Some(1.0),
+        nullify_compressed_accounts: Some(0.0),
+        empty_address_queue: Some(0.0),
+        rollover: None,
+    }
+}
+
+async fn setup_solana_rpc(url: SolanaRpcUrl) -> SolanaRpcConnection {
+    let mut rpc = SolanaRpcConnection::new(url, None);
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
+        .await
+        .unwrap();
+    rpc
+}
+
+fn setup_forester() -> ForesterConfig {
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    let config = ForesterConfig {
+    ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: "http://localhost:8899".to_string(),
             ws_rpc_url: "ws://localhost:8900".to_string(),
@@ -55,60 +128,23 @@ async fn empty_address_tree_test() {
         batch_size: 1,
         max_retries: 5,
         max_concurrent_batches: 5,
-    };
-
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
-        .await
-        .unwrap();
-
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
-        rpc,
-        &env_accounts,
-        KeypairActionConfig {
-            compress_sol: Some(1.0),
-            decompress_sol: Some(0.5),
-            transfer_sol: Some(1.0),
-            create_address: Some(1.0),
-            compress_spl: None,
-            decompress_spl: None,
-            mint_spl: None,
-            transfer_spl: None,
-            max_output_accounts: Some(3),
-            fee_assert: true,
-        },
-        GeneralActionConfig {
-            add_keypair: Some(1.0),
-            create_state_mt: Some(0.0),
-            create_address_mt: Some(1.0),
-            nullify_compressed_accounts: Some(0.0),
-            empty_address_queue: Some(0.0),
-            rollover: None,
-        },
-        0,
-        None,
-    )
-    .await;
-
-    let config = Arc::new(config.clone());
-    let rpc = init_rpc(&config).await;
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-
-    let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
-
-    for _ in 0..10 {
-        env.create_address(None).await;
     }
+}
 
-    assert_ne!(get_address_queue_length(&config, &mut env.rpc).await, 0);
-    info!(
-        "Address merkle tree: nullifying queue of {} accounts...",
-        get_address_queue_length(&config, &mut env.rpc).await
-    );
+fn setup_logger() {
+    let _ = env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
+    )
+    .is_test(true)
+    .try_init();
+}
 
-    nullify_addresses(config.clone(), rpc, indexer).await;
-    assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
+async fn spawn_test_validator() {
+    let config = LightValidatorConfig {
+        enable_indexer: false,
+        ..LightValidatorConfig::default()
+    };
+    spawn_validator(config).await;
 }
 
 async fn get_address_queue_length<R: RpcConnection>(config: &ForesterConfig, rpc: &mut R) -> usize {

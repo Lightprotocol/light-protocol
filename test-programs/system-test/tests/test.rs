@@ -375,7 +375,7 @@ pub async fn failing_transaction_inputs_inner(
             .compressed_account
             .lamports = amount + 1;
         let error_code = if !inputs_struct.output_compressed_accounts.is_empty() {
-            // adapting compressed ouput account so that sumcheck passes
+            // adapting compressed output account so that sumcheck passes
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
@@ -800,6 +800,8 @@ pub async fn perform_tx_with_output_compressed_accounts(
 }
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_test_utils::indexer::Indexer;
+
 pub async fn create_instruction_and_failing_transaction(
     context: &mut ProgramTestRpcConnection,
     payer: &Keypair,

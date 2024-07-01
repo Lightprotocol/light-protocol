@@ -24,16 +24,16 @@ async fn main() {
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            subscribe_state(config.clone()).await;
+            run_subscribe_state(config.clone()).await;
         }
         Some(Commands::NullifyState) => {
-            nullify_state(config).await;
+            run_nullify_state(config).await;
         }
         Some(Commands::NullifyAddresses) => {
             run_nullify_addresses(config).await;
         }
         Some(Commands::Nullify) => {
-            let state_nullifier = tokio::spawn(nullify_state(config.clone()));
+            let state_nullifier = tokio::spawn(run_nullify_state(config.clone()));
             let address_nullifier = tokio::spawn(run_nullify_addresses(config));
 
             // Wait for both nullifiers to complete
@@ -63,8 +63,64 @@ async fn main() {
     }
 }
 
+async fn run_subscribe_state(config: Arc<ForesterConfig>) {
+    let rpc = init_rpc(&config, true).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let cpi_context_account_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+    let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
+    let group_pda = get_group_pda(group_seed_keypair.pubkey());
+
+    let indexer: TestIndexer<200, SolanaRpcConnection> = TestIndexer::new(
+        vec![StateMerkleTreeAccounts {
+            merkle_tree: config.state_merkle_tree_pubkey,
+            nullifier_queue: config.nullifier_queue_pubkey,
+            cpi_context: cpi_context_account_keypair.pubkey(),
+        }],
+        vec![AddressMerkleTreeAccounts {
+            merkle_tree: config.address_merkle_tree_pubkey,
+            queue: config.address_merkle_tree_queue_pubkey,
+        }],
+        config.payer_keypair.insecure_clone(),
+        group_pda,
+        true,
+        true,
+    )
+    .await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
+    subscribe_state(config.clone(), rpc, indexer).await;
+}
+
+async fn run_nullify_state(config: Arc<ForesterConfig>) {
+    let rpc = init_rpc(&config, true).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let cpi_context_account_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+    let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
+    let group_pda = get_group_pda(group_seed_keypair.pubkey());
+
+    let indexer: TestIndexer<200, SolanaRpcConnection> = TestIndexer::new(
+        vec![StateMerkleTreeAccounts {
+            merkle_tree: config.state_merkle_tree_pubkey,
+            nullifier_queue: config.nullifier_queue_pubkey,
+            cpi_context: cpi_context_account_keypair.pubkey(),
+        }],
+        vec![AddressMerkleTreeAccounts {
+            merkle_tree: config.address_merkle_tree_pubkey,
+            queue: config.address_merkle_tree_queue_pubkey,
+        }],
+        config.payer_keypair.insecure_clone(),
+        group_pda,
+        true,
+        true,
+    )
+    .await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
+    nullify_state(config.clone(), rpc, indexer).await;
+}
+
 async fn run_nullify_addresses(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(&config).await;
+    let rpc = init_rpc(&config, true).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
     let cpi_context_account_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
