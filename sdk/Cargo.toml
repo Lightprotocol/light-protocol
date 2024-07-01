@@ -50,7 +50,7 @@ tokio = "1.36.0"
 light-prover-client = { version = "0.2.1", path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = { version = "0.2.1", path = "../merkle-tree/reference/" }
 light-indexed-merkle-tree = { version = "0.2.1", path = "../merkle-tree/indexed/" }
-num-bigint = "0.4.4"
+num-bigint = "0.4.6"
 num-traits = "0.2.18"
 lazy_static = "1.4.0"
 light-hash-set = { version = "0.2.1", path = "../merkle-tree/hash-set", features = ["solana"] }
