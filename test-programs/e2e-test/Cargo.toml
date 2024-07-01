@@ -39,7 +39,7 @@ light-test-utils = { version = "0.2.1", path = "../../test-utils" }
 reqwest = "0.11.26"
 tokio = "1.36.0"
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
-num-bigint = "0.4.4"
+num-bigint = "0.4.6"
 num-traits = "0.2.18"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
