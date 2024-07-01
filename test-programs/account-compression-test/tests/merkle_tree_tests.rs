@@ -45,7 +45,7 @@ use solana_program_test::ProgramTest;
 use solana_sdk::{
     account::AccountSharedData,
     instruction::{AccountMeta, Instruction},
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
@@ -76,6 +76,15 @@ async fn test_init_and_insert_into_nullifier_queue(
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes(
+        &mut rpc,
+        &payer_pubkey,
+        &merkle_tree_keypair,
+        &nullifier_queue_keypair,
+        merkle_tree_config,
+        queue_config,
+    )
+    .await;
+    fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config(
         &mut rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
@@ -1496,117 +1505,30 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     context.process_transaction(transaction.clone()).await
 }
 
-pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes<
-    R: RpcConnection,
->(
+async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
     rpc: &mut R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
-) {
-    let valid_tree_size = account_compression::state::StateMerkleTreeAccount::size(
-        merkle_tree_config.height as usize,
-        merkle_tree_config.changelog_size as usize,
-        merkle_tree_config.roots_size as usize,
-        merkle_tree_config.canopy_depth as usize,
-    );
-    let valid_queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
-
-    // NOTE: Starting from 0 to the account struct size triggers a panic in Anchor
-    // macros (sadly, not assertable...), which happens earlier than our
-    // serialization error.
-    // Our recoverable error is thrown for ranges from the struct size
-    // (+ discriminator) up to the expected account size.
-    for invalid_tree_size in
-        (8 + mem::size_of::<StateMerkleTreeAccount>()..valid_tree_size).step_by(200_000)
-    {
-        for invalid_queue_size in
-            (8 + mem::size_of::<QueueAccount>()..valid_queue_size).step_by(50_000)
-        {
-            let merkle_tree_account_create_ix = create_account_instruction(
-                &rpc.get_payer().pubkey(),
-                invalid_tree_size,
-                rpc.get_minimum_balance_for_rent_exemption(invalid_tree_size)
-                    .await
-                    .unwrap(),
-                &ID,
-                Some(merkle_tree_keypair),
-            );
-
-            let nullifier_queue_account_create_ix = create_account_instruction(
-                payer_pubkey,
-                invalid_queue_size,
-                rpc.get_minimum_balance_for_rent_exemption(invalid_queue_size)
-                    .await
-                    .unwrap(),
-                &ID,
-                Some(queue_keypair),
-            );
-            let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-
-            let instruction = create_initialize_merkle_tree_instruction(
-                rpc.get_payer().pubkey(),
-                rpc.get_payer().pubkey(),
-                merkle_tree_pubkey,
-                queue_keypair.pubkey(),
-                merkle_tree_config.clone(),
-                queue_config.clone(),
-                None,
-                1,
-                0,
-            );
-
-            let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
-            let transaction = Transaction::new_signed_with_payer(
-                &[
-                    merkle_tree_account_create_ix,
-                    nullifier_queue_account_create_ix,
-                    instruction,
-                ],
-                Some(&rpc.get_payer().pubkey()),
-                &vec![&rpc.get_payer(), &merkle_tree_keypair, queue_keypair],
-                latest_blockhash,
-            );
-            let result = rpc.process_transaction(transaction.clone()).await;
-            assert_rpc_error(
-                result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
-            )
-            .unwrap();
-        }
-    }
-}
-
-async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
-    rpc: &mut R,
-    payer_pubkey: &Pubkey,
-    merkle_tree_keypair: &Keypair,
-    queue_keypair: &Keypair,
-    merkle_tree_config: &StateMerkleTreeConfig,
-    queue_config: &NullifierQueueConfig,
-) -> Pubkey {
-    let size = account_compression::state::StateMerkleTreeAccount::size(
-        merkle_tree_config.height as usize,
-        merkle_tree_config.changelog_size as usize,
-        merkle_tree_config.roots_size as usize,
-        merkle_tree_config.canopy_depth as usize,
-    );
+    merkle_tree_size: usize,
+    queue_size: usize,
+) -> Result<Signature, RpcError> {
     let merkle_tree_account_create_ix = create_account_instruction(
         &rpc.get_payer().pubkey(),
-        size,
-        rpc.get_minimum_balance_for_rent_exemption(size)
+        merkle_tree_size,
+        rpc.get_minimum_balance_for_rent_exemption(merkle_tree_size)
             .await
             .unwrap(),
         &ID,
         Some(merkle_tree_keypair),
     );
 
-    let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
         payer_pubkey,
-        size,
-        rpc.get_minimum_balance_for_rent_exemption(size)
+        queue_size,
+        rpc.get_minimum_balance_for_rent_exemption(queue_size)
             .await
             .unwrap(),
         &ID,
@@ -1637,10 +1559,191 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         &vec![&rpc.get_payer(), &merkle_tree_keypair, queue_keypair],
         latest_blockhash,
     );
-    rpc.process_transaction(transaction.clone()).await.unwrap();
+    rpc.process_transaction(transaction.clone()).await
+}
+
+pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes<
+    R: RpcConnection,
+>(
+    rpc: &mut R,
+    payer_pubkey: &Pubkey,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
+    let valid_tree_size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
+    let valid_queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+
+    // NOTE: Starting from 0 to the account struct size triggers a panic in Anchor
+    // macros (sadly, not assertable...), which happens earlier than our
+    // serialization error.
+    // Our recoverable error is thrown for ranges from the struct size
+    // (+ discriminator) up to the expected account size.
+    for invalid_tree_size in
+        (8 + mem::size_of::<StateMerkleTreeAccount>()..valid_tree_size).step_by(200_000)
+    {
+        for invalid_queue_size in
+            (8 + mem::size_of::<QueueAccount>()..valid_queue_size).step_by(50_000)
+        {
+            let result = initialize_state_merkle_tree_and_nullifier_queue(
+                rpc,
+                payer_pubkey,
+                merkle_tree_keypair,
+                queue_keypair,
+                merkle_tree_config,
+                queue_config,
+                invalid_tree_size,
+                invalid_queue_size,
+            )
+            .await;
+            assert_rpc_error(
+                result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
+            )
+            .unwrap();
+        }
+    }
+}
+
+/// Tries to initzalize Merkle tree and queue with unsupported configuration
+/// parameters:
+///
+/// 1. Merkle tree height (different than 26).
+pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config<
+    R: RpcConnection,
+>(
+    rpc: &mut R,
+    payer_pubkey: &Pubkey,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
+    let merkle_tree_size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
+    let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+
+    for invalid_height in (0..26).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+        )
+        .unwrap();
+    }
+    for invalid_canopy_depth in (0..10).step_by(3) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.canopy_depth = invalid_canopy_depth;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 6022, // AccountCompressionErrorCode::UnsupportedCanopyDepth
+        )
+        .unwrap();
+    }
+    for invalid_close_threshold in (0..100).step_by(20) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.close_threshold = Some(invalid_close_threshold);
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 6024, // AccountCompressionErrorCode::UnsupportedCloseThreshold
+        )
+        .unwrap();
+    }
+    for invalid_sequence_threshold in
+        (0..merkle_tree_config.roots_size + SAFETY_MARGIN).step_by(200)
+    {
+        let mut queue_config = queue_config.clone();
+        queue_config.sequence_threshold = invalid_sequence_threshold;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 6023, // AccountCompressionErrorCode::InvalidSequenceThreshold
+        )
+        .unwrap();
+    }
+}
+
+async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
+    rpc: &mut R,
+    payer_pubkey: &Pubkey,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) -> Pubkey {
+    let merkle_tree_size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
+    let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+
+    initialize_state_merkle_tree_and_nullifier_queue(
+        rpc,
+        payer_pubkey,
+        merkle_tree_keypair,
+        queue_keypair,
+        merkle_tree_config,
+        queue_config,
+        merkle_tree_size,
+        queue_size,
+    )
+    .await
+    .unwrap();
+
     assert_merkle_tree_initialized(
         rpc,
-        &merkle_tree_pubkey,
+        &merkle_tree_keypair.pubkey(),
         &queue_keypair.pubkey(),
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
@@ -1660,7 +1763,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         rpc,
         &queue_keypair.pubkey(),
         queue_config,
-        &merkle_tree_pubkey,
+        &merkle_tree_keypair.pubkey(),
         merkle_tree_config,
         QueueType::NullifierQueue,
         1,
@@ -1668,7 +1771,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         payer_pubkey,
     )
     .await;
-    merkle_tree_pubkey
+    merkle_tree_keypair.pubkey()
 }
 
 pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
