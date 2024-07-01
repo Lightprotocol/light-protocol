@@ -132,7 +132,41 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .0;
             hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
         }
-
+        // Without cpi context all input compressed accounts have the same owner.
+        // With cpi context the owners will be different.
+        if owner_pubkey
+            != input_compressed_account_with_context
+                .compressed_account
+                .owner
+        {
+            owner_pubkey = input_compressed_account_with_context
+                .compressed_account
+                .owner;
+            hashed_owner = match hashed_pubkeys.iter().find(|x| {
+                x.0 == input_compressed_account_with_context
+                    .compressed_account
+                    .owner
+            }) {
+                Some(hashed_owner) => hashed_owner.1,
+                None => {
+                    let hashed_owner = hash_to_bn254_field_size_be(
+                        &input_compressed_account_with_context
+                            .compressed_account
+                            .owner
+                            .to_bytes(),
+                    )
+                    .unwrap()
+                    .0;
+                    hashed_pubkeys.push((
+                        input_compressed_account_with_context
+                            .compressed_account
+                            .owner,
+                        hashed_owner,
+                    ));
+                    hashed_owner
+                }
+            };
+        }
         leaves[j] = input_compressed_account_with_context
             .compressed_account
             .hash_with_hashed_values::<Poseidon>(

@@ -56,6 +56,7 @@ pub fn process<
     mut inputs: InstructionDataInvoke,
     invoking_program: Option<Pubkey>,
     ctx: Context<'a, 'b, 'c, 'info, A>,
+    cpi_context_inputs: usize,
 ) -> Result<()> {
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");
@@ -96,7 +97,9 @@ pub fn process<
     let mut output_compressed_account_hashes = vec![[0u8; 32]; num_output_compressed_accounts];
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
-    let hashed_pubkeys_capacity = 1 + ctx.remaining_accounts.len() + num_output_compressed_accounts;
+    // + number of times cpi context account was filled.
+    let hashed_pubkeys_capacity =
+        1 + ctx.remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
     // Verify state and or address proof ---------------------------------------------------
