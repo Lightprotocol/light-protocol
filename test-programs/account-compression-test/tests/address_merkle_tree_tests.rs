@@ -256,7 +256,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             )
             .await;
             assert_rpc_error(
-                result, 3, 9006, // HashSetError::BufferSize
+                result, 2, 9006, // HashSetError::BufferSize
             )
             .unwrap()
         }
@@ -278,7 +278,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 10012, // ConcurrentMerkleTreeError::BufferSize
+            result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
         )
         .unwrap()
     }
@@ -299,7 +299,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 9006, // HashSetError::BufferSize
+            result, 2, 9006, // HashSetError::BufferSize
         )
         .unwrap()
     }
@@ -347,7 +347,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
         )
         .unwrap();
     }
@@ -366,7 +366,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
         )
         .unwrap();
     }
@@ -385,7 +385,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 6022, // AccountCompressionErrorCode::UnsupportedCanopyDepth
+            result, 2, 6022, // AccountCompressionErrorCode::UnsupportedCanopyDepth
         )
         .unwrap();
     }
@@ -404,7 +404,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 6024, // AccountCompressionErrorCode::UnsupportedCloseThreshold
+            result, 2, 6024, // AccountCompressionErrorCode::UnsupportedCloseThreshold
         )
         .unwrap();
     }
@@ -425,7 +425,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 6023, // AccountCompressionErrorCode::InvalidSequenceThreshold
+            result, 2, 6023, // AccountCompressionErrorCode::InvalidSequenceThreshold
         )
         .unwrap();
     }
