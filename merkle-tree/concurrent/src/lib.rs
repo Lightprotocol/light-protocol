@@ -67,10 +67,7 @@ where
     pub _hasher: PhantomData<H>,
 }
 
-pub type ConcurrentMerkleTree22<H> = ConcurrentMerkleTree<H, 22>;
 pub type ConcurrentMerkleTree26<H> = ConcurrentMerkleTree<H, 26>;
-pub type ConcurrentMerkleTree32<H> = ConcurrentMerkleTree<H, 32>;
-pub type ConcurrentMerkleTree40<H> = ConcurrentMerkleTree<H, 40>;
 
 impl<H, const HEIGHT: usize> ConcurrentMerkleTree<H, HEIGHT>
 where
