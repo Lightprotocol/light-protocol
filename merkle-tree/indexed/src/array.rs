@@ -1,11 +1,11 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
+use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 use light_concurrent_merkle_tree::{event::RawIndexedElement, light_hasher::Hasher};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
+use num_traits::Zero;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-
-use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
@@ -120,7 +120,7 @@ where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub elements: [IndexedElement<I>; ELEMENTS],
+    pub elements: Vec<IndexedElement<I>>,
     pub current_node_index: I,
     pub highest_element_index: I,
 
@@ -135,11 +135,11 @@ where
 {
     fn default() -> Self {
         Self {
-            elements: std::array::from_fn(|_| IndexedElement {
+            elements: vec![IndexedElement {
                 index: I::zero(),
-                value: BigUint::new(vec![0; 32]),
+                value: BigUint::zero(),
                 next_index: I::zero(),
-            }),
+            }],
             current_node_index: I::zero(),
             highest_element_index: I::zero(),
             _hasher: PhantomData,
@@ -199,7 +199,7 @@ where
     ) -> Result<I, IndexedMerkleTreeError> {
         // Try to find element whose next element is higher than the provided
         // value.
-        for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
+        for (i, node) in self.elements.iter().enumerate() {
             if node.value == *value {
                 return Err(IndexedMerkleTreeError::ElementAlreadyExists);
             }
@@ -391,7 +391,7 @@ where
 
         // Insert new node.
         self.current_node_index = new_element_bundle.new_element.index;
-        self.elements[self.len()] = new_element_bundle.new_element.clone();
+        self.elements.push(new_element_bundle.new_element.clone());
 
         // Update low element.
         self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element.clone();
