@@ -13,8 +13,8 @@ use crate::{
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_state_proof::{
-            fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts,
-            verify_state_proof,
+            fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
+            hash_input_compressed_accounts, verify_state_proof,
         },
     },
     sdk::accounts::{InvokeAccounts, SignerAccounts},
@@ -74,10 +74,10 @@ pub fn process<
     // Compress or decompress lamports ---------------------------------------------------
     bench_sbf_start!("cpda_process_compression");
     if inputs.compress_or_decompress_lamports.is_some() {
-        compress_or_decompress_lamports(&inputs, &ctx)?;
         if inputs.is_compress && ctx.accounts.get_decompression_recipient().is_some() {
             return err!(SystemProgramError::DecompressionRecipienDefined);
         }
+        compress_or_decompress_lamports(&inputs, &ctx)?;
     } else if ctx.accounts.get_decompression_recipient().is_some() {
         return err!(SystemProgramError::DecompressionRecipienDefined);
     } else if ctx.accounts.get_sol_pool_pda().is_some() {
@@ -110,7 +110,8 @@ pub fn process<
     {
         // Allocate heap memory here because roots are only used for proof verification.
         let mut new_address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
-        let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+        let mut input_compressed_account_roots =
+            vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
         // hash input compressed accounts ---------------------------------------------------
         bench_sbf_start!("cpda_hash_input_compressed_accounts");
         if !inputs
@@ -134,10 +135,10 @@ pub fn process<
                 );
                 return err!(SystemProgramError::InvalidCapacity);
             }
-            fetch_roots(
+            fetch_input_compressed_account_roots(
                 &inputs.input_compressed_accounts_with_merkle_context,
                 &ctx,
-                &mut roots,
+                &mut input_compressed_account_roots,
             )?;
         }
 
@@ -184,13 +185,13 @@ pub fn process<
             c: proof.c,
         };
         match verify_state_proof(
-            &roots,
+            &input_compressed_account_roots,
             &input_compressed_account_hashes,
             &new_address_roots,
             &new_addresses,
             &compressed_verifier_proof,
         ) {
-            Ok(_) => anchor_lang::Result::Ok(()),
+            Ok(_) => Ok(()),
             Err(e) => {
                 msg!(
                     "input_compressed_accounts_with_merkle_context: {:?}",
@@ -223,7 +224,6 @@ pub fn process<
         }
         bench_sbf_end!("cpda_nullifiers");
     } else if inputs.proof.is_some() {
-        msg!("Proof is some but no input compressed accounts or new addresses provided.");
         return err!(SystemProgramError::ProofIsSome);
     } else if inputs
         .input_compressed_accounts_with_merkle_context
@@ -243,7 +243,7 @@ pub fn process<
     // Insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
-        insert_output_compressed_accounts_into_state_merkle_tree::<A>(
+        insert_output_compressed_accounts_into_state_merkle_tree(
             &mut inputs.output_compressed_accounts,
             &ctx,
             &mut output_leaf_indices,
@@ -266,8 +266,6 @@ pub fn process<
         bench_sbf_end!("cpda_append");
     }
     bench_sbf_start!("emit_state_transition_event");
-    // Handle multiple defined unordered output Merkle trees.
-    sequence_numbers.dedup_by(|a, b| a.pubkey == b.pubkey);
     // Reduce the capacity of the sequence numbers vector.
     sequence_numbers.shrink_to_fit();
     // Emit state transition event ---------------------------------------------------

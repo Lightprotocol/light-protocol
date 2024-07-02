@@ -973,7 +973,7 @@ async fn test_append_functional_and_failing(
     .unwrap();
 
     // CHECK: 4 append leaves to merkle tree
-    let leaves = (0u8..=140)
+    let leaves = (0u8..=139)
         .map(|i| {
             (
                 0,
@@ -1647,7 +1647,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .await;
         assert_rpc_error(
-            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedHeight.into(),
         )
         .unwrap();
     }
@@ -1666,7 +1668,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .await;
         assert_rpc_error(
-            result, 2, 6021, // AccountCompressionErrorCode::UnsupportedHeight
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedHeight.into(),
         )
         .unwrap();
     }
@@ -1685,7 +1689,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .await;
         assert_rpc_error(
-            result, 2, 6022, // AccountCompressionErrorCode::UnsupportedCanopyDepth
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedCanopyDepth.into(),
         )
         .unwrap();
     }
@@ -1704,7 +1710,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .await;
         assert_rpc_error(
-            result, 2, 6024, // AccountCompressionErrorCode::UnsupportedCloseThreshold
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedCloseThreshold.into(),
         )
         .unwrap();
     }
@@ -1725,7 +1733,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
         )
         .await;
         assert_rpc_error(
-            result, 2, 6023, // AccountCompressionErrorCode::InvalidSequenceThreshold
+            result,
+            2,
+            AccountCompressionErrorCode::InvalidSequenceThreshold.into(),
         )
         .unwrap();
     }
@@ -1865,7 +1875,6 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
             .0
             .push(leaf.clone());
     }
-
     let instruction = [create_insert_leaves_instruction(
         leaves.clone(),
         context.get_payer().pubkey(),

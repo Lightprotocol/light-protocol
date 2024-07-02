@@ -78,6 +78,7 @@ pub fn process_cpi_context<'info>(
                 return err!(SystemProgramError::CpiContextFeePayerMismatch);
             }
             inputs.combine(&cpi_context_account.context);
+            // Reset cpi context account
             cpi_context_account.context = Vec::new();
             cpi_context_account.fee_payer = Pubkey::default();
         }

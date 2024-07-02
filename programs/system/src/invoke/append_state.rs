@@ -40,9 +40,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 ) -> Result<()> {
     bench_sbf_start!("cpda_append_data_init");
     let mut account_infos = vec![
-        ctx.accounts.get_fee_payer().to_account_info(),
+        ctx.accounts.get_fee_payer().to_account_info(), // fee payer
         ctx.accounts
-            .get_account_compression_authority()
+            .get_account_compression_authority() // authority
             .to_account_info(),
         ctx.accounts.get_registered_program_pda().to_account_info(),
         ctx.accounts.get_system_program().to_account_info(),
@@ -112,12 +112,14 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     account_infos: &mut Vec<AccountInfo<'a>>,
     accounts: &mut Vec<AccountMeta>,
 ) -> Result<Vec<u8>> {
-    let mut current_index: i8 = -1;
+    let mut current_index: i16 = -1;
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
     let num_leaves = output_compressed_account_hashes.len();
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
+    let mut index_merkle_tree_account = 0;
+
     // Anchor instruction signature.
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
     // leaves vector length (for borsh compat)
@@ -127,13 +129,10 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
-        if account.merkle_tree_index as i8 == current_index {
+        if account.merkle_tree_index as i16 == current_index {
             // Do nothing, but it is the most common case.
-        } else if account.merkle_tree_index as i8 > current_index {
-            current_index = account.merkle_tree_index.try_into().map_err(|_| {
-                msg!("Merkle tree index is not in order.");
-                SystemProgramError::AppendStateFailed
-            })?;
+        } else if account.merkle_tree_index as i16 > current_index {
+            current_index = account.merkle_tree_index.into();
             let seq;
             // Check 1.
             (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
@@ -142,11 +141,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             )?;
             let account_info =
                 remaining_accounts[account.merkle_tree_index as usize].to_account_info();
-            accounts.push(AccountMeta {
-                pubkey: account_info.key(),
-                is_signer: false,
-                is_writable: true,
-            });
+
             sequence_numbers.push(MerkleTreeSequenceNumber {
                 pubkey: account_info.key(),
                 seq,
@@ -159,16 +154,22 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                         .0
                 }
             };
+            accounts.push(AccountMeta {
+                pubkey: account_info.key(),
+                is_signer: false,
+                is_writable: true,
+            });
             account_infos.push(account_info);
+
             num_leaves_in_tree = 0;
+            index_merkle_tree_account += 1;
         } else {
             // Check 2.
             // Output Merkle tree indices must be in order since we use the
             // number of leaves in a Merkle tree to determine the correct leaf
             // index. Since the leaf index is part of the hash this is security
             // critical.
-            msg!("Merkle tree index is not in order.");
-            return err!(SystemProgramError::AppendStateFailed);
+            return err!(SystemProgramError::OutputMerkleTreeIndicesNotInOrder);
         }
 
         // Check 3.
@@ -218,8 +219,8 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                 &hashed_merkle_tree,
                 &output_compressed_account_indices[j],
             )?;
-        let index_merkle_tree_account = (account_infos.len() - 5) as u8;
-        instruction_data.extend_from_slice(&[index_merkle_tree_account]);
+        // - 1 since we want the index of the next account index.
+        instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
     Ok(instruction_data)

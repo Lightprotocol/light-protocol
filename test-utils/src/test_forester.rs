@@ -454,7 +454,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                     .unwrap()
                     .sequence_number()
                     .unwrap(),
-                old_sequence_number + address_queue.sequence_threshold
+                old_sequence_number + address_queue.sequence_threshold + 2 // We are doing two Merkle tree operations
             );
 
             relayer_merkle_tree

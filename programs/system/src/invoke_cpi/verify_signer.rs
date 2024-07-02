@@ -42,6 +42,7 @@ pub fn cpi_signer_checks(
 
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
+#[heap_neutral]
 pub fn cpi_signer_check(
     signer_seeds: &[Vec<u8>],
     invoking_program: &Pubkey,
@@ -74,7 +75,6 @@ pub fn input_compressed_accounts_signer_check(
         .iter()
         .try_for_each(
             |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-                // CHECK 1
                 let invoking_program_id = invoking_program_id.key();
                 if invoking_program_id == compressed_account_with_context.compressed_account.owner {
                     Ok(())
@@ -96,7 +96,6 @@ pub fn input_compressed_accounts_signer_check(
 /// invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
-#[heap_neutral]
 pub fn output_compressed_accounts_write_access_check(
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     invoking_program_id: &Pubkey,

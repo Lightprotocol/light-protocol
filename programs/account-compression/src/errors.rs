@@ -6,8 +6,6 @@ pub enum AccountCompressionErrorCode {
     IntegerOverflow,
     #[msg("InvalidAuthority")]
     InvalidAuthority,
-    #[msg("InvalidVerifier")]
-    InvalidVerifier,
     #[msg(
         "Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves."
     )]
@@ -22,8 +20,6 @@ pub enum AccountCompressionErrorCode {
     NumberOfProofsMismatch,
     #[msg("InvalidMerkleProof")]
     InvalidMerkleProof,
-    #[msg("InvalidMerkleTree")]
-    InvalidMerkleTree,
     #[msg("Could not find the leaf in the queue")]
     LeafNotFound,
     #[msg("MerkleTreeAndQueueNotAssociated")]

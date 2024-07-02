@@ -6,27 +6,25 @@ use anchor_lang::{
 
 use crate::{
     errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
-    InstructionDataInvoke,
 };
 
 pub fn input_compressed_accounts_signer_check(
-    inputs: &InstructionDataInvoke,
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     authority: &Pubkey,
 ) -> Result<()> {
-    inputs
-        .input_compressed_accounts_with_merkle_context
+    input_compressed_accounts_with_merkle_context
         .iter()
         .try_for_each(
             |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-                if compressed_account_with_context.compressed_account.owner != *authority {
+                if compressed_account_with_context.compressed_account.owner == *authority {
+                    Ok(())
+                } else {
                     msg!(
                         "signer check failed compressed account owner {} != authority {}",
                         compressed_account_with_context.compressed_account.owner,
                         authority
                     );
                     err!(SystemProgramError::SignerCheckFailed)
-                } else {
-                    Ok(())
                 }
             },
         )
@@ -40,7 +38,7 @@ mod test {
     #[test]
     fn test_input_compressed_accounts_signer_check() {
         let authority = Pubkey::new_unique();
-        let mut compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
+        let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
                 owner: authority,
                 ..CompressedAccount::default()
@@ -50,26 +48,24 @@ mod test {
 
         assert_eq!(
             input_compressed_accounts_signer_check(
-                &InstructionDataInvoke {
-                    input_compressed_accounts_with_merkle_context: vec![
-                        compressed_account_with_context.clone()
-                    ],
-                    ..InstructionDataInvoke::default()
-                },
+                &vec![compressed_account_with_context.clone()],
                 &authority
             ),
             Ok(())
         );
-
-        compressed_account_with_context.compressed_account.owner = Pubkey::new_unique();
+        let invalid_compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: Pubkey::new_unique(),
+                ..CompressedAccount::default()
+            },
+            ..PackedCompressedAccountWithMerkleContext::default()
+        };
         assert_eq!(
             input_compressed_accounts_signer_check(
-                &InstructionDataInvoke {
-                    input_compressed_accounts_with_merkle_context: vec![
-                        compressed_account_with_context
-                    ],
-                    ..InstructionDataInvoke::default()
-                },
+                &vec![
+                    compressed_account_with_context,
+                    invalid_compressed_account_with_context
+                ],
                 &authority
             ),
             Err(SystemProgramError::SignerCheckFailed.into())

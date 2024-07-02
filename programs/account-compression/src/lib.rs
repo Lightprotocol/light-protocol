@@ -82,10 +82,10 @@ pub mod account_compression {
             changelog_index,
             indexed_changelog_index,
             value,
-            low_address_index,
             low_address_value,
             low_address_next_index,
             low_address_next_value,
+            low_address_index,
             low_address_proof,
         )
     }
@@ -96,7 +96,8 @@ pub mod account_compression {
         process_rollover_address_merkle_tree_and_queue(ctx)
     }
 
-    /// initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)
+    /// initialize group (a group can be used to give multiple programs access
+    /// to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
         authority: Pubkey,
@@ -158,14 +159,14 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
         change_log_indices: Vec<u64>,
         leaves_queue_indices: Vec<u16>,
-        indices: Vec<u64>,
+        leaf_indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {
         process_nullify_leaves(
             &ctx,
             &change_log_indices,
             &leaves_queue_indices,
-            &indices,
+            &leaf_indices,
             &proofs,
         )
     }

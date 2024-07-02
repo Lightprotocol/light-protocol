@@ -42,6 +42,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -62,23 +65,36 @@ export type LightSystemProgram = {
                     name: 'accountCompressionAuthority';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'This pda is used to invoke the account compression program.',
+                    ];
                 },
                 {
                     name: 'accountCompressionProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: ['Merkle trees.'];
                 },
                 {
                     name: 'solPoolPda';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
+                    docs: [
+                        'Sol pool pda is used to store compressed sol.',
+                        "It's only required when compressing or decompressing sol.",
+                    ];
                 },
                 {
                     name: 'decompressionRecipient';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
+                    docs: [
+                        'Only needs to be provided for decompression as a recipient for the',
+                        'decompressed sol.',
+                        'Compressed sol originate from authority.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -100,6 +116,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -174,6 +193,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -194,23 +216,36 @@ export type LightSystemProgram = {
                     name: 'accountCompressionAuthority';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'This pda is used to invoke the account compression program.',
+                    ];
                 },
                 {
                     name: 'accountCompressionProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: ['Merkle trees.'];
                 },
                 {
                     name: 'solPoolPda';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
+                    docs: [
+                        'Sol pool pda is used to store compressed sol.',
+                        "It's only required when compressing or decompressing sol.",
+                    ];
                 },
                 {
                     name: 'decompressionRecipient';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
+                    docs: [
+                        'Only needs to be provided for decompression as a recipient for the',
+                        'decompressed sol.',
+                        'Compressed sol originate from authority.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -241,22 +276,6 @@ export type LightSystemProgram = {
         },
     ];
     accounts: [
-        {
-            name: 'registeredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'registeredProgramId';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
         {
             name: 'stateMerkleTreeAccount';
             docs: [
@@ -321,7 +340,7 @@ export type LightSystemProgram = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -925,7 +944,7 @@ export type LightSystemProgram = {
         {
             code: 6019;
             name: 'ProofIsSome';
-            msg: 'ProofIsSome';
+            msg: 'Proof is some but no input compressed accounts or new addresses provided.';
         },
         {
             code: 6020;
@@ -939,43 +958,58 @@ export type LightSystemProgram = {
         },
         {
             code: 6022;
-            name: 'CpiContextProofMismatch';
-            msg: 'CpiContextMismatch';
-        },
-        {
-            code: 6023;
             name: 'CpiContextEmpty';
             msg: 'CpiContextEmpty';
         },
         {
-            code: 6024;
+            code: 6023;
             name: 'CpiContextMissing';
             msg: 'CpiContextMissing';
         },
         {
-            code: 6025;
+            code: 6024;
             name: 'DecompressionRecipienDefined';
             msg: 'DecompressionRecipienDefined';
         },
         {
-            code: 6026;
+            code: 6025;
             name: 'SolPoolPdaDefined';
             msg: 'SolPoolPdaDefined';
         },
         {
-            code: 6027;
+            code: 6026;
             name: 'AppendStateFailed';
             msg: 'AppendStateFailed';
         },
         {
-            code: 6028;
+            code: 6027;
             name: 'InstructionNotCallable';
             msg: 'The instruction is not callable';
         },
         {
-            code: 6029;
+            code: 6028;
             name: 'CpiContextFeePayerMismatch';
             msg: 'CpiContextFeePayerMismatch';
+        },
+        {
+            code: 6029;
+            name: 'CpiContextAssociatedMerkleTreeMismatch';
+            msg: 'CpiContextAssociatedMerkleTreeMismatch';
+        },
+        {
+            code: 6030;
+            name: 'NoInputs';
+            msg: 'NoInputs';
+        },
+        {
+            code: 6031;
+            name: 'InputMerkleTreeIndicesNotInOrder';
+            msg: 'Input merkle tree indices are not in ascending order.';
+        },
+        {
+            code: 6032;
+            name: 'OutputMerkleTreeIndicesNotInOrder';
+            msg: 'Output merkle tree indices are not in ascending order.';
         },
     ];
 };
@@ -1024,6 +1058,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1044,23 +1081,36 @@ export const IDL: LightSystemProgram = {
                     name: 'accountCompressionAuthority',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'This pda is used to invoke the account compression program.',
+                    ],
                 },
                 {
                     name: 'accountCompressionProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: ['Merkle trees.'],
                 },
                 {
                     name: 'solPoolPda',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
+                    docs: [
+                        'Sol pool pda is used to store compressed sol.',
+                        "It's only required when compressing or decompressing sol.",
+                    ],
                 },
                 {
                     name: 'decompressionRecipient',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
+                    docs: [
+                        'Only needs to be provided for decompression as a recipient for the',
+                        'decompressed sol.',
+                        'Compressed sol originate from authority.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1082,6 +1132,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1156,6 +1209,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1176,23 +1232,36 @@ export const IDL: LightSystemProgram = {
                     name: 'accountCompressionAuthority',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'This pda is used to invoke the account compression program.',
+                    ],
                 },
                 {
                     name: 'accountCompressionProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: ['Merkle trees.'],
                 },
                 {
                     name: 'solPoolPda',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
+                    docs: [
+                        'Sol pool pda is used to store compressed sol.',
+                        "It's only required when compressing or decompressing sol.",
+                    ],
                 },
                 {
                     name: 'decompressionRecipient',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
+                    docs: [
+                        'Only needs to be provided for decompression as a recipient for the',
+                        'decompressed sol.',
+                        'Compressed sol originate from authority.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1223,22 +1292,6 @@ export const IDL: LightSystemProgram = {
         },
     ],
     accounts: [
-        {
-            name: 'registeredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'registeredProgramId',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
         {
             name: 'stateMerkleTreeAccount',
             docs: [
@@ -1303,7 +1356,7 @@ export const IDL: LightSystemProgram = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -1912,7 +1965,7 @@ export const IDL: LightSystemProgram = {
         {
             code: 6019,
             name: 'ProofIsSome',
-            msg: 'ProofIsSome',
+            msg: 'Proof is some but no input compressed accounts or new addresses provided.',
         },
         {
             code: 6020,
@@ -1926,43 +1979,58 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6022,
-            name: 'CpiContextProofMismatch',
-            msg: 'CpiContextMismatch',
-        },
-        {
-            code: 6023,
             name: 'CpiContextEmpty',
             msg: 'CpiContextEmpty',
         },
         {
-            code: 6024,
+            code: 6023,
             name: 'CpiContextMissing',
             msg: 'CpiContextMissing',
         },
         {
-            code: 6025,
+            code: 6024,
             name: 'DecompressionRecipienDefined',
             msg: 'DecompressionRecipienDefined',
         },
         {
-            code: 6026,
+            code: 6025,
             name: 'SolPoolPdaDefined',
             msg: 'SolPoolPdaDefined',
         },
         {
-            code: 6027,
+            code: 6026,
             name: 'AppendStateFailed',
             msg: 'AppendStateFailed',
         },
         {
-            code: 6028,
+            code: 6027,
             name: 'InstructionNotCallable',
             msg: 'The instruction is not callable',
         },
         {
-            code: 6029,
+            code: 6028,
             name: 'CpiContextFeePayerMismatch',
             msg: 'CpiContextFeePayerMismatch',
+        },
+        {
+            code: 6029,
+            name: 'CpiContextAssociatedMerkleTreeMismatch',
+            msg: 'CpiContextAssociatedMerkleTreeMismatch',
+        },
+        {
+            code: 6030,
+            name: 'NoInputs',
+            msg: 'NoInputs',
+        },
+        {
+            code: 6031,
+            name: 'InputMerkleTreeIndicesNotInOrder',
+            msg: 'Input merkle tree indices are not in ascending order.',
+        },
+        {
+            code: 6032,
+            name: 'OutputMerkleTreeIndicesNotInOrder',
+            msg: 'Output merkle tree indices are not in ascending order.',
         },
     ],
 };
