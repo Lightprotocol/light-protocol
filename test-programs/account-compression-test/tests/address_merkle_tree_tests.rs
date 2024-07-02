@@ -420,7 +420,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 10003, // ConcurrentMerkleTree::ChangelogZero
+            result, 2, 10003, // ConcurrentMerkleTree::ChangelogZero
         )
         .unwrap();
     }
@@ -439,7 +439,7 @@ async fn test_address_queue_and_tree_invalid_config() {
         )
         .await;
         assert_rpc_error(
-            result, 3, 10004, // ConcurrentMerkleTree::RootsSize
+            result, 2, 10004, // ConcurrentMerkleTree::RootsSize
         )
         .unwrap();
     }
