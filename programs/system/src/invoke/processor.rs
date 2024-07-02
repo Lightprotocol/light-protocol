@@ -75,11 +75,11 @@ pub fn process<
     bench_sbf_start!("cpda_process_compression");
     if inputs.compress_or_decompress_lamports.is_some() {
         if inputs.is_compress && ctx.accounts.get_decompression_recipient().is_some() {
-            return err!(SystemProgramError::DecompressionRecipienDefined);
+            return err!(SystemProgramError::DecompressionRecipientDefined);
         }
         compress_or_decompress_lamports(&inputs, &ctx)?;
     } else if ctx.accounts.get_decompression_recipient().is_some() {
-        return err!(SystemProgramError::DecompressionRecipienDefined);
+        return err!(SystemProgramError::DecompressionRecipientDefined);
     } else if ctx.accounts.get_sol_pool_pda().is_some() {
         return err!(SystemProgramError::SolPoolPdaDefined);
     }

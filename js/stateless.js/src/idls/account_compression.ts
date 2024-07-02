@@ -104,15 +104,17 @@ export type AccountCompression = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
             ];
             args: [
                 {
                     name: 'index';
                     type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
                 },
                 {
                     name: 'programOwner';
@@ -406,19 +408,16 @@ export type AccountCompression = {
                     isSigner: false;
                 },
                 {
-                    name: 'systemProgram';
+                    name: 'registeredProgramPda';
                     isMut: false;
                     isSigner: false;
+                    isOptional: true;
                 },
             ];
             args: [
                 {
                     name: 'index';
                     type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
                 },
                 {
                     name: 'programOwner';
@@ -1071,6 +1070,26 @@ export type AccountCompression = {
             name: 'InsufficientRolloverFee';
             msg: 'InsufficientRolloverFee';
         },
+        {
+            code: 6019;
+            name: 'UnsupportedHeight';
+            msg: 'Unsupported Merkle tree height';
+        },
+        {
+            code: 6020;
+            name: 'UnsupportedCanopyDepth';
+            msg: 'Unsupported canopy depth';
+        },
+        {
+            code: 6021;
+            name: 'InvalidSequenceThreshold';
+            msg: 'Invalid sequence threshold';
+        },
+        {
+            code: 6022;
+            name: 'UnsupportedCloseThreshold';
+            msg: 'Unsupported close threshold';
+        },
     ];
 };
 
@@ -1180,15 +1199,17 @@ export const IDL: AccountCompression = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
             ],
             args: [
                 {
                     name: 'index',
                     type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
                 },
                 {
                     name: 'programOwner',
@@ -1482,19 +1503,16 @@ export const IDL: AccountCompression = {
                     isSigner: false,
                 },
                 {
-                    name: 'systemProgram',
+                    name: 'registeredProgramPda',
                     isMut: false,
                     isSigner: false,
+                    isOptional: true,
                 },
             ],
             args: [
                 {
                     name: 'index',
                     type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
                 },
                 {
                     name: 'programOwner',
@@ -2146,6 +2164,26 @@ export const IDL: AccountCompression = {
             code: 6018,
             name: 'InsufficientRolloverFee',
             msg: 'InsufficientRolloverFee',
+        },
+        {
+            code: 6019,
+            name: 'UnsupportedHeight',
+            msg: 'Unsupported Merkle tree height',
+        },
+        {
+            code: 6020,
+            name: 'UnsupportedCanopyDepth',
+            msg: 'Unsupported canopy depth',
+        },
+        {
+            code: 6021,
+            name: 'InvalidSequenceThreshold',
+            msg: 'Invalid sequence threshold',
+        },
+        {
+            code: 6022,
+            name: 'UnsupportedCloseThreshold',
+            msg: 'Unsupported close threshold',
         },
     ],
 };

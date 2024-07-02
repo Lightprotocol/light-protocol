@@ -5,12 +5,17 @@ use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::QueueAccount,
-    utils::constants::{
-        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
-        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-        ADDRESS_MERKLE_TREE_ROOTS,
+    utils::{
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
+        },
+        constants::{
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
+            ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+            ADDRESS_MERKLE_TREE_ROOTS,
+        },
     },
-    AddressMerkleTreeAccount, NullifierQueueConfig, SAFETY_MARGIN,
+    AddressMerkleTreeAccount, NullifierQueueConfig, RegisteredProgram, SAFETY_MARGIN,
 };
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
@@ -50,12 +55,30 @@ pub struct InitializeAddressMerkleTreeAndQueue<'info> {
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     #[account(zero)]
     pub queue: AccountLoader<'info, QueueAccount>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
+}
+
+impl<'info> GroupAccounts<'info> for InitializeAddressMerkleTreeAndQueue<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
+}
+
+impl GroupAccess for RegisteredProgram {
+    fn get_owner(&self) -> &Pubkey {
+        &self.group_authority_pda
+    }
+    fn get_program_owner(&self) -> &Pubkey {
+        &self.registered_program_id
+    }
 }
 
 pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
     index: u64,
-    owner: Pubkey,
     program_owner: Option<Pubkey>,
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
@@ -89,7 +112,16 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         );
         return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
     }
-
+    let owner = match ctx.accounts.registered_program_pda.as_ref() {
+        Some(registered_program_pda) => {
+            check_signer_is_registered_or_authority::<
+                InitializeAddressMerkleTreeAndQueue,
+                RegisteredProgram,
+            >(&ctx, registered_program_pda)?;
+            registered_program_pda.group_authority_pda
+        }
+        None => ctx.accounts.authority.key(),
+    };
     let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
