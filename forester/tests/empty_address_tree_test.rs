@@ -92,7 +92,7 @@ async fn empty_address_tree_test() {
     .await;
 
     let config = Arc::new(config.clone());
-    let rpc = init_rpc(&config).await;
+    let rpc = init_rpc(&config, true).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));

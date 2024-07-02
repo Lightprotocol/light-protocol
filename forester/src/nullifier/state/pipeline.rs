@@ -44,6 +44,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
         indexer: indexer.clone(),
         rpc: rpc.clone(),
         config: config.clone(),
+        successful_nullifications: Arc::new(Mutex::new(0)),
     };
 
     tokio::spawn(async move {

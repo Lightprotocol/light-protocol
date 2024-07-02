@@ -59,7 +59,7 @@ pub async fn nullify_state(config: Arc<ForesterConfig>) {
         "Run state tree nullifier. Queue: {}. Merkle tree: {}",
         config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
     );
-    let rpc = init_rpc(&config).await;
+    let rpc = init_rpc(&config, false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
     )));
@@ -107,7 +107,7 @@ pub async fn nullify_addresses<I: Indexer, R: RpcConnection>(
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-pub async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
+pub async fn init_rpc(config: &Arc<ForesterConfig>, airdrop: bool) -> SolanaRpcConnection {
     let mut rpc = SolanaRpcConnection::new(
         config.external_services.rpc_url.clone(),
         Some(CommitmentConfig {
@@ -115,9 +115,11 @@ pub async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
         }),
     );
 
-    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
-        .await
-        .unwrap();
+    if airdrop {
+        rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
+            .await
+            .unwrap();
+    }
 
     rpc
 }

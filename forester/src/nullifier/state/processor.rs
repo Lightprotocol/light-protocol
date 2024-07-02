@@ -141,6 +141,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             indexer: _,
             rpc,
             config,
+            ..
         } = &context;
 
         let accounts_to_nullify: Vec<ForesterQueueAccountData> = {
@@ -167,6 +168,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             indexer,
             rpc: _,
             config: _,
+            ..
         } = &context;
         debug!(
             "Fetching proofs for {} accounts",
@@ -226,6 +228,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             indexer: _,
             rpc,
             config,
+            ..
         } = &context;
 
         debug!("Nullifying account: {}", account_data.account.hash_string());
@@ -303,6 +306,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             indexer,
             rpc: _,
             config,
+            ..
         } = &context;
 
         debug!(
