@@ -848,6 +848,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getTransactionWithCompressionInfo',
             { signature },
         );
+
         const res = create(
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
