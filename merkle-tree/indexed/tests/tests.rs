@@ -6,6 +6,7 @@ use light_concurrent_merkle_tree::{
     event::IndexedMerkleTreeUpdate,
     light_hasher::{Hasher, Poseidon},
 };
+use light_hash_set::HashSet;
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
@@ -58,7 +59,7 @@ enum RelayerUpdateError {
 /// inserting nullifiers from the queue to the tree.
 fn program_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, HashSet>,
     merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
     // Instruction data
     changelog_index: u16,
@@ -74,13 +75,16 @@ where
     H: Hasher,
 {
     // Remove the nullifier from the queue.
-    let nullifier = queue.dequeue_at(queue_index).unwrap().unwrap();
+    let nullifier = queue
+        .get_unmarked_bucket(queue_index as usize)
+        .unwrap()
+        .unwrap();
 
     // Update the nullifier with ranges adjusted to the Merkle tree state,
     // coming from relayer.
     let nullifier: IndexedElement<usize> = IndexedElement {
         index: nullifier_index,
-        value: nullifier.value,
+        value: nullifier.value_biguint(),
         next_index: nullifier_next_index,
     };
 
@@ -100,7 +104,7 @@ where
 /// nullifier Merkle tree.
 fn relayer_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, HashSet>,
     merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
 ) -> Result<(), RelayerUpdateError>
 where
@@ -113,21 +117,20 @@ where
 
     let mut update_errors: Vec<IndexedMerkleTreeError> = Vec::new();
 
-    while !queue.is_empty() {
+    let queue_indices = queue.iter().map(|(index, _)| index).collect::<Vec<_>>();
+    for (queue_index, queue_element) in queue_indices {
         let changelog_index = merkle_tree.changelog_index();
         let indexed_changelog_index = merkle_tree.indexed_changelog_index();
 
-        let lowest_from_queue = match queue.lowest() {
-            Some(lowest) => lowest,
-            None => break,
-        };
-
         // Create new element from the dequeued value.
         let (old_low_nullifier, old_low_nullifier_next_value) = relayer_indexing_array
-            .find_low_element_for_nonexistent(&lowest_from_queue.value)
+            .find_low_element_for_nonexistent(&queue_element.value_biguint())
             .unwrap();
         let nullifier_bundle = relayer_indexing_array
-            .new_element_with_low_element_index(old_low_nullifier.index, &lowest_from_queue.value)
+            .new_element_with_low_element_index(
+                old_low_nullifier.index,
+                &queue_element.value_biguint(),
+            )
             .unwrap();
         let mut low_nullifier_proof = relayer_merkle_tree
             .get_proof_of_leaf(usize::from(old_low_nullifier.index), false)
@@ -139,7 +142,7 @@ where
             merkle_tree,
             changelog_index as u16,
             indexed_changelog_index as u16,
-            lowest_from_queue.index,
+            queue_index as u16,
             nullifier_bundle.new_element.index,
             nullifier_bundle.new_element.next_index,
             old_low_nullifier,
