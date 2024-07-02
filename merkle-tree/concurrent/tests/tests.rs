@@ -3181,6 +3181,6 @@ fn test_append_batch() {
     let path_0 = [leaf_0, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
     let path_1 = [leaf_1, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
 
-    assert_eq!(change_log_1, path_1); // Test Passes
-    assert_eq!(change_log_0, path_0); // Assets since change_log_0[1] != path_0[1]
+    assert_eq!(change_log_1, path_1);
+    assert_eq!(change_log_0, path_0);
 }
