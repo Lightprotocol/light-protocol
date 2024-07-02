@@ -42,6 +42,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -100,6 +103,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -174,6 +180,9 @@ export type LightSystemProgram = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -242,22 +251,6 @@ export type LightSystemProgram = {
     ];
     accounts: [
         {
-            name: 'registeredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'registeredProgramId';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'stateMerkleTreeAccount';
             docs: [
                 'Concurrent state Merkle tree used for public compressed transactions.',
@@ -321,7 +314,7 @@ export type LightSystemProgram = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -977,6 +970,16 @@ export type LightSystemProgram = {
             name: 'CpiContextFeePayerMismatch';
             msg: 'CpiContextFeePayerMismatch';
         },
+        {
+            code: 6030;
+            name: 'CpiContextAssociatedMerkleTreeMismatch';
+            msg: 'CpiContextAssociatedMerkleTreeMismatch';
+        },
+        {
+            code: 6031;
+            name: 'NoInputs';
+            msg: 'NoInputs';
+        },
     ];
 };
 
@@ -1024,6 +1027,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1082,6 +1088,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1156,6 +1165,9 @@ export const IDL: LightSystemProgram = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1224,22 +1236,6 @@ export const IDL: LightSystemProgram = {
     ],
     accounts: [
         {
-            name: 'registeredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'registeredProgramId',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'stateMerkleTreeAccount',
             docs: [
                 'Concurrent state Merkle tree used for public compressed transactions.',
@@ -1303,7 +1299,7 @@ export const IDL: LightSystemProgram = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -1963,6 +1959,16 @@ export const IDL: LightSystemProgram = {
             code: 6029,
             name: 'CpiContextFeePayerMismatch',
             msg: 'CpiContextFeePayerMismatch',
+        },
+        {
+            code: 6030,
+            name: 'CpiContextAssociatedMerkleTreeMismatch',
+            msg: 'CpiContextAssociatedMerkleTreeMismatch',
+        },
+        {
+            code: 6031,
+            name: 'NoInputs',
+            msg: 'NoInputs',
         },
     ],
 };

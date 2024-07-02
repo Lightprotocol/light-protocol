@@ -44,7 +44,6 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -274,6 +273,7 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
     compressed_transaction_test(inputs).await
 }
 
+#[derive(Debug)]
 pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     rpc: &'a mut R,
     test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,

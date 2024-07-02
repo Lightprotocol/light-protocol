@@ -24,8 +24,9 @@ type ProvingSystem struct {
 	InclusionNumberOfCompressedAccounts    uint32
 	NonInclusionTreeDepth                  uint32
 	NonInclusionNumberOfCompressedAccounts uint32
-	ProvingKey                             groth16.ProvingKey
-	VerifyingKey                           groth16.VerifyingKey
+	KeyFilePath                            string
+	ProvingKey                             *groth16.ProvingKey
+	VerifyingKey                           *groth16.VerifyingKey
 	ConstraintSystem                       constraint.ConstraintSystem
 }
 
@@ -166,6 +167,23 @@ func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
 	return gadget.Hash
 }
 
+func (ps *ProvingSystem) LoadKeys() error {
+	if ps.ProvingKey == nil || ps.VerifyingKey == nil {
+		pk, err := LoadProvingKey(ps.KeyFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to load proving key: %w", err)
+		}
+		ps.ProvingKey = &pk
+
+		vk, err := LoadVerifyingKey(ps.KeyFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to load verifying key: %w", err)
+		}
+		ps.VerifyingKey = &vk
+	}
+	return nil
+}
+
 // Trusted setup utility functions
 // Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L19
 func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
@@ -204,25 +222,24 @@ func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
 	var keys []string
 
 	if IsCircuitEnabled(circuitTypes, Inclusion) {
-		keys = append(keys, keysDir+"inclusion_26_1.key")
-		keys = append(keys, keysDir+"inclusion_26_2.key")
-		keys = append(keys, keysDir+"inclusion_26_3.key")
-		keys = append(keys, keysDir+"inclusion_26_4.key")
-		keys = append(keys, keysDir+"inclusion_26_8.key")
+		for i := 1; i <= 10; i++ {
+			keys = append(keys, keysDir+fmt.Sprintf("inclusion_26_%d.key", i))
+		}
 	}
+
 	if IsCircuitEnabled(circuitTypes, NonInclusion) {
-		keys = append(keys, keysDir+"non-inclusion_26_1.key")
-		keys = append(keys, keysDir+"non-inclusion_26_2.key")
+		for i := 1; i <= 10; i++ {
+			keys = append(keys, keysDir+fmt.Sprintf("non-inclusion_26_%d.key", i))
+		}
 	}
+
 	if IsCircuitEnabled(circuitTypes, Combined) {
-		keys = append(keys, keysDir+"combined_26_1_1.key")
-		keys = append(keys, keysDir+"combined_26_1_2.key")
-		keys = append(keys, keysDir+"combined_26_2_1.key")
-		keys = append(keys, keysDir+"combined_26_2_2.key")
-		keys = append(keys, keysDir+"combined_26_3_1.key")
-		keys = append(keys, keysDir+"combined_26_3_2.key")
-		keys = append(keys, keysDir+"combined_26_4_1.key")
-		keys = append(keys, keysDir+"combined_26_4_2.key")
+		for i := 1; i <= 8; i *= 2 {
+			for j := 1; j <= 8; j *= 2 {
+				keys = append(keys, keysDir+fmt.Sprintf("combined_26_%d_%d.key", i, j))
+			}
+		}
 	}
+
 	return keys
 }

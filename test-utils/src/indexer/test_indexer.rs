@@ -531,18 +531,19 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
     ) -> ProofRpcResult {
-        if compressed_accounts.is_some()
-            && ![1usize, 2usize, 3usize, 4usize, 8usize]
-                .contains(&compressed_accounts.unwrap().len())
-        {
-            panic!(
-                "compressed_accounts must be of length 1, 2, 3, 4 or 8 != {}",
-                compressed_accounts.unwrap().len()
-            )
+        const VALID_LENGTH: [usize; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        if let Some(accounts) = compressed_accounts {
+            if !VALID_LENGTH.contains(&accounts.len()) {
+                panic!("compressed_accounts must be of length 1 to 10");
+            }
         }
-        if new_addresses.is_some() && ![1usize, 2usize].contains(&new_addresses.unwrap().len()) {
-            panic!("new_addresses must be of length 1, 2")
+        if let Some(addresses) = new_addresses {
+            if !VALID_LENGTH.contains(&addresses.len()) {
+                panic!("new_addresses must be of length 1 to 10");
+            }
         }
+
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload) =
             match (compressed_accounts, new_addresses) {

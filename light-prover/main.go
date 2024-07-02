@@ -523,12 +523,18 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
 	keys, _ := getKeysByArgs(context)
 	var pss = make([]*prover.ProvingSystem, len(keys))
 	for i, key := range keys {
-		logging.Logger().Info().Msg("Reading proving system from file " + key + "...")
-		ps, err := prover.ReadSystemFromFile(key)
-		if err != nil {
-			return nil, err
+		//logging.Logger().Info().Msg("Reading proving system from file " + key + "...")
+		//ps, err := prover.ReadSystemFromFile(key)
+		//if err != nil {
+		//	return nil, err
+		//}
+		ps := &prover.ProvingSystem{
+			KeyFilePath: key,
 		}
 		pss[i] = ps
+		logging.Logger().Info().
+			Str("keyFile", key).
+			Msg("Prepared proving system")
 		logging.Logger().Info().
 			Uint32("treeDepth", ps.InclusionTreeDepth).
 			Uint32("compressedAccounts", ps.InclusionNumberOfCompressedAccounts).

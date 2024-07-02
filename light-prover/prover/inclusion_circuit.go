@@ -17,7 +17,7 @@ type InclusionCircuit struct {
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
@@ -28,7 +28,7 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Depth:         circuit.Depth,
+		Depth:                      circuit.Depth,
 	})
 	return nil
 }
@@ -40,12 +40,12 @@ func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, p
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	circuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfCompressedAccounts:  numberOfCompressedAccounts,
-		Roots:          roots,
-		Leaves:         leaves,
-		InPathIndices:  inPathIndices,
-		InPathElements: inPathElements,
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Leaves:                     leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
 	}
 
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
@@ -53,16 +53,22 @@ func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, p
 		return nil, err
 	}
 
-	pk, err := LoadProvingKey(pkPath)
+	//pk, err := LoadProvingKey(pkPath)
+	//
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//vk, err := LoadVerifyingKey(vkPath)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	if err != nil {
-		return nil, err
-	}
-
-	vk, err := LoadVerifyingKey(vkPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ProvingSystem{treeDepth, numberOfCompressedAccounts, 0, 0, pk, vk, ccs}, nil
+	return &ProvingSystem{
+		InclusionTreeDepth:                  treeDepth,
+		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		KeyFilePath:                         pkPath,
+		ProvingKey:                          nil,
+		VerifyingKey:                        nil,
+		ConstraintSystem:                    ccs}, nil
 }

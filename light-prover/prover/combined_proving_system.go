@@ -93,16 +93,22 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompr
 	return circuit
 }
 
-func SetupCombined(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+func SetupCombined(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, keyFilePath string) (*ProvingSystem, error) {
 	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
-	pk, vk, err := groth16.Setup(ccs)
-	if err != nil {
-		return nil, err
-	}
-	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
+
+	return &ProvingSystem{
+		InclusionTreeDepth:                     inclusionTreeDepth,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeDepth:                  nonInclusionTreeDepth,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		KeyFilePath:                            keyFilePath,
+		ProvingKey:                             nil,
+		VerifyingKey:                           nil,
+		ConstraintSystem:                       ccs,
+	}, nil
 }
 
 func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, error) {
@@ -141,7 +147,7 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 	}
 
 	logging.Logger().Info().Msg("Proof combined" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)) + " " + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, *ps.ProvingKey, witness)
 	if err != nil {
 		logging.Logger().Error().Msg("combined prove error: " + err.Error())
 		return nil, err

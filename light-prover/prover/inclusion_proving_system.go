@@ -66,16 +66,22 @@ func R1CSInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (constra
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func SetupInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+func SetupInclusion(treeDepth uint32, numberOfCompressedAccounts uint32, keyFilePath string) (*ProvingSystem, error) {
 	ccs, err := R1CSInclusion(treeDepth, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
-	pk, vk, err := groth16.Setup(ccs)
-	if err != nil {
-		return nil, err
-	}
-	return &ProvingSystem{treeDepth, numberOfCompressedAccounts, 0, 0, pk, vk, ccs}, nil
+
+	return &ProvingSystem{
+		InclusionTreeDepth:                     treeDepth,
+		InclusionNumberOfCompressedAccounts:    numberOfCompressedAccounts,
+		NonInclusionTreeDepth:                  0,
+		NonInclusionNumberOfCompressedAccounts: 0,
+		KeyFilePath:                            keyFilePath,
+		ProvingKey:                             nil,
+		VerifyingKey:                           nil,
+		ConstraintSystem:                       ccs,
+	}, nil
 }
 
 func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, error) {
@@ -111,7 +117,7 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 	}
 
 	logging.Logger().Info().Msg("Proof inclusion" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)))
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, *ps.ProvingKey, witness)
 	if err != nil {
 		return nil, err
 	}
@@ -138,5 +144,5 @@ func (ps *ProvingSystem) VerifyInclusion(root []big.Int, leaf []big.Int, proof *
 	if err != nil {
 		return err
 	}
-	return groth16.Verify(proof.Proof, ps.VerifyingKey, witness)
+	return groth16.Verify(proof.Proof, *ps.VerifyingKey, witness)
 }

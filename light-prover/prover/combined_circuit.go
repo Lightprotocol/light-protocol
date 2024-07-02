@@ -34,23 +34,27 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string) (*ProvingSystem, error) {
 	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
 
-	pk, err := LoadProvingKey(pkPath)
+	ps := &ProvingSystem{
+		InclusionTreeDepth:                     inclusionTreeDepth,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeDepth:                  nonInclusionTreeDepth,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		KeyFilePath:                            pkPath,
+		ProvingKey:                             nil,
+		VerifyingKey:                           nil,
+		ConstraintSystem:                       ccs,
+	}
 
+	err = ps.LoadKeys()
 	if err != nil {
 		return nil, err
 	}
 
-	vk, err := LoadVerifyingKey(vkPath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
+	return ps, nil
 }

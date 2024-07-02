@@ -14,14 +14,15 @@ const (
 	NonInclusion            CircuitType = "non-inclusion"
 )
 
-func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
-	if circuit == Inclusion {
-		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts)
-	} else if circuit == NonInclusion {
-		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else if circuit == Combined {
-		return SetupCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else {
+func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, keyFilePath string) (*ProvingSystem, error) {
+	switch circuit {
+	case Inclusion:
+		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, keyFilePath)
+	case NonInclusion:
+		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, keyFilePath)
+	case Combined:
+		return SetupCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, keyFilePath)
+	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}
 }
@@ -33,8 +34,8 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return "", err
 	}
 
-	var _, hasInputCompressedAccounts = inputs["input-compressed-accounts"]
-	var _, hasNewAddresses = inputs["new-addresses"]
+	_, hasInputCompressedAccounts := inputs["input-compressed-accounts"]
+	_, hasNewAddresses := inputs["new-addresses"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return Combined, nil
@@ -53,4 +54,17 @@ func IsCircuitEnabled(s []CircuitType, e CircuitType) bool {
 		}
 	}
 	return false
+}
+
+func GenerateKeyFilePath(baseDir string, circuit CircuitType, inclusionTreeDepth, inclusionCompressedAccounts, nonInclusionTreeDepth, nonInclusionCompressedAccounts uint32) string {
+	switch circuit {
+	case Inclusion:
+		return fmt.Sprintf("%s/inclusion_%d_%d", baseDir, inclusionTreeDepth, inclusionCompressedAccounts)
+	case NonInclusion:
+		return fmt.Sprintf("%s/non-inclusion_%d_%d", baseDir, nonInclusionTreeDepth, nonInclusionCompressedAccounts)
+	case Combined:
+		return fmt.Sprintf("%s/combined_%d_%d_%d_%d", baseDir, inclusionTreeDepth, inclusionCompressedAccounts, nonInclusionTreeDepth, nonInclusionCompressedAccounts)
+	default:
+		return ""
+	}
 }

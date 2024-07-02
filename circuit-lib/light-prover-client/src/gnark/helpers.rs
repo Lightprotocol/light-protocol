@@ -51,7 +51,7 @@ pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
                 .arg(format!("{} {}", absolute_path, proof_type_str))
                 .spawn()
                 .expect("Failed to start server process");
-            let health_result = health_check(20, 5).await;
+            let health_result = health_check(20, 10).await;
             if health_result {
                 info!("Prover started successfully");
             } else {

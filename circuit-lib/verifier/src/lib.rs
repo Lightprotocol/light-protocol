@@ -24,12 +24,12 @@ pub enum VerifierError {
 impl From<VerifierError> for u32 {
     fn from(e: VerifierError) -> u32 {
         match e {
-            VerifierError::PublicInputsTryIntoFailed => 13001,
-            VerifierError::DecompressG1Failed => 13002,
-            VerifierError::DecompressG2Failed => 13003,
-            VerifierError::InvalidPublicInputsLength => 13004,
-            VerifierError::CreateGroth16VerifierFailed => 13005,
-            VerifierError::ProofVerificationFailed => 13006,
+            PublicInputsTryIntoFailed => 13001,
+            DecompressG1Failed => 13002,
+            DecompressG2Failed => 13003,
+            InvalidPublicInputsLength => 13004,
+            CreateGroth16VerifierFailed => 13005,
+            ProofVerificationFailed => 13006,
         }
     }
 }
@@ -72,14 +72,70 @@ pub fn verify_create_addresses_zkp(
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::non_inclusion_26_1::VERIFYINGKEY,
+            &verifying_keys::non_inclusion_26_1::VERIFYINGKEY,
         ),
         2 => verify::<4>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::non_inclusion_26_2::VERIFYINGKEY,
+            &verifying_keys::non_inclusion_26_2::VERIFYINGKEY,
+        ),
+        3 => verify::<6>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_3::VERIFYINGKEY,
+        ),
+        4 => verify::<8>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_4::VERIFYINGKEY,
+        ),
+        5 => verify::<10>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_5::VERIFYINGKEY,
+        ),
+        6 => verify::<12>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_6::VERIFYINGKEY,
+        ),
+        7 => verify::<14>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_7::VERIFYINGKEY,
+        ),
+        8 => verify::<16>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_8::VERIFYINGKEY,
+        ),
+        9 => verify::<18>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_9::VERIFYINGKEY,
+        ),
+        10 => verify::<20>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::non_inclusion_26_10::VERIFYINGKEY,
         ),
         _ => Err(InvalidPublicInputsLength),
     }
@@ -103,19 +159,20 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
     // 10 inputs means 3 inclusion proofs (3 roots and 3 leaves, 2 address roots, 2 created address) or
     // 10 inputs means 4 inclusion proofs (4 roots and 4 leaves, 1 address root, 1 created address)
     // 12 inputs means 4 inclusion proofs (4 roots and 4 leaves, 2 address roots, 2 created address)
+    // etc
     match public_inputs.len() {
         4 => verify::<4>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::combined_26_1_1::VERIFYINGKEY,
+            &verifying_keys::combined_26_1_1::VERIFYINGKEY
         ),
         6 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_2_1::VERIFYINGKEY
+                &verifying_keys::combined_26_2_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
+                &verifying_keys::combined_26_1_2::VERIFYINGKEY
             };
             verify::<6>(
                 &public_inputs
@@ -126,24 +183,26 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
             )
         }
         8 => {
-            let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_3_1::VERIFYINGKEY
-            } else {
-                &crate::verifying_keys::combined_26_2_2::VERIFYINGKEY
+            let verifying_key = match address_roots.len() {
+                1 => &verifying_keys::combined_26_3_1::VERIFYINGKEY,
+                2 => &verifying_keys::combined_26_2_2::VERIFYINGKEY,
+                3 => &verifying_keys::combined_26_1_3::VERIFYINGKEY,
+                _ => return Err(InvalidPublicInputsLength),
             };
             verify::<8>(
                 &public_inputs
                     .try_into()
                     .map_err(|_| PublicInputsTryIntoFailed)?,
                 compressed_proof,
-                verifying_key,
+                verifying_key
             )
-        }
+
+        },
         10 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_4_1::VERIFYINGKEY
+                &verifying_keys::combined_26_4_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::combined_26_3_2::VERIFYINGKEY
+                &verifying_keys::combined_26_1_4::VERIFYINGKEY
             };
             verify::<10>(
                 &public_inputs
@@ -153,14 +212,78 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 verifying_key,
             )
         }
-        12 => verify::<12>(
+        12 => {
+            let verifying_key = if address_roots.len() == 2 {
+                &verifying_keys::combined_26_4_2::VERIFYINGKEY
+            } else {
+                &verifying_keys::combined_26_2_4::VERIFYINGKEY
+            };
+            verify::<12>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        16 => verify::<16>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::combined_26_4_2::VERIFYINGKEY,
+            &verifying_keys::combined_26_4_4::VERIFYINGKEY
         ),
-        _ => Err(crate::InvalidPublicInputsLength),
+        18 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &verifying_keys::combined_26_8_1::VERIFYINGKEY
+            } else {
+                &verifying_keys::combined_26_1_8::VERIFYINGKEY
+            };
+            verify::<18>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        20 => {
+            let verifying_key = if address_roots.len() == 2 {
+                &verifying_keys::combined_26_8_2::VERIFYINGKEY
+            } else {
+                &verifying_keys::combined_26_2_8::VERIFYINGKEY
+            };
+            verify::<20>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        24 => {
+            let verifying_key = if address_roots.len() == 4 {
+                &verifying_keys::combined_26_8_4::VERIFYINGKEY
+            } else {
+                &verifying_keys::combined_26_4_8::VERIFYINGKEY
+            };
+            verify::<24>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        32 => verify::<32>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::combined_26_8_8::VERIFYINGKEY
+        ),
+
+        _ => Err(InvalidPublicInputsLength),
     }
 }
 
@@ -171,50 +294,85 @@ pub fn verify_merkle_proof_zkp(
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
     let public_inputs = [roots, leaves].concat();
-
     // The public inputs are expected to be a multiple of 2
     // 2 inputs means 1 inclusion proof (1 root and 1 leaf)
     // 4 inputs means 2 inclusion proofs (2 roots and 2 leaves)
     // 6 inputs means 3 inclusion proofs (3 roots and 3 leaves)
     // 8 inputs means 4 inclusion proofs (4 roots and 4 leaves)
-    // 16 inputs means 8 inclusion proofs (8 roots and 8 leaves)
+    // 16 inputs means 8 inclusion proofs (8 roots and 8 leaves
+    // etc
     match public_inputs.len() {
         2 => verify::<2>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+            &verifying_keys::inclusion_26_1::VERIFYINGKEY,
         ),
         4 => verify::<4>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY,
+            &verifying_keys::inclusion_26_2::VERIFYINGKEY,
         ),
         6 => verify::<6>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY,
+            &verifying_keys::inclusion_26_3::VERIFYINGKEY,
         ),
         8 => verify::<8>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_4::VERIFYINGKEY,
+            &verifying_keys::inclusion_26_4::VERIFYINGKEY,
+        ),
+        10 => verify::<10>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::inclusion_26_5::VERIFYINGKEY,
+        ),
+        12 => verify::<12>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::inclusion_26_6::VERIFYINGKEY,
+        ),
+        14 => verify::<14>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::inclusion_26_7::VERIFYINGKEY,
         ),
         16 => verify::<16>(
             &public_inputs
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_8::VERIFYINGKEY,
+            &verifying_keys::inclusion_26_8::VERIFYINGKEY,
         ),
-        _ => Err(crate::InvalidPublicInputsLength),
+        18 => verify::<18>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::inclusion_26_9::VERIFYINGKEY,
+        ),
+        20 => verify::<20>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &verifying_keys::inclusion_26_10::VERIFYINGKEY,
+        ),
+        _ => Err(InvalidPublicInputsLength),
     }
 }
 

@@ -63,6 +63,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
         input.created_output_compressed_accounts,
         input.sorted_output_accounts,
     );
+
     // CHECK 2
     assert_nullifiers_exist_in_hash_sets(
         input.rpc,
@@ -79,7 +80,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
     )
     .await;
 
-    // CHECK 5
+    // CHECK 4
     let sequence_numbers = assert_merkle_tree_after_tx(
         input.rpc,
         input.output_merkle_tree_snapshots,
@@ -87,7 +88,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
     )
     .await;
 
-    // CHECK 4
+    // CHECK 5
     assert_public_transaction_event(
         input.event,
         Some(&input.input_compressed_account_hashes.to_vec()),
@@ -108,7 +109,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
         sequence_numbers,
     );
 
-    // CHECK 7
+    // CHECK 6
     if let Some(compress_or_decompress_lamports) = input.compress_or_decompress_lamports {
         assert_compression(
             input.rpc,
@@ -362,12 +363,13 @@ pub async fn assert_compression<R: RpcConnection>(
     recipient: &Pubkey,
     is_compress: bool,
 ) {
+    println!("assert_compression 0");
     if is_compress {
         let compressed_sol_pda_balance = match context.get_account(get_sol_pool_pda()).await {
             Ok(Some(account)) => account.lamports,
             _ => 0,
         };
-
+        println!("assert_compression 1");
         assert_eq!(
             compressed_sol_pda_balance,
             compressed_sol_pda_balance_pre + compress_amount,
@@ -379,7 +381,7 @@ pub async fn assert_compression<R: RpcConnection>(
                 Some(account) => account.lamports,
                 None => 0,
             };
-
+        println!("assert_compression 2");
         assert_eq!(
             compressed_sol_pda_balance,
             compressed_sol_pda_balance_pre - compress_amount,
@@ -393,6 +395,7 @@ pub async fn assert_compression<R: RpcConnection>(
             .unwrap()
             .lamports;
 
+        println!("assert_compression 3");
         assert_eq!(
             recipient_balance,
             recipient_balance_pre + compress_amount,

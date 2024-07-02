@@ -633,22 +633,6 @@ export type AccountCompression = {
     ];
     accounts: [
         {
-            name: 'groupAuthority';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'authority';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seed';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'registeredProgram';
             type: {
                 kind: 'struct';
@@ -677,7 +661,7 @@ export type AccountCompression = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -694,6 +678,22 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'groupAuthority';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'authority';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seed';
+                        type: 'publicKey';
                     },
                 ];
             };
@@ -1718,22 +1718,6 @@ export const IDL: AccountCompression = {
     ],
     accounts: [
         {
-            name: 'groupAuthority',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'authority',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seed',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'registeredProgram',
             type: {
                 kind: 'struct',
@@ -1762,7 +1746,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -1779,6 +1763,22 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'groupAuthority',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'authority',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seed',
+                        type: 'publicKey',
                     },
                 ],
             },

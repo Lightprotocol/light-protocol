@@ -96,7 +96,7 @@ async fn invoke_failing_test() {
 
     let mut test_indexer =
         TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
-    // cicuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
+    // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
     for mut num_addresses in 0..=2 {
@@ -375,7 +375,7 @@ pub async fn failing_transaction_inputs_inner(
             .compressed_account
             .lamports = amount + 1;
         let error_code = if !inputs_struct.output_compressed_accounts.is_empty() {
-            // adapting compressed ouput account so that sumcheck passes
+            // adapting compressed output account so that sum-check passes
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
@@ -1116,14 +1116,25 @@ async fn test_with_address() {
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
-    let address_seed = [1u8; 32];
-    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
-    let output_compressed_accounts = vec![CompressedAccount {
-        lamports: 0,
-        owner: payer_pubkey,
-        data: None,
-        address: Some(derived_address), // this should not be sent, only derived on-chain
-    }];
+    let mut address_seed: Vec<[u8; 32]> = Vec::new();
+    for i in 0..8 {
+        address_seed.push([i as u8; 32]);
+    }
+    let mut derived_addresses = Vec::new();
+    for seed in &address_seed {
+        let derived_address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+        derived_addresses.push(derived_address);
+    }
+
+    let mut output_compressed_accounts = vec![];
+    for address in &derived_addresses {
+        output_compressed_accounts.push(CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: Some(*address),
+        });
+    }
 
     let instruction = create_invoke_instruction(
         &payer_pubkey,
@@ -1140,7 +1151,6 @@ async fn test_with_address() {
         None,
         true,
     );
-
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
@@ -1154,16 +1164,17 @@ async fn test_with_address() {
     create_addresses_test(
         &mut context,
         &mut test_indexer,
-        &[env.address_merkle_tree_pubkey],
-        &[env.address_merkle_tree_queue_pubkey],
-        vec![env.merkle_tree_pubkey],
-        &[address_seed],
+        &vec![env.address_merkle_tree_pubkey; address_seed.len()],
+        &vec![env.address_merkle_tree_queue_pubkey; address_seed.len()],
+        vec![env.merkle_tree_pubkey; address_seed.len()],
+        &address_seed,
         &Vec::new(),
         false,
         None,
     )
     .await
     .unwrap();
+
     // transfer with address
     println!("transfer with address-------------------------");
 
@@ -1182,20 +1193,24 @@ async fn test_with_address() {
     )
     .await
     .unwrap();
-    assert_eq!(test_indexer.compressed_accounts.len(), 1);
+    assert_eq!(test_indexer.compressed_accounts.len(), derived_addresses.len());
+
+    for i in 0..derived_addresses.len() {
+        assert_eq!(
+            test_indexer.compressed_accounts[i]
+                .compressed_account
+                .address
+                .unwrap(),
+            derived_addresses[derived_addresses.len()-i-1]
+        );
+
+    }
     assert_eq!(
-        test_indexer.compressed_accounts[0]
-            .compressed_account
-            .address
-            .unwrap(),
-        derived_address
-    );
-    assert_eq!(
-        test_indexer.compressed_accounts[0].compressed_account.owner,
-        recipient_pubkey
+        test_indexer.compressed_accounts[test_indexer.compressed_accounts.len() - 1].compressed_account.owner,
+        payer_pubkey
     );
 
-    let address_seed_2 = [2u8; 32];
+    let address_seed_2 = [100u8; 32];
 
     let event = create_addresses_test(
         &mut context,
@@ -1226,7 +1241,7 @@ async fn test_with_address() {
 
     println!("test 2in -------------------------");
 
-    let address_seed_3 = [3u8; 32];
+    let address_seed_3 = [101u8; 32];
     create_addresses_test(
         &mut context,
         &mut test_indexer,

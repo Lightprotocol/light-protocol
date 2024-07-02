@@ -41,22 +41,22 @@ generate() {
     cargo xtask generate-vkey-rs --input-path "${CIRCUIT_VKEY_FILE}" --output-path "${CIRCUIT_VKEY_RS_FILE}"
 }
 
-declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
 
 for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"
 do
     generate "$compressed_accounts" "0" "inclusion"
 done
 
-declare -a non_inclusion_compressed_accounts_arr=("1" "2")
+declare -a non_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
 
 for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"
 do
     generate "0" "$compressed_accounts" "non-inclusion"
 done
 
-declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
-declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
+declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
 
 for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"
 do

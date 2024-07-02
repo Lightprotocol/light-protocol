@@ -192,6 +192,12 @@ func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
 		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
 	}
 
+	err = ps.LoadKeys()
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, unexpectedError(fmt.Errorf("failed to load keys: %w", err))
+	}
+
 	proof, err = ps.ProveInclusion(&params)
 	if err != nil {
 		logging.Logger().Err(err)
@@ -222,6 +228,12 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 
 	if ps == nil {
 		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
+	}
+
+	err = ps.LoadKeys()
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, unexpectedError(fmt.Errorf("failed to load keys: %w", err))
 	}
 
 	proof, err = ps.ProveNonInclusion(&params)
@@ -258,11 +270,19 @@ func (handler proveHandler) combinedProof(buf []byte) (*prover.Proof, *Error) {
 	if ps == nil {
 		return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
 	}
+
+	err = ps.LoadKeys()
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, unexpectedError(fmt.Errorf("failed to load keys: %w", err))
+	}
+
 	proof, err = ps.ProveCombined(&params)
 	if err != nil {
 		logging.Logger().Err(err)
 		return nil, provingError(err)
 	}
+
 	return proof, nil
 }
 
