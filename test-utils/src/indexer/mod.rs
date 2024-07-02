@@ -41,7 +41,7 @@ pub trait Indexer: Sync + Send + Clone + Debug + 'static {
     fn address_tree_updated(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
-        _context: NewAddressProofWithContext,
+        _context: &NewAddressProofWithContext,
     ) {
     }
 }

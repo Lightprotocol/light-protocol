@@ -279,7 +279,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
     fn address_tree_updated(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        context: NewAddressProofWithContext,
+        context: &NewAddressProofWithContext,
     ) {
         let pubkey = Pubkey::from(merkle_tree_pubkey);
         let mut address_tree_bundle: &mut AddressMerkleTreeBundle<{ INDEXED_ARRAY_SIZE }> = self
@@ -288,9 +288,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             .find(|x| x.accounts.merkle_tree == pubkey)
             .unwrap();
 
-        let new_low_element = context.new_low_element.unwrap();
-        let new_element = context.new_element.unwrap();
-        let new_element_next_value = context.new_element_next_value.unwrap();
+        let new_low_element = context.new_low_element.clone().unwrap();
+        let new_element = context.new_element.clone().unwrap();
+        let new_element_next_value = context.new_element_next_value.clone().unwrap();
         address_tree_bundle
             .merkle_tree
             .update(&new_low_element, &new_element, &new_element_next_value)
