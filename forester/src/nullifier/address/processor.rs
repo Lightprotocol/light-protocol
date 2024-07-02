@@ -146,9 +146,9 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
         // TODO: use changelog array size from tree config
         let indexer_changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
-        // TODO: 
+        // TODO:
         // 1. add index changelog current changelog index to the proof or we make them the same size
-        // 2. remove -1 after new zktestnet release 
+        // 2. remove -1 after new zktestnet release
         let indexer_index_changelog = (proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG;
 
         debug!("changelog: {:?}", indexer_changelog);
