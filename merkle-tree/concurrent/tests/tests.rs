@@ -3160,3 +3160,27 @@ fn test_update_changelog_wrap_around_sha256_26_256_512_0() {
     const CANOPY: usize = 0;
     update_changelog_wrap_around::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
+
+#[test]
+fn test_append_batch() {
+    let mut tree = ConcurrentMerkleTree::<Sha256, 2>::new(2, 2, 2, 1).unwrap();
+    tree.init().unwrap();
+    let leaf_0 = [0; 32];
+    let leaf_1 = [1; 32];
+    tree.append_batch(&[&leaf_0, &leaf_1]).unwrap();
+    let change_log_0 = tree
+        .changelog
+        .get(tree.changelog.first_index())
+        .unwrap()
+        .path;
+    let change_log_1 = tree
+        .changelog
+        .get(tree.changelog.last_index())
+        .unwrap()
+        .path;
+    let path_0 = [leaf_0, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
+    let path_1 = [leaf_1, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
+
+    assert_eq!(change_log_1, path_1);
+    assert_eq!(change_log_0, path_0);
+}
