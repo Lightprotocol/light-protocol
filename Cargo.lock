@@ -3032,6 +3032,7 @@ dependencies = [
  "borsh 0.10.3",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-merkle-tree-reference",
  "light-utils",
