@@ -185,7 +185,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
         account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
             0,
             payer.pubkey(),
-            payer.pubkey(),
+            None,
             None,
             merkle_tree_keypair.pubkey(),
             queue_keypair.pubkey(),
