@@ -793,82 +793,86 @@ async fn update_address_merkle_tree_failing_tests(
 
     let changelog_index = address_merkle_tree.changelog_index();
 
-    // CHECK: 9 invalid changelog index (lower)
-    let invalid_changelog_index_low = changelog_index - 2;
-    let error_invalid_changelog_index_low = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_low as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_low,
-        0,
-        10009, // ConcurrentMerkleTreeError::InvalidProof
-    )
-    .unwrap();
+    if merkle_tree_config.changelog_size >= 2 {
+        // CHECK: 9 invalid changelog index (lower)
+        let invalid_changelog_index_low = changelog_index - 2;
+        let error_invalid_changelog_index_low = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_low as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_low,
+            0,
+            10009, // ConcurrentMerkleTreeError::InvalidProof
+        )
+        .unwrap();
 
-    // CHECK: 10 invalid changelog index (higher)
-    let invalid_changelog_index_high = changelog_index + 2;
-    let error_invalid_changelog_index_high = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_high as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_high,
-        0,
-        8003, // BoundedVecError::IterFromOutOfBounds
-    )
-    .unwrap();
+        // CHECK: 10 invalid changelog index (higher)
+        let invalid_changelog_index_high = changelog_index + 2;
+        let error_invalid_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_high as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_high,
+            0,
+            8003, // BoundedVecError::IterFromOutOfBounds
+        )
+        .unwrap();
+    }
 
     let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
 
-    // CHECK: 11 invalid indexed changelog index (higher)
-    let invalid_indexed_changelog_index_high = indexed_changelog_index + 1;
-    let error_invalid_indexed_changelog_index_high = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        None,
-        Some(invalid_indexed_changelog_index_high as u16),
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_indexed_changelog_index_high,
-        0,
-        8003, // BoundedVecError::IterFromOutOfBounds
-    )
-    .unwrap();
+    if merkle_tree_config.address_changelog_size >= 2 {
+        // CHECK: 11 invalid indexed changelog index (higher)
+        let invalid_indexed_changelog_index_high = indexed_changelog_index + 1;
+        let error_invalid_indexed_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            None,
+            Some(invalid_indexed_changelog_index_high as u16),
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_indexed_changelog_index_high,
+            0,
+            8003, // BoundedVecError::IterFromOutOfBounds
+        )
+        .unwrap();
+    }
 
     // CHECK: 12 invalid queue account
     let invalid_queue = address_merkle_tree_pubkey;
