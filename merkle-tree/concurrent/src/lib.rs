@@ -121,12 +121,11 @@ where
         + mem::size_of::<[u8; 32]>() * Self::canopy_size(canopy_depth)
     }
 
-    pub fn new(
+    fn check_size_constraints_new(
         height: usize,
         changelog_size: usize,
         roots_size: usize,
-        canopy_depth: usize,
-    ) -> Result<Self, ConcurrentMerkleTreeError> {
+    ) -> Result<(), ConcurrentMerkleTreeError> {
         if height == 0 || HEIGHT == 0 {
             return Err(ConcurrentMerkleTreeError::HeightZero);
         }
@@ -138,6 +137,24 @@ where
         if roots_size == 0 {
             return Err(ConcurrentMerkleTreeError::RootsZero);
         }
+        Ok(())
+    }
+
+    fn check_size_constraints(&self) -> Result<(), ConcurrentMerkleTreeError> {
+        Self::check_size_constraints_new(
+            self.height,
+            self.changelog.capacity(),
+            self.roots.capacity(),
+        )
+    }
+
+    pub fn new(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        Self::check_size_constraints_new(height, changelog_size, roots_size)?;
 
         let layout = Layout::new::<usize>();
         let next_index = unsafe { alloc::alloc(layout) as *mut usize };
@@ -179,6 +196,8 @@ where
 
     /// Initializes the Merkle tree.
     pub fn init(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
+        self.check_size_constraints()?;
+
         // Initialize root.
         let root = H::zero_bytes()[self.height];
         self.roots.push(root);

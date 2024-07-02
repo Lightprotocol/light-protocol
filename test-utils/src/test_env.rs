@@ -1,3 +1,5 @@
+use std::cmp;
+
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
 use crate::create_account_instruction;
@@ -521,9 +523,11 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     // we appended two values this the expected next index is 2;
     // The right most leaf is the hash of the indexed array element with value FIELD_SIZE - 1
     // index 1, next_index: 0
-    let expected_change_log_length = 4;
-    let expected_roots_length = 4;
+    let expected_change_log_length = cmp::min(4, merkle_tree_config.changelog_size as usize);
+    let expected_roots_length = cmp::min(4, merkle_tree_config.roots_size as usize);
     let expected_next_index = 2;
+    let expected_indexed_change_log_length =
+        cmp::min(4, merkle_tree_config.address_changelog_size as usize);
     let mut reference_tree =
         light_indexed_merkle_tree::reference::IndexedMerkleTree::<Poseidon, usize>::new(
             account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
@@ -561,8 +565,8 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         expected_roots_length,
         expected_next_index,
         &expected_right_most_leaf,
-        &owner,
-        expected_change_log_length,
+        owner,
+        expected_indexed_change_log_length,
     )
     .await;
 

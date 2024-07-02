@@ -113,7 +113,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     );
     assert_eq!(merkle_tree.next_index(), expected_next_index);
     assert_eq!(
-        merkle_tree.sequence_number(),
+        merkle_tree.sequence_number() % merkle_tree_config.roots_size as usize,
         expected_roots_length.saturating_sub(1)
     );
     assert_eq!(&merkle_tree.rightmost_leaf(), expected_rightmost_leaf);
