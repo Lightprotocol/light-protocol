@@ -3,11 +3,17 @@ use crate::{
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
     initialize_nullifier_queue::process_initialize_nullifier_queue,
     state::{QueueAccount, StateMerkleTreeAccount},
-    utils::constants::{
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-        STATE_NULLIFIER_QUEUE_VALUES,
+    utils::{
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
+        constants::{
+            STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+            STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+            STATE_NULLIFIER_QUEUE_VALUES,
+        },
     },
+    RegisteredProgram,
 };
 use anchor_lang::prelude::*;
 use std::default;
@@ -20,7 +26,7 @@ pub struct InitializeStateMerkleTreeAndNullifierQueue<'info> {
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
     pub nullifier_queue: AccountLoader<'info, QueueAccount>,
-    pub system_program: Program<'info, System>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
@@ -47,7 +53,14 @@ impl default::Default for StateMerkleTreeConfig {
         }
     }
 }
-
+impl<'info> GroupAccounts<'info> for InitializeStateMerkleTreeAndNullifierQueue<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
+}
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct NullifierQueueConfig {
     pub capacity: u16,
@@ -67,10 +80,9 @@ impl default::Default for NullifierQueueConfig {
     }
 }
 
-pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
-    ctx: Context<'_, '_, '_, '_, InitializeStateMerkleTreeAndNullifierQueue<'_>>,
+pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
     index: u64,
-    owner: Pubkey,
     program_owner: Option<Pubkey>,
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
@@ -105,7 +117,16 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         );
         return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
     }
-
+    let owner = match ctx.accounts.registered_program_pda.as_ref() {
+        Some(registered_program_pda) => {
+            check_signer_is_registered_or_authority::<
+                InitializeStateMerkleTreeAndNullifierQueue,
+                RegisteredProgram,
+            >(&ctx, registered_program_pda)?;
+            registered_program_pda.group_authority_pda
+        }
+        None => ctx.accounts.authority.key(),
+    };
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,
         index,

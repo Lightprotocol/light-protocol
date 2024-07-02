@@ -462,6 +462,142 @@ export type LightRegistry = {
                 },
             ];
         },
+        {
+            name: 'initializeAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ];
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'index';
+                    type: 'u64';
+                },
+                {
+                    name: 'programOwner';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'merkleTreeConfig';
+                    type: {
+                        defined: 'AddressMerkleTreeConfig';
+                    };
+                },
+                {
+                    name: 'queueConfig';
+                    type: {
+                        defined: 'AddressQueueConfig';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'initializeStateMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ];
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'index';
+                    type: 'u64';
+                },
+                {
+                    name: 'programOwner';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'merkleTreeConfig';
+                    type: {
+                        defined: 'StateMerkleTreeConfig';
+                    };
+                },
+                {
+                    name: 'queueConfig';
+                    type: {
+                        defined: 'NullifierQueueConfig';
+                    };
+                },
+                {
+                    name: 'additionalRent';
+                    type: 'u64';
+                },
+            ];
+        },
     ];
     accounts: [
         {
@@ -995,6 +1131,142 @@ export const IDL: LightRegistry = {
                 {
                     name: 'authority',
                     type: 'publicKey',
+                },
+            ],
+        },
+        {
+            name: 'initializeAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ],
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'index',
+                    type: 'u64',
+                },
+                {
+                    name: 'programOwner',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'merkleTreeConfig',
+                    type: {
+                        defined: 'AddressMerkleTreeConfig',
+                    },
+                },
+                {
+                    name: 'queueConfig',
+                    type: {
+                        defined: 'AddressQueueConfig',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'initializeStateMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ],
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'index',
+                    type: 'u64',
+                },
+                {
+                    name: 'programOwner',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'merkleTreeConfig',
+                    type: {
+                        defined: 'StateMerkleTreeConfig',
+                    },
+                },
+                {
+                    name: 'queueConfig',
+                    type: {
+                        defined: 'NullifierQueueConfig',
+                    },
+                },
+                {
+                    name: 'additionalRent',
+                    type: 'u64',
                 },
             ],
         },

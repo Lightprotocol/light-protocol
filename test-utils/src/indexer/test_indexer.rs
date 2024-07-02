@@ -1,3 +1,4 @@
+use light_registry::sdk::get_registered_program_pda;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -446,9 +447,11 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
     ) -> AddressMerkleTreeAccounts {
+        let registered_program_pda: Pubkey = get_registered_program_pda(&light_registry::ID);
+
         create_address_merkle_tree_and_queue_account(
             &self.payer,
-            &self.group_pda,
+            true,
             rpc,
             merkle_tree_keypair,
             queue_keypair,
@@ -488,7 +491,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     ) {
         create_state_merkle_tree_and_queue_account(
             &self.payer,
-            &self.group_pda,
+            true,
             rpc,
             merkle_tree_keypair,
             nullifier_queue_keypair,
