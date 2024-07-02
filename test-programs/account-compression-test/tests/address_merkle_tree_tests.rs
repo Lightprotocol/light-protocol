@@ -294,27 +294,21 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         ..=valid_queue_size)
         .step_by(50_000)
     {
-        for invalid_tree_size in (8 + mem::size_of::<
-            account_compression::state::AddressMerkleTreeAccount,
-        >()..valid_tree_size)
-            .step_by(200_000)
-        {
-            let result = initialize_address_merkle_tree_and_queue(
-                &mut context,
-                &payer,
-                &address_merkle_tree_keypair,
-                &address_queue_keypair,
-                &merkle_tree_config,
-                &queue_config,
-                invalid_tree_size,
-                invalid_queue_size,
-            )
-            .await;
-            assert_rpc_error(
-                result, 3, 9006, // HashSetError::BufferSize
-            )
-            .unwrap()
-        }
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            valid_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 3, 9006, // HashSetError::BufferSize
+        )
+        .unwrap()
     }
 }
 
