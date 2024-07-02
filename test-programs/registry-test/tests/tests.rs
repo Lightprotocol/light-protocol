@@ -36,9 +36,14 @@ use std::str::FromStr;
 async fn test_register_program() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let random_program_keypair = Keypair::new();
-    register_program_with_registry_program(&mut rpc, &env, &random_program_keypair)
-        .await
-        .unwrap();
+    register_program_with_registry_program(
+        &mut rpc,
+        &env.governance_authority,
+        &env.group_pda,
+        &random_program_keypair,
+    )
+    .await
+    .unwrap();
 }
 
 /// Test:

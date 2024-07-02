@@ -4,6 +4,7 @@ use crate::create_account_instruction;
 use crate::registry::register_test_forester;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
+use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
@@ -191,6 +192,25 @@ pub async fn setup_test_programs_with_accounts(
     register_test_forester(&mut context, &payer, &forester.pubkey())
         .await
         .unwrap();
+    let system_program_id_test_keypair =
+        Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
+    register_program_with_registry_program(
+        &mut context,
+        &payer,
+        &group_pda,
+        &system_program_id_test_keypair,
+    )
+    .await
+    .unwrap();
+    let registry_id_test_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    register_program_with_registry_program(
+        &mut context,
+        &payer,
+        &group_pda,
+        &registry_id_test_keypair,
+    )
+    .await
+    .unwrap();
 
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
@@ -199,7 +219,7 @@ pub async fn setup_test_programs_with_accounts(
 
     create_state_merkle_tree_and_queue_account(
         &payer,
-        &group_pda,
+        true,
         &mut context,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -218,7 +238,7 @@ pub async fn setup_test_programs_with_accounts(
 
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &group_pda,
+        true,
         &mut context,
         &address_merkle_tree_keypair,
         &address_merkle_tree_queue_keypair,
@@ -253,19 +273,7 @@ pub async fn setup_test_programs_with_accounts(
         registered_registry_program_pda,
         registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
     };
-    let system_program_id_test_keypair =
-        Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
-    register_program_with_registry_program(
-        &mut context,
-        &env_accounts,
-        &system_program_id_test_keypair,
-    )
-    .await
-    .unwrap();
-    let registry_id_test_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    register_program_with_registry_program(&mut context, &env_accounts, &registry_id_test_keypair)
-        .await
-        .unwrap();
+
     (context, env_accounts)
 }
 
@@ -352,7 +360,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
 #[allow(clippy::too_many_arguments)]
 pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
-    owner: &Pubkey,
+    registry: bool,
     rpc: &mut R,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
@@ -361,6 +369,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
+    use light_registry::sdk::create_initialize_merkle_tree_instruction as create_initialize_merkle_tree_instruction_registry;
     let size = account_compression::state::StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
@@ -390,17 +399,30 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         Some(nullifier_queue_keypair),
     );
 
-    let instruction = create_initialize_merkle_tree_instruction(
-        payer.pubkey(),
-        *owner,
-        merkle_tree_keypair.pubkey(),
-        nullifier_queue_keypair.pubkey(),
-        merkle_tree_config.clone(),
-        queue_config.clone(),
-        program_owner,
-        index,
-        0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT once enabled
-    );
+    let instruction = if registry {
+        create_initialize_merkle_tree_instruction_registry(
+            payer.pubkey(),
+            merkle_tree_keypair.pubkey(),
+            nullifier_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+            program_owner,
+            index,
+            0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT
+        )
+    } else {
+        create_initialize_merkle_tree_instruction(
+            payer.pubkey(),
+            None,
+            merkle_tree_keypair.pubkey(),
+            nullifier_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+            program_owner,
+            index,
+            0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT
+        )
+    };
 
     let transaction = Transaction::new_signed_with_payer(
         &[
@@ -419,7 +441,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
 #[inline(never)]
 pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
-    owner: &Pubkey,
+    registry: bool,
     context: &mut R,
     address_merkle_tree_keypair: &Keypair,
     address_queue_keypair: &Keypair,
@@ -428,7 +450,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     queue_config: &AddressQueueConfig,
     index: u64,
 ) {
-    use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
+    use light_registry::sdk::create_initialize_address_merkle_tree_and_queue_instruction as create_initialize_address_merkle_tree_and_queue_instruction_registry;
 
     let size =
         account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
@@ -460,20 +482,30 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
-        index,
-        payer.pubkey(),
-        *owner,
-        program_owner,
-        address_merkle_tree_keypair.pubkey(),
-        address_queue_keypair.pubkey(),
-        merkle_tree_config.clone(),
-        queue_config.clone(),
-    );
-    let c_ix =
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
+    let instruction = if registry {
+        create_initialize_address_merkle_tree_and_queue_instruction_registry(
+            index,
+            payer.pubkey(),
+            program_owner,
+            address_merkle_tree_keypair.pubkey(),
+            address_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+        )
+    } else {
+        create_initialize_address_merkle_tree_and_queue_instruction(
+            index,
+            payer.pubkey(),
+            None,
+            program_owner,
+            address_merkle_tree_keypair.pubkey(),
+            address_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+        )
+    };
     let transaction = Transaction::new_signed_with_payer(
-        &[c_ix, account_create_ix, mt_account_create_ix, instruction],
+        &[account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
         context.get_latest_blockhash().await.unwrap(),
@@ -509,6 +541,15 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         220, 48, 163, 158, 50, 107, 64, 87, 167, 217, 99, 245,
     ];
     assert_eq!(expected_right_most_leaf, _expected_right_most_leaf);
+    let owner = if registry {
+        let registered_program = get_registered_program_pda(&light_registry::ID);
+        let registered_program_account = context
+            .get_anchor_account::<RegisteredProgram>(&registered_program)
+            .await;
+        registered_program_account.group_authority_pda
+    } else {
+        payer.pubkey()
+    };
     assert_address_merkle_tree_initialized(
         context,
         &address_merkle_tree_keypair.pubkey(),
@@ -520,7 +561,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         expected_roots_length,
         expected_next_index,
         &expected_right_most_leaf,
-        owner,
+        &owner,
         expected_change_log_length,
     )
     .await;
@@ -534,7 +575,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         QueueType::AddressQueue,
         index,
         program_owner,
-        owner,
+        &owner,
     )
     .await;
 }
@@ -582,19 +623,20 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
 
 pub async fn register_program_with_registry_program(
     rpc: &mut ProgramTestRpcConnection,
-    env: &EnvAccounts,
+    governance_authority: &Keypair,
+    group_pda: &Pubkey,
     program_id_keypair: &Keypair,
 ) -> Result<Pubkey, crate::rpc::errors::RpcError> {
     let governance_authority_pda = get_governance_authority_pda();
     let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
-        env.governance_authority.pubkey(),
+        governance_authority.pubkey(),
         governance_authority_pda,
-        env.group_pda,
+        *group_pda,
         program_id_keypair.pubkey(),
     );
     let cpi_authority_pda = get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
-        &env.governance_authority.pubkey(),
+        &governance_authority.pubkey(),
         &cpi_authority_pda.0,
         rpc.get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
             .await
@@ -603,8 +645,8 @@ pub async fn register_program_with_registry_program(
 
     rpc.create_and_send_transaction(
         &[transfer_instruction, instruction],
-        &env.governance_authority.pubkey(),
-        &[&env.governance_authority, program_id_keypair],
+        &governance_authority.pubkey(),
+        &[governance_authority, program_id_keypair],
     )
     .await?;
     Ok(token_program_registered_program_pda)

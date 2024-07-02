@@ -7,23 +7,22 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
-    StateMerkleTreeAccount, StateMerkleTreeConfig,
+    NullifierQueueConfig, QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_registry::get_forester_epoch_pda_address;
 use light_registry::sdk::{
-    create_nullify_instruction, get_cpi_authority_pda, CreateNullifyInstructionInputs,
+    create_nullify_instruction, get_cpi_authority_pda, get_registered_program_pda,
+    CreateNullifyInstructionInputs,
 };
-use light_system_program::utils::get_registered_program_pda;
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    initialize_new_group, register_program_with_registry_program, NOOP_PROGRAM_ID,
+    create_state_merkle_tree_and_queue_account, initialize_new_group,
+    register_program_with_registry_program, NOOP_PROGRAM_ID,
 };
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{airdrop_lamports, create_account_instruction};
@@ -204,19 +203,69 @@ async fn test_invalid_registered_program() {
     .await;
     let invalid_group_address_merkle_tree = Keypair::new();
     let invalid_group_address_queue = Keypair::new();
-    create_address_merkle_tree_and_queue_account(
-        &payer,
-        &invalid_group_pda,
-        &mut rpc,
-        &invalid_group_address_merkle_tree,
-        &invalid_group_address_queue,
-        None,
-        &AddressMerkleTreeConfig::default(),
-        &AddressQueueConfig::default(),
-        3,
-    )
-    .await;
+    // let registred_program = get_registered_program_pda(&program_id_keypair.pubkey());
+    // create_address_merkle_tree_and_queue_account(
+    //     &payer,
+    //     Some(registred_program),
+    //     &mut rpc,
+    //     &invalid_group_address_merkle_tree,
+    //     &invalid_group_address_queue,
+    //     None,
+    //     &AddressMerkleTreeConfig::default(),
+    //     &AddressQueueConfig::default(),
+    //     3,
+    // )
+    // .await;
+    // let size =
+    //     account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
+    // let account_create_ix = create_account_instruction(
+    //     &payer.pubkey(),
+    //     size,
+    //     context
+    //         .get_minimum_balance_for_rent_exemption(size)
+    //         .await
+    //         .unwrap(),
+    //     &account_compression::ID,
+    //     Some(address_queue_keypair),
+    // );
 
+    // let size = account_compression::state::AddressMerkleTreeAccount::size(
+    //     merkle_tree_config.height as usize,
+    //     merkle_tree_config.changelog_size as usize,
+    //     merkle_tree_config.roots_size as usize,
+    //     merkle_tree_config.canopy_depth as usize,
+    //     merkle_tree_config.address_changelog_size as usize,
+    // );
+    // let mt_account_create_ix = create_account_instruction(
+    //     &payer.pubkey(),
+    //     size,
+    //     context
+    //         .get_minimum_balance_for_rent_exemption(size)
+    //         .await
+    //         .unwrap(),
+    //     &account_compression::ID,
+    //     Some(address_merkle_tree_keypair),
+    // );
+    // let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
+    //     index,
+    //     payer.pubkey(),
+    //     None,
+    //     program_owner,
+    //     address_merkle_tree_keypair.pubkey(),
+    //     address_queue_keypair.pubkey(),
+    //     merkle_tree_config.clone(),
+    //     queue_config.clone(),
+    // );
+    // let transaction = Transaction::new_signed_with_payer(
+    //     &[account_create_ix, mt_account_create_ix, instruction],
+    //     Some(&payer.pubkey()),
+    //     &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
+    //     context.get_latest_blockhash().await.unwrap(),
+    // );
+    // context
+    //     .process_transaction(transaction.clone())
+    //     .await
+    //     .unwrap();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
     // invoke account compression program through system cpi test
@@ -269,10 +318,14 @@ async fn test_invalid_registered_program() {
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     let other_program_id_keypair = Keypair::new();
-    let token_program_registered_program_pda =
-        register_program_with_registry_program(&mut rpc, &env, &other_program_id_keypair)
-            .await
-            .unwrap();
+    let token_program_registered_program_pda = register_program_with_registry_program(
+        &mut rpc,
+        &env.governance_authority,
+        &env.group_pda,
+        &other_program_id_keypair,
+    )
+    .await
+    .unwrap();
     // 4. use registered_program_pda of other program
     {
         let derived_address =

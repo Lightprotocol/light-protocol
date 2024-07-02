@@ -34,7 +34,6 @@ pub mod account_compression {
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
-        owner: Pubkey,
         program_owner: Option<Pubkey>,
         address_merkle_tree_config: AddressMerkleTreeConfig,
         address_queue_config: AddressQueueConfig,
@@ -42,7 +41,6 @@ pub mod account_compression {
         process_initialize_address_merkle_tree_and_queue(
             ctx,
             index,
-            owner,
             program_owner,
             address_merkle_tree_config,
             address_queue_config,
@@ -126,10 +124,9 @@ pub mod account_compression {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Index is an optional identifier and not checked by the program.
-    pub fn initialize_state_merkle_tree_and_nullifier_queue(
-        ctx: Context<InitializeStateMerkleTreeAndNullifierQueue>,
+    pub fn initialize_state_merkle_tree_and_nullifier_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
         index: u64,
-        owner: Pubkey,
         program_owner: Option<Pubkey>,
         state_merkle_tree_config: StateMerkleTreeConfig,
         nullifier_queue_config: NullifierQueueConfig,
@@ -140,7 +137,6 @@ pub mod account_compression {
         process_initialize_state_merkle_tree_and_nullifier_queue(
             ctx,
             index,
-            owner,
             program_owner,
             state_merkle_tree_config,
             nullifier_queue_config,

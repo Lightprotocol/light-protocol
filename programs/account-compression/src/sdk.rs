@@ -15,7 +15,7 @@ use crate::{
 
 pub fn create_initialize_merkle_tree_instruction(
     payer: Pubkey,
-    owner: Pubkey,
+    registered_program_pda: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
     nullifier_queue_pubkey: Pubkey,
     state_merkle_tree_config: StateMerkleTreeConfig,
@@ -26,11 +26,14 @@ pub fn create_initialize_merkle_tree_instruction(
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
-        owner,
         program_owner,
         state_merkle_tree_config,
         nullifier_queue_config,
         additional_rent,
+    };
+    let registered_program = match registered_program_pda {
+        Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
+        None => AccountMeta::new(crate::ID, false),
     };
     Instruction {
         program_id: crate::ID,
@@ -38,7 +41,7 @@ pub fn create_initialize_merkle_tree_instruction(
             AccountMeta::new(payer, true),
             AccountMeta::new(merkle_tree_pubkey, false),
             AccountMeta::new(nullifier_queue_pubkey, false),
-            AccountMeta::new_readonly(system_program::ID, false),
+            registered_program,
         ],
         data: instruction_data.data(),
     }
@@ -77,7 +80,7 @@ pub fn create_insert_leaves_instruction(
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     index: u64,
     payer: Pubkey,
-    owner: Pubkey,
+    registered_program_pda: Option<Pubkey>,
     program_owner: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
@@ -86,10 +89,13 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
 ) -> Instruction {
     let instruction_data = InitializeAddressMerkleTreeAndQueue {
         index,
-        owner,
         program_owner,
         address_merkle_tree_config,
         address_queue_config,
+    };
+    let registered_program = match registered_program_pda {
+        Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
+        None => AccountMeta::new(crate::ID, false),
     };
     Instruction {
         program_id: crate::ID,
@@ -97,7 +103,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
             AccountMeta::new(payer, true),
             AccountMeta::new(merkle_tree_pubkey, false),
             AccountMeta::new(queue_pubkey, false),
-            AccountMeta::new_readonly(system_program::ID, false),
+            registered_program,
         ],
         data: instruction_data.data(),
     }
