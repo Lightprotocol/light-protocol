@@ -100,25 +100,26 @@ where
             )
         };
 
-        Ok((
-            ConcurrentMerkleTree {
-                height,
-                canopy_depth,
-                next_index,
-                sequence_number,
-                rightmost_leaf,
-                filled_subtrees,
-                changelog,
-                roots,
-                canopy,
-                _hasher: PhantomData,
-            },
-            offset,
-        ))
+        let merkle_tree = ConcurrentMerkleTree {
+            height,
+            canopy_depth,
+            next_index,
+            sequence_number,
+            rightmost_leaf,
+            filled_subtrees,
+            changelog,
+            roots,
+            canopy,
+            _hasher: PhantomData,
+        };
+        merkle_tree.check_size_constraints()?;
+
+        Ok((merkle_tree, offset))
     }
 
     pub fn from_bytes_zero_copy(bytes: &'a [u8]) -> Result<Self, ConcurrentMerkleTreeError> {
         let (merkle_tree, _) = Self::struct_from_bytes_zero_copy(bytes)?;
+        merkle_tree.check_size_constraints()?;
 
         Ok(Self {
             merkle_tree: mem::ManuallyDrop::new(merkle_tree),

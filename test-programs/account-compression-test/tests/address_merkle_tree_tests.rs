@@ -122,29 +122,29 @@ async fn test_address_queue_and_tree_functional_default() {
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-
-            for address_changelog_size in (250..1000).step_by(250) {
-                address_queue_and_tree_functional(
-                    &AddressMerkleTreeConfig {
-                        height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                        changelog_size,
-                        roots_size,
-                        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                        address_changelog_size,
-                        network_fee: Some(5000),
-                        rollover_threshold: Some(95),
-                        close_threshold: None,
-                    },
-                    &AddressQueueConfig {
-                        capacity: queue_capacity,
-                        sequence_threshold: roots_size + SAFETY_MARGIN,
-                        network_fee: None,
-                    },
-                )
-                .await;
+    for changelog_size in (1..=5000).step_by(1000) {
+        for roots_size in (changelog_size..=5000).step_by(1000) {
+            for queue_capacity in [5003, 6857, 7901] {
+                for address_changelog_size in (250..1000).step_by(250) {
+                    address_queue_and_tree_functional(
+                        &AddressMerkleTreeConfig {
+                            height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                            changelog_size,
+                            roots_size,
+                            canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                            address_changelog_size,
+                            network_fee: Some(5000),
+                            rollover_threshold: Some(95),
+                            close_threshold: None,
+                        },
+                        &AddressQueueConfig {
+                            capacity: queue_capacity,
+                            sequence_threshold: roots_size + SAFETY_MARGIN,
+                            network_fee: None,
+                        },
+                    )
+                    .await;
+                }
             }
         }
     }
@@ -305,6 +305,15 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     }
 }
 
+/// Tries to initzalize Merkle tree and queue with unsupported configuration
+/// parameters:
+///
+/// 1. Merkle tree height (different than 26).
+/// 2. Merkle tree canopy depth (different than 10).
+/// 3. Merkle tree changelog size (zero).
+/// 4. Merkle tree roots size (zero).
+/// 5. Merkle tree close threshold (any).
+/// 6. Queue sequence threshold (lower than roots + safety margin).
 #[tokio::test]
 async fn test_address_queue_and_tree_invalid_config() {
     let mut program_test = ProgramTest::default();
@@ -393,6 +402,44 @@ async fn test_address_queue_and_tree_invalid_config() {
             result,
             2,
             AccountCompressionErrorCode::UnsupportedCanopyDepth.into(),
+        )
+        .unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.changelog_size = 0;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 10003, // ConcurrentMerkleTree::ChangelogZero
+        )
+        .unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.roots_size = 0;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result, 2, 10004, // ConcurrentMerkleTree::RootsSize
         )
         .unwrap();
     }
@@ -746,82 +793,86 @@ async fn update_address_merkle_tree_failing_tests(
 
     let changelog_index = address_merkle_tree.changelog_index();
 
-    // CHECK: 9 invalid changelog index (lower)
-    let invalid_changelog_index_low = changelog_index - 2;
-    let error_invalid_changelog_index_low = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_low as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_low,
-        0,
-        10009, // ConcurrentMerkleTreeError::InvalidProof
-    )
-    .unwrap();
+    if merkle_tree_config.changelog_size >= 2 {
+        // CHECK: 9 invalid changelog index (lower)
+        let invalid_changelog_index_low = changelog_index - 2;
+        let error_invalid_changelog_index_low = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_low as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_low,
+            0,
+            10009, // ConcurrentMerkleTreeError::InvalidProof
+        )
+        .unwrap();
 
-    // CHECK: 10 invalid changelog index (higher)
-    let invalid_changelog_index_high = changelog_index + 2;
-    let error_invalid_changelog_index_high = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_high as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_high,
-        0,
-        8003, // BoundedVecError::IterFromOutOfBounds
-    )
-    .unwrap();
+        // CHECK: 10 invalid changelog index (higher)
+        let invalid_changelog_index_high = changelog_index + 2;
+        let error_invalid_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_high as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_high,
+            0,
+            8003, // BoundedVecError::IterFromOutOfBounds
+        )
+        .unwrap();
+    }
 
     let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
 
-    // CHECK: 11 invalid indexed changelog index (higher)
-    let invalid_indexed_changelog_index_high = indexed_changelog_index + 1;
-    let error_invalid_indexed_changelog_index_high = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        None,
-        Some(invalid_indexed_changelog_index_high as u16),
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_indexed_changelog_index_high,
-        0,
-        8003, // BoundedVecError::IterFromOutOfBounds
-    )
-    .unwrap();
+    if merkle_tree_config.address_changelog_size >= 2 {
+        // CHECK: 11 invalid indexed changelog index (higher)
+        let invalid_indexed_changelog_index_high = indexed_changelog_index + 1;
+        let error_invalid_indexed_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            None,
+            Some(invalid_indexed_changelog_index_high as u16),
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_indexed_changelog_index_high,
+            0,
+            8003, // BoundedVecError::IterFromOutOfBounds
+        )
+        .unwrap();
+    }
 
     // CHECK: 12 invalid queue account
     let invalid_queue = address_merkle_tree_pubkey;
@@ -926,29 +977,29 @@ async fn update_address_merkle_tree_failing_tests_default() {
 
 #[tokio::test]
 async fn update_address_merkle_tree_failing_tests_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-
-            for address_changelog_size in (250..1000).step_by(250) {
-                update_address_merkle_tree_failing_tests(
-                    &AddressMerkleTreeConfig {
-                        height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                        changelog_size,
-                        roots_size,
-                        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                        address_changelog_size,
-                        network_fee: Some(5000),
-                        rollover_threshold: Some(95),
-                        close_threshold: None,
-                    },
-                    &AddressQueueConfig {
-                        capacity: queue_capacity,
-                        sequence_threshold: roots_size + SAFETY_MARGIN,
-                        network_fee: None,
-                    },
-                )
-                .await;
+    for changelog_size in (1..=5000).step_by(1000) {
+        for roots_size in (changelog_size..=5000).step_by(1000) {
+            for queue_capacity in [5003, 6857, 7901] {
+                for address_changelog_size in (250..1000).step_by(250) {
+                    update_address_merkle_tree_failing_tests(
+                        &AddressMerkleTreeConfig {
+                            height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                            changelog_size,
+                            roots_size,
+                            canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                            address_changelog_size,
+                            network_fee: Some(5000),
+                            rollover_threshold: Some(95),
+                            close_threshold: None,
+                        },
+                        &AddressQueueConfig {
+                            capacity: queue_capacity,
+                            sequence_threshold: roots_size + SAFETY_MARGIN,
+                            network_fee: None,
+                        },
+                    )
+                    .await;
+                }
             }
         }
     }
@@ -1299,29 +1350,29 @@ async fn test_address_merkle_tree_and_queue_rollover_default() {
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-
-            for address_changelog_size in (250..1000).step_by(250) {
-                address_merkle_tree_and_queue_rollover(
-                    &AddressMerkleTreeConfig {
-                        height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                        changelog_size,
-                        roots_size,
-                        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                        address_changelog_size,
-                        network_fee: Some(5000),
-                        rollover_threshold: Some(95),
-                        close_threshold: None,
-                    },
-                    &AddressQueueConfig {
-                        capacity: queue_capacity,
-                        sequence_threshold: roots_size + SAFETY_MARGIN,
-                        network_fee: None,
-                    },
-                )
-                .await;
+    for changelog_size in (1..=5000).step_by(1000) {
+        for roots_size in (changelog_size..=5000).step_by(1000) {
+            for queue_capacity in [5003, 6857, 7901] {
+                for address_changelog_size in (250..1000).step_by(250) {
+                    address_merkle_tree_and_queue_rollover(
+                        &AddressMerkleTreeConfig {
+                            height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                            changelog_size,
+                            roots_size,
+                            canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                            address_changelog_size,
+                            network_fee: Some(5000),
+                            rollover_threshold: Some(95),
+                            close_threshold: None,
+                        },
+                        &AddressQueueConfig {
+                            capacity: queue_capacity,
+                            sequence_threshold: roots_size + SAFETY_MARGIN,
+                            network_fee: None,
+                        },
+                    )
+                    .await;
+                }
             }
         }
     }
