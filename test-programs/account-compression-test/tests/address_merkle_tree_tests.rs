@@ -192,15 +192,8 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
             merkle_tree_config.clone(),
             queue_config.clone(),
         );
-    let c_ix =
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
     let transaction = Transaction::new_signed_with_payer(
-        &[
-            c_ix,
-            queue_account_create_ix,
-            mt_account_create_ix,
-            instruction,
-        ],
+        &[queue_account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &queue_keypair, &merkle_tree_keypair],
         context.get_latest_blockhash().await.unwrap(),
