@@ -178,43 +178,34 @@ impl HashSet {
             ));
         }
 
-        let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
+        let capacity = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
 
-        let expected_size = Self::size_in_account(capacity_values);
+        let expected_size = Self::size_in_account(capacity);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
 
-        let next_value_index_layout = Layout::new::<usize>();
-        let next_value_index = unsafe { alloc::alloc(next_value_index_layout) as *mut usize };
-        if next_value_index.is_null() {
-            handle_alloc_error(next_value_index_layout);
-        }
-        unsafe {
-            *next_value_index = usize::from_ne_bytes(bytes[24..32].try_into().unwrap());
-        }
-
-        let values_layout = Layout::array::<Option<HashSetCell>>(capacity_values).unwrap();
+        let buckets_layout = Layout::array::<Option<HashSetCell>>(capacity).unwrap();
         // SAFETY: `I` is always a signed integer. Creating a layout for an
         // array of integers of any size won't cause any panic.
-        let values_dst_ptr = unsafe { alloc::alloc(values_layout) as *mut Option<HashSetCell> };
-        if values_dst_ptr.is_null() {
-            handle_alloc_error(values_layout);
+        let buckets_dst_ptr = unsafe { alloc::alloc(buckets_layout) as *mut Option<HashSetCell> };
+        if buckets_dst_ptr.is_null() {
+            handle_alloc_error(buckets_layout);
         }
-        let values = NonNull::new(values_dst_ptr).unwrap();
-        for i in 0..capacity_values {
-            std::ptr::write(values_dst_ptr.add(i), None);
+        let buckets = NonNull::new(buckets_dst_ptr).unwrap();
+        for i in 0..capacity {
+            std::ptr::write(buckets_dst_ptr.add(i), None);
         }
 
         let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
-        let values_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
-        std::ptr::copy(values_src_ptr, values_dst_ptr, capacity_values);
+        let buckets_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
+        std::ptr::copy(buckets_src_ptr, buckets_dst_ptr, capacity);
 
         Ok(Self {
-            capacity: capacity_values,
+            capacity,
             sequence_threshold,
-            buckets: values,
+            buckets,
         })
     }
 
