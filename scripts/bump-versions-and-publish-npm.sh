@@ -59,5 +59,9 @@ fi
 if [ "$error_occurred" -eq 1 ]; then
     echo "NPM release process completed with errors."
 else
+    echo "Creating tag for npm package: $package_name $version_type"
+    git tag "${package_name}-v${version_type}"
+    git push origin "${package_name}-v${version_type}"
+    
     echo "NPM release process completed successfully."
 fi
