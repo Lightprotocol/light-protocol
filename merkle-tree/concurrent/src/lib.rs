@@ -539,25 +539,9 @@ where
             let mut current_index = self.next_index();
             let mut current_node = **leaf;
 
-            // Limit until which we fill up the current Merkle path.
-            let fillup_index = if leaf_i < (leaves.len() - 1) {
-                self.next_index().trailing_ones() as usize + 1
-            } else {
-                self.height
-            };
-
             self.changelog[changelog_index].path[0] = **leaf;
 
-            // Compute the whole Merkle path up to the `fillup_index`.
-            //
-            // On each iteration, we also fill up empty nodes of previous Merkle
-            // paths with the nodes from the current path - this way we eventually
-            // fill all the paths while avoiding to calculate too many hashes.
-            //
-            // `fillup_index` of the last iteration should be always equal to
-            // the Merkle tree height. Therefore, after the last iteration, no
-            // path is going to contain and empty node.
-            for i in 0..fillup_index {
+            for i in 0..self.height {
                 let is_left = current_index % 2 == 0;
 
                 if is_left {
@@ -580,6 +564,15 @@ where
                     }
 
                     self.filled_subtrees[i] = current_node;
+
+                    // For all non-terminal leaves, stop computing parents as
+                    // soon as we are on the left side.
+                    // Computation of the parent nodes is going to happen in
+                    // the next iterations.
+                    if leaf_i < leaves.len() - 1 {
+                        break;
+                    }
+
                     current_node = H::hashv(&[&current_node, &empty_node])?;
                 } else {
                     // If the current node is on the right side:
