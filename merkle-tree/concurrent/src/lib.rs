@@ -653,7 +653,7 @@ where
         let mut paths = Vec::with_capacity(num_changelog_entries);
         for i in 0..num_changelog_entries {
             let changelog_index = (first_changelog_index + i) % self.changelog.capacity();
-            let mut path = Vec::with_capacity(self.height);
+            let mut path = Vec::with_capacity(self.height + 1);
 
             // Add all nodes from the changelog path.
             for (level, node) in self.changelog[changelog_index].path.iter().enumerate() {
