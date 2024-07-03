@@ -1332,7 +1332,7 @@ async fn test_address_merkle_tree_and_queue_rollover_custom() {
                             canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
                             address_changelog_size,
                             network_fee: Some(5000),
-                            rollover_threshold: Some(0),
+                            rollover_threshold: Some(95),
                             close_threshold: None,
                         },
                         &AddressQueueConfig {
