@@ -54,6 +54,51 @@ pub async fn subscribe_state(config: Arc<ForesterConfig>) {
     }
 }
 
+pub async fn subscribe_addresses(config: Arc<ForesterConfig>) {
+    debug!(
+        "Subscribe to address tree changes. Queue: {}. Merkle tree: {}",
+        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+    );
+    loop {
+        let (_account_subscription_client, account_subscription_receiver) =
+            match PubsubClient::account_subscribe(
+                &config.external_services.ws_rpc_url,
+                &config.address_merkle_tree_queue_pubkey,
+                Some(RpcAccountInfoConfig {
+                    encoding: None,
+                    data_slice: None,
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    min_context_slot: None,
+                }),
+            ) {
+                Ok((client, receiver)) => (client, receiver),
+                Err(e) => {
+                    warn!("account subscription error: {:?}", e);
+                    warn!("retrying in 500ms...");
+                    sleep(Duration::from_millis(500)).await;
+                    continue;
+                }
+            };
+        loop {
+            match account_subscription_receiver.recv() {
+                Ok(_) => {
+                    debug!("nullify request received");
+                    let rpc = init_rpc(&config, false).await;
+                    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+                    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+                        config.external_services.indexer_url.to_string(),
+                    )));
+                    nullify_addresses(Arc::clone(&config), rpc, indexer).await;
+                }
+                Err(e) => {
+                    warn!("account subscription error: {:?}", e);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 pub async fn nullify_state(config: Arc<ForesterConfig>) {
     debug!(
         "Run state tree nullifier. Queue: {}. Merkle tree: {}",
