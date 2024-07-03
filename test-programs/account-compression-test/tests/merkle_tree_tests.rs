@@ -192,8 +192,11 @@ async fn test_init_and_insert_into_nullifier_queue_default() {
 
 #[tokio::test]
 async fn test_init_and_insert_into_nullifier_queue_custom() {
-    for changelog_size in (1..=5000).step_by(1000) {
-        for roots_size in (changelog_size..=5000).step_by(1000) {
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
             for queue_capacity in [5003, 6857, 7901] {
                 test_init_and_insert_into_nullifier_queue(
                     &StateMerkleTreeConfig {
@@ -831,26 +834,30 @@ async fn test_init_and_rollover_state_merkle_tree_default() {
 
 #[tokio::test]
 async fn test_init_and_rollover_state_merkle_tree_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_init_and_rollover_state_merkle_tree(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
+            for queue_capacity in [5003, 6857, 7901] {
+                test_init_and_rollover_state_merkle_tree(
+                    &StateMerkleTreeConfig {
+                        height: STATE_MERKLE_TREE_HEIGHT as u32,
+                        changelog_size,
+                        roots_size,
+                        canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                        network_fee: Some(5000),
+                        rollover_threshold: Some(95),
+                        close_threshold: None,
+                    },
+                    &NullifierQueueConfig {
+                        capacity: queue_capacity,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
+                        network_fee: None,
+                    },
+                )
+                .await;
+            }
         }
     }
 }

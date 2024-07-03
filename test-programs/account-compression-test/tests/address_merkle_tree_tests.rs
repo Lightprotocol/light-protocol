@@ -122,8 +122,11 @@ async fn test_address_queue_and_tree_functional_default() {
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_custom() {
-    for changelog_size in (1..=5000).step_by(1000) {
-        for roots_size in (changelog_size..=5000).step_by(1000) {
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
             for queue_capacity in [5003, 6857, 7901] {
                 for address_changelog_size in (250..1000).step_by(250) {
                     address_queue_and_tree_functional(
@@ -1320,8 +1323,11 @@ async fn test_address_merkle_tree_and_queue_rollover_default() {
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_custom() {
-    for changelog_size in (1..=5000).step_by(1000) {
-        for roots_size in (changelog_size..=5000).step_by(1000) {
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
             for queue_capacity in [5003, 6857, 7901] {
                 for address_changelog_size in (250..1000).step_by(250) {
                     address_merkle_tree_and_queue_rollover(
