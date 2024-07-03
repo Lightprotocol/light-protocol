@@ -95,13 +95,6 @@ pub fn process_update_address_merkle_tree<'info>(
 
     let low_address_next_value = BigUint::from_bytes_be(&low_address_next_value);
 
-    // higher range
-    let address: IndexedElement<usize> = IndexedElement {
-        index: merkle_tree.next_index(),
-        value: value.clone(),
-        next_index: low_address_next_index as usize,
-    };
-
     let mut proof =
         from_vec(low_address_proof.as_slice(), merkle_tree.height).map_err(ProgramError::from)?;
 
@@ -116,7 +109,7 @@ pub fn process_update_address_merkle_tree<'info>(
         .update(
             usize::from(changelog_index),
             usize::from(indexed_changelog_index),
-            address,
+            value.clone(),
             low_address,
             low_address_next_value,
             &mut proof,

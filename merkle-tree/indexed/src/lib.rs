@@ -338,11 +338,18 @@ where
         &mut self,
         mut changelog_index: usize,
         indexed_changelog_index: usize,
-        mut new_element: IndexedElement<I>,
+        new_element_value: BigUint,
         mut low_element: IndexedElement<I>,
         mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<IndexedMerkleTreeUpdate<I>, IndexedMerkleTreeError> {
+        let mut new_element = IndexedElement {
+            index: I::try_from(self.merkle_tree.next_index())
+                .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?,
+            value: new_element_value,
+            next_index: low_element.next_index,
+        };
+
         self.patch_elements_and_proof(
             indexed_changelog_index,
             &mut changelog_index,
@@ -371,9 +378,6 @@ where
             if new_element.value >= low_element_next_value {
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
-        }
-        if new_element.next_index != low_element.next_index {
-            return Err(IndexedMerkleTreeError::NewElementNextIndexMismatch);
         }
         // Instantiate `new_low_element` - the low element with updated values.
         let new_low_element = IndexedElement {
