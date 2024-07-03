@@ -52,10 +52,7 @@ where
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22, 12>;
 pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26, 16>;
-pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32, 22>;
-pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40, 30>;
 
 impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
