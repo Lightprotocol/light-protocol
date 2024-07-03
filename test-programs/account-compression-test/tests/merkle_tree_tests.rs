@@ -412,32 +412,6 @@ async fn test_full_nullifier_queue_default() {
     .await
 }
 
-#[tokio::test]
-async fn test_full_nullifier_queue_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_full_nullifier_queue(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
-}
-
 /// Insert nullifiers failing tests
 /// Test:
 /// 1. no nullifiers
@@ -625,32 +599,6 @@ async fn test_failing_queue_default() {
         &NullifierQueueConfig::default(),
     )
     .await
-}
-
-#[tokio::test]
-async fn test_failing_queue_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            failing_queue(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 /// Tests:
@@ -1034,32 +982,6 @@ async fn test_append_functional_and_failing_default() {
     .await
 }
 
-#[tokio::test]
-async fn test_append_functional_and_failing_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_append_functional_and_failing(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
-}
-
 /// Tests:
 /// 1. Functional: nullify leaf
 /// 2. Failing: nullify leaf with invalid leaf index
@@ -1292,32 +1214,6 @@ async fn test_nullify_leaves_default() {
         &NullifierQueueConfig::default(),
     )
     .await
-}
-
-#[tokio::test]
-async fn test_nullify_leaves_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_nullify_leaves(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(

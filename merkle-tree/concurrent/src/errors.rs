@@ -8,10 +8,14 @@ pub enum ConcurrentMerkleTreeError {
     IntegerOverflow,
     #[error("Invalid height, it has to be greater than 0")]
     HeightZero,
+    #[error("Invalud height, expected {0}")]
+    InvalidHeight(usize),
     #[error("Invalid changelog size, it has to be greater than 0. Changelog is used for storing Merkle paths during appends.")]
     ChangelogZero,
     #[error("Invalid number of roots, it has to be greater than 0")]
     RootsZero,
+    #[error("Canopy depth has to be lower than height")]
+    CanopyGeThanHeight,
     #[error("Merkle tree is full, cannot append more leaves.")]
     TreeFull,
     #[error("Number of leaves ({0}) exceeds the changelog capacity ({1}).")]
@@ -42,16 +46,18 @@ impl From<ConcurrentMerkleTreeError> for u32 {
         match e {
             ConcurrentMerkleTreeError::IntegerOverflow => 10001,
             ConcurrentMerkleTreeError::HeightZero => 10002,
-            ConcurrentMerkleTreeError::ChangelogZero => 10003,
-            ConcurrentMerkleTreeError::RootsZero => 10004,
-            ConcurrentMerkleTreeError::TreeFull => 10005,
-            ConcurrentMerkleTreeError::BatchGreaterThanChangelog(_, _) => 10006,
-            ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 10007,
-            ConcurrentMerkleTreeError::InvalidProof(_, _) => 10008,
-            ConcurrentMerkleTreeError::CannotUpdateLeaf => 10009,
-            ConcurrentMerkleTreeError::CannotUpdateEmpty => 10010,
-            ConcurrentMerkleTreeError::EmptyLeaves => 10011,
-            ConcurrentMerkleTreeError::BufferSize(_, _) => 10012,
+            ConcurrentMerkleTreeError::InvalidHeight(_) => 10003,
+            ConcurrentMerkleTreeError::ChangelogZero => 10004,
+            ConcurrentMerkleTreeError::RootsZero => 10005,
+            ConcurrentMerkleTreeError::CanopyGeThanHeight => 10006,
+            ConcurrentMerkleTreeError::TreeFull => 10007,
+            ConcurrentMerkleTreeError::BatchGreaterThanChangelog(_, _) => 10008,
+            ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 10009,
+            ConcurrentMerkleTreeError::InvalidProof(_, _) => 10010,
+            ConcurrentMerkleTreeError::CannotUpdateLeaf => 10011,
+            ConcurrentMerkleTreeError::CannotUpdateEmpty => 10012,
+            ConcurrentMerkleTreeError::EmptyLeaves => 10013,
+            ConcurrentMerkleTreeError::BufferSize(_, _) => 10014,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
             ConcurrentMerkleTreeError::BoundedVec(e) => e.into(),
         }

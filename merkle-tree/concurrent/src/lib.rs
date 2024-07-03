@@ -125,9 +125,16 @@ where
         height: usize,
         changelog_size: usize,
         roots_size: usize,
+        canopy_depth: usize,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if height == 0 || HEIGHT == 0 {
             return Err(ConcurrentMerkleTreeError::HeightZero);
+        }
+        if height != HEIGHT {
+            return Err(ConcurrentMerkleTreeError::InvalidHeight(HEIGHT));
+        }
+        if canopy_depth > height {
+            return Err(ConcurrentMerkleTreeError::CanopyGeThanHeight);
         }
         // Changelog needs to be at least 1, because it's used for storing
         // Merkle paths in `append`/`append_batch`.
@@ -145,6 +152,7 @@ where
             self.height,
             self.changelog.capacity(),
             self.roots.capacity(),
+            self.canopy_depth,
         )
     }
 
@@ -154,7 +162,7 @@ where
         roots_size: usize,
         canopy_depth: usize,
     ) -> Result<Self, ConcurrentMerkleTreeError> {
-        Self::check_size_constraints_new(height, changelog_size, roots_size)?;
+        Self::check_size_constraints_new(height, changelog_size, roots_size, canopy_depth)?;
 
         let layout = Layout::new::<usize>();
         let next_index = unsafe { alloc::alloc(layout) as *mut usize };
