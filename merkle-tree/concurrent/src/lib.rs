@@ -392,9 +392,9 @@ where
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let mut current_node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
-        for (i, sibling) in proof.iter().enumerate() {
-            changelog_path[i] = current_node;
-            current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, i)?;
+        for (level, sibling) in proof.iter().enumerate() {
+            changelog_path[level] = current_node;
+            current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, level)?;
         }
 
         self.inc_sequence_number()?;
