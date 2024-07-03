@@ -9,12 +9,12 @@ pub fn compute_parent_node<H>(
     node: &[u8; 32],
     sibling: &[u8; 32],
     node_index: usize,
-    sibling_index: usize,
+    level: usize,
 ) -> Result<[u8; 32], ConcurrentMerkleTreeError>
 where
     H: Hasher,
 {
-    let is_left = (node_index >> sibling_index) & 1 == 0;
+    let is_left = (node_index >> level) & 1 == 0;
     let hash = if is_left {
         H::hashv(&[node, sibling])?
     } else {
@@ -34,8 +34,8 @@ where
     H: Hasher,
 {
     let mut node = *leaf;
-    for (j, sibling) in proof.iter().enumerate() {
-        node = compute_parent_node::<H>(&node, sibling, leaf_index, j)?;
+    for (level, sibling) in proof.iter().enumerate() {
+        node = compute_parent_node::<H>(&node, sibling, leaf_index, level)?;
     }
     Ok(node)
 }
