@@ -192,26 +192,30 @@ async fn test_init_and_insert_into_nullifier_queue_default() {
 
 #[tokio::test]
 async fn test_init_and_insert_into_nullifier_queue_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_init_and_insert_into_nullifier_queue(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
+            for queue_capacity in [5003, 6857, 7901] {
+                test_init_and_insert_into_nullifier_queue(
+                    &StateMerkleTreeConfig {
+                        height: STATE_MERKLE_TREE_HEIGHT as u32,
+                        changelog_size,
+                        roots_size,
+                        canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                        network_fee: Some(5000),
+                        rollover_threshold: Some(95),
+                        close_threshold: None,
+                    },
+                    &NullifierQueueConfig {
+                        capacity: queue_capacity,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
+                        network_fee: None,
+                    },
+                )
+                .await;
+            }
         }
     }
 }
@@ -411,32 +415,6 @@ async fn test_full_nullifier_queue_default() {
     .await
 }
 
-#[tokio::test]
-async fn test_full_nullifier_queue_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_full_nullifier_queue(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
-}
-
 /// Insert nullifiers failing tests
 /// Test:
 /// 1. no nullifiers
@@ -624,32 +602,6 @@ async fn test_failing_queue_default() {
         &NullifierQueueConfig::default(),
     )
     .await
-}
-
-#[tokio::test]
-async fn test_failing_queue_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            failing_queue(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 /// Tests:
@@ -882,26 +834,30 @@ async fn test_init_and_rollover_state_merkle_tree_default() {
 
 #[tokio::test]
 async fn test_init_and_rollover_state_merkle_tree_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_init_and_rollover_state_merkle_tree(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
+            for queue_capacity in [5003, 6857, 7901] {
+                test_init_and_rollover_state_merkle_tree(
+                    &StateMerkleTreeConfig {
+                        height: STATE_MERKLE_TREE_HEIGHT as u32,
+                        changelog_size,
+                        roots_size,
+                        canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                        network_fee: Some(5000),
+                        rollover_threshold: Some(95),
+                        close_threshold: None,
+                    },
+                    &NullifierQueueConfig {
+                        capacity: queue_capacity,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
+                        network_fee: None,
+                    },
+                )
+                .await;
+            }
         }
     }
 }
@@ -1031,32 +987,6 @@ async fn test_append_functional_and_failing_default() {
         &NullifierQueueConfig::default(),
     )
     .await
-}
-
-#[tokio::test]
-async fn test_append_functional_and_failing_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_append_functional_and_failing(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 /// Tests:
@@ -1205,7 +1135,9 @@ async fn test_nullify_leaves(
     )
     .await;
     assert_rpc_error(
-        result, 0, 10008, // Invalid proof
+        result,
+        0,
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -1291,32 +1223,6 @@ async fn test_nullify_leaves_default() {
         &NullifierQueueConfig::default(),
     )
     .await
-}
-
-#[tokio::test]
-async fn test_nullify_leaves_custom() {
-    for changelog_size in (1000..5000).step_by(1000) {
-        for queue_capacity in [5003, 6857, 7901] {
-            let roots_size = changelog_size * 2;
-            test_nullify_leaves(
-                &StateMerkleTreeConfig {
-                    height: STATE_MERKLE_TREE_HEIGHT as u32,
-                    changelog_size,
-                    roots_size,
-                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                    network_fee: Some(5000),
-                    rollover_threshold: Some(95),
-                    close_threshold: None,
-                },
-                &NullifierQueueConfig {
-                    capacity: queue_capacity,
-                    sequence_threshold: roots_size + SAFETY_MARGIN,
-                    network_fee: None,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
@@ -1603,7 +1509,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
             )
             .await;
             assert_rpc_error(
-                result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
+                result,
+                2,
+                ConcurrentMerkleTreeError::BufferSize(valid_tree_size, invalid_tree_size).into(),
             )
             .unwrap();
         }
@@ -1614,6 +1522,11 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
 /// parameters:
 ///
 /// 1. Merkle tree height (different than 26).
+/// 2. Merkle tree canopy depth (different than 10).
+/// 3. Merkle tree changelog size (zero).
+/// 4. Merkle tree roots size (zero).
+/// 5. Merkle tree close threshold (any).
+/// 6. Queue sequence threshold (lower than roots + safety margin).
 pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config<
     R: RpcConnection,
 >(
@@ -1694,6 +1607,38 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             AccountCompressionErrorCode::UnsupportedCanopyDepth.into(),
         )
         .unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.changelog_size = 0;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::ChangelogZero.into()).unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.roots_size = 0;
+        let result = initialize_state_merkle_tree_and_nullifier_queue(
+            rpc,
+            payer_pubkey,
+            merkle_tree_keypair,
+            queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            merkle_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::RootsZero.into()).unwrap();
     }
     for invalid_close_threshold in (0..100).step_by(20) {
         let mut merkle_tree_config = merkle_tree_config.clone();

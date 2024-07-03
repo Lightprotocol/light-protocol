@@ -92,6 +92,7 @@ where
 
     pub fn from_bytes_copy(bytes: &[u8]) -> Result<Self, ConcurrentMerkleTreeError> {
         let (merkle_tree, _) = Self::struct_from_bytes_copy(bytes)?;
+        merkle_tree.check_size_constraints()?;
         Ok(Self(merkle_tree))
     }
 }
