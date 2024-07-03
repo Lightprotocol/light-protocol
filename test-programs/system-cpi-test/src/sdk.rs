@@ -121,7 +121,8 @@ pub fn create_invalidate_not_owned_account_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda =
+        light_compressed_token::process_transfer::get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
 
