@@ -1,11 +1,11 @@
-use log::{info, LevelFilter};
+use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 
 use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
-use forester::utils::{spawn_validator, LightValidatorConfig};
+use forester::utils::LightValidatorConfig;
 use forester::ForesterConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::Indexer;
@@ -17,22 +17,8 @@ use light_test_utils::test_env::get_test_env_accounts;
 use light_test_utils::test_env::REGISTRY_ID_TEST_KEYPAIR;
 use solana_sdk::signer::keypair::Keypair;
 
-async fn init() {
-    let _ = env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
-    )
-    .is_test(true)
-    .try_init();
-
-    let validator_config = LightValidatorConfig {
-        enable_indexer: true,
-        enable_prover: true,
-        enable_forester: true,
-        wait_time: 25,
-        ..LightValidatorConfig::default()
-    };
-    spawn_validator(validator_config).await;
-}
+mod test_utils;
+use test_utils::*;
 
 pub async fn assert_accounts_by_owner(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
@@ -120,7 +106,14 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer(
 #[ignore = "TokenData breaking changes break photon 0.26.0"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_nullify_account() {
-    init().await;
+    let validator_config = LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: true,
+        enable_forester: true,
+        wait_time: 25,
+        ..LightValidatorConfig::default()
+    };
+    init(Some(validator_config)).await;
 
     let env_accounts = get_test_env_accounts();
 
