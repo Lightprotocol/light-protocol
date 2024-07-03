@@ -385,11 +385,15 @@ export class LightSystemProgram {
             isCompress: false,
         };
 
+
+        console.log('rawData', rawData);
+
         /// Encode instruction data
         const ixData = this.program.coder.types.encode(
             'InstructionDataInvoke',
             rawData,
         );
+
 
         /// Build anchor instruction
         const instruction = await this.program.methods

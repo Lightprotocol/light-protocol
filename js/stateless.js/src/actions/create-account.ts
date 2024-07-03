@@ -59,6 +59,7 @@ export async function createAccount(
     const proof = await rpc.getValidityProof(undefined, [
         bn(address.toBytes()),
     ]);
+    console.log('proof', proof);
 
     const params: NewAddressParams = {
         seed: seed,
@@ -66,6 +67,9 @@ export async function createAccount(
         addressMerkleTreePubkey: proof.merkleTrees[0],
         addressQueuePubkey: proof.nullifierQueues[0],
     };
+
+    console.log('params', params);
+    console.log('address', address.toBytes());
 
     const ix = await LightSystemProgram.createAccount({
         payer: payer.publicKey,
