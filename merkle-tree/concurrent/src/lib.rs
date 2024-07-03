@@ -413,6 +413,10 @@ where
         }
         self.changelog.push(changelog_entry);
 
+        if self.canopy_depth > 0 {
+            self.update_canopy(self.changelog.last_index(), 1);
+        }
+
         Ok((self.changelog.last_index(), self.sequence_number()))
     }
 

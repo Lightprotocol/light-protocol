@@ -344,6 +344,7 @@ where
     let mut merkle_tree =
         ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
     merkle_tree.init().unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
     let mut rng = thread_rng();
 
@@ -372,9 +373,29 @@ where
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf1).unwrap();
+    reference_tree.append(&leaf1).unwrap();
     merkle_tree.append(&leaf2).unwrap();
+    reference_tree.append(&leaf2).unwrap();
     merkle_tree.append(&leaf3).unwrap();
+    reference_tree.append(&leaf3).unwrap();
     merkle_tree.append(&leaf4).unwrap();
+    reference_tree.append(&leaf4).unwrap();
+
+    let canopy_levels = [
+        &[h4, H::zero_bytes()[3]][..],
+        &[
+            h3,
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+        ][..],
+    ];
+    let mut expected_canopy = Vec::new();
+
+    for canopy_level in 0..CANOPY {
+        println!("canopy_level: {canopy_level}");
+        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    }
 
     assert_eq!(merkle_tree.changelog_index(), 4 % CHANGELOG);
     assert_eq!(
@@ -382,11 +403,14 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
 
+    assert_eq!(merkle_tree.root(), reference_tree.root());
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 4);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
+    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf1`.
     let new_leaf1 = [9u8; 32];
@@ -406,7 +430,12 @@ where
     // Merkle proof for the replaced leaf L1 is:
     // [L2, H2, Z[2], Z[3]]
     let changelog_index = merkle_tree.changelog_index();
-    let mut proof = BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
+
+    let proof_raw = &[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::with_capacity(HEIGHT);
+    for node in &proof_raw[..HEIGHT - CANOPY] {
+        proof.push(*node).unwrap();
+    }
 
     invalid_updates::<H, HEIGHT, CHANGELOG>(
         &mut rng,
@@ -420,6 +449,7 @@ where
     merkle_tree
         .update(changelog_index, &leaf1, &new_leaf1, 0, &mut proof)
         .unwrap();
+    reference_tree.update(&new_leaf1, 0).unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &leaf2]).unwrap();
     let h2 = H::hashv(&[&leaf3, &leaf4]).unwrap();
@@ -428,16 +458,33 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf1, h1, h3, h4];
 
+    let canopy_levels = [
+        &[h4, H::zero_bytes()[3]][..],
+        &[
+            h3,
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+        ][..],
+    ];
+    let mut expected_canopy = Vec::new();
+    for canopy_level in 0..CANOPY {
+        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    }
+
     assert_eq!(merkle_tree.changelog_index(), 5 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
         ChangelogEntry::new(expected_root, expected_changelog_path, 0),
     );
 
+    assert_eq!(merkle_tree.root(), reference_tree.root());
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 5);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
+    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf2`.
     let new_leaf2 = H::hash(&[8u8; 32]).unwrap();
@@ -457,8 +504,12 @@ where
     // Merkle proof for the replaced leaf L2 is:
     // [L1, H2, Z[2], Z[3]]
     let changelog_index = merkle_tree.changelog_index();
-    let mut proof =
-        BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
+
+    let proof_raw = &[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::with_capacity(HEIGHT);
+    for node in &proof_raw[..HEIGHT - CANOPY] {
+        proof.push(*node).unwrap();
+    }
 
     invalid_updates::<H, HEIGHT, CHANGELOG>(
         &mut rng,
@@ -472,6 +523,7 @@ where
     merkle_tree
         .update(changelog_index, &leaf2, &new_leaf2, 1, &mut proof)
         .unwrap();
+    reference_tree.update(&new_leaf2, 1).unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
     let h2 = H::hashv(&[&leaf3, &leaf4]).unwrap();
@@ -479,6 +531,20 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf2, h1, h3, h4];
+
+    let canopy_levels = [
+        &[h4, H::zero_bytes()[3]][..],
+        &[
+            h3,
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+        ][..],
+    ];
+    let mut expected_canopy = Vec::new();
+    for canopy_level in 0..CANOPY {
+        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    }
 
     assert_eq!(merkle_tree.changelog_index(), 6 % CHANGELOG);
     assert_eq!(
@@ -490,6 +556,8 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 6);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
+    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf3`.
     let new_leaf3 = H::hash(&[7u8; 32]).unwrap();
@@ -509,7 +577,12 @@ where
     // Merkle proof for the replaced leaf L3 is:
     // [L4, H1, Z[2], Z[3]]
     let changelog_index = merkle_tree.changelog_index();
-    let mut proof = BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
+
+    let proof_raw = &[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::with_capacity(HEIGHT);
+    for node in &proof_raw[..HEIGHT - CANOPY] {
+        proof.push(*node).unwrap();
+    }
 
     invalid_updates::<H, HEIGHT, CHANGELOG>(
         &mut rng,
@@ -523,6 +596,7 @@ where
     merkle_tree
         .update(changelog_index, &leaf3, &new_leaf3, 2, &mut proof)
         .unwrap();
+    reference_tree.update(&new_leaf3, 2).unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
     let h2 = H::hashv(&[&new_leaf3, &leaf4]).unwrap();
@@ -530,6 +604,20 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf3, h2, h3, h4];
+
+    let canopy_levels = [
+        &[h4, H::zero_bytes()[3]][..],
+        &[
+            h3,
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+        ][..],
+    ];
+    let mut expected_canopy = Vec::new();
+    for canopy_level in 0..CANOPY {
+        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    }
 
     assert_eq!(merkle_tree.changelog_index(), 7 % CHANGELOG);
     assert_eq!(
@@ -541,6 +629,8 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 7);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
+    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf4`.
     let new_leaf4 = H::hash(&[6u8; 32]).unwrap();
@@ -560,8 +650,12 @@ where
     // Merkle proof for the replaced leaf L4 is:
     // [L3, H1, Z[2], Z[3]]
     let changelog_index = merkle_tree.changelog_index();
-    let mut proof =
-        BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
+
+    let proof_raw = &[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::with_capacity(HEIGHT);
+    for node in &proof_raw[..HEIGHT - CANOPY] {
+        proof.push(*node).unwrap();
+    }
 
     invalid_updates::<H, HEIGHT, CHANGELOG>(
         &mut rng,
@@ -575,6 +669,7 @@ where
     merkle_tree
         .update(changelog_index, &leaf4, &new_leaf4, 3, &mut proof)
         .unwrap();
+    reference_tree.update(&new_leaf4, 3).unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
     let h2 = H::hashv(&[&new_leaf3, &new_leaf4]).unwrap();
@@ -582,6 +677,20 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [new_leaf4, h2, h3, h4];
+
+    let canopy_levels = [
+        &[h4, H::zero_bytes()[3]][..],
+        &[
+            h3,
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+            H::zero_bytes()[2],
+        ][..],
+    ];
+    let mut expected_canopy = Vec::new();
+    for canopy_level in 0..CANOPY {
+        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    }
 
     assert_eq!(merkle_tree.changelog_index(), 8 % CHANGELOG);
     assert_eq!(
@@ -593,6 +702,8 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 8);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), new_leaf4);
+    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 }
 
 /// Tests whether appending leaves over the limit results in an explicit error.
@@ -988,8 +1099,28 @@ fn test_update_keccak_height_4_changelog_1_roots_256_canopy_0() {
 }
 
 #[test]
+fn test_update_keccak_height_4_changelog_1_roots_256_canopy_1() {
+    update::<Keccak, 1, 256, 1>()
+}
+
+#[test]
+fn test_update_keccak_height_4_changelog_1_roots_256_canopy_2() {
+    update::<Keccak, 1, 256, 2>()
+}
+
+#[test]
 fn test_update_keccak_height_4_changelog_32_roots_256_canopy_0() {
     update::<Keccak, 32, 256, 0>()
+}
+
+#[test]
+fn test_update_keccak_height_4_changelog_32_roots_256_canopy_1() {
+    update::<Keccak, 32, 256, 1>()
+}
+
+#[test]
+fn test_update_keccak_height_4_changelog_32_roots_256_canopy_2() {
+    update::<Keccak, 32, 256, 2>()
 }
 
 #[test]
@@ -998,12 +1129,42 @@ fn test_update_poseidon_height_4_changelog_1_roots_256_canopy_0() {
 }
 
 #[test]
+fn test_update_poseidon_height_4_changelog_1_roots_256_canopy_1() {
+    update::<Poseidon, 1, 256, 1>()
+}
+
+#[test]
+fn test_update_poseidon_height_4_changelog_1_roots_256_canopy_2() {
+    update::<Poseidon, 1, 256, 2>()
+}
+
+#[test]
 fn test_update_poseidon_height_4_changelog_32_roots_256_canopy_0() {
     update::<Poseidon, 32, 256, 0>()
 }
 
 #[test]
+fn test_update_poseidon_height_4_changelog_32_roots_256_canopy_1() {
+    update::<Poseidon, 32, 256, 1>()
+}
+
+#[test]
+fn test_update_poseidon_height_4_changelog_32_roots_256_canopy_2() {
+    update::<Poseidon, 32, 256, 2>()
+}
+
+#[test]
 fn test_update_sha256_height_4_changelog_32_roots_256_canopy_0() {
+    update::<Sha256, 32, 256, 0>()
+}
+
+#[test]
+fn test_update_sha256_height_4_changelog_32_roots_256_canopy_1() {
+    update::<Sha256, 32, 256, 0>()
+}
+
+#[test]
+fn test_update_sha256_height_4_changelog_32_roots_256_canopy_2() {
     update::<Sha256, 32, 256, 0>()
 }
 
@@ -2057,6 +2218,10 @@ pub fn test_100_nullify_mt() {
             queue_indices.push(index);
         }
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
+        assert_eq!(
+            onchain_merkle_tree.canopy,
+            crank_merkle_tree.get_canopy().unwrap()
+        );
 
         let mut rng = rand::thread_rng();
 
@@ -2097,6 +2262,10 @@ pub fn test_100_nullify_mt() {
             crank_merkle_tree.update(&[0; 32], leaf_index).unwrap();
         }
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
+        assert_eq!(
+            onchain_merkle_tree.canopy,
+            crank_merkle_tree.get_canopy().unwrap()
+        );
     }
 }
 
@@ -3183,4 +3352,66 @@ fn test_append_batch() {
 
     assert_eq!(change_log_1, path_1);
     assert_eq!(change_log_0, path_0);
+}
+
+/// Makes sure canopy works by:
+///
+/// 1. Appending 3 leaves.
+/// 2. Updating the first leaf.
+/// 3. Updating the second leaf.
+fn update_with_canopy<H>()
+where
+    H: Hasher,
+{
+    let mut tree = ConcurrentMerkleTree::<H, 2>::new(2, 2, 2, 1).unwrap();
+    tree.init().unwrap();
+    let leaf_0 = [0; 32];
+    let leaf_1 = [1; 32];
+    let leaf_2 = [2; 32];
+    tree.append(&leaf_0).unwrap();
+    tree.append(&leaf_1).unwrap();
+    tree.append(&leaf_2).unwrap();
+    let old_canopy = tree.canopy.as_slice()[0].clone();
+
+    let new_leaf_0 = [1; 32];
+    let mut leaf_0_proof = BoundedVec::with_capacity(2);
+    leaf_0_proof.push(leaf_1).unwrap();
+    tree.update(
+        tree.changelog_index(),
+        &leaf_0,
+        &new_leaf_0,
+        0,
+        &mut leaf_0_proof,
+    )
+    .unwrap();
+    let new_canopy = tree.canopy.as_slice()[0].clone();
+
+    assert_ne!(old_canopy, new_canopy);
+
+    let new_leaf_2 = [3; 32];
+    let mut leaf_2_proof = BoundedVec::with_capacity(2);
+    leaf_2_proof.push([0; 32]).unwrap();
+    tree.update(
+        tree.changelog_index(),
+        &leaf_2,
+        &new_leaf_2,
+        2,
+        &mut leaf_2_proof,
+    )
+    .unwrap();
+}
+
+#[test]
+fn test_update_with_canopy_keccak() {
+    update_with_canopy::<Keccak>()
+}
+
+#[test]
+fn test_update_with_canopy_poseidon() {
+    update_with_canopy::<Poseidon>()
+}
+
+#[test]
+fn test_update_with_canopy_sha256() {
+    update_with_canopy::<Sha256>()
 }
