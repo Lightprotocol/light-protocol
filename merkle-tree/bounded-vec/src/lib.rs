@@ -159,6 +159,10 @@ where
         Self { metadata, data }
     }
 
+    pub fn metadata(&self) -> &BoundedVecMetadata {
+        unsafe { &*self.metadata }
+    }
+
     pub fn from_array<const N: usize>(array: &[T; N]) -> Self {
         let mut vec = Self::with_capacity(N);
         for element in array {
@@ -608,6 +612,10 @@ where
         let data = Self::data_with_capacity(capacity);
 
         Self { metadata, data }
+    }
+
+    pub fn metadata(&self) -> &CyclicBoundedVecMetadata {
+        unsafe { &*self.metadata }
     }
 
     /// Creates a `CyclicBoundedVec<T>` directly from a pointer, a capacity, and a length.
