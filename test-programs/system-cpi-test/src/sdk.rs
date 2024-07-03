@@ -2,10 +2,13 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::process_transfer::{
-    get_cpi_authority_pda, transfer_sdk::to_account_metas,
+use account_compression::{
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
 };
+use anchor_lang::{InstructionData, ToAccountMetas};
+use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
+use light_registry::sdk::get_registered_program_pda;
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
@@ -90,6 +93,7 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub cpi_context: Option<crate::CompressedCpiContext>,
     pub invalid_fee_payer: &'a Pubkey,
 }
+
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
     mode: crate::WithInputAccountsMode,
@@ -140,6 +144,89 @@ pub fn create_invalidate_not_owned_account_instruction(
     Instruction {
         program_id: crate::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    }
+}
+pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::ID)
+}
+
+pub fn create_initialize_address_merkle_tree_and_queue_instruction(
+    index: u64,
+    payer: Pubkey,
+    program_owner: Option<Pubkey>,
+    merkle_tree_pubkey: Pubkey,
+    queue_pubkey: Pubkey,
+    address_merkle_tree_config: AddressMerkleTreeConfig,
+    address_queue_config: AddressQueueConfig,
+    invalid_group: bool,
+) -> Instruction {
+    let register_program_pda = if invalid_group {
+        get_registered_program_pda(&light_registry::ID)
+    } else {
+        get_registered_program_pda(&crate::ID)
+    };
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeAddressMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: address_merkle_tree_config,
+        queue_config: address_queue_config,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    nullifier_queue_pubkey: Pubkey,
+    state_merkle_tree_config: StateMerkleTreeConfig,
+    nullifier_queue_config: NullifierQueueConfig,
+    program_owner: Option<Pubkey>,
+    index: u64,
+    additional_rent: u64,
+    invalid_group: bool,
+) -> Instruction {
+    let register_program_pda = if invalid_group {
+        get_registered_program_pda(&light_registry::ID)
+    } else {
+        get_registered_program_pda(&crate::ID)
+    };
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeStateMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: state_merkle_tree_config,
+        queue_config: nullifier_queue_config,
+        additional_rent,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: nullifier_queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     }
 }
