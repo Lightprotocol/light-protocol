@@ -565,7 +565,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         expected_roots_length,
         expected_next_index,
         &expected_right_most_leaf,
-        owner,
+        &owner,
         expected_indexed_change_log_length,
     )
     .await;
