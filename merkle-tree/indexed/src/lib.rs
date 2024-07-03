@@ -52,10 +52,7 @@ where
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22, 12>;
 pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26, 16>;
-pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32, 22>;
-pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40, 30>;
 
 impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
@@ -159,7 +156,7 @@ where
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
 
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let mut indexed_array = IndexedArray::<H, I>::default();
         let element_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = element_bundle
             .new_low_element

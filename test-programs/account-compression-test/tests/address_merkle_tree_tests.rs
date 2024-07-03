@@ -1333,7 +1333,7 @@ pub async fn test_setup_with_address_merkle_tree(
 ) -> (
     ProgramTestRpcConnection, // rpc
     Keypair,                  // payer
-    AddressMerkleTreeBundle<4800>,
+    AddressMerkleTreeBundle,
 ) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
@@ -1360,17 +1360,7 @@ pub async fn test_setup_with_address_merkle_tree(
     // Local indexing array and queue. We will use them to get the correct
     // elements and Merkle proofs, which we will modify later, to pass invalid
     // values. 😈
-    let mut local_indexed_array = Box::<
-        IndexedArray<
-            Poseidon,
-            usize,
-            // This is not a correct value you would normally use in relayer, A
-            // correct size would be number of leaves which the merkle tree can fit
-            // (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
-            // elements ain't easy and is not worth doing here.
-            4800,
-        >,
-    >::default();
+    let mut local_indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
     local_indexed_array.init().unwrap();
 
     let mut local_merkle_tree = Box::new(
@@ -1381,7 +1371,7 @@ pub async fn test_setup_with_address_merkle_tree(
         .unwrap(),
     );
     local_merkle_tree.init().unwrap();
-    let address_merkle_tree_bundle = AddressMerkleTreeBundle::<4800> {
+    let address_merkle_tree_bundle = AddressMerkleTreeBundle {
         merkle_tree: local_merkle_tree,
         indexed_array: local_indexed_array,
         accounts: AddressMerkleTreeAccounts {
@@ -1398,7 +1388,7 @@ pub async fn test_with_invalid_low_element(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     address_queue: &HashSet,
-    address_merkle_tree_bundle: &AddressMerkleTreeBundle<4800>,
+    address_merkle_tree_bundle: &AddressMerkleTreeBundle,
     index: usize,
     expected_error: u32,
 ) {

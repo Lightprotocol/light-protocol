@@ -251,10 +251,10 @@ pub enum RelayerUpdateError {}
 /// 1. Element has been marked correctly
 /// 2. Merkle tree has been updated correctly
 /// TODO: Event has been emitted, event doesn't exist yet
-pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn empty_address_queue_test<R: RpcConnection>(
     forester: &Keypair,
     rpc: &mut R,
-    address_tree_bundle: &mut AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>,
+    address_tree_bundle: &mut AddressMerkleTreeBundle,
     signer_is_owner: bool,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;

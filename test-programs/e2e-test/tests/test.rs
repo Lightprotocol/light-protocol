@@ -9,7 +9,7 @@ use solana_sdk::signer::Signer;
 #[tokio::test]
 async fn test_10_all() {
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
-    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection>::new(
         rpc,
         &env_accounts,
         KeypairActionConfig::all_default(),
@@ -28,7 +28,7 @@ async fn test_10000_all() {
     // Will fail after inserting 500 addresses since the local indexed array is full
     // TODO: initialize the indexed array with heap memory so that the stack doesn't overflow with bigger size, write an indexed array vector abstraction for testing
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
-    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection>::new(
         rpc,
         &env_accounts,
         KeypairActionConfig::all_default_no_fee_assert(),
@@ -46,7 +46,7 @@ async fn test_address_tree_rollover() {
     // Will fail after inserting 500 addresses since the local indexed array is full
     // TODO: initialize the indexed array with heap memory so that the stack doesn't overflow with bigger size, write an indexed array vector abstraction for testing
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
-    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection>::new(
         rpc,
         &env_accounts,
         KeypairActionConfig::all_default_no_fee_assert(),
@@ -74,7 +74,7 @@ async fn test_state_tree_rollover() {
     // Will fail after inserting 500 addresses since the local indexed array is full
     // TODO: initialize the indexed array with heap memory so that the stack doesn't overflow with bigger size, write an indexed array vector abstraction for testing
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
-    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection>::new(
         rpc,
         &env_accounts,
         KeypairActionConfig::all_default_no_fee_assert(),

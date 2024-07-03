@@ -21,7 +21,7 @@ mod test_utils;
 use test_utils::*;
 
 pub async fn assert_accounts_by_owner(
-    indexer: &mut TestIndexer<500, SolanaRpcConnection>,
+    indexer: &mut TestIndexer<SolanaRpcConnection>,
     user: &User,
     photon_indexer: &PhotonIndexer,
 ) {
@@ -54,7 +54,7 @@ pub async fn assert_accounts_by_owner(
 }
 
 pub async fn assert_account_proofs_for_photon_and_test_indexer(
-    indexer: &mut TestIndexer<500, SolanaRpcConnection>,
+    indexer: &mut TestIndexer<SolanaRpcConnection>,
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer,
 ) {
@@ -128,7 +128,7 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
         keypair_action_config(),

@@ -26,9 +26,9 @@ use solana_sdk::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn create_addresses_test<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
     address_merkle_tree_pubkeys: &[Pubkey],
     address_merkle_tree_queue_pubkeys: &[Pubkey],
     mut output_merkle_tree_pubkeys: Vec<Pubkey>,
@@ -105,9 +105,9 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn compress_sol_test<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
@@ -164,9 +164,9 @@ pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn decompress_sol_test<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipient: &Pubkey,
@@ -208,9 +208,9 @@ pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnecti
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn transfer_compressed_sol_test<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipients: &[Pubkey],
@@ -274,9 +274,9 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
     compressed_transaction_test(inputs).await
 }
 
-pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
+pub struct CompressedTransactionTestInputs<'a, R: RpcConnection> {
     rpc: &'a mut R,
-    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &'a mut TestIndexer<R>,
     fee_payer: &'a Keypair,
     authority: &'a Keypair,
     input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
@@ -293,8 +293,8 @@ pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    inputs: CompressedTransactionTestInputs<'_, INDEXED_ARRAY_SIZE, R>,
+pub async fn compressed_transaction_test<R: RpcConnection>(
+    inputs: CompressedTransactionTestInputs<'_, R>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
 
@@ -355,11 +355,8 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
-        input_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-            inputs.rpc,
-            input_merkle_tree_accounts.as_slice(),
-        )
-        .await;
+        input_merkle_tree_snapshots =
+            get_merkle_tree_snapshots::<R>(inputs.rpc, input_merkle_tree_accounts.as_slice()).await;
 
         if !inputs.new_address_params.is_empty() {
             for (i, input_address_params) in inputs.new_address_params.iter().enumerate() {
@@ -373,11 +370,8 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
     let output_merkle_tree_accounts = inputs
         .test_indexer
         .get_state_merkle_tree_accounts(inputs.output_merkle_tree_pubkeys);
-    let output_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        inputs.rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let output_merkle_tree_snapshots =
+        get_merkle_tree_snapshots::<R>(inputs.rpc, output_merkle_tree_accounts.as_slice()).await;
     let instruction = create_invoke_instruction(
         &inputs.fee_payer.pubkey(),
         &inputs.authority.pubkey().clone(),

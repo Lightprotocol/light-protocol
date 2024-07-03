@@ -36,7 +36,7 @@ async fn test_photon_interop_address() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
         keypair_action_config(),

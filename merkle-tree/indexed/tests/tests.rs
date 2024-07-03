@@ -28,8 +28,6 @@ const NET_HEIGHT: usize = MERKLE_TREE_HEIGHT - MERKLE_TREE_CANOPY;
 const QUEUE_ELEMENTS: usize = 1024;
 const SAFETY_MARGIN: usize = 10;
 
-const INDEXING_ARRAY_ELEMENTS: usize = 1024;
-
 const NR_NULLIFIERS: usize = 2;
 
 /// A mock function which imitates a Merkle tree program instruction for
@@ -109,7 +107,7 @@ fn relayer_update<H>(
 where
     H: Hasher,
 {
-    let mut relayer_indexing_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexing_array = IndexedArray::<H, usize>::default();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
             .unwrap();
@@ -432,7 +430,7 @@ where
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.
-    let mut local_indexed_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut local_indexed_array = IndexedArray::<H, usize>::default();
     let mut local_merkle_tree =
         reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
             .unwrap();
@@ -602,8 +600,7 @@ pub fn hash_reference_indexed_element() {
 
 #[test]
 pub fn functional_non_inclusion_test() {
-    let mut relayer_indexing_array =
-        IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
 
     // appends the first element
     let mut relayer_merkle_tree = reference::IndexedMerkleTree::<Poseidon, usize>::new(
@@ -703,7 +700,7 @@ pub fn functional_non_inclusion_test() {
 // #[test]
 // pub fn print_test_data() {
 //     let mut relayer_indexing_array =
-//         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+//         IndexedArray::<Poseidon, usize>::default();
 //     relayer_indexing_array.init().unwrap();
 //     let mut relayer_merkle_tree =
 //         reference::IndexedMerkleTree::<Poseidon, usize>::new(26, 10).unwrap();
@@ -1054,8 +1051,7 @@ fn perform_change_log_test<
     addresses: &[BigUint],
 ) {
     // Initialize the trees and indexed array.
-    let mut relayer_indexed_array =
-        IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexed_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();

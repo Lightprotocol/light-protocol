@@ -52,7 +52,7 @@ async fn test_program_owned_merkle_tree() {
     let cpi_context_keypair = Keypair::new();
 
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,

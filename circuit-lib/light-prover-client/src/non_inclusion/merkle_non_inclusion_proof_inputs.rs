@@ -28,13 +28,13 @@ impl NonInclusionMerkleProofInputs {
 pub struct NonInclusionProofInputs<'a>(pub &'a [NonInclusionMerkleProofInputs]);
 
 // TODO: eliminate use of BigInt in favor of BigUint
-pub fn get_non_inclusion_proof_inputs<const INDEXED_ARRAY_SIZE: usize>(
+pub fn get_non_inclusion_proof_inputs(
     value: &[u8; 32],
     merkle_tree: &light_indexed_merkle_tree::reference::IndexedMerkleTree<
         light_hasher::Poseidon,
         usize,
     >,
-    indexed_array: &IndexedArray<light_hasher::Poseidon, usize, INDEXED_ARRAY_SIZE>,
+    indexed_array: &IndexedArray<light_hasher::Poseidon, usize>,
 ) -> NonInclusionMerkleProofInputs {
     let non_inclusion_proof = merkle_tree
         .get_non_inclusion_proof(&BigUint::from_be_bytes(value), indexed_array)
