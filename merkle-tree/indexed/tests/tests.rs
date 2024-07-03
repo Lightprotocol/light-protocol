@@ -67,8 +67,6 @@ fn program_update<H>(
     changelog_index: u16,
     indexed_changelog_index: u16,
     queue_index: u16,
-    nullifier_index: usize,
-    nullifier_next_index: usize,
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
@@ -77,24 +75,16 @@ where
     H: Hasher,
 {
     // Get the nullifier from the queue.
-    let nullifier_element = queue
+    let nullifier = queue
         .get_unmarked_bucket(queue_index as usize)
         .unwrap()
         .unwrap();
-
-    // Update the nullifier with ranges adjusted to the Merkle tree state,
-    // coming from relayer.
-    let nullifier: IndexedElement<usize> = IndexedElement {
-        index: nullifier_index,
-        value: nullifier_element.value_biguint(),
-        next_index: nullifier_next_index,
-    };
 
     // Update the Merkle tree.
     let update = merkle_tree.update(
         usize::from(changelog_index),
         usize::from(indexed_changelog_index),
-        nullifier,
+        nullifier.value_biguint(),
         low_nullifier.clone(),
         low_nullifier_next_value.clone(),
         low_nullifier_proof,
@@ -102,10 +92,7 @@ where
 
     // Mark the nullifier.
     queue
-        .mark_with_sequence_number(
-            &nullifier_element.value_biguint(),
-            merkle_tree.sequence_number(),
-        )
+        .mark_with_sequence_number(&nullifier.value_biguint(), merkle_tree.sequence_number())
         .unwrap();
 
     Ok(update)
@@ -157,8 +144,6 @@ where
             changelog_index as u16,
             indexed_changelog_index as u16,
             queue_index as u16,
-            nullifier_bundle.new_element.index,
-            nullifier_bundle.new_element.next_index,
             old_low_nullifier,
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -501,10 +486,6 @@ where
         .find_element_index(&nullifier3, None)
         .unwrap()
         .unwrap();
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_usize;
-    // (Invalid) index of the next nullifier.
-    let nullifier_next_index = 2_usize;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(1).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -520,8 +501,6 @@ where
             changelog_index as u16,
             indexed_changelog_index as u16,
             queue_index as u16,
-            nullifier_index,
-            nullifier_next_index,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -544,10 +523,6 @@ where
         .find_element_index(&nullifier3, None)
         .unwrap()
         .unwrap();
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_usize;
-    // (Invalid) index of the next nullifier. Value: 30.
-    let nullifier_next_index = 1_usize;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(0).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -563,8 +538,6 @@ where
             changelog_index as u16,
             indexed_changelog_index as u16,
             queue_index as u16,
-            nullifier_index,
-            nullifier_next_index,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -581,7 +554,6 @@ where
     let (low_nullifier, low_nullifier_next_value) = local_indexed_array
         .find_low_element_for_nonexistent(&nullifier4)
         .unwrap();
-    let nullifier_next_index = low_nullifier.next_index + 1;
     let mut low_nullifier_proof = local_merkle_tree
         .get_proof_of_leaf(low_nullifier.index(), false)
         .unwrap();
@@ -591,8 +563,6 @@ where
         changelog_index as u16,
         indexed_changelog_index as u16,
         queue_index as u16,
-        nullifier_index,
-        nullifier_next_index,
         low_nullifier,
         &low_nullifier_next_value,
         &mut low_nullifier_proof,
@@ -600,7 +570,9 @@ where
     println!("result {:?}", result);
     assert!(matches!(
         result,
-        Err(IndexedMerkleTreeError::NewElementNextIndexMismatch)
+        Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+            ConcurrentMerkleTreeError::InvalidProof(_, _)
+        ))
     ));
 }
 
@@ -1128,7 +1100,7 @@ fn perform_change_log_test<
             let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle.new_element,
+                address_bundle.new_element.value,
                 old_low_address,
                 old_low_address_next_value,
                 &mut low_element_proof,
@@ -1143,7 +1115,7 @@ fn perform_change_log_test<
             let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle.new_element.clone(),
+                address_bundle.new_element.value.clone(),
                 old_low_address.clone(),
                 old_low_address_next_value,
                 &mut low_element_proof,
@@ -1172,7 +1144,7 @@ fn perform_change_log_test<
                 .update(
                     changelog_index,
                     indexed_changelog_index,
-                    address_bundle.new_element,
+                    address_bundle.new_element.value,
                     old_low_address,
                     old_low_address_next_value,
                     &mut low_element_proof,
