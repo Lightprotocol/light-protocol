@@ -23,15 +23,11 @@ pub fn find_next_prime(mut n: u32) -> u32 {
     let remainder = n % 6;
     if remainder != 0 {
         // Check if `n` already satisfies the pattern and is prime.
-        if remainder == 5 {
-            if is_prime(n) {
-                return n;
-            }
+        if remainder == 5 && is_prime(n) {
+            return n;
         }
-        if remainder == 1 {
-            if is_prime(n) {
-                return n;
-            }
+        if remainder == 1 && is_prime(n) {
+            return n;
         }
 
         // Add `6 - remainder` to `n`, to it satisfies the `6k` pattern.

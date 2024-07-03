@@ -428,7 +428,7 @@ where
         };
         println!("merkle tree config: {:?}", merkle_tree_config);
         let queue_config = if !self.keypair_action_config.fee_assert {
-            let capacity: f64 = gen_prime(&mut self.rng, 1.0..10000.0).unwrap();
+            let capacity: u32 = gen_prime(&mut self.rng, 1..10000).unwrap();
             NullifierQueueConfig {
                 capacity: capacity as u16,
                 sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,
