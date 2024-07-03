@@ -1,11 +1,12 @@
-use log::{info, LevelFilter};
+use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 
 use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
-use forester::utils::{spawn_validator, LightValidatorConfig};
+use forester::utils::LightValidatorConfig;
+use forester::ForesterConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::indexer::TestIndexer;
@@ -13,23 +14,11 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
+use light_test_utils::test_env::REGISTRY_ID_TEST_KEYPAIR;
+use solana_sdk::signer::keypair::Keypair;
 
-async fn init() {
-    let _ = env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
-    )
-    .is_test(true)
-    .try_init();
-
-    let validator_config = LightValidatorConfig {
-        enable_indexer: true,
-        enable_prover: true,
-        enable_forester: true,
-        wait_time: 25,
-        ..LightValidatorConfig::default()
-    };
-    spawn_validator(validator_config).await;
-}
+mod test_utils;
+use test_utils::*;
 
 pub async fn assert_accounts_by_owner(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
@@ -117,7 +106,14 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer(
 #[ignore = "TokenData breaking changes break photon 0.26.0"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_nullify_account() {
-    init().await;
+    let validator_config = LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: true,
+        enable_forester: true,
+        wait_time: 25,
+        ..LightValidatorConfig::default()
+    };
+    init(Some(validator_config)).await;
 
     let env_accounts = get_test_env_accounts();
 
@@ -135,31 +131,15 @@ async fn test_photon_interop_nullify_account() {
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
-        KeypairActionConfig {
-            max_output_accounts: Some(1),
-            ..KeypairActionConfig::all_default()
-        },
-        GeneralActionConfig {
-            nullify_compressed_accounts: Some(1.0),
-            empty_address_queue: Some(1.0),
-            add_keypair: None,
-            create_state_mt: None,
-            create_address_mt: None,
-            rollover: None,
-        },
+        keypair_action_config(),
+        general_action_config(),
         0,
         Some(1),
     )
     .await;
 
-    let config = ExternalServicesConfig {
-        rpc_url: "http://localhost:8899".to_string(),
-        ws_rpc_url: "ws://localhost:8900".to_string(),
-        indexer_url: "http://localhost:8784".to_string(),
-        prover_url: "http://localhost:3001".to_string(),
-        derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
-    };
-    let photon_indexer = PhotonIndexer::new(config.indexer_url);
+    let forester_config = setup_forester();
+    let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url);
     let user_index = 0;
     let balance = env
         .rpc
@@ -226,4 +206,46 @@ async fn test_photon_interop_nullify_account() {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
     };
+}
+
+fn keypair_action_config() -> KeypairActionConfig {
+    KeypairActionConfig {
+        max_output_accounts: Some(1),
+        ..KeypairActionConfig::all_default()
+    }
+}
+
+fn general_action_config() -> GeneralActionConfig {
+    GeneralActionConfig {
+        nullify_compressed_accounts: Some(1.0),
+        empty_address_queue: Some(1.0),
+        add_keypair: None,
+        create_state_mt: None,
+        create_address_mt: None,
+        rollover: None,
+    }
+}
+
+fn setup_forester() -> ForesterConfig {
+    let env_accounts = get_test_env_accounts();
+    let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    ForesterConfig {
+        external_services: ExternalServicesConfig {
+            rpc_url: "http://localhost:8899".to_string(),
+            ws_rpc_url: "ws://localhost:8900".to_string(),
+            indexer_url: "http://localhost:8784".to_string(),
+            prover_url: "http://localhost:3001".to_string(),
+            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+        },
+        nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
+        state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
+        address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
+        address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
+        registry_pubkey: registry_keypair.pubkey(),
+        payer_keypair: env_accounts.forester.insecure_clone(),
+        concurrency_limit: 1,
+        batch_size: 1,
+        max_retries: 5,
+        max_concurrent_batches: 5,
+    }
 }
