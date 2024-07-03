@@ -150,7 +150,7 @@ async fn invoke_failing_test() {
 #[allow(clippy::too_many_arguments)]
 pub async fn failing_transaction_inputs(
     context: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
+    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
     payer: &Keypair,
     env: &EnvAccounts,
     num_inputs: usize,
@@ -375,7 +375,7 @@ pub async fn failing_transaction_inputs_inner(
             .compressed_account
             .lamports = amount + 1;
         let error_code = if !inputs_struct.output_compressed_accounts.is_empty() {
-            // adapting compressed ouput account so that sumcheck passes
+            // adapting compressed output account so that sumcheck passes
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
