@@ -748,7 +748,7 @@ where
     #[inline]
     fn inc_first_index(&self) {
         unsafe {
-            (*self.metadata).first_index = ((*self.metadata).last_index + 1) % self.capacity();
+            (*self.metadata).first_index = ((*self.metadata).first_index + 1) % self.capacity();
         }
     }
 
