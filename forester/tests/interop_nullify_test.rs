@@ -1,22 +1,14 @@
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 
-use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::utils::LightValidatorConfig;
-use forester::ForesterConfig;
-use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
-use light_test_utils::indexer::Indexer;
-use light_test_utils::indexer::TestIndexer;
+use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
-use light_test_utils::test_env::REGISTRY_ID_TEST_KEYPAIR;
-use solana_sdk::signer::keypair::Keypair;
-
 mod test_utils;
 use test_utils::*;
 
