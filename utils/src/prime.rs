@@ -1,13 +1,11 @@
 /// Finds the lowest prime number which is greater than the provided number
 /// `n`.
-pub fn find_next_prime(mut n: f64) -> f64 {
-    n = n.round();
-
+pub fn find_next_prime(mut n: u32) -> u32 {
     // Handle small numbers separately
-    if n <= 2.0 {
-        return 2.0;
-    } else if n <= 3.0 {
-        return 3.0;
+    if n <= 2 {
+        return 2;
+    } else if n <= 3 {
+        return 3;
     }
 
     // All prime numbers greater than 3 are of the form 6k + 1 or 6k + 5 (or
@@ -22,52 +20,68 @@ pub fn find_next_prime(mut n: f64) -> f64 {
     // This leaves only 6k + 1 and 6k + 5 as candidates.
 
     // Ensure the candidate is of the form 6k - 1 or 6k + 1.
-    let remainder = n % 6.0;
-    if remainder != 0.0 {
-        n = n + 6.0 - remainder;
+    let remainder = n % 6;
+    if remainder != 0 {
+        // Check if `n` already satisfies the pattern and is prime.
+        if remainder == 5 && is_prime(n) {
+            return n;
+        }
+        if remainder == 1 && is_prime(n) {
+            return n;
+        }
 
-        let candidate = n - 1.0;
+        // Add `6 - remainder` to `n`, to it satisfies the `6k` pattern.
+        n = n + 6 - remainder;
+        // Check if `6k - 1` candidate is prime.
+        let candidate = n - 1;
         if is_prime(candidate) {
             return candidate;
         }
     }
 
+    // Consequently add `6`, keep checking `6k + 1` and `6k + 5` candidates.
     loop {
-        let candidate = n + 1.0;
+        let candidate = n + 1;
         if is_prime(candidate) {
             return candidate;
         }
-        let candidate = n + 5.0;
+        let candidate = n + 5;
         if is_prime(candidate) {
             return candidate;
         }
 
-        n += 6.0;
+        n += 6;
     }
 }
 
-pub fn find_next_prime_with_load_factor(n: f64, load_factor: f64) -> f64 {
-    let minimum = n / load_factor;
-    find_next_prime(minimum)
+pub fn find_next_prime_with_load_factor(n: u32, load_factor: f64) -> u32 {
+    // SAFETY: These type coercions should not cause any issues.
+    //
+    // * `f64` can precisely represent all integer values up to 2^53, which is
+    //   more than `u32::MAX`. `u64` and `usize` would be too large though.
+    // * We want to return and find an integer (prime number), so coercing `f64`
+    //   back to `u32` is intentional here.
+    let minimum = n as f64 / load_factor;
+    find_next_prime(minimum as u32)
 }
 
 /// Checks whether the provided number `n` is a prime number.
-pub fn is_prime(n: f64) -> bool {
-    if n <= 1.0 {
+pub fn is_prime(n: u32) -> bool {
+    if n <= 1 {
         return false;
     }
-    if n <= 3.0 {
+    if n <= 3 {
         return true;
     }
-    if n % 2.0 == 0.0 || n % 3.0 == 0.0 {
+    if n % 2 == 0 || n % 3 == 0 {
         return false;
     }
-    let mut i = 5.0;
+    let mut i = 5;
     while i * i <= n {
-        if n % i == 0.0 || n % (i + 2.0) == 0.0 {
+        if n % i == 0 || n % (i + 2) == 0 {
             return false;
         }
-        i += 6.0;
+        i += 6;
     }
     true
 }
@@ -78,44 +92,48 @@ mod test {
 
     #[test]
     fn test_find_next_prime() {
-        assert_eq!(find_next_prime(0.0), 2.0);
-        assert_eq!(find_next_prime(2.0), 2.0);
-        assert_eq!(find_next_prime(3.0), 3.0);
-        assert_eq!(find_next_prime(4.0), 5.0);
+        assert_eq!(find_next_prime(0), 2);
+        assert_eq!(find_next_prime(2), 2);
+        assert_eq!(find_next_prime(3), 3);
+        assert_eq!(find_next_prime(4), 5);
 
-        assert_eq!(find_next_prime(10.0), 11.0);
-        assert_eq!(find_next_prime(28.0), 29.0);
+        assert_eq!(find_next_prime(10), 11);
+        assert_eq!(find_next_prime(17), 17);
+        assert_eq!(find_next_prime(19), 19);
+        assert_eq!(find_next_prime(28), 29);
 
-        assert_eq!(find_next_prime(100.0), 101.0);
-        assert_eq!(find_next_prime(102.0), 103.0);
-        assert_eq!(find_next_prime(105.0), 107.0);
+        assert_eq!(find_next_prime(100), 101);
+        assert_eq!(find_next_prime(102), 103);
+        assert_eq!(find_next_prime(105), 107);
 
-        assert_eq!(find_next_prime(1000.0), 1009.0);
-        assert_eq!(find_next_prime(2000.0), 2003.0);
-        assert_eq!(find_next_prime(3000.0), 3001.0);
-        assert_eq!(find_next_prime(4000.0), 4001.0);
+        assert_eq!(find_next_prime(1000), 1009);
+        assert_eq!(find_next_prime(2000), 2003);
+        assert_eq!(find_next_prime(3000), 3001);
+        assert_eq!(find_next_prime(4000), 4001);
 
-        assert_eq!(find_next_prime(4800.0), 4801.0);
-        assert_eq!(find_next_prime(5000.0), 5003.0);
-        assert_eq!(find_next_prime(6000.0), 6007.0);
-        assert_eq!(find_next_prime(6850.0), 6857.0);
+        assert_eq!(find_next_prime(4800), 4801);
+        assert_eq!(find_next_prime(5000), 5003);
+        assert_eq!(find_next_prime(6000), 6007);
+        assert_eq!(find_next_prime(6850), 6857);
 
-        assert_eq!(find_next_prime(7000.0), 7001.0);
-        assert_eq!(find_next_prime(7900.0), 7901.0);
-        assert_eq!(find_next_prime(7907.0), 7907.0);
+        assert_eq!(find_next_prime(7000), 7001);
+        assert_eq!(find_next_prime(7900), 7901);
+        assert_eq!(find_next_prime(7907), 7907);
     }
 
     #[test]
     fn test_find_next_prime_with_load_factor() {
-        assert_eq!(find_next_prime_with_load_factor(4800.0, 0.5), 9601.0);
-        assert_eq!(find_next_prime_with_load_factor(4800.0, 0.7), 6857.0);
+        assert_eq!(find_next_prime_with_load_factor(4800, 0.5), 9601);
+        assert_eq!(find_next_prime_with_load_factor(4800, 0.7), 6857);
     }
 
     #[test]
     fn test_is_prime() {
-        assert_eq!(is_prime(1.0), false);
-        assert_eq!(is_prime(2.0), true);
-        assert_eq!(is_prime(3.0), true);
-        assert_eq!(is_prime(4.0), false);
+        assert_eq!(is_prime(1), false);
+        assert_eq!(is_prime(2), true);
+        assert_eq!(is_prime(3), true);
+        assert_eq!(is_prime(4), false);
+        assert_eq!(is_prime(17), true);
+        assert_eq!(is_prime(19), true);
     }
 }

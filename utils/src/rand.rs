@@ -15,7 +15,7 @@ pub fn gen_prime<N, R, T>(rng: &mut N, range: R) -> Option<T>
 where
     N: Rng,
     R: Clone + RangeBounds<T> + SampleRange<T>,
-    T: Into<f64> + From<f64> + Copy + PartialOrd + SampleUniform,
+    T: Into<u32> + From<u32> + Copy + PartialOrd + SampleUniform,
 {
     for _ in 0..PRIME_RETRIES {
         let sample: T = rng.gen_range(range.clone());
@@ -74,7 +74,7 @@ mod test {
 
         let mut successful_gens = 0;
         for i in 0..10_000 {
-            let sample: Option<f64> = gen_prime(&mut rng, 1.0..10_000.0);
+            let sample: Option<u32> = gen_prime(&mut rng, 1..10_000);
             println!("sample {i}: {sample:?}");
             if let Some(sample) = sample {
                 successful_gens += 1;
