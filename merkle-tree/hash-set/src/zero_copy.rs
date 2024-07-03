@@ -190,8 +190,8 @@ mod test {
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                hs.insert(&nullifier, seq).unwrap();
-                hs.mark_with_sequence_number(&nullifier, seq).unwrap();
+                let index = hs.insert(&nullifier, seq).unwrap();
+                hs.mark_with_sequence_number(index, seq).unwrap();
             }
         }
 

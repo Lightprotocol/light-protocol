@@ -137,7 +137,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
             .map_err(ProgramError::from)?;
 
         nullifier_queue
-            .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number())
+            .mark_with_sequence_number(*leaf_queue_index as usize, merkle_tree.sequence_number())
             .map_err(ProgramError::from)?;
     }
     let nullify_event = NullifierEvent {

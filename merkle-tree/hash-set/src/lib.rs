@@ -302,10 +302,10 @@ impl HashSet {
         &mut self,
         value: &BigUint,
         current_sequence_number: usize,
-    ) -> Result<(), HashSetError> {
+    ) -> Result<usize, HashSetError> {
         let index_bucket = self.find_element_iter(value, current_sequence_number, 0, 20)?;
         let (index, is_new) = match index_bucket {
-            Some(value_index) => value_index,
+            Some(index) => index,
             None => {
                 return Err(HashSetError::Full);
             }
@@ -315,7 +315,7 @@ impl HashSet {
             // The visited hash set cell points to a value in the array.
             false => {
                 if self.insert_into_occupied_cell(index, value, current_sequence_number)? {
-                    return Ok(());
+                    return Ok(index);
                 }
             }
             true => {
@@ -326,7 +326,7 @@ impl HashSet {
                     value: bigint_to_be_bytes_array(value)?,
                     sequence_number: None,
                 });
-                return Ok(());
+                return Ok(index);
             }
         }
         Err(HashSetError::Full)
@@ -500,14 +500,16 @@ impl HashSet {
     /// Marks the given element with a given sequence number.
     pub fn mark_with_sequence_number(
         &mut self,
-        value: &BigUint,
+        index: usize,
         sequence_number: usize,
     ) -> Result<(), HashSetError> {
         let sequence_threshold = self.sequence_threshold;
-        let element = self.find_element_mut(value, None)?;
+        let element = self
+            .get_bucket_mut(index)
+            .ok_or(HashSetError::ElementDoesNotExist)?;
 
         match element {
-            Some((element, _)) => {
+            Some(element) => {
                 element.sequence_number = Some(sequence_number + sequence_threshold);
                 Ok(())
             }
@@ -611,8 +613,8 @@ mod test {
         // Insert an element and immediately mark it with a sequence number.
         // An equivalent to a single insertion in Light Protocol
         let element_1_1 = 1.to_biguint().unwrap();
-        hs.insert(&element_1_1, 0).unwrap();
-        hs.mark_with_sequence_number(&element_1_1, 1).unwrap();
+        let index_1_1 = hs.insert(&element_1_1, 0).unwrap();
+        hs.mark_with_sequence_number(index_1_1, 1).unwrap();
 
         // Check if element exists in the set.
         assert_eq!(hs.contains(&element_1_1, Some(1)).unwrap(), true);
@@ -630,18 +632,18 @@ mod test {
         let element_2_6 = 6.to_biguint().unwrap();
         let element_2_8 = 8.to_biguint().unwrap();
         let element_2_9 = 9.to_biguint().unwrap();
-        hs.insert(&element_2_3, 1).unwrap();
-        hs.insert(&element_2_6, 1).unwrap();
-        hs.insert(&element_2_8, 1).unwrap();
-        hs.insert(&element_2_9, 1).unwrap();
+        let index_2_3 = hs.insert(&element_2_3, 1).unwrap();
+        let index_2_6 = hs.insert(&element_2_6, 1).unwrap();
+        let index_2_8 = hs.insert(&element_2_8, 1).unwrap();
+        let index_2_9 = hs.insert(&element_2_9, 1).unwrap();
         assert_eq!(hs.contains(&element_2_3, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_6, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_8, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_9, Some(2)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_2_3, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_6, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_8, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_9, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_3, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_6, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_8, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_9, 2).unwrap();
         assert!(matches!(
             hs.insert(&element_2_3, 2),
             Err(HashSetError::ElementAlreadyExists)
@@ -663,18 +665,18 @@ mod test {
         let element_3_13 = 13.to_biguint().unwrap();
         let element_3_21 = 21.to_biguint().unwrap();
         let element_3_29 = 29.to_biguint().unwrap();
-        hs.insert(&element_3_11, 2).unwrap();
-        hs.insert(&element_3_13, 2).unwrap();
-        hs.insert(&element_3_21, 2).unwrap();
-        hs.insert(&element_3_29, 2).unwrap();
+        let index_3_11 = hs.insert(&element_3_11, 2).unwrap();
+        let index_3_13 = hs.insert(&element_3_13, 2).unwrap();
+        let index_3_21 = hs.insert(&element_3_21, 2).unwrap();
+        let index_3_29 = hs.insert(&element_3_29, 2).unwrap();
         assert_eq!(hs.contains(&element_3_11, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_13, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_21, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_29, Some(3)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_3_11, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_13, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_21, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_29, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_11, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_13, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_21, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_29, 3).unwrap();
         assert!(matches!(
             hs.insert(&element_3_11, 3),
             Err(HashSetError::ElementAlreadyExists)
@@ -696,18 +698,18 @@ mod test {
         let element_4_65 = 64.to_biguint().unwrap();
         let element_4_72 = 72.to_biguint().unwrap();
         let element_4_15 = 15.to_biguint().unwrap();
-        hs.insert(&element_4_93, 3).unwrap();
-        hs.insert(&element_4_65, 3).unwrap();
-        hs.insert(&element_4_72, 3).unwrap();
-        hs.insert(&element_4_15, 3).unwrap();
+        let index_4_93 = hs.insert(&element_4_93, 3).unwrap();
+        let index_4_65 = hs.insert(&element_4_65, 3).unwrap();
+        let index_4_72 = hs.insert(&element_4_72, 3).unwrap();
+        let index_4_15 = hs.insert(&element_4_15, 3).unwrap();
         assert_eq!(hs.contains(&element_4_93, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_65, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_72, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_15, Some(4)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_4_93, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_65, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_72, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_15, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_93, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_65, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_72, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_15, 4).unwrap();
 
         // Try inserting the same elements we inserted before.
         //
@@ -756,7 +758,7 @@ mod test {
         for nf_chunk in nullifiers.chunks(2400) {
             for nullifier in nf_chunk.iter() {
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
-                hs.insert(&nullifier, seq as usize).unwrap();
+                let index = hs.insert(&nullifier, seq as usize).unwrap();
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
 
                 let nullifier_bytes = bigint_to_be_bytes_array(&nullifier).unwrap();
@@ -780,7 +782,7 @@ mod test {
                 assert!(!element.is_marked());
                 assert!(element.is_valid(seq));
 
-                hs.mark_with_sequence_number(&nullifier, seq).unwrap();
+                hs.mark_with_sequence_number(index, seq).unwrap();
                 let element = hs
                     .find_element(&nullifier, Some(seq))
                     .unwrap()
@@ -869,12 +871,14 @@ mod test {
             // encounter the `HashSetError::Full` at some point
             for i in 0..CAPACITY {
                 let value = BigUint::from(Fr::rand(&mut rng));
-                if let Err(e) = hs.insert(&value, 0) {
-                    assert!(matches!(e, HashSetError::Full));
-                    println!("initial insertions: {i}: failed, stopping");
-                    break;
+                match hs.insert(&value, 0) {
+                    Ok(index) => hs.mark_with_sequence_number(index, 0).unwrap(),
+                    Err(e) => {
+                        assert!(matches!(e, HashSetError::Full));
+                        println!("initial insertions: {i}: failed, stopping");
+                        break;
+                    }
                 }
-                hs.mark_with_sequence_number(&value, 0).unwrap();
             }
 
             // Keep inserting. It should mostly fail, although there might be
@@ -935,16 +939,19 @@ mod test {
         let mut rng = thread_rng();
 
         for _ in 0..1000 {
-            let value = BigUint::from(Fr::rand(&mut rng));
+            let index = rng.gen_range(0..4800);
 
             // Assert `ElementDoesNotExist` error.
-            let res = hs.mark_with_sequence_number(&value, 0);
+            let res = hs.mark_with_sequence_number(index, 0);
             assert!(matches!(res, Err(HashSetError::ElementDoesNotExist)));
+        }
 
+        for _ in 0..1000 {
             // After actually appending the value, the same operation should be
             // possible
-            hs.insert(&value, 0).unwrap();
-            hs.mark_with_sequence_number(&value, 1).unwrap();
+            let value = BigUint::from(Fr::rand(&mut rng));
+            let index = hs.insert(&value, 0).unwrap();
+            hs.mark_with_sequence_number(index, 1).unwrap();
         }
     }
 
@@ -1133,10 +1140,12 @@ mod test {
 
         // Insert incremental elements, so they end up being in the same
         // sequence in the hash set.
-        for i in 0..3600 {
-            let bn_i = i.to_biguint().unwrap();
-            hs.insert(&bn_i, i).unwrap();
-        }
+        let indices = (0..3600)
+            .map(|i| {
+                let bn_i = i.to_biguint().unwrap();
+                hs.insert(&bn_i, i).unwrap()
+            })
+            .collect::<Vec<_>>();
 
         for i in 0..3600 {
             let element = hs.get_unmarked_bucket(i);
@@ -1144,9 +1153,8 @@ mod test {
         }
 
         // Mark the elements.
-        for i in 0..3600 {
-            let bn_i = i.to_biguint().unwrap();
-            hs.mark_with_sequence_number(&bn_i, i).unwrap();
+        for (i, index) in indices.iter().enumerate() {
+            hs.mark_with_sequence_number(*index, i).unwrap();
         }
 
         for i in 0..3600 {

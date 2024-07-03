@@ -92,7 +92,7 @@ where
 
     // Mark the nullifier.
     queue
-        .mark_with_sequence_number(&nullifier.value_biguint(), merkle_tree.sequence_number())
+        .mark_with_sequence_number(queue_index as usize, merkle_tree.sequence_number())
         .unwrap();
 
     Ok(update)
