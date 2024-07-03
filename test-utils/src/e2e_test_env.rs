@@ -440,7 +440,7 @@ where
         println!("queue config: {:?}", queue_config);
         create_state_merkle_tree_and_queue_account(
             &self.payer,
-            &self.indexer.group_pda,
+            true,
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
@@ -513,7 +513,7 @@ where
 
         create_address_merkle_tree_and_queue_account(
             &self.payer,
-            &self.indexer.group_pda,
+            true,
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,

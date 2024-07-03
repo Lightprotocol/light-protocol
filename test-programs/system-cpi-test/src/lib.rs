@@ -1,4 +1,6 @@
 #![allow(clippy::too_many_arguments)]
+use account_compression::program::AccountCompression;
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use light_system_program::invoke::processor::CompressedProof;
@@ -7,17 +9,17 @@ pub use create_pda::*;
 pub mod sdk;
 use light_system_program::NewAddressParamsPacked;
 pub mod invalidate_not_owned_account;
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+};
 pub use invalidate_not_owned_account::*;
 use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
 use light_system_program::sdk::CompressedCpiContext;
-
-declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
+declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
 
 pub mod system_cpi_test {
-
-    use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 
     use super::*;
 
@@ -86,6 +88,7 @@ pub mod system_cpi_test {
 
         Ok(())
     }
+
     pub fn insert_into_address_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
     ) -> Result<()> {
@@ -139,6 +142,113 @@ pub mod system_cpi_test {
 
         Ok(())
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize_address_merkle_tree(
+        ctx: Context<InitializeAddressMerkleTreeAndQueue>,
+        bump: u8,
+        index: u64, // TODO: replace with counter from pda
+        program_owner: Option<Pubkey>,
+        merkle_tree_config: AddressMerkleTreeConfig, // TODO: check config with protocol config
+        queue_config: AddressQueueConfig,
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+        let accounts = account_compression::cpi::accounts::InitializeAddressMerkleTreeAndQueue {
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+            queue: ctx.accounts.queue.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::initialize_address_merkle_tree_and_queue(
+            cpi_ctx,
+            index,
+            program_owner,
+            merkle_tree_config,
+            queue_config,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize_state_merkle_tree(
+        ctx: Context<InitializeAddressMerkleTreeAndQueue>,
+        bump: u8,
+        index: u64, // TODO: replace with counter from pda
+        program_owner: Option<Pubkey>,
+        merkle_tree_config: StateMerkleTreeConfig, // TODO: check config with protocol config
+        queue_config: NullifierQueueConfig,
+        additional_rent: u64,
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+        let accounts =
+            account_compression::cpi::accounts::InitializeStateMerkleTreeAndNullifierQueue {
+                authority: ctx.accounts.cpi_authority.to_account_info(),
+                merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+                nullifier_queue: ctx.accounts.queue.to_account_info(),
+                registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
+            };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::initialize_state_merkle_tree_and_nullifier_queue(
+            cpi_ctx,
+            index,
+            program_owner,
+            merkle_tree_config,
+            queue_config,
+            additional_rent,
+        )
+    }
+}
+
+#[derive(Accounts)]
+pub struct InitializeAddressMerkleTreeAndQueue<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
+    /// CHECK:
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    account_compression_program: Program<'info, AccountCompression>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeStateMerkleTreeAndQueue<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
+    /// CHECK:
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    account_compression_program: Program<'info, AccountCompression>,
 }
 
 #[derive(Accounts)]

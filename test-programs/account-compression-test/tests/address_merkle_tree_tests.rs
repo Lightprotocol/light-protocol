@@ -185,7 +185,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
         account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
             0,
             payer.pubkey(),
-            payer.pubkey(),
+            None,
             None,
             merkle_tree_keypair.pubkey(),
             queue_keypair.pubkey(),
@@ -878,7 +878,7 @@ async fn update_address_merkle_tree_failing_tests(
     let invalid_address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &invalid_address_merkle_tree_keypair,
         &invalid_address_queue_keypair,
@@ -1105,7 +1105,7 @@ async fn address_merkle_tree_and_queue_rollover(
     let address_queue_keypair_2 = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &address_merkle_tree_keypair_2,
         &address_queue_keypair_2,
@@ -1346,7 +1346,7 @@ pub async fn test_setup_with_address_merkle_tree(
     let address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &address_merkle_tree_keypair,
         &address_queue_keypair,

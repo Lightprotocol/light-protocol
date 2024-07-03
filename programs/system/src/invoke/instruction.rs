@@ -33,7 +33,7 @@ pub struct InvokeInstruction<'info> {
     /// CHECK: Account compression program is used to update state and address
     /// Merkle trees.
     pub account_compression_program: Program<'info, AccountCompression>,
-    /// Sol pool pda is used to store compressed sol.
+    /// Sol pool pda is used to store the native sol that has been compressed.
     /// It's only required when compressing or decompressing sol.
     #[account(
         mut,

@@ -81,7 +81,7 @@ export type LightSystemProgram = {
                     isSigner: false;
                     isOptional: true;
                     docs: [
-                        'Sol pool pda is used to store compressed sol.',
+                        'Sol pool pda is used to store the native sol that has been compressed.',
                         "It's only required when compressing or decompressing sol.",
                     ];
                 },
@@ -232,7 +232,7 @@ export type LightSystemProgram = {
                     isSigner: false;
                     isOptional: true;
                     docs: [
-                        'Sol pool pda is used to store compressed sol.',
+                        'Sol pool pda is used to store the native sol that has been compressed.',
                         "It's only required when compressing or decompressing sol.",
                     ];
                 },
@@ -968,8 +968,8 @@ export type LightSystemProgram = {
         },
         {
             code: 6024;
-            name: 'DecompressionRecipienDefined';
-            msg: 'DecompressionRecipienDefined';
+            name: 'DecompressionRecipientDefined';
+            msg: 'DecompressionRecipientDefined';
         },
         {
             code: 6025;
@@ -1097,7 +1097,7 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                     isOptional: true,
                     docs: [
-                        'Sol pool pda is used to store compressed sol.',
+                        'Sol pool pda is used to store the native sol that has been compressed.',
                         "It's only required when compressing or decompressing sol.",
                     ],
                 },
@@ -1248,7 +1248,7 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                     isOptional: true,
                     docs: [
-                        'Sol pool pda is used to store compressed sol.',
+                        'Sol pool pda is used to store the native sol that has been compressed.',
                         "It's only required when compressing or decompressing sol.",
                     ],
                 },
@@ -1989,8 +1989,8 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6024,
-            name: 'DecompressionRecipienDefined',
-            msg: 'DecompressionRecipienDefined',
+            name: 'DecompressionRecipientDefined',
+            msg: 'DecompressionRecipientDefined',
         },
         {
             code: 6025,
