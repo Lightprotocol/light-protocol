@@ -122,6 +122,10 @@ pub mod account_compression {
         process_register_program(ctx)
     }
 
+    pub fn deregister_program(_ctx: Context<DeregisterProgram>) -> Result<()> {
+        Ok(())
+    }
+
     /// Initializes a new Merkle tree from config bytes.
     /// Index is an optional identifier and not checked by the program.
     pub fn initialize_state_merkle_tree_and_nullifier_queue<'info>(
