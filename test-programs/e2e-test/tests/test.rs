@@ -64,7 +64,7 @@ async fn test_address_tree_rollover() {
     env.create_address_tree(Some(0)).await;
     // create on transaction to fund the rollover fee
     env.create_address(None).await;
-    // rollover adddress Merkle tree
+    // rollover address Merkle tree
     env.rollover_address_merkle_tree_and_queue(0).await.unwrap();
 }
 

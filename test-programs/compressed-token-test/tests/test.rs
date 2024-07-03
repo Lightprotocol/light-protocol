@@ -398,7 +398,7 @@ async fn test_delegation() {
             &[recipient, sender.pubkey()],
             &output_amounts,
             input_compressed_accounts.as_slice(),
-            &vec![env.merkle_tree_pubkey; 2],
+            &[env.merkle_tree_pubkey; 2],
             Some(1),
             None,
         )
@@ -423,7 +423,7 @@ async fn test_delegation() {
             &[recipient],
             &output_amounts,
             input_compressed_accounts.as_slice(),
-            &vec![env.merkle_tree_pubkey; 1],
+            &[env.merkle_tree_pubkey; 1],
             None,
             None,
         )
@@ -1003,6 +1003,7 @@ async fn test_failing_decompression() {
     kill_prover();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn failing_compress_decompress<R: RpcConnection>(
     payer: &Keypair,
     rpc: &mut R,

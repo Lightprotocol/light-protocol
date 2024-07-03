@@ -150,6 +150,7 @@ async fn test_address_queue_and_tree_functional_custom() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
     context: &mut R,
     payer: &Keypair,
@@ -167,8 +168,8 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
             .get_minimum_balance_for_rent_exemption(queue_size)
             .await
             .unwrap(),
-        &account_compression::ID,
-        Some(&queue_keypair),
+        &ID,
+        Some(queue_keypair),
     );
     let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
@@ -177,8 +178,8 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
             .get_minimum_balance_for_rent_exemption(merkle_tree_size)
             .await
             .unwrap(),
-        &account_compression::ID,
-        Some(&merkle_tree_keypair),
+        &ID,
+        Some(merkle_tree_keypair),
     );
 
     let instruction =
@@ -217,11 +218,10 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     let queue_config = AddressQueueConfig::default();
     let merkle_tree_config = AddressMerkleTreeConfig::default();
 
-    let valid_queue_size = account_compression::state::QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
-    )
-    .unwrap();
-    let valid_tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+    let valid_queue_size =
+        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
+            .unwrap();
+    let valid_tree_size = AddressMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,
@@ -236,14 +236,10 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     // (+ discriminator) up to the expected account size.
 
     // Invalid MT size + invalid queue size.
-    for tree_size in (8 + mem::size_of::<account_compression::state::AddressMerkleTreeAccount>()
-        ..=valid_tree_size)
-        .step_by(200_000)
+    for tree_size in
+        (8 + mem::size_of::<AddressMerkleTreeAccount>()..=valid_tree_size).step_by(200_000)
     {
-        for queue_size in (8 + mem::size_of::<account_compression::state::QueueAccount>()
-            ..=valid_queue_size)
-            .step_by(50_000)
-        {
+        for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
             let result = initialize_address_merkle_tree_and_queue(
                 &mut context,
                 &payer,
@@ -262,9 +258,8 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         }
     }
     // Invalid MT size + valid queue size.
-    for tree_size in (8 + mem::size_of::<account_compression::state::AddressMerkleTreeAccount>()
-        ..=valid_tree_size)
-        .step_by(200_000)
+    for tree_size in
+        (8 + mem::size_of::<AddressMerkleTreeAccount>()..=valid_tree_size).step_by(200_000)
     {
         let result = initialize_address_merkle_tree_and_queue(
             &mut context,
@@ -283,10 +278,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         .unwrap()
     }
     // Valid MT size + invalid queue size.
-    for queue_size in (8 + mem::size_of::<account_compression::state::QueueAccount>()
-        ..=valid_queue_size)
-        .step_by(50_000)
-    {
+    for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
         let result = initialize_address_merkle_tree_and_queue(
             &mut context,
             &payer,
@@ -320,11 +312,10 @@ async fn test_address_queue_and_tree_invalid_config() {
     let queue_config = AddressQueueConfig::default();
     let merkle_tree_config = AddressMerkleTreeConfig::default();
 
-    let queue_size = account_compression::state::QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
-    )
-    .unwrap();
-    let tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+    let queue_size =
+        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
+            .unwrap();
+    let tree_size = AddressMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,

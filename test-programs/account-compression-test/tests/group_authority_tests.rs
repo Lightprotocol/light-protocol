@@ -159,15 +159,15 @@ async fn test_create_and_update_group() {
         context.get_latest_blockhash().await.unwrap(),
     );
     context.process_transaction(transaction).await.unwrap();
-    let registerd_program_account = context
+    let registered_program_account = context
         .get_anchor_account::<RegisteredProgram>(&registered_program_pda)
         .await;
     assert_eq!(
-        registerd_program_account.registered_program_id,
+        registered_program_account.registered_program_id,
         system_program_id_keypair.pubkey()
     );
     assert_eq!(
-        registerd_program_account.group_authority_pda,
+        registered_program_account.group_authority_pda,
         group_accounts.0
     );
     // add new program to group with invalid authority

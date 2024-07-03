@@ -413,7 +413,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_create_pda_failing<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -447,7 +447,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_create_pda_with_event<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -481,7 +481,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
 async fn perform_create_pda<R: RpcConnection>(
     env: &EnvAccounts,
     seed: [u8; 32],
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     data: &[u8; 31],
     payer_pubkey: Pubkey,
@@ -521,7 +521,7 @@ async fn perform_create_pda<R: RpcConnection>(
 }
 
 pub async fn assert_created_pda<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     seed: &[u8; 32],
@@ -565,7 +565,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
 }
 
 pub async fn perform_with_input_accounts<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
