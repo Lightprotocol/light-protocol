@@ -11,6 +11,8 @@ use account_compression::{
 use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
+use light_bounded_vec::BoundedVecError;
+use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
@@ -259,7 +261,9 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             )
             .await;
             assert_rpc_error(
-                result, 2, 9006, // HashSetError::BufferSize
+                result,
+                2,
+                HashSetError::BufferSize(valid_queue_size, queue_size).into(),
             )
             .unwrap()
         }
@@ -281,7 +285,9 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         )
         .await;
         assert_rpc_error(
-            result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
+            result,
+            2,
+            ConcurrentMerkleTreeError::BufferSize(valid_tree_size, tree_size).into(),
         )
         .unwrap()
     }
@@ -302,7 +308,9 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         )
         .await;
         assert_rpc_error(
-            result, 2, 9006, // HashSetError::BufferSize
+            result,
+            2,
+            HashSetError::BufferSize(valid_queue_size, queue_size).into(),
         )
         .unwrap()
     }
@@ -422,10 +430,7 @@ async fn test_address_queue_and_tree_invalid_config() {
             queue_size,
         )
         .await;
-        assert_rpc_error(
-            result, 2, 10003, // ConcurrentMerkleTree::ChangelogZero
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::ChangelogZero.into()).unwrap();
     }
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
@@ -441,10 +446,7 @@ async fn test_address_queue_and_tree_invalid_config() {
             queue_size,
         )
         .await;
-        assert_rpc_error(
-            result, 2, 10004, // ConcurrentMerkleTree::RootsSize
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::RootsZero.into()).unwrap();
     }
     for invalid_close_threshold in (0..100).step_by(20) {
         let mut merkle_tree_config = merkle_tree_config.clone();
@@ -680,7 +682,7 @@ async fn update_address_merkle_tree_failing_tests(
     assert_rpc_error(
         error_invalid_low_element_index,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -705,7 +707,7 @@ async fn update_address_merkle_tree_failing_tests(
     assert_rpc_error(
         error_invalid_low_element_value,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -730,7 +732,7 @@ async fn update_address_merkle_tree_failing_tests(
     assert_rpc_error(
         error_invalid_low_element_next_index,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -755,7 +757,7 @@ async fn update_address_merkle_tree_failing_tests(
     assert_rpc_error(
         error_invalid_low_element_next_value,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -781,7 +783,7 @@ async fn update_address_merkle_tree_failing_tests(
     assert_rpc_error(
         error_invalid_low_element_proof,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
     let address_merkle_tree = get_indexed_merkle_tree::<
@@ -818,7 +820,7 @@ async fn update_address_merkle_tree_failing_tests(
         assert_rpc_error(
             error_invalid_changelog_index_low,
             0,
-            10009, // ConcurrentMerkleTreeError::InvalidProof
+            ConcurrentMerkleTreeError::CannotUpdateLeaf.into(),
         )
         .unwrap();
 
@@ -843,7 +845,7 @@ async fn update_address_merkle_tree_failing_tests(
         assert_rpc_error(
             error_invalid_changelog_index_high,
             0,
-            8003, // BoundedVecError::IterFromOutOfBounds
+            BoundedVecError::IterFromOutOfBounds.into(),
         )
         .unwrap();
     }
@@ -872,7 +874,7 @@ async fn update_address_merkle_tree_failing_tests(
         assert_rpc_error(
             error_invalid_indexed_changelog_index_high,
             0,
-            8003, // BoundedVecError::IterFromOutOfBounds
+            BoundedVecError::IterFromOutOfBounds.into(),
         )
         .unwrap();
     }
@@ -1064,7 +1066,9 @@ async fn update_address_merkle_tree_wrap_around(
     )
     .await;
     assert_rpc_error(
-        error, 0, 10008, // ConcurrentMerkleTreeError::InvalidProof
+        error,
+        0,
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 }

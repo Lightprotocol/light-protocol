@@ -1135,7 +1135,9 @@ async fn test_nullify_leaves(
     )
     .await;
     assert_rpc_error(
-        result, 0, 10008, // Invalid proof
+        result,
+        0,
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -1507,7 +1509,9 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
             )
             .await;
             assert_rpc_error(
-                result, 2, 10012, // ConcurrentMerkleTreeError::BufferSize
+                result,
+                2,
+                ConcurrentMerkleTreeError::BufferSize(valid_tree_size, invalid_tree_size).into(),
             )
             .unwrap();
         }
@@ -1618,10 +1622,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_size,
         )
         .await;
-        assert_rpc_error(
-            result, 2, 10003, // ConcurrentMerkleTree::ChangelogZero
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::ChangelogZero.into()).unwrap();
     }
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
@@ -1637,10 +1638,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_size,
         )
         .await;
-        assert_rpc_error(
-            result, 2, 10004, // ConcurrentMerkleTree::RootsSize
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::RootsZero.into()).unwrap();
     }
     for invalid_close_threshold in (0..100).step_by(20) {
         let mut merkle_tree_config = merkle_tree_config.clone();
