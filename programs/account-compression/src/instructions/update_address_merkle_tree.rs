@@ -118,7 +118,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Mark the address with the current sequence number.
     address_queue
-        .mark_with_sequence_number(&value, merkle_tree.sequence_number())
+        .mark_with_sequence_number(value_index as usize, merkle_tree.sequence_number())
         .map_err(ProgramError::from)?;
 
     let address_event = MerkleTreeEvent::V3(IndexedMerkleTreeEvent {
