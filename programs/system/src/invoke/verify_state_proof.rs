@@ -1,5 +1,4 @@
 use crate::{
-    errors::SystemProgramError,
     sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
     NewAddressParamsPacked,
 };
@@ -122,13 +121,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 
         #[allow(clippy::comparison_chain)]
         if current_mt_index
-            == input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index as i16
-        {
-            // Do nothing, but it is the most common case.
-        } else if current_mt_index
-            < input_compressed_account_with_context
+            != input_compressed_account_with_context
                 .merkle_context
                 .merkle_tree_pubkey_index as i16
         {
@@ -140,12 +133,17 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .merkle_tree_pubkey_index
                 as usize]
                 .key();
-            current_hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0;
-            hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
-        } else {
-            return err!(SystemProgramError::InputMerkleTreeIndicesNotInOrder);
+            current_hashed_mt = match hashed_pubkeys.iter().find(|x| x.0 == merkle_tree_pubkey) {
+                Some(hashed_merkle_tree_pubkey) => hashed_merkle_tree_pubkey.1,
+                None => {
+                    let hashed_merkle_tree_pubkey =
+                        hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                            .unwrap()
+                            .0;
+                    hashed_pubkeys.push((merkle_tree_pubkey, hashed_merkle_tree_pubkey));
+                    hashed_merkle_tree_pubkey
+                }
+            };
         }
         // Without cpi context all input compressed accounts have the same owner.
         // With cpi context the owners will be different.
