@@ -4,7 +4,7 @@ use account_compression::errors::AccountCompressionErrorCode;
 use account_compression::{
     self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
 };
-use anchor_lang::{system_program, InstructionData};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
@@ -203,4 +203,69 @@ async fn test_create_and_update_group() {
         AccountCompressionErrorCode::InvalidAuthority.into(),
     )
     .unwrap();
+
+    let registered_program_pda = Pubkey::find_program_address(
+        &[system_program_id_keypair.pubkey().to_bytes().as_slice()],
+        &ID,
+    )
+    .0;
+    // deregister program with invalid authority
+    {
+        let close_recipient = Pubkey::new_unique();
+        let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
+        let accounts = account_compression::accounts::DeregisterProgram {
+            authority: context.get_payer().pubkey(),
+            registered_program_pda: registered_program_pda,
+            group_authority_pda: group_accounts.0,
+            close_recipient,
+        };
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: deregister_program_ix.data(),
+        };
+        let payer = context.get_payer().insecure_clone();
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidAuthority.into(),
+        )
+        .unwrap();
+    }
+    // successfully deregister program
+    {
+        let close_recipient = Pubkey::new_unique();
+        let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
+        let accounts = account_compression::accounts::DeregisterProgram {
+            authority: updated_keypair.pubkey(),
+            registered_program_pda: registered_program_pda,
+            group_authority_pda: group_accounts.0,
+            close_recipient,
+        };
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: deregister_program_ix.data(),
+        };
+        context
+            .create_and_send_transaction(
+                &[instruction],
+                &updated_keypair.pubkey(),
+                &[&updated_keypair],
+            )
+            .await
+            .unwrap();
+        let closed_registered_program_account =
+            context.get_account(registered_program_pda).await.unwrap();
+        assert!(closed_registered_program_account.is_none());
+        let recpient_balance = context.get_balance(&close_recipient).await.unwrap();
+        let rent_exemption = context
+            .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
+            .await
+            .unwrap();
+        assert_eq!(recpient_balance, rent_exemption);
+    }
 }
