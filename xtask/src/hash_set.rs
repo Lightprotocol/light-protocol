@@ -59,7 +59,7 @@ fn bench(opts: BenchOptions) -> anyhow::Result<()> {
 
     for load_factor in opts.load_factors {
         let capacity_with_load_factor =
-            find_next_prime_with_load_factor(opts.expected_capacity as f64, load_factor) as usize;
+            find_next_prime_with_load_factor(opts.expected_capacity, load_factor) as usize;
 
         let mut hs = HashSet::new(capacity_with_load_factor, opts.sequence_threshold)?;
         let mut rng = thread_rng();
