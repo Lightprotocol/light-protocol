@@ -11,11 +11,13 @@ use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR
 use log::{info, LevelFilter};
 use solana_sdk::signature::{Keypair, Signer};
 
+#[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {
     setup_logger();
     spawn_test_validator(config).await;
 }
 
+#[allow(dead_code)]
 pub fn setup_logger() {
     let _ = env_logger::Builder::from_env(
         env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
@@ -24,6 +26,7 @@ pub fn setup_logger() {
     .try_init();
 }
 
+#[allow(dead_code)]
 pub async fn spawn_test_validator(config: Option<LightValidatorConfig>) {
     if let Some(config) = config {
         spawn_validator(config).await;
@@ -64,6 +67,7 @@ pub fn general_action_config() -> GeneralActionConfig {
     }
 }
 
+#[allow(dead_code)]
 pub fn forester_config() -> ForesterConfig {
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
@@ -111,6 +115,7 @@ pub async fn get_address_queue_length<R: RpcConnection>(
 }
 
 // truncate to <254 bit
+#[allow(dead_code)]
 pub fn generate_pubkey_254() -> Pubkey {
     let mock_address: Pubkey = Pubkey::new_unique();
     let mut mock_address_less_than_254_bit: [u8; 32] = mock_address.to_bytes();
@@ -118,6 +123,7 @@ pub fn generate_pubkey_254() -> Pubkey {
     Pubkey::from(mock_address_less_than_254_bit)
 }
 
+#[allow(dead_code)]
 pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
     indexer: &mut TestIndexer<SolanaRpcConnection>,
     trees: &[Pubkey],
