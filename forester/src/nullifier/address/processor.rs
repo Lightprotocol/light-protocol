@@ -23,6 +23,8 @@ use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
@@ -97,7 +99,10 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         let config = &context.config;
         let rpc = &context.rpc;
 
-        let queue_data = fetch_address_queue_data(config, rpc).await?;
+        let mut queue_data = fetch_address_queue_data(config, rpc).await?;
+        let mut rng = thread_rng();
+        queue_data.shuffle(&mut rng);
+        
         info!("Fetched address queue data len: {:?}", queue_data.len());
         if queue_data.is_empty() {
             info!("Address queue is empty");
@@ -115,7 +120,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         &self,
         context: PipelineContext<T, R>,
         queue_data: Vec<ForesterQueueAccount>,
-    ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {
+    ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {        
         if let Some(account) = queue_data.first() {
             info!("Processing address: {:?}", account.hash);
             Ok(Some(AddressPipelineStage::UpdateAddressMerkleTree(
@@ -248,6 +253,16 @@ async fn fetch_address_queue_data<R: RpcConnection>(
     let address_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
+
+    // for i in 0..address_queue.capacity {
+    //     let bucket = address_queue.get_bucket(i).unwrap();
+    //     if let Some(bucket) = bucket {
+    //         info!("{} {:?} {:?}", i, bucket.sequence_number(), bucket.value_bytes());
+    //     } else {
+    //         info!("{} None ---------------------------------------", i);
+    //     }
+    // }
+    // panic!("stop");
     let mut address_queue_vec = Vec::new();
 
     for i in 0..address_queue.capacity {

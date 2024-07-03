@@ -4,7 +4,7 @@ use forester::cli::{Cli, Commands};
 use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
 use forester::{
-    init_config, init_rpc, nullify_addresses, nullify_state, subscribe_state, ForesterConfig,
+    init_config, init_rpc, nullify_addresses, nullify_state, subscribe_addresses, subscribe_state, ForesterConfig
 };
 use log::{debug, error};
 use std::sync::Arc;
@@ -25,7 +25,23 @@ async fn main() {
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            run_subscribe_state(config.clone()).await;
+            
+            let state_nullifier = tokio::spawn(run_subscribe_state(config.clone()));
+            let address_nullifier = tokio::spawn(run_subscribe_addresses(config));
+
+            // Wait for both nullifiers to complete
+            let (state_result, address_result) = tokio::join!(state_nullifier, address_nullifier);
+
+            if let Err(e) = state_result {
+                error!("State nullifier encountered an error: {:?}", e);
+            }
+
+            if let Err(e) = address_result {
+                error!("Address nullifier encountered an error: {:?}", e);
+            }
+
+            debug!("All nullification processes completed");
+
         }
         Some(Commands::NullifyState) => {
             run_nullify_state(config).await;
@@ -75,6 +91,10 @@ async fn run_subscribe_state(config: Arc<ForesterConfig>) {
     )));
 
     subscribe_state(config.clone(), rpc, indexer).await;
+}
+
+async fn run_subscribe_addresses(config: Arc<ForesterConfig>) {
+    subscribe_addresses(config.clone()).await;
 }
 
 async fn run_nullify_state(config: Arc<ForesterConfig>) {
