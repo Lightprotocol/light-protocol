@@ -159,7 +159,7 @@ impl Indexer for PhotonIndexer {
                 proof_vec
             },
             root: decode_hash(&proofs.root),
-            root_seq: proofs.root_seq as i64,
+            root_seq: proofs.root_seq as u64,
         })
     }
 

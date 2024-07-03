@@ -83,7 +83,7 @@ pub struct MerkleProofWithAddressContext {
 pub struct NewAddressProofWithContext {
     pub merkle_tree: [u8; 32],
     pub root: [u8; 32],
-    pub root_seq: i64,
+    pub root_seq: u64,
     pub low_address_index: u64,
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,

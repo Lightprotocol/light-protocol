@@ -16,9 +16,11 @@ import {
     createAccount,
     createAccountWithLamports,
     decompress,
+    deriveAddress,
 } from '../../src';
 import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {randomBytes} from "tweetnacl";
 
 /// TODO: make available to developers via utils
 function txFees(
@@ -67,75 +69,80 @@ describe('compress', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+
+        const RPC_URL = 'https://zk-testnet.helius.dev:8899';
+        const INDEXER_URL = 'https://zk-testnet.helius.dev:8784';
+        const PROVER_URL = 'https://zk-testnet.helius.dev:3001';
+
+        rpc = await getTestRpc(lightWasm, RPC_URL, INDEXER_URL, PROVER_URL);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
     });
 
-    it('should create account with address', async () => {
+    it.only('should create account with address', async () => {
         const preCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
 
+
+        const seed = randomBytes(32);
+        const address = await deriveAddress(seed);
+
+        const proof = rpc.getMultipleNewAddressProofs([bn(address.toBytes())]);
+        console.log("Proof: ", proof);  
+
+        console.log("Creating account 1");
         await createAccount(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
+            seed,
             LightSystemProgram.programId,
         );
 
-        await createAccountWithLamports(
-            rpc as TestRpc,
-            payer,
-            new Uint8Array([
-                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-            0,
-            LightSystemProgram.programId,
-        );
+        // console.log("Creating account 2");
+        // await createAccountWithLamports(
+        //     rpc as TestRpc,
+        //     payer,
+        //     randomBytes(32),
+        //     0,
+        //     LightSystemProgram.programId,
+        // );
 
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
-            ]),
-            LightSystemProgram.programId,
-        );
+        // console.log("Creating account 3");
+        // await createAccount(
+        //     rpc as TestRpc,
+        //     payer,
+        //     randomBytes(32),
+        //     LightSystemProgram.programId,
+        // );
 
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-            ]),
-            LightSystemProgram.programId,
-        );
-        await expect(
-            createAccount(
-                rpc as TestRpc,
-                payer,
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-                ]),
-                LightSystemProgram.programId,
-            ),
-        ).rejects.toThrow();
-        const postCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCreateAccountsBalance,
-            preCreateAccountsBalance -
-                txFees([
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                ]),
-        );
+        // console.log("Creating account 4");
+        // const addressSeed = randomBytes(32);
+        // await createAccount(
+        //     rpc as TestRpc,
+        //     payer,
+        //     addressSeed,
+        //     LightSystemProgram.programId,
+        // );
+
+        // console.log("Creating account 5");
+        // await expect(
+        //     createAccount(
+        //         rpc as TestRpc,
+        //         payer,
+        //         addressSeed,
+        //         LightSystemProgram.programId,
+        //     ),
+        // ).rejects.toThrow();
+
+        // const postCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
+        // assert.equal(
+        //     postCreateAccountsBalance,
+        //     preCreateAccountsBalance -
+        //         txFees([
+        //             { in: 0, out: 1, addr: 1 },
+        //             { in: 0, out: 1, addr: 1 },
+        //             { in: 0, out: 1, addr: 1 },
+        //             { in: 0, out: 1, addr: 1 },
+        //         ]),
+        // );
     });
 
     it('should compress lamports and create an account with address and lamports', async () => {

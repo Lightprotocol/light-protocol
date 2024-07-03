@@ -278,7 +278,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             low_address_next_value,
             low_address_proof,
             root: address_tree_bundle.merkle_tree.root(),
-            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64,
+            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
         })
     }
 
