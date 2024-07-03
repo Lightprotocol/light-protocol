@@ -197,7 +197,7 @@ async fn test_escrow_pda() {
 
 pub async fn perform_escrow<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -265,7 +265,7 @@ pub async fn perform_escrow<R: RpcConnection>(
 
 pub async fn perform_escrow_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -298,7 +298,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
 
 pub async fn perform_escrow_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -317,7 +317,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
 
 pub async fn assert_escrow<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &TestIndexer<200, R>,
+    test_indexer: &TestIndexer<R>,
     payer_pubkey: &Pubkey,
     amount: u64,
     escrow_amount: u64,
@@ -353,7 +353,7 @@ pub async fn assert_escrow<R: RpcConnection>(
 
 pub async fn perform_withdrawal<R: RpcConnection>(
     context: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -419,7 +419,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 
 pub async fn perform_withdrawal_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -449,7 +449,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
 
 pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -473,7 +473,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc.process_transaction(transaction).await
 }
 pub fn assert_withdrawal<R: RpcConnection>(
-    test_indexer: &TestIndexer<200, R>,
+    test_indexer: &TestIndexer<R>,
     payer_pubkey: &Pubkey,
     withdrawal_amount: u64,
     escrow_amount: u64,
