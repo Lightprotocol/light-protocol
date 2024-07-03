@@ -58,6 +58,51 @@ pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
     }
 }
 
+pub async fn subscribe_addresses<I: Indexer<R>, R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<tokio::sync::Mutex<R>>,
+    indexer: Arc<tokio::sync::Mutex<I>>,
+) {
+    debug!(
+        "Subscribe to address tree changes. Queue: {}. Merkle tree: {}",
+        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+    );
+    loop {
+        let (_account_subscription_client, account_subscription_receiver) =
+            match PubsubClient::account_subscribe(
+                &config.external_services.ws_rpc_url,
+                &config.address_merkle_tree_queue_pubkey,
+                Some(RpcAccountInfoConfig {
+                    encoding: None,
+                    data_slice: None,
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    min_context_slot: None,
+                }),
+            ) {
+                Ok((client, receiver)) => (client, receiver),
+                Err(e) => {
+                    warn!("account subscription error: {:?}", e);
+                    warn!("retrying in 500ms...");
+                    sleep(Duration::from_millis(500)).await;
+                    continue;
+                }
+            };
+        loop {
+            match account_subscription_receiver.recv() {
+                Ok(_) => {
+                    debug!("nullify request received");                   
+                    nullify_addresses(Arc::clone(&config), rpc.clone(), indexer.clone()).await;
+                }
+                Err(e) => {
+                    warn!("account subscription error: {:?}", e);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
 pub async fn nullify_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc: Arc<tokio::sync::Mutex<R>>,
