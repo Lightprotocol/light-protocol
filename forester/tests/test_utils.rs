@@ -3,7 +3,7 @@ use forester::indexer::PhotonIndexer;
 use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::{external_services_config::ExternalServicesConfig, ForesterConfig};
-use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig};
+use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext, TestIndexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -64,7 +64,6 @@ pub fn general_action_config() -> GeneralActionConfig {
     }
 }
 
-#[allow(dead_code)]
 pub fn forester_config() -> ForesterConfig {
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
@@ -112,7 +111,6 @@ pub async fn get_address_queue_length<R: RpcConnection>(
 }
 
 // truncate to <254 bit
-#[allow(dead_code)]
 pub fn generate_pubkey_254() -> Pubkey {
     let mock_address: Pubkey = Pubkey::new_unique();
     let mut mock_address_less_than_254_bit: [u8; 32] = mock_address.to_bytes();
@@ -120,9 +118,8 @@ pub fn generate_pubkey_254() -> Pubkey {
     Pubkey::from(mock_address_less_than_254_bit)
 }
 
-#[allow(dead_code)]
 pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
-    indexer: &mut TestIndexer<500, SolanaRpcConnection>,
+    indexer: &mut TestIndexer<SolanaRpcConnection>,
     trees: &[Pubkey],
     addresses: &[Pubkey],
     photon_indexer: &PhotonIndexer,
@@ -182,6 +179,92 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
             .zip(test_indexer_result.low_address_proof.iter())
         {
             assert_eq!(photon_proof_hash, test_indexer_proof_hash);
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub async fn assert_accounts_by_owner(
+    indexer: &mut TestIndexer<SolanaRpcConnection>,
+    user: &User,
+    photon_indexer: &PhotonIndexer,
+) {
+    let mut photon_accs = photon_indexer
+        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .await
+        .unwrap();
+    photon_accs.sort();
+
+    let mut test_accs = indexer
+        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .await
+        .unwrap();
+    test_accs.sort();
+
+    info!(
+        "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
+        user.keypair.pubkey().to_string(),
+        test_accs.len(),
+        photon_accs.len()
+    );
+    assert_eq!(test_accs.len(), photon_accs.len());
+
+    info!("test_accs: {:?}", test_accs);
+    info!("photon_accs: {:?}", photon_accs);
+
+    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
+        assert_eq!(test_acc, indexer_acc);
+    }
+}
+
+#[allow(dead_code)]
+pub async fn assert_account_proofs_for_photon_and_test_indexer(
+    indexer: &mut TestIndexer<SolanaRpcConnection>,
+    user_pubkey: &Pubkey,
+    photon_indexer: &PhotonIndexer,
+) {
+    let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
+        .get_rpc_compressed_accounts_by_owner(user_pubkey)
+        .await;
+    for account_hash in accs.unwrap() {
+        let photon_result = photon_indexer
+            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .await;
+        let test_indexer_result = indexer
+            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .await;
+
+        if photon_result.is_err() {
+            panic!("Photon error: {:?}", photon_result);
+        }
+
+        if test_indexer_result.is_err() {
+            panic!("Test indexer error: {:?}", test_indexer_result);
+        }
+
+        let photon_result = photon_result.unwrap();
+        let test_indexer_result = test_indexer_result.unwrap();
+        info!(
+            "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
+            account_hash, photon_result, test_indexer_result
+        );
+
+        assert_eq!(photon_result.len(), test_indexer_result.len());
+        for (photon_proof, test_indexer_proof) in
+            photon_result.iter().zip(test_indexer_result.iter())
+        {
+            assert_eq!(photon_proof.hash, test_indexer_proof.hash);
+            assert_eq!(photon_proof.leaf_index, test_indexer_proof.leaf_index);
+            assert_eq!(photon_proof.merkle_tree, test_indexer_proof.merkle_tree);
+            assert_eq!(photon_proof.root_seq, test_indexer_proof.root_seq);
+            assert_eq!(photon_proof.proof.len(), test_indexer_proof.proof.len());
+            for (photon_proof_hash, test_indexer_proof_hash) in photon_proof
+                .proof
+                .iter()
+                .zip(test_indexer_proof.proof.iter())
+            {
+                assert_eq!(photon_proof_hash, test_indexer_proof_hash);
+            }
         }
     }
 }

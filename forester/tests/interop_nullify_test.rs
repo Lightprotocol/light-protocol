@@ -20,89 +20,6 @@ use solana_sdk::signer::keypair::Keypair;
 mod test_utils;
 use test_utils::*;
 
-pub async fn assert_accounts_by_owner(
-    indexer: &mut TestIndexer<SolanaRpcConnection>,
-    user: &User,
-    photon_indexer: &PhotonIndexer,
-) {
-    let mut photon_accs = photon_indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
-        .await
-        .unwrap();
-    photon_accs.sort();
-
-    let mut test_accs = indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
-        .await
-        .unwrap();
-    test_accs.sort();
-
-    info!(
-        "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
-        user.keypair.pubkey().to_string(),
-        test_accs.len(),
-        photon_accs.len()
-    );
-    assert_eq!(test_accs.len(), photon_accs.len());
-
-    info!("test_accs: {:?}", test_accs);
-    info!("photon_accs: {:?}", photon_accs);
-
-    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
-        assert_eq!(test_acc, indexer_acc);
-    }
-}
-
-pub async fn assert_account_proofs_for_photon_and_test_indexer(
-    indexer: &mut TestIndexer<SolanaRpcConnection>,
-    user_pubkey: &Pubkey,
-    photon_indexer: &PhotonIndexer,
-) {
-    let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
-        .get_rpc_compressed_accounts_by_owner(user_pubkey)
-        .await;
-    for account_hash in accs.unwrap() {
-        let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
-            .await;
-        let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
-            .await;
-
-        if photon_result.is_err() {
-            panic!("Photon error: {:?}", photon_result);
-        }
-
-        if test_indexer_result.is_err() {
-            panic!("Test indexer error: {:?}", test_indexer_result);
-        }
-
-        let photon_result = photon_result.unwrap();
-        let test_indexer_result = test_indexer_result.unwrap();
-        info!(
-            "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
-            account_hash, photon_result, test_indexer_result
-        );
-
-        assert_eq!(photon_result.len(), test_indexer_result.len());
-        for (photon_proof, test_indexer_proof) in
-            photon_result.iter().zip(test_indexer_result.iter())
-        {
-            assert_eq!(photon_proof.hash, test_indexer_proof.hash);
-            assert_eq!(photon_proof.leaf_index, test_indexer_proof.leaf_index);
-            assert_eq!(photon_proof.merkle_tree, test_indexer_proof.merkle_tree);
-            assert_eq!(photon_proof.root_seq, test_indexer_proof.root_seq);
-            assert_eq!(photon_proof.proof.len(), test_indexer_proof.proof.len());
-            for (photon_proof_hash, test_indexer_proof_hash) in photon_proof
-                .proof
-                .iter()
-                .zip(test_indexer_proof.proof.iter())
-            {
-                assert_eq!(photon_proof_hash, test_indexer_proof_hash);
-            }
-        }
-    }
-}
 #[ignore = "TokenData breaking changes break photon 0.26.0"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_nullify_account() {
@@ -138,7 +55,7 @@ async fn test_photon_interop_nullify_account() {
     )
     .await;
 
-    let forester_config = setup_forester();
+    let forester_config = forester_config();
     let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url);
     let user_index = 0;
     let balance = env
@@ -223,29 +140,5 @@ fn general_action_config() -> GeneralActionConfig {
         create_state_mt: None,
         create_address_mt: None,
         rollover: None,
-    }
-}
-
-fn setup_forester() -> ForesterConfig {
-    let env_accounts = get_test_env_accounts();
-    let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    ForesterConfig {
-        external_services: ExternalServicesConfig {
-            rpc_url: "http://localhost:8899".to_string(),
-            ws_rpc_url: "ws://localhost:8900".to_string(),
-            indexer_url: "http://localhost:8784".to_string(),
-            prover_url: "http://localhost:3001".to_string(),
-            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
-        },
-        nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
-        state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
-        address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
-        address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
-        registry_pubkey: registry_keypair.pubkey(),
-        payer_keypair: env_accounts.forester.insecure_clone(),
-        concurrency_limit: 1,
-        batch_size: 1,
-        max_retries: 5,
-        max_concurrent_batches: 5,
     }
 }
