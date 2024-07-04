@@ -94,7 +94,16 @@ async fn run_subscribe_state(config: Arc<ForesterConfig>) {
 }
 
 async fn run_subscribe_addresses(config: Arc<ForesterConfig>) {
-    subscribe_addresses(config.clone()).await;
+    let rpc = init_rpc(config.clone(), false).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer_rpc = init_rpc(config.clone(), false).await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        config.external_services.indexer_url.to_string(),
+        indexer_rpc,
+    )));
+
+    subscribe_addresses(config.clone(), rpc, indexer).await;
 }
 
 async fn run_nullify_state(config: Arc<ForesterConfig>) {
