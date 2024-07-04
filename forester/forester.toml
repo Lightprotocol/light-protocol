@@ -14,10 +14,10 @@ ZKTESTNET_WS_RPC_URL="ws://zk-testnet.helius.dev:8900"
 ZKTESTNET_INDEXER_URL = 'https://zk-testnet.helius.dev:8784'
 ZKTESTNET_PROVER_URL = 'https://zk-testnet.helius.dev:3001'
 
-RPC_URL = 'https://zk-testnet.helius.dev:8899'
-WS_RPC_URL="ws://zk-testnet.helius.dev:8924"
-INDEXER_URL = 'https://zk-testnet.helius.dev:8784'
-PROVER_URL = 'https://zk-testnet.helius.dev:3001'
+RPC_URL="http://localhost:8899"
+WS_RPC_URL="ws://localhost:8900"
+INDEXER_URL="http://localhost:8784"
+PROVER_URL="http://localhost:3001"
 
 CONCURRENCY_LIMIT=10
 BATCH_SIZE=10
