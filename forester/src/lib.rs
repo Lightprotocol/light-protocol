@@ -11,5 +11,5 @@ mod config;
 mod operations;
 
 pub use config::ForesterConfig;
-pub use operations::{init_rpc, nullify_addresses, nullify_state, subscribe_state};
+pub use operations::{init_rpc, nullify_addresses, nullify_state, subscribe_state, subscribe_addresses};
 pub use settings::init_config;

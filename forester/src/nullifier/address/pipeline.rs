@@ -11,14 +11,14 @@ use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
-pub enum AddressPipelineStage<T: Indexer, R: RpcConnection> {
+pub enum AddressPipelineStage<T: Indexer<R>, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
     ProcessAddressQueue(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
     UpdateAddressMerkleTree(PipelineContext<T, R>, ForesterQueueAccount),
     Complete,
 }
 
-impl<T: Indexer, R: RpcConnection> Display for AddressPipelineStage<T, R> {
+impl<T: Indexer<R>, R: RpcConnection> Display for AddressPipelineStage<T, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AddressPipelineStage::FetchAddressQueueData(_) => write!(f, "FetchAddressQueueData"),
@@ -31,7 +31,7 @@ impl<T: Indexer, R: RpcConnection> Display for AddressPipelineStage<T, R> {
     }
 }
 
-pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
+pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
     config: Arc<ForesterConfig>,

@@ -1,14 +1,14 @@
-use crate::{
-    assert_compressed_tx::get_merkle_tree_snapshots,
-    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
-    create_account_instruction,
-    rpc::errors::RpcError,
-};
-
-use crate::indexer::{TestIndexer, TokenDataWithContext};
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
 use anchor_spl::token::TokenAccount;
+use solana_program_test::BanksClientError;
+use solana_sdk::{
+    instruction::Instruction,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    signature::{Keypair, Signature, Signer},
+};
+use spl_token::instruction::initialize_mint;
+use spl_token::state::Mint;
+
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
@@ -24,22 +24,22 @@ use light_compressed_token::{
     token_data::AccountState,
     TokenData,
 };
-
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
-use solana_program_test::BanksClientError;
-use solana_sdk::{
-    instruction::Instruction,
-    program_pack::Pack,
-    pubkey::Pubkey,
-    signature::{Keypair, Signature, Signer},
-};
-use spl_token::instruction::initialize_mint;
-use spl_token::state::Mint;
 
-pub async fn mint_tokens_helper<R: RpcConnection>(
+use crate::indexer::{Indexer, TestIndexer, TokenDataWithContext};
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
+use crate::{
+    assert_compressed_tx::get_merkle_tree_snapshots,
+    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
+    create_account_instruction,
+    rpc::errors::RpcError,
+};
+
+pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
     mint_authority: &Keypair,
     mint: &Pubkey,
@@ -249,10 +249,10 @@ pub async fn create_token_account<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_test<R: RpcConnection>(
+pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     mint: &Pubkey,
     from: &Keypair,
     recipients: &[Pubkey],
@@ -408,10 +408,10 @@ pub async fn compressed_transfer_test<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<R: RpcConnection>(
+pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
@@ -533,10 +533,10 @@ pub async fn decompress_test<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test<R: RpcConnection>(
+pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     amount: u64,
     mint: &Pubkey,
     output_merkle_tree_pubkey: &Pubkey,

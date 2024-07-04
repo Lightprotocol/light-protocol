@@ -1,28 +1,30 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
-use log::info;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use log::{debug, info};
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
 use std::fmt::Debug;
 
-pub struct PhotonIndexer {
+pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
+    rpc: R,
 }
 
-impl PhotonIndexer {
-    pub fn new(path: String) -> Self {
+impl<R: RpcConnection> PhotonIndexer<R> {
+    pub fn new(path: String, rpc: R) -> Self {
         let configuration = Configuration {
             base_path: path,
             ..Default::default()
         };
 
-        PhotonIndexer { configuration }
+        PhotonIndexer { configuration, rpc }
     }
 }
 
-impl Debug for PhotonIndexer {
+impl<R: RpcConnection> Debug for PhotonIndexer<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PhotonIndexer")
             .field("configuration", &self.configuration)
@@ -31,20 +33,21 @@ impl Debug for PhotonIndexer {
     }
 }
 
-impl Clone for PhotonIndexer {
+impl<R: RpcConnection> Clone for PhotonIndexer<R> {
     fn clone(&self) -> Self {
         PhotonIndexer {
             configuration: self.configuration.clone(),
+            rpc: self.rpc.clone(),
         }
     }
 }
 
-impl Indexer for PhotonIndexer {
+impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
-        info!("Getting proofs for {:?}", hashes);
+        debug!("Getting proofs for {:?}", hashes);
         let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
             params: hashes,
             ..Default::default()

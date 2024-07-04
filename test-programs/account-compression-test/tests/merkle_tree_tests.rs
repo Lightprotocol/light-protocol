@@ -158,7 +158,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     // CHECK: nullifiers inserted into correct queue with 2 queues
     functional_6_test_insert_into_two_nullifier_queues(
         &mut rpc,
-        &vec![nullifier_1, nullifier_2],
+        &[nullifier_1, nullifier_2],
         &[queue_tree_pair, queue_tree_pair_2],
     )
     .await;
@@ -170,7 +170,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     // CHECK: nullifiers inserted into correct queue with 2 queues and not ordered
     functional_7_test_insert_into_two_nullifier_queues_not_ordered(
         &mut rpc,
-        &vec![nullifier_1, nullifier_2, nullifier_3, nullifier_4],
+        &[nullifier_1, nullifier_2, nullifier_3, nullifier_4],
         &[
             queue_tree_pair,
             queue_tree_pair_2,
@@ -485,7 +485,7 @@ async fn failing_queue(
     let queue_tree_pair = (nullifier_queue_pubkey, merkle_tree_pubkey);
     // CHECK 1: no nullifiers as input
     let result =
-        insert_into_nullifier_queues(&vec![], &payer, &payer, &[queue_tree_pair], &mut rpc).await;
+        insert_into_nullifier_queues(&[], &payer, &payer, &[queue_tree_pair], &mut rpc).await;
     assert_rpc_error(
         result,
         0,
@@ -495,7 +495,7 @@ async fn failing_queue(
     let nullifier_1 = [1u8; 32];
     // CHECK 2: Number of leaves/addresses leaves mismatch
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_1],
+        &[nullifier_1],
         &payer,
         &payer,
         &[queue_tree_pair, queue_tree_pair],
@@ -511,7 +511,7 @@ async fn failing_queue(
 
     // CHECK 3.1: pass non queue account as queue account
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_1],
+        &[nullifier_1],
         &payer,
         &payer,
         &[(merkle_tree_pubkey, merkle_tree_pubkey)],
@@ -522,7 +522,7 @@ async fn failing_queue(
 
     // CHECK 3.2: pass address queue account instead of nullifier queue account
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_1],
+        &[nullifier_1],
         &payer,
         &payer,
         &[(address_queue_keypair.pubkey(), merkle_tree_pubkey)],
@@ -539,7 +539,7 @@ async fn failing_queue(
 
     // CHECK 3.3: pass non associated queue account
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_2],
+        &[nullifier_2],
         &payer,
         &payer,
         &[(nullifier_queue_keypair_2.pubkey(), merkle_tree_pubkey)],
@@ -559,7 +559,7 @@ async fn failing_queue(
     // Hence the instruction fails with MerkleTreeAndQueueNotAssociated.
     // The Merkle tree account will not be deserialized.
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_1],
+        &[nullifier_1],
         &payer,
         &payer,
         &[(
@@ -577,7 +577,7 @@ async fn failing_queue(
     .unwrap();
     // CHECK 4.2: pass non associated Merkle tree account
     let result = insert_into_nullifier_queues(
-        &vec![nullifier_1],
+        &[nullifier_1],
         &payer,
         &payer,
         &[(
@@ -1376,7 +1376,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
 }
 
 async fn insert_into_nullifier_queues<R: RpcConnection>(
-    elements: &Vec<[u8; 32]>,
+    elements: &[[u8; 32]],
     fee_payer: &Keypair,
     payer: &Keypair,
     pubkeys: &[(Pubkey, Pubkey)],
@@ -2118,7 +2118,7 @@ pub async fn assert_element_inserted_in_nullifier_queue(
 
 async fn functional_6_test_insert_into_two_nullifier_queues(
     rpc: &mut ProgramTestRpcConnection,
-    nullifiers: &Vec<[u8; 32]>,
+    nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {
     let payer = rpc.get_payer().insecure_clone();
@@ -2131,7 +2131,7 @@ async fn functional_6_test_insert_into_two_nullifier_queues(
 
 async fn functional_7_test_insert_into_two_nullifier_queues_not_ordered(
     rpc: &mut ProgramTestRpcConnection,
-    nullifiers: &Vec<[u8; 32]>,
+    nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {
     let payer = rpc.get_payer().insecure_clone();

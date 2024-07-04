@@ -5,6 +5,7 @@ use solana_sdk::signature::Signer;
 use forester::indexer::PhotonIndexer;
 use forester::utils::LightValidatorConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -37,8 +38,19 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
+    let forester_config = forester_config();
+
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &forester_config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
+        indexer,
         &env_accounts,
         keypair_action_config(),
         general_action_config(),
@@ -47,8 +59,8 @@ async fn test_photon_interop_nullify_account() {
     )
     .await;
 
-    let forester_config = forester_config();
-    let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url);
+    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url, rpc);
     let user_index = 0;
     let balance = env
         .rpc

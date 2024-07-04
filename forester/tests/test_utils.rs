@@ -124,11 +124,11 @@ pub fn generate_pubkey_254() -> Pubkey {
 }
 
 #[allow(dead_code)]
-pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
+pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnection>(
     indexer: &mut TestIndexer<SolanaRpcConnection>,
     trees: &[Pubkey],
     addresses: &[Pubkey],
-    photon_indexer: &PhotonIndexer,
+    photon_indexer: &PhotonIndexer<R>,
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
         let address_proof_test_indexer = indexer
@@ -190,10 +190,10 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
 }
 
 #[allow(dead_code)]
-pub async fn assert_accounts_by_owner(
-    indexer: &mut TestIndexer<SolanaRpcConnection>,
+pub async fn assert_accounts_by_owner<R: RpcConnection>(
+    indexer: &mut TestIndexer<R>,
     user: &User,
-    photon_indexer: &PhotonIndexer,
+    photon_indexer: &PhotonIndexer<R>,
 ) {
     let mut photon_accs = photon_indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
@@ -224,10 +224,10 @@ pub async fn assert_accounts_by_owner(
 }
 
 #[allow(dead_code)]
-pub async fn assert_account_proofs_for_photon_and_test_indexer(
-    indexer: &mut TestIndexer<SolanaRpcConnection>,
+pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection>(
+    indexer: &mut TestIndexer<R>,
     user_pubkey: &Pubkey,
-    photon_indexer: &PhotonIndexer,
+    photon_indexer: &PhotonIndexer<R>,
 ) {
     let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
         .get_rpc_compressed_accounts_by_owner(user_pubkey)

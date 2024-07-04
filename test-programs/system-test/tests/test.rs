@@ -800,6 +800,8 @@ pub async fn perform_tx_with_output_compressed_accounts(
 }
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_test_utils::indexer::Indexer;
+
 pub async fn create_instruction_and_failing_transaction(
     context: &mut ProgramTestRpcConnection,
     payer: &Keypair,

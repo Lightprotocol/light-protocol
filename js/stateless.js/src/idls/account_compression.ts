@@ -386,6 +386,32 @@ export type AccountCompression = {
             args: [];
         },
         {
+            name: 'deregisterProgram';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'groupAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'closeRecipient';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
             name: 'initializeStateMerkleTreeAndNullifierQueue';
             docs: [
                 'Initializes a new Merkle tree from config bytes.',
@@ -1475,6 +1501,32 @@ export const IDL: AccountCompression = {
                 {
                     name: 'systemProgram',
                     isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'deregisterProgram',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'groupAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'closeRecipient',
+                    isMut: true,
                     isSigner: false,
                 },
             ],

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use forester::nullify_state;
+use forester::{init_rpc, nullify_state};
 use light_test_utils::e2e_test_env::E2ETestEnv;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -25,8 +26,17 @@ async fn test_state_tree_nullifier() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
+        indexer,
         &env_accounts,
         keypair_action_config(),
         general_action_config(),
@@ -56,7 +66,10 @@ async fn test_state_tree_nullifier() {
     );
 
     let arc_config = Arc::new(config.clone());
-    nullify_state(arc_config).await;
+    let rpc = init_rpc(arc_config.clone(), true).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
+    nullify_state(arc_config, rpc, indexer).await;
     assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
 }
 
@@ -65,13 +78,22 @@ async fn test_1_all() {
     init(None).await;
     let env_accounts = get_test_env_accounts();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-
+    let config = forester_config();
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &config.payer_keypair,
+        &env_accounts,
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
+        indexer,
         &env_accounts,
         keypair_action_config(),
         general_action_config(),
