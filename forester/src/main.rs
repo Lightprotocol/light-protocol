@@ -65,18 +65,40 @@ async fn main() {
 }
 
 async fn run_subscribe_state(config: Arc<ForesterConfig>) {
-    subscribe_state(config.clone()).await;
+    let rpc = init_rpc(config.clone(), false).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer_rpc = init_rpc(config.clone(), false).await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        config.external_services.indexer_url.to_string(),
+        indexer_rpc,
+    )));
+
+    subscribe_state(config.clone(), rpc, indexer).await;
 }
 
 async fn run_nullify_state(config: Arc<ForesterConfig>) {
-    nullify_state(config.clone()).await;
+    let rpc = init_rpc(config.clone(), false).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer_rpc = init_rpc(config.clone(), false).await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        config.external_services.indexer_url.to_string(),
+        indexer_rpc,
+    )));
+
+    nullify_state(config.clone(), rpc, indexer).await;
 }
 
 async fn run_nullify_addresses(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(&config, false).await;
+    let rpc = init_rpc(config.clone(), false).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer_rpc = init_rpc(config.clone(), false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
+        indexer_rpc,
     )));
+
     nullify_addresses(config.clone(), rpc, indexer).await;
 }

@@ -3060,6 +3060,7 @@ version = "0.2.1"
 dependencies = [
  "light-bounded-vec",
  "light-hasher",
+ "log",
  "thiserror",
 ]
 

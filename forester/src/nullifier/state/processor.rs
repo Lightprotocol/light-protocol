@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-pub struct StateProcessor<T: Indexer, R: RpcConnection> {
+pub struct StateProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<PipelineStage<T, R>>,
     pub output: mpsc::Sender<PipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
@@ -27,7 +27,7 @@ pub struct StateProcessor<T: Indexer, R: RpcConnection> {
     pub close_output: mpsc::Receiver<()>,
 }
 
-impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
+impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         debug!("Starting StateProcessor process");
         loop {

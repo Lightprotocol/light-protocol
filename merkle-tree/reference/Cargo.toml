@@ -10,3 +10,4 @@ edition = "2021"
 light-bounded-vec = { path = "../bounded-vec", version = "0.2.1" }
 light-hasher = { path = "../hasher", version = "0.2.1" }
 thiserror = "1.0"
+log = "0.4.20"

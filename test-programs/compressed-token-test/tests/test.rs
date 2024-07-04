@@ -22,7 +22,7 @@ use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
-use light_test_utils::indexer::TokenDataWithContext;
+use light_test_utils::indexer::{Indexer, TokenDataWithContext};
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
@@ -64,12 +64,12 @@ async fn test_wrapped_sol() {
         .unwrap()
         .unwrap();
     use anchor_lang::solana_program::program_pack::Pack;
-    let upacked_token_account: spl_token::state::Account =
+    let unpacked_token_account: spl_token::state::Account =
         spl_token::state::Account::unpack(&fetched_token_account.data).unwrap();
-    assert_eq!(upacked_token_account.amount, amount);
-    assert_eq!(upacked_token_account.owner, payer.pubkey());
-    assert_eq!(upacked_token_account.mint, native_mint);
-    assert!(upacked_token_account.is_native.is_some());
+    assert_eq!(unpacked_token_account.amount, amount);
+    assert_eq!(unpacked_token_account.owner, payer.pubkey());
+    assert_eq!(unpacked_token_account.mint, native_mint);
+    assert!(unpacked_token_account.is_native.is_some());
     let instruction = create_create_token_pool_instruction(&payer.pubkey(), &native_mint);
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
@@ -327,7 +327,7 @@ async fn test_decompression() {
 /// Test delegation:
 /// 1. Delegate tokens with approve
 /// 2. Delegate transfers a part of the delegated tokens
-/// 3. Delegate transfers all of the remaining delegated tokens
+/// 3. Delegate transfers all the remaining delegated tokens
 #[tokio::test]
 async fn test_delegation() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -645,7 +645,7 @@ async fn test_burn() {
 /// 2. Thaw tokens
 /// 3. Delegate tokens
 /// 4. Freeze delegated tokens
-/// 5. Thaw delegated tokenss
+/// 5. Thaw delegated tokens
 #[tokio::test]
 async fn test_freeze_and_thaw() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -1129,7 +1129,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
 /// 7. Invalid owner
 /// 8. Invalid is native (deactivated, revisit)
 /// 9. DelegateUndefined
-/// Invalid account state (Frozen is only hashed if frozed thus failing test is not possible)
+/// Invalid account state (Frozen is only hashed if frozen thus failing test is not possible)
 /// 10. invalid root indices (ProofVerificationFailed)
 /// 11. invalid mint (ProofVerificationFailed)
 /// 12. invalid Merkle tree pubkey (ProofVerificationFailed)

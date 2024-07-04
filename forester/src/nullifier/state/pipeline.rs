@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
-pub enum PipelineStage<T: Indexer, R: RpcConnection> {
+pub enum PipelineStage<T: Indexer<R>, R: RpcConnection> {
     FetchQueueData(PipelineContext<T, R>),
     FetchProofs(PipelineContext<T, R>, ForesterQueueData),
     NullifyAccount(PipelineContext<T, R>, ForesterQueueAccountData),
@@ -20,7 +20,7 @@ pub enum PipelineStage<T: Indexer, R: RpcConnection> {
     Complete,
 }
 
-pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
+pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
     config: Arc<ForesterConfig>,

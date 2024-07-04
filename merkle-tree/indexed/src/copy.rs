@@ -1,5 +1,6 @@
 use std::{fmt, marker::PhantomData, ops::Deref};
 
+use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 use light_bounded_vec::CyclicBoundedVecMetadata;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
@@ -7,8 +8,6 @@ use light_concurrent_merkle_tree::{
 use light_hasher::Hasher;
 use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-
-use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
 pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
@@ -63,6 +62,7 @@ where
             merkle_tree.canopy_depth,
             indexed_changelog_metadata.capacity(),
         );
+
         if bytes.len() < expected_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::BufferSize(expected_size, bytes.len()),
