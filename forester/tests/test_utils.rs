@@ -132,11 +132,11 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnect
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
         let address_proof_test_indexer = indexer
-            .get_multiple_new_address_proofs(tree.to_bytes(), address.to_bytes())
+            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()])
             .await;
 
         let address_proof_photon = photon_indexer
-            .get_multiple_new_address_proofs(tree.to_bytes(), address.to_bytes())
+            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()])
             .await;
 
         if address_proof_photon.is_err() {
@@ -147,8 +147,8 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnect
             panic!("Test indexer error: {:?}", address_proof_test_indexer);
         }
 
-        let photon_result: NewAddressProofWithContext = address_proof_photon.unwrap();
-        let test_indexer_result: NewAddressProofWithContext = address_proof_test_indexer.unwrap();
+        let photon_result: NewAddressProofWithContext = address_proof_photon.unwrap().first().unwrap().clone();
+        let test_indexer_result: NewAddressProofWithContext = address_proof_test_indexer.unwrap().first().unwrap().clone();
         info!(
             "assert proofs for address: {} photon result: {:?} test indexer result: {:?}",
             address, photon_result, test_indexer_result

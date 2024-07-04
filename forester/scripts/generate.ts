@@ -38,8 +38,25 @@ async function createAccountAsync(i: number, rpc: Rpc, payer: Signer, bobPublicK
     );
 }
 
+function localRpc(): Rpc {
+    let validatorUrl = 'http://0.0.0.0:8899';
+    let photonUrl = 'http://0.0.0.0:8784';
+    let proverUrl = 'http://0.0.0.0:3001';
+
+    return createRpc(validatorUrl, photonUrl, proverUrl);
+}
+
+function zkTestnetRpc(): Rpc {
+    let validatorUrl = 'https://zk-testnet.helius.dev:8899';
+    let photonUrl = 'https://zk-testnet.helius.dev:8784';
+    let proverUrl = 'https://zk-testnet.helius.dev:3001';
+
+    return createRpc(validatorUrl, photonUrl, proverUrl);
+}
+
+
 async function prefillNullifierQueue() {
-    const rpc = createRpc();
+    const rpc = localRpc();
 
     await Promise.all([
         ...payerKeypairs.map(async payer => await airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey })),

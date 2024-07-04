@@ -9,12 +9,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer<R>, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
-    ProcessAddressQueue(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
-    UpdateAddressMerkleTree(PipelineContext<T, R>, ForesterQueueAccount),
+    FetchProofs(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
+    UpdateAddressMerkleTree(PipelineContext<T, R>, Vec<ForesterAddressQueueAccountData>),
     Complete,
 }
 
@@ -22,10 +23,8 @@ impl<T: Indexer<R>, R: RpcConnection> Display for AddressPipelineStage<T, R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AddressPipelineStage::FetchAddressQueueData(_) => write!(f, "FetchAddressQueueData"),
-            AddressPipelineStage::ProcessAddressQueue(_, _) => write!(f, "ProcessAddressQueue"),
-            AddressPipelineStage::UpdateAddressMerkleTree(_, _) => {
-                write!(f, "UpdateAddressMerkleTree")
-            }
+            AddressPipelineStage::FetchProofs(_, _) => write!(f, "FetchProofs"),
+            AddressPipelineStage::UpdateAddressMerkleTree(_, _) => {  write!(f, "UpdateAddressMerkleTree") }
             AddressPipelineStage::Complete => write!(f, "Complete"),
         }
     }
@@ -78,8 +77,15 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
                         .await
                         .unwrap();
                 }
-                AddressPipelineStage::ProcessAddressQueue(_, _) => {
-                    input_tx_clone.send(result).await.unwrap();
+                AddressPipelineStage::FetchProofs(_, queue_data) => {
+                    if queue_data.is_empty() {
+                        input_tx_clone.send(AddressPipelineStage::Complete).await.unwrap();
+                    } else {
+                        input_tx_clone
+                            .send(AddressPipelineStage::FetchProofs(context.clone(), queue_data))
+                            .await
+                            .unwrap();
+                    }
                 }
                 AddressPipelineStage::Complete => {
                     debug!("Processing complete, signaling completion.");

@@ -188,7 +188,6 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
         let proofs = indexer
             .get_multiple_compressed_account_proofs(compressed_account_list)
             .await;
-        debug!("Proofs: {:?}", proofs);
 
         let proofs = proofs.map_err(|e| {
             warn!("Cannot get multiple proofs: {:#?}", e);

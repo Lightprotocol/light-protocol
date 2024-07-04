@@ -193,69 +193,62 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
     async fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> Result<NewAddressProofWithContext, IndexerError> {
-        info!("Getting new address proof for {:?}", address);
-        let pubkey = Pubkey::from(merkle_tree_pubkey);
-        let address_tree_bundle = self
-            .address_merkle_trees
-            .iter()
-            .find(|x| x.accounts.merkle_tree == pubkey)
-            .unwrap();
+        addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+        let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();
 
-        let address_biguint = BigUint::from_bytes_be(address.as_slice());
-        let (old_low_address, _old_low_address_next_value) = address_tree_bundle
-            .indexed_array
-            .find_low_element_for_nonexistent(&address_biguint)
-            .unwrap();
-        let address_bundle = address_tree_bundle
-            .indexed_array
-            .new_element_with_low_element_index(old_low_address.index, &address_biguint)
-            .unwrap();
+        for address in addresses.iter() {
+            info!("Getting new address proof for {:?}", address);
+            let pubkey = Pubkey::from(merkle_tree_pubkey);
+            let address_tree_bundle = self
+                .address_merkle_trees
+                .iter()
+                .find(|x| x.accounts.merkle_tree == pubkey)
+                .unwrap();
 
-        let (old_low_address, old_low_address_next_value) = address_tree_bundle
-            .indexed_array
-            .find_low_element_for_nonexistent(&address_biguint)
-            .unwrap();
+            let address_biguint = BigUint::from_bytes_be(address.as_slice());
+            let (old_low_address, _old_low_address_next_value) = address_tree_bundle
+                .indexed_array
+                .find_low_element_for_nonexistent(&address_biguint)
+                .unwrap();
+            let address_bundle = address_tree_bundle
+                .indexed_array
+                .new_element_with_low_element_index(old_low_address.index, &address_biguint)
+                .unwrap();
 
-        // Get the Merkle proof for updating low element.
-        let low_address_proof = address_tree_bundle
-            .merkle_tree
-            .get_proof_of_leaf(old_low_address.index, false)
-            .unwrap();
+            let (old_low_address, old_low_address_next_value) = address_tree_bundle
+                .indexed_array
+                .find_low_element_for_nonexistent(&address_biguint)
+                .unwrap();
 
-        let low_address_index: u64 = old_low_address.index as u64;
-        let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
-        let low_address_next_index: u64 = old_low_address.next_index as u64;
-        let low_address_next_value: [u8; 32] =
-            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-        let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
-        debug!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
-        debug!("address: {:?}", address);
-        debug!("low_address_index: {:?}", low_address_index);
-        debug!("low_address_value: {:?}", low_address_value);
-        debug!("low_address_next_index: {:?}", low_address_next_index);
-        debug!("low_address_next_value: {:?}", low_address_next_value);
-        debug!("low_address_proof: {:?}", low_address_proof);
+            // Get the Merkle proof for updating low element.
+            let low_address_proof = address_tree_bundle
+                .merkle_tree
+                .get_proof_of_leaf(old_low_address.index, false)
+                .unwrap();
 
-        info!(
-            "root_seq: {:?}",
-            address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64
-        );
-
-        Ok(NewAddressProofWithContext {
-            merkle_tree: merkle_tree_pubkey,
-            low_address_index,
-            low_address_value,
-            low_address_next_index,
-            low_address_next_value,
-            low_address_proof,
-            root: address_tree_bundle.merkle_tree.root(),
-            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
-            new_low_element: Some(address_bundle.new_low_element),
-            new_element: Some(address_bundle.new_element),
-            new_element_next_value: Some(address_bundle.new_element_next_value),
-        })
+            let low_address_index: u64 = old_low_address.index as u64;
+            let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
+            let low_address_next_index: u64 = old_low_address.next_index as u64;
+            let low_address_next_value: [u8; 32] =
+                bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
+            let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
+            let proof = NewAddressProofWithContext {
+                merkle_tree: merkle_tree_pubkey,
+                low_address_index,
+                low_address_value,
+                low_address_next_index,
+                low_address_next_value,
+                low_address_proof,
+                root: address_tree_bundle.merkle_tree.root(),
+                root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
+                new_low_element: Some(address_bundle.new_low_element),
+                new_element: Some(address_bundle.new_element),
+                new_element_next_value: Some(address_bundle.new_element_next_value),
+            };
+            proofs.push(proof);
+        }
+        Ok(proofs)
     }
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
@@ -844,7 +837,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 .await
             };
             for i in 0..fetched_merkle_tree.roots.len() {
-                debug!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
+                info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
             }
             debug!(
                 "sequence number {:?}",

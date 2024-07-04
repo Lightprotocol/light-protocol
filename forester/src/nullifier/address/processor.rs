@@ -14,7 +14,7 @@ use light_registry::sdk::{
 use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
@@ -25,6 +25,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 
 pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
@@ -37,6 +38,7 @@ pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
 impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         debug!("Starting AddressProcessor process");
+        let mut consecutive_errors = 0;
         loop {
             tokio::select! {
                 Some(item) = self.input.recv() => {
@@ -47,9 +49,9 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                             info!("Processing FetchAddressQueueData stage");
                             self.fetch_address_queue_data(&context).await
                         }
-                        AddressPipelineStage::ProcessAddressQueue(context, queue_data) => {
-                            info!("Processing ProcessAddressQueue stage");
-                            self.process_address_queue(context, queue_data).await
+                        AddressPipelineStage::FetchProofs(context, queue_data) => {
+                            info!("Processing FetchAddressQueueData stage");
+                            self.fetch_proofs(context, queue_data).await
                         }
                         AddressPipelineStage::UpdateAddressMerkleTree(context, account) => {
                             info!("Processing UpdateAddressMerkleTree stage");
@@ -67,6 +69,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                             info!("Sending next stage: {}", next_stage);
                             if let Err(e) = self.output.send(next_stage).await {
                                 warn!("Error sending next stage: {:?}", e);
+                                consecutive_errors += 1;
                             }
                         }
                         Ok(None) => {
@@ -74,6 +77,12 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                         }
                         Err(e) => {
                             warn!("Error in AddressProcessor: {:?}", e);
+                            consecutive_errors += 1;
+                            if consecutive_errors > 5 {
+                                error!("Too many consecutive errors, stopping processor");
+                                break;
+                            }
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         }
                     }
                 }
@@ -108,134 +117,146 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             info!("Address queue is empty");
             Ok(Some(AddressPipelineStage::Complete))
         } else {
-            info!("Processing to process address queue");
-            Ok(Some(AddressPipelineStage::ProcessAddressQueue(
+            let batch: Vec<ForesterQueueAccount> = queue_data.into_iter().take(config.batch_size).collect();
+            info!("Processing batch of {} addresses", batch.len());
+            Ok(Some(AddressPipelineStage::FetchProofs(
                 context.clone(),
-                queue_data,
+                batch,
             )))
+
+            // Ok(Some(AddressPipelineStage::FetchProofs(
+            //     context.clone(),
+            //     queue_data,
+            // )))
         }
     }
 
-    async fn process_address_queue(
+    async fn fetch_proofs(
         &self,
         context: PipelineContext<T, R>,
         queue_data: Vec<ForesterQueueAccount>,
-    ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {        
-        if let Some(account) = queue_data.first() {
-            info!("Processing address: {:?}", account.hash);
-            Ok(Some(AddressPipelineStage::UpdateAddressMerkleTree(
-                context, *account,
-            )))
-        } else {
-            Ok(None)
+    ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {
+        let indexer = &context.indexer;
+
+        let addresses = queue_data.iter().map(|account| account.hash).collect();
+
+        let proofs = match indexer.lock().await.get_multiple_new_address_proofs(context.config.address_merkle_tree_pubkey.to_bytes(), addresses).await {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Error fetching proofs: {:?}", e);
+                return Ok(Some(AddressPipelineStage::Complete));
+            }
+        };
+
+        if proofs.is_empty() {
+            return Ok(Some(AddressPipelineStage::FetchAddressQueueData(context)));
         }
+
+        let account_data = queue_data
+            .into_iter()
+            .zip(proofs.into_iter())
+            .map(|(account, proof)| {
+                ForesterAddressQueueAccountData {
+                    account,
+                    proof
+                }
+            })
+            .collect();
+
+        Ok(Some(AddressPipelineStage::UpdateAddressMerkleTree(context, account_data)))
     }
 
     async fn update_address_merkle_tree(
         &self,
         context: PipelineContext<T, R>,
-        account: ForesterQueueAccount,
+        account_data_batch: Vec<ForesterAddressQueueAccountData>,
     ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let rpc = &context.rpc;
         let indexer = &context.indexer;
-
-        let address = account.hash;
-        let address_hashset_index = account.index;
-
-        let proof = indexer
-            .lock()
-            .await
-            .get_multiple_new_address_proofs(config.address_merkle_tree_pubkey.to_bytes(), address)
-            .await
-            .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
-        // TODO: use changelog array size from tree config
-        let indexer_changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
-        // TODO:
-        // 1. add index changelog current changelog index to the proof or we make them the same size
-        // 2. remove -1 after new zktestnet release
-        let indexer_index_changelog = (proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG;
-
-        debug!("changelog: {:?}", indexer_changelog);
-        debug!("index_changelog: {:?}", indexer_index_changelog);
-
         let mut retry_count = 0;
 
-        while retry_count < context.config.max_retries {
-            match update_merkle_tree(
-                rpc,
-                &config.payer_keypair,
-                config.address_merkle_tree_queue_pubkey,
-                config.address_merkle_tree_pubkey,
-                address_hashset_index as u16,
-                proof.low_address_index,
-                proof.low_address_value,
-                proof.low_address_next_index,
-                proof.low_address_next_value,
-                proof.low_address_proof,
-                indexer_changelog as u16,
-                indexer_index_changelog as u16,
-            )
-            .await
-            {
-                Ok(true) => {
-                    debug!(
+        for account_data in account_data_batch {
+            while retry_count < context.config.max_retries {
+                match update_merkle_tree(
+                    rpc,
+                    &config.payer_keypair,
+                    config.address_merkle_tree_queue_pubkey,
+                    config.address_merkle_tree_pubkey,
+                    account_data.account.index as u16,
+                    account_data.proof.low_address_index,
+                    account_data.proof.low_address_value,
+                    account_data.proof.low_address_next_index,
+                    account_data.proof.low_address_next_value,
+                    account_data.proof.low_address_proof,
+                    // TODO: use changelog array size from tree config
+                    (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+                    // TODO:
+                    // 1. add index changelog current changelog index to the proof or we make them the same size
+                    // 2. remove -1 after new zktestnet release
+                    ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+                )
+                    .await
+                {
+                    Ok(true) => {
+                        debug!(
                         "Successfully updated merkle tree for address: {:?}",
-                        address
+                        account_data.account.hash
                     );
-                    let mut nullifications = context.successful_nullifications.lock().await;
-                    *nullifications += 1;
-                    info!("Nullifications: {:?}", *nullifications);
+                        let mut nullifications = context.successful_nullifications.lock().await;
+                        *nullifications += 1;
+                        info!("Nullifications: {:?}", *nullifications);
 
-                    indexer
-                        .lock()
-                        .await
-                        .address_tree_updated(config.address_merkle_tree_pubkey.to_bytes(), &proof);
+                        indexer
+                            .lock()
+                            .await
+                            .address_tree_updated(config.address_merkle_tree_pubkey.to_bytes(), &account_data.proof);
 
-                    if *nullifications >= (ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG / 2) as usize {
-                        info!(
+                        if *nullifications >= (ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG / 2) as usize {
+                            info!(
                             "Reached {} successful nullifications. Re-fetching queue.",
                             *nullifications
                         );
-                        *nullifications = 0;
+                            *nullifications = 0;
+                            drop(nullifications);
+                            return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
+                                context.clone(),
+                            )));
+                        }
                         drop(nullifications);
                         return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
                             context.clone(),
                         )));
                     }
-                    drop(nullifications);
-                    return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
-                        context.clone(),
-                    )));
-                }
-                Ok(false) => {
-                    warn!("Failed to update merkle tree for address: {:?}", address);
-                    retry_count += 1;
-                }
-                Err(e) => {
-                    warn!(
+                    Ok(false) => {
+                        warn!("Failed to update merkle tree for address: {:?}", account_data.account.hash);
+                        retry_count += 1;
+                    }
+                    Err(e) => {
+                        warn!(
                         "Error updating merkle tree for address {:?}: {:?}",
-                        address, e
+                        account_data.account.hash, e
                     );
-                    retry_count += 1;
+                        retry_count += 1;
+                    }
                 }
-            }
 
-            if retry_count < context.config.max_retries {
-                debug!(
+                if retry_count < context.config.max_retries {
+                    debug!(
                     "Retrying update for address: {:?} (Attempt {} of {})",
-                    address,
+                    account_data.account.hash,
                     retry_count + 1,
                     context.config.max_retries
                 );
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                }
             }
-        }
 
-        warn!(
+            warn!(
             "Max retries reached for address: {:?}. Moving to next address.",
-            address
+            account_data.account.hash
         );
+        }
         Ok(Some(AddressPipelineStage::FetchAddressQueueData(context)))
     }
 }
@@ -276,7 +297,6 @@ async fn fetch_address_queue_data<R: RpcConnection>(
             }
         }
     }
-
     Ok(address_queue_vec)
 }
 
