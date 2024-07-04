@@ -210,6 +210,7 @@ impl HashSet {
     }
 
     fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
+        let iteration = iteration + 100;
         let probe_index = (value.clone()
             + iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap())
             % self.capacity.to_biguint().unwrap();
@@ -1175,6 +1176,62 @@ mod test {
 
             let element = hs.first_no_seq().unwrap().unwrap();
             assert_eq!(element.0.value_biguint(), 0.to_biguint().unwrap());
+        }
+    }
+
+    #[ignore = "Is benchmark to select hashset capacity not relevant for testing."]
+    #[test]
+    fn bench_hash_set() {
+        use num_bigint::{BigUint, RandBigInt};
+        use rand::thread_rng;
+
+        let capacities: Vec<usize> = vec![6857, 10000, 14000];
+
+        let mut rng = thread_rng();
+        for capacity in capacities.iter() {
+            let mut vec = Vec::<u64>::new();
+            for _ in 0..10000 {
+                let mut hs = HashSet::new(*capacity, 2400).unwrap();
+
+                // Insert incremental elements, so they end up being in the same
+                // sequence in the hash set.
+                for j in 0..*capacity {
+                    let bn_i = rng.gen_biguint(248);
+                    match hs.insert(&bn_i, 0) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            vec.push(j as u64);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !vec.is_empty() {
+                let sum: u64 = vec.iter().sum::<u64>();
+                let avg = &sum / BigUint::from(vec.len());
+
+                let max = vec.iter().max().unwrap();
+                let min = vec.iter().min().unwrap();
+                println!("\n\n ----------------------------------------- Capacity: {} ----------------------------------------- \n", capacity);
+                println!("Average: {}", avg);
+                println!("Max: {}", max);
+                println!("Min: {}", min);
+
+                vec.sort();
+                println!("\nPrinting average max min for chunks of 100 elements sorted ascending");
+                for (i, chunk) in vec.chunks(100).enumerate() {
+                    let chunk_sum: u64 = chunk.iter().sum::<u64>();
+                    let chunk_avg = &chunk_sum / chunk.len() as u64;
+
+                    let chunk_max = chunk.iter().max().unwrap();
+                    let chunk_min = chunk.iter().min().unwrap();
+                    println!("\nchunk num {}", i);
+                    println!("Chunk Average: {}", chunk_avg);
+                    println!("Chunk Max: {}", chunk_max);
+                    println!("Chunk Min: {}", chunk_min);
+                }
+            }
         }
     }
 }
