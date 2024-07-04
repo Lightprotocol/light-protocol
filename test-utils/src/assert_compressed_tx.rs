@@ -19,10 +19,9 @@ use num_traits::FromBytes;
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::pubkey::Pubkey;
 
-pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>
-{
+pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection> {
     pub rpc: &'a mut R,
-    pub test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    pub test_indexer: &'a mut TestIndexer<R>,
     pub output_compressed_accounts: &'a [CompressedAccount],
     pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
@@ -48,8 +47,8 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE, R>,
+pub async fn assert_compressed_transaction<R: RpcConnection>(
+    input: AssertCompressedTransactionInputs<'_, R>,
 ) {
     // CHECK 1
     assert_created_compressed_accounts(
@@ -249,10 +248,10 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_merkle_tree_after_tx<R: RpcConnection>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
 ) -> Vec<MerkleTreeSequenceNumber> {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
@@ -311,7 +310,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
 /// 2. next_index
 /// 3. num_added_accounts // so that we can assert the expected next index after tx
 /// 4. lamports of all bundle accounts
-pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
     rpc: &mut R,
     accounts: &[StateMerkleTreeAccounts],
 ) -> Vec<MerkleTreeTestSnapShot> {

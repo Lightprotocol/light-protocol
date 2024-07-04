@@ -1,11 +1,11 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
+use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 use light_concurrent_merkle_tree::{event::RawIndexedElement, light_hasher::Hasher};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
+use num_traits::Zero;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-
-use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
@@ -114,20 +114,20 @@ where
 }
 
 #[derive(Clone, Debug)]
-pub struct IndexedArray<H, I, const ELEMENTS: usize>
+pub struct IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub elements: [IndexedElement<I>; ELEMENTS],
+    pub elements: Vec<IndexedElement<I>>,
     pub current_node_index: I,
     pub highest_element_index: I,
 
     _hasher: PhantomData<H>,
 }
 
-impl<H, I, const ELEMENTS: usize> Default for IndexedArray<H, I, ELEMENTS>
+impl<H, I> Default for IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -135,11 +135,11 @@ where
 {
     fn default() -> Self {
         Self {
-            elements: std::array::from_fn(|_| IndexedElement {
+            elements: vec![IndexedElement {
                 index: I::zero(),
-                value: BigUint::new(vec![0; 32]),
+                value: BigUint::zero(),
                 next_index: I::zero(),
-            }),
+            }],
             current_node_index: I::zero(),
             highest_element_index: I::zero(),
             _hasher: PhantomData,
@@ -147,7 +147,7 @@ where
     }
 }
 
-impl<H, I, const ELEMENTS: usize> IndexedArray<H, I, ELEMENTS>
+impl<H, I> IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -165,7 +165,7 @@ where
         self.current_node_index == I::zero()
     }
 
-    pub fn iter(&self) -> IndexingArrayIter<H, I, ELEMENTS> {
+    pub fn iter(&self) -> IndexingArrayIter<H, I> {
         IndexingArrayIter {
             indexing_array: self,
             front: 0,
@@ -199,7 +199,7 @@ where
     ) -> Result<I, IndexedMerkleTreeError> {
         // Try to find element whose next element is higher than the provided
         // value.
-        for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
+        for (i, node) in self.elements.iter().enumerate() {
             if node.value == *value {
                 return Err(IndexedMerkleTreeError::ElementAlreadyExists);
             }
@@ -346,9 +346,7 @@ where
         low_element_index: I,
         value: &BigUint,
     ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
-        if self.len() == ELEMENTS {
-            return Err(IndexedMerkleTreeError::ArrayFull);
-        }
+        // TOD0: add length check, and add field to with tree height here
 
         let old_low_element = &self.elements[usize::from(low_element_index)];
 
@@ -391,7 +389,7 @@ where
 
         // Insert new node.
         self.current_node_index = new_element_bundle.new_element.index;
-        self.elements[self.len()] = new_element_bundle.new_element.clone();
+        self.elements.push(new_element_bundle.new_element.clone());
 
         // Update low element.
         self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element.clone();
@@ -416,18 +414,18 @@ where
     }
 }
 
-pub struct IndexingArrayIter<'a, H, I, const MAX_ELEMENTS: usize>
+pub struct IndexingArrayIter<'a, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    indexing_array: &'a IndexedArray<H, I, MAX_ELEMENTS>,
+    indexing_array: &'a IndexedArray<H, I>,
     front: usize,
     back: usize,
 }
 
-impl<'a, H, I, const MAX_ELEMENTS: usize> Iterator for IndexingArrayIter<'a, H, I, MAX_ELEMENTS>
+impl<'a, H, I> Iterator for IndexingArrayIter<'a, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -446,8 +444,7 @@ where
     }
 }
 
-impl<'a, H, I, const MAX_ELEMENTS: usize> DoubleEndedIterator
-    for IndexingArrayIter<'a, H, I, MAX_ELEMENTS>
+impl<'a, H, I> DoubleEndedIterator for IndexingArrayIter<'a, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -535,7 +532,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexed_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+        let mut indexed_array: IndexedArray<Poseidon, usize> = IndexedArray::default();
 
         let nullifier1 = 30_u32.to_biguint().unwrap();
         let bundle1 = indexed_array.new_element(&nullifier1).unwrap();
@@ -897,7 +894,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+        let mut indexing_array: IndexedArray<Poseidon, usize> = IndexedArray::default();
 
         let low_element_index = 0;
         let nullifier1 = 30_u32.to_biguint().unwrap();
@@ -1116,7 +1113,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+        let mut indexing_array: IndexedArray<Poseidon, usize> = IndexedArray::default();
 
         // Append nullifier 30. The low nullifier is at index 0. The array
         // should look like:
@@ -1179,7 +1176,7 @@ mod test {
     /// nonexistent is provided.
     #[test]
     fn test_find_low_element_for_existent_element() {
-        let mut indexed_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+        let mut indexed_array: IndexedArray<Poseidon, usize> = IndexedArray::default();
 
         // Append nullifiers 40 and 20.
         let low_element_index = 0;

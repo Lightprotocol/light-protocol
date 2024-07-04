@@ -169,9 +169,9 @@ impl Stats {
     }
 }
 
-pub struct E2ETestEnv<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
+pub struct E2ETestEnv<R: RpcConnection> {
     pub payer: Keypair,
-    pub indexer: TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    pub indexer: TestIndexer<R>,
     pub users: Vec<User>,
     pub mints: Vec<Pubkey>,
     pub rpc: R,
@@ -183,7 +183,7 @@ pub struct E2ETestEnv<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub stats: Stats,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> E2ETestEnv<INDEXED_ARRAY_SIZE, R>
+impl<R: RpcConnection> E2ETestEnv<R>
 where
     R: RpcConnection,
 {
@@ -198,7 +198,7 @@ where
         let inclusion = keypair_action_config.transfer_sol.is_some()
             || keypair_action_config.transfer_spl.is_some();
         let non_inclusion = keypair_action_config.create_address.is_some();
-        let mut indexer = TestIndexer::<INDEXED_ARRAY_SIZE, R>::new(
+        let mut indexer = TestIndexer::<R>::new(
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env_accounts.merkle_tree_pubkey,
                 nullifier_queue: env_accounts.nullifier_queue_pubkey,
@@ -531,7 +531,7 @@ where
             )
             .unwrap(),
         );
-        let mut indexed_array = Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>::default();
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
         merkle_tree.append(&init_value, &mut indexed_array).unwrap();
 
         let queue_account = AccountZeroCopy::<account_compression::QueueAccount>::new(

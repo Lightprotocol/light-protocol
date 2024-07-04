@@ -70,7 +70,7 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
     const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let mut indexed_tree = IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
-    let mut indexing_array = IndexedArray::<Poseidon, usize, 1024>::default();
+    let mut indexing_array = IndexedArray::<Poseidon, usize>::default();
 
     let bundle1 = indexing_array.append(&1_u32.to_biguint().unwrap()).unwrap();
     indexed_tree

@@ -24,7 +24,7 @@ async fn empty_address_tree_test() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
         keypair_action_config(),

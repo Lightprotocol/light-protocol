@@ -136,7 +136,7 @@ async fn test_escrow_with_compressed_pda() {
 }
 
 pub async fn perform_escrow_failing<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -166,7 +166,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
 }
 
 pub async fn perform_escrow_with_event<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -204,7 +204,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
 
 async fn create_escrow_ix<R: RpcConnection>(
     payer: &Keypair,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     seed: [u8; 32],
     context: &mut R,
@@ -274,7 +274,7 @@ async fn create_escrow_ix<R: RpcConnection>(
 }
 
 pub async fn assert_escrow<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -338,7 +338,7 @@ pub async fn assert_escrow<R: RpcConnection>(
 }
 pub async fn perform_withdrawal_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -369,7 +369,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
 
 pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -397,7 +397,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
 }
 pub async fn perform_withdrawal<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -488,7 +488,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_withdrawal<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,

@@ -25,7 +25,7 @@ async fn test_state_tree_nullifier() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
         keypair_action_config(),
@@ -70,7 +70,7 @@ async fn test_1_all() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
         keypair_action_config(),

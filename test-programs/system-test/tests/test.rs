@@ -95,7 +95,7 @@ async fn invoke_failing_test() {
     .unwrap();
 
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
     // cicuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
@@ -150,7 +150,7 @@ async fn invoke_failing_test() {
 #[allow(clippy::too_many_arguments)]
 pub async fn failing_transaction_inputs(
     context: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
+    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
     payer: &Keypair,
     env: &EnvAccounts,
     num_inputs: usize,
@@ -375,7 +375,7 @@ pub async fn failing_transaction_inputs_inner(
             .compressed_account
             .lamports = amount + 1;
         let error_code = if !inputs_struct.output_compressed_accounts.is_empty() {
-            // adapting compressed ouput account so that sumcheck passes
+            // adapting compressed output account so that sumcheck passes
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
@@ -857,7 +857,7 @@ async fn invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -1111,7 +1111,7 @@ async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
 
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1297,8 +1297,7 @@ async fn test_with_compression() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
-            .await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
     let compress_amount = 1_000_000;
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: compress_amount + 1,

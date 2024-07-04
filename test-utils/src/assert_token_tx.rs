@@ -26,9 +26,9 @@ use anchor_lang::AnchorSerialize;
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_transfer<R: RpcConnection>(
     context: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut TestIndexer<R>,
     out_compressed_accounts: &[TokenTransferOutputData],
     created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
     input_compressed_account_hashes: &[[u8; 32]],
@@ -81,8 +81,8 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     );
 }
 
-pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+pub fn assert_compressed_token_accounts<R: RpcConnection>(
+    test_indexer: &mut TestIndexer<R>,
     out_compressed_accounts: &[TokenTransferOutputData],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
     delegates: Option<Vec<Option<Pubkey>>>,
@@ -173,9 +173,9 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_mint_to<'a, R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &'a mut TestIndexer<R>,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],

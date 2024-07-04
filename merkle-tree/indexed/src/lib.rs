@@ -156,7 +156,7 @@ where
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
 
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let mut indexed_array = IndexedArray::<H, I>::default();
         let element_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = element_bundle
             .new_low_element

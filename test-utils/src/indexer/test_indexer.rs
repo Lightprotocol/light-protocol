@@ -94,18 +94,18 @@ pub struct StateMerkleTreeBundle {
 }
 
 #[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
+pub struct AddressMerkleTreeBundle {
     pub rollover_fee: i64,
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
+    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
 }
 
 // TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
 #[derive(Debug)]
-pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
+pub struct TestIndexer<R: RpcConnection> {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
-    pub address_merkle_trees: Vec<AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>>,
+    pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
     pub payer: Keypair,
     pub group_pda: Pubkey,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -117,9 +117,7 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
-    for TestIndexer<INDEXED_ARRAY_SIZE, R>
-{
+impl<R: RpcConnection> Clone for TestIndexer<R> {
     fn clone(&self) -> Self {
         Self {
             state_merkle_trees: self.state_merkle_trees.clone(),
@@ -143,9 +141,7 @@ pub struct TokenDataWithContext {
     pub compressed_account: CompressedAccountWithMerkleContext,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> Indexer
-    for TestIndexer<INDEXED_ARRAY_SIZE, R>
-{
+impl<R: RpcConnection + Send + Sync + 'static> Indexer for TestIndexer<R> {
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
@@ -283,7 +279,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         context: &NewAddressProofWithContext,
     ) {
         let pubkey = Pubkey::from(merkle_tree_pubkey);
-        let mut address_tree_bundle: &mut AddressMerkleTreeBundle<{ INDEXED_ARRAY_SIZE }> = self
+        let mut address_tree_bundle: &mut AddressMerkleTreeBundle = self
             .address_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == pubkey)
@@ -303,7 +299,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
     }
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRAY_SIZE, R> {
+impl<R: RpcConnection> TestIndexer<R> {
     fn count_matching_hashes(&self, query_hashes: &[String]) -> usize {
         self.nullified_compressed_accounts
             .lock()
@@ -421,7 +417,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     pub fn add_address_merkle_tree_bundle(
         address_merkle_tree_accounts: AddressMerkleTreeAccounts,
         // TODO: add config here
-    ) -> AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE> {
+    ) -> AddressMerkleTreeBundle {
         let mut merkle_tree = Box::new(
             IndexedMerkleTree::<Poseidon, usize>::new(
                 STATE_MERKLE_TREE_HEIGHT as usize,
@@ -430,7 +426,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             .unwrap(),
         );
         merkle_tree.init().unwrap();
-        let mut indexed_array = Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>::default();
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
         indexed_array.init().unwrap();
         AddressMerkleTreeBundle {
             merkle_tree,
