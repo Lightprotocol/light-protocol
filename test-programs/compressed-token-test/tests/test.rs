@@ -1,7 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_lang::AnchorDeserialize;
-use anchor_lang::AnchorSerialize;
+use anchor_lang::{
+    system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
+};
+use anchor_spl::token::Mint;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::token_data::AccountState;
 use light_test_utils::rpc::errors::assert_rpc_error;
@@ -11,7 +13,10 @@ use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
 
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
@@ -31,16 +36,119 @@ use light_test_utils::spl::{
     decompress_test, mint_tokens_helper,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, indexer::TestIndexer,
-    test_env::setup_test_programs_with_accounts,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    indexer::TestIndexer, test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
+use spl_token::instruction::initialize_mint;
 
 #[tokio::test]
 async fn test_create_mint() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     create_mint_helper(&mut rpc, &payer).await;
+}
+
+#[tokio::test]
+async fn test_failing_create_token_pool() {
+    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await
+        .unwrap();
+
+    let mint_1_keypair = Keypair::new();
+    let mint_1_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_1_keypair),
+    );
+    let create_mint_1_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_1_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_1_account_create_ix, create_mint_1_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_1_keypair],
+    )
+    .await
+    .unwrap();
+    let mint_1_pool_pda = get_token_pool_pda(&mint_1_keypair.pubkey());
+
+    let mint_2_keypair = Keypair::new();
+    let mint_2_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_2_keypair),
+    );
+    let create_mint_2_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_2_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_2_account_create_ix, create_mint_2_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_2_keypair],
+    )
+    .await
+    .unwrap();
+    let mint_2_pool_pda = get_token_pool_pda(&mint_2_keypair.pubkey());
+
+    // Try to create pool for `mint_1` while using seeds of `mint_2` for PDAs.
+    {
+        let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
+        let accounts = light_compressed_token::accounts::CreateTokenPoolInstruction {
+            fee_payer: payer.pubkey(),
+            token_pool_pda: mint_2_pool_pda,
+            system_program: system_program::ID,
+            mint: mint_1_keypair.pubkey(),
+            token_program: anchor_spl::token::ID,
+            cpi_authority_pda: get_cpi_authority_pda().0,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap_err();
+    }
+    // Try to create pool for `mint_2` while using seeds of `mint_1` for PDAs.
+    {
+        let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
+        let accounts = light_compressed_token::accounts::CreateTokenPoolInstruction {
+            fee_payer: payer.pubkey(),
+            token_pool_pda: mint_1_pool_pda,
+            system_program: system_program::ID,
+            mint: mint_2_keypair.pubkey(),
+            token_program: anchor_spl::token::ID,
+            cpi_authority_pda: get_cpi_authority_pda().0,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap_err();
+    }
 }
 
 #[tokio::test]
