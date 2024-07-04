@@ -11,7 +11,11 @@ use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
+use spl_token::{instruction::initialize_mint, state::Mint};
 
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
@@ -31,8 +35,8 @@ use light_test_utils::spl::{
     decompress_test, mint_tokens_helper,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, indexer::TestIndexer,
-    test_env::setup_test_programs_with_accounts,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    indexer::TestIndexer, test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
 
@@ -45,14 +49,65 @@ async fn test_create_mint() {
 
 #[tokio::test]
 async fn test_create_token_pool() {
-    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
 
-    let native_mint = spl_token::native_mint::ID;
-    let instruction = create_create_token_pool_instruction(&payer.pubkey(), &native_mint);
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
+
+    let mint_1_keypair = Keypair::new();
+    let mint_1_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_1_keypair),
+    );
+    let create_mint_1_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_1_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_1_account_create_ix, create_mint_1_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_1_keypair],
+    )
+    .await
+    .unwrap();
+
+    let mint_2_keypair = Keypair::new();
+    let mint_2_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_2_keypair),
+    );
+    let create_mint_2_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_2_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_2_account_create_ix, create_mint_2_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_2_keypair],
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
