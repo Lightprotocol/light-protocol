@@ -44,6 +44,18 @@ async fn test_create_mint() {
 }
 
 #[tokio::test]
+async fn test_create_token_pool() {
+    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+
+    let native_mint = spl_token::native_mint::ID;
+    let instruction = create_create_token_pool_instruction(&payer.pubkey(), &native_mint);
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn test_wrapped_sol() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
