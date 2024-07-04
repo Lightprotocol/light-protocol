@@ -208,9 +208,9 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipients: &[Pubkey],
