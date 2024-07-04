@@ -92,6 +92,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use std::slice;
+
     use super::*;
 
     use bytemuck::{Pod, Zeroable};
@@ -349,5 +351,31 @@ mod test {
             );
             assert_eq!(offset, 1536);
         }
+    }
+
+    #[test]
+    fn test_read_cyclic_bounded_vec_first_last() {
+        let mut vec = CyclicBoundedVec::<u32>::with_capacity(2);
+        vec.push(0);
+        vec.push(37);
+        vec.push(49);
+
+        let metadata_bytes = vec.metadata().to_ne_bytes();
+        let metadata = CyclicBoundedVecMetadata::from_ne_bytes(metadata_bytes);
+        let bytes = unsafe {
+            slice::from_raw_parts(
+                vec.as_mut_ptr() as *mut u8,
+                mem::size_of::<u32>() * vec.capacity(),
+            )
+        };
+
+        let mut offset = 0;
+        let vec_copy: CyclicBoundedVec<u32> =
+            unsafe { read_cyclic_bounded_vec_at(bytes, &mut offset, &metadata) };
+
+        assert_eq!(*vec.first().unwrap(), 37);
+        assert_eq!(vec.first(), vec_copy.first()); // Fails. Both should be 37
+        assert_eq!(*vec.last().unwrap(), 49);
+        assert_eq!(vec.last(), vec_copy.last()); // Fails. Both should be 49
     }
 }
