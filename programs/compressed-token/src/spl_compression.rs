@@ -25,8 +25,16 @@ pub fn decompress_spl_tokens<'info>(
         Some(compression_recipient) => compression_recipient.to_account_info(),
         None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompress),
     };
-    let token_pool_pda = match ctx.accounts.token_pool_pda.as_ref() {
-        Some(token_pool_pda) => token_pool_pda.to_account_info(),
+    match ctx.accounts.token_pool_pda.as_ref() {
+        Some(token_pool_pda) => {
+            if !token_pool_pda.enable_decompress {
+                return err!(crate::ErrorCode::DecompressDisabled);
+            }
+        }
+        None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
+    }
+    let token_pda = match ctx.accounts.token_pda.as_ref() {
+        Some(token_pda) => token_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
     };
     let amount = match inputs.compress_or_decompress_amount {
@@ -34,7 +42,7 @@ pub fn decompress_spl_tokens<'info>(
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
     };
     transfer(
-        &token_pool_pda,
+        &token_pda,
         &recipient,
         &ctx.accounts.cpi_authority_pda.to_account_info(),
         &ctx.accounts
@@ -50,8 +58,8 @@ pub fn compress_spl_tokens<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.token_pool_pda.as_ref() {
-        Some(token_pool_pda) => token_pool_pda.to_account_info(),
+    let recipient = match ctx.accounts.token_pda.as_ref() {
+        Some(token_pda) => token_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForCompress),
     };
     let amount = match inputs.compress_or_decompress_amount {

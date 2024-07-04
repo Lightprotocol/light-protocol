@@ -11,33 +11,7 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
-pub const POOL_SEED: &[u8] = b"pool";
-
-/// creates a token pool account which is owned by the token authority pda
-#[derive(Accounts)]
-pub struct CreateTokenPoolInstruction<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    #[account(
-        init,
-        seeds = [
-        POOL_SEED, &mint.key().to_bytes(),
-        ],
-        bump,
-        payer = fee_payer,
-          token::mint = mint,
-          token::authority = cpi_authority_pda,
-    )]
-    pub token_pool_pda: Account<'info, TokenAccount>,
-    pub system_program: Program<'info, System>,
-    /// CHECK:
-    #[account(mut)]
-    pub mint: Account<'info, Mint>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
-    pub cpi_authority_pda: AccountInfo<'info>,
-}
+use crate::{POOL_SEED, TOKEN_SEED};
 
 /// Steps:
 /// 1. Allocate memory for cpi instruction data. We allocate memory in the
@@ -284,17 +258,17 @@ pub fn mint_spl_to_pool_pda<'info>(
     for amount in amounts.iter() {
         mint_amount = mint_amount.checked_add(*amount).unwrap();
     }
-    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let pre_token_balance = ctx.accounts.token_pda.amount;
     let cpi_accounts = anchor_spl::token::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
-        to: ctx.accounts.token_pool_pda.to_account_info(),
+        to: ctx.accounts.token_pda.to_account_info(),
         authority: ctx.accounts.authority.to_account_info(),
     };
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
     anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
     let post_token_balance = TokenAccount::try_deserialize(
-        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
+        &mut &ctx.accounts.token_pda.to_account_info().data.borrow()[..],
     )?
     .amount;
     // Guard against unexpected behavior of the SPL token program.
@@ -323,7 +297,7 @@ pub struct MintToInstruction<'info> {
     pub mint: Account<'info, Mint>,
     /// CHECK: this account
     #[account(mut)]
-    pub token_pool_pda: Account<'info, TokenAccount>,
+    pub token_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     /// CHECK: this account
@@ -349,31 +323,17 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
     address
 }
 
+pub fn get_token_pda(mint: &Pubkey) -> Pubkey {
+    let seeds = &[TOKEN_SEED, mint.as_ref()];
+    let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
+    address
+}
+
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
-    use crate::{get_token_pool_pda, process_transfer::get_cpi_authority_pda};
+    use crate::{get_token_pda, process_transfer::get_cpi_authority_pda};
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
-
-    pub fn create_create_token_pool_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
-        let token_pool_pda = get_token_pool_pda(mint);
-        let instruction_data = crate::instruction::CreateTokenPool {};
-
-        let accounts = crate::accounts::CreateTokenPoolInstruction {
-            fee_payer: *fee_payer,
-            token_pool_pda,
-            system_program: system_program::ID,
-            mint: *mint,
-            token_program: anchor_spl::token::ID,
-            cpi_authority_pda: get_cpi_authority_pda().0,
-        };
-
-        Instruction {
-            program_id: crate::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: instruction_data.data(),
-        }
-    }
 
     pub fn create_mint_to_instruction(
         fee_payer: &Pubkey,
@@ -383,7 +343,7 @@ pub mod mint_sdk {
         amounts: Vec<u64>,
         public_keys: Vec<Pubkey>,
     ) -> Instruction {
-        let token_pool_pda = get_token_pool_pda(mint);
+        let token_pda = get_token_pda(mint);
 
         let instruction_data = crate::instruction::MintTo {
             amounts,
@@ -395,7 +355,7 @@ pub mod mint_sdk {
             authority: *authority,
             cpi_authority_pda: get_cpi_authority_pda().0,
             mint: *mint,
-            token_pool_pda,
+            token_pda,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(

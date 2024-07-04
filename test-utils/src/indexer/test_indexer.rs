@@ -9,7 +9,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
+use light_compressed_token::pool_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
