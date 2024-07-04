@@ -163,8 +163,8 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
             .get_token_compressed_accounts()
             .iter()
             .any(|x| {
-            x.compressed_account.merkle_context.leaf_index as usize
-                == output_merkle_tree_snapshots[i].next_index + index
+                x.compressed_account.merkle_context.leaf_index as usize
+                    == output_merkle_tree_snapshots[i].next_index + index
             })
         {
             println!(
