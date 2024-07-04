@@ -8,6 +8,8 @@ use forester::{
 };
 use log::{debug, error};
 use std::sync::Arc;
+use tokio::sync::OnceCell;
+use light_test_utils::rpc::SolanaRpcConnection;
 
 fn setup_logger() {
     let env = Env::new().filter_or("RUST_LOG", "info,forester=debug");
@@ -18,6 +20,7 @@ fn setup_logger() {
 async fn main() {
     setup_logger();
     let config: Arc<ForesterConfig> = Arc::new(init_config());
+    setup_rpc(config.clone()).await;
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
@@ -80,9 +83,23 @@ async fn main() {
     }
 }
 
-async fn run_subscribe_state(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(config.clone(), false).await;
+static INSTANCE: OnceCell<Arc<tokio::sync::Mutex<SolanaRpcConnection>>> = OnceCell::const_new();
+
+pub fn get_rpc() -> Arc<tokio::sync::Mutex<SolanaRpcConnection>> {
+    INSTANCE.get().unwrap().clone()
+}
+
+async fn setup_rpc(config: Arc<ForesterConfig>) {
+    let rpc = init_rpc(config.clone(), true).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    INSTANCE.set(rpc).unwrap();
+}
+
+async fn run_subscribe_state(config: Arc<ForesterConfig>) {
+    // let rpc = init_rpc(config.clone(), false).await;
+    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let rpc = get_rpc();
 
     let indexer_rpc = init_rpc(config.clone(), false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
@@ -94,8 +111,9 @@ async fn run_subscribe_state(config: Arc<ForesterConfig>) {
 }
 
 async fn run_subscribe_addresses(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(config.clone(), false).await;
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    // let rpc = init_rpc(config.clone(), false).await;
+    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    let rpc = get_rpc();
 
     let indexer_rpc = init_rpc(config.clone(), false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
@@ -107,8 +125,10 @@ async fn run_subscribe_addresses(config: Arc<ForesterConfig>) {
 }
 
 async fn run_nullify_state(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(config.clone(), false).await;
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    // let rpc = init_rpc(config.clone(), false).await;
+    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    //
+    let rpc = get_rpc();
 
     let indexer_rpc = init_rpc(config.clone(), false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
@@ -120,8 +140,10 @@ async fn run_nullify_state(config: Arc<ForesterConfig>) {
 }
 
 async fn run_nullify_addresses(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(config.clone(), false).await;
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    // let rpc = init_rpc(config.clone(), false).await;
+    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let rpc = get_rpc();
 
     let indexer_rpc = init_rpc(config.clone(), false).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
