@@ -149,4 +149,4 @@ If you're seeing this error:
 update your solana-cli version to >=1.16.4.
 
 For more support from the community and core developers, open a GitHub issue or join the Light Protocol
-Discord: https://discord.gg/J3KvDfZpyp
+Discord: [https://discord.gg/x4nyjT8fK5](https://discord.gg/x4nyjT8fK5)
