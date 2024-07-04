@@ -9,7 +9,7 @@ import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
-import { Rpc } from '../rpc';
+import {Rpc, rpcRequest} from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -17,8 +17,9 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { bn } from '../state';
+import { bn, encodeBN254toBase58 } from '../state';
 import { BN } from '@coral-xyz/anchor';
+
 
 /**
  * Create compressed account with address
@@ -47,6 +48,7 @@ export async function createAccount(
     outputStateTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+
     const { blockhash } = await rpc.getLatestBlockhash();
 
     addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
@@ -54,6 +56,8 @@ export async function createAccount(
 
     /// TODO: enforce program-derived
     const address = await deriveAddress(seed, addressTree);
+
+    console.log("newAddresses", encodeBN254toBase58(bn(address.toBytes())));
 
     /// TODO: pass trees
     const proof = await rpc.getValidityProof(undefined, [

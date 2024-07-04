@@ -236,6 +236,8 @@ export const rpcRequest = async (
         params: params,
     });
 
+    console.log("request body: ", body);
+
     const response = await fetch(rpcEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1279,6 +1281,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
+        console.log("start getValidityProof");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
@@ -1289,6 +1292,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ),
             },
         );
+        console.log("unsafeRes", unsafeRes);
 
         const res = create(unsafeRes, jsonRpcResult(ValidityProofResult));
         if ('error' in res) {
@@ -1311,10 +1315,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ...hashes.map(() => mockNullifierQueue),
                 ...newAddresses.map(() => mockAddressQueue),
             ],
-            rootIndices: res.result.rootIndices,
+            rootIndices: res.result.rootIndices, //.map(index => index % 2400),
             roots: res.result.roots,
             leaves: res.result.leaves,
         };
+        console.log("end getValidityProof, value", value);
         return value;
     }
 }

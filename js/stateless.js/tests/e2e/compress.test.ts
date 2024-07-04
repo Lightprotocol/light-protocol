@@ -8,7 +8,7 @@ import {
     ADDRESS_TREE_NETWORK_FEE,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc } from '../../src/rpc';
+import {createRpc, Rpc} from '../../src/rpc';
 import {
     LightSystemProgram,
     bn,
@@ -20,6 +20,7 @@ import {
 } from '../../src';
 import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {randomBytes} from "tweetnacl";
 
 /// TODO: make available to developers via utils
 function txFees(
@@ -75,26 +76,41 @@ describe('compress', () => {
         const INDEXER_URL = 'https://zk-testnet.helius.dev:8784';
         const PROVER_URL = 'https://zk-testnet.helius.dev:3001';
 
-        rpc = await getTestRpc(lightWasm, RPC_URL, INDEXER_URL, PROVER_URL);
+        // const RPC_URL = 'http://localhost:8899';
+        // const INDEXER_URL = 'http://localhost:8784';
+        rpc = await createRpc(RPC_URL, INDEXER_URL, PROVER_URL);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
     });
 
     it.only('should create account with address', async () => {
         const preCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
+        console.log("1");
 
-        const seed = new Uint8Array([
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-            19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        const seed = randomBytes(32);
+        // const seed = new Uint8Array([
+        //     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+        //     19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        // ]);
 
         const address = (await deriveAddress(seed)).toBytes();
         console.log('address', address);
+
+
         await createAccount(
-            rpc as TestRpc,
+            rpc,
             payer,
             seed,
             LightSystemProgram.programId,
         );
+
+        //
+        // await createAccount(
+        //     rpc,
+        //     payer,
+        //     seed,
+        //     LightSystemProgram.programId,
+        // );
+
 
         // await createAccountWithLamports(
         //     rpc as TestRpc,
