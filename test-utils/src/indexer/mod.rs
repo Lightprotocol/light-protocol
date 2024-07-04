@@ -2,7 +2,7 @@ pub mod test_indexer;
 
 use num_bigint::BigUint;
 use std::fmt::Debug;
-pub use test_indexer::create_mint_helper;
+
 pub use test_indexer::AddressMerkleTreeAccounts;
 pub use test_indexer::AddressMerkleTreeBundle;
 pub use test_indexer::StateMerkleTreeAccounts;
@@ -11,6 +11,7 @@ pub use test_indexer::TestIndexer;
 pub use test_indexer::TokenDataWithContext;
 
 use crate::rpc::rpc_connection::RpcConnection;
+use crate::spl::create_mint_helper;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };

@@ -63,7 +63,8 @@ use crate::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithCont
 use crate::transaction_params::FeeConfig;
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
-    rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
+    rpc::rpc_connection::RpcConnection, spl::create_initialize_mint_instructions,
+    test_env::create_address_merkle_tree_and_queue_account,
 };
 
 #[derive(Debug)]
@@ -927,62 +928,4 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             .map(|x| x.token_data.amount)
             .sum()
     }
-}
-
-pub fn create_initialize_mint_instructions(
-    payer: &Pubkey,
-    authority: &Pubkey,
-    rent: u64,
-    decimals: u8,
-    mint_keypair: &Keypair,
-) -> ([Instruction; 4], Pubkey) {
-    let account_create_ix = create_account_instruction(
-        payer,
-        spl_token::state::Mint::LEN,
-        rent,
-        &spl_token::ID,
-        Some(mint_keypair),
-    );
-
-    let mint_pubkey = mint_keypair.pubkey();
-    let create_mint_instruction = initialize_mint(
-        &spl_token::ID,
-        &mint_keypair.pubkey(),
-        authority,
-        None,
-        decimals,
-    )
-    .unwrap();
-    let transfer_ix =
-        anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
-
-    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
-    let pool_pubkey = get_token_pool_pda(&mint_pubkey);
-    (
-        [
-            account_create_ix,
-            create_mint_instruction,
-            transfer_ix,
-            instruction,
-        ],
-        pool_pubkey,
-    )
-}
-
-pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
-    let payer_pubkey = payer.pubkey();
-    let rent = rpc
-        .get_minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN)
-        .await
-        .unwrap();
-    let mint = Keypair::new();
-
-    let (instructions, _): ([Instruction; 4], Pubkey) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
-
-    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
-        .await
-        .unwrap();
-
-    mint.pubkey()
 }

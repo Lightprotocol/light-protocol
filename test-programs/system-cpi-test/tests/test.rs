@@ -11,10 +11,10 @@ use light_system_program::sdk::compressed_account::{
 
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::{create_mint_helper, TestIndexer, TokenDataWithContext};
+use light_test_utils::indexer::{TestIndexer, TokenDataWithContext};
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::spl::mint_tokens_helper;
+use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
