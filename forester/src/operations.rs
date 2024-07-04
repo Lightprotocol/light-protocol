@@ -1,3 +1,4 @@
+use std::mem;
 use crate::config::ForesterConfig;
 use crate::nullifier::address::setup_address_pipeline;
 use crate::nullifier::state::setup_state_pipeline;
@@ -11,12 +12,20 @@ use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use solana_sdk::signature::Signer;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex;
 use tokio::time::sleep;
+use account_compression::initialize_address_merkle_tree::Pubkey;
+use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use light_hash_set::HashSet;
+use light_hasher::Poseidon;
+use light_test_utils::get_indexed_merkle_tree;
+use crate::errors::ForesterError;
+use crate::nullifier::{ForesterQueueAccount, ForesterQueueAccountData};
 
 pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc: Arc<tokio::sync::Mutex<R>>,
-    indexer: Arc<tokio::sync::Mutex<I>>,
+    rpc: Arc<Mutex<R>>,
+    indexer: Arc<Mutex<I>>,
 ) {
     debug!(
         "Subscribe to state tree changes. Queue: {}. Merkle tree: {}",
@@ -60,8 +69,8 @@ pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
 
 pub async fn subscribe_addresses<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc: Arc<tokio::sync::Mutex<R>>,
-    indexer: Arc<tokio::sync::Mutex<I>>,
+    rpc: Arc<Mutex<R>>,
+    indexer: Arc<Mutex<I>>,
 ) {
     debug!(
         "Subscribe to address tree changes. Queue: {}. Merkle tree: {}",
@@ -105,8 +114,8 @@ pub async fn subscribe_addresses<I: Indexer<R>, R: RpcConnection>(
 
 pub async fn nullify_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc: Arc<tokio::sync::Mutex<R>>,
-    indexer: Arc<tokio::sync::Mutex<I>>,
+    rpc: Arc<Mutex<R>>,
+    indexer: Arc<Mutex<I>>,
 ) {
     debug!(
         "Run state tree nullifier. Queue: {}. Merkle tree: {}",
@@ -131,8 +140,8 @@ pub async fn nullify_state<I: Indexer<R>, R: RpcConnection>(
 
 pub async fn nullify_addresses<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
-    rpc: Arc<tokio::sync::Mutex<R>>,
-    indexer: Arc<tokio::sync::Mutex<I>>,
+    rpc: Arc<Mutex<R>>,
+    indexer: Arc<Mutex<I>>,
 ) {
     debug!(
         "Run address tree nullifier. Queue: {}. Merkle tree: {}",
@@ -170,4 +179,96 @@ pub async fn init_rpc(config: Arc<ForesterConfig>, airdrop: bool) -> SolanaRpcCo
     }
 
     rpc
+}
+
+pub async fn fetch_state_queue_data<R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<Mutex<R>>,
+) -> Result<Vec<ForesterQueueAccountData>, ForesterError> {
+    debug!("Fetching state queue data");
+    let state_queue_pubkey = config.nullifier_queue_pubkey;
+
+    let mut nullifier_queue_account = (*rpc.lock().await)
+        .get_account(state_queue_pubkey)
+        .await
+        .map_err(|e| {
+            warn!("Error fetching nullifier queue account: {:?}", e);
+            ForesterError::Custom("Error fetching nullifier queue account".to_string())
+        })?
+        .unwrap();
+
+    let nullifier_queue: HashSet = unsafe {
+        HashSet::from_bytes_copy(
+            &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
+        )?
+    };
+    let mut accounts = Vec::new();
+    for i in 0..nullifier_queue.capacity {
+        let bucket = nullifier_queue.get_bucket(i).unwrap();
+        if let Some(bucket) = bucket {
+            if bucket.sequence_number.is_none() {
+                let account = ForesterQueueAccount {
+                    hash: bucket.value_bytes(),
+                    index: i,
+                };
+                let account_data = ForesterQueueAccountData {
+                    account,
+                    proof: Vec::new(), // This will be filled in during FetchProofs stage
+                    leaf_index: 0,     // This will be filled in during FetchProofs stage
+                    root_seq: 0,       // This will be filled in during FetchProofs stage
+                };
+                accounts.push(account_data);
+            }
+        }
+    }
+    debug!("Fetched {} accounts from state queue", accounts.len());
+    Ok(accounts)
+}
+
+
+pub async fn fetch_address_queue_data<R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<Mutex<R>>,
+) -> Result<Vec<ForesterQueueAccount>, ForesterError> {
+    let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
+
+    let mut account = (*rpc.lock().await)
+        .get_account(address_queue_pubkey)
+        .await?
+        .unwrap();
+    let address_queue: HashSet = unsafe {
+        HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
+    };
+
+    let mut address_queue_vec = Vec::new();
+
+    for i in 0..address_queue.capacity {
+        let bucket = address_queue.get_bucket(i).unwrap();
+        if let Some(bucket) = bucket {
+            if bucket.sequence_number.is_none() {
+                address_queue_vec.push(ForesterQueueAccount {
+                    hash: bucket.value_bytes(),
+                    index: i,
+                });
+            }
+        }
+    }
+    Ok(address_queue_vec)
+}
+
+
+#[allow(dead_code)]
+pub async fn get_address_account_changelog_indices<R: RpcConnection>(
+    merkle_tree_pubkey: &Pubkey,
+    client: &mut R,
+) -> Result<(usize, usize), ForesterError> {
+    let merkle_tree =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            client,
+            *merkle_tree_pubkey,
+        )
+            .await;
+    let changelog_index = merkle_tree.changelog_index();
+    let indexed_changelog_index = merkle_tree.indexed_changelog_index();
+    Ok((changelog_index, indexed_changelog_index))
 }

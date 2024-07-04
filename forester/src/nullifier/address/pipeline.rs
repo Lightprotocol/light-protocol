@@ -47,6 +47,7 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
         backpressure: BackpressureControl::new(config.concurrency_limit),
         shutdown: shutdown.clone(),
         close_output: close_output_rx,
+        address_queue: Arc::new(Mutex::new(Vec::new())),
     };
 
     let input_tx_clone = input_tx.clone();

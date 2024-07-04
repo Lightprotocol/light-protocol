@@ -1,23 +1,23 @@
+use std::collections::{HashSet, VecDeque};
 use crate::errors::ForesterError;
 use crate::nullifier::state::pipeline::PipelineStage;
 use crate::nullifier::{
-    BackpressureControl, ForesterQueueAccount, ForesterQueueAccountData, ForesterQueueData,
+    BackpressureControl, ForesterQueueAccountData,
     PipelineContext,
 };
 use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
-use account_compression::QueueAccount;
-use light_hash_set::HashSet;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, warn};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
-use std::mem;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+use crate::operations::{fetch_state_queue_data};
 
 pub struct StateProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<PipelineStage<T, R>>,
@@ -25,11 +25,14 @@ pub struct StateProcessor<T: Indexer<R>, R: RpcConnection> {
     pub backpressure: BackpressureControl,
     pub shutdown: Arc<AtomicBool>,
     pub close_output: mpsc::Receiver<()>,
+    pub(crate) remaining_accounts: Arc<Mutex<VecDeque<ForesterQueueAccountData>>>,
 }
 
 impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         debug!("Starting StateProcessor process");
+        let processed_accounts = Arc::new(Mutex::new(HashSet::new()));
+
         loop {
             tokio::select! {
                 Some(item) = self.input.recv() => {
@@ -38,7 +41,8 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                     let result = match item {
                         PipelineStage::FetchQueueData(context) => {
                             debug!("Processing FetchQueueData");
-                            match StateProcessor::fetch_queue_data(context).await {
+                            processed_accounts.lock().await.clear();
+                            match StateProcessor::fetch_queue_data(context, Arc::clone(&self.remaining_accounts)).await {
                                 Ok(next_stage) => {
                                     debug!("FetchQueueData successful");
                                     vec![next_stage]
@@ -49,9 +53,9 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                                 }
                             }
                         }
-                        PipelineStage::FetchProofs(context, queue_data) => {
+                        PipelineStage::FetchProofs(context) => {
                             debug!("Processing FetchProofs");
-                            match self.fetch_proofs(context, queue_data).await {
+                            match self.fetch_proofs(context, Arc::clone(&self.remaining_accounts)).await {
                                 Ok(next_stages) => {
                                     debug!(
                                         "FetchProofs successful, generated {} next stages",
@@ -68,7 +72,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                         PipelineStage::NullifyAccount(context, account_data) => {
                             let hash = account_data.account.hash_string();
                             debug!("Processing NullifyAccount for account: {}", hash);
-                            match self.nullify_account(context, account_data).await {
+                            match self.nullify_account(context, account_data, processed_accounts.clone()).await {
                                 Ok(next_stage) => {
                                     debug!(
                                         "NullifyAccount successful for account: {}, moving to next stage",
@@ -85,7 +89,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                         PipelineStage::UpdateIndexer(context, account_data) => {
                             let hash = account_data.account.hash_string();
                             debug!("Processing UpdateIndexer for account: {}", hash);
-                            match self.update_indexer(context, account_data).await {
+                            match self.update_indexer(context, account_data, Arc::clone(&self.remaining_accounts)).await {
                                 Ok(next_stage) => {
                                     debug!(
                                         "UpdateIndexer successful for account: {}, moving to next stage",
@@ -136,47 +140,61 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
 
     pub(crate) async fn fetch_queue_data(
         context: PipelineContext<T, R>,
+        remaining_accounts: Arc<Mutex<VecDeque<ForesterQueueAccountData>>>
     ) -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext {
-            indexer: _,
-            rpc,
-            config,
-            ..
-        } = &context;
-
+        debug!("Fetch queue data");
         let accounts_to_nullify: Vec<ForesterQueueAccountData> = {
-            let mut rpc_lock = rpc.lock().await;
-            let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc_lock).await?;
-            queue.into_iter().take(config.batch_size).collect()
+            let queue = fetch_state_queue_data(context.config.clone(), context.rpc.clone()).await?;
+            debug!("Fetched {} accounts from state queue", queue.len());
+            queue.into_iter().take(context.config.batch_size).collect()
         };
+        debug!("Took {} accounts for processing", accounts_to_nullify.len());
+        let mut queue = remaining_accounts.lock().await;
+        queue.extend(accounts_to_nullify.clone().into_iter());
+        debug!("Queue now contains {} accounts", queue.len());
 
         if accounts_to_nullify.is_empty() {
             debug!("No accounts to nullify found in queue");
             return Ok(PipelineStage::Complete);
         }
 
-        let queue_data = ForesterQueueData::new(accounts_to_nullify);
-        Ok(PipelineStage::FetchProofs(context, queue_data))
+        Ok(PipelineStage::FetchProofs(context))
     }
 
     async fn fetch_proofs(
         &self,
         context: PipelineContext<T, R>,
-        queue_data: ForesterQueueData,
+        remaining_accounts: Arc<Mutex<VecDeque<ForesterQueueAccountData>>>,
     ) -> Result<Vec<PipelineStage<T, R>>, ForesterError> {
+        let batch_size = context.config.batch_size;
+        let mut accounts_to_process = Vec::new();
+
+        {
+            let mut queue = remaining_accounts.lock().await;
+            debug!("Fetching proofs, queue size: {}", queue.len());
+            while accounts_to_process.len() < batch_size && !queue.is_empty() {
+                if let Some(account) = queue.pop_front() {
+                    accounts_to_process.push(account);
+                }
+            }
+            debug!("Took {} accounts for processing", accounts_to_process.len());
+        }
+
+        if accounts_to_process.is_empty() {
+            debug!("No more accounts to process, fetching new queue data");
+            return Ok(vec![PipelineStage::FetchQueueData(context)]);
+        }
+
         let PipelineContext {
             indexer,
             rpc: _,
             config: _,
             ..
         } = &context;
-        debug!(
-            "Fetching proofs for {} accounts",
-            queue_data.accounts_to_nullify.len()
-        );
+
         let mut next_stages = Vec::new();
-        let compressed_account_list: Vec<String> = queue_data
-            .accounts_to_nullify
+        debug!("Fetching proofs for {} accounts", accounts_to_process.len());
+        let compressed_account_list: Vec<String> = accounts_to_process
             .iter()
             .map(|account_data| account_data.account.hash_string())
             .collect();
@@ -196,8 +214,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
 
         debug!("Received {} proofs", proofs.len());
 
-        for (account, proof) in queue_data
-            .accounts_to_nullify
+        for (account, proof) in accounts_to_process
             .into_iter()
             .zip(proofs.into_iter())
         {
@@ -222,7 +239,18 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
         &self,
         context: PipelineContext<T, R>,
         account_data: ForesterQueueAccountData,
+        processed_accounts: Arc<Mutex<HashSet<String>>>,
     ) -> Result<PipelineStage<T, R>, ForesterError> {
+        let account_hash = account_data.account.hash_string();
+
+        {
+            let processed = processed_accounts.lock().await;
+            if processed.contains(&account_hash) {
+                debug!("Account {} has already been nullified, skipping", account_hash);
+                return Ok(PipelineStage::FetchQueueData(context));
+            }
+        }
+
         let PipelineContext {
             indexer: _,
             rpc,
@@ -280,6 +308,10 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                     "Moving to UpdateIndexer stage for account: {}",
                     account_data.account.hash_string()
                 );
+
+                let mut processed = processed_accounts.lock().await;
+                processed.insert(account_hash);
+
                 Ok(PipelineStage::UpdateIndexer(context.clone(), account_data))
             }
             Err(e) => {
@@ -300,6 +332,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
         &self,
         context: PipelineContext<T, R>,
         account_data: ForesterQueueAccountData,
+        remaining_accounts: Arc<Mutex<VecDeque<ForesterQueueAccountData>>>,
     ) -> Result<PipelineStage<T, R>, ForesterError> {
         let PipelineContext {
             indexer,
@@ -327,47 +360,19 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
             account_data.account.hash_string()
         );
 
-        // Since this is the last stage, we'll return to FetchQueueData to start the process again
-        Ok(PipelineStage::FetchQueueData(context))
-    }
-}
-
-pub async fn get_nullifier_queue<R: RpcConnection>(
-    nullifier_queue_pubkey: &Pubkey,
-    rpc: &mut R,
-) -> Result<Vec<ForesterQueueAccountData>, ForesterError> {
-    let mut nullifier_queue_account = rpc
-        .get_account(*nullifier_queue_pubkey)
-        .await
-        .map_err(|e| {
-            warn!("Error fetching nullifier queue account: {:?}", e);
-            ForesterError::Custom("Error fetching nullifier queue account".to_string())
-        })?
-        .unwrap();
-
-    let nullifier_queue: HashSet = unsafe {
-        HashSet::from_bytes_copy(
-            &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
-        )?
-    };
-    let mut accounts_to_nullify = Vec::new();
-    for i in 0..nullifier_queue.capacity {
-        let bucket = nullifier_queue.get_bucket(i).unwrap();
-        if let Some(bucket) = bucket {
-            if bucket.sequence_number.is_none() {
-                let account = ForesterQueueAccount {
-                    hash: bucket.value_bytes(),
-                    index: i,
-                };
-                let account_data = ForesterQueueAccountData {
-                    account,
-                    proof: Vec::new(), // This will be filled in during FetchProofs stage
-                    leaf_index: 0,     // This will be filled in during FetchProofs stage
-                    root_seq: 0,       // This will be filled in during FetchProofs stage
-                };
-                accounts_to_nullify.push(account_data);
-            }
+        {
+            let mut queue = remaining_accounts.lock().await;
+            queue.retain(|account| account.account.hash_string() != account_data.account.hash_string());
         }
+
+        let queue = remaining_accounts.lock().await;
+        if queue.is_empty() {
+            Ok(PipelineStage::FetchQueueData(context))
+        } else {
+            Ok(PipelineStage::FetchProofs(context))
+        }
+
+        // Since this is the last stage, we'll return to FetchQueueData to start the process again
+        // Ok(PipelineStage::FetchQueueData(context))
     }
-    Ok(accounts_to_nullify)
 }

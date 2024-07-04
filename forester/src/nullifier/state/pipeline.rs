@@ -1,7 +1,8 @@
+use std::collections::VecDeque;
 use crate::config::ForesterConfig;
 use crate::nullifier::state::StateProcessor;
 use crate::nullifier::{
-    BackpressureControl, ForesterQueueAccountData, ForesterQueueData, PipelineContext,
+    BackpressureControl, ForesterQueueAccountData, PipelineContext,
 };
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -14,7 +15,8 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub enum PipelineStage<T: Indexer<R>, R: RpcConnection> {
     FetchQueueData(PipelineContext<T, R>),
-    FetchProofs(PipelineContext<T, R>, ForesterQueueData),
+    FetchProofs(PipelineContext<T, R>),
+    // NullifyAccountBatch(PipelineContext<T, R>, Vec<ForesterQueueAccountData>),
     NullifyAccount(PipelineContext<T, R>, ForesterQueueAccountData),
     UpdateIndexer(PipelineContext<T, R>, ForesterQueueAccountData),
     Complete,
@@ -31,12 +33,14 @@ pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
     let (close_output_tx, close_output_rx) = mpsc::channel(1);
     let shutdown = Arc::new(AtomicBool::new(false));
 
+    let remaining_accounts = Arc::new(Mutex::new(VecDeque::new()));
     let mut processor = StateProcessor {
         input: input_rx,
         output: output_tx.clone(),
         backpressure: BackpressureControl::new(config.concurrency_limit),
         shutdown: shutdown.clone(),
         close_output: close_output_rx,
+        remaining_accounts: remaining_accounts.clone(),
     };
 
     let input_tx_clone = input_tx.clone();
@@ -69,17 +73,18 @@ pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
                         .await
                         .unwrap();
                 }
-                PipelineStage::FetchProofs(_, queue_data) => {
-                    if queue_data.accounts_to_nullify.is_empty() {
+                PipelineStage::FetchProofs(_) => {
+                    let remaining = remaining_accounts.lock().await;
+                    if remaining.is_empty() {
                         debug!("No more accounts to nullify. Signaling completion.");
                         input_tx_clone.send(PipelineStage::Complete).await.unwrap();
                     } else {
                         debug!(
                             "Received FetchProofs in setup_pipeline, processing {} accounts",
-                            queue_data.accounts_to_nullify.len()
+                            remaining.len()
                         );
                         input_tx_clone
-                            .send(PipelineStage::FetchProofs(context.clone(), queue_data))
+                            .send(PipelineStage::FetchProofs(context.clone()))
                             .await
                             .unwrap();
                     }

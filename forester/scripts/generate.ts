@@ -1,4 +1,4 @@
-import {PublicKey, Signer, Keypair} from '@solana/web3.js';
+import {PublicKey, Signer, Keypair, LAMPORTS_PER_SOL} from '@solana/web3.js';
 import {
     airdropSol,
     createRpc,
@@ -6,14 +6,14 @@ import {
     transfer,
     Rpc,
     createAccountWithLamports,
-    LightSystemProgram
+    LightSystemProgram, createAccount
 } from '@lightprotocol/stateless.js';
 import { randomBytes } from 'tweetnacl';
 
-const LAMPORTS = 1e13;
-const COMPRESS_AMOUNT = 1e9;
-const TOTAL_NUMBER_OF_TRANSFERS = 1e2;
-const NUMBER_OF_CONCURRENT_TRANSFERS = 18;
+const LAMPORTS = 1000 * LAMPORTS_PER_SOL;
+const COMPRESS_AMOUNT = LAMPORTS_PER_SOL;
+const TOTAL_NUMBER_OF_TRANSFERS = 100;
+const NUMBER_OF_CONCURRENT_TRANSFERS = 10;
 const TRANSFER_AMOUNT = 10;
 
 const payerKeypairs = generateKeypairs(NUMBER_OF_CONCURRENT_TRANSFERS);
@@ -29,11 +29,11 @@ async function createAccountAsync(i: number, rpc: Rpc, payer: Signer, bobPublicK
     console.log(`account ${i} of ${TOTAL_NUMBER_OF_TRANSFERS}: ${transferSig}`);
 
     const seed = new Uint8Array(randomBytes(32));
-    await createAccountWithLamports(
+    await createAccount(
         rpc,
         payer,
         seed,
-        TRANSFER_AMOUNT,
+        // TRANSFER_AMOUNT,
         LightSystemProgram.programId,
     );
 }
@@ -80,18 +80,12 @@ async function prefillNullifierQueue() {
     for (let i = 0; i < TOTAL_NUMBER_OF_TRANSFERS; i += NUMBER_OF_CONCURRENT_TRANSFERS) {
         const transferPromises = [];
         for (let j = 0; j < NUMBER_OF_CONCURRENT_TRANSFERS; j++) {
-            transferPromises.push(transferAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
-        }
-        await Promise.all(transferPromises);
-    }
-
-    for (let i = 0; i < TOTAL_NUMBER_OF_TRANSFERS; i += NUMBER_OF_CONCURRENT_TRANSFERS) {
-        const transferPromises = [];
-        for (let j = 0; j < NUMBER_OF_CONCURRENT_TRANSFERS; j++) {
+            // transferPromises.push(transferAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
             transferPromises.push(createAccountAsync(i + j, rpc, payerKeypairs[j], receiverKeypairs[j].publicKey));
         }
         await Promise.all(transferPromises);
     }
+
 }
 
 function generateKeypairs(count: number): Keypair[] {

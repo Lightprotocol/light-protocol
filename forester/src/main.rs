@@ -3,9 +3,7 @@ use env_logger::Env;
 use forester::cli::{Cli, Commands};
 use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
-use forester::{
-    init_config, init_rpc, nullify_addresses, nullify_state, subscribe_addresses, subscribe_state, ForesterConfig
-};
+use forester::{init_config, init_rpc, nullify_addresses, nullify_state, subscribe_addresses, subscribe_state, ForesterConfig, get_state_queue_length, get_address_queue_length};
 use log::{debug, error};
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -80,6 +78,20 @@ async fn main() {
         None => {
             return;
         }
+        Some(Commands::StateQueueInfo) => {
+            let rpc = get_rpc();
+            let queue_length = get_state_queue_length(rpc, config).await;
+            println!("State queue length: {}", queue_length);
+        }
+
+        Some(Commands::AddressQueueInfo) => {
+            let rpc = get_rpc();
+            let queue_length = get_address_queue_length(rpc, config).await;
+            println!("Address queue length: {}", queue_length);
+        }
+        Some(Commands::Airdrop) => {
+            init_rpc(config.clone(), true).await;
+        }
     }
 }
 
@@ -90,7 +102,7 @@ pub fn get_rpc() -> Arc<tokio::sync::Mutex<SolanaRpcConnection>> {
 }
 
 async fn setup_rpc(config: Arc<ForesterConfig>) {
-    let rpc = init_rpc(config.clone(), true).await;
+    let rpc = init_rpc(config.clone(), false).await;
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
     INSTANCE.set(rpc).unwrap();
 }

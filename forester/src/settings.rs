@@ -18,10 +18,9 @@ pub enum SettingsKey {
     WsRpcUrl,
     IndexerUrl,
     ProverUrl,
-    ConcurrencyLimit,
     BatchSize,
     MaxRetries,
-    MaxConcurrentBatches,
+    ConcurrencyLimit
 }
 
 impl Display for SettingsKey {
@@ -43,7 +42,6 @@ impl Display for SettingsKey {
                 SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
                 SettingsKey::BatchSize => "BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
-                SettingsKey::MaxConcurrentBatches => "MAX_CONCURRENT_BATCHES",
             }
         )
     }
@@ -117,9 +115,6 @@ pub fn init_config() -> ForesterConfig {
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
         .unwrap();
-    let max_concurrent_batches = settings
-        .get_int(&SettingsKey::MaxConcurrentBatches.to_string())
-        .unwrap();
 
     ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -139,6 +134,5 @@ pub fn init_config() -> ForesterConfig {
         concurrency_limit: concurrency_limit as usize,
         batch_size: batch_size as usize,
         max_retries: max_retries as usize,
-        max_concurrent_batches: max_concurrent_batches as usize,
     }
 }
