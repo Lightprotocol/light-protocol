@@ -22,7 +22,7 @@
 
 
     "generate-data": "ts-node ./scripts/generate.ts",
-    "test-1000": "pnpm restart-validator && pnpm generate-data && pnpm nullify && pnpm generate-data && pnpm nullify",
+    "test-1000": "pnpm restart-validator && pnpm generate-data && pnpm nullify",
 
     "transfer-100k": "ts-node scripts/generate_100k.ts",
     "subscribe": "RUST_MIN_STACK=8388608 cargo run -- subscribe",
