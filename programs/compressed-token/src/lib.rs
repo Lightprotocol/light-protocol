@@ -137,6 +137,8 @@ pub enum ErrorCode {
     DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]
     DelegateSignerCheckFailed,
+    #[msg("Minted amount greater than u64::MAX")]
+    MintTooLarge,
     #[msg("SplTokenSupplyMismatch")]
     SplTokenSupplyMismatch,
     #[msg("HeapMemoryCheckFailed")]

@@ -5,6 +5,7 @@ use anchor_lang::{
 };
 use anchor_spl::token::Mint;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
+use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_compressed_token::token_data::AccountState;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::spl::approve_test;
@@ -40,6 +41,7 @@ use light_test_utils::{
     indexer::TestIndexer, test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
+use rand::Rng;
 use spl_token::instruction::initialize_mint;
 
 #[tokio::test]
@@ -216,25 +218,28 @@ async fn test_wrapped_sol() {
     kill_prover();
 }
 
-async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
+async fn test_mint_to(amounts: Vec<u64>, iterations: usize) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let mut test_indexer =
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, false, false).await;
 
-    let recipient_keypair = Keypair::new();
+    let recipients = amounts
+        .iter()
+        .map(|_| Keypair::new().pubkey())
+        .collect::<Vec<_>>();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    for _ in 0..ITER {
-        let amount = 10000u64;
+
+    for _ in 0..iterations {
         mint_tokens_helper(
             &mut rpc,
             &mut test_indexer,
             &merkle_tree_pubkey,
             &payer,
             &mint,
-            vec![amount; MINTS],
-            vec![recipient_keypair.pubkey(); MINTS],
+            amounts.clone(),
+            recipients.clone(),
         )
         .await;
     }
@@ -243,27 +248,418 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
 
 #[tokio::test]
 async fn test_1_mint_to() {
-    test_mint_to::<1, 1>().await
+    test_mint_to(vec![10000], 1).await
 }
 
 #[tokio::test]
 async fn test_5_mint_to() {
-    test_mint_to::<5, 1>().await
+    test_mint_to(
+        vec![
+            0,
+            u8::MAX as u64,
+            u16::MAX as u64,
+            u32::MAX as u64,
+            u64::MAX,
+        ],
+        1,
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_10_mint_to() {
-    test_mint_to::<10, 1>().await
+    let mut rng = rand::thread_rng();
+    // Make sure that the tokal token supply does not exceed `u64::MAX`.
+    let amounts: Vec<u64> = (0..10).map(|_| rng.gen_range(0..(u64::MAX / 10))).collect();
+    test_mint_to(amounts, 1).await
 }
 
 #[tokio::test]
 async fn test_20_mint_to() {
-    test_mint_to::<20, 1>().await
+    let mut rng = rand::thread_rng();
+    // Make sure that the total token supply does not exceed `u64::MAX`.
+    let amounts: Vec<u64> = (0..20).map(|_| rng.gen_range(0..(u64::MAX / 20))).collect();
+    test_mint_to(amounts, 1).await
 }
 
 #[tokio::test]
 async fn test_25_mint_to() {
-    test_mint_to::<25, 10>().await
+    let mut rng = rand::thread_rng();
+    // Make sure that the total token supply does not exceed `u64::MAX`.
+    let amounts: Vec<u64> = (0..25)
+        .map(|_| rng.gen_range(0..(u64::MAX / (25 * 10))))
+        .collect();
+    test_mint_to(amounts, 10).await
+}
+
+/// Failing tests:
+/// 1. Try to mint token from `mint_1` and sign the transaction with `mint_2`
+///    authority.
+/// 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
+///    authority.
+/// 3. Try to mint token from `mint_1` while using `mint_2` pool.
+/// 4. Try to mint token from `mint_2` while using `mint_1` pool.
+/// 5. Invalid CPI authority.
+/// 6. Invalid registered program.
+/// 7. Invalid noop program.
+/// 8. Invalid account compression authority.
+/// 9. Invalid Merkle tree.
+/// 10. Mint more than `u64::MAX` tokens.
+/// 11. Multiple mints which overflow the token supply over `u64::MAX`.
+#[tokio::test]
+async fn test_mint_to_failing() {
+    const MINTS: usize = 10;
+
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer_1 = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+
+    let mut rng = rand::thread_rng();
+
+    let payer_2 = Keypair::new();
+    airdrop_lamports(&mut rpc, &payer_2.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_1 = create_mint_helper(&mut rpc, &payer_1).await;
+    let mint_pool_1 = get_token_pool_pda(&mint_1);
+
+    let mint_2 = create_mint_helper(&mut rpc, &payer_2).await;
+    let mint_pool_2 = get_token_pool_pda(&mint_2);
+
+    // Make sure that the tokal token supply does not exceed `u64::MAX`.
+    let amounts: Vec<u64> = (0..MINTS)
+        .map(|_| rng.gen_range(0..(u64::MAX / MINTS as u64)))
+        .collect();
+    let recipients = amounts
+        .iter()
+        .map(|_| Keypair::new().pubkey())
+        .collect::<Vec<_>>();
+
+    let instruction_data = light_compressed_token::instruction::MintTo {
+        amounts: amounts.clone(),
+        public_keys: recipients.clone(),
+    };
+
+    // 1. Try to mint token from `mint_1` and sign the transaction with `mint_2`
+    //    authority.
+    {
+        let instruction = create_mint_to_instruction(
+            &payer_2.pubkey(),
+            &payer_2.pubkey(),
+            &mint_1,
+            &merkle_tree_pubkey,
+            amounts.clone(),
+            recipients.clone(),
+        );
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintRaw.into(),
+        )
+        .unwrap();
+    }
+    // 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
+    //    authority.
+    {
+        let instruction = create_mint_to_instruction(
+            &payer_1.pubkey(),
+            &payer_1.pubkey(),
+            &mint_2,
+            &merkle_tree_pubkey,
+            amounts.clone(),
+            recipients.clone(),
+        );
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintRaw.into(),
+        )
+        .unwrap();
+    }
+    // 3. Try to mint token from `mint_1` while using `mint_2` pool.
+    {
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_1.pubkey(),
+            authority: payer_1.pubkey(),
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            mint: mint_1.clone(),
+            token_pool_pda: mint_pool_2,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await
+            .unwrap_err();
+    }
+    // 4. Try to mint token from `mint_2` while using `mint_1` pool.
+    {
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_2.pubkey(),
+            authority: payer_2.pubkey(),
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            mint: mint_2.clone(),
+            token_pool_pda: mint_pool_1,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
+            .await
+            .unwrap_err();
+    }
+    // 5. Invalid CPI authority.
+    {
+        let invalid_cpi_authority_pda = Keypair::new();
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_2.pubkey(),
+            authority: payer_2.pubkey(),
+            cpi_authority_pda: invalid_cpi_authority_pda.pubkey(),
+            mint: mint_1.clone(),
+            token_pool_pda: mint_pool_1,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
+    }
+    // 6. Invalid registered program.
+    {
+        let invalid_registered_program = Keypair::new();
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_1.pubkey(),
+            authority: payer_1.pubkey(),
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            mint: mint_1.clone(),
+            token_pool_pda: mint_pool_1,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: invalid_registered_program.pubkey(),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
+    }
+    // 7. Invalid noop program.
+    {
+        let invalid_noop_program = Keypair::new();
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_1.pubkey(),
+            authority: payer_1.pubkey(),
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            mint: mint_1.clone(),
+            token_pool_pda: mint_pool_1,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: invalid_noop_program.pubkey(),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_system_program::errors::SystemProgramError::InvalidNoopPubkey.into(),
+        )
+        .unwrap();
+    }
+    // 8. Invalid account compression authority.
+    {
+        let invalid_account_compression_authority = Keypair::new();
+        let accounts = light_compressed_token::accounts::MintToInstruction {
+            fee_payer: payer_1.pubkey(),
+            authority: payer_1.pubkey(),
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            mint: mint_1.clone(),
+            token_pool_pda: mint_pool_1,
+            token_program: anchor_spl::token::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: invalid_account_compression_authority.pubkey(),
+            account_compression_program: account_compression::ID,
+            merkle_tree: merkle_tree_pubkey,
+            self_program: light_compressed_token::ID,
+            system_program: system_program::ID,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
+    }
+    // 9. Invalid Merkle tree.
+    {
+        let invalid_merkle_tree = Keypair::new();
+        let instruction = create_mint_to_instruction(
+            &payer_1.pubkey(),
+            &payer_1.pubkey(),
+            &mint_1,
+            &invalid_merkle_tree.pubkey(),
+            amounts.clone(),
+            recipients.clone(),
+        );
+        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await
+            .unwrap_err(); // Anchor panics, there is no specific error to assert.
+    }
+    // 10. Mint more than `u64::MAX` tokens.
+    {
+        // Overall sum greater than `u64::MAX`
+        let amounts = vec![u64::MAX / 5; MINTS];
+        let instruction = create_mint_to_instruction(
+            &payer_1.pubkey(),
+            &payer_1.pubkey(),
+            &mint_1,
+            &merkle_tree_pubkey,
+            amounts,
+            recipients.clone(),
+        );
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::MintTooLarge.into(),
+        )
+        .unwrap();
+    }
+    // 11. Multiple mints which overflow the token supply over `u64::MAX`.
+    {
+        let amounts = vec![u64::MAX / 10; MINTS];
+        let instruction = create_mint_to_instruction(
+            &payer_1.pubkey(),
+            &payer_1.pubkey(),
+            &mint_1,
+            &merkle_tree_pubkey,
+            amounts,
+            recipients.clone(),
+        );
+        // The first mint is still below `u64::MAX`.
+        rpc.create_and_send_transaction(&[instruction.clone()], &payer_1.pubkey(), &[&payer_1])
+            .await
+            .unwrap();
+        // The second mint should overflow.
+        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await
+            .unwrap_err(); // No error code to catch, happens inside anchor-spl.
+    }
 }
 
 #[tokio::test]

@@ -282,7 +282,9 @@ pub fn mint_spl_to_pool_pda<'info>(
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
-        mint_amount = mint_amount.checked_add(*amount).unwrap();
+        mint_amount = mint_amount
+            .checked_add(*amount)
+            .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
     let cpi_accounts = anchor_spl::token::MintTo {
