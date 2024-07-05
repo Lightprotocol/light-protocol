@@ -1,6 +1,5 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester::indexer::PhotonIndexer;
-use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::{external_services_config::ExternalServicesConfig, ForesterConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
@@ -88,30 +87,7 @@ pub fn forester_config() -> ForesterConfig {
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
-        max_concurrent_batches: 5,
     }
-}
-
-#[allow(dead_code)]
-pub async fn get_state_queue_length<R: RpcConnection>(
-    rpc: &mut R,
-    config: &ForesterConfig,
-) -> usize {
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
-        .await
-        .unwrap();
-    queue.len()
-}
-
-#[allow(dead_code)]
-pub async fn get_address_queue_length<R: RpcConnection>(
-    config: &ForesterConfig,
-    rpc: &mut R,
-) -> usize {
-    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, rpc)
-        .await
-        .unwrap();
-    queue.len()
 }
 
 // truncate to <254 bit
