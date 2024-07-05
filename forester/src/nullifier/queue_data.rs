@@ -20,7 +20,7 @@ impl ForesterQueueAccount {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ForesterAddressQueueAccountData {
     pub account: ForesterQueueAccount,
     pub proof: NewAddressProofWithContext

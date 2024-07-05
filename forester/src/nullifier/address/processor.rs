@@ -28,7 +28,7 @@ pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub backpressure: BackpressureControl,
     pub shutdown: Arc<AtomicBool>,
     pub close_output: mpsc::Receiver<()>,
-    pub address_queue: Arc<Mutex<Vec<ForesterQueueAccount>>>
+    pub address_queue: Arc<Mutex<Vec<ForesterQueueAccount>>>,
 }
 
 impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
@@ -123,26 +123,6 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             *address_queue = queue_data;
             Ok(Some(AddressPipelineStage::FetchProofs(context.clone(), batch)))
         }
-
-        /*
-
-        let mut queue_data = fetch_address_queue_data(context.config.clone(), context.rpc.clone()).await?;
-        let mut rng = thread_rng();
-        queue_data.shuffle(&mut rng);
-
-        info!("Fetched address queue data len: {:?}", queue_data.len());
-        if queue_data.is_empty() {
-            info!("Address queue is empty");
-            Ok(Some(AddressPipelineStage::Complete))
-        } else {
-            let batch: Vec<ForesterQueueAccount> = queue_data.into_iter().take(context.config.batch_size).collect();
-            info!("Processing batch of {} addresses", batch.len());
-            Ok(Some(AddressPipelineStage::FetchProofs(
-                context.clone(),
-                batch,
-            )))
-        }
-        */
     }
 
     async fn fetch_proofs(
@@ -172,7 +152,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             .map(|(account, proof)| {
                 ForesterAddressQueueAccountData {
                     account,
-                    proof
+                    proof,
                 }
             })
             .collect();
@@ -190,39 +170,40 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         let indexer = &context.indexer;
 
         // Create a channel for collecting results
-        let (tx, mut rx) = mpsc::channel(account_data_batch.len());
+        // let (tx, mut rx) = mpsc::channel(account_data_batch.len());
+
+        // Create a channel for collecting results
+        let (tx, mut rx) = mpsc::channel(account_data_batch.len() / 2 + 1);
 
         // Create a semaphore to limit concurrent tasks
-        let semaphore = Arc::new(Semaphore::new(10));
+        let semaphore = Arc::new(Semaphore::new(5));
 
-        // Spawn tasks for each account_data
-        for account_data in account_data_batch {
+        // Process accounts in pairs
+        for account_pair in account_data_batch.chunks(2) {
             let tx = tx.clone();
             let context = context.clone();
             let semaphore = semaphore.clone();
+
+            // Clone the account pair data
+            let account_pair_clone: Vec<ForesterAddressQueueAccountData> = account_pair.to_vec();
 
             tokio::spawn(async move {
                 let _permit = semaphore.acquire().await.unwrap();
                 let mut retry_count = 0;
                 while retry_count < context.config.max_retries {
-                    match update_merkle_tree(
+                    match update_merkle_tree_pair(
                         &context.rpc.clone(),
                         &context.config.payer_keypair,
+                        &account_pair_clone,
                         context.config.address_merkle_tree_queue_pubkey,
                         context.config.address_merkle_tree_pubkey,
-                        account_data.account.index as u16,
-                        account_data.proof.low_address_index,
-                        account_data.proof.low_address_value,
-                        account_data.proof.low_address_next_index,
-                        account_data.proof.low_address_next_value,
-                        account_data.proof.low_address_proof,
-                        (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-                        ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG) as u16,
                     )
                         .await
                     {
                         Ok(true) => {
-                            tx.send((true, account_data)).await.unwrap();
+                            for account_data in account_pair_clone {
+                                tx.send((true, account_data.clone())).await.unwrap();
+                            }
                             return;
                         }
                         Ok(false) => {
@@ -230,8 +211,10 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                         }
                         Err(e) => {
                             warn!(
-                            "Error updating merkle tree for address {:?}: {:?}",
-                            account_data.account.hash, e
+                            "Error updating merkle tree for addresses: {:?}, {:?}, retrying...",
+                            e,
+                                account_pair_clone.iter().map(|a| a.account.hash).collect::<Vec<_>>(),
+
                         );
                             retry_count += 1;
                         }
@@ -241,11 +224,14 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
-                tx.send((false, account_data)).await.unwrap();
+                for account_data in &account_pair_clone {
+                    tx.send((false, account_data.clone())).await.unwrap();
+                }
             });
         }
         drop(tx);
 
+        // Process results
         // let mut successful_updates = 0;
         while let Some((success, account_data)) = rx.recv().await {
             if success {
@@ -265,6 +251,78 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             );
             }
         }
+
+        // // Spawn tasks for each account_data
+        // for account_data in account_data_batch {
+        //     let tx = tx.clone();
+        //     let context = context.clone();
+        //     let semaphore = semaphore.clone();
+        //
+        //     tokio::spawn(async move {
+        //         let _permit = semaphore.acquire().await.unwrap();
+        //         let mut retry_count = 0;
+        //         while retry_count < context.config.max_retries {
+        //             match update_merkle_tree(
+        //                 &context.rpc.clone(),
+        //                 &context.config.payer_keypair,
+        //                 context.config.address_merkle_tree_queue_pubkey,
+        //                 context.config.address_merkle_tree_pubkey,
+        //                 account_data.account.index as u16,
+        //                 account_data.proof.low_address_index,
+        //                 account_data.proof.low_address_value,
+        //                 account_data.proof.low_address_next_index,
+        //                 account_data.proof.low_address_next_value,
+        //                 account_data.proof.low_address_proof,
+        //                 (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+        //                 ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG) as u16,
+        //             )
+        //                 .await
+        //             {
+        //                 Ok(true) => {
+        //                     tx.send((true, account_data)).await.unwrap();
+        //                     return;
+        //                 }
+        //                 Ok(false) => {
+        //                     retry_count += 1;
+        //                 }
+        //                 Err(e) => {
+        //                     warn!(
+        //                     "Error updating merkle tree for address {:?}: {:?}",
+        //                     account_data.account.hash, e
+        //                 );
+        //                     retry_count += 1;
+        //                 }
+        //             }
+        //
+        //             if retry_count < context.config.max_retries {
+        //                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        //             }
+        //         }
+        //         tx.send((false, account_data)).await.unwrap();
+        //     });
+        // }
+        // drop(tx);
+        //
+        // // let mut successful_updates = 0;
+        // while let Some((success, account_data)) = rx.recv().await {
+        //     if success {
+        //         // successful_updates += 1;
+        //         debug!(
+        //         "Successfully updated merkle tree for address: {:?}",
+        //         account_data.account.hash
+        //     );
+        //         indexer
+        //             .lock()
+        //             .await
+        //             .address_tree_updated(config.address_merkle_tree_pubkey.to_bytes(), &account_data.proof);
+        //     } else {
+        //         warn!(
+        //         "Failed to update merkle tree for address: {:?}",
+        //         account_data.account.hash
+        //     );
+        //     }
+        // }
+
 
         // let mut nullifications = context.successful_nullifications.lock().await;
         // *nullifications += successful_updates;
@@ -292,105 +350,52 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             Ok(Some(AddressPipelineStage::FetchProofs(context, Vec::new())))
         }
     }
+}
 
-    //
-    // async fn update_address_merkle_tree(
-    //     &self,
-    //     context: PipelineContext<T, R>,
-    //     account_data_batch: Vec<ForesterAddressQueueAccountData>,
-    // ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {
-    //     let config = &context.config;
-    //     let rpc = &context.rpc;
-    //     let indexer = &context.indexer;
-    //     let mut retry_count = 0;
-    //
-    //     for account_data in account_data_batch {
-    //         while retry_count < context.config.max_retries {
-    //             match update_merkle_tree(
-    //                 rpc,
-    //                 &config.payer_keypair,
-    //                 config.address_merkle_tree_queue_pubkey,
-    //                 config.address_merkle_tree_pubkey,
-    //                 account_data.account.index as u16,
-    //                 account_data.proof.low_address_index,
-    //                 account_data.proof.low_address_value,
-    //                 account_data.proof.low_address_next_index,
-    //                 account_data.proof.low_address_next_value,
-    //                 account_data.proof.low_address_proof,
-    //                 // TODO: use changelog array size from tree config
-    //                 (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-    //                 // TODO:
-    //                 // 1. add index changelog current changelog index to the proof or we make them the same size
-    //                 // 2. remove -1 after new zktestnet release
-    //                 ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-    //             )
-    //                 .await
-    //             {
-    //                 Ok(true) => {
-    //                     debug!(
-    //                     "Successfully updated merkle tree for address: {:?}",
-    //                     account_data.account.hash
-    //                 );
-    //                     let mut nullifications = context.successful_nullifications.lock().await;
-    //                     *nullifications += 1;
-    //                     info!("Nullifications: {:?}", *nullifications);
-    //
-    //                     indexer
-    //                         .lock()
-    //                         .await
-    //                         .address_tree_updated(config.address_merkle_tree_pubkey.to_bytes(), &account_data.proof);
-    //
-    //                     if *nullifications >= (ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG / 2) as usize {
-    //                         info!(
-    //                         "Reached {} successful nullifications. Re-fetching queue.",
-    //                         *nullifications
-    //                     );
-    //                         *nullifications = 0;
-    //                         drop(nullifications);
-    //                         return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
-    //                             context.clone(),
-    //                         )));
-    //                     }
-    //                     drop(nullifications);
-    //                     return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
-    //                         context.clone(),
-    //                     )));
-    //                 }
-    //                 Ok(false) => {
-    //                     warn!("Failed to update merkle tree for address: {:?}", account_data.account.hash);
-    //                     retry_count += 1;
-    //                 }
-    //                 Err(e) => {
-    //                     warn!(
-    //                     "Error updating merkle tree for address {:?}: {:?}",
-    //                     account_data.account.hash, e
-    //                 );
-    //                     retry_count += 1;
-    //                 }
-    //             }
-    //
-    //             if retry_count < context.config.max_retries {
-    //                 debug!(
-    //                 "Retrying update for address: {:?} (Attempt {} of {})",
-    //                 account_data.account.hash,
-    //                 retry_count + 1,
-    //                 context.config.max_retries
-    //             );
-    //                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    //             }
-    //         }
-    //
-    //         warn!(
-    //         "Max retries reached for address: {:?}. Moving to next address.",
-    //         account_data.account.hash
-    //     );
-    //     }
-    //     Ok(Some(AddressPipelineStage::FetchAddressQueueData(context)))
-    // }
+async fn update_merkle_tree_pair<R: RpcConnection>(
+    rpc: &Arc<Mutex<R>>,
+    payer: &Keypair,
+    account_pair: &[ForesterAddressQueueAccountData],
+    address_queue_pubkey: Pubkey,
+    address_merkle_tree_pubkey: Pubkey,
+) -> Result<bool, ForesterError> {
+    let mut instructions = vec![ComputeBudgetInstruction::set_compute_unit_limit(1_400_000)];
+
+    for account_data in account_pair {
+        let update_ix = create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
+            authority: payer.pubkey(),
+            address_merkle_tree: address_merkle_tree_pubkey,
+            address_queue: address_queue_pubkey,
+            value: account_data.account.index as u16,
+            low_address_index: account_data.proof.low_address_index,
+            low_address_value: account_data.proof.low_address_value,
+            low_address_next_index: account_data.proof.low_address_next_index,
+            low_address_next_value: account_data.proof.low_address_next_value,
+            low_address_proof: account_data.proof.low_address_proof,
+            changelog_index: (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+            indexed_changelog_index: ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG) as u16,
+        });
+        instructions.push(update_ix);
+    }
+
+    let rpc = &mut *rpc.lock().await;
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[&payer],
+        rpc.get_latest_blockhash().await.unwrap(),
+    );
+
+    let signature = rpc.process_transaction(transaction).await?;
+    info!("Signature: {:?}", signature);
+    let confirmed = rpc.confirm_transaction(signature).await?;
+    info!("Confirmed: {:?}", confirmed);
+    Ok(confirmed)
 }
 
 
 #[allow(clippy::too_many_arguments)]
+#[allow(unused)]
 pub async fn update_merkle_tree<R: RpcConnection>(
     rpc: &Arc<Mutex<R>>,
     payer: &Keypair,
