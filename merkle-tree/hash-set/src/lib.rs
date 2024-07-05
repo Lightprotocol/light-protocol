@@ -210,7 +210,9 @@ impl HashSet {
     }
 
     fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
-        let probe_index = (value.clone()
+        // Step at least 2 times over the entire array.
+        let iteration = iteration + self.capacity / 10;
+        let probe_index = (value
             + iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap())
             % self.capacity.to_biguint().unwrap();
         probe_index.to_usize().unwrap()
