@@ -42,7 +42,7 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
 }
 
 use VerifierError::*;
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Copy)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],

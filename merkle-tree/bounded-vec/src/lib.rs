@@ -486,6 +486,15 @@ impl CyclicBoundedVecMetadata {
         }
     }
 
+    pub fn new_with_length(capacity: usize, length: usize) -> Self {
+        Self {
+            capacity,
+            length,
+            first_index: 0,
+            last_index: 0,
+        }
+    }
+
     pub fn new_with_indices(
         capacity: usize,
         length: usize,
