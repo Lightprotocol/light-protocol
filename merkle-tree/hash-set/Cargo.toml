@@ -10,6 +10,7 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
+fastmurmur3 = "0.2.0"
 light-bounded-vec = { path = "../bounded-vec", version = "0.2.1" }
 light-utils = { path = "../../utils", version = "0.2.1" }
 memoffset = "0.9"

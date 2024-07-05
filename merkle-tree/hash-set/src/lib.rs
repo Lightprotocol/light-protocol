@@ -1,6 +1,6 @@
 use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::{FromBytes, ToPrimitive};
+use num_bigint::BigUint;
+use num_traits::FromBytes;
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     cmp::Ordering,
@@ -209,11 +209,19 @@ impl HashSet {
         })
     }
 
-    fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
-        let probe_index = (value.clone()
-            + iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap())
-            % self.capacity.to_biguint().unwrap();
-        probe_index.to_usize().unwrap()
+    pub fn probe_index(&self, value_bytes: &[u8], iteration: usize) -> usize {
+        let iter_bytes = iteration.to_le_bytes();
+
+        // Hash the value bytes
+        let base_hash = fastmurmur3::hash(value_bytes);
+
+        let mut combined_bytes = [0u8; 24];
+
+        combined_bytes[..16].copy_from_slice(&base_hash.to_le_bytes());
+        combined_bytes[16..].copy_from_slice(&iter_bytes);
+
+        let combined_hash = fastmurmur3::hash(&combined_bytes);
+        (combined_hash % (self.capacity as u128)) as usize
     }
 
     /// Returns a reference to a bucket under the given `index`. Does not check
@@ -341,14 +349,15 @@ impl HashSet {
         value: &BigUint,
         current_sequence_number: Option<usize>,
     ) -> Result<Option<usize>, HashSetError> {
+        let value = bigint_to_be_bytes_array::<32>(value)?;
         for i in 0..self.capacity {
-            let probe_index = self.probe_index(value, i);
+            let probe_index = self.probe_index(&value, i);
             // PANICS: `probe_index()` ensures the bounds.
             let bucket = self.get_bucket(probe_index).unwrap();
 
             match bucket {
                 Some(bucket) => {
-                    if &bucket.value_biguint() == value {
+                    if bucket.value == value {
                         match current_sequence_number {
                             // If the caller provided `current_sequence_number`,
                             // check the validity of the bucket.
@@ -423,8 +432,9 @@ impl HashSet {
         num_iterations: usize,
     ) -> Result<Option<(usize, bool)>, HashSetError> {
         let mut first_free_element: Option<(usize, bool)> = None;
+        let value = bigint_to_be_bytes_array::<32>(&value).unwrap();
         for i in start_iter..num_iterations {
-            let probe_index = self.probe_index(value, i);
+            let probe_index = self.probe_index(&value, i);
             let bucket = self.get_bucket(probe_index).unwrap();
 
             match bucket {
@@ -433,7 +443,7 @@ impl HashSet {
                     if first_free_element.is_none() && !is_valid {
                         first_free_element = Some((probe_index, false));
                     }
-                    if is_valid && &bucket.value_biguint() == value {
+                    if is_valid && bucket.value == value {
                         return Err(HashSetError::ElementAlreadyExists);
                     } else {
                         continue;
@@ -570,6 +580,7 @@ impl<'a> Iterator for HashSetIterator<'a> {
 mod test {
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
+    use num_bigint::ToBigUint;
     use rand::{thread_rng, Rng};
 
     use crate::zero_copy::HashSetZeroCopy;
@@ -1175,6 +1186,62 @@ mod test {
 
             let element = hs.first_no_seq().unwrap().unwrap();
             assert_eq!(element.0.value_biguint(), 0.to_biguint().unwrap());
+        }
+    }
+
+    #[ignore = "Is benchmark to select hashset capacity not relevant for testing."]
+    #[test]
+    fn bench_hash_set() {
+        use num_bigint::{BigUint, RandBigInt};
+        use rand::thread_rng;
+
+        let capacities: Vec<usize> = vec![20000, 28000];
+
+        let mut rng = thread_rng();
+        for capacity in capacities.iter() {
+            let mut vec = Vec::<u64>::new();
+            for _ in 0..10000 {
+                let mut hs = HashSet::new(*capacity, 2400).unwrap();
+
+                // Insert incremental elements, so they end up being in the same
+                // sequence in the hash set.
+                for j in 0..*capacity {
+                    let bn_i = rng.gen_biguint(248);
+                    match hs.insert(&bn_i, 0) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            vec.push(j as u64);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !vec.is_empty() {
+                let sum: u64 = vec.iter().sum::<u64>();
+                let avg = &sum / BigUint::from(vec.len());
+
+                let max = vec.iter().max().unwrap();
+                let min = vec.iter().min().unwrap();
+                println!("\n\n ----------------------------------------- Capacity: {} ----------------------------------------- \n", capacity);
+                println!("Average: {}", avg);
+                println!("Max: {}", max);
+                println!("Min: {}", min);
+
+                vec.sort();
+                println!("\nPrinting average max min for chunks of 100 elements sorted ascending");
+                for (i, chunk) in vec.chunks(100).enumerate() {
+                    let chunk_sum: u64 = chunk.iter().sum::<u64>();
+                    let chunk_avg = &chunk_sum / chunk.len() as u64;
+
+                    let chunk_max = chunk.iter().max().unwrap();
+                    let chunk_min = chunk.iter().min().unwrap();
+                    println!("\nchunk num {}", i);
+                    println!("Chunk Average: {}", chunk_avg);
+                    println!("Chunk Max: {}", chunk_max);
+                    println!("Chunk Min: {}", chunk_min);
+                }
+            }
         }
     }
 }
