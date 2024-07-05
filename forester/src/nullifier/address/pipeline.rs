@@ -80,13 +80,28 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
                 }
                 AddressPipelineStage::FetchProofs(_, queue_data) => {
                     if queue_data.is_empty() {
-                        input_tx_clone.send(AddressPipelineStage::Complete).await.unwrap();
+                        // If the batch is empty, it means we've processed all addresses
+                        // So we go back to FetchAddressQueueData to either get the next batch or fetch new addresses
+                        input_tx_clone
+                            .send(AddressPipelineStage::FetchAddressQueueData(context.clone()))
+                            .await
+                            .unwrap();
                     } else {
+                        // If we have addresses in the batch, proceed with fetching proofs
                         input_tx_clone
                             .send(AddressPipelineStage::FetchProofs(context.clone(), queue_data))
                             .await
                             .unwrap();
                     }
+
+                    // if queue_data.is_empty() {
+                    //     input_tx_clone.send(AddressPipelineStage::Complete).await.unwrap();
+                    // } else {
+                    //     input_tx_clone
+                    //         .send(AddressPipelineStage::FetchProofs(context.clone(), queue_data))
+                    //         .await
+                    //         .unwrap();
+                    // }
                 }
                 AddressPipelineStage::Complete => {
                     debug!("Processing complete, signaling completion.");

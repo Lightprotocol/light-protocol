@@ -246,10 +246,10 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         }
         drop(tx);
 
-        let mut successful_updates = 0;
+        // let mut successful_updates = 0;
         while let Some((success, account_data)) = rx.recv().await {
             if success {
-                successful_updates += 1;
+                // successful_updates += 1;
                 debug!(
                 "Successfully updated merkle tree for address: {:?}",
                 account_data.account.hash
@@ -266,22 +266,22 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             }
         }
 
-        let mut nullifications = context.successful_nullifications.lock().await;
-        *nullifications += successful_updates;
-        info!("Nullifications: {:?}", *nullifications);
-
-        if *nullifications >= (ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG / 2) as usize {
-            info!(
-            "Reached {} successful nullifications. Re-fetching queue.",
-            *nullifications
-        );
-            *nullifications = 0;
-            drop(nullifications);
-            return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
-                context.clone(),
-            )));
-        }
-        drop(nullifications);
+        // let mut nullifications = context.successful_nullifications.lock().await;
+        // *nullifications += successful_updates;
+        // info!("Nullifications: {:?}", *nullifications);
+        //
+        // if *nullifications >= (ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG / 2) as usize {
+        //     info!(
+        //     "Reached {} successful nullifications. Re-fetching queue.",
+        //     *nullifications
+        // );
+        //     *nullifications = 0;
+        //     drop(nullifications);
+        //     return Ok(Some(AddressPipelineStage::FetchAddressQueueData(
+        //         context.clone(),
+        //     )));
+        // }
+        // drop(nullifications);
 
         // Ok(Some(AddressPipelineStage::FetchAddressQueueData(context)))
 
