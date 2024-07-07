@@ -33,10 +33,15 @@ light-hasher = { version = "0.2.1", path = "../../merkle-tree/hasher", features 
 light-heap = { version = "0.2.1", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { version = "0.2.1", path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "0.2.1", path = "../../merkle-tree/indexed", features = ["solana"] }
+light-bloom-filter = { version = "0.1.0", path = "../../merkle-tree/bloom-filter", features = ["solana"] }
 light-utils = { version = "0.2.1", path = "../../utils" }
+light-verifier = { version = "0.2.1", path = "../../circuit-lib/verifier" }
 num-bigint = "0.4"
 num-traits = "0.2.18"
 solana-security-txt = "1.1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
+
+[dev-dependencies]
+rand = "0.8.5"

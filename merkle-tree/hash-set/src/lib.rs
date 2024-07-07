@@ -568,8 +568,11 @@ impl<'a> Iterator for HashSetIterator<'a> {
 
 #[cfg(test)]
 mod test {
+    use std::f64::consts::LN_2;
+
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
+    use num_bigint::RandBigInt;
     use rand::{thread_rng, Rng};
 
     use crate::zero_copy::HashSetZeroCopy;
@@ -1175,6 +1178,172 @@ mod test {
 
             let element = hs.first_no_seq().unwrap().unwrap();
             assert_eq!(element.0.value_biguint(), 0.to_biguint().unwrap());
+        }
+    }
+
+    #[derive(Debug, Error, PartialEq)]
+    pub enum BloomFilterError {
+        #[error("Bloom filter is full")]
+        Full,
+    }
+
+    pub struct BloomFilter<'a> {
+        pub num_iters: usize,
+        pub capacity: u128,
+        pub store: &'a mut [u8],
+    }
+
+    impl<'a> BloomFilter<'a> {
+        pub fn calculate_bloom_filter_size(n: usize, p: f64) -> usize {
+            // m = - (n * ln(p)) / (ln(2)^2)
+            let m = -((n as f64) * p.ln()) / (LN_2 * LN_2);
+            m.ceil() as usize
+        }
+
+        pub fn calculate_optimal_hash_functions(n: usize, m: usize) -> usize {
+            // k = (m / n) * ln(2)
+            let k = (m as f64 / n as f64) * LN_2;
+            k.ceil() as usize
+        }
+
+        pub fn probe_index_fast_murmur(
+            value_bytes: &[u8],
+            iteration: usize,
+            capacity: &u128,
+        ) -> usize {
+            let iter_bytes = iteration.to_le_bytes();
+            let base_hash = fastmurmur3::hash(value_bytes);
+
+            let mut combined_bytes = [0u8; 24];
+            combined_bytes[..16].copy_from_slice(&base_hash.to_le_bytes());
+            combined_bytes[16..].copy_from_slice(&iter_bytes);
+
+            let combined_hash = fastmurmur3::hash(&combined_bytes);
+            (combined_hash % *capacity) as usize
+        }
+
+        pub fn insert(&mut self, value: &[u8; 32], insert: bool) -> Result<(), BloomFilterError> {
+            if self._insert(value, insert) {
+                Ok(())
+            } else {
+                Err(BloomFilterError::Full)
+            }
+        }
+
+        pub fn contains(&mut self, value: &[u8; 32]) -> bool {
+            !self._insert(value, false)
+        }
+
+        fn _insert(&mut self, value: &[u8; 32], insert: bool) -> bool {
+            let mut all_bits_set = true;
+            use bitvec::prelude::*;
+
+            let bits = BitSlice::<u8, Msb0>::from_slice_mut(self.store);
+            for i in 0..self.num_iters {
+                let probe_index = Self::probe_index_fast_murmur(value, i, &(self.capacity));
+
+                if bits[probe_index] {
+                    continue;
+                } else if insert {
+                    all_bits_set = false;
+                    bits.set(probe_index, true);
+                }
+            }
+            !all_bits_set
+        }
+    }
+
+    /// how expensive are 32 byte comparisons?
+    #[test]
+    fn test_bloom_filter() {
+        let capacity = 500;
+        // 47kb 000_000_000_000_0001 every 21mm tx 1 false positive
+        // let failure_rate = 0.000_000_000_000_000_000_000_0001;
+        let bloom_filter_capacity = 20_000 * 8;
+        // BloomFilter::calculate_bloom_filter_size(capacity, failure_rate);
+        let optimal_hash_functions = 3;
+        // BloomFilter::calculate_optimal_hash_functions(capacity, bloom_filter_capacity);
+        println!("Optimal hash functions: {}", optimal_hash_functions);
+        println!(
+            "Bloom filter capacity (kb): {}",
+            bloom_filter_capacity / 8 / 1_000
+        );
+        let mut num_total_txs = 0;
+        let mut rng = thread_rng();
+        let mut failed_vec = Vec::new();
+        let num_iters = 1_000_000;
+        for j in 0..num_iters {
+            let mut inserted_values = Vec::new();
+            let mut store = vec![0; bloom_filter_capacity];
+            let mut bf = BloomFilter {
+                num_iters: optimal_hash_functions,
+                // iter_factor: bloom_filter_capacity / optimal_hash_functions,
+                capacity: bloom_filter_capacity as u128,
+                store: &mut store,
+            };
+            if j == 0 {
+                println!("Bloom filter capacity: {}", bf.capacity);
+                println!("Bloom filter size: {}", bf.store.len());
+                println!("Bloom filter size (kb): {}", bf.store.len() / 8 / 1_000);
+                // println!("iter factor: {}", bf.iter_factor);
+                println!("num iters: {}", bf.num_iters);
+            }
+            for i in 0..capacity {
+                num_total_txs += 1;
+                let value = {
+                    let mut _value = 0.to_biguint().unwrap();
+                    while inserted_values.contains(&_value.clone()) {
+                        _value = rng.gen_biguint(254);
+                    }
+                    inserted_values.push(_value.clone());
+
+                    _value
+                };
+                let value: [u8; 32] = bigint_to_be_bytes_array(&value).unwrap();
+                match bf.insert(&value, true) {
+                    Ok(_) => {
+                        assert!(bf.contains(&value));
+                    }
+                    Err(_) => {
+                        println!("Failed to insert iter: {}", i);
+                        println!("total iter {}", j);
+                        println!("num_total_txs {}", num_total_txs);
+                        failed_vec.push(i);
+                    }
+                };
+                assert!(bf.contains(&value));
+                assert!(bf.insert(&value, true).is_err());
+            }
+        }
+
+        println!("total num tx {}", num_total_txs);
+        let average = failed_vec.iter().sum::<usize>() as f64 / failed_vec.len() as f64;
+        println!("average failed insertions: {}", average);
+        println!(
+            "max failed insertions: {}",
+            failed_vec.iter().max().unwrap()
+        );
+        println!(
+            "min failed insertions: {}",
+            failed_vec.iter().min().unwrap()
+        );
+
+        let num_chunks = 10;
+        let chunk_size = num_iters / num_chunks;
+        failed_vec.sort();
+        for (i, chunk) in failed_vec.chunks(chunk_size).enumerate() {
+            let average = chunk.iter().sum::<usize>() as f64 / chunk.len() as f64;
+            println!("chunk: {} average failed insertions: {}", i, average);
+            println!(
+                "chunk: {} max failed insertions: {}",
+                i,
+                chunk.iter().max().unwrap()
+            );
+            println!(
+                "chunk: {} min failed insertions: {}",
+                i,
+                chunk.iter().min().unwrap()
+            );
         }
     }
 }

@@ -50,4 +50,12 @@ pub enum AccountCompressionErrorCode {
     InvalidSequenceThreshold,
     #[msg("Unsupported close threshold")]
     UnsupportedCloseThreshold,
+    #[msg("Invalid commitment length")]
+    InvalidCommitmentLength,
+    #[msg("BloomFilterFull")]
+    BloomFilterFull,
+    #[msg("BatchInsertFailed")]
+    BatchInsertFailed,
+    #[msg("BatchNotReady")]
+    BatchNotReady,
 }
