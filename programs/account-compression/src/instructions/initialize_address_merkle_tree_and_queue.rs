@@ -6,6 +6,7 @@ use crate::{
     initialize_address_queue::process_initialize_address_queue,
     state::QueueAccount,
     utils::{
+        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
         },
@@ -122,7 +123,9 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         }
         None => ctx.accounts.authority.key(),
     };
-    let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
+    let merkle_tree_rent =
+        check_account_balance_is_rent_exempt(&ctx.accounts.merkle_tree.to_account_info())?;
+    check_account_balance_is_rent_exempt(&ctx.accounts.queue.to_account_info())?;
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
         &ctx.accounts.queue,
