@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -141,7 +142,7 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 	}
 
 	logging.Logger().Info().Msg("Proof combined" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)) + " " + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness, backend.WithIcicleAcceleration())
 	if err != nil {
 		logging.Logger().Error().Msg("combined prove error: " + err.Error())
 		return nil, err

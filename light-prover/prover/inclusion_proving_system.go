@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -111,7 +112,7 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 	}
 
 	logging.Logger().Info().Msg("Proof inclusion" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)))
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness, backend.WithIcicleAcceleration())
 	if err != nil {
 		return nil, err
 	}

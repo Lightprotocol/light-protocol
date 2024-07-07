@@ -476,41 +476,6 @@ func runCli() {
 					return nil
 				},
 			},
-			{
-				Name: "extract-circuit",
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
-					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", Required: true},
-				},
-				Action: func(context *cli.Context) error {
-					path := context.String("output")
-					treeDepth := uint32(context.Uint("tree-depth"))
-					compressedAccounts := uint32(context.Uint("compressed-accounts"))
-					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
-					circuitString, err := prover.ExtractLean(treeDepth, compressedAccounts)
-					if err != nil {
-						return err
-					}
-					file, err := os.Create(path)
-					defer func(file *os.File) {
-						err := file.Close()
-						if err != nil {
-							logging.Logger().Error().Err(err).Msg("error closing file")
-						}
-					}(file)
-					if err != nil {
-						return err
-					}
-					written, err := file.WriteString(circuitString)
-					if err != nil {
-						return err
-					}
-					logging.Logger().Info().Int("bytesWritten", written).Msg("Lean circuit written to file")
-
-					return nil
-				},
-			},
 		},
 	}
 
