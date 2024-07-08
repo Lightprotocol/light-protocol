@@ -22,6 +22,7 @@ pub enum SettingsKey {
     MaxRetries,
     ConcurrencyLimit,
     CULimit,
+    RpcPoolSize,
 }
 
 impl Display for SettingsKey {
@@ -44,6 +45,7 @@ impl Display for SettingsKey {
                 SettingsKey::BatchSize => "BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
                 SettingsKey::CULimit => "CU_LIMIT",
+                SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
             }
         )
     }
@@ -118,7 +120,7 @@ pub fn init_config() -> ForesterConfig {
         .get_int(&SettingsKey::MaxRetries.to_string())
         .unwrap();
     let cu_limit = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
-
+    let rpc_pool_size = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
     ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url,
@@ -138,5 +140,6 @@ pub fn init_config() -> ForesterConfig {
         batch_size: batch_size as usize,
         max_retries: max_retries as usize,
         cu_limit: cu_limit as u32,
+        rpc_pool_size: rpc_pool_size as usize,
     }
 }

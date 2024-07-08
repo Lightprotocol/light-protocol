@@ -601,7 +601,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .collect()
     }
 
-
     fn add_address_merkle_tree_accounts(
         &mut self,
         merkle_tree_keypair: &Keypair,
@@ -618,7 +617,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             ));
         address_merkle_tree_accounts
     }
-
 }
 
 impl<R: RpcConnection> TestIndexer<R> {

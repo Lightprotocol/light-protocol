@@ -479,27 +479,31 @@ where
         };
 
         let (config, address_config) = if !self.keypair_action_config.fee_assert {
-           
-           let root_history = self.rng.gen_range(1..10000);
-           ( AddressMerkleTreeConfig {
-                height: 26,
-                changelog_size: self.rng.gen_range(1..5000),
-                roots_size: root_history,
-                canopy_depth: 10,
-                address_changelog_size: self.rng.gen_range(1..5000),
-                rollover_threshold,
-                network_fee: Some(5000),
-                close_threshold: None,
-                // TODO: double check that close threshold cannot be set
-        }, AddressQueueConfig {
-            sequence_threshold: root_history + SAFETY_MARGIN,
-            ..Default::default()
-        })
+            let root_history = self.rng.gen_range(1..10000);
+            (
+                AddressMerkleTreeConfig {
+                    height: 26,
+                    changelog_size: self.rng.gen_range(1..5000),
+                    roots_size: root_history,
+                    canopy_depth: 10,
+                    address_changelog_size: self.rng.gen_range(1..5000),
+                    rollover_threshold,
+                    network_fee: Some(5000),
+                    close_threshold: None,
+                    // TODO: double check that close threshold cannot be set
+                },
+                AddressQueueConfig {
+                    sequence_threshold: root_history + SAFETY_MARGIN,
+                    ..Default::default()
+                },
+            )
         } else {
-            (AddressMerkleTreeConfig::default(), AddressQueueConfig::default())
+            (
+                AddressMerkleTreeConfig::default(),
+                AddressQueueConfig::default(),
+            )
         };
         println!("config: {:?}", config);
-
 
         create_address_merkle_tree_and_queue_account(
             &self.payer,

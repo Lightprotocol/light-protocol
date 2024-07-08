@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forester::{get_state_queue_length, nullify_state, setup_rpc};
+use forester::{get_state_queue_length, nullify_state, RpcPool};
 use light_test_utils::e2e_test_env::E2ETestEnv;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -20,7 +20,7 @@ async fn test_state_tree_nullifier() {
     init(None).await;
     let config = forester_config();
     let arc_config = Arc::new(config.clone());
-    let pool = setup_rpc(arc_config.clone()).await;
+    let pool = RpcPool::<SolanaRpcConnection>::new(arc_config.clone()).await;
     let env_accounts = get_test_env_accounts();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -61,23 +61,22 @@ async fn test_state_tree_nullifier() {
         sleep(std::time::Duration::from_secs(3)).await;
     }
 
-    assert_ne!(
-        get_state_queue_length(pool.clone(), arc_config.clone()).await,
-        0
-    );
+    let rpc = pool.get_connection().await;
+    assert_ne!(get_state_queue_length(rpc, arc_config.clone()).await, 0);
+
+    let rpc = pool.get_connection().await;
     info!(
         "Nullifying queue of {} accounts...",
-        get_state_queue_length(pool, arc_config.clone()).await
+        get_state_queue_length(rpc, arc_config.clone()).await
     );
 
     let arc_config = Arc::new(config.clone());
-    let pool = setup_rpc(arc_config.clone()).await;
+    let pool = RpcPool::<SolanaRpcConnection>::new(arc_config.clone()).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
     nullify_state(arc_config.clone(), pool.clone(), indexer).await;
-    assert_eq!(
-        get_state_queue_length(pool.clone(), arc_config.clone()).await,
-        0
-    );
+
+    let rpc = pool.get_connection().await;
+    assert_eq!(get_state_queue_length(rpc, arc_config).await, 0);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

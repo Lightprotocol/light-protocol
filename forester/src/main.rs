@@ -5,7 +5,7 @@ use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
 use forester::{
     get_address_queue_length, get_state_queue_length, init_config, init_rpc, nullify_addresses,
-    nullify_state, setup_rpc, subscribe_addresses, subscribe_state, ForesterConfig, RpcPool,
+    nullify_state, subscribe_addresses, subscribe_state, ForesterConfig, RpcPool,
 };
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -21,7 +21,6 @@ fn setup_logger() {
 async fn main() {
     setup_logger();
     let config: Arc<ForesterConfig> = Arc::new(init_config());
-    let pool = setup_rpc(config.clone()).await;
     println!("Connection pool created");
     let cli = Cli::parse();
     match &cli.command {
@@ -31,6 +30,7 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
+            let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
             let state_nullifier = tokio::spawn(run_subscribe_state(config.clone(), pool.clone()));
             let address_nullifier = tokio::spawn(run_subscribe_addresses(config, pool.clone()));
 
@@ -48,12 +48,15 @@ async fn main() {
             debug!("All nullification processes completed");
         }
         Some(Commands::NullifyState) => {
+            let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
             run_nullify_state(config, pool).await;
         }
         Some(Commands::NullifyAddresses) => {
+            let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
             run_nullify_addresses(config, pool).await;
         }
         Some(Commands::Nullify) => {
+            let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
             let state_nullifier = tokio::spawn(run_nullify_state(config.clone(), pool.clone()));
             let address_nullifier = tokio::spawn(run_nullify_addresses(config, pool.clone()));
 
@@ -82,12 +85,16 @@ async fn main() {
             return;
         }
         Some(Commands::StateQueueInfo) => {
-            let queue_length = get_state_queue_length(pool, config).await;
+            let rpc: SolanaRpcConnection = init_rpc(config.clone(), false).await;
+            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+            let queue_length = get_state_queue_length::<SolanaRpcConnection>(rpc, config).await;
             println!("State queue length: {}", queue_length);
         }
 
         Some(Commands::AddressQueueInfo) => {
-            let queue_length = get_address_queue_length::<SolanaRpcConnection>(pool, config).await;
+            let rpc: SolanaRpcConnection = init_rpc(config.clone(), false).await;
+            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+            let queue_length = get_address_queue_length::<SolanaRpcConnection>(rpc, config).await;
             println!("Address queue length: {}", queue_length);
         }
         Some(Commands::Airdrop) => {
