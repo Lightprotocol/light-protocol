@@ -10,6 +10,8 @@ WS_RPC_URL="ws://localhost:8900"
 INDEXER_URL="http://localhost:8784"
 PROVER_URL="http://localhost:3001"
 
+CU_LIMIT = 1_000_000
+
 CONCURRENCY_LIMIT=100
 BATCH_SIZE=100
 MAX_RETRIES=5

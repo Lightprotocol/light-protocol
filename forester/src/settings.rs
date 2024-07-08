@@ -21,6 +21,7 @@ pub enum SettingsKey {
     BatchSize,
     MaxRetries,
     ConcurrencyLimit,
+    CULimit,
 }
 
 impl Display for SettingsKey {
@@ -42,6 +43,7 @@ impl Display for SettingsKey {
                 SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
                 SettingsKey::BatchSize => "BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
+                SettingsKey::CULimit => "CU_LIMIT",
             }
         )
     }
@@ -115,6 +117,7 @@ pub fn init_config() -> ForesterConfig {
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
         .unwrap();
+    let cu_limit = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
 
     ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -134,5 +137,6 @@ pub fn init_config() -> ForesterConfig {
         concurrency_limit: concurrency_limit as usize,
         batch_size: batch_size as usize,
         max_retries: max_retries as usize,
+        cu_limit: cu_limit as u32,
     }
 }

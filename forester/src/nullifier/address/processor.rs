@@ -3,7 +3,7 @@ use crate::nullifier::address::pipeline::AddressPipelineStage;
 use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
 use crate::operations::fetch_address_queue_data;
-use crate::RpcPool;
+use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
 };
@@ -16,13 +16,12 @@ use log::{debug, error, info, warn};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::Signer;
 use solana_sdk::transaction::Transaction;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, Semaphore};
 
 pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
@@ -187,32 +186,22 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         let (tx, mut rx) = mpsc::channel(account_data_batch.len());
 
         // Create a semaphore to limit concurrent tasks
-        // let semaphore = Arc::new(Semaphore::new(100));
+        let semaphore = Arc::new(Semaphore::new(128));
 
         // Spawn tasks for each account_data
         for account_data in account_data_batch {
             let tx = tx.clone();
             let context = context.clone();
-            // let semaphore = semaphore.clone();
+            let semaphore = semaphore.clone();
 
             tokio::spawn(async move {
-                // let _permit = semaphore.acquire().await.unwrap();
+                let _permit = semaphore.acquire().await.unwrap();
                 let mut retry_count = 0;
                 while retry_count < context.config.max_retries {
                     match update_merkle_tree(
                         context.rpc_pool.clone(),
-                        &context.config.payer_keypair,
-                        context.config.address_merkle_tree_queue_pubkey,
-                        context.config.address_merkle_tree_pubkey,
-                        account_data.account.index as u16,
-                        account_data.proof.low_address_index,
-                        account_data.proof.low_address_value,
-                        account_data.proof.low_address_next_index,
-                        account_data.proof.low_address_next_value,
-                        account_data.proof.low_address_proof,
-                        (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-                        ((account_data.proof.root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
-                            as u16,
+                        context.config.clone(),
+                        account_data.clone(),
                     )
                     .await
                     {
@@ -241,10 +230,8 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         }
         drop(tx);
 
-        // let mut successful_updates = 0;
         while let Some((success, account_data)) = rx.recv().await {
             if success {
-                // successful_updates += 1;
                 debug!("Merkle tree updated: {:?}", account_data.account.hash);
                 indexer.lock().await.address_tree_updated(
                     config.address_merkle_tree_pubkey.to_bytes(),
@@ -270,44 +257,31 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
 #[allow(clippy::too_many_arguments)]
 pub async fn update_merkle_tree<R: RpcConnection>(
     rpc_pool: RpcPool<R>,
-    payer: &Keypair,
-    address_queue_pubkey: Pubkey,
-    address_merkle_tree_pubkey: Pubkey,
-    value: u16,
-    low_address_index: u64,
-    low_address_value: [u8; 32],
-    low_address_next_index: u64,
-    low_address_next_value: [u8; 32],
-    low_address_proof: [[u8; 32]; 16],
-    changelog_index: u16,
-    indexed_changelog_index: u16,
+    config: Arc<ForesterConfig>,
+    account_data: ForesterAddressQueueAccountData,
 ) -> Result<bool, ForesterError> {
     let start = Instant::now();
-    debug!("changelog_index: {:?}", changelog_index);
-    debug!("indexed_changelog_index: {:?}", indexed_changelog_index);
-
-    // let (onchain_changelog_index, onchain_indexed_changelog_index) = get_address_account_changelog_indices(&address_merkle_tree_pubkey, &mut *rpc.lock().await).await?;
-    // info!("onchain changelog_index: {:?}", onchain_changelog_index);
-    // info!("onchain indexed_changelog_index: {:?}", onchain_indexed_changelog_index);
 
     let update_ix =
         create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
-            authority: payer.pubkey(),
-            address_merkle_tree: address_merkle_tree_pubkey,
-            address_queue: address_queue_pubkey,
-            value,
-            low_address_index,
-            low_address_value,
-            low_address_next_index,
-            low_address_next_value,
-            low_address_proof,
-            changelog_index,
-            indexed_changelog_index,
+            authority: config.payer_keypair.pubkey(),
+            address_merkle_tree: config.address_merkle_tree_pubkey,
+            address_queue: config.address_merkle_tree_queue_pubkey,
+            value: account_data.account.index as u16,
+            low_address_index: account_data.proof.low_address_index,
+            low_address_value: account_data.proof.low_address_value,
+            low_address_next_index: account_data.proof.low_address_next_index,
+            low_address_next_value: account_data.proof.low_address_next_value,
+            low_address_proof: account_data.proof.low_address_proof,
+            changelog_index: (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+            indexed_changelog_index: ((account_data.proof.root_seq - 1)
+                % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
+                as u16,
         });
 
     // Prepare the instructions
     let instructions = vec![
-        ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
         update_ix,
     ];
 
@@ -324,8 +298,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     // Create the transaction
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&config.payer_keypair.pubkey()),
+        &[&config.payer_keypair],
         latest_blockhash,
     );
 

@@ -286,7 +286,7 @@ async fn nullify_state<R: RpcConnection>(
     });
 
     let instructions = vec![
-        ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
         ix,
     ];
 
