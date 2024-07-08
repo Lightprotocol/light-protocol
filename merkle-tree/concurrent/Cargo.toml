@@ -33,6 +33,6 @@ rand = "0.8"
 solana-program = {  workspace = true }
 spl-account-compression = { version = "0.3.0", default-features = false}
 spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false}
-tokio = { version = "1.35", features = ["full"] }
+tokio = { version = "1.38", features = ["full"] }
 num-bigint = "0.4"
 num-traits = "0.2"
