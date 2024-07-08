@@ -709,7 +709,12 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::InvalidAccountSize.into(),
+    )
+    .unwrap();
     let result = perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
@@ -722,7 +727,12 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::InvalidAccountSize.into(),
+    )
+    .unwrap();
 
     set_state_merkle_tree_next_index(
         &mut context,

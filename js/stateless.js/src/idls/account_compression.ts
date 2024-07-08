@@ -1088,8 +1088,8 @@ export type AccountCompression = {
         },
         {
             code: 6017;
-            name: 'SizeMismatch';
-            msg: 'SizeMismatch';
+            name: 'InvalidAccountSize';
+            msg: 'InvalidAccountSize';
         },
         {
             code: 6018;
@@ -2214,8 +2214,8 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6017,
-            name: 'SizeMismatch',
-            msg: 'SizeMismatch',
+            name: 'InvalidAccountSize',
+            msg: 'InvalidAccountSize',
         },
         {
             code: 6018,

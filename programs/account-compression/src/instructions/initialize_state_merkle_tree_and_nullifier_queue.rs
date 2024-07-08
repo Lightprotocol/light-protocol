@@ -118,11 +118,21 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
         );
         return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
     }
-
-    let merkle_tree_rent =
-        check_account_balance_is_rent_exempt(&ctx.accounts.merkle_tree.to_account_info())?;
-    let queue_rent =
-        check_account_balance_is_rent_exempt(&ctx.accounts.nullifier_queue.to_account_info())?;
+    let merkle_tree_expected_size = StateMerkleTreeAccount::size(
+        state_merkle_tree_config.height as usize,
+        state_merkle_tree_config.changelog_size as usize,
+        state_merkle_tree_config.roots_size as usize,
+        state_merkle_tree_config.canopy_depth as usize,
+    );
+    let queue_expected_size = QueueAccount::size(nullifier_queue_config.capacity as usize)?;
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.merkle_tree.to_account_info(),
+        merkle_tree_expected_size,
+    )?;
+    let queue_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.nullifier_queue.to_account_info(),
+        queue_expected_size,
+    )?;
     let owner = match ctx.accounts.registered_program_pda.as_ref() {
         Some(registered_program_pda) => {
             check_signer_is_registered_or_authority::<
