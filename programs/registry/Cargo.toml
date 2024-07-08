@@ -29,7 +29,10 @@ bytemuck = "1.16"
 light-hasher = { version = "0.2.1", path = "../../merkle-tree/hasher" }
 light-heap = { version = "0.2.1", path = "../../heap", optional = true }
 account-compression = { version = "0.4.1", path = "../account-compression", features = ["cpi"]  }
-
+light-system-program = { version = "0.4.1", path = "../system", features = ["cpi"]  }
+light-utils = { version = "0.2.1", path = "../../utils" }
+num-bigint = "0.4.5"
+num-traits = "0.2.19"
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 log = "0.4"

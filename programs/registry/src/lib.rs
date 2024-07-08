@@ -7,9 +7,9 @@ use anchor_lang::prelude::*;
 
 pub mod forester;
 pub use forester::*;
+pub mod decentralization_and_contention;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
-
 declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
 
 #[error_code]
