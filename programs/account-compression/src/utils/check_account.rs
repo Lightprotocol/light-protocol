@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::msg;
-use solana_sdk::{account_info::AccountInfo, rent::Rent};
+use anchor_lang::solana_program::{account_info::AccountInfo, msg, rent::Rent};
 
 use crate::errors::AccountCompressionErrorCode;
 
