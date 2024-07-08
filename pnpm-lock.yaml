@@ -15,8 +15,8 @@ importers:
         specifier: ^19.3.2
         version: 19.3.2
       playwright:
-        specifier: ^1.44.1
-        version: 1.44.1
+        specifier: ^1.45.1
+        version: 1.45.1
       prettier:
         specifier: ^3.3.2
         version: 3.3.2
@@ -6342,6 +6342,11 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  playwright-core@1.45.1:
+    resolution: {integrity: sha512-LF4CUUtrUu2TCpDw4mcrAIuYrEjVDfT1cHbJMfwnE2+1b8PZcFzPNgvZCvq2JfQ4aTjRCCHw5EJ2tmr2NSzdPg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright@1.43.1:
     resolution: {integrity: sha512-V7SoH0ai2kNt1Md9E3Gwas5B9m8KR2GVvwZnAI6Pg0m3sh7UvgiYhRrhsziCmqMJNouPckiOhk8T+9bSAK0VIA==}
     engines: {node: '>=16'}
@@ -6350,6 +6355,11 @@ packages:
   playwright@1.44.1:
     resolution: {integrity: sha512-qr/0UJ5CFAtloI3avF95Y0L1xQo6r3LQArLIg/z/PoGJ6xa+EwzrwO5lpNr/09STxdHuUoP2mvuELJS+hLdtgg==}
     engines: {node: '>=16'}
+    hasBin: true
+
+  playwright@1.45.1:
+    resolution: {integrity: sha512-Hjrgae4kpSQBr98nhCj3IScxVeVUixqj+5oyif8TdIn2opTCPEzqAqNMeK42i3cWDCVu9MI+ZsGWw+gVR4ISBg==}
+    engines: {node: '>=18'}
     hasBin: true
 
   pluralize@8.0.0:
@@ -15134,6 +15144,8 @@ snapshots:
 
   playwright-core@1.44.1: {}
 
+  playwright-core@1.45.1: {}
+
   playwright@1.43.1:
     dependencies:
       playwright-core: 1.43.1
@@ -15143,6 +15155,12 @@ snapshots:
   playwright@1.44.1:
     dependencies:
       playwright-core: 1.44.1
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright@1.45.1:
+    dependencies:
+      playwright-core: 1.45.1
     optionalDependencies:
       fsevents: 2.3.2
 
