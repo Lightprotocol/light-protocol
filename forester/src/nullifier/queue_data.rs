@@ -1,17 +1,6 @@
-#[derive(Debug)]
-pub struct ForesterQueueData {
-    pub(crate) accounts_to_nullify: Vec<ForesterQueueAccountData>,
-}
+use light_test_utils::indexer::NewAddressProofWithContext;
 
-impl ForesterQueueData {
-    pub(crate) fn new(accounts_to_nullify: Vec<ForesterQueueAccountData>) -> Self {
-        Self {
-            accounts_to_nullify,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ForesterQueueAccountData {
     pub account: ForesterQueueAccount,
     pub proof: Vec<[u8; 32]>,
@@ -29,4 +18,10 @@ impl ForesterQueueAccount {
     pub fn hash_string(&self) -> String {
         bs58::encode(&self.hash).into_string()
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ForesterAddressQueueAccountData {
+    pub account: ForesterQueueAccount,
+    pub proof: NewAddressProofWithContext,
 }

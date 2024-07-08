@@ -38,8 +38,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Clone + Debug + 'static {
     fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> impl std::future::Future<Output = Result<NewAddressProofWithContext, IndexerError>> + Send + Sync;
+        addresses: Vec<[u8; 32]>,
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>>
+           + Send
+           + Sync;
 
     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
 

@@ -1,121 +1,82 @@
 use crate::errors::ForesterError;
-use crate::nullifier::state::pipeline::PipelineStage;
-use crate::nullifier::{
-    BackpressureControl, ForesterQueueAccount, ForesterQueueAccountData, ForesterQueueData,
-    PipelineContext,
-};
+use crate::nullifier::state::pipeline::StatePipelineStage;
+use crate::nullifier::{BackpressureControl, ForesterQueueAccountData, PipelineContext};
+use crate::operations::fetch_state_queue_data;
+use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
-use account_compression::QueueAccount;
-use light_hash_set::HashSet;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::{debug, warn};
+use log::{debug, error, info, warn};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
-use std::mem;
+use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::transaction::Transaction;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use std::time::Instant;
+use tokio::sync::{mpsc, Mutex};
 
 pub struct StateProcessor<T: Indexer<R>, R: RpcConnection> {
-    pub input: mpsc::Receiver<PipelineStage<T, R>>,
-    pub output: mpsc::Sender<PipelineStage<T, R>>,
+    pub input: mpsc::Receiver<StatePipelineStage<T, R>>,
+    pub output: mpsc::Sender<StatePipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
     pub shutdown: Arc<AtomicBool>,
     pub close_output: mpsc::Receiver<()>,
+    pub state_queue: Arc<Mutex<Vec<ForesterQueueAccountData>>>,
 }
 
 impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         debug!("Starting StateProcessor process");
+        let mut consecutive_errors = 0;
         loop {
             tokio::select! {
                 Some(item) = self.input.recv() => {
                     debug!("Received item in StateProcessor");
                     let _permit = self.backpressure.acquire().await;
                     let result = match item {
-                        PipelineStage::FetchQueueData(context) => {
-                            debug!("Processing FetchQueueData");
-                            match StateProcessor::fetch_queue_data(context).await {
-                                Ok(next_stage) => {
-                                    debug!("FetchQueueData successful");
-                                    vec![next_stage]
-                                }
-                                Err(e) => {
-                                    warn!("Error in FetchQueueData: {:?}", e);
-                                    vec![PipelineStage::Complete]
-                                }
-                            }
+                        StatePipelineStage::FetchStateQueueData(context) => {
+                            info!("Processing FetchStateQueueData stage");
+                            self.fetch_state_queue_data(&context).await
                         }
-                        PipelineStage::FetchProofs(context, queue_data) => {
-                            debug!("Processing FetchProofs");
-                            match self.fetch_proofs(context, queue_data).await {
-                                Ok(next_stages) => {
-                                    debug!(
-                                        "FetchProofs successful, generated {} next stages",
-                                        next_stages.len()
-                                    );
-                                    next_stages
-                                }
-                                Err(e) => {
-                                    warn!("Error in FetchProofs: {:?}", e);
-                                    vec![PipelineStage::Complete]
-                                }
-                            }
+                        StatePipelineStage::FetchProofs(context, queue_data) => {
+                            info!("Processing FetchProofs stage");
+                            self.fetch_proofs(context, queue_data).await
                         }
-                        PipelineStage::NullifyAccount(context, account_data) => {
-                            let hash = account_data.account.hash_string();
-                            debug!("Processing NullifyAccount for account: {}", hash);
-                            match self.nullify_account(context, account_data).await {
-                                Ok(next_stage) => {
-                                    debug!(
-                                        "NullifyAccount successful for account: {}, moving to next stage",
-                                        hash
-                                    );
-                                    vec![next_stage]
-                                }
-                                Err(e) => {
-                                    warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
-                                    vec![PipelineStage::Complete]
-                                }
-                            }
+                        StatePipelineStage::NullifyStateBatch(context, account_data) => {
+                            info!("Processing NullifyStateBatch stage");
+                            self.nullify_state_batch(context, account_data).await
                         }
-                        PipelineStage::UpdateIndexer(context, account_data) => {
-                            let hash = account_data.account.hash_string();
-                            debug!("Processing UpdateIndexer for account: {}", hash);
-                            match self.update_indexer(context, account_data).await {
-                                Ok(next_stage) => {
-                                    debug!(
-                                        "UpdateIndexer successful for account: {}, moving to next stage",
-                                        hash
-                                    );
-                                    vec![next_stage]
-                                }
-                                Err(e) => {
-                                    warn!("Error in UpdateIndexer for account: {}: {:?}", hash, e);
-                                    vec![PipelineStage::Complete]
-                                }
-                            }
-                        }
-                        PipelineStage::Complete => {
-                           debug!("Processing complete, exiting");
+                        StatePipelineStage::Complete => {
+                            info!("Processing Complete stage");
                             self.shutdown.store(true, Ordering::Relaxed);
-                            vec![]
+                            break;
                         }
                     };
 
-                    debug!("Number of next stages: {}", result.len());
-                    for next_stage in result {
-                        debug!("Attempting to send next stage to output");
-                        match self.output.send(next_stage).await {
-                            Ok(_) => debug!("Successfully sent next stage to output"),
-                            Err(e) => {
-                                warn!("Failed to send next stage to output: {:?}", e);
-                                // If we can't send, the receiver is probably closed. We should stop.
-                                return;
+                    match result {
+                        Ok(Some(next_stage)) => {
+                            info!("Sending next stage: {}", next_stage);
+                            if let Err(e) = self.output.send(next_stage).await {
+                                warn!("Error sending next stage: {:?}", e);
+                                consecutive_errors += 1;
                             }
+                        }
+                        Ok(None) => {
+                            debug!("No next stage to process");
+                        }
+                        Err(e) => {
+                            warn!("Error in StateProcessor: {:?}", e);
+                            consecutive_errors += 1;
+                            if consecutive_errors > 5 {
+                                error!("Too many consecutive errors, stopping processor");
+                                break;
+                            }
+                            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                         }
                     }
                 }
@@ -125,7 +86,6 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                 }
                 else => break,
             }
-
             if self.shutdown.load(Ordering::Relaxed) {
                 debug!("Shutdown signal received, stopping StateProcessor");
                 break;
@@ -134,241 +94,234 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
         debug!("StateProcessor process completed");
     }
 
-    pub(crate) async fn fetch_queue_data(
-        context: PipelineContext<T, R>,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext {
-            indexer: _,
-            rpc,
-            config,
-            ..
-        } = &context;
+    async fn fetch_state_queue_data(
+        &self,
+        context: &PipelineContext<T, R>,
+    ) -> Result<Option<StatePipelineStage<T, R>>, ForesterError> {
+        info!("Starting to fetch state queue data");
+        let mut state_queue = self.state_queue.lock().await;
 
-        let accounts_to_nullify: Vec<ForesterQueueAccountData> = {
-            let mut rpc_lock = rpc.lock().await;
-            let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc_lock).await?;
-            queue.into_iter().take(config.batch_size).collect()
-        };
-
-        if accounts_to_nullify.is_empty() {
-            debug!("No accounts to nullify found in queue");
-            return Ok(PipelineStage::Complete);
+        if !state_queue.is_empty() {
+            let batch_size = state_queue.len().min(context.config.batch_size);
+            let batch: Vec<ForesterQueueAccountData> = state_queue.drain(..batch_size).collect();
+            return Ok(Some(StatePipelineStage::FetchProofs(
+                context.clone(),
+                batch,
+            )));
         }
 
-        let queue_data = ForesterQueueData::new(accounts_to_nullify);
-        Ok(PipelineStage::FetchProofs(context, queue_data))
+        let mut queue_data = {
+            let rpc = context.rpc_pool.get_connection().await;
+            let mut queue_data = fetch_state_queue_data(context.config.clone(), rpc).await?;
+            let mut rng = thread_rng();
+            queue_data.shuffle(&mut rng);
+            queue_data
+        };
+
+        info!("Fetched state queue data len: {:?}", queue_data.len());
+        if queue_data.is_empty() {
+            info!("State queue is empty");
+            Ok(Some(StatePipelineStage::Complete))
+        } else {
+            let batch_size = queue_data.len().min(context.config.batch_size);
+            let batch: Vec<ForesterQueueAccountData> = queue_data.drain(..batch_size).collect();
+            *state_queue = queue_data;
+            Ok(Some(StatePipelineStage::FetchProofs(
+                context.clone(),
+                batch,
+            )))
+        }
     }
 
     async fn fetch_proofs(
         &self,
         context: PipelineContext<T, R>,
-        queue_data: ForesterQueueData,
-    ) -> Result<Vec<PipelineStage<T, R>>, ForesterError> {
-        let PipelineContext {
-            indexer,
-            rpc: _,
-            config: _,
-            ..
-        } = &context;
-        debug!(
-            "Fetching proofs for {} accounts",
-            queue_data.accounts_to_nullify.len()
-        );
-        let mut next_stages = Vec::new();
-        let compressed_account_list: Vec<String> = queue_data
-            .accounts_to_nullify
+        queue_data: Vec<ForesterQueueAccountData>,
+    ) -> Result<Option<StatePipelineStage<T, R>>, ForesterError> {
+        let indexer = &context.indexer;
+
+        let states = queue_data
             .iter()
-            .map(|account_data| account_data.account.hash_string())
+            .map(|account| account.account.hash_string())
             .collect();
-        debug!("Compressed account list: {:?}", compressed_account_list);
 
-        let indexer = indexer.lock().await;
-        debug!("Indexer unlocked.: {:?}", indexer);
+        let proofs = match indexer
+            .lock()
+            .await
+            .get_multiple_compressed_account_proofs(states)
+            .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Error fetching proofs: {:?}", e);
+                return Ok(Some(StatePipelineStage::Complete));
+            }
+        };
 
-        let proofs = indexer
-            .get_multiple_compressed_account_proofs(compressed_account_list)
-            .await;
-        debug!("Proofs: {:?}", proofs);
+        if proofs.is_empty() {
+            return Ok(Some(StatePipelineStage::FetchStateQueueData(context)));
+        }
 
-        let proofs = proofs.map_err(|e| {
-            warn!("Cannot get multiple proofs: {:#?}", e);
-            ForesterError::NoProofsFound
-        })?;
-
-        debug!("Received {} proofs", proofs.len());
-
-        for (account, proof) in queue_data
-            .accounts_to_nullify
+        let account_data = queue_data
             .into_iter()
             .zip(proofs.into_iter())
-        {
-            let account_data = ForesterQueueAccountData {
+            .map(|(account, proof)| ForesterQueueAccountData {
                 account: account.account,
                 proof: proof.proof,
                 leaf_index: proof.leaf_index as u64,
                 root_seq: proof.root_seq,
-            };
-            debug!(
-                "Creating NullifyAccount stage for account: {}",
-                account_data.account.hash_string()
-            );
-            next_stages.push(PipelineStage::NullifyAccount(context.clone(), account_data));
-        }
+            })
+            .collect();
 
-        debug!("Created {} NullifyAccount stages", next_stages.len());
-        Ok(next_stages)
+        Ok(Some(StatePipelineStage::NullifyStateBatch(
+            context,
+            account_data,
+        )))
     }
 
-    async fn nullify_account(
+    async fn nullify_state_batch(
         &self,
         context: PipelineContext<T, R>,
-        account_data: ForesterQueueAccountData,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext {
-            indexer: _,
-            rpc,
-            config,
-            ..
-        } = &context;
+        account_data_batch: Vec<ForesterQueueAccountData>,
+    ) -> Result<Option<StatePipelineStage<T, R>>, ForesterError> {
+        let config = &context.config;
+        let indexer = &context.indexer;
 
-        debug!("Nullifying account: {}", account_data.account.hash_string());
-        debug!("Leaf index: {}", account_data.leaf_index);
-        debug!("Root seq: {}", account_data.root_seq);
+        let (tx, mut rx) = mpsc::channel(account_data_batch.len());
 
-        // TODO: replace STATE_MERKLE_TREE_CHANGELOG with config value
-        let root_seq_mod = account_data.root_seq % STATE_MERKLE_TREE_CHANGELOG;
-        debug!("Root seq mod: {}", root_seq_mod);
+        for account_data in account_data_batch {
+            let tx = tx.clone();
+            let context = context.clone();
 
-        let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
-            nullifier_queue: config.nullifier_queue_pubkey,
-            merkle_tree: config.state_merkle_tree_pubkey,
-            change_log_indices: vec![root_seq_mod],
-            leaves_queue_indices: vec![account_data.account.index as u16],
-            indices: vec![account_data.leaf_index],
-            proofs: vec![account_data.proof.clone()],
-            authority: config.payer_keypair.pubkey(),
-            derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
-        });
+            tokio::spawn(async move {
+                let mut retry_count = 0;
+                while retry_count < context.config.max_retries {
+                    match nullify_state(
+                        context.rpc_pool.clone(),
+                        context.config.clone(),
+                        &context.config.payer_keypair,
+                        context.config.nullifier_queue_pubkey,
+                        context.config.state_merkle_tree_pubkey,
+                        account_data.account.index as u16,
+                        account_data.leaf_index,
+                        account_data.proof.clone(),
+                        account_data.root_seq,
+                    )
+                    .await
+                    {
+                        Ok(true) => {
+                            tx.send((true, account_data)).await.unwrap();
+                            return;
+                        }
+                        Ok(false) => {
+                            retry_count += 1;
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Error nullifying state for account {:?}: {:?}",
+                                account_data.account.hash_string(),
+                                e
+                            );
+                            retry_count += 1;
+                        }
+                    }
 
-        let instructions = [
-            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
-            ix,
-        ];
+                    if retry_count < context.config.max_retries {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    }
+                }
+                tx.send((false, account_data)).await.unwrap();
+            });
+        }
+        drop(tx);
 
-        debug!("Authority: {:?}", config.payer_keypair.pubkey());
-        debug!(
-            "Sending nullification transaction for account: {}",
-            account_data.account.hash_string()
-        );
-        let signature = rpc
-            .lock()
-            .await
-            .create_and_send_transaction(
-                &instructions,
-                &config.payer_keypair.pubkey(),
-                &[&config.payer_keypair],
-            )
-            .await;
-
-        match signature {
-            Ok(sig) => {
-                debug!(
-                    "Nullification transaction sent successfully for account: {}. Signature: {}",
-                    account_data.account.hash_string(),
-                    sig
+        while let Some((success, account_data)) = rx.recv().await {
+            if success {
+                debug!("State nullified: {:?}", account_data.account.hash_string());
+                indexer.lock().await.account_nullified(
+                    config.state_merkle_tree_pubkey,
+                    &account_data.account.hash_string(),
                 );
-                debug!(
-                    "Moving to UpdateIndexer stage for account: {}",
+            } else {
+                warn!(
+                    "Failed to nullify state for account: {:?}",
                     account_data.account.hash_string()
                 );
-                Ok(PipelineStage::UpdateIndexer(context.clone(), account_data))
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to send nullification transaction for account: {}. Error: {:?}",
-                    account_data.account.hash_string(),
-                    e
-                );
-                Err(ForesterError::Custom(format!(
-                    "Nullification transaction failed: {:?}",
-                    e
-                )))
             }
         }
-    }
 
-    async fn update_indexer(
-        &self,
-        context: PipelineContext<T, R>,
-        account_data: ForesterQueueAccountData,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext {
-            indexer,
-            rpc: _,
-            config,
-            ..
-        } = &context;
-
-        debug!(
-            "Updating indexer for account: {}",
-            account_data.account.hash_string()
-        );
-
-        indexer.lock().await.account_nullified(
-            config.state_merkle_tree_pubkey,
-            &account_data.account.hash_string(),
-        );
-
-        debug!(
-            "Indexer updated successfully for account: {}",
-            account_data.account.hash_string()
-        );
-        debug!(
-            "Completed processing for account: {}, returning to FetchQueueData",
-            account_data.account.hash_string()
-        );
-
-        // Since this is the last stage, we'll return to FetchQueueData to start the process again
-        Ok(PipelineStage::FetchQueueData(context))
+        let state_queue = self.state_queue.lock().await;
+        if state_queue.is_empty() {
+            Ok(Some(StatePipelineStage::FetchStateQueueData(context)))
+        } else {
+            Ok(Some(StatePipelineStage::FetchProofs(context, Vec::new())))
+        }
     }
 }
 
-pub async fn get_nullifier_queue<R: RpcConnection>(
-    nullifier_queue_pubkey: &Pubkey,
-    rpc: &mut R,
-) -> Result<Vec<ForesterQueueAccountData>, ForesterError> {
-    let mut nullifier_queue_account = rpc
-        .get_account(*nullifier_queue_pubkey)
-        .await
-        .map_err(|e| {
-            warn!("Error fetching nullifier queue account: {:?}", e);
-            ForesterError::Custom("Error fetching nullifier queue account".to_string())
-        })?
-        .unwrap();
+#[allow(clippy::too_many_arguments)]
+async fn nullify_state<R: RpcConnection>(
+    rpc_pool: RpcPool<R>,
+    config: Arc<ForesterConfig>,
+    payer: &Keypair,
+    nullifier_queue_pubkey: Pubkey,
+    state_merkle_tree_pubkey: Pubkey,
+    leaves_queue_index: u16,
+    leaf_index: u64,
+    proof: Vec<[u8; 32]>,
+    root_seq: u64,
+) -> Result<bool, ForesterError> {
+    let start = Instant::now();
+    debug!("root_seq: {:?}", root_seq);
 
-    let nullifier_queue: HashSet = unsafe {
-        HashSet::from_bytes_copy(
-            &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
-        )?
+    let change_log_index = root_seq % STATE_MERKLE_TREE_CHANGELOG;
+    debug!("change_log_index: {:?}", change_log_index);
+
+    let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
+        nullifier_queue: nullifier_queue_pubkey,
+        merkle_tree: state_merkle_tree_pubkey,
+        change_log_indices: vec![change_log_index],
+        leaves_queue_indices: vec![leaves_queue_index],
+        indices: vec![leaf_index],
+        proofs: vec![proof],
+        authority: payer.pubkey(),
+        derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
+    });
+
+    let instructions = vec![
+        ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
+        ix,
+    ];
+
+    let latest_blockhash = {
+        let rpc = rpc_pool.get_connection().await;
+        let mut rpc_guard = rpc.lock().await;
+        rpc_guard.get_latest_blockhash().await?
     };
-    let mut accounts_to_nullify = Vec::new();
-    for i in 0..nullifier_queue.capacity {
-        let bucket = nullifier_queue.get_bucket(i).unwrap();
-        if let Some(bucket) = bucket {
-            if bucket.sequence_number.is_none() {
-                let account = ForesterQueueAccount {
-                    hash: bucket.value_bytes(),
-                    index: i,
-                };
-                let account_data = ForesterQueueAccountData {
-                    account,
-                    proof: Vec::new(), // This will be filled in during FetchProofs stage
-                    leaf_index: 0,     // This will be filled in during FetchProofs stage
-                    root_seq: 0,       // This will be filled in during FetchProofs stage
-                };
-                accounts_to_nullify.push(account_data);
-            }
-        }
-    }
-    Ok(accounts_to_nullify)
+
+    let blockhash_time = start.elapsed();
+    info!("Time to get blockhash: {:?}", blockhash_time);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[payer],
+        latest_blockhash,
+    );
+
+    let (signature, confirmed) = {
+        let rpc = rpc_pool.get_connection().await;
+        let mut rpc_guard = rpc.lock().await;
+        let signature = rpc_guard.process_transaction(transaction).await?;
+        let confirmed = rpc_guard.confirm_transaction(signature).await?;
+        (signature, confirmed)
+    };
+
+    let total_time = start.elapsed();
+    info!("Total time for transaction: {:?}", total_time);
+
+    info!("Processed: {:?}", signature);
+    info!("Confirmed: {:?} {}", signature, confirmed);
+
+    Ok(confirmed)
 }

@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
-use forester::{init_rpc, nullify_addresses};
+use forester::{get_address_queue_length, nullify_addresses, RpcPool};
 use light_test_utils::e2e_test_env::E2ETestEnv;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -45,20 +45,24 @@ async fn empty_address_tree_test() {
     .await;
 
     let config = Arc::new(forester_config);
-    let rpc = init_rpc(config.clone(), true).await;
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
 
     for _ in 0..10 {
         env.create_address(None).await;
     }
 
-    assert_ne!(get_address_queue_length(&config, &mut env.rpc).await, 0);
+    let rpc = pool.get_connection().await;
+    assert_ne!(get_address_queue_length(rpc, config.clone()).await, 0);
+
+    let rpc = pool.get_connection().await;
     info!(
         "Address merkle tree: nullifying queue of {} accounts...",
-        get_address_queue_length(&config, &mut env.rpc).await
+        get_address_queue_length(rpc, config.clone()).await
     );
 
-    nullify_addresses(config.clone(), rpc, indexer).await;
-    assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
+    nullify_addresses(config.clone(), pool.clone(), indexer).await;
+
+    let rpc = pool.get_connection().await;
+    assert_eq!(get_address_queue_length(rpc, config).await, 0);
 }
