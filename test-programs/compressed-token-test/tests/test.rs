@@ -364,7 +364,7 @@ async fn test_mint_to_failing() {
         assert_rpc_error(
             result,
             0,
-            anchor_lang::error::ErrorCode::ConstraintRaw.into(),
+            light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
         )
         .unwrap();
     }
@@ -385,7 +385,7 @@ async fn test_mint_to_failing() {
         assert_rpc_error(
             result,
             0,
-            anchor_lang::error::ErrorCode::ConstraintRaw.into(),
+            light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
         )
         .unwrap();
     }

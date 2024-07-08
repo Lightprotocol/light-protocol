@@ -321,7 +321,11 @@ pub struct MintToInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
-    #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
+    #[account(
+        mut,
+        constraint = mint.mint_authority.unwrap() == authority.key()
+            @ crate::ErrorCode::InvalidAuthorityMint
+    )]
     pub mint: Account<'info, Mint>,
     /// CHECK: this account
     #[account(mut)]

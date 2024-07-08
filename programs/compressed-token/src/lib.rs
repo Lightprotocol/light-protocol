@@ -153,4 +153,6 @@ pub enum ErrorCode {
     HashToFieldError,
     #[msg("InvalidMint")]
     InvalidMint,
+    #[msg("Expected the authority to be also a mint authority")]
+    InvalidAuthorityMint,
 }
