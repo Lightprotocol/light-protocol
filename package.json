@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@playwright/test": "1.46.0-alpha-2024-07-08",
     "husky": "^9.0.11",
     "nx": "^19.3.2",
     "playwright": "^1.44.1",

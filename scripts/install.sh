@@ -270,8 +270,5 @@ download_file_github \
 echo "📦 Installing pnpm dependencies"
 pnpm install
 
-echo "📦 Installing Playwright"
-pnpm exec playwright install --with-deps
-
 echo "✨ Light Protocol development dependencies installed"
 
