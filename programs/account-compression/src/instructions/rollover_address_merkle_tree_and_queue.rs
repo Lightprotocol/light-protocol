@@ -51,7 +51,6 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
-    // TODO: rollover additional rent as well. (need to add a field to the metadata for this)
     let new_merkle_tree_account_info = ctx.accounts.new_address_merkle_tree.to_account_info();
     let merkle_tree_rent = check_account_balance_is_rent_exempt(&new_merkle_tree_account_info)?;
     let new_queue_account_info = ctx.accounts.new_queue.to_account_info();
