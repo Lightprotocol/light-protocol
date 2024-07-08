@@ -292,6 +292,12 @@ async fn test_25_mint_to() {
     test_mint_to(amounts, 10).await
 }
 
+#[tokio::test]
+async fn test_25_mint_to_zeros() {
+    let amounts = vec![0; 25];
+    test_mint_to(amounts, 1).await
+}
+
 /// Failing tests:
 /// 1. Try to mint token from `mint_1` and sign the transaction with `mint_2`
 ///    authority.
