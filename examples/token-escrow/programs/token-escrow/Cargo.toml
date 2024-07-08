@@ -35,7 +35,7 @@ solana-sdk = { workspace = true }
 solana-program-test = { workspace = true }
 light-test-utils = { version = "0.2.1", path = "../../../../test-utils" }
 reqwest = "0.12"
-tokio = "1.36.0"
+tokio = "1.38.0"
 light-prover-client = { path = "../../../../circuit-lib/light-prover-client", version = "0.2.1" }
 num-bigint = "0.4.6"
 num-traits = "0.2.18"
