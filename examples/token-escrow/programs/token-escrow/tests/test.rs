@@ -13,8 +13,8 @@
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::airdrop_lamports;
-use light_test_utils::indexer::{create_mint_helper, Indexer, TestIndexer};
-use light_test_utils::spl::mint_tokens_helper;
+use light_test_utils::indexer::{Indexer, TestIndexer};
+use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};

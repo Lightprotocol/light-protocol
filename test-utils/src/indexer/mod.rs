@@ -3,7 +3,7 @@ pub mod test_indexer;
 use num_bigint::BigUint;
 use solana_sdk::signature::Keypair;
 use std::fmt::Debug;
-pub use test_indexer::create_mint_helper;
+
 pub use test_indexer::AddressMerkleTreeAccounts;
 pub use test_indexer::AddressMerkleTreeBundle;
 pub use test_indexer::StateMerkleTreeAccounts;
@@ -13,6 +13,7 @@ pub use test_indexer::TokenDataWithContext;
 
 use crate::indexer::test_indexer::ProofRpcResult;
 use crate::rpc::rpc_connection::RpcConnection;
+use crate::spl::create_mint_helper;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
