@@ -1116,6 +1116,11 @@ export type AccountCompression = {
             name: 'UnsupportedCloseThreshold';
             msg: 'Unsupported close threshold';
         },
+        {
+            code: 6023;
+            name: 'InvalidAccountBalance';
+            msg: 'InvalidAccountBalance';
+        },
     ];
 };
 
@@ -2236,6 +2241,11 @@ export const IDL: AccountCompression = {
             code: 6022,
             name: 'UnsupportedCloseThreshold',
             msg: 'Unsupported close threshold',
+        },
+        {
+            code: 6023,
+            name: 'InvalidAccountBalance',
+            msg: 'InvalidAccountBalance',
         },
     ],
 };
