@@ -50,4 +50,6 @@ pub enum AccountCompressionErrorCode {
     InvalidSequenceThreshold,
     #[msg("Unsupported close threshold")]
     UnsupportedCloseThreshold,
+    #[msg("InvalidAccountBalance")]
+    InvalidAccountBalance,
 }
