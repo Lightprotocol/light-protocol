@@ -10,7 +10,7 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
-bytemuck = { version = "1.14", features = ["min_const_generics"] }
+bytemuck = { version = "1.16", features = ["min_const_generics"] }
 memoffset = "0.9"
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
