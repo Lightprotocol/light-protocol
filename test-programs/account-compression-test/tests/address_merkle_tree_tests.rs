@@ -259,7 +259,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             assert_rpc_error(
                 result,
                 2,
-                HashSetError::BufferSize(valid_queue_size, queue_size).into(),
+                AccountCompressionErrorCode::InvalidAccountSize.into(),
             )
             .unwrap()
         }
@@ -282,7 +282,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         assert_rpc_error(
             result,
             2,
-            ConcurrentMerkleTreeError::BufferSize(valid_tree_size, tree_size).into(),
+            AccountCompressionErrorCode::InvalidAccountSize.into(),
         )
         .unwrap()
     }
@@ -302,7 +302,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         assert_rpc_error(
             result,
             2,
-            HashSetError::BufferSize(valid_queue_size, queue_size).into(),
+            AccountCompressionErrorCode::InvalidAccountSize.into(),
         )
         .unwrap()
     }
@@ -410,6 +410,13 @@ async fn test_address_queue_and_tree_invalid_config() {
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
         merkle_tree_config.changelog_size = 0;
+        let tree_size = AddressMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+            merkle_tree_config.address_changelog_size as usize,
+        );
         let result = initialize_address_merkle_tree_and_queue(
             &mut context,
             &payer,
@@ -426,6 +433,13 @@ async fn test_address_queue_and_tree_invalid_config() {
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
         merkle_tree_config.roots_size = 0;
+        let tree_size = AddressMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+            merkle_tree_config.address_changelog_size as usize,
+        );
         let result = initialize_address_merkle_tree_and_queue(
             &mut context,
             &payer,

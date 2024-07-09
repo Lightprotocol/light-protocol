@@ -38,8 +38,8 @@ pub enum AccountCompressionErrorCode {
     InputElementsEmpty,
     #[msg("NoLeavesForMerkleTree")]
     NoLeavesForMerkleTree,
-    #[msg("SizeMismatch")]
-    SizeMismatch,
+    #[msg("InvalidAccountSize")]
+    InvalidAccountSize,
     #[msg("InsufficientRolloverFee")]
     InsufficientRolloverFee,
     #[msg("Unsupported Merkle tree height")]

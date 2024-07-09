@@ -709,7 +709,12 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::InvalidAccountSize.into(),
+    )
+    .unwrap();
     let result = perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
@@ -722,7 +727,12 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::InvalidAccountSize.into(),
+    )
+    .unwrap();
 
     set_state_merkle_tree_next_index(
         &mut context,
@@ -1512,7 +1522,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
             assert_rpc_error(
                 result,
                 2,
-                ConcurrentMerkleTreeError::BufferSize(valid_tree_size, invalid_tree_size).into(),
+                AccountCompressionErrorCode::InvalidAccountSize.into(),
             )
             .unwrap();
         }
@@ -1612,6 +1622,12 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
         merkle_tree_config.changelog_size = 0;
+        let merkle_tree_size = StateMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+        );
         let result = initialize_state_merkle_tree_and_nullifier_queue(
             rpc,
             payer_pubkey,
@@ -1628,6 +1644,12 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
     {
         let mut merkle_tree_config = merkle_tree_config.clone();
         merkle_tree_config.roots_size = 0;
+        let merkle_tree_size = StateMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+        );
         let result = initialize_state_merkle_tree_and_nullifier_queue(
             rpc,
             payer_pubkey,

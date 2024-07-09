@@ -52,18 +52,17 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
     let new_merkle_tree_account_info = ctx.accounts.new_address_merkle_tree.to_account_info();
-    let merkle_tree_rent = check_account_balance_is_rent_exempt(&new_merkle_tree_account_info)?;
-    let new_queue_account_info = ctx.accounts.new_queue.to_account_info();
-    let queue_rent = check_account_balance_is_rent_exempt(&new_queue_account_info)?;
-    assert_size_equal(
-        &ctx.accounts.old_queue.to_account_info(),
-        &new_queue_account_info,
-        "Queue size mismatch",
-    )?;
-    assert_size_equal(
-        &ctx.accounts.old_address_merkle_tree.to_account_info(),
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &new_merkle_tree_account_info,
-        "Merkle tree size mismatch",
+        ctx.accounts
+            .old_address_merkle_tree
+            .to_account_info()
+            .data_len(),
+    )?;
+    let new_queue_account_info = ctx.accounts.new_queue.to_account_info();
+    let queue_rent = check_account_balance_is_rent_exempt(
+        &new_queue_account_info,
+        ctx.accounts.old_queue.to_account_info().data_len(),
     )?;
 
     let (queue_metadata, height) = {
@@ -148,15 +147,5 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         lamports,
     )?;
 
-    Ok(())
-}
-
-pub fn assert_size_equal(a: &AccountInfo, b: &AccountInfo, err_str: &str) -> Result<()> {
-    if a.data_len() != b.data_len() {
-        msg!("a: {}", a.data_len());
-        msg!("b: {}", b.data_len());
-        msg!("{}", err_str);
-        return err!(crate::errors::AccountCompressionErrorCode::SizeMismatch);
-    }
     Ok(())
 }

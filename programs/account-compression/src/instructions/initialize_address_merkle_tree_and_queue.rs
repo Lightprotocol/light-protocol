@@ -123,9 +123,22 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         }
         None => ctx.accounts.authority.key(),
     };
-    let merkle_tree_rent =
-        check_account_balance_is_rent_exempt(&ctx.accounts.merkle_tree.to_account_info())?;
-    check_account_balance_is_rent_exempt(&ctx.accounts.queue.to_account_info())?;
+    let merkle_tree_expected_size = AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+    let queue_expected_size = QueueAccount::size(queue_config.capacity as usize)?;
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.merkle_tree.to_account_info(),
+        merkle_tree_expected_size,
+    )?;
+    check_account_balance_is_rent_exempt(
+        &ctx.accounts.queue.to_account_info(),
+        queue_expected_size,
+    )?;
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
         &ctx.accounts.queue,

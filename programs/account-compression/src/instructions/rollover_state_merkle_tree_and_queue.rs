@@ -1,5 +1,4 @@
 use crate::{
-    assert_size_equal,
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
         initialize_nullifier_queue::process_initialize_nullifier_queue,
@@ -58,19 +57,22 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
 ) -> Result<()> {
     // TODO: rollover additional rent as well. (need to add a field to the metadata for this)
     let new_merkle_tree_account_info = ctx.accounts.new_state_merkle_tree.to_account_info();
-    let merkle_tree_rent = check_account_balance_is_rent_exempt(&new_merkle_tree_account_info)?;
-    let new_queue_account_info = ctx.accounts.new_nullifier_queue.to_account_info();
-    let queue_rent = check_account_balance_is_rent_exempt(&new_queue_account_info)?;
-    assert_size_equal(
-        &ctx.accounts.old_nullifier_queue.to_account_info(),
-        &new_queue_account_info,
-        "Queue size mismatch",
-    )?;
-    assert_size_equal(
-        &ctx.accounts.old_state_merkle_tree.to_account_info(),
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &new_merkle_tree_account_info,
-        "Merkle tree size mismatch",
+        ctx.accounts
+            .old_state_merkle_tree
+            .to_account_info()
+            .data_len(),
     )?;
+    let new_queue_account_info = ctx.accounts.new_nullifier_queue.to_account_info();
+    let queue_rent = check_account_balance_is_rent_exempt(
+        &new_queue_account_info,
+        ctx.accounts
+            .old_nullifier_queue
+            .to_account_info()
+            .data_len(),
+    )?;
+
     let queue_metadata = {
         let (merkle_tree_metadata, queue_metadata) = {
             let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
