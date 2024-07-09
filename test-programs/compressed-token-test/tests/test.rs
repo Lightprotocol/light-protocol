@@ -134,9 +134,15 @@ async fn test_failing_create_token_pool() {
             accounts: accounts.to_account_metas(Some(true)),
             data: instruction_data.data(),
         };
-        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-            .await
-            .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
     }
     // Try to create pool for `mint_2` while using seeds of `mint_1` for PDAs.
     {
