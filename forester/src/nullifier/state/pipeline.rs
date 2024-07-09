@@ -1,30 +1,41 @@
 use crate::config::ForesterConfig;
 use crate::nullifier::state::StateProcessor;
-use crate::nullifier::{
-    BackpressureControl, ForesterQueueAccountData, ForesterQueueData, PipelineContext,
-};
+use crate::nullifier::{BackpressureControl, ForesterQueueAccountData, PipelineContext};
+use crate::RpcPool;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::debug;
+use log::info;
+use std::fmt::Display;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
-pub enum PipelineStage<T: Indexer<R>, R: RpcConnection> {
-    FetchQueueData(PipelineContext<T, R>),
-    FetchProofs(PipelineContext<T, R>, ForesterQueueData),
-    NullifyAccount(PipelineContext<T, R>, ForesterQueueAccountData),
-    UpdateIndexer(PipelineContext<T, R>, ForesterQueueAccountData),
+pub enum StatePipelineStage<T: Indexer<R>, R: RpcConnection> {
+    FetchStateQueueData(PipelineContext<T, R>),
+    FetchProofs(PipelineContext<T, R>, Vec<ForesterQueueAccountData>),
+    NullifyStateBatch(PipelineContext<T, R>, Vec<ForesterQueueAccountData>),
     Complete,
+}
+
+impl<T: Indexer<R>, R: RpcConnection> Display for StatePipelineStage<T, R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StatePipelineStage::FetchStateQueueData(_) => write!(f, "FetchStateQueueData"),
+            StatePipelineStage::FetchProofs(_, _) => write!(f, "FetchProofs"),
+            StatePipelineStage::NullifyStateBatch(_, _) => write!(f, "NullifyStateBatch"),
+            StatePipelineStage::Complete => write!(f, "Complete"),
+        }
+    }
 }
 
 pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
-    rpc: Arc<Mutex<R>>,
+    rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
-) -> (mpsc::Sender<PipelineStage<T, R>>, mpsc::Receiver<()>) {
+) -> (mpsc::Sender<StatePipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
     let (completion_tx, completion_rx) = mpsc::channel(1);
@@ -37,12 +48,13 @@ pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
         backpressure: BackpressureControl::new(config.concurrency_limit),
         shutdown: shutdown.clone(),
         close_output: close_output_rx,
+        state_queue: Arc::new(Mutex::new(Vec::new())),
     };
 
     let input_tx_clone = input_tx.clone();
     let context = PipelineContext {
         indexer: indexer.clone(),
-        rpc: rpc.clone(),
+        rpc_pool,
         config: config.clone(),
         successful_nullifications: Arc::new(Mutex::new(0)),
     };
@@ -54,68 +66,44 @@ pub async fn setup_state_pipeline<T: Indexer<R>, R: RpcConnection>(
 
         // Feed initial data into the pipeline
         input_tx_clone
-            .send(PipelineStage::FetchQueueData(context.clone()))
+            .send(StatePipelineStage::FetchStateQueueData(context.clone()))
             .await
             .unwrap();
 
-        debug!("Starting to process output in state_setup_pipeline");
+        info!("Starting to process output in state_setup_pipeline");
         while let Some(result) = output_rx.recv().await {
-            debug!("Received result in state_setup_pipeline: {:?}", result);
             match result {
-                PipelineStage::FetchQueueData(_) => {
-                    debug!("Received FetchQueueData, restarting pipeline");
+                StatePipelineStage::FetchStateQueueData(_) => {
                     input_tx_clone
-                        .send(PipelineStage::FetchQueueData(context.clone()))
+                        .send(StatePipelineStage::FetchStateQueueData(context.clone()))
                         .await
                         .unwrap();
                 }
-                PipelineStage::FetchProofs(_, queue_data) => {
-                    if queue_data.accounts_to_nullify.is_empty() {
-                        debug!("No more accounts to nullify. Signaling completion.");
-                        input_tx_clone.send(PipelineStage::Complete).await.unwrap();
-                    } else {
-                        debug!(
-                            "Received FetchProofs in setup_pipeline, processing {} accounts",
-                            queue_data.accounts_to_nullify.len()
-                        );
+                StatePipelineStage::FetchProofs(_, queue_data) => {
+                    if queue_data.is_empty() {
                         input_tx_clone
-                            .send(PipelineStage::FetchProofs(context.clone(), queue_data))
+                            .send(StatePipelineStage::FetchStateQueueData(context.clone()))
+                            .await
+                            .unwrap();
+                    } else {
+                        input_tx_clone
+                            .send(StatePipelineStage::FetchProofs(context.clone(), queue_data))
                             .await
                             .unwrap();
                     }
                 }
-                PipelineStage::NullifyAccount(_, account_data) => {
-                    debug!(
-                        "Received NullifyAccount for account: {} in setup_pipeline",
-                        account_data.account.hash_string()
-                    );
-                    input_tx_clone
-                        .send(PipelineStage::NullifyAccount(context.clone(), account_data))
-                        .await
-                        .unwrap();
-                }
-                PipelineStage::UpdateIndexer(_, account_data) => {
-                    debug!(
-                        "Received UpdateIndexer for account: {} in setup_pipeline",
-                        account_data.account.hash_string()
-                    );
-                    input_tx_clone
-                        .send(PipelineStage::UpdateIndexer(context.clone(), account_data))
-                        .await
-                        .unwrap();
-                }
-                PipelineStage::Complete => {
+                StatePipelineStage::Complete => {
                     debug!("Processing complete, signaling completion.");
-                    shutdown.store(true, Ordering::Relaxed);
-                    let _ = close_output_tx.send(()).await;
                     break;
+                }
+
+                stage => {
+                    input_tx_clone.send(stage).await.unwrap();
                 }
             }
         }
-        // Ensure the processor task is properly shut down
-        processor_handle.abort();
 
-        // Close the output channel
+        processor_handle.abort();
         drop(output_tx);
 
         shutdown.store(true, Ordering::Relaxed);

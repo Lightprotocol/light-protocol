@@ -122,10 +122,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_multiple_new_address_proofs(
         &self,
         _merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> Result<NewAddressProofWithContext, IndexerError> {
+        addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+        let addresses_bs58 = addresses
+            .iter()
+            .map(|x| bs58::encode(x).into_string())
+            .collect();
+
         let request = photon_api::models::GetMultipleNewAddressProofsPostRequest {
-            params: vec![bs58::encode(address).into_string()],
+            params: addresses_bs58,
             ..Default::default()
         };
 
@@ -142,34 +147,39 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
 
         info!("Result: {:?}", result);
-        let proofs: photon_api::models::MerkleContextWithNewAddressProof =
-            result.unwrap().result.unwrap().value[0].clone();
 
-        let tree_pubkey = decode_hash(&proofs.merkle_tree);
-        let low_address_value = decode_hash(&proofs.lower_range_address);
-        let next_address_value = decode_hash(&proofs.higher_range_address);
-        Ok(NewAddressProofWithContext {
-            merkle_tree: tree_pubkey,
-            low_address_index: proofs.low_element_leaf_index as u64,
-            low_address_value,
-            low_address_next_index: proofs.next_index as u64,
-            low_address_next_value: next_address_value,
-            low_address_proof: {
-                let mut proof_vec: Vec<[u8; 32]> = proofs
-                    .proof
-                    .iter()
-                    .map(|x: &String| decode_hash(x))
-                    .collect();
-                proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
-                let mut proof_arr = [[0u8; 32]; 16];
-                proof_arr.copy_from_slice(&proof_vec);
-                proof_arr
-            },
-            root: decode_hash(&proofs.root),
-            root_seq: proofs.root_seq,
-            new_low_element: None,
-            new_element: None,
-            new_element_next_value: None,
-        })
+        let photon_proofs = result.unwrap().result.unwrap().value;
+        let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();
+        for photon_proof in photon_proofs {
+            let tree_pubkey = decode_hash(&photon_proof.merkle_tree);
+            let low_address_value = decode_hash(&photon_proof.lower_range_address);
+            let next_address_value = decode_hash(&photon_proof.higher_range_address);
+            let proof = NewAddressProofWithContext {
+                merkle_tree: tree_pubkey,
+                low_address_index: photon_proof.low_element_leaf_index as u64,
+                low_address_value,
+                low_address_next_index: photon_proof.next_index as u64,
+                low_address_next_value: next_address_value,
+                low_address_proof: {
+                    let mut proof_vec: Vec<[u8; 32]> = photon_proof
+                        .proof
+                        .iter()
+                        .map(|x: &String| decode_hash(x))
+                        .collect();
+                    proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                    let mut proof_arr = [[0u8; 32]; 16];
+                    proof_arr.copy_from_slice(&proof_vec);
+                    proof_arr
+                },
+                root: decode_hash(&photon_proof.root),
+                root_seq: photon_proof.root_seq,
+                new_low_element: None,
+                new_element: None,
+                new_element_next_value: None,
+            };
+            proofs.push(proof);
+        }
+
+        Ok(proofs)
     }
 }
