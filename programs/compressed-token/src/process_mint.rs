@@ -282,7 +282,9 @@ pub fn mint_spl_to_pool_pda<'info>(
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
-        mint_amount = mint_amount.checked_add(*amount).unwrap();
+        mint_amount = mint_amount
+            .checked_add(*amount)
+            .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
     let cpi_accounts = anchor_spl::token::MintTo {
@@ -319,7 +321,11 @@ pub struct MintToInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
-    #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
+    #[account(
+        mut,
+        constraint = mint.mint_authority.unwrap() == authority.key()
+            @ crate::ErrorCode::InvalidAuthorityMint
+    )]
     pub mint: Account<'info, Mint>,
     /// CHECK: this account
     #[account(mut)]
