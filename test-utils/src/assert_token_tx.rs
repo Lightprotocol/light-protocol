@@ -2,7 +2,7 @@ use anchor_lang::AnchorSerialize;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use light_compressed_token::{
-    get_token_pool_pda,
+    get_token_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
 };
 use light_system_program::sdk::{
@@ -210,9 +210,9 @@ pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
     let sum_amounts = amounts.iter().sum::<u64>();
     assert_eq!(mint_account.supply, previous_mint_supply + sum_amounts);
 
-    let pool = get_token_pool_pda(&mint);
+    let token_pda = get_token_pda(&mint);
     let pool_account =
-        spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
+        spl_token::state::Account::unpack(&rpc.get_account(token_pda).await.unwrap().unwrap().data)
             .unwrap();
     assert_eq!(pool_account.amount, previous_sol_pool_amount + sum_amounts);
 }
@@ -221,7 +221,7 @@ pub async fn assert_create_mint<R: RpcConnection>(
     context: &mut R,
     authority: &Pubkey,
     mint: &Pubkey,
-    pool: &Pubkey,
+    token_pda: &Pubkey,
 ) {
     let mint_account: spl_token::state::Mint =
         spl_token::state::Mint::unpack(&context.get_account(*mint).await.unwrap().unwrap().data)
@@ -231,9 +231,10 @@ pub async fn assert_create_mint<R: RpcConnection>(
     assert_eq!(mint_account.mint_authority.unwrap(), *authority);
     assert_eq!(mint_account.freeze_authority, Some(*authority).into());
     assert!(mint_account.is_initialized);
-    let mint_account: spl_token::state::Account =
-        spl_token::state::Account::unpack(&context.get_account(*pool).await.unwrap().unwrap().data)
-            .unwrap();
+    let mint_account: spl_token::state::Account = spl_token::state::Account::unpack(
+        &context.get_account(*token_pda).await.unwrap().unwrap().data,
+    )
+    .unwrap();
 
     assert_eq!(mint_account.amount, 0);
     assert_eq!(mint_account.delegate, None.into());

@@ -214,7 +214,7 @@ where
         println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
         let user = Self::create_user(&mut rng, &mut rpc).await;
-        let mint = create_mint_helper(&mut rpc, &payer).await;
+        let mint = create_mint_helper(&mut rpc, &payer, true).await;
         mint_tokens_helper(
             &mut rpc,
             &mut indexer,

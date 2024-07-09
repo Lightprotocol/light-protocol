@@ -12,6 +12,8 @@ pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
 pub mod burn;
+pub mod pool;
+pub use pool::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
@@ -35,9 +37,16 @@ pub mod light_compressed_token {
     /// instruction creates a token pool account for that mint owned by token
     /// authority.
     pub fn create_token_pool<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
     ) -> Result<()> {
-        Ok(())
+        pool::process_create_token_pool(ctx)
+    }
+
+    pub fn token_pool_set_enable_decompress<'info>(
+        ctx: Context<'_, '_, '_, 'info, TokenPoolSetEnableDecompress<'info>>,
+        enable: bool,
+    ) -> Result<()> {
+        pool::process_token_pool_set_enable_decompress(ctx, enable)
     }
 
     /// Mints tokens from an spl token mint to a list of compressed accounts.
@@ -133,6 +142,8 @@ pub enum ErrorCode {
     CompressedPdaUndefinedForCompress,
     #[msg("DeCompressAmountUndefinedForCompress")]
     DeCompressAmountUndefinedForCompress,
+    #[msg("Decompress is disabled for the given pool")]
+    DecompressDisabled,
     #[msg("DelegateUndefined while delegated amount is defined")]
     DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]

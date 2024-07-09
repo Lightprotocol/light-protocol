@@ -16,8 +16,9 @@ use light_compressed_token::{
         CreateRevokeInstructionInputs,
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda,
-    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    get_token_pda, get_token_pool_pda,
+    mint_sdk::create_mint_to_instruction,
+    pool_sdk::{create_create_token_pool_instruction, create_token_pool_set_enable_decompress},
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },
@@ -65,9 +66,9 @@ pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
             .unwrap()
             .supply;
 
-    let pool: Pubkey = get_token_pool_pda(mint);
+    let token_pda: Pubkey = get_token_pda(mint);
     let previous_pool_amount =
-        spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
+        spl_token::state::Account::unpack(&rpc.get_account(token_pda).await.unwrap().unwrap().data)
             .unwrap()
             .amount;
     let (event, _signature) = rpc
@@ -141,7 +142,11 @@ pub async fn create_token_pool<R: RpcConnection>(
     mint_pubkey
 }
 
-pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+pub async fn create_mint_helper<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    enable_decompress: bool,
+) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
@@ -149,14 +154,37 @@ pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) 
         .unwrap();
     let mint = Keypair::new();
 
-    let (instructions, pool) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
+    let (instructions, token_pda) = create_initialize_mint_instructions(
+        &payer_pubkey,
+        &payer_pubkey,
+        rent,
+        2,
+        &mint,
+        enable_decompress,
+    );
 
     rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
         .await
         .unwrap();
-    assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
+    assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &token_pda).await;
     mint.pubkey()
+}
+
+pub async fn set_enable_decompress<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Pubkey,
+    enable_decompress: bool,
+) {
+    let pool_enable_decompress_instruction =
+        create_token_pool_set_enable_decompress(&payer.pubkey(), &mint, enable_decompress);
+    rpc.create_and_send_transaction(
+        &[pool_enable_decompress_instruction],
+        &payer.pubkey(),
+        &[payer],
+    )
+    .await
+    .unwrap();
 }
 
 pub async fn mint_wrapped_sol<R: RpcConnection>(
@@ -183,7 +211,8 @@ pub fn create_initialize_mint_instructions(
     rent: u64,
     decimals: u8,
     mint_keypair: &Keypair,
-) -> ([Instruction; 4], Pubkey) {
+    enable_decompress: bool,
+) -> ([Instruction; 5], Pubkey) {
     let account_create_ix =
         create_account_instruction(payer, Mint::LEN, rent, &spl_token::ID, Some(mint_keypair));
 
@@ -199,16 +228,20 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
-    let pool_pubkey = get_token_pool_pda(&mint_pubkey);
+    let pool_instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
+    let pool_enable_decompress_instruction =
+        create_token_pool_set_enable_decompress(payer, &mint_pubkey, enable_decompress);
+
+    let token_pubkey = get_token_pda(&mint_pubkey);
     (
         [
             account_create_ix,
             create_mint_instruction,
             transfer_ix,
-            instruction,
+            pool_instruction,
+            pool_enable_decompress_instruction,
         ],
-        pool_pubkey,
+        token_pubkey,
     )
 }
 
@@ -352,6 +385,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         false,           // is_compress
         None,            // compression_amount
         None,            // token_pool_pda
+        None,            // token_pda
         None,            // compress_or_decompress_token_account
         true,
         delegate_change_account_index,
@@ -466,6 +500,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         false,                           // is_compress
         Some(amount),                    // compression_amount
         Some(get_token_pool_pda(&mint)), // token_pool_pda
+        Some(get_token_pda(&mint)),      // token_pda
         Some(*recipient_token_account),  // compress_or_decompress_token_account
         true,
         None,
@@ -572,6 +607,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         true,                           // is_compress
         Some(amount),                   // compression_amount
         Some(get_token_pool_pda(mint)), // token_pool_pda
+        Some(get_token_pda(mint)),      // token_pda
         Some(*sender_token_account),    // compress_or_decompress_token_account
         true,
         None,

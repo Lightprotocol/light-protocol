@@ -1,8 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_lang::AnchorDeserialize;
-use anchor_lang::AnchorSerialize;
-use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
+use anchor_lang::{
+    system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
+};
+use light_compressed_token::pool_sdk::create_create_token_pool_instruction;
 use light_compressed_token::token_data::AccountState;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::spl::approve_test;
@@ -10,12 +11,17 @@ use light_test_utils::spl::burn_test;
 use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
+use light_test_utils::spl::set_enable_decompress;
 use light_test_utils::spl::thaw_test;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
+    signer::Signer, transaction::Transaction,
+};
+use spl_token::{instruction::initialize_mint, state::Mint};
 
-use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
+use light_compressed_token::{get_token_pda, get_token_pool_pda};
 use light_compressed_token::{token_data::TokenData, ErrorCode};
 use light_prover_client::gnark::helpers::kill_prover;
 use light_system_program::{
@@ -31,8 +37,8 @@ use light_test_utils::spl::{
     decompress_test, mint_tokens_helper,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, indexer::TestIndexer,
-    test_env::setup_test_programs_with_accounts,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    indexer::TestIndexer, test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
 
@@ -40,7 +46,139 @@ use light_verifier::VerifierError;
 async fn test_create_mint() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
-    create_mint_helper(&mut rpc, &payer).await;
+    create_mint_helper(&mut rpc, &payer, false).await;
+}
+
+#[tokio::test]
+async fn test_failing_create_token_pool() {
+    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await
+        .unwrap();
+
+    let mint_1_keypair = Keypair::new();
+    let mint_1_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_1_keypair),
+    );
+    let create_mint_1_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_1_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_1_account_create_ix, create_mint_1_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_1_keypair],
+    )
+    .await
+    .unwrap();
+    let mint_1_pool_pda = get_token_pool_pda(&mint_1_keypair.pubkey());
+    let mint_1_pda = get_token_pda(&mint_1_keypair.pubkey());
+
+    let mint_2_keypair = Keypair::new();
+    let mint_2_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        Mint::LEN,
+        rent,
+        &spl_token::ID,
+        Some(&mint_2_keypair),
+    );
+    let create_mint_2_ix = initialize_mint(
+        &spl_token::ID,
+        &mint_2_keypair.pubkey(),
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        2,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_2_account_create_ix, create_mint_2_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_2_keypair],
+    )
+    .await
+    .unwrap();
+    let mint_2_pool_pda = get_token_pool_pda(&mint_2_keypair.pubkey());
+    let mint_2_pda = get_token_pda(&mint_2_keypair.pubkey());
+
+    // Try to create pool for `mint_1` while using seeds of `mint_2` for PDAs.
+    {
+        let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
+        let accounts = light_compressed_token::accounts::CreateTokenPoolInstruction {
+            fee_payer: payer.pubkey(),
+            token_pool_pda: mint_2_pool_pda,
+            token_pda: mint_2_pda,
+            system_program: system_program::ID,
+            mint: mint_1_keypair.pubkey(),
+            token_program: anchor_spl::token::ID,
+            cpi_authority_pda: get_cpi_authority_pda().0,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap_err();
+    }
+    // Try to create pool for `mint_2` while using seeds of `mint_1` for PDAs.
+    {
+        let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
+        let accounts = light_compressed_token::accounts::CreateTokenPoolInstruction {
+            fee_payer: payer.pubkey(),
+            token_pool_pda: mint_1_pool_pda,
+            token_pda: mint_1_pda,
+            system_program: system_program::ID,
+            mint: mint_2_keypair.pubkey(),
+            token_program: anchor_spl::token::ID,
+            cpi_authority_pda: get_cpi_authority_pda().0,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap_err();
+    }
+}
+
+#[tokio::test]
+async fn test_failing_set_enable_decompress() {
+    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
+
+    let invalid_payer = Keypair::new();
+    airdrop_lamports(&mut rpc, &invalid_payer.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    let pool_enable_decompress_instruction =
+        light_compressed_token::pool_sdk::create_token_pool_set_enable_decompress(
+            &invalid_payer.pubkey(),
+            &mint,
+            true,
+        );
+    rpc.create_and_send_transaction(
+        &[pool_enable_decompress_instruction],
+        &invalid_payer.pubkey(),
+        &[&invalid_payer],
+    )
+    .await
+    .unwrap_err();
 }
 
 #[tokio::test]
@@ -88,6 +226,8 @@ async fn test_wrapped_sol() {
     .await;
     let input_compressed_accounts =
         test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey());
+
+    set_enable_decompress(&mut rpc, &payer, &native_mint, true).await;
     decompress_test(
         &payer,
         &mut rpc,
@@ -110,7 +250,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, false, false).await;
 
     let recipient_keypair = Keypair::new();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     for _ in 0..ITER {
         let amount = 10000u64;
         mint_tokens_helper(
@@ -231,7 +371,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let mut test_indexer =
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let sender = Keypair::new();
     mint_tokens_helper(
         &mut rpc,
@@ -280,7 +420,7 @@ async fn test_decompression() {
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut context, &payer, true).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut context,
@@ -343,7 +483,7 @@ async fn test_delegation() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -450,7 +590,7 @@ async fn test_revoke() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -528,7 +668,7 @@ async fn test_burn() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -661,7 +801,7 @@ async fn test_freeze_and_thaw() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -783,14 +923,16 @@ async fn test_freeze_and_thaw() {
 }
 
 /// Failing tests:
-/// 1. Invalid decompress account
-/// 2. Invalid token pool pda
-/// 3. Invalid decompression amount -1
-/// 4. Invalid decompression amount +1
-/// 5. Invalid decompression amount 0
-/// 6. Invalid compression amount -1
-/// 7. Invalid compression amount +1
-/// 8. Invalid compression amount 0
+/// 1. Decompression disabled in the pool
+/// 2. Invalid decompress account
+/// 3. Invalid token pool pda
+/// 4. Invalid token pda
+/// 5. Invalid decompression amount -1
+/// 6. Invalid decompression amount +1
+/// 7. Invalid decompression amount 0
+/// 8. Invalid compression amount -1
+/// 9. Invalid compression amount +1
+/// 10. Invalid compression amount 0
 #[tokio::test]
 async fn test_failing_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
@@ -802,7 +944,7 @@ async fn test_failing_decompression() {
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut context, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut context,
@@ -821,7 +963,28 @@ async fn test_failing_decompression() {
     let input_compressed_account =
         test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
     let decompress_amount = amount - 1000;
-    // Test 1: invalid decompress account
+    // Test 1: decompression is disabled in the pool, parameters are correct
+    {
+        failing_compress_decompress(
+            &sender,
+            &mut context,
+            &mut test_indexer,
+            input_compressed_account.clone(),
+            decompress_amount, // need to be consistent with compression amount
+            &merkle_tree_pubkey,
+            decompress_amount,
+            false,
+            &token_account_keypair.pubkey(),
+            Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
+            &mint,
+            0, //ProgramError::InvalidAccountData.into(), error code 17179869184 does not fit u32
+        )
+        .await
+        .unwrap_err();
+    }
+    set_enable_decompress(&mut context, &payer, &mint, true).await;
+    // Test 2: invalid decompress account
     {
         let invalid_token_account = mint;
         failing_compress_decompress(
@@ -835,13 +998,14 @@ async fn test_failing_decompression() {
             false,
             &invalid_token_account,
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             0, //ProgramError::InvalidAccountData.into(), error code 17179869184 does not fit u32
         )
         .await
         .unwrap_err();
     }
-    // Test 2: invalid token pool pda
+    // Test 3: invalid token pool pda
     {
         failing_compress_decompress(
             &sender,
@@ -854,13 +1018,14 @@ async fn test_failing_decompression() {
             false,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&Pubkey::new_unique())),
+            Some(get_token_pda(&mint)),
             &mint,
             anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
         )
         .await
         .unwrap();
     }
-    // Test 3: invalid compression amount -1
+    // Test 4: invalid token pda
     {
         failing_compress_decompress(
             &sender,
@@ -873,13 +1038,34 @@ async fn test_failing_decompression() {
             false,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&Pubkey::new_unique())),
+            &mint,
+            anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
+        )
+        .await
+        .unwrap();
+    }
+    // Test 5: invalid compression amount -1
+    {
+        failing_compress_decompress(
+            &sender,
+            &mut context,
+            &mut test_indexer,
+            input_compressed_account.clone(),
+            decompress_amount, // need to be consistent with compression amount
+            &merkle_tree_pubkey,
+            decompress_amount - 1,
+            false,
+            &token_account_keypair.pubkey(),
+            Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::SumCheckFailed.into(),
         )
         .await
         .unwrap();
     }
-    // Test 4: invalid compression amount + 1
+    // Test 6: invalid compression amount + 1
     {
         failing_compress_decompress(
             &sender,
@@ -892,13 +1078,14 @@ async fn test_failing_decompression() {
             false,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::ComputeOutputSumFailed.into(),
         )
         .await
         .unwrap();
     }
-    // Test 5: invalid compression amount 0
+    // Test 7: invalid compression amount 0
     {
         failing_compress_decompress(
             &sender,
@@ -911,6 +1098,7 @@ async fn test_failing_decompression() {
             false,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::SumCheckFailed.into(),
         )
@@ -931,7 +1119,7 @@ async fn test_failing_decompression() {
     )
     .await;
     let compress_amount = decompress_amount - 100;
-    // Test 6: invalid compression amount -1
+    // Test 8: invalid compression amount -1
     {
         failing_compress_decompress(
             &sender,
@@ -944,13 +1132,14 @@ async fn test_failing_decompression() {
             true,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::ComputeOutputSumFailed.into(),
         )
         .await
         .unwrap();
     }
-    // Test 7: invalid compression amount +1
+    // Test 9: invalid compression amount +1
     {
         failing_compress_decompress(
             &sender,
@@ -963,13 +1152,14 @@ async fn test_failing_decompression() {
             true,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::SumCheckFailed.into(),
         )
         .await
         .unwrap();
     }
-    // Test 7: invalid compression amount 0
+    // Test 10: invalid compression amount 0
     {
         failing_compress_decompress(
             &sender,
@@ -982,6 +1172,7 @@ async fn test_failing_decompression() {
             true,
             &token_account_keypair.pubkey(),
             Some(get_token_pool_pda(&mint)),
+            Some(get_token_pda(&mint)),
             &mint,
             ErrorCode::ComputeOutputSumFailed.into(),
         )
@@ -1015,6 +1206,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
     is_compress: bool,
     compress_or_decompress_token_account: &Pubkey,
     token_pool_pda: Option<Pubkey>,
+    token_pda: Option<Pubkey>,
     mint: &Pubkey,
     error_code: u32,
 ) -> Result<(), RpcError> {
@@ -1080,6 +1272,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
         is_compress,
         Some(compression_amount),
         token_pool_pda,
+        token_pda,
         Some(*compress_or_decompress_token_account),
         true,
         None,
@@ -1145,7 +1338,7 @@ async fn test_invalid_inputs() {
     airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer, false).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -1516,6 +1709,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         mint,
         None,
         false,
+        None,
         None,
         None,
         None,

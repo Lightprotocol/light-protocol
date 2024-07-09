@@ -582,6 +582,7 @@ pub mod transfer_sdk {
         is_compress: bool,
         compress_or_decompress_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
+        token_pda: Option<Pubkey>,
         compress_or_decompress_token_account: Option<Pubkey>,
         sort: bool,
         delegate_change_account_index: Option<u8>,
@@ -633,8 +634,9 @@ pub mod transfer_sdk {
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
             token_pool_pda,
+            token_pda,
             compress_or_decompress_token_account,
-            token_program: token_pool_pda.map(|_| Token::id()),
+            token_program: token_pda.map(|_| Token::id()),
             system_program: solana_sdk::system_program::ID,
         };
 

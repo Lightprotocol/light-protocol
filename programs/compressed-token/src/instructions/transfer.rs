@@ -5,6 +5,9 @@ use light_system_program::{
     self,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
+
+use crate::TokenPool;
+
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
     #[account(mut)]
@@ -26,7 +29,9 @@ pub struct TransferInstruction<'info> {
         Program<'info, account_compression::program::AccountCompression>,
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     #[account(mut)]
-    pub token_pool_pda: Option<Account<'info, TokenAccount>>,
+    pub token_pool_pda: Option<Account<'info, TokenPool>>,
+    #[account(mut)]
+    pub token_pda: Option<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub compress_or_decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
