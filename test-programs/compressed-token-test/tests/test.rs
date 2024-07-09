@@ -42,7 +42,7 @@ use light_test_utils::{
 };
 use light_verifier::VerifierError;
 use rand::Rng;
-use spl_token::instruction::initialize_mint;
+use spl_token::{error::TokenError, instruction::initialize_mint};
 
 #[tokio::test]
 async fn test_create_mint() {
@@ -418,9 +418,10 @@ async fn test_mint_to_failing() {
             accounts: accounts.to_account_metas(Some(true)),
             data: instruction_data.data(),
         };
-        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-            .await
-            .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(result, 0, TokenError::MintMismatch as u32).unwrap();
     }
     // 4. Try to mint token from `mint_2` while using `mint_1` pool.
     {
@@ -451,9 +452,10 @@ async fn test_mint_to_failing() {
             accounts: accounts.to_account_metas(Some(true)),
             data: instruction_data.data(),
         };
-        rpc.create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
-            .await
-            .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
+            .await;
+        assert_rpc_error(result, 0, TokenError::MintMismatch as u32).unwrap();
     }
     // 5. Invalid CPI authority.
     {
@@ -662,9 +664,10 @@ async fn test_mint_to_failing() {
             .await
             .unwrap();
         // The second mint should overflow.
-        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-            .await
-            .unwrap_err(); // No error code to catch, happens inside anchor-spl.
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert_rpc_error(result, 0, TokenError::Overflow as u32).unwrap();
     }
 }
 
