@@ -290,6 +290,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
                 .merkle_context
                 .nullifier_queue_pubkey,
             leaf_index,
+            queue_index: None,
         });
     }
 

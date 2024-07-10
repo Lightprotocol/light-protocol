@@ -1149,6 +1149,18 @@ export type LightCompressedToken = {
                         name: 'leafIndex';
                         type: 'u32';
                     },
+                    {
+                        name: 'queueIndex';
+                        docs: [
+                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
+                            'currently unimplemented.',
+                        ];
+                        type: {
+                            option: {
+                                defined: 'QueueIndex';
+                            };
+                        };
+                    },
                 ];
             };
         },
@@ -1248,6 +1260,24 @@ export type LightCompressedToken = {
                         type: {
                             option: 'bytes';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'QueueIndex';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'queueId';
+                        docs: ['Id of queue in queue account.'];
+                        type: 'u8';
+                    },
+                    {
+                        name: 'index';
+                        docs: ['Index of compressed account hash in queue.'];
+                        type: 'u16';
                     },
                 ];
             };
@@ -2520,6 +2550,18 @@ export const IDL: LightCompressedToken = {
                         name: 'leafIndex',
                         type: 'u32',
                     },
+                    {
+                        name: 'queueIndex',
+                        docs: [
+                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
+                            'currently unimplemented.',
+                        ],
+                        type: {
+                            option: {
+                                defined: 'QueueIndex',
+                            },
+                        },
+                    },
                 ],
             },
         },
@@ -2620,6 +2662,24 @@ export const IDL: LightCompressedToken = {
                         type: {
                             option: 'bytes',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'QueueIndex',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'queueId',
+                        docs: ['Id of queue in queue account.'],
+                        type: 'u8',
+                    },
+                    {
+                        name: 'index',
+                        docs: ['Index of compressed account hash in queue.'],
+                        type: 'u16',
                     },
                 ],
             },

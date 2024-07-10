@@ -393,6 +393,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                                             .merkle_tree_index
                                             as usize],
                                         nullifier_queue_pubkey,
+                                        queue_index: None,
                                     },
                                 },
                             };
@@ -409,6 +410,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                                     .merkle_tree_index
                                     as usize],
                                 nullifier_queue_pubkey,
+                                queue_index: None,
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -423,6 +425,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             merkle_tree_pubkey: event.pubkey_array
                                 [event.output_compressed_accounts[i].merkle_tree_index as usize],
                             nullifier_queue_pubkey,
+                            queue_index: None,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());

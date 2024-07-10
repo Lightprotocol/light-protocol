@@ -31,6 +31,9 @@ pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub leaf_index: u32,
+    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+    /// currently unimplemented.
+    pub queue_index: Option<QueueIndex>,
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
@@ -38,6 +41,17 @@ pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
+    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+    /// currently unimplemented.
+    pub queue_index: Option<QueueIndex>,
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct QueueIndex {
+    /// Id of queue in queue account.
+    pub queue_id: u8,
+    /// Index of compressed account hash in queue.
+    pub index: u16,
 }
 
 pub fn pack_merkle_context(
@@ -50,6 +64,7 @@ pub fn pack_merkle_context(
             leaf_index: x.leaf_index,
             merkle_tree_pubkey_index: 0,     // will be assigned later
             nullifier_queue_pubkey_index: 0, // will be assigned later
+            queue_index: None,
         })
         .collect::<Vec<PackedMerkleContext>>();
     let mut index: usize = remaining_accounts.len();

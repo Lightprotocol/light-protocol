@@ -623,6 +623,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    queue_index: None,
                 },
                 lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
                     Some(token_account.compressed_account.compressed_account.lamports)
@@ -647,6 +648,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                 leaf_index: compressed_account.merkle_context.leaf_index,
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
+                queue_index: None,
             },
             root_index: rpc_result.root_indices[0],
         },
