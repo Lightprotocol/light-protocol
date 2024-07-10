@@ -748,6 +748,11 @@ async fn test_revoke(mint_amount: u64, delegated_amount: u64) {
 }
 
 #[tokio::test]
+async fn test_revoke_0() {
+    test_revoke(0, 0).await
+}
+
+#[tokio::test]
 async fn test_revoke_10000() {
     test_revoke(10000, 1000).await
 }
