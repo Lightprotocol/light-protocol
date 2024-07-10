@@ -82,6 +82,7 @@ export function packCompressedTokenAccounts(
                     merkleTreePubkeyIndex,
                     nullifierQueuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
+                    queueIndex: null,
                 },
                 rootIndex: rootIndices[index],
                 lamports: account.compressedAccount.lamports.eq(bn(0))
