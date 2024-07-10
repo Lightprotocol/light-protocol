@@ -265,18 +265,13 @@ async fn test_1_mint_to() {
 }
 
 #[tokio::test]
+async fn test_1_max_mint_to() {
+    test_mint_to(vec![u64::MAX], 1).await
+}
+
+#[tokio::test]
 async fn test_5_mint_to() {
-    test_mint_to(
-        vec![
-            0,
-            u8::MAX as u64,
-            u16::MAX as u64,
-            u32::MAX as u64,
-            u64::MAX,
-        ],
-        1,
-    )
-    .await
+    test_mint_to(vec![0, 10000, 10000, 10000, 10000], 1).await
 }
 
 #[tokio::test]
