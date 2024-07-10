@@ -2,7 +2,7 @@ use crate::errors::ForesterError;
 use crate::nullifier::address::pipeline::AddressPipelineStage;
 use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
-use crate::operations::fetch_address_queue_data;
+use crate::operations::{fetch_address_queue_data, fetch_address_tree};
 use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
@@ -114,6 +114,9 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         }
 
         let mut queue_data = {
+            let rpc = context.rpc_pool.get_connection().await;
+            let address_tree = fetch_address_tree(context.config.clone(), rpc).await?;
+            info!("Fetched address tree: {:?}", address_tree);
             let rpc = context.rpc_pool.get_connection().await;
             let mut queue_data = fetch_address_queue_data(context.config.clone(), rpc).await?;
             let mut rng = thread_rng();
