@@ -180,10 +180,6 @@ impl HashSet {
 
         let capacity = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
-        println!(
-            "capacity: {}, sequence_threshold: {}",
-            capacity, sequence_threshold
-        );
         let expected_size = Self::size_in_account(capacity);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
@@ -213,7 +209,7 @@ impl HashSet {
     }
 
     fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
-        // Step at least 2 times over the entire array.
+        // Increase stepsize over the capacity of the hash set.
         let iteration = iteration + self.capacity / 10;
         let probe_index = (value
             + iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap())
