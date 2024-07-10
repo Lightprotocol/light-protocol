@@ -306,9 +306,7 @@ async fn test_full_nullifier_queue(
     .await;
     let mut reference_merkle_tree = MerkleTree::<Poseidon>::new(26, 10);
     reference_merkle_tree.append(&leaf).unwrap();
-    // let onchain_merkle_tree =
-    //     AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut rpc, merkle_tree_pubkey).await;
-    // let deserialized = onchain_merkle_tree.deserialized();
+
     let merkle_tree = get_concurrent_merkle_tree::<
         StateMerkleTreeAccount,
         ProgramTestRpcConnection,
@@ -318,6 +316,12 @@ async fn test_full_nullifier_queue(
     .await;
     assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
+    let element_index = unsafe {
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut rpc, nullifier_queue_pubkey)
+            .await
+            .find_element_index(&BigUint::from_bytes_be(&leaf), None)
+            .unwrap()
+    };
     // CHECK 2
     nullify(
         &mut rpc,
@@ -327,7 +331,7 @@ async fn test_full_nullifier_queue(
         &mut reference_merkle_tree,
         &leaf,
         merkle_tree.changelog_index() as u64,
-        1,
+        element_index.unwrap() as u16,
         leaf_index,
     )
     .await
@@ -2057,7 +2061,7 @@ fn find_overlapping_probe_index(
     start_replacement_value: usize,
     capacity_values: usize,
 ) -> usize {
-    for salt in 0..30000 {
+    for salt in 0..capacity_values {
         let replacement_value = start_replacement_value + salt;
 
         for i in 0..20 {

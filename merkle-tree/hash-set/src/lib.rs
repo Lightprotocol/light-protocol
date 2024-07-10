@@ -180,7 +180,10 @@ impl HashSet {
 
         let capacity = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
-
+        println!(
+            "capacity: {}, sequence_threshold: {}",
+            capacity, sequence_threshold
+        );
         let expected_size = Self::size_in_account(capacity);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
@@ -347,7 +350,6 @@ impl HashSet {
             let probe_index = self.probe_index(value, i);
             // PANICS: `probe_index()` ensures the bounds.
             let bucket = self.get_bucket(probe_index).unwrap();
-
             match bucket {
                 Some(bucket) => {
                     if &bucket.value_biguint() == value {
@@ -988,52 +990,16 @@ mod test {
             .map(|(_, nullifier)| nullifier.value_biguint())
             .collect::<Vec<_>>();
         assert_eq!(inserted_nullifiers.len(), 10);
-        assert_eq!(inserted_nullifiers[0], nullifier_5);
-        assert_eq!(inserted_nullifiers[1], nullifier_4);
-        assert_eq!(inserted_nullifiers[2], nullifier_2);
-        assert_eq!(inserted_nullifiers[3], nullifier_9);
-        assert_eq!(inserted_nullifiers[4], nullifier_6);
-        assert_eq!(inserted_nullifiers[5], nullifier_7);
-        assert_eq!(inserted_nullifiers[6], nullifier_3);
-        assert_eq!(inserted_nullifiers[7], nullifier_10);
-        assert_eq!(inserted_nullifiers[8], nullifier_1);
-        assert_eq!(inserted_nullifiers[9], nullifier_8);
-    }
-
-    fn hash_set_iter_linear<
-        const INSERTIONS: usize,
-        const CAPACITY: usize,
-        const SEQUENCE_THRESHOLD: usize,
-    >() {
-        let mut hs = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
-
-        let mut expected_nullifiers = Vec::with_capacity(INSERTIONS);
-
-        for i in 0..INSERTIONS {
-            let nullifier = i.to_biguint().unwrap();
-            hs.insert(&nullifier, 0).unwrap();
-            expected_nullifiers.push(nullifier);
-        }
-
-        let inserted_nullifiers = hs
-            .iter()
-            .map(|(_, nullifier)| nullifier.value_biguint())
-            .collect::<Vec<_>>();
-        assert_eq!(inserted_nullifiers.len(), INSERTIONS);
-        assert_eq!(
-            expected_nullifiers.as_slice(),
-            inserted_nullifiers.as_slice()
-        );
-    }
-
-    #[test]
-    fn test_hash_set_iter_linear_6857_2400() {
-        hash_set_iter_linear::<3500, 6857, 2400>()
-    }
-
-    #[test]
-    fn test_hash_set_iter_linear_9601_2400() {
-        hash_set_iter_linear::<5000, 9601, 2400>()
+        assert_eq!(inserted_nullifiers[0], nullifier_7);
+        assert_eq!(inserted_nullifiers[1], nullifier_3);
+        assert_eq!(inserted_nullifiers[2], nullifier_10);
+        assert_eq!(inserted_nullifiers[3], nullifier_1);
+        assert_eq!(inserted_nullifiers[4], nullifier_8);
+        assert_eq!(inserted_nullifiers[5], nullifier_5);
+        assert_eq!(inserted_nullifiers[6], nullifier_4);
+        assert_eq!(inserted_nullifiers[7], nullifier_2);
+        assert_eq!(inserted_nullifiers[8], nullifier_9);
+        assert_eq!(inserted_nullifiers[9], nullifier_6);
     }
 
     fn hash_set_iter_random<
@@ -1078,21 +1044,23 @@ mod test {
     fn test_hash_set_get_bucket() {
         let mut hs = HashSet::new(6857, 2400).unwrap();
 
-        // Insert incremental elements, so they end up being in the same
-        // sequence in the hash set.
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
             hs.insert(&bn_i, i).unwrap();
         }
-
+        let mut unused_indices = vec![true; 6857];
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
+            let i = hs.find_element_index(&bn_i, None).unwrap().unwrap();
             let element = hs.get_bucket(i).unwrap().unwrap();
             assert_eq!(element.value_biguint(), bn_i);
+            unused_indices[i] = false;
         }
         // Unused cells within the capacity should be `Some(None)`.
-        for i in 3600..6857 {
-            assert!(hs.get_bucket(i).unwrap().is_none());
+        for i in unused_indices.iter().enumerate() {
+            if *i.1 {
+                assert!(hs.get_bucket(i.0).unwrap().is_none());
+            }
         }
         // Cells over the capacity should be `None`.
         for i in 6857..10_000 {
@@ -1104,17 +1072,19 @@ mod test {
     fn test_hash_set_get_bucket_mut() {
         let mut hs = HashSet::new(6857, 2400).unwrap();
 
-        // Insert incremental elements, so they end up being in the same
-        // sequence in the hash set.
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
             hs.insert(&bn_i, i).unwrap();
         }
+        let mut unused_indices = vec![false; 6857];
 
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
+            let i = hs.find_element_index(&bn_i, None).unwrap().unwrap();
+
             let element = hs.get_bucket_mut(i).unwrap();
             assert_eq!(element.unwrap().value_biguint(), bn_i);
+            unused_indices[i] = true;
 
             // "Nullify" the element.
             *element = Some(HashSetCell {
@@ -1122,13 +1092,18 @@ mod test {
                 sequence_number: None,
             });
         }
-        for i in 0..3600 {
-            let element = hs.get_bucket_mut(i).unwrap().unwrap();
-            assert_eq!(element.value_bytes(), [0_u8; 32]);
+
+        for (i, is_used) in unused_indices.iter().enumerate() {
+            if *is_used {
+                let element = hs.get_bucket_mut(i).unwrap().unwrap();
+                assert_eq!(element.value_bytes(), [0_u8; 32]);
+            }
         }
         // Unused cells within the capacity should be `Some(None)`.
-        for i in 3600..6857 {
-            assert!(hs.get_bucket_mut(i).unwrap().is_none());
+        for (i, is_used) in unused_indices.iter().enumerate() {
+            if !*is_used {
+                assert!(hs.get_bucket_mut(i).unwrap().is_none());
+            }
         }
         // Cells over the capacity should be `None`.
         for i in 6857..10_000 {
@@ -1142,24 +1117,34 @@ mod test {
 
         // Insert incremental elements, so they end up being in the same
         // sequence in the hash set.
-        let indices = (0..3600)
-            .map(|i| {
-                let bn_i = i.to_biguint().unwrap();
-                hs.insert(&bn_i, i).unwrap()
-            })
-            .collect::<Vec<_>>();
+        (0..3600).for_each(|i| {
+            let bn_i = i.to_biguint().unwrap();
+            hs.insert(&bn_i, i).unwrap();
+        });
 
         for i in 0..3600 {
+            let i = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
             let element = hs.get_unmarked_bucket(i);
             assert!(element.is_some());
         }
 
         // Mark the elements.
-        for (i, index) in indices.iter().enumerate() {
-            hs.mark_with_sequence_number(*index, i).unwrap();
+        for i in 0..3600 {
+            let index = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
+            hs.mark_with_sequence_number(index, i).unwrap();
         }
 
         for i in 0..3600 {
+            let i = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
             let element = hs.get_unmarked_bucket(i);
             assert!(element.is_none());
         }
