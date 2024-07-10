@@ -16,7 +16,7 @@ use crate::{
     process_mint::POOL_SEED,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
-        create_output_compressed_accounts,
+        create_output_compressed_accounts, get_cpi_signer_seeds,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
@@ -26,7 +26,6 @@ use crate::{
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataBurn {
     pub proof: CompressedProof,
-    pub mint: Pubkey,
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub burn_amount: u64,
@@ -43,7 +42,7 @@ pub struct BurnInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
-    #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
+    #[account(mut)]
     pub mint: Account<'info, Mint>,
     /// CHECK: the seed of token pool
     #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
@@ -113,12 +112,13 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
         CompressedTokenInstructionDataBurn::deserialize(&mut inputs.as_slice())?;
 
     burn_spl_from_pool_pda(&ctx, &inputs)?;
-
+    let mint = ctx.accounts.mint.key();
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_burn(
             &inputs,
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
+            &mint,
         )?;
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
@@ -143,9 +143,15 @@ pub fn burn_spl_from_pool_pda<'info>(
     let cpi_accounts = anchor_spl::token::Burn {
         mint: ctx.accounts.mint.to_account_info(),
         from: ctx.accounts.token_pool_pda.to_account_info(),
-        authority: ctx.accounts.authority.to_account_info(),
+        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    let signer_seeds = get_cpi_signer_seeds();
+    let signer_seeds_ref = &[&signer_seeds[..]];
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        cpi_accounts,
+        signer_seeds_ref,
+    );
 
     anchor_spl::token::burn(cpi_ctx, inputs.burn_amount)?;
 
@@ -170,6 +176,7 @@ pub fn create_input_and_output_accounts_burn(
     inputs: &CompressedTokenInstructionDataBurn,
     authority: &Pubkey,
     remaining_accounts: &[AccountInfo<'_>],
+    mint: &Pubkey,
 ) -> Result<(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
@@ -180,7 +187,7 @@ pub fn create_input_and_output_accounts_burn(
             &inputs.delegated_transfer,
             remaining_accounts,
             &inputs.input_token_data_with_context,
-            &inputs.mint,
+            mint,
         )?;
     let sum_inputs = input_token_data.iter().map(|x| x.amount).sum::<u64>();
     let change_amount = match sum_inputs.checked_sub(inputs.burn_amount) {
@@ -188,7 +195,7 @@ pub fn create_input_and_output_accounts_burn(
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
 
-    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
+    let hashed_mint = match hash_to_bn254_field_size_be(&mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
@@ -206,7 +213,7 @@ pub fn create_input_and_output_accounts_burn(
 
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
-            inputs.mint,
+            *mint,
             &[authority; 1],
             delegate,
             is_delegate,
@@ -294,7 +301,6 @@ pub mod sdk {
             cpi_context: None,
             change_account_merkle_tree_index: *outputs_merkle_tree_index as u8,
             delegated_transfer,
-            mint: inputs.mint,
             burn_amount: inputs.burn_amount,
         };
         let remaining_accounts = to_account_metas(remaining_accounts);
@@ -413,7 +419,6 @@ mod test {
         ];
         let inputs = CompressedTokenInstructionDataBurn {
             proof: CompressedProof::default(),
-            mint,
             input_token_data_with_context,
             cpi_context: None,
             burn_amount: 50,
@@ -421,7 +426,7 @@ mod test {
             delegated_transfer: None,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
-            create_input_and_output_accounts_burn(&inputs, &authority, &remaining_accounts)
+            create_input_and_output_accounts_burn(&inputs, &authority, &remaining_accounts, &mint)
                 .unwrap();
         assert_eq!(compressed_input_accounts.len(), 2);
         assert_eq!(output_compressed_accounts.len(), 1);
