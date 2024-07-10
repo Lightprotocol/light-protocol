@@ -121,6 +121,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                     .unwrap() as u8,
                 nullifier_queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
+                queue_index: None,
             },
             root_index: input_root_indices[i],
         });

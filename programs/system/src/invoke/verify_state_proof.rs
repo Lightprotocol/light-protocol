@@ -118,6 +118,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             Some(address) => addresses[j] = Some(*address),
             None => {}
         };
+        if input_compressed_account_with_context
+            .merkle_context
+            .queue_index
+            .is_some()
+        {
+            unimplemented!("Queue index is not supported.");
+        }
 
         #[allow(clippy::comparison_chain)]
         if current_mt_index

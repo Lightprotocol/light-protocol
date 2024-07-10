@@ -13,6 +13,12 @@ export interface PackedMerkleContext {
     merkleTreePubkeyIndex: number; // u8
     nullifierQueuePubkeyIndex: number; // u8
     leafIndex: number; // u32
+    queueIndex: null | QueueIndex; // Option<()>
+}
+
+export interface QueueIndex {
+    id: number; // u8
+    index: number; // u16
 }
 
 /**

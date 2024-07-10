@@ -803,6 +803,7 @@ pub mod transfer_sdk {
                         .unwrap() as u8,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
+                    queue_index: None,
                 },
                 root_index: root_indices[i],
                 lamports: None, // TODO: test
