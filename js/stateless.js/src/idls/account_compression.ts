@@ -35,7 +35,7 @@ export type AccountCompression = {
         {
             name: 'STATE_NULLIFIER_QUEUE_VALUES';
             type: 'u16';
-            value: '6857';
+            value: '28_807';
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD';
@@ -65,12 +65,12 @@ export type AccountCompression = {
         {
             name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG';
             type: 'u64';
-            value: '256';
+            value: '1400';
         },
         {
             name: 'ADDRESS_QUEUE_VALUES';
             type: 'u16';
-            value: '6857';
+            value: '28_807';
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD';
@@ -1161,7 +1161,7 @@ export const IDL: AccountCompression = {
         {
             name: 'STATE_NULLIFIER_QUEUE_VALUES',
             type: 'u16',
-            value: '6857',
+            value: '28_807',
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD',
@@ -1191,12 +1191,12 @@ export const IDL: AccountCompression = {
         {
             name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG',
             type: 'u64',
-            value: '256',
+            value: '1400',
         },
         {
             name: 'ADDRESS_QUEUE_VALUES',
             type: 'u16',
-            value: '6857',
+            value: '28_807',
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD',

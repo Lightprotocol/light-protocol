@@ -23,8 +23,8 @@ impl Default for FeeConfig {
     fn default() -> Self {
         Self {
             // rollover fee plus additonal lamports for the cpi account
-            state_merkle_tree_rollover: 185,
-            address_queue_rollover: 202,
+            state_merkle_tree_rollover: 300,
+            address_queue_rollover: 392,
             // TODO: refactor to allow multiple state and address tree configs
             // state_tree_configs: vec![StateMerkleTreeConfig::default()],
             // address_tree_configs: vec![AddressMerkleTreeConfig::default()],

@@ -40,6 +40,7 @@ pub fn process_initialize_address_queue<'info>(
                 rollover_threshold,
                 height,
             )?;
+            msg!("address queue rollover_fee: {}", rollover_fee);
             rollover_fee
         } else {
             0

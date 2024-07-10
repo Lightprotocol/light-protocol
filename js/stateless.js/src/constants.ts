@@ -88,7 +88,7 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
  *
  * Is charged per output compressed account.
  */
-export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(185);
+export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(300);
 
 /**
  * Fee to provide continous funding for the address queue and address Merkle tree.
@@ -97,7 +97,7 @@ export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(185);
  *
  * Is charged per newly created address.
  */
-export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(202);
+export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(392);
 
 /**
  * Is charged if the transaction nullifies at least one compressed account.
