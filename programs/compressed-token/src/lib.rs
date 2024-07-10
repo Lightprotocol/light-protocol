@@ -12,6 +12,7 @@ pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
 pub mod burn;
+pub use burn::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
@@ -88,7 +89,7 @@ pub mod light_compressed_token {
     }
 
     pub fn burn<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         burn::process_burn(ctx, inputs)

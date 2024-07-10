@@ -1,19 +1,26 @@
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_system_program::{
     invoke::processor::CompressedProof,
-    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
+    sdk::{
+        accounts::{InvokeAccounts, SignerAccounts},
+        compressed_account::PackedCompressedAccountWithMerkleContext,
+        CompressedCpiContext,
+    },
     OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
+    process_mint::POOL_SEED,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
-    ErrorCode, GenericInstruction,
+    ErrorCode,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -27,13 +34,86 @@ pub struct CompressedTokenInstructionDataBurn {
     pub delegated_transfer: Option<DelegatedTransfer>,
 }
 
+#[derive(Accounts)]
+pub struct BurnInstruction<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+    pub authority: Signer<'info>,
+    /// CHECK: that mint authority is derived from signer
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
+    pub cpi_authority_pda: UncheckedAccount<'info>,
+    /// CHECK: that authority is mint authority
+    #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
+    pub mint: Account<'info, Mint>,
+    /// CHECK: the seed of token pool
+    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
+    pub token_pool_pda: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    /// CHECK: this account is checked in account compression program
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK: this account
+    pub noop_program: UncheckedAccount<'info>,
+    /// CHECK: this account in psp account compression program
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
+    pub account_compression_authority: UncheckedAccount<'info>,
+    /// CHECK: this account in psp account compression program
+    pub account_compression_program:
+        Program<'info, account_compression::program::AccountCompression>,
+    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+impl<'info> InvokeAccounts<'info> for BurnInstruction<'info> {
+    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
+        &self.registered_program_pda
+    }
+
+    fn get_noop_program(&self) -> &UncheckedAccount<'info> {
+        &self.noop_program
+    }
+
+    fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
+        &self.account_compression_authority
+    }
+
+    fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
+        &self.account_compression_program
+    }
+
+    fn get_system_program(&self) -> &Program<'info, System> {
+        &self.system_program
+    }
+
+    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
+        None
+    }
+
+    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+        None
+    }
+}
+
+impl<'info> SignerAccounts<'info> for BurnInstruction<'info> {
+    fn get_fee_payer(&self) -> &Signer<'info> {
+        &self.fee_payer
+    }
+
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+}
+
 // TODO: use spl burn instruction to actually burn the tokens
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, BurnInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
         CompressedTokenInstructionDataBurn::deserialize(&mut inputs.as_slice())?;
+
+    burn_spl_from_pool_pda(&ctx, &inputs)?;
+
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_burn(
             &inputs,
@@ -51,6 +131,38 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
     )?;
+    Ok(())
+}
+
+#[inline(never)]
+pub fn burn_spl_from_pool_pda<'info>(
+    ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
+    inputs: &CompressedTokenInstructionDataBurn,
+) -> Result<()> {
+    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let cpi_accounts = anchor_spl::token::Burn {
+        mint: ctx.accounts.mint.to_account_info(),
+        from: ctx.accounts.token_pool_pda.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+
+    anchor_spl::token::burn(cpi_ctx, inputs.burn_amount)?;
+
+    let post_token_balance = TokenAccount::try_deserialize(
+        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
+    )?
+    .amount;
+    // Guard against unexpected behavior of the SPL token program.
+    if post_token_balance != pre_token_balance - inputs.burn_amount {
+        msg!(
+            "post_token_balance {} != pre_token_balance {} - burn_amount {}",
+            post_token_balance,
+            pre_token_balance,
+            inputs.burn_amount
+        );
+        return err!(crate::ErrorCode::SplTokenSupplyMismatch);
+    }
     Ok(())
 }
 
@@ -125,6 +237,7 @@ pub mod sdk {
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{
+        get_token_pool_pda,
         process_transfer::{
             get_cpi_authority_pda,
             transfer_sdk::{
@@ -195,10 +308,15 @@ pub mod sdk {
         }
         .data();
 
-        let accounts = crate::accounts::GenericInstruction {
+        let token_pool_pda = get_token_pool_pda(&inputs.mint);
+
+        let accounts = crate::accounts::BurnInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,
+            mint: inputs.mint,
+            token_pool_pda,
+            token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
                 &light_system_program::ID,
