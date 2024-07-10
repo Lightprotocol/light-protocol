@@ -11,7 +11,13 @@ use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    instruction::InstructionError,
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
+    transaction::{Transaction, TransactionError},
+};
 
 use light_compressed_token::delegation::sdk::{
     create_approve_instruction, CreateApproveInstructionInputs,
@@ -535,13 +541,21 @@ async fn test_approve_failing() {
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
-        rpc.create_and_send_transaction(
-            &[instruction],
-            &sender.pubkey(),
-            &[&context_payer, &sender],
-        )
-        .await
-        .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        // Anchor panics when trying to read the MT account. Unfortunately
+        // there is no specific error code to assert.
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
     }
     // 2. Invalid change compressed account Merkle tree.
     {
@@ -568,13 +582,21 @@ async fn test_approve_failing() {
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
-        rpc.create_and_send_transaction(
-            &[instruction],
-            &sender.pubkey(),
-            &[&context_payer, &sender],
-        )
-        .await
-        .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        // Anchor panics when trying to read the MT account. Unfortunately
+        // there is no specific error code to assert.
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
     }
     // 3. Invalid proof.
     {
@@ -637,20 +659,16 @@ async fn test_approve_failing() {
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
         };
-        // NOTE(vadorovsky): Not sure what to do here!
-        // For now, this instruction returns `ProofVerificationFailed`, which
-        // feels wrong.
-        println!("TOKEN_DATA: {:?}", inputs.input_token_data);
-        println!("MINT: {:?}", mint);
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
-        rpc.create_and_send_transaction(
-            &[instruction],
-            &sender.pubkey(),
-            &[&context_payer, &sender],
-        )
-        .await
-        .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
 }
 
