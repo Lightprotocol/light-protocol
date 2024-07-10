@@ -294,7 +294,7 @@ async fn test_full_nullifier_queue(
     )
     .await;
 
-    let initial_value = 9005;
+    let initial_value = 309005;
     let element: [u8; 32] = bigint_to_be_bytes_array(&initial_value.to_biguint().unwrap()).unwrap();
     // CHECK 1
     fail_insert_into_full_queue(
@@ -396,7 +396,7 @@ async fn test_full_nullifier_queue(
     .await
     .unwrap();
     // CHECK: 6
-    let element: [u8; 32] = bigint_to_be_bytes_array(&12000.to_biguint().unwrap()).unwrap();
+    let element: [u8; 32] = bigint_to_be_bytes_array(&30000.to_biguint().unwrap()).unwrap();
     fail_insert_into_full_queue(
         &mut rpc,
         &nullifier_queue_pubkey,
@@ -2025,6 +2025,7 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     {
         let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
         capacity = hash_set.hash_set.capacity - left_over_indices;
+        println!("capacity: {}", capacity);
         let arbitrary_sequence_number = 0;
         for i in 0..capacity {
             hash_set
@@ -2056,7 +2057,7 @@ fn find_overlapping_probe_index(
     start_replacement_value: usize,
     capacity_values: usize,
 ) -> usize {
-    for salt in 0..10000 {
+    for salt in 0..30000 {
         let replacement_value = start_replacement_value + salt;
 
         for i in 0..20 {
