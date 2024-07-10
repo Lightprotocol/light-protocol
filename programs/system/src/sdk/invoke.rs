@@ -261,11 +261,13 @@ mod test {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
+                queue_index: None,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
+                queue_index: None,
             },
         ];
 

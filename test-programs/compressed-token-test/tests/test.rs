@@ -1744,6 +1744,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
                 merkle_tree_pubkey: *merkle_tree_pubkey,
                 nullifier_queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
+                queue_index: None,
             })
             .collect::<Vec<MerkleContext>>(),
         &[

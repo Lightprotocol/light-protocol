@@ -250,6 +250,7 @@ pub async fn perform_escrow<R: RpcConnection>(
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -403,6 +404,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
