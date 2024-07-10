@@ -20,7 +20,8 @@ use solana_sdk::{
 };
 
 use light_compressed_token::delegation::sdk::{
-    create_approve_instruction, CreateApproveInstructionInputs,
+    create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
+    CreateRevokeInstructionInputs,
 };
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
@@ -675,8 +676,7 @@ async fn test_approve_failing() {
 /// Test revoke:
 /// 1. Delegate tokens with approve
 /// 2. Revoke
-#[tokio::test]
-async fn test_revoke() {
+async fn test_revoke(mint_amount: u64, delegated_amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -691,14 +691,13 @@ async fn test_revoke() {
         .await
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![amount],
+        vec![mint_amount],
         vec![sender.pubkey()],
     )
     .await;
@@ -706,7 +705,6 @@ async fn test_revoke() {
     {
         let input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-        let delegated_amount = 1000u64;
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -746,6 +744,200 @@ async fn test_revoke() {
             None,
         )
         .await;
+    }
+}
+
+#[tokio::test]
+async fn test_revoke_0() {
+    test_revoke(0, 0).await
+}
+
+#[tokio::test]
+async fn test_revoke_10000() {
+    test_revoke(10000, 1000).await
+}
+
+#[tokio::test]
+async fn test_revoke_max() {
+    test_revoke(u64::MAX, u64::MAX).await
+}
+
+/// Failing tests:
+/// 1. Invalid root indices.
+/// 2. Invalid Merkle tree.
+/// 3. Invalid mint.
+#[tokio::test]
+async fn test_revoke_failing() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount],
+        vec![sender.pubkey()],
+    )
+    .await;
+    // Delegate tokens
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let delegated_amount = 1000u64;
+        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        approve_test(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            delegated_amount,
+            &delegate.pubkey(),
+            &delegated_compressed_account_merkle_tree,
+            &delegated_compressed_account_merkle_tree,
+            None,
+        )
+        .await;
+    }
+
+    let input_compressed_accounts =
+        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let input_compressed_accounts = input_compressed_accounts
+        .iter()
+        .filter(|x| x.token_data.delegate.is_some())
+        .cloned()
+        .collect::<Vec<TokenDataWithContext>>();
+
+    let input_compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.hash().unwrap())
+        .collect::<Vec<_>>();
+    let input_merkle_tree_pubkeys = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .collect::<Vec<_>>();
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&input_compressed_account_hashes),
+            Some(&input_merkle_tree_pubkeys),
+            None,
+            None,
+            &mut rpc,
+        )
+        .await;
+
+    // 1. Invalid root indices.
+    {
+        let invalid_root_indices = vec![0];
+
+        let inputs = CreateRevokeInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: sender.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            mint,
+            output_account_merkle_tree: merkle_tree_pubkey,
+            root_indices: invalid_root_indices,
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_revoke_instruction(inputs).unwrap();
+        let context_payer = rpc.get_payer().insecure_clone();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 2. Invalid Merkle tree.
+    {
+        let invalid_merkle_tree = Keypair::new();
+
+        let inputs = CreateRevokeInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: sender.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            mint,
+            output_account_merkle_tree: invalid_merkle_tree.pubkey(),
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_revoke_instruction(inputs).unwrap();
+        let context_payer = rpc.get_payer().insecure_clone();
+        // Anchor panics when trying to deserialize the account, the
+        // instruction returns `ProgramFailedToComplete`. No specific error
+        // to assert.
+        rpc.create_and_send_transaction(
+            &[instruction],
+            &sender.pubkey(),
+            &[&context_payer, &sender],
+        )
+        .await
+        .unwrap_err();
+    }
+    // 3. Invalid mint.
+    {
+        let invalid_mint = Keypair::new();
+
+        let inputs = CreateRevokeInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: sender.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            mint: invalid_mint.pubkey(),
+            output_account_merkle_tree: merkle_tree_pubkey,
+            root_indices: proof_rpc_result.root_indices,
+            proof: proof_rpc_result.proof,
+        };
+        let instruction = create_revoke_instruction(inputs).unwrap();
+        let context_payer = rpc.get_payer().insecure_clone();
+        // NOTE(vadorovsky): Not sure what to do here!
+        // For now, this instruction returns `ProofVerificationFailed`, which
+        // feels wrong.
+        rpc.create_and_send_transaction(
+            &[instruction],
+            &sender.pubkey(),
+            &[&context_payer, &sender],
+        )
+        .await
+        .unwrap_err();
     }
 }
 
