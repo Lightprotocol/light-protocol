@@ -105,6 +105,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
             .position(|x| {
                 x.token_data.owner == out_compressed_account.owner
                     && x.token_data.amount == out_compressed_account.amount
+                    && x.token_data.delegate == delegates[i]
             })
             .expect("transfer recipient compressed account not found in mock indexer");
         let transfer_recipient_token_compressed_account =

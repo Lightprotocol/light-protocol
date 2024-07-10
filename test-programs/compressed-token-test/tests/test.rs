@@ -436,9 +436,8 @@ async fn test_delegation(
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_delegation_0() {
-    test_delegation(0, 0, vec![0], vec![0]).await
+    test_delegation(0, 0, vec![0, 0], vec![0]).await
 }
 
 #[tokio::test]
