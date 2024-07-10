@@ -26,6 +26,7 @@ use light_compressed_token::delegation::sdk::{
     create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
     CreateRevokeInstructionInputs,
 };
+use light_compressed_token::freeze::sdk::{create_instruction, CreateInstructionInputs};
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
@@ -1595,8 +1596,7 @@ async fn test_burn() {
 /// 3. Delegate tokens
 /// 4. Freeze delegated tokens
 /// 5. Thaw delegated tokens
-#[tokio::test]
-async fn test_freeze_and_thaw() {
+async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1611,14 +1611,13 @@ async fn test_freeze_and_thaw() {
         .await
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![amount],
+        vec![mint_amount],
         vec![sender.pubkey()],
     )
     .await;
@@ -1668,7 +1667,6 @@ async fn test_freeze_and_thaw() {
     {
         let input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-        let delegated_amount = 1000u64;
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -1728,6 +1726,351 @@ async fn test_freeze_and_thaw() {
             None,
         )
         .await;
+    }
+}
+
+#[tokio::test]
+async fn test_freeze_and_thaw_0() {
+    test_freeze_and_thaw(0, 0).await
+}
+
+#[tokio::test]
+async fn test_freeze_and_thaw_10000() {
+    test_freeze_and_thaw(10000, 1000).await
+}
+
+/// Failing tests:
+/// 1. Invalid authority.
+/// 2. Invalid Merkle tree.
+/// 3. Invalid proof.
+#[tokio::test]
+async fn test_failing_freeze() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount],
+        vec![sender.pubkey()],
+    )
+    .await;
+
+    let input_compressed_accounts =
+        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let outputs_merkle_tree = input_compressed_accounts[0]
+        .compressed_account
+        .merkle_context
+        .merkle_tree_pubkey;
+
+    let input_compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.hash().unwrap())
+        .collect::<Vec<_>>();
+    let input_merkle_tree_pubkeys = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .collect::<Vec<_>>();
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&input_compressed_account_hashes),
+            Some(&input_merkle_tree_pubkeys),
+            None,
+            None,
+            &mut rpc,
+        )
+        .await;
+    let context_payer = rpc.get_payer().insecure_clone();
+
+    // 1. Invalid authority.
+    {
+        let invalid_authority = Keypair::new();
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: invalid_authority.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_instruction::<true>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &payer.pubkey(),
+                &[&context_payer, &invalid_authority],
+            )
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::InvalidFreezeAuthority.into(),
+        )
+        .unwrap();
+    }
+    // 2. Invalid Merkle tree.
+    {
+        let invalid_merkle_tree = Keypair::new();
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree: invalid_merkle_tree.pubkey(),
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_instruction::<true>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        // Anchor panics when trying to read the MT account. Unfortunately
+        // there is no specific error code to assert.
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
+    }
+    // 3. Invalid proof.
+    {
+        let invalid_proof = CompressedProof {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        };
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: invalid_proof,
+        };
+        let instruction = create_instruction::<true>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+}
+
+/// Failing tests:
+/// 1. Invalid authority.
+/// 2. Invalid Merkle tree.
+/// 3. Invalid proof.
+#[tokio::test]
+async fn test_failing_thaw() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount],
+        vec![sender.pubkey()],
+    )
+    .await;
+
+    // Freeze tokens
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let output_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+
+        freeze_test(
+            &payer,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            &output_merkle_tree,
+            None,
+        )
+        .await;
+    }
+
+    let input_compressed_accounts =
+        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let input_compressed_accounts = input_compressed_accounts
+        .iter()
+        .filter(|x| x.token_data.state == AccountState::Frozen)
+        .cloned()
+        .collect::<Vec<TokenDataWithContext>>();
+    let outputs_merkle_tree = input_compressed_accounts[0]
+        .compressed_account
+        .merkle_context
+        .merkle_tree_pubkey;
+
+    let input_compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.hash().unwrap())
+        .collect::<Vec<_>>();
+    let input_merkle_tree_pubkeys = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .collect::<Vec<_>>();
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&input_compressed_account_hashes),
+            Some(&input_merkle_tree_pubkeys),
+            None,
+            None,
+            &mut rpc,
+        )
+        .await;
+    let context_payer = rpc.get_payer().insecure_clone();
+
+    // 1. Invalid authority.
+    {
+        let invalid_authority = Keypair::new();
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: invalid_authority.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_instruction::<false>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &payer.pubkey(),
+                &[&context_payer, &invalid_authority],
+            )
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::InvalidFreezeAuthority.into(),
+        )
+        .unwrap();
+    }
+    // 2. Invalid Merkle tree.
+    {
+        let invalid_merkle_tree = Keypair::new();
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree: invalid_merkle_tree.pubkey(),
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_instruction::<false>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        // Anchor panics when trying to read the MT account. Unfortunately
+        // there is no specific error code to assert.
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
+    }
+    // 3. Invalid proof.
+    {
+        let invalid_proof = CompressedProof {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        };
+
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: invalid_proof,
+        };
+        let instruction = create_instruction::<false>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
 }
 
