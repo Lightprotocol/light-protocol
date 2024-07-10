@@ -41,6 +41,7 @@ pub fn process_initialize_state_merkle_tree(
                     rollover_threshold,
                     *height,
                 )?;
+                msg!(" state Merkle tree rollover_fee: {}", rollover_fee);
                 rollover_fee
             }
             None => 0,

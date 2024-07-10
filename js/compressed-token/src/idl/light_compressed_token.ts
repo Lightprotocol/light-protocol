@@ -1375,23 +1375,108 @@ export type LightCompressedToken = {
     errors: [
         {
             code: 6000;
-            name: 'SignerCheckFailed';
-            msg: 'Signer check failed';
+            name: 'PublicKeyAmountMissmatch';
+            msg: 'public keys and amounts must be of same length';
         },
         {
             code: 6001;
-            name: 'CreateTransferInstructionFailed';
-            msg: 'Create transfer instruction failed';
+            name: 'SignerCheckFailed';
+            msg: 'SignerCheckFailed';
         },
         {
             code: 6002;
-            name: 'AccountNotFound';
-            msg: 'Account not found';
+            name: 'ComputeInputSumFailed';
+            msg: 'ComputeInputSumFailed';
         },
         {
             code: 6003;
-            name: 'SerializationError';
-            msg: 'Serialization error';
+            name: 'ComputeOutputSumFailed';
+            msg: 'ComputeOutputSumFailed';
+        },
+        {
+            code: 6004;
+            name: 'ComputeCompressSumFailed';
+            msg: 'ComputeCompressSumFailed';
+        },
+        {
+            code: 6005;
+            name: 'ComputeDecompressSumFailed';
+            msg: 'ComputeDecompressSumFailed';
+        },
+        {
+            code: 6006;
+            name: 'SumCheckFailed';
+            msg: 'SumCheckFailed';
+        },
+        {
+            code: 6007;
+            name: 'DecompressRecipientUndefinedForDecompress';
+            msg: 'DecompressRecipientUndefinedForDecompress';
+        },
+        {
+            code: 6008;
+            name: 'CompressedPdaUndefinedForDecompress';
+            msg: 'CompressedPdaUndefinedForDecompress';
+        },
+        {
+            code: 6009;
+            name: 'DeCompressAmountUndefinedForDecompress';
+            msg: 'DeCompressAmountUndefinedForDecompress';
+        },
+        {
+            code: 6010;
+            name: 'CompressedPdaUndefinedForCompress';
+            msg: 'CompressedPdaUndefinedForCompress';
+        },
+        {
+            code: 6011;
+            name: 'DeCompressAmountUndefinedForCompress';
+            msg: 'DeCompressAmountUndefinedForCompress';
+        },
+        {
+            code: 6012;
+            name: 'DelegateUndefined';
+            msg: 'DelegateUndefined while delegated amount is defined';
+        },
+        {
+            code: 6013;
+            name: 'DelegateSignerCheckFailed';
+            msg: 'DelegateSignerCheckFailed';
+        },
+        {
+            code: 6014;
+            name: 'SplTokenSupplyMismatch';
+            msg: 'SplTokenSupplyMismatch';
+        },
+        {
+            code: 6015;
+            name: 'HeapMemoryCheckFailed';
+            msg: 'HeapMemoryCheckFailed';
+        },
+        {
+            code: 6016;
+            name: 'InstructionNotCallable';
+            msg: 'The instruction is not callable';
+        },
+        {
+            code: 6017;
+            name: 'ArithmeticUnderflow';
+            msg: 'ArithmeticUnderflow';
+        },
+        {
+            code: 6018;
+            name: 'InvalidDelegate';
+            msg: 'InvalidDelegate';
+        },
+        {
+            code: 6019;
+            name: 'HashToFieldError';
+            msg: 'HashToFieldError';
+        },
+        {
+            code: 6020;
+            name: 'InvalidMint';
+            msg: 'InvalidMint';
         },
     ];
 };
@@ -2777,23 +2862,108 @@ export const IDL: LightCompressedToken = {
     errors: [
         {
             code: 6000,
-            name: 'SignerCheckFailed',
-            msg: 'Signer check failed',
+            name: 'PublicKeyAmountMissmatch',
+            msg: 'public keys and amounts must be of same length',
         },
         {
             code: 6001,
-            name: 'CreateTransferInstructionFailed',
-            msg: 'Create transfer instruction failed',
+            name: 'SignerCheckFailed',
+            msg: 'SignerCheckFailed',
         },
         {
             code: 6002,
-            name: 'AccountNotFound',
-            msg: 'Account not found',
+            name: 'ComputeInputSumFailed',
+            msg: 'ComputeInputSumFailed',
         },
         {
             code: 6003,
-            name: 'SerializationError',
-            msg: 'Serialization error',
+            name: 'ComputeOutputSumFailed',
+            msg: 'ComputeOutputSumFailed',
+        },
+        {
+            code: 6004,
+            name: 'ComputeCompressSumFailed',
+            msg: 'ComputeCompressSumFailed',
+        },
+        {
+            code: 6005,
+            name: 'ComputeDecompressSumFailed',
+            msg: 'ComputeDecompressSumFailed',
+        },
+        {
+            code: 6006,
+            name: 'SumCheckFailed',
+            msg: 'SumCheckFailed',
+        },
+        {
+            code: 6007,
+            name: 'DecompressRecipientUndefinedForDecompress',
+            msg: 'DecompressRecipientUndefinedForDecompress',
+        },
+        {
+            code: 6008,
+            name: 'CompressedPdaUndefinedForDecompress',
+            msg: 'CompressedPdaUndefinedForDecompress',
+        },
+        {
+            code: 6009,
+            name: 'DeCompressAmountUndefinedForDecompress',
+            msg: 'DeCompressAmountUndefinedForDecompress',
+        },
+        {
+            code: 6010,
+            name: 'CompressedPdaUndefinedForCompress',
+            msg: 'CompressedPdaUndefinedForCompress',
+        },
+        {
+            code: 6011,
+            name: 'DeCompressAmountUndefinedForCompress',
+            msg: 'DeCompressAmountUndefinedForCompress',
+        },
+        {
+            code: 6012,
+            name: 'DelegateUndefined',
+            msg: 'DelegateUndefined while delegated amount is defined',
+        },
+        {
+            code: 6013,
+            name: 'DelegateSignerCheckFailed',
+            msg: 'DelegateSignerCheckFailed',
+        },
+        {
+            code: 6014,
+            name: 'SplTokenSupplyMismatch',
+            msg: 'SplTokenSupplyMismatch',
+        },
+        {
+            code: 6015,
+            name: 'HeapMemoryCheckFailed',
+            msg: 'HeapMemoryCheckFailed',
+        },
+        {
+            code: 6016,
+            name: 'InstructionNotCallable',
+            msg: 'The instruction is not callable',
+        },
+        {
+            code: 6017,
+            name: 'ArithmeticUnderflow',
+            msg: 'ArithmeticUnderflow',
+        },
+        {
+            code: 6018,
+            name: 'InvalidDelegate',
+            msg: 'InvalidDelegate',
+        },
+        {
+            code: 6019,
+            name: 'HashToFieldError',
+            msg: 'HashToFieldError',
+        },
+        {
+            code: 6020,
+            name: 'InvalidMint',
+            msg: 'InvalidMint',
         },
     ],
 };
