@@ -76,7 +76,7 @@ describe('mintTo', () => {
         /// wrong authority
         await expect(
             mintTo(rpc, payer, mint, bob.publicKey, payer, amount),
-        ).rejects.toThrowError(/custom program error: 0x7d3/);
+        ).rejects.toThrowError(/custom program error: 0x1786/);
 
         /// with output state merkle tree defined
         await mintTo(
