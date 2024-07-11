@@ -20,7 +20,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
-use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 
 pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
@@ -237,6 +236,7 @@ pub async fn fetch_address_queue_data<R: RpcConnection>(
 }
 
 
+#[allow(dead_code)]
 pub async fn fetch_address_tree<R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc: Arc<Mutex<R>>,
@@ -244,7 +244,7 @@ pub async fn fetch_address_tree<R: RpcConnection>(
     //IndexedMerkleTreeZeroCopy<Poseidon, usize, 26, 16>
     let address_tree_pubkey = config.address_merkle_tree_pubkey;
     let mut rpc = rpc.lock().await;
-    let mut account = rpc.get_account(address_tree_pubkey).await?.unwrap();
+    let account = rpc.get_account(address_tree_pubkey).await?.unwrap();
     let tree = address_merkle_tree_from_bytes_zero_copy(&account.data)?;
     let next_index = tree.next_index();
     Ok(next_index)

@@ -2,11 +2,9 @@ use crate::errors::ForesterError;
 use crate::nullifier::address::pipeline::AddressPipelineStage;
 use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
-use crate::operations::{fetch_address_queue_data, fetch_address_tree};
+use crate::operations::{fetch_address_queue_data};
 use crate::{ForesterConfig, RpcPool};
-use account_compression::utils::constants::{
-    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-};
+use account_compression::utils::constants::{ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG};
 use light_registry::sdk::{
     create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
 };
@@ -114,13 +112,15 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         }
 
         let mut queue_data = {
-            let rpc = context.rpc_pool.get_connection().await;
-            let address_tree = fetch_address_tree(context.config.clone(), rpc).await?;
-            info!("Fetched address tree: {:?}", address_tree);
+            // let rpc = context.rpc_pool.get_connection().await;
+            // let address_tree = fetch_address_tree(context.config.clone(), rpc).await?;
+            // info!("Fetched address tree: {:?}", address_tree);
             let rpc = context.rpc_pool.get_connection().await;
             let mut queue_data = fetch_address_queue_data(context.config.clone(), rpc).await?;
+            let batch_size = queue_data.len().min(context.config.batch_size);
             let mut rng = thread_rng();
             queue_data.shuffle(&mut rng);
+            let queue_data: Vec<ForesterQueueAccount> = queue_data.drain(..batch_size).collect();
             queue_data
         };
 
@@ -260,16 +260,28 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
     }
 }
 
+
 #[allow(clippy::too_many_arguments)]
 pub async fn update_merkle_tree<R: RpcConnection>(
     rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
-    account_data: ForesterAddressQueueAccountData,
+    mut account_data: ForesterAddressQueueAccountData,
 ) -> Result<bool, ForesterError> {
     let start = Instant::now();
+    let mut attempt = 0;
+    let max_attempts = 2400;
 
-    let update_ix =
-        create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
+    while attempt < max_attempts {
+        info!("Attempt {}: photon root_seq: {:?}", attempt + 1, account_data.proof.root_seq);
+        let root_seq = account_data.proof.root_seq;
+        let changelog_index = (root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16;
+        let indexed_changelog_index = ((root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG) as u16;
+
+        info!("root_seq: {:?}", root_seq);
+        info!("changelog_index: {:?}", changelog_index);
+        info!("indexed_changelog_index: {:?}", indexed_changelog_index);
+
+        let update_ix = create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
             authority: config.payer_keypair.pubkey(),
             address_merkle_tree: config.address_merkle_tree_pubkey,
             address_queue: config.address_merkle_tree_queue_pubkey,
@@ -278,52 +290,171 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             low_address_value: account_data.proof.low_address_value,
             low_address_next_index: account_data.proof.low_address_next_index,
             low_address_next_value: account_data.proof.low_address_next_value,
-            low_address_proof: account_data.proof.low_address_proof,
-            changelog_index: (account_data.proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-            indexed_changelog_index: ((account_data.proof.root_seq - 1)
-                % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
-                as u16,
+            low_address_proof: account_data.proof.low_address_proof.clone(),
+            changelog_index,
+            indexed_changelog_index,
         });
 
-    // Prepare the instructions
-    let instructions = vec![
-        ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
-        update_ix,
-    ];
+        let instructions = vec![
+            ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
+            update_ix,
+        ];
 
-    // Acquire the RPC lock only to get the latest blockhash
-    let latest_blockhash = {
-        let rpc = rpc_pool.get_connection().await;
-        let mut rpc_guard = rpc.lock().await;
-        rpc_guard.get_latest_blockhash().await?
-    };
+        let latest_blockhash = match {
+            let rpc = rpc_pool.get_connection().await;
+            let mut rpc_guard = rpc.lock().await;
+            rpc_guard.get_latest_blockhash().await
+        } {
+            Ok(blockhash) => blockhash,
+            Err(e) => {
+                error!("Failed to get latest blockhash: {:?}", e);
+                return Err(ForesterError::Custom(e.to_string()));
+            }
+        };
 
-    let blockhash_time = start.elapsed();
-    info!("Time to get blockhash: {:?}", blockhash_time);
+        let blockhash_time = start.elapsed();
+        info!("Time to get blockhash: {:?}", blockhash_time);
 
-    // Create the transaction
-    let transaction = Transaction::new_signed_with_payer(
-        &instructions,
-        Some(&config.payer_keypair.pubkey()),
-        &[&config.payer_keypair],
-        latest_blockhash,
-    );
+        let transaction = Transaction::new_signed_with_payer(
+            &instructions,
+            Some(&config.payer_keypair.pubkey()),
+            &[&config.payer_keypair],
+            latest_blockhash,
+        );
 
-    // Acquire the RPC lock again to send and confirm the transaction
-    let (signature, confirmed) = {
-        let rpc = rpc_pool.get_connection().await;
-        let mut rpc_guard = rpc.lock().await;
-        let signature = rpc_guard.process_transaction(transaction).await?;
-        let confirmed = rpc_guard.confirm_transaction(signature).await?;
-        (signature, confirmed)
-    };
-    // RPC mutex is unlocked here
+        let (signature, confirmed) = {
+            let rpc = rpc_pool.get_connection().await;
+            let mut rpc_guard = rpc.lock().await;
+
+            let signature = match rpc_guard.process_transaction(transaction).await {
+                Ok(sig) => sig,
+                Err(e) => {
+                    error!("Failed to process transaction: {:?}", e);
+                    if attempt < max_attempts - 1 {
+                        account_data.proof.root_seq += 1;
+                        info!("Incrementing root_seq to {} and retrying.", account_data.proof.root_seq);
+                        attempt += 1;
+                        continue;
+                    } else {
+                        return Err(ForesterError::Custom(e.to_string()));
+                    }
+                }
+            };
+
+            match rpc_guard.confirm_transaction(signature).await {
+                Ok(confirmed) => (signature, confirmed),
+                Err(e) => {
+                    error!("Failed to confirm transaction: {:?}", e);
+                    if attempt < max_attempts - 1 {
+                        account_data.proof.root_seq += 1;
+                        info!("Incrementing root_seq to {} and retrying.", account_data.proof.root_seq);
+                        attempt += 1;
+                        continue;
+                    } else {
+                        return Err(ForesterError::Custom(e.to_string()));
+                    }
+                }
+            }
+        };
+
+        info!("Processed: {:?}", signature);
+        info!("Confirmed: {:?} {}", signature, confirmed);
+
+        if confirmed {
+            let total_time = start.elapsed();
+            info!("Total time for successful transaction: {:?}", total_time);
+            return Ok(true);
+        }
+
+        // If transaction was not confirmed and it's not the last attempt, increment root_seq and retry
+        if attempt < max_attempts - 1 {
+            account_data.proof.root_seq += 1;
+            info!("Transaction not confirmed. Incrementing root_seq to {} and retrying.", account_data.proof.root_seq);
+        }
+
+        attempt += 1;
+    }
 
     let total_time = start.elapsed();
-    info!("Total time for transaction: {:?}", total_time);
-
-    info!("Processed: {:?}", signature);
-    info!("Confirmed: {:?} {}", signature, confirmed);
-
-    Ok(confirmed)
+    info!("Total time after all attempts: {:?}", total_time);
+    Ok(false)
 }
+
+
+
+//
+// #[allow(clippy::too_many_arguments)]
+// pub async fn update_merkle_tree<R: RpcConnection>(
+//     rpc_pool: RpcPool<R>,
+//     config: Arc<ForesterConfig>,
+//     account_data: ForesterAddressQueueAccountData,
+// ) -> Result<bool, ForesterError> {
+//     let start = Instant::now();
+//
+//     info!("photon root_seq: {:?}", account_data.proof.root_seq);
+//     let root_seq =  account_data.proof.root_seq;
+//     info!("root_seq / 4: {:?}", root_seq);
+//     let changelog_index = (root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16;
+//     info!("changelog_index: {:?}", changelog_index);
+//     let indexed_changelog_index = ((root_seq - 1) % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG) as u16;
+//     info!("indexed_changelog_index: {:?}", indexed_changelog_index);
+//
+//     let update_ix =
+//         create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
+//             authority: config.payer_keypair.pubkey(),
+//             address_merkle_tree: config.address_merkle_tree_pubkey,
+//             address_queue: config.address_merkle_tree_queue_pubkey,
+//             value: account_data.account.index as u16,
+//             low_address_index: account_data.proof.low_address_index,
+//             low_address_value: account_data.proof.low_address_value,
+//             low_address_next_index: account_data.proof.low_address_next_index,
+//             low_address_next_value: account_data.proof.low_address_next_value,
+//             low_address_proof: account_data.proof.low_address_proof,
+//             changelog_index: (root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+//             indexed_changelog_index: ((root_seq - 1)
+//                 % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
+//                 as u16,
+//         });
+//
+//     // Prepare the instructions
+//     let instructions = vec![
+//         ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),
+//         update_ix,
+//     ];
+//
+//     // Acquire the RPC lock only to get the latest blockhash
+//     let latest_blockhash = {
+//         let rpc = rpc_pool.get_connection().await;
+//         let mut rpc_guard = rpc.lock().await;
+//         rpc_guard.get_latest_blockhash().await?
+//     };
+//
+//     let blockhash_time = start.elapsed();
+//     info!("Time to get blockhash: {:?}", blockhash_time);
+//
+//     // Create the transaction
+//     let transaction = Transaction::new_signed_with_payer(
+//         &instructions,
+//         Some(&config.payer_keypair.pubkey()),
+//         &[&config.payer_keypair],
+//         latest_blockhash,
+//     );
+//
+//     // Acquire the RPC lock again to send and confirm the transaction
+//     let (signature, confirmed) = {
+//         let rpc = rpc_pool.get_connection().await;
+//         let mut rpc_guard = rpc.lock().await;
+//         let signature = rpc_guard.process_transaction(transaction).await?;
+//         let confirmed = rpc_guard.confirm_transaction(signature).await?;
+//         (signature, confirmed)
+//     };
+//     // RPC mutex is unlocked here
+//
+//     let total_time = start.elapsed();
+//     info!("Total time for transaction: {:?}", total_time);
+//
+//     info!("Processed: {:?}", signature);
+//     info!("Confirmed: {:?} {}", signature, confirmed);
+//
+//     Ok(confirmed)
+// }
