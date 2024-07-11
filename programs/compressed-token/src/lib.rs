@@ -137,6 +137,8 @@ pub enum ErrorCode {
     DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]
     DelegateSignerCheckFailed,
+    #[msg("Minted amount greater than u64::MAX")]
+    MintTooLarge,
     #[msg("SplTokenSupplyMismatch")]
     SplTokenSupplyMismatch,
     #[msg("HeapMemoryCheckFailed")]
@@ -151,4 +153,6 @@ pub enum ErrorCode {
     HashToFieldError,
     #[msg("InvalidMint")]
     InvalidMint,
+    #[msg("Expected the authority to be also a mint authority")]
+    InvalidAuthorityMint,
 }

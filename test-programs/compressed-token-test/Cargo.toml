@@ -40,3 +40,4 @@ num-bigint = "0.4.6"
 num-traits = "0.2.18"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
+rand = "0.8"
