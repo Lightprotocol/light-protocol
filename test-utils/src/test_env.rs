@@ -177,8 +177,7 @@ pub async fn setup_test_programs_with_accounts(
 pub async fn setup_accounts_devnet(payer: &Keypair, forester: &Keypair) -> EnvAccounts {
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Devnet, None);
 
-    let env_accounts = initialize_accounts(&mut rpc, payer, forester).await;
-    env_accounts
+    initialize_accounts(&mut rpc, payer, forester).await
 }
 
 pub async fn initialize_accounts<R: RpcConnection>(
@@ -192,13 +191,13 @@ pub async fn initialize_accounts<R: RpcConnection>(
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
         .unwrap();
 
     let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
     let group_pda =
-        initialize_new_group(&group_seed_keypair, &payer, context, cpi_authority_pda.0).await;
+        initialize_new_group(&group_seed_keypair, payer, context, cpi_authority_pda.0).await;
 
     let gov_authority = context
         .get_anchor_account::<GroupAuthority>(&authority_pda.0)
@@ -206,21 +205,21 @@ pub async fn initialize_accounts<R: RpcConnection>(
     assert_eq!(gov_authority.authority, payer.pubkey());
 
     println!("forester: {:?}", forester.pubkey());
-    register_test_forester(context, &payer, &forester.pubkey())
+    register_test_forester(context, payer, &forester.pubkey())
         .await
         .unwrap();
     let system_program_id_test_keypair =
         Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
     register_program_with_registry_program(
         context,
-        &payer,
+        payer,
         &group_pda,
         &system_program_id_test_keypair,
     )
     .await
     .unwrap();
     let registry_id_test_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    register_program_with_registry_program(context, &payer, &group_pda, &registry_id_test_keypair)
+    register_program_with_registry_program(context, payer, &group_pda, &registry_id_test_keypair)
         .await
         .unwrap();
 
@@ -230,7 +229,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
 
     create_state_merkle_tree_and_queue_account(
-        &payer,
+        payer,
         true,
         context,
         &merkle_tree_keypair,
@@ -249,7 +248,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
 
     create_address_merkle_tree_and_queue_account(
-        &payer,
+        payer,
         true,
         context,
         &address_merkle_tree_keypair,
@@ -262,10 +261,10 @@ pub async fn initialize_accounts<R: RpcConnection>(
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
 
-    init_cpi_context_account(context, &merkle_tree_pubkey, &cpi_signature_keypair, &payer).await;
+    init_cpi_context_account(context, &merkle_tree_pubkey, &cpi_signature_keypair, payer).await;
     let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
-    let env_accounts = EnvAccounts {
+    EnvAccounts {
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         group_pda,
@@ -278,9 +277,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         registered_registry_program_pda,
         registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
-    };
-
-    env_accounts
+    }
 }
 
 pub async fn initialize_new_group<R: RpcConnection>(
