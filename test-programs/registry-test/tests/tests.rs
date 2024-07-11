@@ -10,7 +10,6 @@ use light_registry::{
     },
     ForesterEpoch, LightGovernanceAuthority, RegistryError,
 };
-use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::{
     registry::{
         create_rollover_address_merkle_tree_instructions,
@@ -23,6 +22,7 @@ use light_test_utils::{
         setup_test_programs_with_accounts,
     },
 };
+use light_test_utils::{rpc::solana_rpc::SolanaRpcUrl, test_env::setup_accounts_devnet};
 use solana_sdk::{
     instruction::Instruction,
     native_token::LAMPORTS_PER_SOL,
@@ -305,4 +305,17 @@ async fn update_registry_governance_on_testnet() {
         .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
         .await;
     assert_eq!(governance_authority.authority, updated_keypair.pubkey());
+}
+
+// cargo test-sbf -p registry-test -- --test init_accounts --ignored --nocapture
+// TODO: refactor into xtask
+#[ignore]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn init_accounts() {
+    let authority_keypair =
+        read_keypair_file("../../target/governance-authority-keypair.json").unwrap();
+    let forester_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
+    println!("authority pubkey: {:?}", authority_keypair.pubkey());
+    println!("forester pubkey: {:?}", forester_keypair.pubkey());
+    setup_accounts_devnet(&authority_keypair, &forester_keypair).await;
 }

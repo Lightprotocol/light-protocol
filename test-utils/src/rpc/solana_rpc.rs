@@ -22,6 +22,8 @@ use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 
 pub enum SolanaRpcUrl {
+    Testnet,
+    Devnet,
     Localnet,
     ZKTestnet,
     Custom(String),
@@ -30,6 +32,8 @@ pub enum SolanaRpcUrl {
 impl Display for SolanaRpcUrl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
+            SolanaRpcUrl::Testnet => "https://api.testnet.solana.com".to_string(),
+            SolanaRpcUrl::Devnet => "https://api.devnet.solana.com".to_string(),
             SolanaRpcUrl::Localnet => "http://localhost:8899".to_string(),
             SolanaRpcUrl::ZKTestnet => "https://zk-testnet.helius.dev:8899".to_string(),
             SolanaRpcUrl::Custom(url) => url.clone(),
