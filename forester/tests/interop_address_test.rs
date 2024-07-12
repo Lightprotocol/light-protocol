@@ -1,4 +1,5 @@
 use forester::indexer::PhotonIndexer;
+use light_bounded_vec::BoundedVec;
 use light_hasher::Poseidon;
 use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::{Indexer};
@@ -42,14 +43,26 @@ async fn test_photon_onchain_roots() {
 
     let env_accounts = get_test_env_accounts();
 
-    let rpc_url = "https://zk-testnet.helius.dev:8899".to_string();
-    let indexer_url = "https://zk-testnet.helius.dev:8784".to_string();
+    let rpc_url = "http://zk-testnet.helius.dev:8923".to_string();
+    let indexer_url = "http://zk-testnet.helius.dev:8785".to_string();
+
+    // RPC_URL = 'http://zk-testnet.helius.dev:8923'
+    // WS_RPC_URL="wss://zk-testnet.helius.dev:8900"
+    // INDEXER_URL = 'http://zk-testnet.helius.dev:8785'
+    // PROVER_URL = 'https://zk-testnet.helius.dev:3001'
 
     let photon_indexer = PhotonIndexer::new(indexer_url.to_string());
 
-    let mut address = [0u8; 32];
-    rand::thread_rng().fill(&mut address[..]);
-    info!("Address: {:?}", address);
+    // let mut address = [0u8; 32];
+    // rand::thread_rng().fill(&mut address[..]);
+    // info!("Address: {:?}", address);
+
+    let address = [
+        0, 146, 245, 246, 251,  64,  92,  15,
+      173,  40, 144, 190, 210, 213, 220,  64,
+      196, 120, 140, 140,  27, 153,  29,  19,
+      191,  16,  44, 227, 109, 195, 179, 195
+    ];
 
     let proof = photon_indexer.get_multiple_new_address_proofs(
         [0u8; 32],
@@ -68,6 +81,13 @@ async fn test_photon_onchain_roots() {
     >(&mut rpc, env_accounts.address_merkle_tree_pubkey)
         .await;
 
+    let mut proof_vec = BoundedVec::with_capacity(26);
+    for i in 0..16 {
+        proof_vec.push(proof.low_address_proof[i]);
+    }
+    merkle_tree.update_proof_from_canopy(proof.low_address_index as usize, &mut proof_vec);
+    assert_eq!(proof_vec.as_slice().to_vec(), proof.low_address_proof);
+
     let changelog_index = merkle_tree.changelog_index();
     info!("changelog_index: {:?}", changelog_index);
     info!("merkle_tree.next_index: {:?}", merkle_tree.next_index());
@@ -81,6 +101,6 @@ async fn test_photon_onchain_roots() {
     info!("photon index_changelog: {:?}", indexer_index_changelog);
 
     for (i, root) in merkle_tree.roots.iter().enumerate() {
-        info!("{} {:?}", i, root);
+        info!("{} {:?}", (i + merkle_tree.roots.first_index()) % 2400, root);
     }
 }
