@@ -15,6 +15,6 @@
     "@types/chai": "^4.3.16",
     "@types/mocha": "^10.0.7",
     "typescript": "^5.5.3",
-    "prettier": "^3.3.2"
+    "prettier": "^3.3.3"
   }
 }
