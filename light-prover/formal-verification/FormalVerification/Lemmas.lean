@@ -1,4 +1,10 @@
 import Mathlib
+import FormalVerification.Circuit
+
+open LightProver (F Order)
+
+axiom bn254_Fr_prime : Nat.Prime Order
+instance : Fact (Nat.Prime Order) := Fact.mk bn254_Fr_prime
 
 namespace ZMod
 
