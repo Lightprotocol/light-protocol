@@ -10,10 +10,12 @@ use light_compressed_token::token_data::AccountState;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::spl::approve_test;
 use light_test_utils::spl::burn_test;
+use light_test_utils::spl::create_burn_test_instruction;
 use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
+use light_test_utils::spl::BurnInstructionMode;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
@@ -1586,6 +1588,222 @@ async fn test_burn() {
             None,
         )
         .await;
+    }
+}
+
+#[tokio::test]
+async fn failing_tests_burn() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount],
+        vec![sender.pubkey()],
+    )
+    .await;
+    // Delegate tokens
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let delegated_amount = 1000u64;
+        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        approve_test(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            delegated_amount,
+            &delegate.pubkey(),
+            &delegated_compressed_account_merkle_tree,
+            &delegated_compressed_account_merkle_tree,
+            None,
+        )
+        .await;
+    }
+    // 1. invalid proof
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let burn_amount = 1;
+        let change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &change_account_merkle_tree,
+            burn_amount,
+            false,
+            BurnInstructionMode::InvalidProof,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &sender.pubkey(), &[&payer, &sender])
+            .await;
+        assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 2. Signer is delegate but token data has no delegate.
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let burn_amount = 1;
+        let change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &change_account_merkle_tree,
+            burn_amount,
+            true,
+            BurnInstructionMode::Normal,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &delegate.pubkey(), &[&payer, &delegate])
+            .await;
+        assert_rpc_error(res, 0, ErrorCode::DelegateSignerCheckFailed.into()).unwrap();
+    }
+    // 3. Signer is delegate but token data has no delegate.
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let burn_amount = 1;
+        let change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &change_account_merkle_tree,
+            burn_amount,
+            true,
+            BurnInstructionMode::Normal,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &sender.pubkey(), &[&payer, &sender])
+            .await;
+        assert_rpc_error(res, 0, ErrorCode::DelegateSignerCheckFailed.into()).unwrap();
+    }
+    // 4. invalid authority (use delegate as authority)
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let burn_amount = 1;
+        let change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &change_account_merkle_tree,
+            burn_amount,
+            false,
+            BurnInstructionMode::Normal,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &delegate.pubkey(), &[&payer, &delegate])
+            .await;
+        assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 5. invalid mint
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let burn_amount = 1;
+        let change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &change_account_merkle_tree,
+            burn_amount,
+            false,
+            BurnInstructionMode::InvalidMint,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &sender])
+            .await;
+        assert_rpc_error(
+            res,
+            0,
+            anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
+        )
+        .unwrap();
+    }
+    // 6. invalid change merkle tree
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let burn_amount = 1;
+        let invalid_change_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .nullifier_queue_pubkey;
+        let (_, _, _, _, instruction) = create_burn_test_instruction(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            &input_compressed_accounts,
+            &invalid_change_account_merkle_tree,
+            burn_amount,
+            false,
+            BurnInstructionMode::Normal,
+        )
+        .await;
+        let res = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &sender])
+            .await;
+        assert_rpc_error(
+            res,
+            0,
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
 }
 

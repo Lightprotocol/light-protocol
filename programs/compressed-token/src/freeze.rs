@@ -287,6 +287,7 @@ pub mod test_freeze {
     use crate::{
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::AccountState, TokenData,
     };
+    use rand::Rng;
 
     use super::*;
     use anchor_lang::solana_program::account_info::AccountInfo;
@@ -486,5 +487,69 @@ pub mod test_freeze {
             });
         }
         expected_compressed_output_accounts
+    }
+    pub fn get_rnd_input_token_data_with_contexts(
+        rng: &mut rand::rngs::ThreadRng,
+        num: usize,
+    ) -> Vec<InputTokenDataWithContext> {
+        let mut vec = Vec::with_capacity(num);
+        for _ in 0..num {
+            let delegate_index = if rng.gen_bool(0.5) { Some(1) } else { None };
+            vec.push(InputTokenDataWithContext {
+                amount: rng.gen_range(0..1_000_000_000),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 1,
+                    leaf_index: rng.gen_range(0..1_000_000_000),
+                    queue_index: None,
+                },
+                root_index: rng.gen_range(0..=65_535),
+                delegate_index,
+                lamports: None,
+            });
+        }
+        vec
+    }
+    pub fn create_expected_input_accounts(
+        input_token_data_with_context: &Vec<InputTokenDataWithContext>,
+        mint: &Pubkey,
+        owner: &Pubkey,
+        remaining_accounts: &[Pubkey],
+    ) -> Vec<PackedCompressedAccountWithMerkleContext> {
+        use light_hasher::DataHasher;
+        input_token_data_with_context
+            .iter()
+            .map(|x| {
+                let delegate = if let Some(index) = x.delegate_index {
+                    Some(remaining_accounts[index as usize])
+                } else {
+                    None
+                };
+                let token_data = TokenData {
+                    mint: *mint,
+                    owner: *owner,
+                    amount: x.amount,
+                    delegate,
+                    state: AccountState::Initialized,
+                };
+                let mut data = Vec::new();
+                token_data.serialize(&mut data).unwrap();
+                let data_hash = token_data.hash::<Poseidon>().unwrap();
+                PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: crate::ID,
+                        lamports: 0,
+                        address: None,
+                        data: Some(CompressedAccountData {
+                            data,
+                            data_hash,
+                            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                        }),
+                    },
+                    root_index: x.root_index,
+                    merkle_context: x.merkle_context,
+                }
+            })
+            .collect()
     }
 }

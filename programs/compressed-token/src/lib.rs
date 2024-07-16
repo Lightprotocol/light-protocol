@@ -112,8 +112,6 @@ pub mod light_compressed_token {
 pub enum ErrorCode {
     #[msg("public keys and amounts must be of same length")]
     PublicKeyAmountMissmatch,
-    #[msg("SignerCheckFailed")]
-    SignerCheckFailed,
     #[msg("ComputeInputSumFailed")]
     ComputeInputSumFailed,
     #[msg("ComputeOutputSumFailed")]
@@ -134,8 +132,6 @@ pub enum ErrorCode {
     CompressedPdaUndefinedForCompress,
     #[msg("DeCompressAmountUndefinedForCompress")]
     DeCompressAmountUndefinedForCompress,
-    #[msg("DelegateUndefined while delegated amount is defined")]
-    DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]
     DelegateSignerCheckFailed,
     #[msg("Minted amount greater than u64::MAX")]
@@ -148,12 +144,8 @@ pub enum ErrorCode {
     InstructionNotCallable,
     #[msg("ArithmeticUnderflow")]
     ArithmeticUnderflow,
-    #[msg("InvalidDelegate")]
-    InvalidDelegate,
     #[msg("HashToFieldError")]
     HashToFieldError,
-    #[msg("InvalidMint")]
-    InvalidMint,
     #[msg("Expected the authority to be also a mint authority")]
     InvalidAuthorityMint,
 }

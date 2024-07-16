@@ -1,26 +1,20 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::TokenAccount;
 use light_system_program::{
     invoke::processor::CompressedProof,
-    sdk::{
-        accounts::{InvokeAccounts, SignerAccounts},
-        compressed_account::PackedCompressedAccountWithMerkleContext,
-        CompressedCpiContext,
-    },
+    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
     OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    process_mint::POOL_SEED,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts, get_cpi_signer_seeds,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
-    ErrorCode,
+    BurnInstruction, ErrorCode,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -31,76 +25,6 @@ pub struct CompressedTokenInstructionDataBurn {
     pub burn_amount: u64,
     pub change_account_merkle_tree_index: u8,
     pub delegated_transfer: Option<DelegatedTransfer>,
-}
-
-#[derive(Accounts)]
-pub struct BurnInstruction<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    pub authority: Signer<'info>,
-    /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
-    pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: that authority is mint authority
-    #[account(mut)]
-    pub mint: Account<'info, Mint>,
-    /// CHECK: the seed of token pool
-    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
-    pub token_pool_pda: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    /// CHECK: this account is checked in account compression program
-    pub registered_program_pda: AccountInfo<'info>,
-    /// CHECK: this account
-    pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
-    pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
-    pub system_program: Program<'info, System>,
-}
-
-impl<'info> InvokeAccounts<'info> for BurnInstruction<'info> {
-    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
-        &self.registered_program_pda
-    }
-
-    fn get_noop_program(&self) -> &UncheckedAccount<'info> {
-        &self.noop_program
-    }
-
-    fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
-        &self.account_compression_authority
-    }
-
-    fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
-        &self.account_compression_program
-    }
-
-    fn get_system_program(&self) -> &Program<'info, System> {
-        &self.system_program
-    }
-
-    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
-        None
-    }
-
-    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
-        None
-    }
-}
-
-impl<'info> SignerAccounts<'info> for BurnInstruction<'info> {
-    fn get_fee_payer(&self) -> &Signer<'info> {
-        &self.fee_payer
-    }
-
-    fn get_authority(&self) -> &Signer<'info> {
-        &self.authority
-    }
 }
 
 // TODO: use spl burn instruction to actually burn the tokens
@@ -181,8 +105,9 @@ pub fn create_input_and_output_accounts_burn(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
+    const IS_FROZEN: bool = false;
     let (mut compressed_input_accounts, input_token_data) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<IS_FROZEN>(
             authority,
             &inputs.delegated_transfer,
             remaining_accounts,
@@ -349,13 +274,19 @@ pub mod sdk {
 
 #[cfg(test)]
 mod test {
+
     use super::*;
     use crate::{
-        freeze::test_freeze::create_expected_token_output_accounts, token_data::AccountState,
+        freeze::test_freeze::{
+            create_expected_input_accounts, create_expected_token_output_accounts,
+            get_rnd_input_token_data_with_contexts,
+        },
+        token_data::AccountState,
         TokenData,
     };
     use anchor_lang::solana_program::account_info::AccountInfo;
     use light_system_program::sdk::compressed_account::PackedMerkleContext;
+    use rand::Rng;
 
     // TODO: add randomized and edge case tests
     #[test]
@@ -390,9 +321,10 @@ mod test {
         ];
         let authority = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
-        let input_token_data_with_context = vec![
-            InputTokenDataWithContext {
-                amount: 100,
+        let test_amounts = vec![0, 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000];
+        for test_amount in test_amounts {
+            let input_token_data_with_context = vec![InputTokenDataWithContext {
+                amount: test_amount,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -402,47 +334,305 @@ mod test {
                 root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
-            },
-            InputTokenDataWithContext {
-                amount: 101,
-
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
-                    leaf_index: 2,
-                    queue_index: None,
-                },
-                root_index: 0,
-                delegate_index: None,
-                lamports: None,
-            },
-        ];
-        let inputs = CompressedTokenInstructionDataBurn {
-            proof: CompressedProof::default(),
-            input_token_data_with_context,
-            cpi_context: None,
-            burn_amount: 50,
-            change_account_merkle_tree_index: 1,
-            delegated_transfer: None,
-        };
-        let (compressed_input_accounts, output_compressed_accounts) =
-            create_input_and_output_accounts_burn(&inputs, &authority, &remaining_accounts, &mint)
+            }];
+            let inputs = CompressedTokenInstructionDataBurn {
+                proof: CompressedProof::default(),
+                input_token_data_with_context,
+                cpi_context: None,
+                burn_amount: std::cmp::min(50, test_amount),
+                change_account_merkle_tree_index: 0,
+                delegated_transfer: None,
+            };
+            let (compressed_input_accounts, output_compressed_accounts) =
+                create_input_and_output_accounts_burn(
+                    &inputs,
+                    &authority,
+                    &remaining_accounts,
+                    &mint,
+                )
                 .unwrap();
-        assert_eq!(compressed_input_accounts.len(), 2);
-        assert_eq!(output_compressed_accounts.len(), 1);
-        let expected_change_token_data = TokenData {
-            mint,
-            owner: authority,
-            amount: 151,
-            delegate: None,
-            state: AccountState::Initialized,
-        };
-        let expected_compressed_output_accounts =
-            create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+            assert_eq!(compressed_input_accounts.len(), 1);
+            let change_amount = test_amount.saturating_sub(inputs.burn_amount);
+            assert_eq!(
+                output_compressed_accounts.len(),
+                std::cmp::min(1, change_amount) as usize
+            );
+            if change_amount != 0 {
+                let expected_change_token_data = TokenData {
+                    mint,
+                    owner: authority,
+                    amount: change_amount,
+                    delegate: None,
+                    state: AccountState::Initialized,
+                };
+                let expected_compressed_output_accounts = create_expected_token_output_accounts(
+                    vec![expected_change_token_data],
+                    vec![0],
+                );
 
-        assert_eq!(
-            output_compressed_accounts,
-            expected_compressed_output_accounts
-        );
+                assert_eq!(
+                    output_compressed_accounts,
+                    expected_compressed_output_accounts
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_rnd_burn() {
+        let mut rng = rand::rngs::ThreadRng::default();
+        let merkle_tree_pubkey = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports = 0;
+        let mut merkle_tree_account_data = Vec::new();
+        let nullifier_queue_pubkey = Pubkey::new_unique();
+        let mut nullifier_queue_account_lamports = 0;
+        let mut nullifier_queue_account_data = Vec::new();
+        let remaining_accounts = vec![
+            AccountInfo::new(
+                &merkle_tree_pubkey,
+                false,
+                false,
+                &mut merkle_tree_account_lamports,
+                &mut merkle_tree_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &nullifier_queue_pubkey,
+                false,
+                false,
+                &mut nullifier_queue_account_lamports,
+                &mut nullifier_queue_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+        ];
+
+        let iter = 1_000;
+        for _ in 0..iter {
+            let authority = Pubkey::new_unique();
+            let mint = Pubkey::new_unique();
+            let num_inputs = rng.gen_range(1..=8);
+            let input_token_data_with_context =
+                get_rnd_input_token_data_with_contexts(&mut rng, num_inputs);
+            let sum_inputs = input_token_data_with_context
+                .iter()
+                .map(|x| x.amount)
+                .sum::<u64>();
+            let burn_amount = rng.gen_range(0..sum_inputs);
+            let inputs = CompressedTokenInstructionDataBurn {
+                proof: CompressedProof::default(),
+                input_token_data_with_context: input_token_data_with_context.clone(),
+                cpi_context: None,
+                burn_amount,
+                change_account_merkle_tree_index: 0,
+                delegated_transfer: None,
+            };
+            let (compressed_input_accounts, output_compressed_accounts) =
+                create_input_and_output_accounts_burn(
+                    &inputs,
+                    &authority,
+                    &remaining_accounts,
+                    &mint,
+                )
+                .unwrap();
+            let expected_input_accounts = create_expected_input_accounts(
+                &input_token_data_with_context,
+                &mint,
+                &authority,
+                remaining_accounts
+                    .iter()
+                    .map(|x| x.key)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            assert_eq!(compressed_input_accounts, expected_input_accounts);
+            assert_eq!(compressed_input_accounts.len(), num_inputs);
+            assert_eq!(output_compressed_accounts.len(), 1);
+            let expected_change_token_data = TokenData {
+                mint,
+                owner: authority,
+                amount: sum_inputs - burn_amount,
+                delegate: None,
+                state: AccountState::Initialized,
+            };
+            let expected_compressed_output_accounts =
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
+
+            assert_eq!(
+                output_compressed_accounts,
+                expected_compressed_output_accounts
+            );
+        }
+    }
+
+    #[test]
+    fn failing_tests_burn() {
+        let merkle_tree_pubkey = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports = 0;
+        let mut merkle_tree_account_data = Vec::new();
+        let nullifier_queue_pubkey = Pubkey::new_unique();
+        let mut nullifier_queue_account_lamports = 0;
+        let mut nullifier_queue_account_data = Vec::new();
+        let remaining_accounts = vec![
+            AccountInfo::new(
+                &merkle_tree_pubkey,
+                false,
+                false,
+                &mut merkle_tree_account_lamports,
+                &mut merkle_tree_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &nullifier_queue_pubkey,
+                false,
+                false,
+                &mut nullifier_queue_account_lamports,
+                &mut nullifier_queue_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+        ];
+        let authority = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let input_token_data_with_context = vec![InputTokenDataWithContext {
+            amount: 100,
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 1,
+                leaf_index: 1,
+                queue_index: None,
+            },
+            root_index: 0,
+            delegate_index: Some(1),
+            lamports: None,
+        }];
+
+        // Burn amount too high
+        {
+            let mut invalid_input_token_data_with_context = input_token_data_with_context.clone();
+            invalid_input_token_data_with_context[0].amount = 0;
+            let inputs = CompressedTokenInstructionDataBurn {
+                proof: CompressedProof::default(),
+                input_token_data_with_context: invalid_input_token_data_with_context,
+                cpi_context: None,
+                burn_amount: 50,
+                change_account_merkle_tree_index: 1,
+                delegated_transfer: None,
+            };
+            let result = create_input_and_output_accounts_burn(
+                &inputs,
+                &authority,
+                &remaining_accounts,
+                &mint,
+            );
+            let error_code = ErrorCode::ArithmeticUnderflow as u32 + 6000;
+            assert!(matches!(
+                result.unwrap_err(),
+                anchor_lang::error::Error::AnchorError(error) if error.error_code_number == error_code
+            ));
+        }
+        // invalid authority
+        {
+            let invalid_authority = Pubkey::new_unique();
+            let inputs = CompressedTokenInstructionDataBurn {
+                proof: CompressedProof::default(),
+                input_token_data_with_context: input_token_data_with_context.clone(),
+                cpi_context: None,
+                burn_amount: 50,
+                change_account_merkle_tree_index: 1,
+                delegated_transfer: None,
+            };
+            let (compressed_input_accounts, output_compressed_accounts) =
+                create_input_and_output_accounts_burn(
+                    &inputs,
+                    &invalid_authority,
+                    &remaining_accounts,
+                    &mint,
+                )
+                .unwrap();
+            let expected_input_accounts = create_expected_input_accounts(
+                &input_token_data_with_context,
+                &mint,
+                &invalid_authority,
+                remaining_accounts
+                    .iter()
+                    .map(|x| x.key)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            assert_eq!(compressed_input_accounts, expected_input_accounts);
+            let expected_change_token_data = TokenData {
+                mint,
+                owner: invalid_authority,
+                amount: 50,
+                delegate: None,
+                state: AccountState::Initialized,
+            };
+            let expected_compressed_output_accounts =
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+
+            assert_eq!(
+                output_compressed_accounts,
+                expected_compressed_output_accounts
+            );
+        }
+        // Invalid Mint
+        {
+            let mut invalid_input_token_data_with_context = input_token_data_with_context.clone();
+            invalid_input_token_data_with_context[0].amount = 0;
+            let invalid_mint = Pubkey::new_unique();
+            let inputs = CompressedTokenInstructionDataBurn {
+                proof: CompressedProof::default(),
+                input_token_data_with_context: input_token_data_with_context.clone(),
+                cpi_context: None,
+                burn_amount: 50,
+                change_account_merkle_tree_index: 1,
+                delegated_transfer: None,
+            };
+            let (compressed_input_accounts, output_compressed_accounts) =
+                create_input_and_output_accounts_burn(
+                    &inputs,
+                    &authority,
+                    &remaining_accounts,
+                    &invalid_mint,
+                )
+                .unwrap();
+            assert_eq!(compressed_input_accounts.len(), 1);
+            assert_eq!(output_compressed_accounts.len(), 1);
+            let expected_input_accounts = create_expected_input_accounts(
+                &input_token_data_with_context,
+                &invalid_mint,
+                &authority,
+                remaining_accounts
+                    .iter()
+                    .map(|x| x.key)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+            assert_eq!(compressed_input_accounts, expected_input_accounts);
+            let expected_change_token_data = TokenData {
+                mint: invalid_mint,
+                owner: authority,
+                amount: 50,
+                delegate: None,
+                state: AccountState::Initialized,
+            };
+            let expected_compressed_output_accounts =
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+
+            assert_eq!(
+                output_compressed_accounts,
+                expected_compressed_output_accounts
+            );
+        }
     }
 }

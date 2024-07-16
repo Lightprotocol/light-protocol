@@ -1,4 +1,7 @@
-use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
+use account_compression::{
+    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
+    StateMerkleTreeAccount,
+};
 use anchor_lang::prelude::*;
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::Poseidon;
@@ -121,6 +124,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
 ) -> Result<(u32, Option<u64>, u64)> {
     let (seq, next_index) = {
         let merkle_tree = merkle_tree_acc_info.try_borrow_data()?;
+        check_discriminator::<StateMerkleTreeAccount>(&merkle_tree).map_err(ProgramError::from)?;
         let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
             &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
         )
