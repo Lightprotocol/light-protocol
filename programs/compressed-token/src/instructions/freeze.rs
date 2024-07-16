@@ -7,7 +7,8 @@ use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
 pub struct FreezeInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(address= mint.freeze_authority.unwrap())]
+    #[account(address= mint.freeze_authority.unwrap()
+        @ crate::ErrorCode::InvalidFreezeAuthority)]
     pub authority: Signer<'info>,
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]

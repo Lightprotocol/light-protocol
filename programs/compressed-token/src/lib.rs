@@ -155,4 +155,6 @@ pub enum ErrorCode {
     InvalidMint,
     #[msg("Expected the authority to be also a mint authority")]
     InvalidAuthorityMint,
+    #[msg("Provided authority is not the freeze authority")]
+    InvalidFreezeAuthority,
 }
