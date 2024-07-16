@@ -52,7 +52,6 @@ pub fn process_freeze_or_thaw<
             &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
         )?;
-    // TODO: implement trait for TransferInstruction and FreezeInstruction
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
@@ -63,8 +62,7 @@ pub fn process_freeze_or_thaw<
         ctx.accounts.light_system_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn create_input_and_output_accounts_freeze_or_thaw<

@@ -62,8 +62,6 @@
 **/*.iml
 
 /**/dump.rdb
-psp-examples/tmp-test-psp
-psp-examples/tmp-test-circom
 
 /**/package-lock.json
 qodana.yaml
