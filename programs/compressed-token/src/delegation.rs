@@ -59,8 +59,7 @@ pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts.light_system_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn create_input_and_output_accounts_approve(
@@ -71,8 +70,9 @@ pub fn create_input_and_output_accounts_approve(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
+    const IS_FROZEN: bool = false;
     let (mut compressed_input_accounts, input_token_data) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<IS_FROZEN>(
             authority,
             &None,
             remaining_accounts,
@@ -105,7 +105,8 @@ pub fn create_input_and_output_accounts_approve(
             inputs.change_account_merkle_tree_index,
         ],
     )?;
-    add_token_data_to_input_compressed_accounts::<false>(
+    const FROZEN_INPUTS: bool = false;
+    add_token_data_to_input_compressed_accounts::<FROZEN_INPUTS>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,

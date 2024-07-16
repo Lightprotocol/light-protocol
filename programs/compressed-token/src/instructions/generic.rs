@@ -4,23 +4,29 @@ use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
 
 #[derive(Accounts)]
 pub struct GenericInstruction<'info> {
+    /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+    /// CHECK: is checked by proof verification since authority is either owner
+    /// or delegate both are included in the token data hash, thus in the
+    /// compressed data hash thus in the compressed account hash which is public
+    /// input to the validity proof.
     pub authority: Signer<'info>,
-    /// CHECK: that mint authority is derived from signer
+    /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    /// CHECK: this account is checked in account compression program
+    /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: AccountInfo<'info>,
-    /// CHECK: this account
+    /// CHECK: (different program) checked in system and account compression programs
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
+    /// CHECK: (different program) is used to cpi account compression program from light system program.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
+    /// CHECK: (different program) checked in light system program to derive
+    /// cpi_authority_pda and check that this program is the signer of the cpi.
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     pub system_program: Program<'info, System>,
 }

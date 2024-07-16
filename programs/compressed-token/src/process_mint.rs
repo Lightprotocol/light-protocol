@@ -16,6 +16,7 @@ pub const POOL_SEED: &[u8] = b"pool";
 /// creates a token pool account which is owned by the token authority pda
 #[derive(Accounts)]
 pub struct CreateTokenPoolInstruction<'info> {
+    /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     #[account(
@@ -314,10 +315,12 @@ pub fn mint_spl_to_pool_pda<'info>(
 
 #[derive(Accounts)]
 pub struct MintToInstruction<'info> {
+    /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+    /// CHECK: is checked by mint account macro.
     pub authority: Signer<'info>,
-    /// CHECK: that mint authority is derived from signer
+    /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
@@ -327,24 +330,27 @@ pub struct MintToInstruction<'info> {
             @ crate::ErrorCode::InvalidAuthorityMint
     )]
     pub mint: Account<'info, Mint>,
-    /// CHECK: this account
+    /// CHECK: this account is checked implictly since a mint to from a mint
+    /// account to a token account of a different mint will fail
     #[account(mut)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    /// CHECK: this account
+    /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
-    /// CHECK: this account
+    /// CHECK: (different program) checked in system and account compression
+    /// programs
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
+    /// CHECK: this account in account compression program
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID)]
     pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
+    /// CHECK: this account in account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    /// CHECK: this account will be checked by psp compressed pda program
+    /// CHECK: (different program) will be checked by the system program
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
+    /// CHECK: (different program) will be checked by the system program
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     pub system_program: Program<'info, System>,
 }
