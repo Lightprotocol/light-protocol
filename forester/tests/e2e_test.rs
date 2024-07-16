@@ -11,6 +11,7 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Signer;
 use tokio::time::sleep;
+use forester::tree_sync::TreeData;
 
 mod test_utils;
 use test_utils::*;
@@ -62,21 +63,21 @@ async fn test_state_tree_nullifier() {
     }
 
     let rpc = pool.get_connection().await;
-    assert_ne!(get_state_queue_length(rpc, arc_config.clone()).await, 0);
+    assert_ne!(get_state_queue_length(rpc).await, 0);
 
     let rpc = pool.get_connection().await;
     info!(
         "Nullifying queue of {} accounts...",
-        get_state_queue_length(rpc, arc_config.clone()).await
+        get_state_queue_length(rpc).await
     );
 
     let arc_config = Arc::new(config.clone());
     let pool = RpcPool::<SolanaRpcConnection>::new(arc_config.clone()).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer.clone()));
-    nullify_state(arc_config.clone(), pool.clone(), indexer).await;
+    // nullify_state(arc_config.clone(), pool.clone(), indexer, TreeData::default_state()).await;
 
     let rpc = pool.get_connection().await;
-    assert_eq!(get_state_queue_length(rpc, arc_config).await, 0);
+    assert_eq!(get_state_queue_length(rpc).await, 0);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

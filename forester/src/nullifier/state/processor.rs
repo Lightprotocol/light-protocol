@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{mpsc, Mutex};
+use crate::tree_sync::TreeData;
 
 pub struct StateProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<StatePipelineStage<T, R>>,
@@ -112,20 +113,20 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
 
         let mut queue_data = {
             let rpc = context.rpc_pool.get_connection().await;
-            let mut queue_data = fetch_state_queue_data(context.config.clone(), rpc).await?;
+            let mut queue_data = fetch_state_queue_data(rpc, context.tree_data).await?;
             let mut rng = thread_rng();
-            queue_data.shuffle(&mut rng);
+            queue_data.data.shuffle(&mut rng);
             queue_data
         };
 
-        info!("Fetched state queue data len: {:?}", queue_data.len());
-        if queue_data.is_empty() {
+        info!("Fetched state queue data len: {:?}", queue_data.data.len());
+        if queue_data.data.is_empty() {
             info!("State queue is empty");
             Ok(Some(StatePipelineStage::Complete))
         } else {
-            let batch_size = queue_data.len().min(context.config.batch_size);
-            let batch: Vec<ForesterQueueAccountData> = queue_data.drain(..batch_size).collect();
-            *state_queue = queue_data;
+            let batch_size = queue_data.data.len().min(context.config.batch_size);
+            let batch: Vec<ForesterQueueAccountData> = queue_data.data.drain(..batch_size).collect();
+            *state_queue = queue_data.data;
             Ok(Some(StatePipelineStage::FetchProofs(
                 context.clone(),
                 batch,
@@ -184,7 +185,6 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
         context: PipelineContext<T, R>,
         account_data_batch: Vec<ForesterQueueAccountData>,
     ) -> Result<Option<StatePipelineStage<T, R>>, ForesterError> {
-        let config = &context.config;
         let indexer = &context.indexer;
 
         let (tx, mut rx) = mpsc::channel(account_data_batch.len());
@@ -200,8 +200,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
                         context.rpc_pool.clone(),
                         context.config.clone(),
                         &context.config.payer_keypair,
-                        context.config.nullifier_queue_pubkey,
-                        context.config.state_merkle_tree_pubkey,
+                        context.tree_data,
                         account_data.account.index as u16,
                         account_data.leaf_index,
                         account_data.proof.clone(),
@@ -239,7 +238,7 @@ impl<T: Indexer<R>, R: RpcConnection> StateProcessor<T, R> {
             if success {
                 debug!("State nullified: {:?}", account_data.account.hash_string());
                 indexer.lock().await.account_nullified(
-                    config.state_merkle_tree_pubkey,
+                    context.tree_data.tree_pubkey,
                     &account_data.account.hash_string(),
                 );
             } else {
@@ -264,8 +263,7 @@ async fn nullify_state<R: RpcConnection>(
     rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
     payer: &Keypair,
-    nullifier_queue_pubkey: Pubkey,
-    state_merkle_tree_pubkey: Pubkey,
+    tree_data: TreeData,
     leaves_queue_index: u16,
     leaf_index: u64,
     proof: Vec<[u8; 32]>,
@@ -278,8 +276,8 @@ async fn nullify_state<R: RpcConnection>(
     debug!("change_log_index: {:?}", change_log_index);
 
     let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
-        nullifier_queue: nullifier_queue_pubkey,
-        merkle_tree: state_merkle_tree_pubkey,
+        nullifier_queue: tree_data.queue_pubkey,
+        merkle_tree: tree_data.tree_pubkey,
         change_log_indices: vec![change_log_index],
         leaves_queue_indices: vec![leaves_queue_index],
         indices: vec![leaf_index],

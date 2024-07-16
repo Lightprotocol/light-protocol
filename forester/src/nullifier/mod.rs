@@ -7,4 +7,4 @@ mod queue_data;
 
 pub use backpressure::BackpressureControl;
 pub use pipeline_context::PipelineContext;
-pub use queue_data::{ForesterQueueAccount, ForesterQueueAccountData};
+pub use queue_data::{ForesterQueueAccount, ForesterQueueAccountData, QueueData};

@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{mpsc, Mutex, Semaphore};
+use crate::tree_sync::TreeData;
 
 pub struct AddressProcessor<T: Indexer<R>, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
@@ -115,20 +116,20 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
 
         let mut queue_data = {
             let rpc = context.rpc_pool.get_connection().await;
-            let mut queue_data = fetch_address_queue_data(context.config.clone(), rpc).await?;
+            let mut queue_data = fetch_address_queue_data(rpc, context.tree_data).await?;
             let mut rng = thread_rng();
-            queue_data.shuffle(&mut rng);
+            queue_data.accounts.shuffle(&mut rng);
             queue_data
         };
 
-        info!("Fetched address queue data len: {:?}", queue_data.len());
-        if queue_data.is_empty() {
+        info!("Fetched address queue data len: {:?}", queue_data.accounts.len());
+        if queue_data.accounts.is_empty() {
             info!("Address queue is empty");
             Ok(Some(AddressPipelineStage::Complete))
         } else {
-            let batch_size = queue_data.len().min(context.config.batch_size);
-            let batch: Vec<ForesterQueueAccount> = queue_data.drain(..batch_size).collect();
-            *address_queue = queue_data;
+            let batch_size = queue_data.accounts.len().min(context.config.batch_size);
+            let batch: Vec<ForesterQueueAccount> = queue_data.accounts.drain(..batch_size).collect();
+            *address_queue = queue_data.accounts;
             Ok(Some(AddressPipelineStage::FetchProofs(
                 context.clone(),
                 batch,
@@ -149,7 +150,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             .lock()
             .await
             .get_multiple_new_address_proofs(
-                context.config.address_merkle_tree_pubkey.to_bytes(),
+                context.tree_data.tree_pubkey.to_bytes(),
                 addresses,
             )
             .await
@@ -182,7 +183,6 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
         context: PipelineContext<T, R>,
         account_data_batch: Vec<ForesterAddressQueueAccountData>,
     ) -> Result<Option<AddressPipelineStage<T, R>>, ForesterError> {
-        let config = &context.config;
         let indexer = &context.indexer;
 
         // Create a channel for collecting results
@@ -205,6 +205,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
                         context.rpc_pool.clone(),
                         context.config.clone(),
                         account_data.clone(),
+                        &context.tree_data
                     )
                     .await
                     {
@@ -237,7 +238,7 @@ impl<T: Indexer<R>, R: RpcConnection> AddressProcessor<T, R> {
             if success {
                 debug!("Merkle tree updated: {:?}", account_data.account.hash);
                 indexer.lock().await.address_tree_updated(
-                    config.address_merkle_tree_pubkey.to_bytes(),
+                    context.tree_data.tree_pubkey.to_bytes(),
                     &account_data.proof,
                 );
             } else {
@@ -262,14 +263,15 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
     account_data: ForesterAddressQueueAccountData,
+    tree_data: &TreeData
 ) -> Result<bool, ForesterError> {
     let start = Instant::now();
 
     let update_ix =
         create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
             authority: config.payer_keypair.pubkey(),
-            address_merkle_tree: config.address_merkle_tree_pubkey,
-            address_queue: config.address_merkle_tree_queue_pubkey,
+            address_merkle_tree: tree_data.tree_pubkey,
+            address_queue: tree_data.queue_pubkey,
             value: account_data.account.index as u16,
             low_address_index: account_data.proof.low_address_index,
             low_address_value: account_data.proof.low_address_value,

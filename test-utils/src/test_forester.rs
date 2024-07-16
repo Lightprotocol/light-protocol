@@ -528,7 +528,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     changelog_index: Option<u16>,
     indexed_changelog_index: Option<u16>,
     signer_is_owner: bool,
-) -> Result<Option<(MerkleTreeEvent, Signature)>, RpcError> {
+) -> Result<Option<(MerkleTreeEvent, Signature, u64)>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index,
         None => {

@@ -89,7 +89,7 @@ async fn test_state_tree_rollover() {
     let env_accounts = get_test_env_accounts();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 100_000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 10000)
         .await
         .unwrap();
 
@@ -121,16 +121,30 @@ async fn test_state_tree_rollover() {
         "address_merkle_trees len: {}",
         env.indexer.address_merkle_trees.len()
     );
+
     env.indexer.state_merkle_trees.remove(0);
     env.create_state_tree(Some(0)).await;
 
-    // create an address tree that is instantly ready for rollover
-    // env.create_state_tree(Some(0)).await;
+    let user_keypair = env.rpc.get_payer().insecure_clone();
 
-    let user_pubkey = env.users[0].keypair.pubkey();
-    let user_balance = env.rpc.get_balance(&user_pubkey).await.unwrap();
-    // create on transaction to fund the rollover fee
-    env.compress_sol(0, user_balance).await;
-    // rollover address Merkle tree
-    env.rollover_state_merkle_tree_and_queue(0).await.unwrap();
+    for i in 0..100 {
+        // let user_pubkey = user_keypair.pubkey();
+        // let user_balance = env.rpc.get_balance(&user_pubkey).await.unwrap();
+        // create on transaction to fund the rollover fee
+        // env.compress_sol(0, user_balance).await;
+        env.compress_sol_deterministic(&user_keypair, LAMPORTS_PER_SOL, Some(i)).await;
+        // rollover address Merkle tree
+        env.rollover_state_merkle_tree_and_queue(i).await.unwrap();
+        // env.indexer.state_merkle_trees.remove(0);
+    }
+
+    // env.create_state_tree(Some(0)).await;
+    // for i in 0..100 {
+    //     let user_pubkey = env.users[0].keypair.pubkey();
+    //     let user_balance = env.rpc.get_balance(&user_pubkey).await.unwrap();
+    //     // create on transaction to fund the rollover fee
+    //     env.compress_sol(0, user_balance).await;
+    //     // rollover address Merkle tree
+    //     env.rollover_state_merkle_tree_and_queue(i).await.unwrap();
+    // }
 }

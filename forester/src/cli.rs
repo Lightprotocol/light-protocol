@@ -15,5 +15,5 @@ pub enum Commands {
     NullifyAddresses,
     Nullify,
     Subscribe,
-    Index,
+    TreeSync,
 }

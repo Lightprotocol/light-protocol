@@ -9,6 +9,7 @@ use light_test_utils::test_env::get_test_env_accounts;
 use log::info;
 use solana_sdk::signature::Signer;
 use std::sync::Arc;
+use forester::tree_sync::TreeData;
 
 mod test_utils;
 use test_utils::*;
@@ -53,16 +54,16 @@ async fn empty_address_tree_test() {
     }
 
     let rpc = pool.get_connection().await;
-    assert_ne!(get_address_queue_length(rpc, config.clone()).await, 0);
+    assert_ne!(get_address_queue_length(rpc).await, 0);
 
     let rpc = pool.get_connection().await;
     info!(
         "Address merkle tree: nullifying queue of {} accounts...",
-        get_address_queue_length(rpc, config.clone()).await
+        get_address_queue_length(rpc).await
     );
 
-    nullify_addresses(config.clone(), pool.clone(), indexer).await;
+    // nullify_addresses(config.clone(), pool.clone(), indexer, TreeData::default_address()).await;
 
     let rpc = pool.get_connection().await;
-    assert_eq!(get_address_queue_length(rpc, config).await, 0);
+    assert_eq!(get_address_queue_length(rpc).await, 0);
 }

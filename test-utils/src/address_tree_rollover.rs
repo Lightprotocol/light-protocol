@@ -31,6 +31,8 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
+use light_system_program::sdk::event::PublicTransactionEvent;
+use photon_api::models::Account;
 
 pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     rpc: &mut R,
@@ -308,7 +310,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     cpi_context: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<(solana_sdk::signature::Signature, u64), RpcError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
         &payer.pubkey(),
@@ -320,11 +322,20 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
-    let transaction = Transaction::new_signed_with_payer(
+    let result = context.create_and_send_transaction_with_event::<PublicTransactionEvent>(
         &instructions,
-        Some(&payer.pubkey()),
-        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
-        blockhash,
-    );
-    context.process_transaction(transaction).await
+        &payer.pubkey(),
+        &[&payer, new_queue_keypair, new_address_merkle_tree_keypair],
+        None,
+    ).await?.unwrap();
+    Ok((result.1, result.2))
+
+    // let transaction = Transaction::new_signed_with_payer(
+    //     &instructions,
+    //     Some(&payer.pubkey()),
+    //     &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+    //     blockhash,
+    // );
+    // context.process_transaction(transaction).await
+
 }

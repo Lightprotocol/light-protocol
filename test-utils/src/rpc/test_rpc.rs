@@ -38,7 +38,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, solana_sdk::signature::Signature)>, RpcError>
+    ) -> Result<Option<(T, solana_sdk::signature::Signature, u64)>, RpcError>
     where
         T: AnchorDeserialize,
     {
@@ -144,7 +144,8 @@ impl RpcConnection for ProgramTestRpcConnection {
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let slot = self.context.banks_client.get_root_slot().await?;
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
     }
 

@@ -152,6 +152,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     old_nullifier_queue_pubkey: &Pubkey,
     new_merkle_tree_pubkey: &Pubkey,
     new_nullifier_queue_pubkey: &Pubkey,
+    current_slot: u64,
 ) {
     let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)
@@ -193,7 +194,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     let old_mt_account =
         AccountLoader::<StateMerkleTreeAccount>::try_from(&new_account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
-    let current_slot = rpc.get_slot().await.unwrap();
+    //let current_slot = rpc.get_slot().await.unwrap();
 
     assert_rolledover_merkle_trees_metadata(
         &old_loaded_mt_account.metadata,

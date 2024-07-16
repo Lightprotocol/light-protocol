@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use crate::rollover::RolloverState;
+use crate::tree_sync::TreeData;
 
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer<R>, R: RpcConnection> {
@@ -37,6 +39,8 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) -> (mpsc::Sender<AddressPipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
@@ -58,7 +62,9 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
         indexer: indexer.clone(),
         rpc_pool,
         config: config.clone(),
+        tree_data: tree_data.clone(),
         successful_nullifications: Arc::new(Mutex::new(0)),
+        rollover_state: rollover_state.clone(),
     };
 
     tokio::spawn(async move {

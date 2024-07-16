@@ -157,7 +157,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
-    new_state_merkle_tree_keypair: &Keypair,
+    new_address_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
 ) -> Vec<Instruction> {
@@ -188,13 +188,13 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
         merkle_tree_rent_exemption.size,
         merkle_tree_rent_exemption.lamports,
         &account_compression::ID,
-        Some(new_state_merkle_tree_keypair),
+        Some(new_address_merkle_tree_keypair),
     );
     let instruction = create_rollover_address_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
             new_queue: new_nullifier_queue_keypair.pubkey(),
-            new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
+            new_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
         },

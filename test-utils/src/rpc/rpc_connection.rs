@@ -21,7 +21,7 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
         authority: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> impl std::future::Future<Output = Result<Option<(T, Signature)>, RpcError>> + Send
+    ) -> impl std::future::Future<Output = Result<Option<(T, Signature, u64)>, RpcError>> + Send
     where
         T: AnchorDeserialize + Send + Debug;
 

@@ -19,6 +19,7 @@ light-hash-set = { path = "../merkle-tree/hash-set", features = ["solana"] }
 light-hasher = { path = "../merkle-tree/hasher" }
 light-concurrent-merkle-tree = {path = "../merkle-tree/concurrent"}
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed" }
+light-merkle-tree-reference = { path = "../merkle-tree/reference" }
 light-registry = { path = "../programs/registry", features = ["cpi"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

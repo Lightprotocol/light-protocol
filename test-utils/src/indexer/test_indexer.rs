@@ -621,6 +621,10 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             ));
         address_merkle_tree_accounts
     }
+
+    fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
+        self.get_state_merkle_trees_mut().push(state_bundle);
+    }
 }
 
 impl<R: RpcConnection> TestIndexer<R> {

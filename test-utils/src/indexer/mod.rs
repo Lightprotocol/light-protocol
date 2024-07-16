@@ -125,6 +125,11 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Clone + Debug + 'static {
     fn get_compressed_token_accounts_by_owner(&self, _owner: &Pubkey) -> Vec<TokenDataWithContext> {
         unimplemented!()
     }
+
+    fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
+        unimplemented!()
+    }
+
 }
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
-
+use std::ops::Deref;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -143,7 +143,7 @@ impl RpcConnection for SolanaRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature)>, RpcError>
+    ) -> Result<Option<(T, Signature, u64)>, RpcError>
     where
         T: AnchorDeserialize + Debug,
     {
@@ -162,6 +162,9 @@ impl RpcConnection for SolanaRpcConnection {
             latest_blockhash,
         );
         let signature = self.client.send_and_confirm_transaction(&transaction)?;
+        let mut sig_info = self.client.get_signature_statuses(&[signature]);
+        let sig_info = sig_info.unwrap().value.get(0).unwrap().clone();
+        let slot = sig_info.unwrap().slot;
 
         let mut event = transaction
             .message
@@ -218,7 +221,7 @@ impl RpcConnection for SolanaRpcConnection {
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
     }
 

@@ -2,7 +2,7 @@ use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
 use crate::nullifier::address::setup_address_pipeline;
 use crate::nullifier::state::setup_state_pipeline;
-use crate::nullifier::{ForesterQueueAccount, ForesterQueueAccountData};
+use crate::nullifier::{ForesterQueueAccount, ForesterQueueAccountData, QueueData};
 use crate::RpcPool;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
@@ -20,21 +20,25 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
+use crate::rollover::{is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree, RolloverState};
+use crate::tree_sync::TreeData;
 
 pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc_pool: RpcPool<R>,
     indexer: Arc<Mutex<I>>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) {
     debug!(
         "Subscribe to state tree changes. Queue: {}. Merkle tree: {}",
-        config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
+        tree_data.tree_pubkey, tree_data.queue_pubkey
     );
     loop {
         let (_account_subscription_client, account_subscription_receiver) =
             match PubsubClient::account_subscribe(
                 &config.external_services.ws_rpc_url,
-                &config.nullifier_queue_pubkey,
+                &tree_data.queue_pubkey.clone(),
                 Some(RpcAccountInfoConfig {
                     encoding: None,
                     data_slice: None,
@@ -55,7 +59,7 @@ pub async fn subscribe_state<I: Indexer<R>, R: RpcConnection>(
             match account_subscription_receiver.recv() {
                 Ok(_) => {
                     debug!("nullify request received");
-                    nullify_state(Arc::clone(&config), rpc_pool, indexer.clone()).await;
+                    nullify_state(Arc::clone(&config), rpc_pool, indexer.clone(), tree_data, rollover_state.clone()).await;
                 }
                 Err(e) => {
                     warn!("account subscription error: {:?}", e);
@@ -70,16 +74,18 @@ pub async fn subscribe_addresses<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc_pool: RpcPool<R>,
     indexer: Arc<Mutex<I>>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) {
     debug!(
         "Subscribe to address tree changes. Queue: {}. Merkle tree: {}",
-        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+        tree_data.queue_pubkey, tree_data.tree_pubkey
     );
     loop {
         let (_account_subscription_client, account_subscription_receiver) =
             match PubsubClient::account_subscribe(
                 &config.external_services.ws_rpc_url,
-                &config.address_merkle_tree_queue_pubkey,
+                &tree_data.queue_pubkey,
                 Some(RpcAccountInfoConfig {
                     encoding: None,
                     data_slice: None,
@@ -100,7 +106,7 @@ pub async fn subscribe_addresses<I: Indexer<R>, R: RpcConnection>(
             match account_subscription_receiver.recv() {
                 Ok(_) => {
                     debug!("nullify request received");
-                    nullify_addresses(Arc::clone(&config), rpc_pool, indexer.clone()).await;
+                    nullify_addresses(Arc::clone(&config), rpc_pool, indexer.clone(), tree_data, rollover_state.clone()).await;
                 }
                 Err(e) => {
                     warn!("account subscription error: {:?}", e);
@@ -115,20 +121,38 @@ pub async fn nullify_state<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc_pool: RpcPool<R>,
     indexer: Arc<Mutex<I>>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) {
     debug!(
         "Run state tree nullifier. Queue: {}. Merkle tree: {}",
-        config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
+        tree_data.queue_pubkey, tree_data.tree_pubkey
     );
 
     let (input_tx, mut completion_rx) =
-        setup_state_pipeline(indexer, rpc_pool.clone(), config).await;
+        setup_state_pipeline(indexer.clone(), rpc_pool.clone(), config.clone(), tree_data, rollover_state.clone()).await;
     let result = completion_rx.recv().await;
     drop(input_tx);
 
     match result {
         Some(()) => {
             debug!("State nullifier completed successfully");
+
+            let is_ready = is_tree_ready_for_rollover(&rpc_pool.get_connection().await, tree_data.tree_pubkey).await.unwrap();
+            if is_ready {
+                debug!("State tree is ready for rollover");
+                if rollover_state.try_start_rollover() {
+
+                    // match rollover_state_merkle_tree(&config, &rpc_pool, &indexer, &tree_data).await {
+                    //     Ok(_) => debug!("State tree rollover completed successfully"),
+                    //     Err(e) => warn!("State tree rollover failed: {:?}", e),
+                    // }
+
+                    rollover_state.end_rollover();
+                } else {
+                    debug!("Rollover already in progress, skipping");
+                }
+            }
         }
         None => {
             warn!("State nullifier stopped unexpectedly");
@@ -142,19 +166,35 @@ pub async fn nullify_addresses<I: Indexer<R>, R: RpcConnection>(
     config: Arc<ForesterConfig>,
     rpc_pool: RpcPool<R>,
     indexer: Arc<Mutex<I>>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) {
     debug!(
         "Run address tree nullifier. Queue: {}. Merkle tree: {}",
-        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+        tree_data.queue_pubkey, tree_data.tree_pubkey
     );
 
-    let (input_tx, mut completion_rx) = setup_address_pipeline(indexer, rpc_pool, config).await;
+    let (input_tx, mut completion_rx) = setup_address_pipeline(indexer.clone(), rpc_pool.clone(), config.clone(), tree_data, rollover_state.clone()).await;
     let result = completion_rx.recv().await;
     drop(input_tx);
 
     match result {
         Some(()) => {
             info!("Address nullifier completed successfully");
+            if is_tree_ready_for_rollover(&rpc_pool.get_connection().await, tree_data.tree_pubkey).await.unwrap() {
+                info!("Address tree is ready for rollover");
+                if rollover_state.try_start_rollover() {
+
+                    match rollover_address_merkle_tree(&config, &rpc_pool, &indexer, &tree_data).await {
+                        Ok(_) => info!("Address tree rollover completed successfully"),
+                        Err(e) => warn!("Address tree rollover failed: {:?}", e),
+                    }
+
+                    rollover_state.end_rollover();
+                } else {
+                    info!("Rollover already in progress, skipping");
+                }
+            }
         }
         None => {
             warn!("Address nullifier stopped unexpectedly");
@@ -165,14 +205,13 @@ pub async fn nullify_addresses<I: Indexer<R>, R: RpcConnection>(
 }
 
 pub async fn fetch_state_queue_data<R: RpcConnection>(
-    config: Arc<ForesterConfig>,
     rpc: Arc<Mutex<R>>,
-) -> Result<Vec<ForesterQueueAccountData>, ForesterError> {
+    tree_data: TreeData,
+) -> Result<QueueData, ForesterError> {
     debug!("Fetching state queue data");
-    let state_queue_pubkey = config.nullifier_queue_pubkey;
     let mut rpc = rpc.lock().await;
     let mut nullifier_queue_account = rpc
-        .get_account(state_queue_pubkey)
+        .get_account(tree_data.queue_pubkey)
         .await
         .map_err(|e| {
             warn!("Error fetching nullifier queue account: {:?}", e);
@@ -185,7 +224,8 @@ pub async fn fetch_state_queue_data<R: RpcConnection>(
             &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
         )?
     };
-    let mut accounts = Vec::new();
+    let mut queue_data = QueueData::new();
+
     for i in 0..nullifier_queue.capacity {
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
@@ -200,39 +240,38 @@ pub async fn fetch_state_queue_data<R: RpcConnection>(
                     leaf_index: 0,     // This will be filled in during FetchProofs stage
                     root_seq: 0,       // This will be filled in during FetchProofs stage
                 };
-                accounts.push(account_data);
+                queue_data.data.push(account_data);
             }
         }
     }
-    debug!("Fetched {} accounts from state queue", accounts.len());
-    Ok(accounts)
+    debug!("Fetched {} accounts from state queue", queue_data.data.len());
+    Ok(queue_data)
 }
 
 pub async fn fetch_address_queue_data<R: RpcConnection>(
-    config: Arc<ForesterConfig>,
     rpc: Arc<Mutex<R>>,
-) -> Result<Vec<ForesterQueueAccount>, ForesterError> {
-    let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
+    tree_data: TreeData
+) -> Result<QueueData, ForesterError> {
     let mut rpc = rpc.lock().await;
-    let mut account = rpc.get_account(address_queue_pubkey).await?.unwrap();
+    let mut account = rpc.get_account(tree_data.queue_pubkey).await?.unwrap();
     let address_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
 
-    let mut address_queue_vec = Vec::new();
+    let mut queue_data = QueueData::new();
 
     for i in 0..address_queue.capacity {
         let bucket = address_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                address_queue_vec.push(ForesterQueueAccount {
+                queue_data.accounts.push(ForesterQueueAccount {
                     hash: bucket.value_bytes(),
                     index: i,
                 });
             }
         }
     }
-    Ok(address_queue_vec)
+    Ok(queue_data)
 }
 
 #[allow(dead_code)]

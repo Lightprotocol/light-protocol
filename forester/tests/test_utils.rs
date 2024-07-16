@@ -9,6 +9,7 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, LevelFilter};
 use solana_sdk::signature::{Keypair, Signer};
+use forester::tree_sync::TreeData;
 
 #[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {
@@ -78,10 +79,6 @@ pub fn forester_config() -> ForesterConfig {
             prover_url: "http://localhost:3001".to_string(),
             derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
         },
-        nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
-        state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
-        address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
-        address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
         registry_pubkey: registry_keypair.pubkey(),
         payer_keypair: env_accounts.forester.insecure_clone(),
         concurrency_limit: 1,
@@ -89,6 +86,9 @@ pub fn forester_config() -> ForesterConfig {
         max_retries: 5,
         cu_limit: 1_000_000,
         rpc_pool_size: 20,
+        address_tree_data: vec![TreeData::default_address()],
+        state_tree_data: vec![TreeData::default_state()],
+        last_sync_data: Default::default(),
     }
 }
 
