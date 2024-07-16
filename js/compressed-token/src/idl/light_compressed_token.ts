@@ -491,6 +491,21 @@ export type LightCompressedToken = {
                     isSigner: false;
                 },
                 {
+                    name: 'mint';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
                     name: 'lightSystemProgram';
                     isMut: false;
                     isSigner: false;
@@ -1884,6 +1899,21 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenProgram',
                     isMut: false,
                     isSigner: false,
                 },

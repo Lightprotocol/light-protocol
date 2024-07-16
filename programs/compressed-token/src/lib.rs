@@ -12,6 +12,7 @@ pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
 pub mod burn;
+pub use burn::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
@@ -88,7 +89,7 @@ pub mod light_compressed_token {
     }
 
     pub fn burn<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         burn::process_burn(ctx, inputs)
@@ -111,8 +112,6 @@ pub mod light_compressed_token {
 pub enum ErrorCode {
     #[msg("public keys and amounts must be of same length")]
     PublicKeyAmountMissmatch,
-    #[msg("SignerCheckFailed")]
-    SignerCheckFailed,
     #[msg("ComputeInputSumFailed")]
     ComputeInputSumFailed,
     #[msg("ComputeOutputSumFailed")]
@@ -133,8 +132,6 @@ pub enum ErrorCode {
     CompressedPdaUndefinedForCompress,
     #[msg("DeCompressAmountUndefinedForCompress")]
     DeCompressAmountUndefinedForCompress,
-    #[msg("DelegateUndefined while delegated amount is defined")]
-    DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]
     DelegateSignerCheckFailed,
     #[msg("Minted amount greater than u64::MAX")]
@@ -147,12 +144,8 @@ pub enum ErrorCode {
     InstructionNotCallable,
     #[msg("ArithmeticUnderflow")]
     ArithmeticUnderflow,
-    #[msg("InvalidDelegate")]
-    InvalidDelegate,
     #[msg("HashToFieldError")]
     HashToFieldError,
-    #[msg("InvalidMint")]
-    InvalidMint,
     #[msg("Expected the authority to be also a mint authority")]
     InvalidAuthorityMint,
     #[msg("Provided authority is not the freeze authority")]

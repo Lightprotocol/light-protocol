@@ -1,4 +1,4 @@
-use anchor_spl::token::TokenAccount;
+use anchor_spl::token::{Mint, TokenAccount};
 use solana_program_test::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
@@ -7,7 +7,6 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 use spl_token::instruction::initialize_mint;
-use spl_token::state::Mint;
 
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
@@ -25,7 +24,10 @@ use light_compressed_token::{
     TokenData,
 };
 use light_hasher::Poseidon;
-use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent},
+};
 
 use crate::indexer::{Indexer, TestIndexer, TokenDataWithContext};
 use crate::rpc::rpc_connection::RpcConnection;
@@ -1024,48 +1026,23 @@ pub async fn burn_test<R: RpcConnection>(
     signer_is_delegate: bool,
     transaction_params: Option<TransactionParams>,
 ) {
-    let input_compressed_account_hashes = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.hash().unwrap())
-        .collect::<Vec<_>>();
-    let input_merkle_tree_pubkeys = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
-    let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
-            None,
-            None,
-            rpc,
-        )
-        .await;
-    let mint = input_compressed_accounts[0].token_data.mint;
-    let inputs = CreateBurnInstructionInputs {
-        fee_payer: rpc.get_payer().pubkey(),
-        authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
-        input_token_data: input_compressed_accounts
-            .iter()
-            .map(|x| x.token_data)
-            .collect(),
-        change_account_merkle_tree: *change_account_merkle_tree,
-        root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof,
+    let (
+        input_compressed_account_hashes,
+        input_merkle_tree_pubkeys,
         mint,
-        signer_is_delegate,
+        output_amount,
+        instruction,
+    ) = create_burn_test_instruction(
+        authority,
+        rpc,
+        test_indexer,
+        &input_compressed_accounts,
+        change_account_merkle_tree,
         burn_amount,
-    };
-    let input_amount_sum = input_compressed_accounts
-        .iter()
-        .map(|x| x.token_data.amount)
-        .sum::<u64>();
-    let output_amount = input_amount_sum - burn_amount;
-    let instruction = create_burn_instruction(inputs).unwrap();
+        signer_is_delegate,
+        BurnInstructionMode::Normal,
+    )
+    .await;
     let output_merkle_tree_pubkeys = vec![*change_account_merkle_tree; 1];
     let output_merkle_tree_test_snapshots = if output_amount > 0 {
         let output_merkle_tree_accounts =
@@ -1076,11 +1053,22 @@ pub async fn burn_test<R: RpcConnection>(
         Vec::new()
     };
 
+    let token_pool_pda_address = get_token_pool_pda(&mint);
+    let pre_token_pool_account = rpc
+        .get_account(token_pool_pda_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let pre_token_pool_balance = spl_token::state::Account::unpack(&pre_token_pool_account.data)
+        .unwrap()
+        .amount;
+
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
+
     let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
@@ -1133,6 +1121,100 @@ pub async fn burn_test<R: RpcConnection>(
         Some(delegates),
     )
     .await;
+    let post_token_pool_account = rpc
+        .get_account(token_pool_pda_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let post_token_pool_balance = spl_token::state::Account::unpack(&post_token_pool_account.data)
+        .unwrap()
+        .amount;
+    assert_eq!(
+        post_token_pool_balance,
+        pre_token_pool_balance - burn_amount
+    );
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BurnInstructionMode {
+    Normal,
+    InvalidProof,
+    InvalidMint,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn create_burn_test_instruction<R: RpcConnection>(
+    authority: &Keypair,
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<R>,
+    input_compressed_accounts: &[TokenDataWithContext],
+    change_account_merkle_tree: &Pubkey,
+    burn_amount: u64,
+    signer_is_delegate: bool,
+    mode: BurnInstructionMode,
+) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
+    let input_compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.hash().unwrap())
+        .collect::<Vec<_>>();
+    let input_merkle_tree_pubkeys = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .collect::<Vec<_>>();
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&input_compressed_account_hashes),
+            Some(&input_merkle_tree_pubkeys),
+            None,
+            None,
+            rpc,
+        )
+        .await;
+    let mint = if mode == BurnInstructionMode::InvalidMint {
+        Pubkey::new_unique()
+    } else {
+        input_compressed_accounts[0].token_data.mint
+    };
+    let proof = if mode == BurnInstructionMode::InvalidProof {
+        CompressedProof {
+            a: proof_rpc_result.proof.a,
+            b: proof_rpc_result.proof.b,
+            c: proof_rpc_result.proof.a, // flip c to make proof invalid but not run into decompress errors
+        }
+    } else {
+        proof_rpc_result.proof
+    };
+    let inputs = CreateBurnInstructionInputs {
+        fee_payer: rpc.get_payer().pubkey(),
+        authority: authority.pubkey(),
+        input_merkle_contexts: input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.merkle_context)
+            .collect(),
+        input_token_data: input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data)
+            .collect(),
+        change_account_merkle_tree: *change_account_merkle_tree,
+        root_indices: proof_rpc_result.root_indices,
+        proof,
+        mint,
+        signer_is_delegate,
+        burn_amount,
+    };
+    let input_amount_sum = input_compressed_accounts
+        .iter()
+        .map(|x| x.token_data.amount)
+        .sum::<u64>();
+    let output_amount = input_amount_sum - burn_amount;
+    let instruction = create_burn_instruction(inputs).unwrap();
+    (
+        input_compressed_account_hashes,
+        input_merkle_tree_pubkeys,
+        mint,
+        output_amount,
+        instruction,
+    )
 }
 
 pub fn create_expected_token_output_data(
