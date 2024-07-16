@@ -15,6 +15,7 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -57,6 +58,7 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -77,6 +79,9 @@ export type LightCompressedToken = {
                     name: 'tokenPoolPda';
                     isMut: true;
                     isSigner: false;
+                    docs: [
+                        'account to a token account of a different mint will fail',
+                    ];
                 },
                 {
                     name: 'tokenProgram';
@@ -97,6 +102,7 @@ export type LightCompressedToken = {
                     name: 'noopProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: ['programs'];
                 },
                 {
                     name: 'accountCompressionAuthority';
@@ -146,11 +152,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -186,6 +198,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -225,11 +240,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -265,6 +286,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -286,11 +310,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -326,6 +356,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -347,6 +380,7 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -387,6 +421,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -413,6 +450,7 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -453,6 +491,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -479,11 +520,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -519,6 +566,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -545,11 +595,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -585,6 +641,9 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -1412,6 +1471,7 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -1454,6 +1514,7 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1474,6 +1535,9 @@ export const IDL: LightCompressedToken = {
                     name: 'tokenPoolPda',
                     isMut: true,
                     isSigner: false,
+                    docs: [
+                        'account to a token account of a different mint will fail',
+                    ],
                 },
                 {
                     name: 'tokenProgram',
@@ -1494,6 +1558,7 @@ export const IDL: LightCompressedToken = {
                     name: 'noopProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: ['programs'],
                 },
                 {
                     name: 'accountCompressionAuthority',
@@ -1543,11 +1608,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1583,6 +1654,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -1622,11 +1696,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1662,6 +1742,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1683,11 +1766,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1723,6 +1812,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1744,6 +1836,7 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1784,6 +1877,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1810,6 +1906,7 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1850,6 +1947,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1876,11 +1976,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1916,6 +2022,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1942,11 +2051,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'or delegate both are included in the token data hash, thus in the',
+                        'compressed data hash thus in the compressed account hash which is public',
+                        'input to the validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1982,6 +2097,9 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'tokenPoolPda',

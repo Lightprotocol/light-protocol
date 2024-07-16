@@ -631,9 +631,15 @@ async fn test_mint_to_failing() {
             amounts.clone(),
             recipients.clone(),
         );
-        rpc.create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-            .await
-            .unwrap_err(); // Anchor panics, there is no specific error to assert.
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+            .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
     }
     // 10. Mint more than `u64::MAX` tokens.
     {
@@ -858,6 +864,7 @@ async fn test_decompression() {
 /// 3. Delegate transfers all the remaining delegated tokens
 async fn test_delegation(
     mint_amount: u64,
+    num_inputs: usize,
     delegated_amount: u64,
     output_amounts_1: Vec<u64>,
     output_amounts_2: Vec<u64>,
@@ -882,8 +889,8 @@ async fn test_delegation(
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![mint_amount],
-        vec![sender.pubkey()],
+        vec![mint_amount; num_inputs],
+        vec![sender.pubkey(); num_inputs],
     )
     .await;
     // 1. Delegate tokens
@@ -962,17 +969,32 @@ async fn test_delegation(
 
 #[tokio::test]
 async fn test_delegation_0() {
-    test_delegation(0, 0, vec![0, 0], vec![0]).await
+    let num_inputs = 1;
+    test_delegation(0, num_inputs, 0, vec![0, 0], vec![0]).await
 }
 
 #[tokio::test]
 async fn test_delegation_10000() {
-    test_delegation(10000, 1000, vec![900, 100], vec![100]).await
+    let num_inputs = 1;
+    test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
+}
+#[tokio::test]
+async fn test_delegation_8_inputs() {
+    let num_inputs = 8;
+    test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
 }
 
 #[tokio::test]
 async fn test_delegation_max() {
-    test_delegation(u64::MAX, u64::MAX, vec![u64::MAX - 100, 100], vec![100]).await
+    let num_inputs = 1;
+    test_delegation(
+        u64::MAX,
+        num_inputs,
+        u64::MAX,
+        vec![u64::MAX - 100, 100],
+        vec![100],
+    )
+    .await
 }
 
 /// Failing tests:
@@ -1189,12 +1211,49 @@ async fn test_approve_failing() {
             .await;
         assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
+    // 5. Invalid delegate amount (too high)
+    {
+        let sum_inputs = input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data.amount)
+            .sum::<u64>();
+        let delegated_amount = sum_inputs + 1;
+        let inputs = CreateApproveInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: sender.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            mint,
+            delegated_amount,
+            delegated_compressed_account_merkle_tree,
+            change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
+            delegate: delegate.pubkey(),
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_approve_instruction(inputs).unwrap();
+        let context_payer = rpc.get_payer().insecure_clone();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        assert_rpc_error(result, 0, ErrorCode::ArithmeticUnderflow.into()).unwrap();
+    }
 }
 
 /// Test revoke:
 /// 1. Delegate tokens with approve
 /// 2. Revoke
-async fn test_revoke(mint_amount: u64, delegated_amount: u64) {
+async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1215,35 +1274,42 @@ async fn test_revoke(mint_amount: u64, delegated_amount: u64) {
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![mint_amount],
-        vec![sender.pubkey()],
+        vec![mint_amount; num_inputs],
+        vec![sender.pubkey(); num_inputs],
     )
     .await;
     // 1. Delegate tokens
     {
         let input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-            .compressed_account
-            .merkle_context
-            .merkle_tree_pubkey;
-        approve_test(
-            &sender,
-            &mut rpc,
-            &mut test_indexer,
-            input_compressed_accounts,
-            delegated_amount,
-            &delegate.pubkey(),
-            &delegated_compressed_account_merkle_tree,
-            &delegated_compressed_account_merkle_tree,
-            None,
-        )
-        .await;
+        for input in input_compressed_accounts.iter() {
+            let input_compressed_accounts = vec![input.clone()];
+            let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey;
+            approve_test(
+                &sender,
+                &mut rpc,
+                &mut test_indexer,
+                input_compressed_accounts,
+                delegated_amount,
+                &delegate.pubkey(),
+                &delegated_compressed_account_merkle_tree,
+                &delegated_compressed_account_merkle_tree,
+                None,
+            )
+            .await;
+        }
     }
     // 2. Revoke
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey())
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -1267,17 +1333,25 @@ async fn test_revoke(mint_amount: u64, delegated_amount: u64) {
 
 #[tokio::test]
 async fn test_revoke_0() {
-    test_revoke(0, 0).await
+    let num_inputs = 1;
+    test_revoke(num_inputs, 0, 0).await
 }
 
 #[tokio::test]
 async fn test_revoke_10000() {
-    test_revoke(10000, 1000).await
+    let num_inputs = 1;
+    test_revoke(num_inputs, 10000, 1000).await
 }
 
 #[tokio::test]
+async fn test_revoke_8_inputs() {
+    let num_inputs = 8;
+    test_revoke(num_inputs, 10000, 1000).await
+}
+#[tokio::test]
 async fn test_revoke_max() {
-    test_revoke(u64::MAX, u64::MAX).await
+    let num_inputs = 1;
+    test_revoke(num_inputs, u64::MAX, u64::MAX).await
 }
 
 /// Failing tests:
@@ -1413,16 +1487,23 @@ async fn test_revoke_failing() {
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
+
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
         // Anchor panics when trying to deserialize the account, the
         // instruction returns `ProgramFailedToComplete`. No specific error
         // to assert.
-        rpc.create_and_send_transaction(
-            &[instruction],
-            &sender.pubkey(),
-            &[&context_payer, &sender],
-        )
-        .await
-        .unwrap_err();
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ))
+        ));
     }
     // 3. Invalid mint.
     {
@@ -1446,16 +1527,14 @@ async fn test_revoke_failing() {
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
-        // NOTE(vadorovsky): Not sure what to do here!
-        // For now, this instruction returns `ProofVerificationFailed`, which
-        // feels wrong.
-        rpc.create_and_send_transaction(
-            &[instruction],
-            &sender.pubkey(),
-            &[&context_payer, &sender],
-        )
-        .await
-        .unwrap_err();
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &sender.pubkey(),
+                &[&context_payer, &sender],
+            )
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
 }
 
@@ -1743,6 +1822,7 @@ async fn test_freeze_and_thaw_10000() {
 /// 1. Invalid authority.
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
+/// 4. Freeze frozen compressed account.
 #[tokio::test]
 async fn test_failing_freeze() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -1766,13 +1846,13 @@ async fn test_failing_freeze() {
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![amount],
-        vec![sender.pubkey()],
+        vec![amount; 3],
+        vec![sender.pubkey(); 3],
     )
     .await;
 
     let input_compressed_accounts =
-        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        vec![test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey())[0].clone()];
     let outputs_merkle_tree = input_compressed_accounts[0]
         .compressed_account
         .merkle_context
@@ -1892,12 +1972,74 @@ async fn test_failing_freeze() {
             .await;
         assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
+    // 4. Freeze frozen compressed account
+    {
+        freeze_test(
+            &payer,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            &outputs_merkle_tree,
+            None,
+        )
+        .await;
+        let input_compressed_accounts = vec![test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey())
+            .iter()
+            .filter(|x| x.token_data.state == AccountState::Frozen)
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>()[0]
+            .clone()];
+        let outputs_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+
+        let input_compressed_account_hashes = input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.hash().unwrap())
+            .collect::<Vec<_>>();
+        let input_merkle_tree_pubkeys = input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+            .collect::<Vec<_>>();
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts(
+                Some(&input_compressed_account_hashes),
+                Some(&input_merkle_tree_pubkeys),
+                None,
+                None,
+                &mut rpc,
+            )
+            .await;
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
+        };
+        let instruction = create_instruction::<true>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
 }
 
 /// Failing tests:
 /// 1. Invalid authority.
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
+/// 4. thaw compressed account which is not frozen
 #[tokio::test]
 async fn test_failing_thaw() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -1921,15 +2063,15 @@ async fn test_failing_thaw() {
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![amount],
-        vec![sender.pubkey()],
+        vec![amount; 2],
+        vec![sender.pubkey(); 2],
     )
     .await;
 
     // Freeze tokens
     {
         let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            vec![test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey())[0].clone()];
         let output_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -2065,6 +2207,58 @@ async fn test_failing_thaw() {
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: invalid_proof,
+        };
+        let instruction = create_instruction::<false>(inputs).unwrap();
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&context_payer, &payer])
+            .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 4. thaw compressed account which is not frozen
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.state == AccountState::Initialized)
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let outputs_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+
+        let input_compressed_account_hashes = input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.hash().unwrap())
+            .collect::<Vec<_>>();
+        let input_merkle_tree_pubkeys = input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+            .collect::<Vec<_>>();
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts(
+                Some(&input_compressed_account_hashes),
+                Some(&input_merkle_tree_pubkeys),
+                None,
+                None,
+                &mut rpc,
+            )
+            .await;
+        let inputs = CreateInstructionInputs {
+            fee_payer: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            input_merkle_contexts: input_compressed_accounts
+                .iter()
+                .map(|x| x.compressed_account.merkle_context)
+                .collect(),
+            input_token_data: input_compressed_accounts
+                .iter()
+                .map(|x| x.token_data)
+                .collect(),
+            outputs_merkle_tree,
+            root_indices: proof_rpc_result.root_indices.clone(),
+            proof: proof_rpc_result.proof.clone(),
         };
         let instruction = create_instruction::<false>(inputs).unwrap();
         let result = rpc
