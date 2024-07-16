@@ -9,10 +9,6 @@ use std::{env, fmt};
 
 pub enum SettingsKey {
     Payer,
-    StateMerkleTreePubkey,
-    NullifierQueuePubkey,
-    AddressMerkleTreePubkey,
-    AddressMerkleTreeQueuePubkey,
     RegistryPubkey,
     RpcUrl,
     WsRpcUrl,
@@ -32,11 +28,7 @@ impl Display for SettingsKey {
             "{}",
             match self {
                 SettingsKey::Payer => "PAYER",
-                SettingsKey::StateMerkleTreePubkey => "STATE_MERKLE_TREE_PUBKEY",
-                SettingsKey::NullifierQueuePubkey => "NULLIFIER_QUEUE_PUBKEY",
                 SettingsKey::RegistryPubkey => "REGISTRY_PUBKEY",
-                SettingsKey::AddressMerkleTreePubkey => "ADDRESS_MERKLE_TREE_PUBKEY",
-                SettingsKey::AddressMerkleTreeQueuePubkey => "ADDRESS_MERKLE_TREE_QUEUE_PUBKEY",
                 SettingsKey::RpcUrl => "RPC_URL",
                 SettingsKey::WsRpcUrl => "WS_RPC_URL",
                 SettingsKey::IndexerUrl => "INDEXER_URL",
@@ -77,18 +69,6 @@ pub fn init_config() -> ForesterConfig {
         .build()
         .unwrap();
 
-    let state_merkle_tree_pubkey = settings
-        .get_string(&SettingsKey::StateMerkleTreePubkey.to_string())
-        .unwrap();
-    let nullifier_queue_pubkey = settings
-        .get_string(&SettingsKey::NullifierQueuePubkey.to_string())
-        .unwrap();
-    let address_merkle_tree_pubkey = settings
-        .get_string(&SettingsKey::AddressMerkleTreePubkey.to_string())
-        .unwrap();
-    let address_merkle_tree_queue_pubkey = settings
-        .get_string(&SettingsKey::AddressMerkleTreeQueuePubkey.to_string())
-        .unwrap();
     let registry_pubkey = settings
         .get_string(&SettingsKey::RegistryPubkey.to_string())
         .unwrap();
@@ -129,11 +109,6 @@ pub fn init_config() -> ForesterConfig {
             prover_url,
             derivation: payer.pubkey().to_string(),
         },
-        nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
-        state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
-        address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
-        address_merkle_tree_queue_pubkey: Pubkey::from_str(&address_merkle_tree_queue_pubkey)
-            .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: payer,
         concurrency_limit: concurrency_limit as usize,
@@ -141,5 +116,7 @@ pub fn init_config() -> ForesterConfig {
         max_retries: max_retries as usize,
         cu_limit: cu_limit as u32,
         rpc_pool_size: rpc_pool_size as usize,
+        address_tree_data: vec![],
+        state_tree_data: vec![],
     }
 }

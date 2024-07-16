@@ -15,13 +15,23 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
         unimplemented!()
     }
 
+    fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
+
+    fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> impl std::future::Future<Output = Result<(Signature, Slot), RpcError>> + Send;
+
     fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
         authority: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> impl std::future::Future<Output = Result<Option<(T, Signature)>, RpcError>> + Send
+    ) -> impl std::future::Future<Output = Result<Option<(T, Signature, Slot)>, RpcError>> + Send
     where
         T: AnchorDeserialize + Send + Debug;
 
@@ -65,11 +75,9 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
     fn get_latest_blockhash(
         &mut self,
     ) -> impl std::future::Future<Output = Result<Hash, RpcError>> + Send;
-    fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
+
     fn get_slot(&mut self) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
+
     fn airdrop_lamports(
         &mut self,
         to: &Pubkey,

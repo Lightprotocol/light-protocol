@@ -1,4 +1,6 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+use forester::rollover::RolloverState;
+use forester::tree_sync::TreeData;
 use forester::{get_address_queue_length, nullify_addresses, RpcPool};
 use light_test_utils::e2e_test_env::E2ETestEnv;
 use light_test_utils::indexer::TestIndexer;
@@ -53,16 +55,24 @@ async fn empty_address_tree_test() {
     }
 
     let rpc = pool.get_connection().await;
-    assert_ne!(get_address_queue_length(rpc, config.clone()).await, 0);
+    assert_ne!(get_address_queue_length(rpc).await, 0);
 
     let rpc = pool.get_connection().await;
     info!(
         "Address merkle tree: nullifying queue of {} accounts...",
-        get_address_queue_length(rpc, config.clone()).await
+        get_address_queue_length(rpc).await
     );
 
-    nullify_addresses(config.clone(), pool.clone(), indexer).await;
+    let rollover_state = Arc::new(RolloverState::new());
+    nullify_addresses(
+        config.clone(),
+        pool.clone(),
+        indexer,
+        TreeData::default_address(),
+        rollover_state,
+    )
+    .await;
 
     let rpc = pool.get_connection().await;
-    assert_eq!(get_address_queue_length(rpc, config).await, 0);
+    assert_eq!(get_address_queue_length(rpc).await, 0);
 }

@@ -19,6 +19,7 @@ use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
 use light_hasher::Poseidon;
+use solana_sdk::clock::Slot;
 use solana_sdk::{
     account::AccountSharedData,
     account_info::AccountInfo,
@@ -44,7 +45,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
     mode: Option<StateMerkleTreeRolloverMode>,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<(solana_sdk::signature::Signature, Slot), RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
     let mut size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     if let Some(StateMerkleTreeRolloverMode::QueueInvalidSize) = mode {
@@ -112,7 +113,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         ],
         blockhash,
     );
-    rpc.process_transaction(transaction).await
+    rpc.process_transaction_with_context(transaction).await
 }
 
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
@@ -144,6 +145,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn assert_rolled_over_pair<R: RpcConnection>(
     payer: &Pubkey,
     rpc: &mut R,
@@ -152,6 +154,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     old_nullifier_queue_pubkey: &Pubkey,
     new_merkle_tree_pubkey: &Pubkey,
     new_nullifier_queue_pubkey: &Pubkey,
+    current_slot: u64,
 ) {
     let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)
@@ -193,7 +196,6 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     let old_mt_account =
         AccountLoader::<StateMerkleTreeAccount>::try_from(&new_account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
-    let current_slot = rpc.get_slot().await.unwrap();
 
     assert_rolledover_merkle_trees_metadata(
         &old_loaded_mt_account.metadata,
