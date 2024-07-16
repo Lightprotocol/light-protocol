@@ -43,6 +43,10 @@ lemma toInt_add [NeZero N] {n m : ZMod N}: (n + m).toInt = (m.toInt + n.toInt) %
 lemma toInt_sub [NeZero N] {n m : ZMod N}: (n - m).toInt = (n.toInt - m.toInt) % N := by
   simp [sub_eq_add_neg, toInt_add, toInt_neg, add_comm]
 
+@[simp]
+lemma toInt_toNat [NeZero N] {n : ZMod N}: n.toInt.toNat = n.val := by rfl
+
+
 end ZMod
 
 namespace Int

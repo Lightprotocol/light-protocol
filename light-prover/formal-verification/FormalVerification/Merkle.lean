@@ -1,6 +1,7 @@
 import ProvenZk
 import FormalVerification.Circuit
 import FormalVerification.Lemmas
+import FormalVerification.Rangecheck
 import FormalVerification.Poseidon
 import Mathlib
 
@@ -102,7 +103,6 @@ lemma InclusionProof_rw {roots leaves inPathIndices inPathElements k}:
 lemma MerkleTree.GetElem.def {tree : MerkleTree α H d} {i : ℕ} {ih : i < 2^d}:
   tree[i] = tree.itemAtFin ⟨i, ih⟩ := by rfl
 
-
 theorem InclusionCircuit_correct {trees : Vector (MerkleTree F poseidon₂ 20) 10} {leaves inPathIndices} [Fact (CollisionResistant poseidon₂)]:
   (∃proofs, LightProver.InclusionCircuit_10_10_10_20_10_10_20 (trees.map (·.root)) leaves inPathIndices proofs) ↔
   ∀i (_: i∈[0:10]), ∃ (hi : (inPathIndices[i]).val < 2^20), trees[i][inPathIndices[i].val] = leaves[i] := by
@@ -122,3 +122,24 @@ theorem InclusionCircuit_correct {trees : Vector (MerkleTree F poseidon₂ 20) 1
     use h
     simp [getElem] at hp
     simp [hp, getElem]
+
+structure Range : Type where
+  lo : Fin (2^248)
+  hi : Fin (2^248)
+  index : F
+
+def Range.hash : Range → F := fun r => poseidon₃ vec![r.lo, r.index, r.hi]
+
+def RangeTree : Type := { t: MerkleTree F poseidon₂ 20 // ∀ (i : Fin 20), ∃ range, t.itemAtFin i = Range.hash range }
+
+instance : Membership Range RangeTree where
+  mem r t := ∃ i, t.1.itemAtFin i = Range.hash r
+
+instance : Membership F Range where
+  mem x r := r.lo.val < x.val ∧ x.val < r.hi.val
+
+instance : Membership F RangeTree where
+  mem x t := ∃r, r ∈ t ∧ x ∈ r
+
+lemma LeafHashGadget_rw {r : Range} {v : F} {k : F → Prop}:
+  LightProver.LeafHashGadget r.lo r.index r.hi v k ↔ val ∈ r ∧ k r.hash := by
