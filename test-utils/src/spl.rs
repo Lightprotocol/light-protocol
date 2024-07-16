@@ -1142,11 +1142,12 @@ pub enum BurnInstructionMode {
     InvalidMint,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_burn_test_instruction<R: RpcConnection>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    input_compressed_accounts: &Vec<TokenDataWithContext>,
+    input_compressed_accounts: &[TokenDataWithContext],
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,
@@ -1170,9 +1171,6 @@ pub async fn create_burn_test_instruction<R: RpcConnection>(
         )
         .await;
     let mint = if mode == BurnInstructionMode::InvalidMint {
-        // let payer = rpc.get_payer().insecure_clone();
-        // let mint = create_mint_helper(rpc, &payer).await;
-        // mint
         Pubkey::new_unique()
     } else {
         input_compressed_accounts[0].token_data.mint
