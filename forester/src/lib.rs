@@ -7,9 +7,11 @@ pub mod nullifier;
 pub mod rpc_pool;
 pub mod settings;
 pub mod utils;
+pub mod alerts;
 
 mod config;
 mod operations;
+
 
 pub use config::ForesterConfig;
 pub use operations::{
