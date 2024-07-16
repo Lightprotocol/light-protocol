@@ -4,6 +4,7 @@ use num_traits::{FromBytes, ToPrimitive};
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     cmp::Ordering,
+    marker::Send,
     mem,
     ptr::NonNull,
 };
@@ -56,6 +57,7 @@ pub struct HashSetCell {
     pub value: [u8; 32],
     pub sequence_number: Option<usize>,
 }
+unsafe impl Send for HashSet {}
 
 impl HashSetCell {
     /// Returns the value as a byte array.
@@ -113,6 +115,8 @@ pub struct HashSet {
     /// elements.
     buckets: NonNull<Option<HashSetCell>>,
 }
+
+unsafe impl Send for HashSetCell {}
 
 impl HashSet {
     /// Size of the struct **without** dynamically sized fields.
