@@ -17,9 +17,7 @@ use light_compressed_token::{
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
-    process_transfer::{
-        get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
-    },
+    process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
     token_data::AccountState,
     TokenData,
 };
@@ -552,15 +550,6 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         lamports: None,
         merkle_tree: *output_merkle_tree_pubkey,
     };
-    let approve_instruction = spl_token::instruction::approve(
-        &spl_token::ID,
-        sender_token_account,
-        &get_cpi_authority_pda().0,
-        &payer.pubkey(),
-        &[&payer.pubkey()],
-        amount,
-    )
-    .unwrap();
 
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
@@ -597,7 +586,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     let context_payer = rpc.get_payer().insecure_clone();
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
-            &[approve_instruction, instruction],
+            &[instruction],
             &payer.pubkey(),
             &[&context_payer, payer],
             transaction_params,

@@ -117,16 +117,16 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     outputs_merkle_tree_index: &u8,
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
-    for (i, token_data) in input_token_data_with_context.iter().enumerate() {
-        // 83 =
+    for (i, token_data_with_context) in input_token_data_with_context.iter().enumerate() {
+        // 113 =
         //      32  mint
         // +    32  owner
         // +    8   amount
-        // +    1   delegate
+        // +    32   delegate
         // +    1   state
         // +    8   delegated_amount
-        let mut token_data_bytes = Vec::with_capacity(83);
-        let delegate = token_data
+        let mut token_data_bytes = Vec::with_capacity(113);
+        let delegate = token_data_with_context
             .delegate_index
             .map(|index| remaining_accounts[index as usize].key());
         let state = if IS_FROZEN {
@@ -138,7 +138,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         let token_data = TokenData {
             mint: *mint,
             owner: *owner,
-            amount: token_data.amount,
+            amount: token_data_with_context.amount,
             delegate,
             state,
         };
@@ -154,7 +154,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
-                lamports: 0,
+                lamports: token_data_with_context.lamports.unwrap_or(0),
                 data: Some(data),
                 address: None,
             },
@@ -163,6 +163,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     }
     Ok(())
 }
+
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataThaw {
     pub proof: CompressedProof,

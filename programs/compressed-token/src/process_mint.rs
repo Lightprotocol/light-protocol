@@ -52,13 +52,14 @@ pub struct CreateTokenPoolInstruction<'info> {
 #[allow(unused_variables)]
 pub fn process_mint_to<'info>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    compression_public_keys: Vec<Pubkey>,
+    recipient_pubkeys: Vec<Pubkey>,
     amounts: Vec<u64>,
+    lamports: u64,
 ) -> Result<()> {
-    if compression_public_keys.len() != amounts.len() {
+    if recipient_pubkeys.len() != amounts.len() {
         msg!(
-            "compression_public_keys.len() {} !=  {} amounts.len()",
-            compression_public_keys.len(),
+            "recipient_pubkeys.len() {} !=  {} amounts.len()",
+            recipient_pubkeys.len(),
             amounts.len()
         );
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
@@ -92,15 +93,12 @@ pub fn process_mint_to<'info>(
                 .unwrap()
                 .0;
         bench_sbf_start!("tm_output_compressed_accounts");
-        let mut output_compressed_accounts = vec![
-            OutputCompressedAccountWithPackedContext::default(
-            );
-            compression_public_keys.len()
-        ];
+        let mut output_compressed_accounts =
+            vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
-            compression_public_keys.as_slice(),
+            recipient_pubkeys.as_slice(),
             None,
             None,
             &amounts,
@@ -262,8 +260,10 @@ pub fn serialize_mint_to_cpi_instruction_data(
     let len = output_compressed_accounts.len();
     // proof (option None)
     inputs.extend_from_slice(&[0u8]);
-    // empty vecs: address_params, (no) input_root_indices, input_compressed_accounts_with_merkle_context
+    // two empty vecs 4 bytes of zeroes each: address_params,
+    // input_compressed_accounts_with_merkle_context
     inputs.extend_from_slice(&[0u8; 8]);
+    // lenght of output_compressed_accounts vec as u32
     inputs.extend_from_slice(&[(len as u8), 0, 0, 0]);
     // output_compressed_accounts
     for compressed_account in output_compressed_accounts.iter() {

@@ -1,5 +1,5 @@
 use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    constants::{BUMP_CPI_AUTHORITY, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
     spl_compression::process_compression_or_decompression,
     token_data::{AccountState, TokenData},
     ErrorCode, TransferInstruction,
@@ -85,7 +85,9 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     };
     let is_delegate = if let Some(delegated_transfer) = inputs.delegated_transfer {
         let mut vec = vec![false; inputs.output_compressed_accounts.len()];
-        vec[delegated_transfer.delegate_change_account_index as usize] = true;
+        if let Some(index) = delegated_transfer.delegate_change_account_index {
+            vec[index as usize] = true;
+        }
         Some(vec)
     } else {
         None
@@ -120,8 +122,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
                     }
                     data.lamports
                 })
-                .collect::<Vec<Option<u64>>>()
-                .as_slice(),
+                .collect::<Vec<Option<u64>>>(),
         ),
         &hashed_mint,
         &inputs
@@ -170,7 +171,7 @@ pub fn create_output_compressed_accounts(
     delegate: Option<Pubkey>,
     is_delegate: Option<Vec<bool>>,
     amounts: &[u64],
-    lamports: Option<&[Option<u64>]>,
+    lamports: Option<Vec<Option<u64>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
 ) -> Result<()> {
@@ -182,15 +183,21 @@ pub fn create_output_compressed_accounts(
         [0u8; 32]
     };
     for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        let (delegate, hashed_delegate) =
-            if is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-                (
-                    delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey),
-                    Some(&hashed_delegate_store),
-                )
-            } else {
-                (None, None)
-            };
+        // is_delegate is only some if delegate is some
+        // if delegate is none
+        // This is enforced implictly by deriving is_delegate from delegated_transfer
+        let (delegate, hashed_delegate) = if is_delegate
+            .as_ref()
+            .map(|is_delegate| is_delegate[i])
+            .unwrap_or(false)
+        {
+            (
+                delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey),
+                Some(&hashed_delegate_store),
+            )
+        } else {
+            (None, None)
+        };
         // 83 =
         //      32  mint
         // +    32  owner
@@ -210,11 +217,11 @@ pub fn create_output_compressed_accounts(
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let owner_hashed = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
+        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
         let amount_bytes = amount.to_le_bytes();
         let data_hash = TokenData::hash_with_hashed_values::<Poseidon>(
             hashed_mint,
-            &owner_hashed,
+            &hashed_owner,
             &amount_bytes,
             &hashed_delegate,
         )
@@ -225,7 +232,10 @@ pub fn create_output_compressed_accounts(
             data_hash,
         };
         bench_sbf_end!("token_data_hash");
-        let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
+        let lamports = lamports
+            .as_ref()
+            .and_then(|lamports| lamports[i])
+            .unwrap_or(0);
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
@@ -295,7 +305,7 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
 
 /// Get static cpi signer seeds
 pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
-    let bump: &[u8; 1] = &[254];
+    let bump: &[u8; 1] = &[BUMP_CPI_AUTHORITY];
     let seeds: [&'static [u8]; 2] = [CPI_AUTHORITY_PDA_SEED, bump];
     seeds
 }
@@ -415,19 +425,24 @@ pub struct InputTokenDataWithContext {
     pub lamports: Option<u64>,
 }
 
+/// Struct to provide the owner when the delegate is signer of the transaction.
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct DelegatedTransfer {
     pub owner: Pubkey,
-    pub delegate_change_account_index: u8,
+    /// Index of change compressed account in output compressed accounts. In
+    /// case that the delegate didn't spend the complete delegated compressed
+    /// account balance the change compressed account will be delegated to her
+    /// as well.
+    pub delegate_change_account_index: Option<u8>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub mint: Pubkey,
-    /// If the signer is a delegate, the delegate index is index 0 of remaining accounts.
+    /// Is required if the signer is delegate,
+    /// -> delegate is authority account,
     /// owner = Some(owner) is the owner of the token account.
-    /// Is set if the signer is delegate
     pub delegated_transfer: Option<DelegatedTransfer>,
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
     pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
@@ -459,6 +474,8 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         *signer
     };
     for input_token_data in input_token_data_with_context.iter() {
+        // This is a check for convenience to throw a meaningful error.
+        // The actual security results from the proof verification.
         if signer_is_delegate.is_some()
             && input_token_data.delegate_index.is_some()
             && *signer
@@ -730,7 +747,7 @@ pub mod transfer_sdk {
         let delegated_transfer = if delegate.is_some() {
             let delegated_transfer = DelegatedTransfer {
                 owner: input_token_data[0].owner,
-                delegate_change_account_index: delegate_change_account_index.unwrap(),
+                delegate_change_account_index,
             };
             Some(delegated_transfer)
         } else {
@@ -751,7 +768,7 @@ pub mod transfer_sdk {
     }
 
     pub fn create_input_output_and_remaining_accounts(
-        additiona_accounts: &[Pubkey],
+        additional_accounts: &[Pubkey],
         input_token_data: &[TokenData],
         input_merkle_context: &[MerkleContext],
         root_indices: &[u16],
@@ -764,7 +781,7 @@ pub mod transfer_sdk {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
 
         let mut index = 0;
-        for account in additiona_accounts {
+        for account in additional_accounts {
             match remaining_accounts.get(account) {
                 Some(_) => {}
                 None => {

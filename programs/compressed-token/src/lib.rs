@@ -30,7 +30,7 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use super::*;
-
+    use constants::NOT_FROZEN;
     /// This instruction expects a mint account to be created in a separate
     /// token program instruction with token authority as mint authority. This
     /// instruction creates a token pool account for that mint owned by token
@@ -50,7 +50,7 @@ pub mod light_compressed_token {
         public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts)
+        process_mint_to(ctx, public_keys, amounts, 0)
     }
 
     pub fn transfer<'info>(
@@ -78,14 +78,16 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        freeze::process_freeze_or_thaw::<false, true>(ctx, inputs)
+        // Inputs are not frozen, outputs are frozen.
+        freeze::process_freeze_or_thaw::<NOT_FROZEN, true>(ctx, inputs)
     }
 
     pub fn thaw<'info>(
         ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        freeze::process_freeze_or_thaw::<true, false>(ctx, inputs)
+        // Inputs are frozen, outputs are not frozen.
+        freeze::process_freeze_or_thaw::<true, NOT_FROZEN>(ctx, inputs)
     }
 
     pub fn burn<'info>(
@@ -150,4 +152,5 @@ pub enum ErrorCode {
     InvalidAuthorityMint,
     #[msg("Provided authority is not the freeze authority")]
     InvalidFreezeAuthority,
+    InvalidDelegateIndex,
 }
