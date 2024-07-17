@@ -1,17 +1,36 @@
-STATE_MERKLE_TREE_PUBKEY="5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"
-NULLIFIER_QUEUE_PUBKEY="44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ"
-REGISTRY_PUBKEY="7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1"
-ADDRESS_MERKLE_TREE_PUBKEY="C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn"
-ADDRESS_MERKLE_TREE_QUEUE_PUBKEY="HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz"
+# Specify the default environment
+default_environment = "local"
 
-RPC_URL="http://localhost:8899"
-WS_RPC_URL="ws://localhost:8900"
-INDEXER_URL="http://localhost:8784"
-PROVER_URL="http://localhost:3001"
+# Common settings
+cu_limit = 1_000_000
+rpc_pool_size = 20
+concurrency_limit = 100
+batch_size = 100
+max_retries = 5
+max_concurrent_batches = 1
 
-CU_LIMIT = 1_000_000
-RPC_POOL_SIZE = 20
-CONCURRENCY_LIMIT=100
-BATCH_SIZE=100
-MAX_RETRIES=5
-MAX_CONCURRENT_BATCHES=1
+state_merkle_tree_pubkey = "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"
+nullifier_queue_pubkey = "44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ"
+registry_pubkey = "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1"
+address_merkle_tree_pubkey = "C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn"
+address_merkle_tree_queue_pubkey = "HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz"
+
+# Environment-specific URLs
+[urls]
+[urls.local]
+rpc_url = "http://localhost:8899"
+ws_rpc_url = "ws://localhost:8900"
+indexer_url = "http://localhost:8784"
+prover_url = "http://localhost:3001"
+
+[urls.devnet]
+rpc_url = "https://api.devnet.solana.com"
+ws_rpc_url = "wss://api.devnet.solana.com"
+indexer_url = "http://devnet-indexer.example.com"
+prover_url = "http://devnet-prover.example.com"
+
+[urls.mainnet-beta]
+rpc_url = "https://api.mainnet-beta.solana.com"
+ws_rpc_url = "wss://api.mainnet-beta.solana.com"
+indexer_url = "http://mainnet-indexer.example.com"
+prover_url = "http://mainnet-prover.example.com"
