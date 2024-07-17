@@ -5,7 +5,7 @@ use crate::nullifier::state::setup_state_pipeline;
 use crate::nullifier::{ForesterQueueAccount, ForesterQueueAccountData};
 use crate::RpcPool;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use account_compression::{address_merkle_tree_from_bytes_zero_copy, AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
 use light_hasher::Poseidon;
 use light_test_utils::get_indexed_merkle_tree;
@@ -234,6 +234,23 @@ pub async fn fetch_address_queue_data<R: RpcConnection>(
     }
     Ok(address_queue_vec)
 }
+
+
+#[allow(dead_code)]
+pub async fn fetch_address_tree<R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<Mutex<R>>,
+) -> Result<usize, ForesterError> {
+    //IndexedMerkleTreeZeroCopy<Poseidon, usize, 26, 16>
+    let address_tree_pubkey = config.address_merkle_tree_pubkey;
+    let mut rpc = rpc.lock().await;
+    let account = rpc.get_account(address_tree_pubkey).await?.unwrap();
+    let tree = address_merkle_tree_from_bytes_zero_copy(&account.data)?;
+    let next_index = tree.next_index();
+    Ok(next_index)
+}
+
+
 
 #[allow(dead_code)]
 pub async fn get_address_account_changelog_indices<R: RpcConnection>(

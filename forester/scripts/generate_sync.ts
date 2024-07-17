@@ -1,4 +1,4 @@
-import {PublicKey, Signer, Keypair} from '@solana/web3.js';
+import {PublicKey, Signer, Keypair, LAMPORTS_PER_SOL} from '@solana/web3.js';
 import {airdropSol, createRpc, bn, compress, transfer, Rpc} from '@lightprotocol/stateless.js';
 
 const payerKeypair = [
@@ -19,9 +19,9 @@ const bobKeypair = [
     222, 8, 10, 158, 214, 99, 237, 126, 9
 ]
 
-const LAMPORTS = 1e11;
-const COMPRESS_AMOUNT = 1e9;
-const TOTAL_NUMBER_OF_TRANSFERS = 10;
+const LAMPORTS = 2 * LAMPORTS_PER_SOL;
+const COMPRESS_AMOUNT = 0.5 * LAMPORTS_PER_SOL;
+const TOTAL_NUMBER_OF_TRANSFERS = 1;
 const NUMBER_OF_CONCURRENT_TRANSFERS = 1;
 const TRANSFER_AMOUNT = 10;
 
@@ -45,6 +45,15 @@ function zkTestnetRpc(): Rpc {
 
     return createRpc(validatorUrl, photonUrl, proverUrl);
 }
+
+function devnetRpc(): Rpc {
+    let validatorUrl = 'https://api.devnet.solana.com';
+    let photonUrl = 'https://zk-testnet.helius.dev:8784';
+    let proverUrl = 'https://zk-testnet.helius.dev:3001';
+
+    return createRpc(validatorUrl, photonUrl, proverUrl);
+}
+
 
 async function prefillNullifierQueue() {
 
