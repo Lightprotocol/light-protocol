@@ -7,7 +7,7 @@ use light_system_program::OutputCompressedAccountWithPackedContext;
 use {
     crate::process_transfer::create_output_compressed_accounts,
     crate::process_transfer::get_cpi_signer_seeds,
-    light_heap::{bench_sbf_end, bench_sbf_start},
+    light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
     light_utils::hash_to_bn254_field_size_be,
 };
 
@@ -67,12 +67,12 @@ pub fn process_mint_to<'info>(
 
     #[cfg(target_os = "solana")]
     {
-        let inputs_len = 1 + 4 + 4 + 4 + amounts.len() * 170 + 1 + 1 + 1 + 26 + 1;
+        let inputs_len = 1 + 4 + 4 + 4 + amounts.len() * 161 + 1 + 1 + 1 + 26 + 1;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
         // + 4                          Vec::new()
-        // + 4 + amounts.len() * 170    Vec<OutputCompressedAccountWithPackedContext>
+        // + 4 + amounts.len() * 162    Vec<OutputCompressedAccountWithPackedContext>
         // + 1                          Option<relay_fee>
         // + 1                          Option<compression_lamports>
         // + 1                          is_compress
@@ -81,7 +81,7 @@ pub fn process_mint_to<'info>(
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
-        let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+        let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
         // 7,912 CU
@@ -119,9 +119,9 @@ pub fn process_mint_to<'info>(
 
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // This error should never be triggered.
-        if inputs.capacity() != inputs_len {
+        if inputs.len() != inputs_len {
             msg!(
-                "Used memory {} exceeds allocated {} memory",
+                "Used memory {} is unequal allocated {} memory",
                 inputs.len(),
                 inputs_len
             );
@@ -139,7 +139,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
 ) -> Result<()> {
-    light_heap::bench_sbf_start!("tm_cpi");
+    bench_sbf_start!("tm_cpi");
 
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
@@ -149,7 +149,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     // 7,978 CU for 25 accounts
     serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec);
 
-    light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
+    GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
 
     use anchor_lang::InstructionData;
 
@@ -240,14 +240,14 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         data: instructiondata.data(),
     };
 
-    light_heap::bench_sbf_end!("tm_cpi");
-    light_heap::bench_sbf_start!("tm_invoke");
+    bench_sbf_end!("tm_cpi");
+    bench_sbf_start!("tm_invoke");
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),
         &[&signer_seeds[..]],
     )?;
-    light_heap::bench_sbf_end!("tm_invoke");
+    bench_sbf_end!("tm_invoke");
     Ok(())
 }
 

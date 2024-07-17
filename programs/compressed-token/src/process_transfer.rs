@@ -198,14 +198,14 @@ pub fn create_output_compressed_accounts(
         } else {
             (None, None)
         };
-        // 83 =
-        //      32  mint
-        // +    32  owner
-        // +    8   amount
-        // +    1   delegate
-        // +    1   state
-        // +    8   delegated_amount
-        let mut token_data_bytes = Vec::with_capacity(83);
+        // 106/74 =
+        //      32      mint
+        // +    32      owner
+        // +    8       amount
+        // +    1 + 32  option + delegate (optional)
+        // +    1       state
+        let capacity = if delegate.is_some() { 106 } else { 74 };
+        let mut token_data_bytes = Vec::with_capacity(capacity);
 
         // 1,000 CU token data and serialize
         let token_data = TokenData {
@@ -231,6 +231,7 @@ pub fn create_output_compressed_accounts(
             data: token_data_bytes,
             data_hash,
         };
+
         bench_sbf_end!("token_data_hash");
         let lamports = lamports
             .as_ref()

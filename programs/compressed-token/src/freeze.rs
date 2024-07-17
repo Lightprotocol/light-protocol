@@ -118,14 +118,18 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
     for (i, token_data_with_context) in input_token_data_with_context.iter().enumerate() {
-        // 113 =
-        //      32  mint
-        // +    32  owner
-        // +    8   amount
-        // +    32   delegate
-        // +    1   state
-        // +    8   delegated_amount
-        let mut token_data_bytes = Vec::with_capacity(113);
+        // 106/74 =
+        //      32      mint
+        // +    32      owner
+        // +    8       amount
+        // +    1 + 32  option + delegate (optional)
+        // +    1       state
+        let capacity = if token_data_with_context.delegate_index.is_some() {
+            106
+        } else {
+            74
+        };
+        let mut token_data_bytes = Vec::with_capacity(capacity);
         let delegate = token_data_with_context
             .delegate_index
             .map(|index| remaining_accounts[index as usize].key());
@@ -150,7 +154,6 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             data: token_data_bytes,
             data_hash,
         };
-
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
