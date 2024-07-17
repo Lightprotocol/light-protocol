@@ -68,7 +68,9 @@ async fn test_create_and_update_group() {
 
     let group_authority = context
         .get_anchor_account::<GroupAuthority>(&group_accounts.0)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(group_authority.authority, context.get_payer().pubkey());
     assert_eq!(group_authority.seed, seed.pubkey());
 
@@ -99,7 +101,9 @@ async fn test_create_and_update_group() {
 
     let group_authority = context
         .get_anchor_account::<GroupAuthority>(&group_accounts.0)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(group_authority.authority, updated_keypair.pubkey());
     assert_eq!(group_authority.seed, seed.pubkey());
@@ -161,7 +165,9 @@ async fn test_create_and_update_group() {
     context.process_transaction(transaction).await.unwrap();
     let registered_program_account = context
         .get_anchor_account::<RegisteredProgram>(&registered_program_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         registered_program_account.registered_program_id,
         system_program_id_keypair.pubkey()

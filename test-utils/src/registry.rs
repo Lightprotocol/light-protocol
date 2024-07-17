@@ -56,7 +56,8 @@ pub async fn update_test_forester<R: RpcConnection>(
         .get_anchor_account::<ForesterEpoch>(
             &get_forester_epoch_pda_address(&forester_authority.pubkey()).0,
         )
-        .await;
+        .await?
+        .unwrap();
     let ix =
         create_update_forester_instruction(&forester_authority.pubkey(), new_forester_authority);
     rpc.create_and_send_transaction(&[ix], &forester_authority.pubkey(), &[forester_authority])
@@ -71,7 +72,10 @@ pub async fn assert_registered_forester<R: RpcConnection>(
     expected_account: ForesterEpoch,
 ) -> Result<(), RpcError> {
     let pda = get_forester_epoch_pda_address(forester).0;
-    let account_data = rpc.get_anchor_account::<ForesterEpoch>(&pda).await;
+    let account_data = rpc
+        .get_anchor_account::<ForesterEpoch>(&pda)
+        .await?
+        .unwrap();
     if account_data != expected_account {
         return Err(RpcError::AssertRpcError(format!(
             "Expected account data: {:?}, got: {:?}",

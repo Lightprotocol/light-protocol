@@ -201,7 +201,9 @@ pub async fn initialize_accounts<R: RpcConnection>(
 
     let gov_authority = context
         .get_anchor_account::<GroupAuthority>(&authority_pda.0)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(gov_authority.authority, payer.pubkey());
 
     println!("forester: {:?}", forester.pubkey());
@@ -312,7 +314,9 @@ pub async fn initialize_new_group<R: RpcConnection>(
         .unwrap();
     let group_authority = context
         .get_anchor_account::<GroupAuthority>(&group_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(group_authority.authority, authority);
     assert_eq!(group_authority.seed, group_seed_keypair.pubkey());
     group_pda
@@ -550,7 +554,9 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         let registered_program = get_registered_program_pda(&light_registry::ID);
         let registered_program_account = context
             .get_anchor_account::<RegisteredProgram>(&registered_program)
-            .await;
+            .await
+            .unwrap()
+            .unwrap();
         registered_program_account.group_authority_pda
     } else {
         payer.pubkey()

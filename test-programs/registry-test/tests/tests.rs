@@ -239,7 +239,9 @@ async fn update_forester_on_testnet() {
         Pubkey::from_str("DFiGEbaz75wSdqy9bpeWacqLWrqAwWBfqh4iSYtejiwK").unwrap();
     let forester_epoch = rpc
         .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     println!("ForesterEpoch: {:?}", forester_epoch);
     assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
 
@@ -250,7 +252,9 @@ async fn update_forester_on_testnet() {
         .unwrap();
     let forester_epoch = rpc
         .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     println!("ForesterEpoch: {:?}", forester_epoch_account);
     assert_eq!(forester_epoch.authority, updated_keypair.pubkey());
 }
@@ -268,7 +272,9 @@ async fn update_registry_governance_on_testnet() {
     .unwrap();
     let governance_authority = rpc
         .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     println!("GroupAuthority: {:?}", governance_authority);
     assert_eq!(
         governance_authority.authority,
@@ -303,7 +309,9 @@ async fn update_registry_governance_on_testnet() {
     println!("signature: {:?}", signature);
     let governance_authority = rpc
         .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(governance_authority.authority, updated_keypair.pubkey());
 }
 
