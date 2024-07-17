@@ -26,7 +26,6 @@ import {
 import {
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
-    createApproveInstruction,
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
@@ -654,7 +653,7 @@ export class CompressedTokenProgram {
 
     /**
      * Construct compress instruction
-     * @returns [compressInstruction]
+     * @returns compressInstruction
      */
     static async compress(
         params: CompressParams,
