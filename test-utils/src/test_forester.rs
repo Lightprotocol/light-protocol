@@ -54,6 +54,8 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     let pre_forester_counter = rpc
         .get_anchor_account::<ForesterEpoch>(&get_forester_epoch_pda_address(&forester.pubkey()).0)
         .await
+        .unwrap()
+        .unwrap()
         .counter;
     let onchain_merkle_tree =
         get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
@@ -218,7 +220,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
         array_element.sequence_number(),
         Some(
             onchain_merkle_tree.sequence_number()
-                + onchain_merkle_tree.roots.capacity() as usize
+                + onchain_merkle_tree.roots.capacity()
                 + SAFETY_MARGIN as usize
         )
     );
@@ -230,7 +232,10 @@ pub async fn assert_forester_counter<R: RpcConnection>(
     pre: u64,
     num_nullified: u64,
 ) -> Result<(), RpcError> {
-    let account = rpc.get_anchor_account::<ForesterEpoch>(pubkey).await;
+    let account = rpc
+        .get_anchor_account::<ForesterEpoch>(pubkey)
+        .await?
+        .unwrap();
     if account.counter != pre + num_nullified {
         debug!("account.counter: {}", account.counter);
         debug!("pre: {}", pre);
@@ -244,7 +249,10 @@ pub async fn assert_forester_counter<R: RpcConnection>(
 }
 
 #[derive(Error, Debug)]
-pub enum RelayerUpdateError {}
+pub enum RelayerUpdateError {
+    #[error("Error in relayer update")]
+    RpcError,
+}
 /// Mocks the address insert logic of a forester.
 /// Gets addresses from the AddressQueue and inserts them into the AddressMerkleTree.
 /// Checks:
@@ -279,6 +287,8 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
                 &get_forester_epoch_pda_address(&forester.pubkey()).0,
             )
             .await
+            .map_err(|e| RelayerUpdateError::RpcError)?
+            .unwrap()
             .counter
         } else {
             0

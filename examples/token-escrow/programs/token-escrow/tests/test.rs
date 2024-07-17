@@ -347,7 +347,9 @@ pub async fn assert_escrow<R: RpcConnection>(
     let time_lock_pubkey = get_timelock_pda(payer_pubkey);
     let timelock_account = rpc
         .get_anchor_account::<EscrowTimeLock>(&time_lock_pubkey)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     let current_slot = rpc.get_slot().await.unwrap();
     assert_eq!(timelock_account.slot, *lock_up_time + current_slot);
 }
