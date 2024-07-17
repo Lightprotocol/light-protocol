@@ -260,6 +260,7 @@ pub async fn perform_escrow<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
+        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
     create_escrow_instruction(create_ix_inputs, *escrow_amount)
 }
@@ -416,6 +417,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &escrow_token_data_with_context.token_data.mint,
+        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
 
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)

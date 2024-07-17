@@ -12,6 +12,7 @@ use light_test_utils::spl::approve_test;
 use light_test_utils::spl::burn_test;
 use light_test_utils::spl::create_burn_test_instruction;
 use light_test_utils::spl::freeze_test;
+use light_test_utils::spl::mint_tokens_helper_with_lamports;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
@@ -234,7 +235,7 @@ async fn test_wrapped_sol() {
     kill_prover();
 }
 
-async fn test_mint_to(amounts: Vec<u64>, iterations: usize) {
+async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64>) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -248,7 +249,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize) {
     let mint = create_mint_helper(&mut rpc, &payer).await;
 
     for _ in 0..iterations {
-        mint_tokens_helper(
+        mint_tokens_helper_with_lamports(
             &mut rpc,
             &mut test_indexer,
             &merkle_tree_pubkey,
@@ -256,6 +257,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize) {
             &mint,
             amounts.clone(),
             recipients.clone(),
+            lamports,
         )
         .await;
     }
@@ -264,17 +266,17 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize) {
 
 #[tokio::test]
 async fn test_1_mint_to() {
-    test_mint_to(vec![10000], 1).await
+    test_mint_to(vec![10000], 1, Some(1_000_000)).await
 }
 
 #[tokio::test]
 async fn test_1_max_mint_to() {
-    test_mint_to(vec![u64::MAX], 1).await
+    test_mint_to(vec![u64::MAX], 1, Some(1_000_000)).await
 }
 
 #[tokio::test]
 async fn test_5_mint_to() {
-    test_mint_to(vec![0, 10000, 10000, 10000, 10000], 1).await
+    test_mint_to(vec![0, 10000, 10000, 10000, 10000], 1, Some(1_000_000)).await
 }
 
 #[tokio::test]
@@ -282,7 +284,7 @@ async fn test_10_mint_to() {
     let mut rng = rand::thread_rng();
     // Make sure that the tokal token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..10).map(|_| rng.gen_range(0..(u64::MAX / 10))).collect();
-    test_mint_to(amounts, 1).await
+    test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
 #[tokio::test]
@@ -290,7 +292,7 @@ async fn test_20_mint_to() {
     let mut rng = rand::thread_rng();
     // Make sure that the total token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..20).map(|_| rng.gen_range(0..(u64::MAX / 20))).collect();
-    test_mint_to(amounts, 1).await
+    test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
 #[tokio::test]
@@ -300,13 +302,13 @@ async fn test_25_mint_to() {
     let amounts: Vec<u64> = (0..25)
         .map(|_| rng.gen_range(0..(u64::MAX / (25 * 10))))
         .collect();
-    test_mint_to(amounts, 10).await
+    test_mint_to(amounts, 10, Some(1_000_000)).await
 }
 
 #[tokio::test]
 async fn test_25_mint_to_zeros() {
     let amounts = vec![0; 25];
-    test_mint_to(amounts, 1).await
+    test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
 /// Failing tests:
@@ -356,6 +358,7 @@ async fn test_mint_to_failing() {
     let instruction_data = light_compressed_token::instruction::MintTo {
         amounts: amounts.clone(),
         public_keys: recipients.clone(),
+        lamports: None,
     };
 
     // 1. Try to mint token from `mint_1` and sign the transaction with `mint_2`
@@ -368,6 +371,7 @@ async fn test_mint_to_failing() {
             &merkle_tree_pubkey,
             amounts.clone(),
             recipients.clone(),
+            None,
         );
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
@@ -389,6 +393,7 @@ async fn test_mint_to_failing() {
             &merkle_tree_pubkey,
             amounts.clone(),
             recipients.clone(),
+            None,
         );
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
@@ -423,6 +428,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -457,6 +463,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -492,6 +499,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -530,6 +538,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -568,6 +577,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -606,6 +616,7 @@ async fn test_mint_to_failing() {
             merkle_tree: merkle_tree_pubkey,
             self_program: light_compressed_token::ID,
             system_program: system_program::ID,
+            sol_pool_pda: None,
         };
         let instruction = Instruction {
             program_id: light_compressed_token::ID,
@@ -632,6 +643,7 @@ async fn test_mint_to_failing() {
             &invalid_merkle_tree.pubkey(),
             amounts.clone(),
             recipients.clone(),
+            None,
         );
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
@@ -654,6 +666,7 @@ async fn test_mint_to_failing() {
             &merkle_tree_pubkey,
             amounts,
             recipients.clone(),
+            None,
         );
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
@@ -675,6 +688,7 @@ async fn test_mint_to_failing() {
             &merkle_tree_pubkey,
             amounts,
             recipients.clone(),
+            None,
         );
         // The first mint is still below `u64::MAX`.
         rpc.create_and_send_transaction(&[instruction.clone()], &payer_1.pubkey(), &[&payer_1])
@@ -769,7 +783,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let sender = Keypair::new();
-    mint_tokens_helper(
+    mint_tokens_helper_with_lamports(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
@@ -777,6 +791,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         &mint,
         vec![amount; inputs],
         vec![sender.pubkey(); inputs],
+        Some(1_000_000),
     )
     .await;
     let mut recipients = Vec::new();
@@ -797,6 +812,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         &sender,
         &recipients,
         &output_amounts,
+        None,
         input_compressed_accounts.as_slice(),
         &vec![env.merkle_tree_pubkey; outputs],
         None,
@@ -885,7 +901,7 @@ async fn test_delegation(
         .await
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    mint_tokens_helper(
+    mint_tokens_helper_with_lamports(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
@@ -893,6 +909,7 @@ async fn test_delegation(
         &mint,
         vec![mint_amount; num_inputs],
         vec![sender.pubkey(); num_inputs],
+        Some(1_000_000),
     )
     .await;
     // 1. Delegate tokens
@@ -909,6 +926,7 @@ async fn test_delegation(
             &mut test_indexer,
             input_compressed_accounts,
             delegated_amount,
+            Some(100),
             &delegate.pubkey(),
             &delegated_compressed_account_merkle_tree,
             &delegated_compressed_account_merkle_tree,
@@ -935,6 +953,7 @@ async fn test_delegation(
             &sender,
             &[recipient, sender.pubkey()],
             &output_amounts_1,
+            Some(vec![Some(90), Some(10)]),
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 2],
             Some(1),
@@ -959,6 +978,7 @@ async fn test_delegation(
             &sender,
             &[recipient],
             &output_amounts_2,
+            None,
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 1],
             None,
@@ -1074,8 +1094,14 @@ async fn test_approve_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             delegated_amount,
+            delegate_lamports: None,
             delegated_compressed_account_merkle_tree: invalid_delegated_merkle_tree.pubkey(),
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
@@ -1115,8 +1141,14 @@ async fn test_approve_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             delegated_amount,
+            delegate_lamports: None,
             delegated_compressed_account_merkle_tree,
             change_compressed_account_merkle_tree: invalid_change_merkle_tree.pubkey(),
             delegate: delegate.pubkey(),
@@ -1160,8 +1192,14 @@ async fn test_approve_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             delegated_amount,
+            delegate_lamports: None,
             delegated_compressed_account_merkle_tree,
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
@@ -1194,8 +1232,14 @@ async fn test_approve_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
             delegated_amount,
+            delegate_lamports: None,
             delegated_compressed_account_merkle_tree,
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
@@ -1231,8 +1275,14 @@ async fn test_approve_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             delegated_amount,
+            delegate_lamports: None,
             delegated_compressed_account_merkle_tree,
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
@@ -1270,7 +1320,7 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
         .await
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    mint_tokens_helper(
+    mint_tokens_helper_with_lamports(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
@@ -1278,6 +1328,7 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
         &mint,
         vec![mint_amount; num_inputs],
         vec![sender.pubkey(); num_inputs],
+        Some(1_000_000),
     )
     .await;
     // 1. Delegate tokens
@@ -1296,6 +1347,7 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
                 &mut test_indexer,
                 input_compressed_accounts,
                 delegated_amount,
+                Some(1000),
                 &delegate.pubkey(),
                 &delegated_compressed_account_merkle_tree,
                 &delegated_compressed_account_merkle_tree,
@@ -1402,6 +1454,7 @@ async fn test_revoke_failing() {
             &mut test_indexer,
             input_compressed_accounts,
             delegated_amount,
+            None,
             &delegate.pubkey(),
             &delegated_compressed_account_merkle_tree,
             &delegated_compressed_account_merkle_tree,
@@ -1451,6 +1504,11 @@ async fn test_revoke_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: invalid_root_indices,
@@ -1482,6 +1540,11 @@ async fn test_revoke_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint,
             output_account_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
@@ -1522,6 +1585,11 @@ async fn test_revoke_failing() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: proof_rpc_result.root_indices,
@@ -1561,7 +1629,7 @@ async fn test_burn() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
-    mint_tokens_helper(
+    mint_tokens_helper_with_lamports(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
@@ -1569,6 +1637,7 @@ async fn test_burn() {
         &mint,
         vec![amount],
         vec![sender.pubkey()],
+        Some(1_000_000),
     )
     .await;
     // 1. Burn tokens
@@ -1607,6 +1676,7 @@ async fn test_burn() {
             &mut test_indexer,
             input_compressed_accounts,
             delegated_amount,
+            None,
             &delegate.pubkey(),
             &delegated_compressed_account_merkle_tree,
             &delegated_compressed_account_merkle_tree,
@@ -1713,6 +1783,7 @@ async fn failing_tests_burn() {
             &mut test_indexer,
             input_compressed_accounts,
             delegated_amount,
+            None,
             &delegate.pubkey(),
             &delegated_compressed_account_merkle_tree,
             &delegated_compressed_account_merkle_tree,
@@ -1908,7 +1979,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         .await
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    mint_tokens_helper(
+    mint_tokens_helper_with_lamports(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
@@ -1916,6 +1987,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         &mint,
         vec![mint_amount],
         vec![sender.pubkey()],
+        Some(1_000_000),
     )
     .await;
     // 1. Freeze tokens
@@ -1974,6 +2046,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
             &mut test_indexer,
             input_compressed_accounts,
             delegated_amount,
+            None,
             &delegate.pubkey(),
             &delegated_compressed_account_merkle_tree,
             &delegated_compressed_account_merkle_tree,
@@ -2110,6 +2183,11 @@ async fn test_failing_freeze() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2144,6 +2222,11 @@ async fn test_failing_freeze() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2180,6 +2263,11 @@ async fn test_failing_freeze() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: invalid_proof,
@@ -2241,6 +2329,11 @@ async fn test_failing_freeze() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2352,6 +2445,11 @@ async fn test_failing_thaw() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2386,6 +2484,11 @@ async fn test_failing_thaw() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2422,6 +2525,11 @@ async fn test_failing_thaw() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: invalid_proof,
@@ -2474,6 +2582,11 @@ async fn test_failing_thaw() {
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
+            input_compressed_accounts: input_compressed_accounts
+                .iter()
+                .map(|x| &x.compressed_account.compressed_account)
+                .cloned()
+                .collect::<Vec<_>>(),
             outputs_merkle_tree,
             root_indices: proof_rpc_result.root_indices.clone(),
             proof: proof_rpc_result.proof.clone(),
@@ -2779,6 +2892,11 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
             .map(|x| x.token_data)
             .collect::<Vec<_>>()
             .as_slice(),
+        &input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         *mint,
         None,
         is_compress,
@@ -2786,6 +2904,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
         token_pool_pda,
         Some(*compress_or_decompress_token_account),
         true,
+        None,
         None,
     )
     .unwrap();
@@ -3218,6 +3337,11 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         root_indices,
         proof,
         input_compressed_account_token_data.as_slice(),
+        &input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         mint,
         None,
         false,
@@ -3225,6 +3349,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         None,
         None,
         true,
+        None,
         None,
     )
     .unwrap();

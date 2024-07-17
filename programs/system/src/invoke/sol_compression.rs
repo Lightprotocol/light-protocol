@@ -82,7 +82,7 @@ pub fn compress_lamports<
     };
 
     transfer_lamports_cpi(
-        &ctx.accounts.get_authority().to_account_info(),
+        &ctx.accounts.get_fee_payer().to_account_info(),
         &recipient,
         lamports,
     )

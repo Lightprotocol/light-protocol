@@ -96,6 +96,10 @@ export type CompressedTokenInstructionDataInvoke = {
      * accounts'
      */
     outputStateMerkleTreeAccountIndices: Buffer;
+    /**
+     * The index of the Merkle tree for a lamport change account.
+     */
+    lamportsChangeAccountMerkleTreeIndex: number | null;
 };
 
 export type TokenData = {

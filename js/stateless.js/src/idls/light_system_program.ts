@@ -87,7 +87,7 @@ export type LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                     isOptional: true;
                     docs: [
@@ -158,7 +158,7 @@ export type LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                     isOptional: true;
                 },
@@ -238,7 +238,7 @@ export type LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                     isOptional: true;
                     docs: [
@@ -1133,7 +1133,7 @@ export const IDL: LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                     isOptional: true,
                     docs: [
@@ -1204,7 +1204,7 @@ export const IDL: LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                     isOptional: true,
                 },
@@ -1284,7 +1284,7 @@ export const IDL: LightSystemProgram = {
                 },
                 {
                     name: 'decompressionRecipient',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                     isOptional: true,
                     docs: [

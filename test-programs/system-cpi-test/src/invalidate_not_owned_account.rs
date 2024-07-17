@@ -342,6 +342,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         is_compress: false,
         compress_or_decompress_amount: None,
         cpi_context,
+        lamports_change_account_merkle_tree_index: None,
     };
 
     let mut inputs = Vec::new();

@@ -74,7 +74,7 @@ pub fn create_input_and_output_accounts_approve(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
+    let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
@@ -88,16 +88,12 @@ pub fn create_input_and_output_accounts_approve(
         .iter()
         .map(|x| x.lamports.unwrap_or(0))
         .sum::<u64>();
-    if sum_lamports > 0 {
-        unimplemented!("Approve with lamports are not implemented yet.");
-    }
+
     let change_amount = match sum_inputs.checked_sub(inputs.delegated_amount) {
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
-    if inputs.delegate_lamports.is_some() {
-        unimplemented!("delegate_lamports is not implemented yet");
-    }
+
     let delegated_lamports = inputs.delegate_lamports.unwrap_or(0);
     let change_lamports = match sum_lamports.checked_sub(delegated_lamports) {
         Some(change_lamports) => change_lamports,
@@ -211,7 +207,7 @@ pub fn create_input_and_output_accounts_revoke(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
+    let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
@@ -261,7 +257,8 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -283,9 +280,11 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub mint: Pubkey,
         pub delegated_amount: u64,
+        pub delegate_lamports: Option<u64>,
         pub delegated_compressed_account_merkle_tree: Pubkey,
         pub change_compressed_account_merkle_tree: Pubkey,
         pub delegate: Pubkey,
@@ -301,6 +300,7 @@ pub mod sdk {
                     inputs.change_compressed_account_merkle_tree,
                 ],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
@@ -324,7 +324,7 @@ pub mod sdk {
             delegated_amount: inputs.delegated_amount,
             delegate_merkle_tree_index: *delegated_merkle_tree_index as u8,
             change_account_merkle_tree_index: *change_account_merkle_tree_index as u8,
-            delegate_lamports: None,
+            delegate_lamports: inputs.delegate_lamports,
         };
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
@@ -369,6 +369,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub mint: Pubkey,
         pub output_account_merkle_tree: Pubkey,
@@ -381,6 +382,7 @@ pub mod sdk {
             create_input_output_and_remaining_accounts(
                 &[inputs.output_account_merkle_tree],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),

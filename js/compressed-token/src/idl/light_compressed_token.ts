@@ -129,6 +129,12 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                 },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
             ];
             args: [
                 {
@@ -141,6 +147,12 @@ export type LightCompressedToken = {
                     name: 'amounts';
                     type: {
                         vec: 'u64';
+                    };
+                },
+                {
+                    name: 'lamports';
+                    type: {
+                        option: 'u64';
                     };
                 },
             ];
@@ -903,6 +915,12 @@ export type LightCompressedToken = {
                             };
                         };
                     },
+                    {
+                        name: 'lamportsChangeAccountMerkleTreeIndex';
+                        type: {
+                            option: 'u8';
+                        };
+                    },
                 ];
             };
         },
@@ -1602,6 +1620,12 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                 },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
             ],
             args: [
                 {
@@ -1614,6 +1638,12 @@ export const IDL: LightCompressedToken = {
                     name: 'amounts',
                     type: {
                         vec: 'u64',
+                    },
+                },
+                {
+                    name: 'lamports',
+                    type: {
+                        option: 'u64',
                     },
                 },
             ],
@@ -2374,6 +2404,12 @@ export const IDL: LightCompressedToken = {
                             option: {
                                 defined: 'CompressedCpiContext',
                             },
+                        },
+                    },
+                    {
+                        name: 'lamportsChangeAccountMerkleTreeIndex',
+                        type: {
+                            option: 'u8',
                         },
                     },
                 ],

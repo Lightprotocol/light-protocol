@@ -104,6 +104,7 @@ export type CompressedTokenInstructionDataTransfer = {
     isCompress: boolean;
     compressOrDecompressAmount: BN | null;
     cpiContext: null;
+    lamportsChangeAccountMerkleTreeIndex: number | null;
 };
 
 export interface InputTokenDataWithContext {

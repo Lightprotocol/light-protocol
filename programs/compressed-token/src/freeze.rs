@@ -76,7 +76,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
+    let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
             &inputs.owner,
             &None,
@@ -181,7 +181,8 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -200,6 +201,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub outputs_merkle_tree: Pubkey,
     }
@@ -211,6 +213,7 @@ pub mod sdk {
             create_input_output_and_remaining_accounts(
                 &[inputs.outputs_merkle_tree],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),

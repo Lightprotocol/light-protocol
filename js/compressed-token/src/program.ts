@@ -510,7 +510,7 @@ export class CompressedTokenProgram {
 
         const toPubkeys = toArray(toPubkey);
         const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts)
+            .mintTo(toPubkeys, amounts, null)
             .accounts({
                 feePayer,
                 authority,
@@ -527,6 +527,7 @@ export class CompressedTokenProgram {
                 merkleTree:
                     merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
                 selfProgram: this.programId,
+                solPoolPda: null,
             })
             .instruction();
         return instruction;
@@ -615,6 +616,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: null,
             isCompress: false,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -689,6 +691,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: amount,
             isCompress: true,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -771,6 +774,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: amount,
             isCompress: false,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(
