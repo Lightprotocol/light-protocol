@@ -20,7 +20,7 @@ bytemuck = "1.16"
 light-bounded-vec = { path = "../bounded-vec", version = "0.2.1" }
 light-hasher = { path = "../hasher", version = "0.2.1" }
 light-utils = { version = "0.2.1", path = "../../utils" }
-memoffset = "0.8"
+memoffset = "0.9"
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 
