@@ -6,10 +6,10 @@ package «formal-verification» {
 }
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git"@"26d0eab43f05db777d1cf31abd31d3a57954b2a9"
+  "https://github.com/leanprover-community/mathlib4.git"@"v4.2.0"
 
 require ProvenZK from git
-  "https://github.com/reilabs/proven-zk.git"@"v1.3.0"
+  "https://github.com/reilabs/proven-zk.git"@"v1.4.0"
 
 lean_lib FormalVerification {
   moreLeanArgs := #["--tstack=65520", "-DmaxRecDepth=10000", "-DmaxHeartbeats=200000000"]

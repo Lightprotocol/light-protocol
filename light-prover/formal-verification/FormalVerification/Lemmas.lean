@@ -19,6 +19,14 @@ lemma toInt_lt [NeZero N] {n : ZMod N}: n.toInt < N := by
   rw [Nat.cast_lt]
   apply ZMod.val_lt
 
+lemma castInt_lt [NeZero N] {n : ZMod N}: (n:ℤ) < N := by
+  rw [cast_eq_val, Nat.cast_lt]
+  apply ZMod.val_lt
+
+lemma castInt_nonneg [NeZero N] {n : ZMod N}: (0:ℤ) ≤ n := by
+  rw [cast_eq_val]
+  apply Int.ofNat_nonneg
+
 lemma toInt_neg [NeZero N] {n : ZMod N}: (-n).toInt = -(n.toInt) % N := by
   simp [toInt, neg_val]
   split
@@ -36,6 +44,30 @@ lemma toInt_neg [NeZero N] {n : ZMod N}: (-n).toInt = -(n.toInt) % N := by
         apply Nat.zero_lt_of_ne_zero
         simp [*]
     . exact Nat.le_of_lt (ZMod.val_lt _)
+
+lemma castInt_neg [NeZero N] {n : ZMod N}: (((-n): ZMod N) : ℤ) = -(n:ℤ) % N := by
+  rw [cast_eq_val, neg_val]
+  split
+  . simp [*]
+  . rw [Nat.cast_sub]
+    . rw [←Int.add_emod_self_left, Int.emod_eq_of_lt]
+      . simp; rfl
+      . linarith [castInt_lt (N:=N)]
+      . simp_arith
+        rw [ZMod.cast_eq_val, ←Int.ofNat_zero, Int.ofNat_lt]
+        apply Nat.zero_lt_of_ne_zero
+        simp [*]
+    . exact Nat.le_of_lt (ZMod.val_lt _)
+
+
+lemma castInt_add [NeZero N] {n m : ZMod N}: (((n + m): ZMod N) : ℤ) = ((n:ℤ) + (m:ℤ)) % N := by
+  rw [ZMod.cast_eq_val, val_add]
+  simp
+
+lemma castInt_sub [NeZero N] {n m : ZMod N}: (((n - m): ZMod N) : ℤ) = ((n:ℤ) - (m:ℤ)) % N := by
+  rw [sub_eq_add_neg, castInt_add, castInt_neg]
+  simp
+  rfl
 
 lemma toInt_add [NeZero N] {n m : ZMod N}: (n + m).toInt = (m.toInt + n.toInt) % N := by
   simp [toInt, val_add, add_comm]
@@ -70,22 +102,11 @@ theorem negSucc_le_negSucc (m n : Nat) : negSucc m ≤ negSucc n ↔ n ≤ m := 
 theorem emod_negSucc (m : Nat) (n : Int) :
   negSucc m % n = subNatNat (natAbs n) (Nat.succ (m % natAbs n)) := rfl
 
-theorem mod_one_below {a : ℤ} {mod : ℤ} (hp : mod > 0) : a < 0 → a ≥ -mod → a % mod = a + mod := by
+theorem emod_eq_add_self_of_neg_and_lt_neg_self {a : ℤ} {mod : ℤ}: a < 0 → a ≥ -mod → a % mod = a + mod := by
   intro hlt hge
-  have := eq_negSucc_of_lt_zero hlt
-  rcases this with ⟨b, ⟨_⟩⟩
-  have := eq_succ_of_zero_lt hp
-  rcases this with ⟨m, ⟨_⟩⟩
-  conv at hge => rhs; whnf
-  rw [emod_negSucc]
-  simp [natAbs]
-  rw [Nat.mod_eq_of_lt]
-  rfl
-  simp [negSucc_le_negSucc] at hge
-  exact Nat.lt_succ_of_le hge
-
-theorem mod_pos_below {a : ℤ} {mod : ℤ} : 0 ≤ a → a < mod → a % mod = a := by
-  intros
-  simp [emod_eq_of_lt, *]
+  rw [←add_emod_self]
+  apply emod_eq_of_lt
+  . linarith
+  . linarith
 
 end Int
