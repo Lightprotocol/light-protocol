@@ -679,16 +679,23 @@ pub async fn approve_test<R: RpcConnection>(
     };
 
     let instruction = create_approve_instruction(inputs).unwrap();
-    let output_merkle_tree_pubkeys = vec![
-        *delegated_compressed_account_merkle_tree,
-        *change_compressed_account_merkle_tree,
-    ];
+    let mut output_merkle_tree_pubkeys = vec![*delegated_compressed_account_merkle_tree];
+    let input_amount = input_compressed_accounts
+        .iter()
+        .map(|x| x.token_data.amount)
+        .sum::<u64>();
+    let change_amount = input_amount - delegated_amount;
+
+    if change_amount > 0 {
+        output_merkle_tree_pubkeys.push(*change_compressed_account_merkle_tree);
+    }
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
-    let input_merkle_tree_accounts =
-        test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
+
     let output_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
+    let input_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
@@ -703,11 +710,7 @@ pub async fn approve_test<R: RpcConnection>(
         .unwrap()
         .unwrap();
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-    let input_amount = input_compressed_accounts
-        .iter()
-        .map(|x| x.token_data.amount)
-        .sum::<u64>();
-    let change_amount = input_amount - delegated_amount;
+
     let expected_delegated_token_data = TokenData {
         mint,
         owner: authority.pubkey(),
@@ -715,32 +718,31 @@ pub async fn approve_test<R: RpcConnection>(
         delegate: Some(*delegate),
         state: AccountState::Initialized,
     };
-    let expected_change_token_data = TokenData {
-        mint,
-        owner: authority.pubkey(),
-        amount: change_amount,
-        delegate: None,
-        state: AccountState::Initialized,
-    };
+
     assert_eq!(
         expected_delegated_token_data,
         created_output_accounts[0].token_data
     );
-    assert_eq!(
-        expected_change_token_data,
-        created_output_accounts[1].token_data
-    );
-    let expected_compressed_output_accounts = create_expected_token_output_data(
-        vec![expected_delegated_token_data, expected_change_token_data],
-        &output_merkle_tree_pubkeys,
-    );
-    // left in case e2e tests create a situation where the order of the output accounts is different by sorting
-    // assert!(created_output_accounts
-    //     .iter()
-    //     .any(|y| y.token_data == expected_delegated_token_data));
-    // assert!(created_output_accounts
-    //     .iter()
-    //     .any(|y| y.token_data == expected_change_token_data));
+    let mut expected_token_data = vec![expected_delegated_token_data];
+    let mut delegates = vec![Some(*delegate)];
+    if delegated_amount != input_amount {
+        let expected_change_token_data = TokenData {
+            mint,
+            owner: authority.pubkey(),
+            amount: change_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+        };
+        assert_eq!(
+            expected_change_token_data,
+            created_output_accounts[1].token_data
+        );
+        expected_token_data.push(expected_change_token_data);
+        delegates.push(None);
+    }
+
+    let expected_compressed_output_accounts =
+        create_expected_token_output_data(expected_token_data, &output_merkle_tree_pubkeys);
 
     assert_transfer(
         rpc,
@@ -755,7 +757,7 @@ pub async fn approve_test<R: RpcConnection>(
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
         &event,
-        Some(vec![Some(*delegate), None]),
+        Some(delegates),
     )
     .await;
 }

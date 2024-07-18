@@ -88,6 +88,9 @@ pub fn create_input_and_output_accounts_approve(
         .iter()
         .map(|x| x.lamports.unwrap_or(0))
         .sum::<u64>();
+    if sum_lamports > 0 {
+        unimplemented!("Approve with lamports are not implemented yet.");
+    }
     let change_amount = match sum_inputs.checked_sub(inputs.delegated_amount) {
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
@@ -100,12 +103,12 @@ pub fn create_input_and_output_accounts_approve(
         Some(change_lamports) => change_lamports,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
-    let mut output_compressed_accounts =
-        vec![OutputCompressedAccountWithPackedContext::default(); 2];
+
     let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
+
     let lamports = if sum_lamports != 0 {
         let change_lamports = if change_lamports != 0 {
             Some(change_lamports)
@@ -116,20 +119,46 @@ pub fn create_input_and_output_accounts_approve(
     } else {
         None
     };
-    // TODO: only create outputs if the amount is not zero
+    // Only create outputs if the change amount is not zero.
+    let (
+        mut output_compressed_accounts,
+        pubkeys,
+        is_delegate,
+        amounts,
+        lamports,
+        merkle_tree_indices,
+    ) = if change_amount > 0 || change_lamports > 0 {
+        (
+            vec![OutputCompressedAccountWithPackedContext::default(); 2],
+            vec![*authority, *authority],
+            Some(vec![true, false]),
+            vec![inputs.delegated_amount, change_amount],
+            lamports,
+            vec![
+                inputs.delegate_merkle_tree_index,
+                inputs.change_account_merkle_tree_index,
+            ],
+        )
+    } else {
+        (
+            vec![OutputCompressedAccountWithPackedContext::default(); 1],
+            vec![*authority],
+            Some(vec![true]),
+            vec![inputs.delegated_amount],
+            lamports,
+            vec![inputs.delegate_merkle_tree_index],
+        )
+    };
     create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
-        &[*authority; 2],
+        pubkeys.as_slice(),
         Some(inputs.delegate),
-        Some(vec![true, false]),
-        &[inputs.delegated_amount, change_amount],
+        is_delegate,
+        amounts.as_slice(),
         lamports,
         &hashed_mint,
-        &[
-            inputs.delegate_merkle_tree_index,
-            inputs.change_account_merkle_tree_index,
-        ],
+        &merkle_tree_indices,
     )?;
     add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
