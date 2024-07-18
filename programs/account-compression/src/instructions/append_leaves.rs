@@ -120,6 +120,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
 
             rollover_fee
         };
+        msg!("append transfer rollover fee: {}", rollover_fee);
         transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;
     }
     Ok(leaves_processed)

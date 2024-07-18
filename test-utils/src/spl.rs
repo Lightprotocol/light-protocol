@@ -27,7 +27,7 @@ use light_system_program::{
     sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent},
 };
 
-use crate::indexer::{Indexer, TestIndexer, TokenDataWithContext};
+use crate::indexer::{Indexer, TokenDataWithContext};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 use crate::{
@@ -629,10 +629,10 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn approve_test<R: RpcConnection>(
+pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     delegated_amount: u64,
     delegate: &Pubkey,
@@ -648,6 +648,11 @@ pub async fn approve_test<R: RpcConnection>(
         .iter()
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
+    println!(
+        "input_compressed_account_hashes: {:?}",
+        input_compressed_account_hashes
+    );
+    println!("input compressed accounts: {:?}", input_compressed_accounts);
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
@@ -702,7 +707,7 @@ pub async fn approve_test<R: RpcConnection>(
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -763,10 +768,10 @@ pub async fn approve_test<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn revoke_test<R: RpcConnection>(
+pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     output_account_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
@@ -820,7 +825,7 @@ pub async fn revoke_test<R: RpcConnection>(
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -861,15 +866,15 @@ pub async fn revoke_test<R: RpcConnection>(
     .await;
 }
 
-pub async fn freeze_test<R: RpcConnection>(
+pub async fn freeze_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
-    freeze_or_thaw_test::<R, true>(
+    freeze_or_thaw_test::<R, true, I>(
         authority,
         rpc,
         test_indexer,
@@ -880,15 +885,15 @@ pub async fn freeze_test<R: RpcConnection>(
     .await;
 }
 
-pub async fn thaw_test<R: RpcConnection>(
+pub async fn thaw_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
-    freeze_or_thaw_test::<R, false>(
+    freeze_or_thaw_test::<R, false, I>(
         authority,
         rpc,
         test_indexer,
@@ -899,10 +904,10 @@ pub async fn thaw_test<R: RpcConnection>(
     .await;
 }
 
-pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool>(
+pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
@@ -956,7 +961,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool>(
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -1006,11 +1011,12 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool>(
     )
     .await;
 }
+
 #[allow(clippy::too_many_arguments)]
-pub async fn burn_test<R: RpcConnection>(
+pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
@@ -1062,7 +1068,7 @@ pub async fn burn_test<R: RpcConnection>(
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -1133,10 +1139,10 @@ pub enum BurnInstructionMode {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_burn_test_instruction<R: RpcConnection>(
+pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     input_compressed_accounts: &[TokenDataWithContext],
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,

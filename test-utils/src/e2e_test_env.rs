@@ -68,6 +68,7 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
+use light_compressed_token::token_data::AccountState;
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -109,8 +110,8 @@ use crate::indexer::{
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
-    compress_test, compressed_transfer_test, create_mint_helper, create_token_account,
-    decompress_test, mint_tokens_helper,
+    approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
+    create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
 };
 use crate::state_tree_rollover::assert_rolled_over_pair;
 use crate::system_program::{
@@ -145,6 +146,11 @@ pub struct Stats {
     pub create_address_mt: u64,
     pub rolledover_state_trees: u64,
     pub rolledover_address_trees: u64,
+    pub spl_approved: u64,
+    pub spl_revoked: u64,
+    pub spl_burned: u64,
+    pub spl_frozen: u64,
+    pub spl_thawed: u64,
 }
 
 impl Stats {
@@ -167,6 +173,11 @@ impl Stats {
             "Rolled over address trees {}",
             self.rolledover_address_trees
         );
+        println!("Spl approved {}", self.spl_approved);
+        println!("Spl revoked {}", self.spl_revoked);
+        println!("Spl burned {}", self.spl_burned);
+        println!("Spl frozen {}", self.spl_frozen);
+        println!("Spl thawed {}", self.spl_thawed);
     }
 }
 
@@ -575,7 +586,6 @@ where
         if self
             .rng
             .gen_bool(self.keypair_action_config.decompress_spl.unwrap_or(0.0))
-            && self.users[user_index].token_accounts.is_empty()
         {
             self.compress_spl(user_index).await;
         }
@@ -636,6 +646,46 @@ where
             .gen_bool(self.keypair_action_config.transfer_sol.unwrap_or(0.0))
         {
             self.transfer_sol(user_index).await;
+        }
+        // approve spl
+        if self
+            .rng
+            .gen_bool(self.keypair_action_config.approve_spl.unwrap_or(0.0))
+            && !self.users[user_index].token_accounts.is_empty()
+        {
+            self.approve_spl(user_index).await;
+        }
+        // revoke spl
+        if self
+            .rng
+            .gen_bool(self.keypair_action_config.revoke_spl.unwrap_or(0.0))
+            && !self.users[user_index].token_accounts.is_empty()
+        {
+            self.revoke_spl(user_index).await;
+        }
+        // burn spl
+        if self
+            .rng
+            .gen_bool(self.keypair_action_config.burn_spl.unwrap_or(0.0))
+            && !self.users[user_index].token_accounts.is_empty()
+        {
+            self.burn_spl(user_index).await;
+        }
+        // freeze spl
+        if self
+            .rng
+            .gen_bool(self.keypair_action_config.freeze_spl.unwrap_or(0.0))
+            && !self.users[user_index].token_accounts.is_empty()
+        {
+            self.freeze_spl(user_index).await;
+        }
+        // thaw spl
+        if self
+            .rng
+            .gen_bool(self.keypair_action_config.thaw_spl.unwrap_or(0.0))
+            && !self.users[user_index].token_accounts.is_empty()
+        {
+            self.thaw_spl(user_index).await;
         }
     }
 
@@ -902,8 +952,22 @@ where
     pub async fn transfer_spl(&mut self, user_index: usize) {
         let user = &self.users[user_index].keypair.pubkey();
         println!("\n --------------------------------------------------\n\t\t Tranfer Spl\n --------------------------------------------------");
-        let (mint, token_accounts) = self.select_random_compressed_token_accounts(user).await;
-
+        let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            let (_, _token_accounts) = self.select_random_compressed_token_accounts(user).await;
+            token_accounts = _token_accounts;
+        }
         let recipients = token_accounts
             .iter()
             .map(|_| {
@@ -960,6 +1024,250 @@ where
         )
         .await;
         self.stats.spl_transfers += 1;
+    }
+
+    pub async fn approve_spl(&mut self, user_index: usize) {
+        let user = &self.users[user_index].keypair.pubkey();
+        println!("\n --------------------------------------------------\n\t\t Approve Spl\n --------------------------------------------------");
+        let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            let (_, _token_accounts) = self.select_random_compressed_token_accounts(user).await;
+            token_accounts = _token_accounts;
+        }
+        let rnd_user_index = self.rng.gen_range(0..self.users.len());
+        let delegate = self.users[rnd_user_index].keypair.pubkey();
+        let max_amount = token_accounts
+            .iter()
+            .map(|token_account| token_account.token_data.amount)
+            .sum::<u64>();
+        let delegate_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
+        let num_output_compressed_accounts = if delegate_amount != max_amount { 2 } else { 1 };
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(2);
+        let transaction_paramets = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
+        approve_test(
+            &self.users[user_index].keypair,
+            &mut self.rpc,
+            &mut self.indexer,
+            token_accounts,
+            delegate_amount,
+            &delegate,
+            &output_merkle_tree_pubkeys[0],
+            &output_merkle_tree_pubkeys[1],
+            transaction_paramets,
+        )
+        .await;
+        self.stats.spl_approved += 1;
+    }
+
+    pub async fn revoke_spl(&mut self, user_index: usize) {
+        let user = &self.users[user_index].keypair.pubkey();
+        println!("\n --------------------------------------------------\n\t\t Revoke Spl\n --------------------------------------------------");
+        let (mint, mut token_accounts) = self
+            .select_random_compressed_token_accounts_delegated(user, true, None, false)
+            .await;
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            self.approve_spl(user_index).await;
+            let (_, _token_accounts) = self
+                .select_random_compressed_token_accounts_delegated(user, true, None, false)
+                .await;
+            token_accounts = _token_accounts;
+        }
+        let num_output_compressed_accounts = 1;
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
+        let transaction_paramets = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
+        revoke_test(
+            &self.users[user_index].keypair,
+            &mut self.rpc,
+            &mut self.indexer,
+            token_accounts,
+            &output_merkle_tree_pubkeys[0],
+            transaction_paramets,
+        )
+        .await;
+        self.stats.spl_revoked += 1;
+    }
+
+    pub async fn burn_spl(&mut self, user_index: usize) {
+        let user = &self.users[user_index].keypair.pubkey();
+        println!("\n --------------------------------------------------\n\t\t Burn Spl\n --------------------------------------------------");
+        let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        // If no approved token account are found approve
+        // if token_accounts.is_empty() {
+        //     self.approve_spl(user_index).await;
+        //     let (_, mut _token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        //     token_accounts = _token_accounts;
+        // }
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            let (_, _token_accounts) = self.select_random_compressed_token_accounts(user).await;
+            token_accounts = _token_accounts;
+        }
+        let max_amount = token_accounts
+            .iter()
+            .map(|token_account| token_account.token_data.amount)
+            .sum::<u64>();
+        let burn_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
+        let num_output_compressed_accounts = if burn_amount != max_amount { 1 } else { 0 };
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
+        let transaction_paramets = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
+        burn_test(
+            &self.users[user_index].keypair,
+            &mut self.rpc,
+            &mut self.indexer,
+            token_accounts,
+            &output_merkle_tree_pubkeys[0],
+            burn_amount,
+            false,
+            transaction_paramets,
+        )
+        .await;
+        self.stats.spl_burned += 1;
+    }
+
+    pub async fn freeze_spl(&mut self, user_index: usize) {
+        let user = &self.users[user_index].keypair.pubkey();
+        println!("\n --------------------------------------------------\n\t\t Freeze Spl\n --------------------------------------------------");
+        let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            self.approve_spl(user_index).await;
+            let (_, _token_accounts) = self
+                .select_random_compressed_token_accounts_delegated(user, true, None, false)
+                .await;
+            token_accounts = _token_accounts;
+        }
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
+        let transaction_paramets = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: token_accounts.len() as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
+        freeze_test(
+            &self.rpc.get_payer().insecure_clone(),
+            &mut self.rpc,
+            &mut self.indexer,
+            token_accounts,
+            &output_merkle_tree_pubkeys[0],
+            transaction_paramets,
+        )
+        .await;
+        self.stats.spl_frozen += 1;
+    }
+
+    pub async fn thaw_spl(&mut self, user_index: usize) {
+        let user = &self.users[user_index].keypair.pubkey();
+        println!("\n --------------------------------------------------\n\t\t Thaw Spl\n --------------------------------------------------");
+        let (_, mut token_accounts) = self
+            .select_random_compressed_token_accounts_frozen(user)
+            .await;
+        if token_accounts.is_empty() {
+            self.freeze_spl(user_index).await;
+
+            let (_, _token_accounts) = self
+                .select_random_compressed_token_accounts_frozen(user)
+                .await;
+            token_accounts = _token_accounts;
+        }
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
+        let transaction_paramets = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: token_accounts.len() as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
+        thaw_test(
+            &self.rpc.get_payer().insecure_clone(),
+            &mut self.rpc,
+            &mut self.indexer,
+            token_accounts,
+            &output_merkle_tree_pubkeys[0],
+            transaction_paramets,
+        )
+        .await;
+        self.stats.spl_thawed += 1;
     }
 
     pub async fn compress_spl(&mut self, user_index: usize) {
@@ -1026,7 +1334,22 @@ where
     pub async fn decompress_spl(&mut self, user_index: usize) {
         let user = &self.users[user_index].keypair.pubkey();
         println!("\n --------------------------------------------------\n\t\t Decompress Spl\n --------------------------------------------------");
-        let (mint, token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
+        if token_accounts.is_empty() {
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            mint_tokens_helper(
+                &mut self.rpc,
+                &mut self.indexer,
+                &mt_pubkeys[0],
+                &self.payer,
+                &mint,
+                vec![Self::safe_gen_range(&mut self.rng, 100_000..1_000_000, 100_000); 1],
+                vec![*user; 1],
+            )
+            .await;
+            let (_, _token_accounts) = self.select_random_compressed_token_accounts(user).await;
+            token_accounts = _token_accounts;
+        }
         let token_account = match self.users[user_index]
             .token_accounts
             .iter()
@@ -1252,10 +1575,29 @@ where
         &mut self,
         user: &Pubkey,
     ) -> (Pubkey, Vec<TokenDataWithContext>) {
+        self.select_random_compressed_token_accounts_delegated(user, false, None, false)
+            .await
+    }
+
+    pub async fn select_random_compressed_token_accounts_frozen(
+        &mut self,
+        user: &Pubkey,
+    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+        self.select_random_compressed_token_accounts_delegated(user, false, None, true)
+            .await
+    }
+
+    pub async fn select_random_compressed_token_accounts_delegated(
+        &mut self,
+        user: &Pubkey,
+        delegated: bool,
+        delegate: Option<Pubkey>,
+        frozen: bool,
+    ) -> (Pubkey, Vec<TokenDataWithContext>) {
         let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
-        let token_accounts_with_mint;
+        let mut token_accounts_with_mint;
         let mint;
         if user_token_accounts.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
@@ -1298,11 +1640,46 @@ where
                 .map(|token_account| (*token_account).clone())
                 .collect::<Vec<TokenDataWithContext>>();
         }
+        if delegated {
+            token_accounts_with_mint = token_accounts_with_mint
+                .iter()
+                .filter(|token_account| token_account.token_data.delegate.is_some())
+                .map(|token_account| (*token_account).clone())
+                .collect::<Vec<TokenDataWithContext>>();
+            if token_accounts_with_mint.is_empty() {
+                return (mint, Vec::new());
+            }
+        }
+        if let Some(delegate) = delegate {
+            token_accounts_with_mint = token_accounts_with_mint
+                .iter()
+                .filter(|token_account| token_account.token_data.delegate.unwrap() == delegate)
+                .map(|token_account| (*token_account).clone())
+                .collect::<Vec<TokenDataWithContext>>();
+        }
+        if frozen {
+            token_accounts_with_mint = token_accounts_with_mint
+                .iter()
+                .filter(|token_account| token_account.token_data.state == AccountState::Frozen)
+                .map(|token_account| (*token_account).clone())
+                .collect::<Vec<TokenDataWithContext>>();
+            if token_accounts_with_mint.is_empty() {
+                return (mint, Vec::new());
+            }
+        } else {
+            token_accounts_with_mint = token_accounts_with_mint
+                .iter()
+                .filter(|token_account| token_account.token_data.state == AccountState::Initialized)
+                .map(|token_account| (*token_account).clone())
+                .collect::<Vec<TokenDataWithContext>>();
+        }
         let range_end = if token_accounts_with_mint.len() == 1 {
             1
-        } else {
+        } else if !token_accounts_with_mint.is_empty() {
             self.rng
                 .gen_range(1..std::cmp::min(token_accounts_with_mint.len(), 4))
+        } else {
+            return (mint, Vec::new());
         };
         let mut get_random_subset_of_token_accounts =
             token_accounts_with_mint[0..range_end].to_vec();
@@ -1330,6 +1707,11 @@ pub struct KeypairActionConfig {
     pub transfer_spl: Option<f64>,
     pub max_output_accounts: Option<u64>,
     pub fee_assert: bool,
+    pub approve_spl: Option<f64>,
+    pub revoke_spl: Option<f64>,
+    pub freeze_spl: Option<f64>,
+    pub thaw_spl: Option<f64>,
+    pub burn_spl: Option<f64>,
 }
 
 impl KeypairActionConfig {
@@ -1353,6 +1735,11 @@ impl KeypairActionConfig {
             transfer_spl: None,
             max_output_accounts: None,
             fee_assert: true,
+            approve_spl: None,
+            revoke_spl: None,
+            freeze_spl: None,
+            thaw_spl: None,
+            burn_spl: None,
         }
     }
 
@@ -1368,6 +1755,11 @@ impl KeypairActionConfig {
             transfer_spl: Some(0.5),
             max_output_accounts: Some(10),
             fee_assert: true,
+            approve_spl: Some(0.5),
+            revoke_spl: Some(0.5),
+            freeze_spl: Some(0.5),
+            thaw_spl: Some(0.5),
+            burn_spl: Some(0.5),
         }
     }
 
@@ -1383,6 +1775,11 @@ impl KeypairActionConfig {
             transfer_spl: Some(0.5),
             max_output_accounts: Some(10),
             fee_assert: true,
+            approve_spl: Some(0.7),
+            revoke_spl: Some(0.7),
+            freeze_spl: Some(0.7),
+            thaw_spl: Some(0.7),
+            burn_spl: Some(0.7),
         }
     }
     pub fn all_default_no_fee_assert() -> Self {
@@ -1397,8 +1794,14 @@ impl KeypairActionConfig {
             transfer_spl: Some(0.5),
             max_output_accounts: Some(10),
             fee_assert: false,
+            approve_spl: Some(0.7),
+            revoke_spl: Some(0.7),
+            freeze_spl: Some(0.7),
+            thaw_spl: Some(0.7),
+            burn_spl: Some(0.7),
         }
     }
+
     pub fn test_default() -> Self {
         Self {
             compress_sol: Some(1.0),
@@ -1411,6 +1814,11 @@ impl KeypairActionConfig {
             transfer_spl: Some(0.0),
             max_output_accounts: Some(10),
             fee_assert: true,
+            approve_spl: None,
+            revoke_spl: None,
+            freeze_spl: None,
+            thaw_spl: None,
+            burn_spl: None,
         }
     }
 
@@ -1426,6 +1834,11 @@ impl KeypairActionConfig {
             transfer_spl: None,
             max_output_accounts: Some(3),
             fee_assert: true,
+            approve_spl: None,
+            revoke_spl: None,
+            freeze_spl: None,
+            thaw_spl: None,
+            burn_spl: None,
         }
     }
 }
