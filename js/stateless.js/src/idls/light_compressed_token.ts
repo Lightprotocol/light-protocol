@@ -859,9 +859,9 @@ export type LightCompressedToken = {
                     {
                         name: 'delegatedTransfer';
                         docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'Is required if the signer is delegate,',
+                            '-> delegate is authority account,',
                             'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
                         ];
                         type: {
                             option: {
@@ -908,6 +908,9 @@ export type LightCompressedToken = {
         },
         {
             name: 'DelegatedTransfer';
+            docs: [
+                'Struct to provide the owner when the delegate is signer of the transaction.',
+            ];
             type: {
                 kind: 'struct';
                 fields: [
@@ -917,7 +920,15 @@ export type LightCompressedToken = {
                     },
                     {
                         name: 'delegateChangeAccountIndex';
-                        type: 'u8';
+                        docs: [
+                            'Index of change compressed account in output compressed accounts. In',
+                            "case that the delegate didn't spend the complete delegated compressed",
+                            'account balance the change compressed account will be delegated to her',
+                            'as well.',
+                        ];
+                        type: {
+                            option: 'u8';
+                        };
                     },
                 ];
             };
@@ -2321,9 +2332,9 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'delegatedTransfer',
                         docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'Is required if the signer is delegate,',
+                            '-> delegate is authority account,',
                             'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
                         ],
                         type: {
                             option: {
@@ -2370,6 +2381,9 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'DelegatedTransfer',
+            docs: [
+                'Struct to provide the owner when the delegate is signer of the transaction.',
+            ],
             type: {
                 kind: 'struct',
                 fields: [
@@ -2379,7 +2393,15 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'delegateChangeAccountIndex',
-                        type: 'u8',
+                        docs: [
+                            'Index of change compressed account in output compressed accounts. In',
+                            "case that the delegate didn't spend the complete delegated compressed",
+                            'account balance the change compressed account will be delegated to her',
+                            'as well.',
+                        ],
+                        type: {
+                            option: 'u8',
+                        },
                     },
                 ],
             },
