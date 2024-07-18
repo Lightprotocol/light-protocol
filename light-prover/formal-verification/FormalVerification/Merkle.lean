@@ -26,7 +26,6 @@ lemma ProveParentHash_rw {d : Bool} {h s : F} {k : F → Prop}:
 lemma MerkleTree.recover_succ' {ix : Vector Bool (Nat.succ N)} {proof : Vector F (Nat.succ N)} :
   MerkleTree.recover poseidon₂ ix proof item = hashLevel ix.head proof.head (MerkleTree.recover poseidon₂ ix.tail proof.tail item) := Eq.refl _
 
-@[simp]
 theorem MerkleRootGadget_rw {h i : F} {p : Vector F 20} {k : F → Prop}:
   LightProver.MerkleRootGadget_20_20 h i p k ↔ ∃ (hi : i.val < 2^20), k (MerkleTree.recoverAtFin poseidon₂ ⟨i.val, hi⟩ p.reverse h) := by
   unfold LightProver.MerkleRootGadget_20_20
@@ -249,10 +248,42 @@ lemma LeafHashGadget_rw {r : Range} {v : F} {k : F → Prop}:
           linarith [r.lo.prop]
       . exact Nat.lt_trans r.hi.prop (by decide)
 
+theorem MerkleRootGadget_eq_rw [Fact (CollisionResistant poseidon₂)] {h i : F} {p : Vector F 20} {tree : MerkleTree F poseidon₂ 20} {k : F → Prop}:
+  LightProver.MerkleRootGadget_20_20 h i p (fun r => Gates.eq r tree.root ∧ k r) ↔ (∃(hi: i.val < 2^20), tree.itemAtFin ⟨i.val, hi⟩ = h) ∧ k tree.root := by
+  simp [MerkleRootGadget_rw]
+  rw [←exists_and_right]
+  apply exists_congr
+  simp [Gates, GatesGnark8, -MerkleTree.recoverAtFin_eq_root_iff_proof_and_item_correct]
+  intro i
+  apply Iff.intro
+  . intro ⟨l, r⟩
+    rw [l] at r
+    simp at l
+    rcases l with ⟨_, l⟩
+    simp [*]
+  . simp []
+
+  rw [MerkleTree.recoverAtFin_eq_root_iff_proof_and_item_correct]
+
 theorem NonInclusionCircuit_correct {trees : Vector RangeTree 10} {leaves : Vector F 10}:
   (∃lo hi nxt inds proofs, LightProver.NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (trees.map (·.val.root)) leaves lo hi nxt inds proofs) ↔
   ∀i (_: i∈[0:10]), Membership.mem leaves[i] trees[i] := by
   unfold LightProver.NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20
   unfold LightProver.NonInclusionProof_10_10_10_10_10_10_20_10_10_20
+  simp only [getElem, Vector.get_map, MerkleRootGadget_eq_rw]
 
-  rfl
+#eval (0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001 - 21888242871839275222246405745257275088696311157297823662689037894645226208583 : ℤ)
+
+#eval (do
+  let mut diffs : List (ℤ×ℕ) := []
+  let mut currDiff : ℤ×ℕ := (0, 0)
+  for i in [0:(103*103)] do
+    let newVal := (i/101 - i/103 : ℤ)
+    if newVal = currDiff.1 then
+      currDiff := (newVal, currDiff.2 + 1)
+    else
+      diffs :=  diffs ++ [currDiff]
+      currDiff := (newVal, 1)
+  diffs := diffs.tail
+  println! "{diffs}"
+)
