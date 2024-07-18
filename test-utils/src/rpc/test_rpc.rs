@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -9,7 +11,6 @@ use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
-use std::fmt::{Debug, Formatter};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
@@ -32,13 +33,44 @@ impl Clone for ProgramTestRpcConnection {
 }
 
 impl RpcConnection for ProgramTestRpcConnection {
+    async fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        Ok(sig)
+    }
+
+    async fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(Signature, Slot), RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        let slot = self.context.banks_client.get_root_slot().await?;
+        Ok((sig, slot))
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature)>, RpcError>
+    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
     where
         T: AnchorDeserialize,
     {
@@ -144,7 +176,8 @@ impl RpcConnection for ProgramTestRpcConnection {
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let slot = self.context.banks_client.get_root_slot().await?;
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
     }
 
@@ -187,21 +220,6 @@ impl RpcConnection for ProgramTestRpcConnection {
             .get_new_latest_blockhash()
             .await
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
-    }
-
-    async fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<Signature, RpcError> {
-        let sig = *transaction.signatures.first().unwrap();
-        let result = self
-            .context
-            .banks_client
-            .process_transaction_with_metadata(transaction)
-            .await
-            .map_err(RpcError::from)?;
-        result.result.map_err(RpcError::TransactionError)?;
-        Ok(sig)
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {

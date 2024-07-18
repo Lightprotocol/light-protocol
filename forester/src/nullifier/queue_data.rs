@@ -1,5 +1,28 @@
 use light_test_utils::indexer::NewAddressProofWithContext;
 
+#[derive(Clone)]
+pub struct QueueData {
+    pub accounts: Vec<ForesterQueueAccount>,
+    pub data: Vec<ForesterQueueAccountData>,
+}
+
+impl QueueData {
+    pub fn new() -> Self {
+        QueueData {
+            accounts: Vec::new(),
+            data: Vec::new(),
+        }
+    }
+}
+
+impl Default for QueueData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+unsafe impl Send for QueueData {}
+
 #[derive(Debug, Clone)]
 pub struct ForesterQueueAccountData {
     pub account: ForesterQueueAccount,

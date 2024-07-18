@@ -611,6 +611,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         queue_keypair: &Keypair,
         _owning_program_id: Option<Pubkey>,
     ) -> AddressMerkleTreeAccounts {
+        info!("Adding address merkle tree accounts...");
         let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             queue: queue_keypair.pubkey(),
@@ -619,7 +620,15 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .push(Self::add_address_merkle_tree_bundle(
                 address_merkle_tree_accounts,
             ));
+        info!(
+            "Address merkle tree accounts added. Total: {}",
+            self.address_merkle_trees.len()
+        );
         address_merkle_tree_accounts
+    }
+
+    fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
+        self.get_state_merkle_trees_mut().push(state_bundle);
     }
 }
 

@@ -1,5 +1,3 @@
-use std::fmt::{Debug, Display, Formatter};
-
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -16,6 +14,7 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
@@ -45,7 +44,7 @@ impl Display for SolanaRpcUrl {
 #[allow(dead_code)]
 pub struct SolanaRpcConnection {
     pub client: RpcClient,
-    payer: Keypair,
+    pub payer: Keypair,
 }
 
 impl Debug for SolanaRpcConnection {
@@ -143,7 +142,7 @@ impl RpcConnection for SolanaRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature)>, RpcError>
+    ) -> Result<Option<(T, Signature, u64)>, RpcError>
     where
         T: AnchorDeserialize + Debug,
     {
@@ -162,6 +161,9 @@ impl RpcConnection for SolanaRpcConnection {
             latest_blockhash,
         );
         let signature = self.client.send_and_confirm_transaction(&transaction)?;
+        let sig_info = self.client.get_signature_statuses(&[signature]);
+        let sig_info = sig_info.unwrap().value.first().unwrap().clone();
+        let slot = sig_info.unwrap().slot;
 
         let mut event = transaction
             .message
@@ -218,7 +220,7 @@ impl RpcConnection for SolanaRpcConnection {
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
     }
 
@@ -265,6 +267,22 @@ impl RpcConnection for SolanaRpcConnection {
         debug!("CommitmentConfig: {:?}", self.client.commitment());
         match self.client.send_and_confirm_transaction(&transaction) {
             Ok(signature) => Ok(signature),
+            Err(e) => Err(RpcError::ClientError(e)),
+        }
+    }
+
+    async fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(Signature, Slot), RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
+        match self.client.send_and_confirm_transaction(&transaction) {
+            Ok(signature) => {
+                let sig_info = self.client.get_signature_statuses(&[signature]);
+                let sig_info = sig_info.unwrap().value.first().unwrap().clone();
+                let slot = sig_info.unwrap().slot;
+                Ok((signature, slot))
+            }
             Err(e) => Err(RpcError::ClientError(e)),
         }
     }

@@ -790,7 +790,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         .unwrap()
         .lamports;
 
-    perform_state_merkle_tree_roll_over(
+    let rollover_signature_and_slot = perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
@@ -811,6 +811,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &nullifier_queue_pubkey,
         &new_state_merkle_tree_keypair.pubkey(),
         &new_nullifier_queue_keypair.pubkey(),
+        rollover_signature_and_slot.1,
     )
     .await;
 

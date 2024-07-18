@@ -1,5 +1,25 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
+use anchor_lang::{InstructionData, Key, Lamports, ToAccountInfo, ToAccountMetas};
+use solana_sdk::clock::Slot;
+use solana_sdk::{
+    account::{AccountSharedData, WritableAccount},
+    account_info::AccountInfo,
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
+    transaction::Transaction,
+};
+
+use account_compression::{
+    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
+    AddressMerkleTreeAccount,
+};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
+
 use crate::get_indexed_merkle_tree;
 use crate::registry::{
     create_rollover_address_merkle_tree_instructions,
@@ -13,23 +33,6 @@ use crate::{
         assert_rolledover_queues_metadata,
     },
     get_hash_set,
-};
-use account_compression::{
-    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
-    AddressMerkleTreeAccount,
-};
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use anchor_lang::{InstructionData, Key, Lamports, ToAccountInfo, ToAccountMetas};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-use solana_sdk::{
-    account::{AccountSharedData, WritableAccount},
-    account_info::AccountInfo,
-    instruction::Instruction,
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
-    transaction::Transaction,
 };
 
 pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
@@ -81,7 +84,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         Some(new_queue_keypair),
     );
 
-    let size = account_compression::state::AddressMerkleTreeAccount::size(
+    let size = AddressMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,
@@ -308,7 +311,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     cpi_context: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<(solana_sdk::signature::Signature, Slot), RpcError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
         &payer.pubkey(),
@@ -326,5 +329,5 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
         &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction_with_context(transaction).await
 }

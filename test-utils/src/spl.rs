@@ -72,7 +72,7 @@ pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
         spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
             .unwrap()
             .amount;
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer_pubkey,
@@ -373,7 +373,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     } else {
         from
     };
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer.pubkey(),
@@ -492,7 +492,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &context_payer.pubkey(),
@@ -595,7 +595,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[approve_instruction, instruction],
             &payer.pubkey(),
@@ -703,7 +703,7 @@ pub async fn approve_test<R: RpcConnection>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &authority.pubkey(),
@@ -826,7 +826,7 @@ pub async fn revoke_test<R: RpcConnection>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &authority.pubkey(),
@@ -962,7 +962,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &authority.pubkey(),
@@ -1068,8 +1068,7 @@ pub async fn burn_test<R: RpcConnection>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &authority.pubkey(),

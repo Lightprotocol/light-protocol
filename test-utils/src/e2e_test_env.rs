@@ -68,6 +68,7 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
+use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
@@ -642,9 +643,10 @@ where
         &mut self,
         from: &Keypair,
         to: &Pubkey,
+        tree_index: Option<usize>,
     ) -> Result<Signature, RpcError> {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[0]
+        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
             .accounts
             .merkle_tree;
         let recipients = vec![*to];
@@ -759,9 +761,14 @@ where
         }
     }
 
-    pub async fn compress_sol_deterministic(&mut self, from: &Keypair, amount: u64) {
+    pub async fn compress_sol_deterministic(
+        &mut self,
+        from: &Keypair,
+        amount: u64,
+        tree_index: Option<usize>,
+    ) {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[0]
+        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
             .accounts
             .merkle_tree;
         let transaction_parameters = if self.keypair_action_config.fee_assert {
@@ -862,7 +869,7 @@ where
         }
 
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: num_addresses as u8,
                 num_input_compressed_accounts: 0u8,
@@ -884,7 +891,7 @@ where
             address_seeds.as_slice(),
             &Vec::new(),
             false,
-            transaction_paramets,
+            transaction_parameters,
         )
         .await
         .unwrap();
@@ -1090,7 +1097,7 @@ where
             .get_balance(&self.indexer.get_payer().pubkey())
             .await
             .unwrap();
-        perform_state_merkle_tree_roll_over_forester(
+        let rollover_signature_and_slot = perform_state_merkle_tree_roll_over_forester(
             self.indexer.get_payer(),
             &mut self.rpc,
             &new_nullifier_queue_keypair,
@@ -1101,6 +1108,7 @@ where
         )
         .await
         .unwrap();
+        info!("Rollover signature: {:?}", rollover_signature_and_slot.0);
         assert_rolled_over_pair(
             &self.indexer.get_payer().pubkey(),
             &mut self.rpc,
@@ -1109,6 +1117,7 @@ where
             &bundle.nullifier_queue,
             &new_merkle_tree_keypair.pubkey(),
             &new_nullifier_queue_keypair.pubkey(),
+            rollover_signature_and_slot.1,
         )
         .await;
         crate::test_env::init_cpi_context_account(
@@ -1118,7 +1127,6 @@ where
             &self.payer,
         )
         .await;
-
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {

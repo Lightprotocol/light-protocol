@@ -1,10 +1,12 @@
-use crate::ForesterConfig;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use rand::seq::SliceRandom;
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use solana_sdk::signature::Signer;
 use std::sync::Arc;
+
+use rand::seq::SliceRandom;
+use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::Mutex;
+
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+
+use crate::ForesterConfig;
 
 #[derive(Debug, Clone)]
 pub struct RpcPool<R: RpcConnection> {
@@ -22,27 +24,13 @@ impl<R: RpcConnection> RpcPool<R> {
     pub async fn new(config: Arc<ForesterConfig>) -> RpcPool<R> {
         let mut connections: Vec<Arc<Mutex<R>>> = Vec::new();
         for _ in 0..20 {
-            let rpc = init_rpc::<R>(config.clone(), false).await;
+            let rpc = R::new(
+                &config.external_services.rpc_url,
+                Some(CommitmentConfig::confirmed()),
+            );
             let rpc = Arc::new(Mutex::new(rpc));
             connections.push(rpc);
         }
         Self { connections }
     }
-}
-
-pub async fn init_rpc<R: RpcConnection>(config: Arc<ForesterConfig>, airdrop: bool) -> R {
-    let mut rpc = R::new(
-        config.external_services.rpc_url.clone(),
-        Some(CommitmentConfig {
-            commitment: CommitmentLevel::Confirmed,
-        }),
-    );
-
-    if airdrop {
-        rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
-            .await
-            .unwrap();
-    }
-
-    rpc
 }

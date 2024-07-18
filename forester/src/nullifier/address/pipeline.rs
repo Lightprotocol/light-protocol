@@ -2,6 +2,8 @@ use crate::config::ForesterConfig;
 use crate::nullifier::address::AddressProcessor;
 use crate::nullifier::queue_data::ForesterAddressQueueAccountData;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
+use crate::rollover::RolloverState;
+use crate::tree_sync::TreeData;
 use crate::RpcPool;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -37,6 +39,8 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc_pool: RpcPool<R>,
     config: Arc<ForesterConfig>,
+    tree_data: TreeData,
+    rollover_state: Arc<RolloverState>,
 ) -> (mpsc::Sender<AddressPipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
@@ -58,7 +62,9 @@ pub async fn setup_address_pipeline<T: Indexer<R>, R: RpcConnection>(
         indexer: indexer.clone(),
         rpc_pool,
         config: config.clone(),
+        tree_data,
         successful_nullifications: Arc::new(Mutex::new(0)),
+        rollover_state: rollover_state.clone(),
     };
 
     tokio::spawn(async move {

@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
-use crate::config::ForesterConfig;
+use crate::tree_sync::TreeData;
 use crate::{fetch_address_queue_data, fetch_state_queue_data};
 
 pub fn decode_hash(account: &str) -> [u8; 32] {
@@ -23,16 +23,16 @@ pub fn u8_arr_to_hex_string(arr: &[u8]) -> String {
 
 pub async fn get_state_queue_length<R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
-    config: Arc<ForesterConfig>,
+    tree_data: TreeData,
 ) -> usize {
-    let queue = fetch_state_queue_data(config, rpc).await.unwrap();
-    queue.len()
+    let queue = fetch_state_queue_data(rpc, tree_data).await.unwrap();
+    queue.data.len()
 }
 
 pub async fn get_address_queue_length<R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
-    config: Arc<ForesterConfig>,
+    tree_data: TreeData,
 ) -> usize {
-    let queue = fetch_address_queue_data(config, rpc).await.unwrap();
-    queue.len()
+    let queue = fetch_address_queue_data(rpc, tree_data).await.unwrap();
+    queue.accounts.len()
 }
