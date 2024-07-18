@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -9,7 +11,6 @@ use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
-use std::fmt::{Debug, Formatter};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;

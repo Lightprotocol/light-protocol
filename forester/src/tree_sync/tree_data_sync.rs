@@ -4,6 +4,7 @@ use account_compression::initialize_address_merkle_tree::ProgramError;
 use account_compression::utils::check_discrimininator::check_discriminator;
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use borsh::BorshDeserialize;
+use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -27,6 +28,26 @@ impl TreeData {
             tree_pubkey,
             queue_pubkey,
             tree_type,
+        }
+    }
+}
+
+impl From<StateMerkleTreeAccounts> for TreeData {
+    fn from(state_merkle_tree_accounts: StateMerkleTreeAccounts) -> Self {
+        Self {
+            tree_pubkey: state_merkle_tree_accounts.merkle_tree,
+            queue_pubkey: state_merkle_tree_accounts.nullifier_queue,
+            tree_type: TreeType::State,
+        }
+    }
+}
+
+impl From<AddressMerkleTreeAccounts> for TreeData {
+    fn from(address_merkle_tree_accounts: AddressMerkleTreeAccounts) -> Self {
+        Self {
+            tree_pubkey: address_merkle_tree_accounts.merkle_tree,
+            queue_pubkey: address_merkle_tree_accounts.queue,
+            tree_type: TreeType::Address,
         }
     }
 }
