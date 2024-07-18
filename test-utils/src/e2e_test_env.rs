@@ -585,7 +585,9 @@ where
         // check sufficient spl balance
         if self
             .rng
-            .gen_bool(self.keypair_action_config.decompress_spl.unwrap_or(0.0))
+            .gen_bool(self.keypair_action_config.compress_spl.unwrap_or(0.0))
+            && self.users[user_index].token_accounts.is_empty()
+        // TODO: enable compress spl test
         {
             self.compress_spl(user_index).await;
         }

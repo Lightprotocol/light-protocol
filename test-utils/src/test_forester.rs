@@ -89,6 +89,11 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         }
     }
 
+    debug!(
+        "nullifying {:?} accounts ",
+        compressed_account_to_nullify.len()
+    );
+
     for (i, (index_in_nullifier_queue, compressed_account)) in
         compressed_account_to_nullify.iter().enumerate()
     {
