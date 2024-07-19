@@ -1,7 +1,12 @@
 use anchor_lang::prelude::*;
-use light_compressed_token::process_transfer::{
-    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
-    PackedTokenTransferOutputData,
+use light_compressed_token::{
+    delegation::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke},
+    freeze::{CompressedTokenInstructionDataFreeze, CompressedTokenInstructionDataThaw},
+    process_transfer::{
+        CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
+        PackedTokenTransferOutputData,
+    },
+    CompressedTokenInstructionDataBurn,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -11,6 +16,8 @@ use light_system_program::{
     },
     InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
+
+use crate::ID;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub enum WithInputAccountsMode {
@@ -23,6 +30,11 @@ pub enum WithInputAccountsMode {
     CpiContextInvalidSignerSeeds,
     CpiContextWriteAccessCheckFailed,
     CpiContextWriteToNotOwnedAccount,
+    Approve,
+    Revoke,
+    Freeze,
+    Thaw,
+    Burn,
 }
 
 // TODO: Functional tests with cpi context:
@@ -62,7 +74,12 @@ pub fn process_with_input_accounts<'info>(
                 cpi_context,
             )
         }
-        WithInputAccountsMode::CpiContextFeePayerMismatch => cpi_context_tx(
+        WithInputAccountsMode::CpiContextFeePayerMismatch
+        | WithInputAccountsMode::Burn
+        | WithInputAccountsMode::Freeze
+        | WithInputAccountsMode::Revoke
+        | WithInputAccountsMode::Thaw
+        | WithInputAccountsMode::Approve => cpi_context_tx(
             &ctx,
             compressed_account,
             proof.unwrap(),
@@ -199,12 +216,22 @@ pub struct InvalidateNotOwnedCompressedAccount<'info> {
         Program<'info, light_compressed_token::program::LightCompressedToken>,
     #[account(mut)]
     pub invalid_fee_payer: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub mint: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub token_pool_account: AccountInfo<'info>,
+    /// CHECK:
+    pub token_program: AccountInfo<'info>,
 }
+
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct TokenTransferData {
     pub mint: Pubkey,
     pub input_token_data_with_context: InputTokenDataWithContext,
 }
+
 #[inline(never)]
 pub fn cpi_context_tx<'info>(
     ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
@@ -213,24 +240,65 @@ pub fn cpi_context_tx<'info>(
     bump: u8,
     token_transfer_data: TokenTransferData,
     mode: WithInputAccountsMode,
-    cpi_context: CompressedCpiContext,
+    mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    cpi_compressed_token_transfer(
-        ctx,
-        proof.clone(),
-        token_transfer_data,
-        mode.clone(),
-        Some(cpi_context),
-    )?;
-    process_invalidate_not_owned_compressed_account(
+    match mode {
+        WithInputAccountsMode::CpiContextFeePayerMismatch => cpi_compressed_token_transfer(
+            ctx,
+            proof.clone(),
+            token_transfer_data,
+            mode.clone(),
+            Some(cpi_context),
+        )?,
+        WithInputAccountsMode::Approve => cpi_compressed_token_approve_revoke(
+            ctx,
+            proof.clone(),
+            token_transfer_data,
+            mode.clone(),
+            Some(cpi_context),
+        )?,
+        WithInputAccountsMode::Revoke => cpi_compressed_token_approve_revoke(
+            ctx,
+            proof.clone(),
+            token_transfer_data,
+            mode.clone(),
+            Some(cpi_context),
+        )?,
+        WithInputAccountsMode::Freeze | WithInputAccountsMode::Thaw => {
+            cpi_compressed_token_freeze_or_thaw(
+                ctx,
+                proof.clone(),
+                token_transfer_data,
+                mode.clone(),
+                Some(cpi_context),
+            )?
+        }
+        WithInputAccountsMode::Burn => {
+            cpi_compressed_token_burn(ctx, proof.clone(), token_transfer_data, Some(cpi_context))?
+        }
+        _ => panic!("Invalid mode"),
+    }
+    match mode {
+        WithInputAccountsMode::CpiContextFeePayerMismatch
+        | WithInputAccountsMode::Burn
+        | WithInputAccountsMode::Freeze
+        | WithInputAccountsMode::Revoke
+        | WithInputAccountsMode::Thaw
+        | WithInputAccountsMode::Approve => {
+            cpi_context.set_context = false;
+            cpi_context.first_set_context = false;
+        }
+        _ => {}
+    }
+    write_into_cpi_account(
         ctx,
         compressed_account,
         Some(proof),
         bump,
-        mode,
         Some(cpi_context),
     )
 }
+
 #[inline(never)]
 pub fn cpi_compressed_token_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
@@ -305,5 +373,301 @@ pub fn cpi_compressed_token_transfer<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
     light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
+    Ok(())
+}
+
+#[inline(never)]
+pub fn cpi_compressed_token_approve_revoke<'info>(
+    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    proof: CompressedProof,
+    token_transfer_data: TokenTransferData,
+    mode: WithInputAccountsMode,
+    cpi_context: Option<CompressedCpiContext>,
+) -> Result<()> {
+    msg!("cpi_context: {:?}", cpi_context);
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize].key()
+    );
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize]
+    );
+    let mint = token_transfer_data.mint;
+    let input_token_data_with_context = token_transfer_data.input_token_data_with_context;
+    let merkle_tree_index = input_token_data_with_context
+        .merkle_context
+        .merkle_tree_pubkey_index;
+    let mut inputs = Vec::new();
+    match mode {
+        WithInputAccountsMode::Approve => {
+            let inputs_struct = CompressedTokenInstructionDataApprove {
+                proof,
+                mint,
+                delegated_amount: input_token_data_with_context.amount,
+                input_token_data_with_context: vec![input_token_data_with_context],
+                delegate: ctx.accounts.invalid_fee_payer.key(),
+                delegate_lamports: None,
+                change_account_merkle_tree_index: merkle_tree_index,
+                delegate_merkle_tree_index: merkle_tree_index,
+                cpi_context,
+            };
+            msg!("cpi test program calling approve");
+
+            CompressedTokenInstructionDataApprove::serialize(&inputs_struct, &mut inputs).unwrap();
+        }
+        WithInputAccountsMode::Revoke => {
+            let inputs_struct = CompressedTokenInstructionDataRevoke {
+                proof,
+                mint,
+                input_token_data_with_context: vec![input_token_data_with_context],
+                output_account_merkle_tree_index: merkle_tree_index,
+                cpi_context,
+            };
+            msg!("cpi test program calling revoke");
+
+            CompressedTokenInstructionDataRevoke::serialize(&inputs_struct, &mut inputs).unwrap();
+        }
+        _ => panic!("Invalid mode"),
+    }
+
+    let cpi_accounts = light_compressed_token::cpi::accounts::GenericInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.signer.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        self_program: ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_authority_pda: ctx
+            .accounts
+            .compressed_token_cpi_authority_pda
+            .to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+    };
+
+    let mut cpi_ctx = CpiContext::new(
+        ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_accounts,
+    );
+
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    match mode {
+        WithInputAccountsMode::Approve => {
+            light_compressed_token::cpi::approve(cpi_ctx, inputs)?;
+        }
+        WithInputAccountsMode::Revoke => {
+            light_compressed_token::cpi::revoke(cpi_ctx, inputs)?;
+        }
+        _ => panic!("Invalid mode"),
+    }
+    Ok(())
+}
+
+#[inline(never)]
+pub fn cpi_compressed_token_burn<'info>(
+    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    proof: CompressedProof,
+    token_transfer_data: TokenTransferData,
+    cpi_context: Option<CompressedCpiContext>,
+) -> Result<()> {
+    msg!("cpi_context: {:?}", cpi_context);
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize].key()
+    );
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize]
+    );
+    let input_token_data_with_context = token_transfer_data.input_token_data_with_context;
+    let merkle_tree_index = input_token_data_with_context
+        .merkle_context
+        .merkle_tree_pubkey_index;
+    let mut inputs = Vec::new();
+    let inputs_struct = CompressedTokenInstructionDataBurn {
+        proof,
+        delegated_transfer: None,
+        input_token_data_with_context: vec![input_token_data_with_context.clone()],
+        burn_amount: input_token_data_with_context.amount - 1,
+        change_account_merkle_tree_index: merkle_tree_index,
+        cpi_context,
+    };
+    CompressedTokenInstructionDataBurn::serialize(&inputs_struct, &mut inputs).unwrap();
+    let cpi_accounts = light_compressed_token::cpi::accounts::BurnInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.signer.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        self_program: ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_authority_pda: ctx
+            .accounts
+            .compressed_token_cpi_authority_pda
+            .to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        token_pool_pda: ctx.accounts.token_pool_account.to_account_info(),
+        token_program: ctx.accounts.token_program.to_account_info(),
+        mint: ctx.accounts.mint.to_account_info(),
+    };
+
+    let mut cpi_ctx = CpiContext::new(
+        ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_accounts,
+    );
+
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    light_compressed_token::cpi::burn(cpi_ctx, inputs)?;
+
+    Ok(())
+}
+
+#[inline(never)]
+pub fn cpi_compressed_token_freeze_or_thaw<'info>(
+    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    proof: CompressedProof,
+    token_transfer_data: TokenTransferData,
+    mode: WithInputAccountsMode,
+    cpi_context: Option<CompressedCpiContext>,
+) -> Result<()> {
+    msg!("cpi_context: {:?}", cpi_context);
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize].key()
+    );
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize]
+    );
+    let input_token_data_with_context = token_transfer_data.input_token_data_with_context;
+    let merkle_tree_index = input_token_data_with_context
+        .merkle_context
+        .merkle_tree_pubkey_index;
+    let mut inputs = Vec::new();
+    match mode {
+        WithInputAccountsMode::Freeze => {
+            let inputs_struct = CompressedTokenInstructionDataFreeze {
+                proof,
+                input_token_data_with_context: vec![input_token_data_with_context],
+                owner: ctx.accounts.signer.key(),
+                cpi_context,
+                outputs_merkle_tree_index: merkle_tree_index,
+            };
+            CompressedTokenInstructionDataFreeze::serialize(&inputs_struct, &mut inputs).unwrap();
+        }
+        WithInputAccountsMode::Thaw => {
+            let inputs_struct = CompressedTokenInstructionDataThaw {
+                proof,
+                input_token_data_with_context: vec![input_token_data_with_context],
+                outputs_merkle_tree_index: merkle_tree_index,
+                cpi_context,
+                owner: ctx.accounts.signer.key(),
+            };
+            CompressedTokenInstructionDataThaw::serialize(&inputs_struct, &mut inputs).unwrap();
+        }
+        _ => panic!("Invalid mode"),
+    }
+
+    let cpi_accounts = light_compressed_token::cpi::accounts::FreezeInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.signer.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        self_program: ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_authority_pda: ctx
+            .accounts
+            .compressed_token_cpi_authority_pda
+            .to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        mint: ctx.accounts.mint.to_account_info(),
+    };
+
+    let mut cpi_ctx = CpiContext::new(
+        ctx.accounts.compressed_token_program.to_account_info(),
+        cpi_accounts,
+    );
+
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    match mode {
+        WithInputAccountsMode::Freeze => {
+            light_compressed_token::cpi::freeze(cpi_ctx, inputs)?;
+        }
+        WithInputAccountsMode::Thaw => {
+            light_compressed_token::cpi::thaw(cpi_ctx, inputs)?;
+        }
+        _ => panic!("Invalid mode"),
+    }
+    Ok(())
+}
+
+fn write_into_cpi_account<'info>(
+    ctx: &Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
+    compressed_account: PackedCompressedAccountWithMerkleContext,
+    proof: Option<CompressedProof>,
+    bump: u8,
+    // compressed_pda: OutputCompressedAccountWithPackedContext,
+    cpi_context: Option<CompressedCpiContext>,
+) -> Result<()> {
+    let compressed_pda = OutputCompressedAccountWithPackedContext {
+        compressed_account: CompressedAccount {
+            data: compressed_account.compressed_account.data.clone(),
+            owner: ID,
+            lamports: 0,
+            address: compressed_account.compressed_account.address,
+        },
+        merkle_tree_index: 0,
+    };
+    let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
+
+    let inputs_struct = InstructionDataInvokeCpi {
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context: vec![compressed_account],
+        output_compressed_accounts: vec![compressed_pda],
+        proof,
+        new_address_params: Vec::new(),
+        compress_or_decompress_lamports: None,
+        is_compress: false,
+        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
+        cpi_context,
+    };
+
+    let mut inputs = Vec::new();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
+    let cpi_context_account = cpi_context.map(|cpi_context| {
+        ctx.remaining_accounts
+            .get(cpi_context.cpi_context_account_index as usize)
+            .unwrap()
+            .to_account_info()
+    });
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.cpi_signer.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
+        sol_pool_pda: None,
+        decompression_recipient: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account,
+    };
+    let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
+
+    let mut cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.light_system_program.to_account_info(),
+        cpi_accounts,
+        &signer_seeds,
+    );
+
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }

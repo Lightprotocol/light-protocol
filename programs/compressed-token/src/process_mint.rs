@@ -7,7 +7,7 @@ use light_system_program::OutputCompressedAccountWithPackedContext;
 use {
     crate::process_transfer::create_output_compressed_accounts,
     crate::process_transfer::get_cpi_signer_seeds,
-    light_heap::{bench_sbf_end, bench_sbf_start},
+    light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
     light_utils::hash_to_bn254_field_size_be,
 };
 
@@ -52,13 +52,14 @@ pub struct CreateTokenPoolInstruction<'info> {
 #[allow(unused_variables)]
 pub fn process_mint_to<'info>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    compression_public_keys: Vec<Pubkey>,
+    recipient_pubkeys: Vec<Pubkey>,
     amounts: Vec<u64>,
+    lamports: u64,
 ) -> Result<()> {
-    if compression_public_keys.len() != amounts.len() {
+    if recipient_pubkeys.len() != amounts.len() {
         msg!(
-            "compression_public_keys.len() {} !=  {} amounts.len()",
-            compression_public_keys.len(),
+            "recipient_pubkeys.len() {} !=  {} amounts.len()",
+            recipient_pubkeys.len(),
             amounts.len()
         );
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
@@ -66,12 +67,12 @@ pub fn process_mint_to<'info>(
 
     #[cfg(target_os = "solana")]
     {
-        let inputs_len = 1 + 4 + 4 + 4 + amounts.len() * 170 + 1 + 1 + 1 + 26 + 1;
+        let inputs_len = 1 + 4 + 4 + 4 + amounts.len() * 161 + 1 + 1 + 1 + 26 + 1;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
         // + 4                          Vec::new()
-        // + 4 + amounts.len() * 170    Vec<OutputCompressedAccountWithPackedContext>
+        // + 4 + amounts.len() * 162    Vec<OutputCompressedAccountWithPackedContext>
         // + 1                          Option<relay_fee>
         // + 1                          Option<compression_lamports>
         // + 1                          is_compress
@@ -80,7 +81,7 @@ pub fn process_mint_to<'info>(
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
-        let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+        let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
         // 7,912 CU
@@ -92,15 +93,12 @@ pub fn process_mint_to<'info>(
                 .unwrap()
                 .0;
         bench_sbf_start!("tm_output_compressed_accounts");
-        let mut output_compressed_accounts = vec![
-            OutputCompressedAccountWithPackedContext::default(
-            );
-            compression_public_keys.len()
-        ];
+        let mut output_compressed_accounts =
+            vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
-            compression_public_keys.as_slice(),
+            recipient_pubkeys.as_slice(),
             None,
             None,
             &amounts,
@@ -121,9 +119,9 @@ pub fn process_mint_to<'info>(
 
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // This error should never be triggered.
-        if inputs.capacity() != inputs_len {
+        if inputs.len() != inputs_len {
             msg!(
-                "Used memory {} exceeds allocated {} memory",
+                "Used memory {} is unequal allocated {} memory",
                 inputs.len(),
                 inputs_len
             );
@@ -141,7 +139,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
 ) -> Result<()> {
-    light_heap::bench_sbf_start!("tm_cpi");
+    bench_sbf_start!("tm_cpi");
 
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
@@ -151,7 +149,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     // 7,978 CU for 25 accounts
     serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec);
 
-    light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
+    GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
 
     use anchor_lang::InstructionData;
 
@@ -242,14 +240,14 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         data: instructiondata.data(),
     };
 
-    light_heap::bench_sbf_end!("tm_cpi");
-    light_heap::bench_sbf_start!("tm_invoke");
+    bench_sbf_end!("tm_cpi");
+    bench_sbf_start!("tm_invoke");
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),
         &[&signer_seeds[..]],
     )?;
-    light_heap::bench_sbf_end!("tm_invoke");
+    bench_sbf_end!("tm_invoke");
     Ok(())
 }
 
@@ -262,8 +260,10 @@ pub fn serialize_mint_to_cpi_instruction_data(
     let len = output_compressed_accounts.len();
     // proof (option None)
     inputs.extend_from_slice(&[0u8]);
-    // empty vecs: address_params, (no) input_root_indices, input_compressed_accounts_with_merkle_context
+    // two empty vecs 4 bytes of zeroes each: address_params,
+    // input_compressed_accounts_with_merkle_context
     inputs.extend_from_slice(&[0u8; 8]);
+    // lenght of output_compressed_accounts vec as u32
     inputs.extend_from_slice(&[(len as u8), 0, 0, 0]);
     // output_compressed_accounts
     for compressed_account in output_compressed_accounts.iter() {

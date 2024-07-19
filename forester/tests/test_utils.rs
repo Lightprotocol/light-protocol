@@ -51,6 +51,11 @@ pub fn keypair_action_config() -> KeypairActionConfig {
         transfer_spl: Some(1.0),
         max_output_accounts: Some(3),
         fee_assert: true,
+        approve_spl: None,
+        revoke_spl: None,
+        freeze_spl: None,
+        thaw_spl: None,
+        burn_spl: None,
     }
 }
 

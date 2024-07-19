@@ -7,7 +7,9 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
+use light_compressed_token::{
+    get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
+};
 use light_registry::sdk::get_registered_program_pda;
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -106,6 +108,7 @@ pub fn create_invalidate_not_owned_account_instruction(
     remaining_accounts.insert(*input_params.input_merkle_tree_pubkey, 0);
     remaining_accounts.insert(*input_params.input_nullifier_pubkey, 1);
     remaining_accounts.insert(*input_params.cpi_context_account, 2);
+    remaining_accounts.insert(*input_params.invalid_fee_payer, 3);
 
     let instruction_data = crate::instruction::WithInputAccounts {
         proof: Some(input_params.proof.clone()),
@@ -113,7 +116,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         bump,
         mode,
         cpi_context,
-        token_transfer_data: input_params.token_transfer_data,
+        token_transfer_data: input_params.token_transfer_data.clone(),
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -125,7 +128,11 @@ pub fn create_invalidate_not_owned_account_instruction(
         light_compressed_token::process_transfer::get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-
+    let mint = match input_params.token_transfer_data.as_ref() {
+        Some(data) => data.mint,
+        None => Pubkey::new_unique(),
+    };
+    let token_pool_account = get_token_pool_pda(&mint);
     let accounts = crate::accounts::InvalidateNotOwnedCompressedAccount {
         signer: *input_params.signer,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
@@ -139,6 +146,9 @@ pub fn create_invalidate_not_owned_account_instruction(
         system_program: solana_sdk::system_program::id(),
         compressed_token_program: light_compressed_token::ID,
         invalid_fee_payer: *input_params.invalid_fee_payer,
+        token_pool_account,
+        mint,
+        token_program: anchor_spl::token::ID,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

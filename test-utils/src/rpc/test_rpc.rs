@@ -170,6 +170,7 @@ impl RpcConnection for ProgramTestRpcConnection {
                     transaction_params.fee_config.address_network_fee
                 );
                 println!("network_fee: {}", network_fee);
+                println!("num signers {}", deduped_signers.len());
                 return Err(RpcError::from(BanksClientError::TransactionError(
                     TransactionError::InstructionError(0, InstructionError::Custom(11111)),
                 )));

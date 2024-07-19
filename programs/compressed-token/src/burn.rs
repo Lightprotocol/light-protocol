@@ -8,6 +8,7 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
+    constants::NOT_FROZEN,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts, get_cpi_signer_seeds,
@@ -27,7 +28,6 @@ pub struct CompressedTokenInstructionDataBurn {
     pub delegated_transfer: Option<DelegatedTransfer>,
 }
 
-// TODO: use spl burn instruction to actually burn the tokens
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, BurnInstruction<'info>>,
     inputs: Vec<u8>,
@@ -105,9 +105,8 @@ pub fn create_input_and_output_accounts_burn(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    const IS_FROZEN: bool = false;
     let (mut compressed_input_accounts, input_token_data) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<IS_FROZEN>(
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &inputs.delegated_transfer,
             remaining_accounts,
@@ -119,23 +118,36 @@ pub fn create_input_and_output_accounts_burn(
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
+    let sum_lamports = inputs
+        .input_token_data_with_context
+        .iter()
+        .map(|x| x.lamports.unwrap_or(0))
+        .sum::<u64>();
 
     let hashed_mint = match hash_to_bn254_field_size_be(&mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
-    let output_compressed_accounts = if change_amount > 0 {
+    let output_compressed_accounts = if change_amount > 0 || sum_lamports > 0 {
         let (is_delegate, authority, delegate) =
             if let Some(delegated_transfer) = inputs.delegated_transfer.as_ref() {
                 let mut vec = vec![false; 1];
-                vec[delegated_transfer.delegate_change_account_index as usize] = true;
+                if let Some(index) = delegated_transfer.delegate_change_account_index {
+                    vec[index as usize] = true;
+                } else {
+                    return err!(crate::ErrorCode::InvalidDelegateIndex);
+                }
                 (Some(vec), delegated_transfer.owner, Some(*authority))
             } else {
                 (None, *authority, None)
             };
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); 1];
-
+        let lamports = if sum_lamports > 0 {
+            Some(vec![Some(sum_lamports)])
+        } else {
+            None
+        };
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             *mint,
@@ -143,7 +155,7 @@ pub fn create_input_and_output_accounts_burn(
             delegate,
             is_delegate,
             &[change_amount],
-            None, // TODO: add wrapped sol support
+            lamports,
             &hashed_mint,
             &[inputs.change_account_merkle_tree_index],
         )?;
@@ -151,7 +163,7 @@ pub fn create_input_and_output_accounts_burn(
     } else {
         Vec::new()
     };
-    add_token_data_to_input_compressed_accounts::<false>(
+    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -214,7 +226,7 @@ pub mod sdk {
         let delegated_transfer = if inputs.signer_is_delegate {
             let delegated_transfer = DelegatedTransfer {
                 owner: inputs.input_token_data[0].owner,
-                delegate_change_account_index: 0,
+                delegate_change_account_index: Some(0),
             };
             Some(delegated_transfer)
         } else {
