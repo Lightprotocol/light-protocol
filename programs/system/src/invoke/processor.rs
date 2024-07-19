@@ -215,7 +215,6 @@ pub fn process<
             )?;
             if let Some(network_fee_bundle) = network_fee_bundle {
                 let (remaining_account_index, network_fee) = network_fee_bundle;
-                msg!("transferring network fee: {}", network_fee);
                 transfer_lamports_cpi(
                     ctx.accounts.get_fee_payer(),
                     &ctx.remaining_accounts[remaining_account_index as usize],

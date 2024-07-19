@@ -128,7 +128,10 @@ pub fn create_invalidate_not_owned_account_instruction(
         light_compressed_token::process_transfer::get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-    let mint = input_params.token_transfer_data.as_ref().unwrap().mint;
+    let mint = match input_params.token_transfer_data.as_ref() {
+        Some(data) => data.mint,
+        None => Pubkey::new_unique(),
+    };
     let token_pool_account = get_token_pool_pda(&mint);
     let accounts = crate::accounts::InvalidateNotOwnedCompressedAccount {
         signer: *input_params.signer,

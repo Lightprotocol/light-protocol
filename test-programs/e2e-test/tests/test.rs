@@ -35,8 +35,6 @@ async fn test_10_all() {
 #[ignore]
 #[tokio::test]
 async fn test_10000_all() {
-    // Will fail after inserting 500 addresses since the local indexed array is full
-    // TODO: initialize the indexed array with heap memory so that the stack doesn't overflow with bigger size, write an indexed array vector abstraction for testing
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
 
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(

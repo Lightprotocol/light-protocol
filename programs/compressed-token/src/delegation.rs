@@ -165,7 +165,6 @@ pub fn create_input_and_output_accounts_approve(
         input_token_data.as_slice(),
         &hashed_mint,
     )?;
-    msg!("input token data {:?}", input_token_data);
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
 

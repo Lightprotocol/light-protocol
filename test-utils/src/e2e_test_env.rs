@@ -1047,6 +1047,7 @@ where
             let (_, _token_accounts) = self.select_random_compressed_token_accounts(user).await;
             token_accounts = _token_accounts;
         }
+        println!("token_accounts: {:?}", token_accounts);
         let rnd_user_index = self.rng.gen_range(0..self.users.len());
         let delegate = self.users[rnd_user_index].keypair.pubkey();
         let max_amount = token_accounts
@@ -1135,12 +1136,6 @@ where
         let user = &self.users[user_index].keypair.pubkey();
         println!("\n --------------------------------------------------\n\t\t Burn Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
-        // If no approved token account are found approve
-        // if token_accounts.is_empty() {
-        //     self.approve_spl(user_index).await;
-        //     let (_, mut _token_accounts) = self.select_random_compressed_token_accounts(user).await;
-        //     token_accounts = _token_accounts;
-        // }
         if token_accounts.is_empty() {
             let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
             mint_tokens_helper(
@@ -1174,6 +1169,7 @@ where
         } else {
             None
         };
+
         burn_test(
             &self.users[user_index].keypair,
             &mut self.rpc,
@@ -1204,9 +1200,8 @@ where
                 vec![*user; 1],
             )
             .await;
-            self.approve_spl(user_index).await;
             let (_, _token_accounts) = self
-                .select_random_compressed_token_accounts_delegated(user, true, None, false)
+                .select_random_compressed_token_accounts_delegated(user, false, None, false)
                 .await;
             token_accounts = _token_accounts;
         }
@@ -1260,6 +1255,7 @@ where
         } else {
             None
         };
+
         thaw_test(
             &self.rpc.get_payer().insecure_clone(),
             &mut self.rpc,

@@ -262,8 +262,16 @@ async fn only_test_create_pda() {
     }
 }
 
+// TODO: add tranfer and burn with delegate
 // TODO: create a cleaner function than perform_with_input_accounts which was
 // build for failing tests to execute the instructions
+/// Functional Tests:
+/// - tests the following methods with cpi context:
+/// 1. Approve
+/// 2. Revoke
+/// 3. Freeze
+/// 4. Thaw
+/// 5. Burn
 #[tokio::test]
 async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     let (mut rpc, env) =
@@ -271,18 +279,6 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
-    // Failing test 1 invalid address Merkle tree ----------------------------------------------
-    let program_owned_address_merkle_tree_keypair = Keypair::new();
-    let program_owned_address_queue_keypair = Keypair::new();
-
-    test_indexer
-        .add_address_merkle_tree(
-            &mut rpc,
-            &program_owned_address_merkle_tree_keypair,
-            &program_owned_address_queue_keypair,
-            Some(light_compressed_token::ID),
-        )
-        .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
     mint_tokens_helper(
@@ -314,6 +310,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 
     let ref_compressed_token_data =
         test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+    // 1. Approve functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
@@ -341,6 +338,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             compressed_token_data.compressed_account.merkle_context
         );
     }
+    // 2. Revoke functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
@@ -367,6 +365,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         let ref_data = ref_compressed_token_data.token_data.clone();
         assert_eq!(compressed_token_data.token_data, ref_data);
     }
+    // 3. Freeze functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
@@ -390,6 +389,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         ref_data.state = AccountState::Frozen;
         assert_eq!(compressed_token_data.token_data, ref_data);
     }
+    // 4. Thaw functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
@@ -412,6 +412,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         let ref_data = ref_compressed_token_data.token_data.clone();
         assert_eq!(compressed_token_data.token_data, ref_data);
     }
+    // 5. Burn functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
