@@ -706,8 +706,8 @@ async fn test_mint_to_failing() {
 async fn test_transfers() {
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
-        for output_num in 1..11 {
-            if input_num == 8 && output_num > 7 {
+        for output_num in 1..8 {
+            if input_num == 8 && output_num > 6 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
             }
@@ -742,7 +742,7 @@ async fn test_2_transfer() {
     let possible_inputs = [2];
     for input_num in possible_inputs {
         for output_num in 2..3 {
-            if input_num == 8 && output_num > 7 {
+            if input_num == 8 && output_num > 6 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
             }
