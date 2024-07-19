@@ -807,8 +807,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap()
         .unwrap();
-    let (other_output_accounts, created_output_accounts) =
-        test_indexer.add_event_and_compressed_accounts(&event);
+    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
     let expected_delegated_token_data = TokenData {
         mint,

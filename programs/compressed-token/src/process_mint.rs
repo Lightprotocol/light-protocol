@@ -160,8 +160,10 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         inputs: inputs.to_owned(),
     };
     let (sol_pool_pda, is_writable) = if let Some(pool_pda) = ctx.accounts.sol_pool_pda.as_ref() {
+        // Account is some
         (pool_pda.to_account_info(), true)
     } else {
+        // Account is None
         (ctx.accounts.light_system_program.to_account_info(), false)
     };
 
@@ -280,7 +282,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
             .checked_add(compressed_account.compressed_account.lamports)
             .unwrap();
     }
-    // relay_fee and
+    // relay_fee
     inputs.extend_from_slice(&[0u8; 1]);
 
     if sum_lamports != 0 {
