@@ -43,6 +43,7 @@ pub struct InvokeInstruction<'info> {
     /// Only needs to be provided for decompression as a recipient for the
     /// decompressed sol.
     /// Compressed sol originate from authority.
+    #[account(mut)]
     pub decompression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
 }

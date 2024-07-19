@@ -40,6 +40,7 @@ pub struct InvokeCpiInstruction<'info> {
         seeds = [SOL_POOL_PDA_SEED], bump
     )]
     pub sol_pool_pda: Option<UncheckedAccount<'info>>,
+    #[account(mut)]
     pub decompression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
     #[account(mut)]
