@@ -42,7 +42,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
     bench_sbf_end!("t_deserialize");
     bench_sbf_start!("t_context_and_check_sig");
-    let (mut compressed_input_accounts, input_token_data) =
+    let (mut compressed_input_accounts, input_token_data, input_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
             &ctx.accounts.authority.key(),
             &inputs.delegated_transfer,
@@ -93,7 +93,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         None
     };
 
-    create_output_compressed_accounts(
+    let output_lamports = create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
         inputs
@@ -114,14 +114,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             inputs
                 .output_compressed_accounts
                 .iter()
-                .map(|data: &PackedTokenTransferOutputData| {
-                    if data.lamports.is_some() {
-                        unimplemented!(
-                            "Joint Token and lamports transfers are not implemented yet."
-                        );
-                    }
-                    data.lamports
-                })
+                .map(|data: &PackedTokenTransferOutputData| data.lamports)
                 .collect::<Vec<Option<u64>>>(),
         ),
         &hashed_mint,
@@ -142,6 +135,20 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         )?;
     }
     bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
+
+    // If lamports amount is not zero, create a change account without token data.
+    let change_lamports = input_lamports - output_lamports;
+    if change_lamports > 0 {
+        output_compressed_accounts.push(OutputCompressedAccountWithPackedContext {
+            compressed_account: CompressedAccount {
+                owner: ctx.accounts.authority.key(),
+                lamports: change_lamports,
+                data: None,
+                address: None,
+            },
+            merkle_tree_index: inputs.output_compressed_accounts[0].merkle_tree_index,
+        });
+    }
 
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
@@ -174,7 +181,8 @@ pub fn create_output_compressed_accounts(
     lamports: Option<Vec<Option<u64>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
-) -> Result<()> {
+) -> Result<u64> {
+    let mut sum_lamports = 0;
     let hashed_delegate_store = if let Some(delegate) = delegate {
         hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
             .unwrap()
@@ -237,6 +245,7 @@ pub fn create_output_compressed_accounts(
             .as_ref()
             .and_then(|lamports| lamports[i])
             .unwrap_or(0);
+        sum_lamports += lamports;
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
@@ -247,7 +256,7 @@ pub fn create_output_compressed_accounts(
             merkle_tree_index: merkle_tree_indices[i],
         };
     }
-    Ok(())
+    Ok(sum_lamports)
 }
 
 /// Create output compressed accounts
@@ -450,6 +459,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub is_compress: bool,
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
+    pub lamports_change_account_merkle_tree_index: Option<u8>,
 }
 
 pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
@@ -461,7 +471,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
 ) -> Result<(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<TokenData>,
+    u64,
 )> {
+    let mut sum_lamports = 0;
     let mut input_compressed_accounts_with_merkle_context: Vec<
         PackedCompressedAccountWithMerkleContext,
     > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
@@ -502,6 +514,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             data: None,
             address: None,
         };
+        sum_lamports += compressed_account.lamports;
         let state = if IS_FROZEN {
             AccountState::Frozen
         } else {
@@ -528,6 +541,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     Ok((
         input_compressed_accounts_with_merkle_context,
         input_token_data_vec,
+        sum_lamports,
     ))
 }
 
@@ -559,7 +573,7 @@ pub mod transfer_sdk {
     use anchor_spl::token::Token;
     use light_system_program::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{MerkleContext, PackedMerkleContext},
+        sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -595,6 +609,7 @@ pub mod transfer_sdk {
         root_indices: &[u16],
         proof: &Option<CompressedProof>,
         input_token_data: &[TokenData],
+        input_compressed_accounts: &[CompressedAccount],
         mint: Pubkey,
         delegate: Option<Pubkey>,
         is_compress: bool,
@@ -603,9 +618,11 @@ pub mod transfer_sdk {
         compress_or_decompress_token_account: Option<Pubkey>,
         sort: bool,
         delegate_change_account_index: Option<u8>,
+        lamports_change_account_merkle_tree: Option<Pubkey>,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
+            input_compressed_accounts,
             input_merkle_context,
             delegate,
             output_compressed_accounts,
@@ -615,6 +632,7 @@ pub mod transfer_sdk {
             is_compress,
             compress_or_decompress_amount,
             delegate_change_account_index,
+            lamports_change_account_merkle_tree,
         );
         if sort {
             inputs_struct
@@ -667,6 +685,7 @@ pub mod transfer_sdk {
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts_checked(
         input_token_data: &[TokenData],
+        input_compressed_accounts: &[CompressedAccount],
         input_merkle_context: &[MerkleContext],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
@@ -677,6 +696,7 @@ pub mod transfer_sdk {
         is_compress: bool,
         compress_or_decompress_amount: Option<u64>,
         delegate_change_account_index: Option<u8>,
+        lamports_change_account_merkle_tree: Option<Pubkey>,
     ) -> Result<
         (
             HashMap<Pubkey, usize>,
@@ -697,6 +717,7 @@ pub mod transfer_sdk {
         let (remaining_accounts, compressed_accounts_ix_data) =
             create_inputs_and_remaining_accounts(
                 input_token_data,
+                input_compressed_accounts,
                 input_merkle_context,
                 owner_if_delegate_is_signer,
                 output_compressed_accounts,
@@ -706,6 +727,7 @@ pub mod transfer_sdk {
                 is_compress,
                 compress_or_decompress_amount,
                 delegate_change_account_index,
+                lamports_change_account_merkle_tree,
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
@@ -713,6 +735,7 @@ pub mod transfer_sdk {
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts(
         input_token_data: &[TokenData],
+        input_compressed_accounts: &[CompressedAccount],
         input_merkle_context: &[MerkleContext],
         delegate: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
@@ -722,6 +745,7 @@ pub mod transfer_sdk {
         is_compress: bool,
         compress_or_decompress_amount: Option<u64>,
         delegate_change_account_index: Option<u8>,
+        lamports_change_account_merkle_tree: Option<Pubkey>,
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
@@ -737,10 +761,20 @@ pub mod transfer_sdk {
                 }
             }
         }
+        let lamports_change_account_merkle_tree_index = if let Some(
+            lamports_change_account_merkle_tree,
+        ) = lamports_change_account_merkle_tree
+        {
+            additonal_accounts.push(lamports_change_account_merkle_tree);
+            Some(additonal_accounts.len() as u8 - 1)
+        } else {
+            None
+        };
         let (remaining_accounts, input_token_data_with_context, _output_compressed_accounts) =
             create_input_output_and_remaining_accounts(
                 additonal_accounts.as_slice(),
                 input_token_data,
+                input_compressed_accounts,
                 input_merkle_context,
                 root_indices,
                 output_compressed_accounts,
@@ -763,6 +797,7 @@ pub mod transfer_sdk {
             is_compress,
             compress_or_decompress_amount,
             cpi_context: None,
+            lamports_change_account_merkle_tree_index,
         };
 
         (remaining_accounts, inputs_struct)
@@ -771,6 +806,7 @@ pub mod transfer_sdk {
     pub fn create_input_output_and_remaining_accounts(
         additional_accounts: &[Pubkey],
         input_token_data: &[TokenData],
+        input_compressed_accounts: &[CompressedAccount],
         input_merkle_context: &[MerkleContext],
         root_indices: &[u16],
         output_compressed_accounts: &[TokenTransferOutputData],
@@ -812,6 +848,11 @@ pub mod transfer_sdk {
                 },
                 None => None,
             };
+            let lamports = if input_compressed_accounts[i].lamports != 0 {
+                Some(input_compressed_accounts[i].lamports)
+            } else {
+                None
+            };
             let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
                 delegate_index,
@@ -824,7 +865,7 @@ pub mod transfer_sdk {
                     queue_index: None,
                 },
                 root_index: root_indices[i],
-                lamports: None, // TODO: test
+                lamports,
             };
             input_token_data_with_context.push(token_data_with_context);
         }

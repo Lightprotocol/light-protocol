@@ -13,7 +13,10 @@ use light_compressed_token::{
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
-    sdk::{address::add_and_get_remaining_account_indices, compressed_account::MerkleContext},
+    sdk::{
+        address::add_and_get_remaining_account_indices,
+        compressed_account::{CompressedAccount, MerkleContext},
+    },
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -29,6 +32,7 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
+    pub input_compressed_accounts: &'a [CompressedAccount],
     pub mint: &'a Pubkey,
 }
 
@@ -45,6 +49,7 @@ pub fn create_escrow_instruction(
     // TODO: separate the creation of inputs and remaining accounts
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
+        input_params.input_compressed_accounts,
         input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
@@ -53,6 +58,7 @@ pub fn create_escrow_instruction(
         *input_params.mint,
         input_params.signer,
         false,
+        None,
         None,
         None,
     )
@@ -115,6 +121,7 @@ pub fn create_withdrawal_escrow_instruction(
     // We use unchecked here to perform a failing test with an invalid signer.
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_token_data,
+        input_params.input_compressed_accounts,
         input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
@@ -122,6 +129,7 @@ pub fn create_withdrawal_escrow_instruction(
         input_params.proof,
         *input_params.mint,
         false,
+        None,
         None,
         None,
     );

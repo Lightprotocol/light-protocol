@@ -33,6 +33,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    lamports: Option<Vec<Option<u64>>>,
     input_compressed_account_hashes: &[[u8; 32]],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
     input_merkle_tree_test_snapshots: &[MerkleTreeTestSnapShot],
@@ -43,6 +44,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     assert_compressed_token_accounts(
         test_indexer,
         out_compressed_accounts,
+        lamports,
         output_merkle_tree_snapshots,
         delegates,
     );
@@ -86,12 +88,14 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
 pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
+    lamports: Option<Vec<Option<u64>>>,
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
     delegates: Option<Vec<Option<Pubkey>>>,
 ) {
     let delegates = delegates.unwrap_or(vec![None; out_compressed_accounts.len()]);
     let mut tree = Pubkey::default();
     let mut index = 0;
+    let output_lamports = lamports.unwrap_or(vec![None; out_compressed_accounts.len()]);
     for (i, out_compressed_account) in out_compressed_accounts.iter().enumerate() {
         if output_merkle_tree_snapshots[i].accounts.merkle_tree != tree {
             tree = output_merkle_tree_snapshots[i].accounts.merkle_tree;
@@ -133,7 +137,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
             transfer_recipient_compressed_account
                 .compressed_account
                 .lamports,
-            0
+            output_lamports[i].unwrap_or(0)
         );
         assert!(transfer_recipient_compressed_account
             .compressed_account

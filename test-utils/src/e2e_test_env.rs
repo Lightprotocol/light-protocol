@@ -1019,6 +1019,7 @@ where
             &self.users[user_index].keypair.insecure_clone(),
             &recipients,
             &amounts,
+            None,
             &token_accounts,
             &output_merkle_tree_pubkeys,
             None,
@@ -1074,6 +1075,7 @@ where
             &mut self.indexer,
             token_accounts,
             delegate_amount,
+            None,
             &delegate,
             &output_merkle_tree_pubkeys[0],
             &output_merkle_tree_pubkeys[1],
@@ -1877,11 +1879,11 @@ impl GeneralActionConfig {
     pub fn test_with_rollover() -> Self {
         Self {
             add_keypair: Some(0.3),
-            create_state_mt: Some(1.0),
-            create_address_mt: Some(1.0),
-            nullify_compressed_accounts: Some(0.2),
-            empty_address_queue: Some(0.2),
-            rollover: Some(0.5),
+            create_state_mt: None,
+            create_address_mt: None,
+            nullify_compressed_accounts: None,
+            empty_address_queue: None,
+            rollover: None,
         }
     }
 }
