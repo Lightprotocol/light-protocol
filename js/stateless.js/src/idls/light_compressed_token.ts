@@ -6,8 +6,9 @@ export type LightCompressedToken = {
             name: 'createTokenPool';
             docs: [
                 'This instruction creates a token pool for a given mint. Every spl mint',
-                'can have one token pool. When a token is compressed the compressed',
-                'tokens are transferrred to the token pool.',
+                'can have one token pool. When a token is compressed the tokens are',
+                'transferrred to the token pool, and their compressed equivalent is',
+                'minted into a Merkle tree.',
             ];
             accounts: [
                 {
@@ -50,11 +51,10 @@ export type LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account. A',
-                'constant amount of lamports can be transferred to each output account to',
-                'enable. A use case to add lamports to a compressed token account is to',
-                'prevent spam. This is the only way to add lamports to a compressed token',
-                'account.',
+                'every amount and pubkey input pair. A constant amount of lamports can be',
+                'transferred to each output account to enable. A use case to add lamports',
+                'to a compressed token account is to prevent spam. This is the only way',
+                'to add lamports to a compressed token account.',
             ];
             accounts: [
                 {
@@ -166,9 +166,9 @@ export type LightCompressedToken = {
                 'Transfers compressed tokens from one account to another. All accounts',
                 'must be of the same mint. Additional spl tokens can be compressed or',
                 'decompressed. In one transaction only compression or decompression is',
-                'possible. Lamports can be transferred along side tokens. If output token',
+                'possible. Lamports can be transferred alongside tokens. If output token',
                 'accounts specify less lamports than inputs the remaining lamports are',
-                'transferred to an output compressed account. Signer must owner or',
+                'transferred to an output compressed account. Signer must be owner or',
                 'delegate. If a delegated token account is transferred the delegate is',
                 'not preserved.',
             ];
@@ -339,7 +339,7 @@ export type LightCompressedToken = {
         {
             name: 'revoke';
             docs: [
-                'Revokes a delegation. The instruction merges all inptus into one output',
+                'Revokes a delegation. The instruction merges all inputs into one output',
                 'account. Cannot be called by a delegate. Delegates are not preserved.',
             ];
             accounts: [
@@ -1562,8 +1562,9 @@ export const IDL: LightCompressedToken = {
             name: 'createTokenPool',
             docs: [
                 'This instruction creates a token pool for a given mint. Every spl mint',
-                'can have one token pool. When a token is compressed the compressed',
-                'tokens are transferrred to the token pool.',
+                'can have one token pool. When a token is compressed the tokens are',
+                'transferrred to the token pool, and their compressed equivalent is',
+                'minted into a Merkle tree.',
             ],
             accounts: [
                 {
@@ -1606,11 +1607,10 @@ export const IDL: LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account. A',
-                'constant amount of lamports can be transferred to each output account to',
-                'enable. A use case to add lamports to a compressed token account is to',
-                'prevent spam. This is the only way to add lamports to a compressed token',
-                'account.',
+                'every amount and pubkey input pair. A constant amount of lamports can be',
+                'transferred to each output account to enable. A use case to add lamports',
+                'to a compressed token account is to prevent spam. This is the only way',
+                'to add lamports to a compressed token account.',
             ],
             accounts: [
                 {
@@ -1722,9 +1722,9 @@ export const IDL: LightCompressedToken = {
                 'Transfers compressed tokens from one account to another. All accounts',
                 'must be of the same mint. Additional spl tokens can be compressed or',
                 'decompressed. In one transaction only compression or decompression is',
-                'possible. Lamports can be transferred along side tokens. If output token',
+                'possible. Lamports can be transferred alongside tokens. If output token',
                 'accounts specify less lamports than inputs the remaining lamports are',
-                'transferred to an output compressed account. Signer must owner or',
+                'transferred to an output compressed account. Signer must be owner or',
                 'delegate. If a delegated token account is transferred the delegate is',
                 'not preserved.',
             ],
@@ -1895,7 +1895,7 @@ export const IDL: LightCompressedToken = {
         {
             name: 'revoke',
             docs: [
-                'Revokes a delegation. The instruction merges all inptus into one output',
+                'Revokes a delegation. The instruction merges all inputs into one output',
                 'account. Cannot be called by a delegate. Delegates are not preserved.',
             ],
             accounts: [
