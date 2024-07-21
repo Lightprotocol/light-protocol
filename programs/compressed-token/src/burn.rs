@@ -105,7 +105,7 @@ pub fn create_input_and_output_accounts_burn(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data, _) =
+    let (mut compressed_input_accounts, input_token_data, sum_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &inputs.delegated_transfer,
@@ -118,11 +118,6 @@ pub fn create_input_and_output_accounts_burn(
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
-    let sum_lamports = inputs
-        .input_token_data_with_context
-        .iter()
-        .map(|x| x.lamports.unwrap_or(0))
-        .sum::<u64>();
 
     let hashed_mint = match hash_to_bn254_field_size_be(&mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
