@@ -31,10 +31,9 @@ pub mod light_compressed_token {
 
     use super::*;
     use constants::NOT_FROZEN;
-    /// This instruction expects a mint account to be created in a separate
-    /// token program instruction with token authority as mint authority. This
-    /// instruction creates a token pool account for that mint owned by token
-    /// authority.
+    /// This instruction creates a token pool for a given mint. Every spl mint
+    /// can have one token pool. When a token is compressed the compressed
+    /// tokens are transferrred to the token pool.
     pub fn create_token_pool<'info>(
         _ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
     ) -> Result<()> {
@@ -44,16 +43,28 @@ pub mod light_compressed_token {
     /// Mints tokens from an spl token mint to a list of compressed accounts.
     /// Minted tokens are transferred to a pool account owned by the compressed
     /// token program. The instruction creates one compressed output account for
-    /// every amount and pubkey input pair one output compressed account.
+    /// every amount and pubkey input pair one output compressed account. A
+    /// constant amount of lamports can be transferred to each output account to
+    /// enable. A use case to add lamports to a compressed token account is to
+    /// prevent spam. This is the only way to add lamports to a compressed token
+    /// account.
     pub fn mint_to<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts, lamports.unwrap_or(0))
+        process_mint_to(ctx, public_keys, amounts, lamports)
     }
 
+    /// Transfers compressed tokens from one account to another. All accounts
+    /// must be of the same mint. Additional spl tokens can be compressed or
+    /// decompressed. In one transaction only compression or decompression is
+    /// possible. Lamports can be transferred along side tokens. If output token
+    /// accounts specify less lamports than inputs the remaining lamports are
+    /// transferred to an output compressed account. Signer must owner or
+    /// delegate. If a delegated token account is transferred the delegate is
+    /// not preserved.
     pub fn transfer<'info>(
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
@@ -61,6 +72,12 @@ pub mod light_compressed_token {
         process_transfer::process_transfer(ctx, inputs)
     }
 
+    /// Delegates an amount to a delegate. A compressed token account is either
+    /// completely delegated or not. Prior delegates are not preserved. Cannot
+    /// be called by a delegate.
+    /// The instruction creates two output accounts:
+    /// 1. one account with delegated amount
+    /// 2. one account with remaining(change) amount
     pub fn approve<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
@@ -68,6 +85,8 @@ pub mod light_compressed_token {
         delegation::process_approve(ctx, inputs)
     }
 
+    /// Revokes a delegation. The instruction merges all inptus into one output
+    /// account. Cannot be called by a delegate. Delegates are not preserved.
     pub fn revoke<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
@@ -75,6 +94,8 @@ pub mod light_compressed_token {
         delegation::process_revoke(ctx, inputs)
     }
 
+    /// Freezes compressed token accounts. Inputs must not be frozen. Creates as
+    /// many outputs as inputs. Balances and delegates are preserved.
     pub fn freeze<'info>(
         ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
@@ -83,6 +104,8 @@ pub mod light_compressed_token {
         freeze::process_freeze_or_thaw::<NOT_FROZEN, true>(ctx, inputs)
     }
 
+    /// Thaws frozen compressed token accounts. Inputs must be frozen. Creates
+    /// as many outputs as inputs. Balances and delegates are preserved.
     pub fn thaw<'info>(
         ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
         inputs: Vec<u8>,
@@ -91,6 +114,9 @@ pub mod light_compressed_token {
         freeze::process_freeze_or_thaw::<true, NOT_FROZEN>(ctx, inputs)
     }
 
+    /// Burns compressed tokens and spl tokens from the pool account. Delegates
+    /// can burn tokens. The output compressed token account remains delegated.
+    /// Creates one output compressed token account.
     pub fn burn<'info>(
         ctx: Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
         inputs: Vec<u8>,

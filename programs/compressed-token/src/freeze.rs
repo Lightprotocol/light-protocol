@@ -108,7 +108,8 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
 }
 
 /// This is a separate function from create_output_compressed_accounts to allow
-/// for a flexible number of delegates.
+/// for a flexible number of delegates. create_output_compressed_accounts only
+/// supports one delegate.
 fn create_token_output_accounts<const IS_FROZEN: bool>(
     input_token_data_with_context: &[InputTokenDataWithContext],
     remaining_accounts: &[AccountInfo],

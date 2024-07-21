@@ -1,5 +1,5 @@
 use crate::{
-    constants::{BUMP_CPI_AUTHORITY, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
+    constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
     spl_compression::process_compression_or_decompression,
     token_data::{AccountState, TokenData},
     ErrorCode, TransferInstruction,
@@ -43,7 +43,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     bench_sbf_end!("t_deserialize");
     bench_sbf_start!("t_context_and_check_sig");
     let (mut compressed_input_accounts, input_token_data, input_lamports) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             &ctx.accounts.authority.key(),
             &inputs.delegated_transfer,
             ctx.remaining_accounts,
@@ -78,19 +78,19 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         OutputCompressedAccountWithPackedContext::default();
         inputs.output_compressed_accounts.len()
     ];
-    let delegate = if inputs.delegated_transfer.is_some() {
-        Some(ctx.accounts.authority.key())
-    } else {
-        None
-    };
-    let is_delegate = if let Some(delegated_transfer) = inputs.delegated_transfer {
+
+    // If delegate is signer of the transaction determine whether there is a
+    // change account which remains delegated and mark its position.
+    let (is_delegate, delegate) = if let Some(delegated_transfer) = inputs.delegated_transfer {
         let mut vec = vec![false; inputs.output_compressed_accounts.len()];
         if let Some(index) = delegated_transfer.delegate_change_account_index {
             vec[index as usize] = true;
+        } else {
+            return err!(crate::ErrorCode::InvalidDelegateIndex);
         }
-        Some(vec)
+        (Some(vec), Some(ctx.accounts.authority.key()))
     } else {
-        None
+        (None, None)
     };
 
     let output_lamports = create_output_compressed_accounts(
@@ -136,18 +136,25 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     }
     bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
 
-    // If lamports amount is not zero, create a change account without token data.
+    // If input and output lamports are unbalanced create a change account
+    // without token data.
     let change_lamports = input_lamports - output_lamports;
     if change_lamports > 0 {
-        output_compressed_accounts.push(OutputCompressedAccountWithPackedContext {
-            compressed_account: CompressedAccount {
-                owner: ctx.accounts.authority.key(),
-                lamports: change_lamports,
-                data: None,
-                address: None,
+        let new_len = output_compressed_accounts.len() + 1;
+        // Resize vector to new_len so that no unnecessary memory is allocated.
+        // (Rust doubles the size of the vector when pushing to a full vector.)
+        output_compressed_accounts.resize(
+            new_len,
+            OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: ctx.accounts.authority.key(),
+                    lamports: change_lamports,
+                    data: None,
+                    address: None,
+                },
+                merkle_tree_index: inputs.output_compressed_accounts[0].merkle_tree_index,
             },
-            merkle_tree_index: inputs.output_compressed_accounts[0].merkle_tree_index,
-        });
+        );
     }
 
     cpi_execute_compressed_transaction_transfer(
@@ -160,8 +167,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts.light_system_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
-    )?;
-    Ok(())
+    )
 }
 
 /// Creates output compressed accounts.
@@ -191,9 +197,6 @@ pub fn create_output_compressed_accounts(
         [0u8; 32]
     };
     for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        // is_delegate is only some if delegate is some
-        // if delegate is none
-        // This is enforced implictly by deriving is_delegate from delegated_transfer
         let (delegate, hashed_delegate) = if is_delegate
             .as_ref()
             .map(|is_delegate| is_delegate[i])
@@ -473,6 +476,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     Vec<TokenData>,
     u64,
 )> {
+    // Collect the total number of lamports to check whether inputs and outputs
+    // are unbalanced. If unbalanced create a non token compressed change
+    // account owner by the sender.
     let mut sum_lamports = 0;
     let mut input_compressed_accounts_with_merkle_context: Vec<
         PackedCompressedAccountWithMerkleContext,

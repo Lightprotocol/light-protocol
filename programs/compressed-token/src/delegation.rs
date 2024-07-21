@@ -74,7 +74,7 @@ pub fn create_input_and_output_accounts_approve(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data, _) =
+    let (mut compressed_input_accounts, input_token_data, sum_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
@@ -83,12 +83,6 @@ pub fn create_input_and_output_accounts_approve(
             &inputs.mint,
         )?;
     let sum_inputs = input_token_data.iter().map(|x| x.amount).sum::<u64>();
-    let sum_lamports = inputs
-        .input_token_data_with_context
-        .iter()
-        .map(|x| x.lamports.unwrap_or(0))
-        .sum::<u64>();
-
     let change_amount = match sum_inputs.checked_sub(inputs.delegated_amount) {
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
@@ -207,7 +201,7 @@ pub fn create_input_and_output_accounts_revoke(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data, _) =
+    let (mut compressed_input_accounts, input_token_data, sum_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
@@ -216,11 +210,6 @@ pub fn create_input_and_output_accounts_revoke(
             &inputs.mint,
         )?;
     let sum_inputs = input_token_data.iter().map(|x| x.amount).sum::<u64>();
-    let sum_lamports = inputs
-        .input_token_data_with_context
-        .iter()
-        .map(|x| x.lamports.unwrap_or(0))
-        .sum::<u64>();
     let lamports = if sum_lamports != 0 {
         Some(vec![Some(sum_lamports)])
     } else {

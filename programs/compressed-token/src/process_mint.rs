@@ -40,10 +40,13 @@ pub struct CreateTokenPoolInstruction<'info> {
     pub cpi_authority_pda: AccountInfo<'info>,
 }
 
+/// Mints tokens from an spl token mint to a list of compressed accounts and
+/// stores minted tokens in spl token pool account.
+///
 /// Steps:
 /// 1. Allocate memory for cpi instruction data. We allocate memory in the
-///    beginning so that we can free all memory the allocation prior to the cpi
-///    in cpi_execute_compressed_transaction_mint_to.
+///    beginning so that we can free all memory of the allocation prior to the
+///    cpi in cpi_execute_compressed_transaction_mint_to.
 /// 2. Mint SPL tokens to pool account.
 /// 3. Create output compressed accounts, one for every pubkey and amount pair.
 /// 4. Serialize cpi instruction data and free memory up to
@@ -54,7 +57,7 @@ pub fn process_mint_to<'info>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     recipient_pubkeys: Vec<Pubkey>,
     amounts: Vec<u64>,
-    lamports: u64,
+    lamports: Option<u64>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
         msg!(
@@ -67,14 +70,14 @@ pub fn process_mint_to<'info>(
 
     #[cfg(target_os = "solana")]
     {
-        let option_compression_lamports = if lamports == 0 { 0 } else { 8 };
+        let option_compression_lamports = if lamports.unwrap_or(0) == 0 { 0 } else { 8 };
         let inputs_len =
             1 + 4 + 4 + 4 + amounts.len() * 161 + 1 + 1 + 1 + 26 + 1 + option_compression_lamports;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
         // + 4                          Vec::new()
-        // + 4 + amounts.len() * 162    Vec<OutputCompressedAccountWithPackedContext>
+        // + 4 + amounts.len() * 161    Vec<OutputCompressedAccountWithPackedContext>
         // + 1                          Option<relay_fee>
         // + 1 + 8                         Option<compression_lamports>
         // + 1                          is_compress
@@ -97,6 +100,7 @@ pub fn process_mint_to<'info>(
         bench_sbf_start!("tm_output_compressed_accounts");
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
+        let lamports_vec = lamports.map(|_| vec![lamports; amounts.len()]);
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
@@ -104,7 +108,7 @@ pub fn process_mint_to<'info>(
             None,
             None,
             &amounts,
-            Some(vec![Some(lamports); amounts.len()]),
+            lamports_vec,
             &hashed_mint,
             // We ensure that the Merkle tree account is the first
             // remaining account in the cpi to the system program.
@@ -176,7 +180,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         ctx.accounts.account_compression_authority.to_account_info(),
         ctx.accounts.account_compression_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
-        sol_pool_pda,                                        //  compressed_sol_pda
+        sol_pool_pda,
         ctx.accounts.light_system_program.to_account_info(), // none compression_recipient
         ctx.accounts.system_program.to_account_info(),
         ctx.accounts.light_system_program.to_account_info(), // none cpi_context_account
@@ -282,7 +286,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
             .checked_add(compressed_account.compressed_account.lamports)
             .unwrap();
     }
-    // relay_fee
+    // None relay_fee
     inputs.extend_from_slice(&[0u8; 1]);
 
     if sum_lamports != 0 {
@@ -295,6 +299,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
 
     // seeds
     seeds.serialize(inputs).unwrap();
+    // None compressed_cpi_context
     inputs.extend_from_slice(&[0u8]);
 }
 
@@ -506,7 +511,7 @@ mod test {
                 data: token_data_bytes,
                 data_hash: token_data.hash::<Poseidon>().unwrap(),
             };
-            let lamports = 8;
+            let lamports = 0;
 
             output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
@@ -528,18 +533,14 @@ mod test {
             &output_compressed_accounts,
             &signer_seeds_vec,
         );
-        let sum = output_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.lamports)
-            .sum::<u64>();
         let inputs_struct = light_system_program::InstructionDataInvokeCpi {
             relay_fee: None,
             input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
             output_compressed_accounts: output_compressed_accounts.clone(),
             proof: None,
             new_address_params: Vec::with_capacity(0),
-            compress_or_decompress_lamports: Some(sum),
-            is_compress: true,
+            compress_or_decompress_lamports: None,
+            is_compress: false,
             signer_seeds: signer_seeds_vec,
             cpi_context: None,
         };
