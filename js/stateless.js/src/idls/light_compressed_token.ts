@@ -280,9 +280,8 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ];
                 },
                 {
@@ -354,9 +353,8 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ];
                 },
                 {
@@ -1836,9 +1834,8 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ],
                 },
                 {
@@ -1910,9 +1907,8 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ],
                 },
                 {
