@@ -241,7 +241,7 @@ pub async fn perform_escrow<R: RpcConnection>(
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
-        input_token_data: &[input_compressed_token_account_data.token_data],
+        input_token_data: &[input_compressed_token_account_data.token_data.clone()],
         lock_up_time: *lock_up_time,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -331,12 +331,13 @@ pub async fn assert_escrow<R: RpcConnection>(
         .iter()
         .find(|x| x.token_data.owner == token_owner_pda)
         .unwrap()
-        .token_data;
+        .token_data
+        .clone();
     assert_eq!(token_data_escrow.amount, escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
     let token_data_change_compressed_token_account =
-        test_indexer.token_compressed_accounts[0].token_data;
+        test_indexer.token_compressed_accounts[0].token_data.clone();
     assert_eq!(
         token_data_change_compressed_token_account.amount,
         amount - escrow_amount
@@ -398,7 +399,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
-        input_token_data: &[escrow_token_data_with_context.token_data],
+        input_token_data: &[escrow_token_data_with_context.token_data.clone()],
         lock_up_time: 0,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {

@@ -344,6 +344,7 @@ mod test {
                 root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
+                tlv: None,
             }];
             let inputs = CompressedTokenInstructionDataBurn {
                 proof: CompressedProof::default(),
@@ -374,6 +375,7 @@ mod test {
                     amount: change_amount,
                     delegate: None,
                     state: AccountState::Initialized,
+                    tlv: None,
                 };
                 let expected_compressed_output_accounts = create_expected_token_output_accounts(
                     vec![expected_change_token_data],
@@ -468,6 +470,7 @@ mod test {
                 amount: sum_inputs - burn_amount,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let expected_compressed_output_accounts =
                 create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
@@ -522,6 +525,7 @@ mod test {
             root_index: 0,
             delegate_index: Some(1),
             lamports: None,
+            tlv: None,
         }];
 
         // Burn amount too high
@@ -585,6 +589,7 @@ mod test {
                 amount: 50,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let expected_compressed_output_accounts =
                 create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
@@ -635,6 +640,7 @@ mod test {
                 amount: 50,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let expected_compressed_output_accounts =
                 create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);

@@ -92,7 +92,11 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     } else {
         (None, None)
     };
-
+    inputs.output_compressed_accounts.iter().for_each(|data| {
+        if data.tlv.is_some() {
+            unimplemented!("Tlv is unimplemented");
+        }
+    });
     let output_lamports = create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
@@ -217,7 +221,6 @@ pub fn create_output_compressed_accounts(
         // +    1       state
         let capacity = if delegate.is_some() { 106 } else { 74 };
         let mut token_data_bytes = Vec::with_capacity(capacity);
-
         // 1,000 CU token data and serialize
         let token_data = TokenData {
             mint: mint_pubkey,
@@ -225,6 +228,7 @@ pub fn create_output_compressed_accounts(
             amount: *amount,
             delegate,
             state: AccountState::Initialized,
+            tlv: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
@@ -436,6 +440,8 @@ pub struct InputTokenDataWithContext {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
     pub lamports: Option<u64>,
+    /// Placeholder for TokenExtension tlv data (unimplemented)
+    pub tlv: Option<Vec<u8>>,
 }
 
 /// Struct to provide the owner when the delegate is signer of the transaction.
@@ -526,6 +532,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         } else {
             AccountState::Initialized
         };
+        if input_token_data.tlv.is_some() {
+            unimplemented!("Tlv is unimplemented.");
+        }
         let token_data = TokenData {
             mint: *mint,
             owner,
@@ -534,6 +543,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
             }),
             state,
+            tlv: None,
         };
         input_token_data_vec.push(token_data);
         input_compressed_accounts_with_merkle_context.push(
@@ -551,12 +561,14 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     ))
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedTokenTransferOutputData {
     pub owner: Pubkey,
     pub amount: u64,
     pub lamports: Option<u64>,
     pub merkle_tree_index: u8,
+    /// Placeholder for TokenExtension tlv data (unimplemented)
+    pub tlv: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -872,6 +884,7 @@ pub mod transfer_sdk {
                 },
                 root_index: root_indices[i],
                 lamports,
+                tlv: None,
             };
             input_token_data_with_context.push(token_data_with_context);
         }
@@ -905,6 +918,7 @@ pub mod transfer_sdk {
                 amount: output_compressed_accounts[i].amount,
                 lamports: output_compressed_accounts[i].lamports,
                 merkle_tree_index: *remaining_accounts.get(&mt.merkle_tree).unwrap() as u8,
+                tlv: None,
             });
         }
         (
@@ -992,6 +1006,7 @@ mod test {
                 delegate: None,
                 state: AccountState::Initialized,
                 amount: *i,
+                tlv: None,
             });
         }
         let ref_amount;

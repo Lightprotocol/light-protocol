@@ -166,5 +166,6 @@ fn create_change_output_compressed_token_account(
         owner: *owner,
         lamports: None,
         merkle_tree_index,
+        tlv: None,
     }
 }

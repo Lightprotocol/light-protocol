@@ -305,6 +305,7 @@ export function createTransferOutputState(
                 owner: toAddress,
                 amount,
                 lamports: inputLamports,
+                tlv: null,
             },
         ];
     }
@@ -320,11 +321,13 @@ export function createTransferOutputState(
             owner: inputCompressedTokenAccounts[0].parsed.owner,
             amount: changeAmount,
             lamports: inputLamports,
+            tlv: null,
         },
         {
             owner: toAddress,
             amount,
             lamports: bn(0),
+            tlv: null,
         },
     ];
     return outputCompressedAccounts;
@@ -365,6 +368,7 @@ export function createDecompressOutputState(
             owner: inputCompressedTokenAccounts[0].parsed.owner,
             amount: changeAmount,
             lamports: inputLamports,
+            tlv: null,
         },
     ];
     return tokenTransferOutputs;
@@ -669,6 +673,7 @@ export class CompressedTokenProgram {
                 owner: toAddress,
                 amount,
                 lamports: bn(0),
+                tlv: null,
             },
         ];
         const {

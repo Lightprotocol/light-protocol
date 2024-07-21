@@ -248,7 +248,7 @@ async fn create_escrow_ix<R: RpcConnection>(
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
-        input_token_data: &[input_compressed_token_account_data.token_data],
+        input_token_data: &[input_compressed_token_account_data.token_data.clone()],
         lock_up_time,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -291,7 +291,8 @@ pub async fn assert_escrow<R: RpcConnection>(
         .iter()
         .find(|x| x.token_data.owner == token_owner_pda)
         .unwrap()
-        .token_data;
+        .token_data
+        .clone();
     assert_eq!(token_data_escrow.amount, *escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
@@ -456,7 +457,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .await;
 
     let create_withdrawal_ix_inputs = CreateCompressedPdaWithdrawalInstructionInputs {
-        input_token_data: &[token_escrow.token_data],
+        input_token_data: &[token_escrow.token_data.clone()],
         signer: &payer_pubkey,
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,

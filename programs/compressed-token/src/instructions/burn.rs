@@ -7,8 +7,13 @@ use crate::POOL_SEED;
 
 #[derive(Accounts)]
 pub struct BurnInstruction<'info> {
+    /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+    /// CHECK:
+    /// Authority is verified through proof since both owner and delegate
+    /// are included in the token data hash, which is a public input to the
+    /// validity proof.
     pub authority: Signer<'info>,
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]

@@ -329,6 +329,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         amount: input_token_data_with_context.amount,
         owner: crate::ID,
         lamports: None,
+        tlv: None,
         merkle_tree_index: input_token_data_with_context
             .merkle_context
             .merkle_tree_pubkey_index,

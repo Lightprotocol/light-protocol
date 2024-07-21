@@ -72,12 +72,12 @@ pub fn process_mint_to<'info>(
     {
         let option_compression_lamports = if lamports.unwrap_or(0) == 0 { 0 } else { 8 };
         let inputs_len =
-            1 + 4 + 4 + 4 + amounts.len() * 161 + 1 + 1 + 1 + 26 + 1 + option_compression_lamports;
+            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 26 + 1 + option_compression_lamports;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
         // + 4                          Vec::new()
-        // + 4 + amounts.len() * 161    Vec<OutputCompressedAccountWithPackedContext>
+        // + 4 + amounts.len() * 162    Vec<OutputCompressedAccountWithPackedContext>
         // + 1                          Option<relay_fee>
         // + 1 + 8                         Option<compression_lamports>
         // + 1                          is_compress
@@ -501,6 +501,7 @@ mod test {
                 amount: *amount,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
 
             token_data.serialize(&mut token_data_bytes).unwrap();
@@ -575,6 +576,7 @@ mod test {
                     amount: *amount,
                     delegate: None,
                     state: AccountState::Initialized,
+                    tlv: None,
                 };
 
                 token_data.serialize(&mut token_data_bytes).unwrap();

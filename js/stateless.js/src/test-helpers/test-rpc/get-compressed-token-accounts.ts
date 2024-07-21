@@ -25,6 +25,7 @@ type TokenData = {
     amount: BN;
     delegate: PublicKey | null;
     state: number;
+    tlv: Buffer | null;
 };
 
 export type EventWithParsedTokenTlvData = {

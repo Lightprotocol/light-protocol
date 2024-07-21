@@ -484,6 +484,7 @@ mod test {
                 root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -497,6 +498,7 @@ mod test {
                 root_index: 0,
                 delegate_index: None,
                 lamports: None,
+                tlv: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataApprove {
@@ -521,6 +523,7 @@ mod test {
             amount: 151,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_delegated_token_data = TokenData {
             mint,
@@ -528,6 +531,7 @@ mod test {
             amount: 50,
             delegate: Some(delegate),
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
             vec![expected_delegated_token_data, expected_change_token_data],
@@ -586,6 +590,7 @@ mod test {
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -599,6 +604,7 @@ mod test {
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
+                tlv: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataRevoke {
@@ -619,6 +625,7 @@ mod test {
             amount: 201,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_compressed_output_accounts =
             create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);

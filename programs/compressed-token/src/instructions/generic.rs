@@ -7,10 +7,10 @@ pub struct GenericInstruction<'info> {
     /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    /// CHECK: is checked by proof verification since authority is either owner
-    /// or delegate both are included in the token data hash, thus in the
-    /// compressed data hash thus in the compressed account hash which is public
-    /// input to the validity proof.
+    /// CHECK:
+    /// Authority is verified through proof since both owner and delegate
+    /// are included in the token data hash, which is a public input to the
+    /// validity proof.
     pub authority: Signer<'info>,
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
@@ -25,7 +25,8 @@ pub struct GenericInstruction<'info> {
     pub account_compression_authority: UncheckedAccount<'info>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    /// CHECK: (different program) checked in light system program to derive
+    /// CHECK:
+    /// (different program) checked in light system program to derive
     /// cpi_authority_pda and check that this program is the signer of the cpi.
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     pub system_program: Program<'info, System>,

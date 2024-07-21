@@ -24,7 +24,8 @@ pub struct FreezeInstruction<'info> {
     pub account_compression_authority: UncheckedAccount<'info>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    /// CHECK: (different program) checked in light system program to derive
+    /// CHECK:
+    /// (different program) checked in light system program to derive
     /// cpi_authority_pda and check that this program is the signer of the cpi.
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     pub system_program: Program<'info, System>,
