@@ -146,6 +146,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             amount: token_data_with_context.amount,
             delegate,
             state,
+            tlv: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
 
@@ -362,6 +363,7 @@ pub mod test_freeze {
                 root_index: 0,
                 delegate_index: None,
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -375,6 +377,7 @@ pub mod test_freeze {
                 root_index: 0,
                 delegate_index: Some(2),
                 lamports: None,
+                tlv: None,
             },
         ];
         // Freeze
@@ -401,6 +404,7 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Frozen,
+                tlv: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -408,6 +412,7 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Frozen,
+                tlv: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -443,6 +448,7 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -450,6 +456,7 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Initialized,
+                tlv: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -512,6 +519,7 @@ pub mod test_freeze {
                 root_index: rng.gen_range(0..=65_535),
                 delegate_index,
                 lamports: None,
+                tlv: None,
             });
         }
         vec
@@ -537,6 +545,7 @@ pub mod test_freeze {
                     amount: x.amount,
                     delegate,
                     state: AccountState::Initialized,
+                    tlv: None,
                 };
                 let mut data = Vec::new();
                 token_data.serialize(&mut data).unwrap();

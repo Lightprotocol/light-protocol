@@ -296,7 +296,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     let mut sum_input_amounts = 0;
     for account in input_compressed_accounts {
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
-        input_compressed_account_token_data.push(account.token_data);
+        input_compressed_account_token_data.push(account.token_data.clone());
         input_compressed_account_hashes.push(
             account
                 .compressed_account
@@ -514,7 +514,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         &Some(proof_rpc_result.proof),
         input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect::<Vec<_>>()
             .as_slice(), // input_token_data
         &input_compressed_accounts
@@ -738,7 +738,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
@@ -815,6 +815,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
         amount: delegated_amount,
         delegate: Some(*delegate),
         state: AccountState::Initialized,
+        tlv: None,
     };
 
     assert_eq!(
@@ -830,6 +831,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
             amount: change_amount,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         assert_eq!(
             expected_change_token_data,
@@ -897,7 +899,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
@@ -942,6 +944,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
         amount: input_amount,
         delegate: None,
         state: AccountState::Initialized,
+        tlv: None,
     };
     assert_eq!(expected_token_data, created_output_accounts[0].token_data);
     let expected_compressed_output_accounts =
@@ -1047,7 +1050,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
@@ -1097,6 +1100,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
             amount: account.token_data.amount,
             delegate: account.token_data.delegate,
             state,
+            tlv: None,
         };
         if let Some(delegate) = account.token_data.delegate {
             delegates.push(Some(delegate));
@@ -1222,6 +1226,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
             amount: output_amount,
             delegate,
             state: AccountState::Initialized,
+            tlv: None,
         };
         if let Some(delegate) = expected_token_data.delegate {
             delegates.push(Some(delegate));
@@ -1330,7 +1335,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()

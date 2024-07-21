@@ -93,6 +93,7 @@ export type TokenTransferOutputData = {
     owner: PublicKey;
     amount: BN;
     lamports: BN | null;
+    tlv: Buffer | null;
 };
 
 export type CompressedTokenInstructionDataTransfer = {
@@ -113,6 +114,7 @@ export interface InputTokenDataWithContext {
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
     lamports: BN | null;
+    tlv: Buffer | null;
 }
 export type TokenData = {
     /// The mint associated with this account
@@ -126,4 +128,6 @@ export type TokenData = {
     delegate: PublicKey | null;
     /// The account's state
     state: number; // AccountState_IdlType;
+    /// TokenExtension tlv
+    tlv: Buffer | null;
 };

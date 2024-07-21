@@ -88,6 +88,7 @@ export function packCompressedTokenAccounts(
                 lamports: account.compressedAccount.lamports.eq(bn(0))
                     ? null
                     : account.compressedAccount.lamports,
+                tlv: null,
             });
         },
     );
@@ -108,6 +109,7 @@ export function packCompressedTokenAccounts(
                 ? null
                 : tokenTransferOutputs[index].lamports,
             merkleTreeIndex,
+            tlv: null,
         });
     });
     // to meta

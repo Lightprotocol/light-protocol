@@ -5,10 +5,9 @@ export type LightCompressedToken = {
         {
             name: 'createTokenPool';
             docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
+                'This instruction creates a token pool for a given mint. Every spl mint',
+                'can have one token pool. When a token is compressed the compressed',
+                'tokens are transferrred to the token pool.',
             ];
             accounts: [
                 {
@@ -51,7 +50,11 @@ export type LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
+                'every amount and pubkey input pair one output compressed account. A',
+                'constant amount of lamports can be transferred to each output account to',
+                'enable. A use case to add lamports to a compressed token account is to',
+                'prevent spam. This is the only way to add lamports to a compressed token',
+                'account.',
             ];
             accounts: [
                 {
@@ -159,6 +162,16 @@ export type LightCompressedToken = {
         },
         {
             name: 'transfer';
+            docs: [
+                'Transfers compressed tokens from one account to another. All accounts',
+                'must be of the same mint. Additional spl tokens can be compressed or',
+                'decompressed. In one transaction only compression or decompression is',
+                'possible. Lamports can be transferred along side tokens. If output token',
+                'accounts specify less lamports than inputs the remaining lamports are',
+                'transferred to an output compressed account. Signer must owner or',
+                'delegate. If a delegated token account is transferred the delegate is',
+                'not preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -247,6 +260,14 @@ export type LightCompressedToken = {
         },
         {
             name: 'approve';
+            docs: [
+                'Delegates an amount to a delegate. A compressed token account is either',
+                'completely delegated or not. Prior delegates are not preserved. Cannot',
+                'be called by a delegate.',
+                'The instruction creates two output accounts:',
+                '1. one account with delegated amount',
+                '2. one account with remaining(change) amount',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -317,6 +338,10 @@ export type LightCompressedToken = {
         },
         {
             name: 'revoke';
+            docs: [
+                'Revokes a delegation. The instruction merges all inptus into one output',
+                'account. Cannot be called by a delegate. Delegates are not preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -387,6 +412,10 @@ export type LightCompressedToken = {
         },
         {
             name: 'freeze';
+            docs: [
+                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
+                'many outputs as inputs. Balances and delegates are preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -457,6 +486,10 @@ export type LightCompressedToken = {
         },
         {
             name: 'thaw';
+            docs: [
+                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
+                'as many outputs as inputs. Balances and delegates are preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -527,6 +560,11 @@ export type LightCompressedToken = {
         },
         {
             name: 'burn';
+            docs: [
+                'Burns compressed tokens and spl tokens from the pool account. Delegates',
+                'can burn tokens. The output compressed token account remains delegated.',
+                'Creates one output compressed token account.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -982,6 +1020,15 @@ export type LightCompressedToken = {
                             option: 'u64';
                         };
                     },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
+                        };
+                    },
                 ];
             };
         },
@@ -1281,6 +1328,15 @@ export type LightCompressedToken = {
                         name: 'merkleTreeIndex';
                         type: 'u8';
                     },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
+                        };
+                    },
                 ];
             };
         },
@@ -1462,6 +1518,15 @@ export type LightCompressedToken = {
                             defined: 'AccountState';
                         };
                     },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
+                        };
+                    },
                 ];
             };
         },
@@ -1496,10 +1561,9 @@ export const IDL: LightCompressedToken = {
         {
             name: 'createTokenPool',
             docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
+                'This instruction creates a token pool for a given mint. Every spl mint',
+                'can have one token pool. When a token is compressed the compressed',
+                'tokens are transferrred to the token pool.',
             ],
             accounts: [
                 {
@@ -1542,7 +1606,11 @@ export const IDL: LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
+                'every amount and pubkey input pair one output compressed account. A',
+                'constant amount of lamports can be transferred to each output account to',
+                'enable. A use case to add lamports to a compressed token account is to',
+                'prevent spam. This is the only way to add lamports to a compressed token',
+                'account.',
             ],
             accounts: [
                 {
@@ -1650,6 +1718,16 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'transfer',
+            docs: [
+                'Transfers compressed tokens from one account to another. All accounts',
+                'must be of the same mint. Additional spl tokens can be compressed or',
+                'decompressed. In one transaction only compression or decompression is',
+                'possible. Lamports can be transferred along side tokens. If output token',
+                'accounts specify less lamports than inputs the remaining lamports are',
+                'transferred to an output compressed account. Signer must owner or',
+                'delegate. If a delegated token account is transferred the delegate is',
+                'not preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1738,6 +1816,14 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'approve',
+            docs: [
+                'Delegates an amount to a delegate. A compressed token account is either',
+                'completely delegated or not. Prior delegates are not preserved. Cannot',
+                'be called by a delegate.',
+                'The instruction creates two output accounts:',
+                '1. one account with delegated amount',
+                '2. one account with remaining(change) amount',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1808,6 +1894,10 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'revoke',
+            docs: [
+                'Revokes a delegation. The instruction merges all inptus into one output',
+                'account. Cannot be called by a delegate. Delegates are not preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1878,6 +1968,10 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'freeze',
+            docs: [
+                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
+                'many outputs as inputs. Balances and delegates are preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1948,6 +2042,10 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'thaw',
+            docs: [
+                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
+                'as many outputs as inputs. Balances and delegates are preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -2018,6 +2116,11 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'burn',
+            docs: [
+                'Burns compressed tokens and spl tokens from the pool account. Delegates',
+                'can burn tokens. The output compressed token account remains delegated.',
+                'Creates one output compressed token account.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -2473,6 +2576,15 @@ export const IDL: LightCompressedToken = {
                             option: 'u64',
                         },
                     },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
+                        },
+                    },
                 ],
             },
         },
@@ -2776,6 +2888,15 @@ export const IDL: LightCompressedToken = {
                         name: 'merkleTreeIndex',
                         type: 'u8',
                     },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
+                        },
+                    },
                 ],
             },
         },
@@ -2956,6 +3077,15 @@ export const IDL: LightCompressedToken = {
                         docs: ["The account's state"],
                         type: {
                             defined: 'AccountState',
+                        },
+                    },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
                         },
                     },
                 ],

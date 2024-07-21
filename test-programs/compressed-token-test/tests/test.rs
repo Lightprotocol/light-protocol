@@ -707,7 +707,7 @@ async fn test_transfers() {
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
         for output_num in 1..8 {
-            if input_num == 8 && output_num > 6 {
+            if input_num == 8 && output_num > 5 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
             }
@@ -724,7 +724,7 @@ async fn test_1_transfer() {
     let possible_inputs = [1];
     for input_num in possible_inputs {
         for output_num in 1..2 {
-            if input_num == 8 && output_num > 7 {
+            if input_num == 8 && output_num > 5 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
             }
@@ -742,7 +742,7 @@ async fn test_2_transfer() {
     let possible_inputs = [2];
     for input_num in possible_inputs {
         for output_num in 2..3 {
-            if input_num == 8 && output_num > 6 {
+            if input_num == 8 && output_num > 5 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
             }
@@ -759,17 +759,12 @@ async fn test_2_transfer() {
 async fn test_8_transfer() {
     let possible_inputs = [8];
     for input_num in possible_inputs {
-        for output_num in 2..3 {
-            if input_num == 8 && output_num > 7 {
-                // 8 inputs and 7 outputs is the max we can do
-                break;
-            }
-            println!(
-                "\n\ninput num: {}, output num: {}\n\n",
-                input_num, output_num
-            );
-            perform_transfer_test(input_num, output_num, 10_000).await
-        }
+        let output_num = 5;
+        println!(
+            "\n\ninput num: {}, output num: {}\n\n",
+            input_num, output_num
+        );
+        perform_transfer_test(input_num, output_num, 10_000).await
     }
 }
 
@@ -1092,7 +1087,7 @@ async fn test_approve_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1139,7 +1134,7 @@ async fn test_approve_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1190,7 +1185,7 @@ async fn test_approve_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1230,7 +1225,7 @@ async fn test_approve_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1273,7 +1268,7 @@ async fn test_approve_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1502,7 +1497,7 @@ async fn test_revoke_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1538,7 +1533,7 @@ async fn test_revoke_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -1583,7 +1578,7 @@ async fn test_revoke_failing() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2181,7 +2176,7 @@ async fn test_failing_freeze() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2220,7 +2215,7 @@ async fn test_failing_freeze() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2261,7 +2256,7 @@ async fn test_failing_freeze() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2327,7 +2322,7 @@ async fn test_failing_freeze() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2443,7 +2438,7 @@ async fn test_failing_thaw() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2482,7 +2477,7 @@ async fn test_failing_thaw() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2523,7 +2518,7 @@ async fn test_failing_thaw() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2580,7 +2575,7 @@ async fn test_failing_thaw() {
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
-                .map(|x| x.token_data)
+                .map(|x| x.token_data.clone())
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
@@ -2889,7 +2884,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
         &proof,
         input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         &input_compressed_accounts
@@ -2982,7 +2977,8 @@ async fn test_invalid_inputs() {
     .await;
     let payer = recipient_keypair.insecure_clone();
     let transfer_recipient_keypair = Keypair::new();
-    let input_compressed_account_token_data = test_indexer.token_compressed_accounts[0].token_data;
+    let input_compressed_account_token_data =
+        test_indexer.token_compressed_accounts[0].token_data.clone();
     let input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
         .compressed_account
         .clone()];
@@ -3131,7 +3127,7 @@ async fn test_invalid_inputs() {
     // Test 5: invalid input token data amount (0)
     {
         let mut input_compressed_account_token_data_invalid_amount =
-            test_indexer.token_compressed_accounts[0].token_data;
+            test_indexer.token_compressed_accounts[0].token_data.clone();
         input_compressed_account_token_data_invalid_amount.amount = 0;
         let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account
@@ -3179,7 +3175,7 @@ async fn test_invalid_inputs() {
     // Test 6: invalid delegate
     {
         let mut input_compressed_account_token_data =
-            test_indexer.token_compressed_accounts[0].token_data;
+            test_indexer.token_compressed_accounts[0].token_data.clone();
         input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
         let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account

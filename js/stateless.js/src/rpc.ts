@@ -134,6 +134,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             state: ['uninitialized', 'initialized', 'frozen'].indexOf(
                 _tokenData.state,
             ),
+            tlv: null,
         };
 
         if (
@@ -194,6 +195,7 @@ function buildCompressedAccountWithMaybeTokenData(
         state: ['uninitialized', 'initialized', 'frozen'].indexOf(
             tokenDataResult.state,
         ),
+        tlv: null,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };
