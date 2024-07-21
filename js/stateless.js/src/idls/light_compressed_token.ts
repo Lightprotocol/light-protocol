@@ -184,9 +184,9 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ];
                 },
                 {
@@ -568,11 +568,16 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -656,9 +661,9 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ];
                 },
                 {
@@ -1738,9 +1743,9 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ],
                 },
                 {
@@ -2122,11 +2127,16 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -2210,9 +2220,9 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
-                        'or delegate both are included in the token data hash, thus in the',
-                        'compressed data hash thus in the compressed account hash which is public',
-                        'input to the validity proof.',
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
                     ],
                 },
                 {
