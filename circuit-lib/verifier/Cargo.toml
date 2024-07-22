@@ -16,6 +16,6 @@ borsh = "0.10"
 solana-program = { workspace = true, optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.38.0", features = ["rt", "macros"] }
+tokio = { version = "1.38.1", features = ["rt", "macros"] }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"]  }
 light-prover-client = { path = "../light-prover-client", version = "0.2.1" }

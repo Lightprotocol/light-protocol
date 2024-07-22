@@ -37,5 +37,5 @@ log = "0.4"
 [dev-dependencies]
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
-tokio = "1.38.0"
+tokio = "1.38.1"
 light-macros= { version = "0.4.1", path = "../../macros/light" }
