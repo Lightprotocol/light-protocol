@@ -4,10 +4,10 @@ REGISTRY_PUBKEY="7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1"
 ADDRESS_MERKLE_TREE_PUBKEY="C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn"
 ADDRESS_MERKLE_TREE_QUEUE_PUBKEY="HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz"
 
-RPC_URL="http://localhost:8899"
-WS_RPC_URL="ws://localhost:8900"
-INDEXER_URL="http://localhost:8784"
-PROVER_URL="http://localhost:3001"
+RPC_URL="https://devnet.helius-rpc.com?api-key=<HELIUS_API_KEY>"
+WS_RPC_URL="wss://devnet.helius-rpc.com?api-key=<HELIUS_API_KEY>"
+INDEXER_URL="https://devnet.helius-rpc.com?api-key=<HELIUS_API_KEY>"
+PROVER_URL="https://devnet.helius-rpc.com?api-key=<HELIUS_API_KEY>"
 
 CU_LIMIT = 1_000_000
 RPC_POOL_SIZE = 20

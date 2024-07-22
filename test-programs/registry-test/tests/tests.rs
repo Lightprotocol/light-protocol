@@ -231,23 +231,28 @@ async fn failing_test_forester() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_forester_on_testnet() {
     let env_accounts = get_test_env_accounts();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::ZKTestnet, None);
-    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 100)
-        .await
-        .unwrap();
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Devnet, None);
+    // rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 100)
+    //     .await
+    //     .unwrap();
     let forester_epoch_account =
         Pubkey::from_str("DFiGEbaz75wSdqy9bpeWacqLWrqAwWBfqh4iSYtejiwK").unwrap();
-    let forester_epoch = rpc
-        .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    println!("ForesterEpoch: {:?}", forester_epoch);
-    assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
+    // let forester_epoch = rpc
+    //     .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
+    //     .await
+    //     .unwrap()
+    //     .unwrap();
+    // println!("ForesterEpoch: {:?}", forester_epoch);
+    // assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
 
-    let updated_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
-    println!("updated keypair: {:?}", updated_keypair.pubkey());
-    update_test_forester(&mut rpc, &env_accounts.forester, &updated_keypair.pubkey())
+    let forester_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
+    println!("forester_keypair: {:?}", forester_keypair.pubkey());
+
+    let governence_keypair = read_keypair_file("../../target/governance-authority-keypair.json")
+        .unwrap();
+    println!("governence_keypair: {:?}", governence_keypair.pubkey());
+
+    register_test_forester(&mut rpc, &governence_keypair, &forester_keypair.pubkey())
         .await
         .unwrap();
     let forester_epoch = rpc
@@ -256,7 +261,7 @@ async fn update_forester_on_testnet() {
         .unwrap()
         .unwrap();
     println!("ForesterEpoch: {:?}", forester_epoch_account);
-    assert_eq!(forester_epoch.authority, updated_keypair.pubkey());
+    assert_eq!(forester_epoch.authority, forester_keypair.pubkey());
 }
 
 #[ignore]

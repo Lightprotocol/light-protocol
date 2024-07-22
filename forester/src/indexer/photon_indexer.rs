@@ -3,7 +3,7 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
-use photon_api::apis::configuration::Configuration;
+use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
 use std::fmt::Debug;
@@ -17,6 +17,10 @@ impl<R: RpcConnection> PhotonIndexer<R> {
     pub fn new(path: String, rpc: R) -> Self {
         let configuration = Configuration {
             base_path: path,
+            api_key: Some(ApiKey {
+                prefix: Some("api-key".to_string()),
+                key: "<HELIUS_API_KEY>".to_string(),
+            }),
             ..Default::default()
         };
 

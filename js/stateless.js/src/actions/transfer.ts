@@ -11,10 +11,11 @@ import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
-import { Rpc } from '../rpc';
+import { convertMerkleProofsWithContextToHex, proverRequest, Rpc } from '../rpc';
 
 import { bn } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import { access } from 'fs';
 
 /**
  * Transfer compressed lamports from one owner to another
@@ -51,9 +52,65 @@ export async function transfer(
         lamports,
     );
 
-    const proof = await rpc.getValidityProof(
-        inputAccounts.map(account => bn(account.hash)),
+    
+    // rpc.getValidityProof_direct(inputAccounts.map(account => bn(account.hash))).then((proof) => {
+    //     console.log("Proof: ", proof)
+    // });
+
+    let accountHashes = inputAccounts.map(account => bn(account.hash).toArray("be", 32));
+    console.log("Account Hashes: ", accountHashes);
+
+    let merkleProofsWithContext = await rpc.getMultipleCompressedAccountProofs(inputAccounts.map(account => bn(account.hash)));
+    // console.log("Proofs: ", merkleProofsWithContext);
+
+    merkleProofsWithContext.forEach((proof) => {
+        console.log("Proof: ", proof.merkleProof.map(proof => proof.toArray("be", 32)));
+    });
+
+    const inputs = convertMerkleProofsWithContextToHex(
+        merkleProofsWithContext,
     );
+
+
+
+    const compressedProof = await proverRequest(
+        'http://localhost:3001',
+        'inclusion',
+        inputs,
+        false,
+    );
+
+    const proof = {
+        compressedProof,
+        roots: merkleProofsWithContext.map(proof => proof.root),
+        rootIndices: merkleProofsWithContext.map(
+            proof => proof.rootIndex,
+        ),
+        leafIndices: merkleProofsWithContext.map(
+            proof => proof.leafIndex,
+        ),
+        leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
+        merkleTrees: merkleProofsWithContext.map(
+            proof => proof.merkleTree,
+        ),
+        nullifierQueues: merkleProofsWithContext.map(
+            proof => proof.nullifierQueue,
+        ),
+    };
+
+    console.log("Proofs: ", proof);
+    
+    proof.roots.forEach((root) => {
+        console.log("Root: ", root.toArray("be", 32));
+    });
+
+    proof.leaves.forEach((leaf) => {
+        console.log("Leaf: ", leaf.toArray("be", 32));
+    });
+
+    // const proof = await rpc.getValidityProof(
+    //     inputAccounts.map(account => bn(account.hash)),
+    // );
 
     const ix = await LightSystemProgram.transfer({
         payer: payer.publicKey,
