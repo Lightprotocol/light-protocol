@@ -1,6 +1,6 @@
 [package]
 name = "light-utils"
-version = "0.2.1"
+version = "0.3.0"
 description = "Common utility functions used in Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 ark-ff = "0.4"
-light-bounded-vec = { version = "0.2.1", path = "../merkle-tree/bounded-vec" }
+light-bounded-vec = { version = "0.3.0", path = "../merkle-tree/bounded-vec" }
 num-bigint = { version = "0.4", features = ["rand"] }
 thiserror = "1.0"
 solana-program = { workspace = true }

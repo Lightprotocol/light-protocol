@@ -1,6 +1,6 @@
 [package]
 name = "light-bounded-vec"
-version = "0.2.1"
+version = "0.3.0"
 description = "Bounded and cyclic vector implementations"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
