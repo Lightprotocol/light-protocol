@@ -189,7 +189,7 @@ echo "Downloading gnark keys"
 # run the light-prover/scripts/download_keys.sh script
 # this script will download the keys from IPFS and place them in the light-prover/proving-keys directory
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-"$ROOT_DIR"/light-prover/scripts/downlopad_keys.sh
+"$ROOT_DIR"/light-prover/scripts/download_keys.sh
 
 echo "🦀 Installing Rust"
 export RUSTUP_HOME="${PREFIX}/rustup"

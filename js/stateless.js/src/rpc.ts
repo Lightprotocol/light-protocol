@@ -1011,6 +1011,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async confirmTransactionIndexed(slot: number): Promise<boolean> {
         const startTime = Date.now();
+        // eslint-disable-next-line no-constant-condition
         while (true) {
             const indexerSlot = await this.getIndexerSlot();
             if (indexerSlot >= slot) {
