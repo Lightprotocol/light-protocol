@@ -5,7 +5,7 @@ authors = ["OpenAPI Generator team and contributors"]
 description = "Solana indexer for general compression"
 license = "Apache-2.0"
 edition = "2018"
-
+documentation = "https://www.zkcompression.com"
 [dependencies]
 serde = "^1.0"
 serde_derive = "^1.0"
