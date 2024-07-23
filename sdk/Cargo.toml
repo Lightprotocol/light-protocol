@@ -46,7 +46,7 @@ solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 serde_json = "1.0.114"
 reqwest = "0.12"
-tokio = "1.38.0"
+tokio = "1.39.1"
 light-prover-client = { version = "0.3.0", path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = { version = "0.3.0", path = "../merkle-tree/reference/" }
 light-indexed-merkle-tree = { version = "0.3.0", path = "../merkle-tree/indexed/" }
