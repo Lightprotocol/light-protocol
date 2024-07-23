@@ -114,7 +114,7 @@ PNPM_VERSION="9.5.0"
 SOLANA_VERSION="1.18.11"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
-PHOTON_VERSION="0.35.0"
+PHOTON_VERSION="0.36.0"
 PHOTON_BRANCH=""
 
 case "${OS}" in
@@ -189,7 +189,7 @@ echo "Downloading gnark keys"
 # run the light-prover/scripts/download_keys.sh script
 # this script will download the keys from IPFS and place them in the light-prover/proving-keys directory
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-"$ROOT_DIR"/light-prover/scripts/download_keys.sh
+"$ROOT_DIR"/light-prover/scripts/downlopad_keys.sh
 
 echo "🦀 Installing Rust"
 export RUSTUP_HOME="${PREFIX}/rustup"
