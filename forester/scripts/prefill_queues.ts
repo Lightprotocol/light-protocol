@@ -13,6 +13,9 @@ import nacl from "tweetnacl";
 import * as dotenv from "dotenv";
 dotenv.config();
 
+let totalTransferTxs = 0;
+let totalCreateAccountTxs = 0;
+
 const PHOTON_API_KEY = process.env.PHOTON_API_KEY;
 console.log("PHOTON_API_KEY", PHOTON_API_KEY);
 
@@ -54,7 +57,7 @@ function getRpc(network: string): Rpc {
 
 const LAMPORTS = 1e9;
 const COMPRESS_AMOUNT = 1e9 - 50000;
-const TOTAL_NUMBER_OF_TRANSFERS = 10;
+const TOTAL_NUMBER_OF_TRANSFERS = 20000;
 const NUMBER_OF_CONCURRENT_TRANSFERS = 1;
 const TRANSFER_AMOUNT = 10;
 
@@ -71,7 +74,10 @@ async function transferAsync(
     payer,
     bobPublicKey
   );
-  console.log(`transfer ${i} of ${TOTAL_NUMBER_OF_TRANSFERS}: ${transferSig}`);
+  totalTransferTxs++;
+  console.log(
+    `transfer ${i} of ${TOTAL_NUMBER_OF_TRANSFERS} (all: ${totalTransferTxs}): ${transferSig}`
+  );
 }
 
 async function createAccountAsync(i: number, rpc: Rpc, payer: Signer) {
@@ -81,7 +87,10 @@ async function createAccountAsync(i: number, rpc: Rpc, payer: Signer) {
     nacl.randomBytes(32),
     LightSystemProgram.programId
   );
-  console.log(`create account ${i} of ${TOTAL_NUMBER_OF_TRANSFERS}: ${sig}`);
+  totalCreateAccountTxs++;
+  console.log(
+    `create account ${i} of ${TOTAL_NUMBER_OF_TRANSFERS} (all: ${totalCreateAccountTxs}): ${sig}`
+  );
 }
 
 async function prefillNullifierQueue() {
@@ -100,18 +109,18 @@ async function prefillNullifierQueue() {
   const compressSig = await compress(
     rpc,
     payer,
-    COMPRESS_AMOUNT,
+    1e9, //COMPRESS_AMOUNT,
     payer.publicKey
   );
-  console.log("compress tx sig", compressSig);
-  while (true) {
-    try {
-      await performTransfers(rpc, payer, bob.publicKey);
-      console.log("Round completed.");
-    } catch (error) {
-      console.error("An error occurred:", error);
-    }
-  }
+  // console.log("compress tx sig", compressSig);
+  // while (true) {
+  //   try {
+  //     await performTransfers(rpc, payer, bob.publicKey);
+  //     console.log("Round completed.");
+  //   } catch (error) {
+  //     console.error("An error occurred:", error);
+  //   }
+  // }
 }
 
 async function airdropToAccount(rpc: Rpc, account: Keypair, lamports: number) {
@@ -166,4 +175,27 @@ async function performCreateAddresses(rpc: Rpc, payer: Signer) {
   }
 }
 
-prefillNullifierQueue();
+const rpc = getRpc("devnet");
+const payer = kp(payerKeypair);
+const bob = kp(bobKeypair);
+(async () => {
+  // await prefillNullifierQueue();
+  // throw new Error("stop");
+  // const compressedBalance = await rpc.getCompressedBalanceByOwner(
+  //   payer.publicKey
+  // );
+  // console.log("compressed balance", compressedBalance);
+  while (true) {
+    try {
+      await Promise.all([
+        // performTransfers(rpc, payer, bob.publicKey),
+        performCreateAddresses(rpc, payer),
+      ]);
+      console.log("Round completed.");
+      console.log(`Total transfers: ${totalTransferTxs}`);
+      console.log(`Total create accounts: ${totalCreateAccountTxs}`);
+    } catch (error) {
+      console.error("An error occurred:", error);
+    }
+  }
+})();
