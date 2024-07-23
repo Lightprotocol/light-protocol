@@ -224,6 +224,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -280,6 +281,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ];
@@ -319,6 +321,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -353,6 +356,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ];
@@ -392,6 +396,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -461,6 +466,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -535,6 +541,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -575,6 +582,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: true;
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ];
@@ -701,6 +709,7 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ];
                 },
@@ -1783,6 +1792,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },
@@ -1839,6 +1849,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ],
@@ -1878,6 +1889,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },
@@ -1912,6 +1924,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ],
@@ -1951,6 +1964,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },
@@ -2020,6 +2034,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },
@@ -2094,6 +2109,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },
@@ -2134,6 +2150,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: true,
                     docs: [
+                        'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ],
@@ -2260,6 +2277,7 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     docs: [
+                        '(different program) checked in light system program to derive',
                         'cpi_authority_pda and check that this program is the signer of the cpi.',
                     ],
                 },

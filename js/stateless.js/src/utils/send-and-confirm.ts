@@ -61,10 +61,12 @@ export async function sendAndConfirmTx(
         lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
     };
 
-    await rpc.confirmTransaction(
+    const ctxAndRes = await rpc.confirmTransaction(
         transactionConfirmationStrategy0,
         confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
+    const slot = ctxAndRes.context.slot;
+    await rpc.confirmTransactionIndexed(slot);
     return txId;
 }
 
@@ -94,6 +96,8 @@ export async function confirmTx(
         transactionConfirmationStrategy,
         confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
+    const slot = res.context.slot;
+    await rpc.confirmTransactionIndexed(slot);
     return res;
 }
 

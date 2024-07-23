@@ -254,7 +254,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ): Promise<CompressedAccountWithMerkleContext[]> {
         return await getMultipleCompressedAccountsByHashTest(this, hashes);
     }
-
+    /**
+     * Ensure that the Compression Indexer has already indexed the transaction
+     */
+    async confirmTransactionIndexed(_slot: number): Promise<boolean> {
+        return true;
+    }
     /**
      * Fetch the latest merkle proofs for multiple compressed accounts specified
      * by an array account hashes

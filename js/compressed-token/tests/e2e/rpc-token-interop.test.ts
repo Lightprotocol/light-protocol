@@ -11,6 +11,10 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
+import {
+    PublicTransactionEvent,
+    getParsedEvents,
+} from '../../../stateless.js/src';
 
 const TEST_TOKEN_DECIMALS = 2;
 
@@ -24,12 +28,13 @@ describe('rpc-interop token', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
-        testRpc = await getTestRpc(lightWasm);
+        const lightWasm = await WasmFactory.getInstance();
         payer = await newAccountWithLamports(rpc, 1e9, 256);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
+
+        testRpc = await getTestRpc(lightWasm);
 
         mint = (
             await createMint(
@@ -45,8 +50,8 @@ describe('rpc-interop token', () => {
         charlie = await newAccountWithLamports(rpc, 1e9, 256);
 
         await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
-        /// TODO: replace for Rpc once 'getValidityProof' in Photon is working.
-        await transfer(testRpc, payer, mint, bn(700), bob, charlie.publicKey);
+
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
 
     it('getCompressedTokenAccountsByOwner should match', async () => {
@@ -78,6 +83,7 @@ describe('rpc-interop token', () => {
             charlie.publicKey,
             { mint },
         );
+
         const receiverAccountsTest =
             await testRpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
