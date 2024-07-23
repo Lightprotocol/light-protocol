@@ -1,6 +1,6 @@
 [package]
 name = "light-hash-set"
-version = "0.2.1"
+version = "0.3.0"
 description = "Hash set which can be stored on a Solana account"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -10,15 +10,15 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
-light-bounded-vec = { path = "../bounded-vec", version = "0.2.1" }
-light-utils = { path = "../../utils", version = "0.2.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.3.0" }
+light-utils = { path = "../../utils", version = "0.3.0" }
 memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 [target.'cfg(target_os = "solana")'.dependencies]
-light-heap = { path = "../../heap", version = "0.2.1" }
+light-heap = { path = "../../heap", version = "0.3.0" }
 
 [dev-dependencies]
 ark-bn254 = "0.4"
