@@ -1,4 +1,5 @@
 import Mathlib
+import ProvenZK
 import FormalVerification.Circuit
 
 open LightProver (F Order)
@@ -6,18 +7,10 @@ open LightProver (F Order)
 axiom bn254_Fr_prime : Nat.Prime Order
 instance : Fact (Nat.Prime Order) := Fact.mk bn254_Fr_prime
 
+instance : Membership α (MerkleTree α H d) where
+  mem x t := ∃i, t.itemAtFin i = x
+
 namespace ZMod
-
-def toInt (n : ZMod N): ℤ := n.val
-
-lemma toInt_nonneg [NeZero N] {n : ZMod N}: 0 ≤ n.toInt := by
-  rw [toInt]
-  apply Int.ofNat_nonneg
-
-lemma toInt_lt [NeZero N] {n : ZMod N}: n.toInt < N := by
-  rw [toInt]
-  rw [Nat.cast_lt]
-  apply ZMod.val_lt
 
 lemma castInt_lt [NeZero N] {n : ZMod N}: (n:ℤ) < N := by
   rw [cast_eq_val, Nat.cast_lt]
@@ -26,24 +19,6 @@ lemma castInt_lt [NeZero N] {n : ZMod N}: (n:ℤ) < N := by
 lemma castInt_nonneg [NeZero N] {n : ZMod N}: (0:ℤ) ≤ n := by
   rw [cast_eq_val]
   apply Int.ofNat_nonneg
-
-lemma toInt_neg [NeZero N] {n : ZMod N}: (-n).toInt = -(n.toInt) % N := by
-  simp [toInt, neg_val]
-  split
-  . simp [*]
-  . rw [Nat.cast_sub]
-    . rw [←Int.add_emod_self_left]
-      rw [Int.emod_eq_of_lt]
-      . congr; simp
-      . simp
-        apply le_of_lt
-        rw [ZMod.cast_eq_val, Int.ofNat_lt]
-        apply ZMod.val_lt
-      . simp
-        rw [ZMod.cast_eq_val, ←Int.ofNat_zero, Int.ofNat_lt]
-        apply Nat.zero_lt_of_ne_zero
-        simp [*]
-    . exact Nat.le_of_lt (ZMod.val_lt _)
 
 lemma castInt_neg [NeZero N] {n : ZMod N}: (((-n): ZMod N) : ℤ) = -(n:ℤ) % N := by
   rw [cast_eq_val, neg_val]
@@ -68,16 +43,6 @@ lemma castInt_sub [NeZero N] {n m : ZMod N}: (((n - m): ZMod N) : ℤ) = ((n:ℤ
   rw [sub_eq_add_neg, castInt_add, castInt_neg]
   simp
   rfl
-
-lemma toInt_add [NeZero N] {n m : ZMod N}: (n + m).toInt = (m.toInt + n.toInt) % N := by
-  simp [toInt, val_add, add_comm]
-
-lemma toInt_sub [NeZero N] {n m : ZMod N}: (n - m).toInt = (n.toInt - m.toInt) % N := by
-  simp [sub_eq_add_neg, toInt_add, toInt_neg, add_comm]
-
-@[simp]
-lemma toInt_toNat [NeZero N] {n : ZMod N}: n.toInt.toNat = n.val := by rfl
-
 
 end ZMod
 
@@ -110,3 +75,67 @@ theorem emod_eq_add_self_of_neg_and_lt_neg_self {a : ℤ} {mod : ℤ}: a < 0 →
   . linarith
 
 end Int
+
+lemma Membership.get_elem_helper {i n : ℕ} {r : Std.Range} (h₁ : i ∈ r) (h₂ : r.stop = n) :
+    i < n := h₂ ▸ h₁.2
+
+macro_rules
+| `(tactic| get_elem_tactic_trivial) => `(tactic| (exact Membership.get_elem_helper (by assumption) (by rfl)))
+
+def Std.Range.toList (r : Std.Range): List Nat := go r.start (r.stop - r.start)  where
+  go start
+  | 0 => []
+  | i + 1 => start :: go (start + 1) i
+
+theorem Std.Range.mem_toList_of_mem {r : Std.Range} (hp : i ∈ r) : i ∈ r.toList := by
+  rcases hp with ⟨h₁, h₂⟩
+  rcases r with ⟨start, stop, _⟩
+  simp at h₁ h₂
+  have h₃ : ∃d, stop = start + d := by
+    exists stop - start
+    apply Eq.symm
+    apply Nat.add_sub_cancel'
+    apply Nat.le_trans h₁ (Nat.le_of_lt h₂)
+  rcases h₃ with ⟨d, ⟨_⟩⟩
+  induction d generalizing start i with
+  | zero => linarith
+  | succ d ih =>
+    simp [toList, toList.go]
+    cases h₁ with
+    | refl => tauto
+    | @step m h₁ =>
+      simp at h₁
+      apply Or.inr
+      simp [toList] at ih
+      apply ih <;> linarith
+
+@[simp]
+lemma MerkleTree.GetElem.def {tree : MerkleTree α H d} {i : ℕ} {ih : i < 2^d}:
+  tree[i] = tree.itemAtFin ⟨i, ih⟩ := by rfl
+
+theorem Vector.exists_ofElems {p : Fin n → α → Prop} : (∀ (i : Fin n), ∃j, p i j) ↔ ∃(v : Vector α n), ∀i (_: i<n), p ⟨i, by assumption⟩ v[i] := by
+  apply Iff.intro
+  . intro h
+    induction n with
+    | zero =>
+      exists Vector.nil
+      intro i h
+      linarith [h]
+    | succ n ih =>
+      rw [Vector.exists_succ_iff_exists_snoc]
+      have hp_init := ih fun (i : Fin n) => h (Fin.castLE (by linarith) i)
+      rcases hp_init with ⟨vinit, hpinit⟩
+      exists vinit
+      have hp_last := h (Fin.last n)
+      rcases hp_last with ⟨vlast, hplast⟩
+      exists vlast
+      intro i ihp
+      cases Nat.lt_succ_iff_lt_or_eq.mp ihp with
+      | inl ihp =>
+        simp [ihp]
+        apply hpinit
+      | inr ihp =>
+        simp [ihp]
+        apply hplast
+  . rintro ⟨v, h⟩ i
+    exact ⟨v[i], h i i.2⟩

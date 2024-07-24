@@ -3,7 +3,6 @@ import FormalVerification.Circuit
 import FormalVerification.Lemmas
 
 open LightProver (F Order Gates)
--- variable [Fact (Nat.Prime Order)]
 
 theorem AssertIsLess_248_semantics {A B : F} : LightProver.AssertIsLess_248 A B ↔ (A + (2^248 - B)).val < 2^248 := by
   unfold LightProver.AssertIsLess_248
