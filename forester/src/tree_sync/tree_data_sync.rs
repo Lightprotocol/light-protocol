@@ -68,15 +68,15 @@ pub async fn fetch_trees(server_url: &str) -> Vec<TreeData> {
         let is_state_account = check_discriminator::<StateMerkleTreeAccount>(&account.data)
             .map_err(ProgramError::from);
         if is_state_account.is_ok() {
-            let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])
+            let tree_account = StateMerkleTreeAccount::deserialize(&mut &account.data[8..])
                 .map_err(RpcError::from)
                 .unwrap();
             let queue_pubkey = tree_account.metadata.associated_queue;
-            tree_data_list.push(TreeData::new(pubkey, queue_pubkey, TreeType::State));
-            info!(
-                "State Merkle Tree account detected. Pubkey: {}. Queue pubkey: {}",
+            debug!(
+                "State Merkle Tree account found. Pubkey: {}. Queue pubkey: {}",
                 pubkey, queue_pubkey
             );
+            tree_data_list.push(TreeData::new(pubkey, queue_pubkey, TreeType::State));
         } else {
             let is_address_account = check_discriminator::<AddressMerkleTreeAccount>(&account.data)
                 .map_err(ProgramError::from);
@@ -86,8 +86,8 @@ pub async fn fetch_trees(server_url: &str) -> Vec<TreeData> {
                     .unwrap();
                 let queue_pubkey = tree_account.metadata.associated_queue;
                 tree_data_list.push(TreeData::new(pubkey, queue_pubkey, TreeType::Address));
-                info!(
-                    "Address Merkle Tree account detected. Pubkey: {}. Queue pubkey: {}",
+                debug!(
+                    "Address Merkle Tree account found. Pubkey: {}. Queue pubkey: {}",
                     pubkey, queue_pubkey
                 );
             }

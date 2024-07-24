@@ -7,9 +7,10 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::{env, fmt};
 
+const REGISTRY_PUBKEY: &str = "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1";
+
 pub enum SettingsKey {
     Payer,
-    RegistryPubkey,
     RpcUrl,
     WsRpcUrl,
     IndexerUrl,
@@ -28,13 +29,12 @@ impl Display for SettingsKey {
             "{}",
             match self {
                 SettingsKey::Payer => "PAYER",
-                SettingsKey::RegistryPubkey => "REGISTRY_PUBKEY",
                 SettingsKey::RpcUrl => "RPC_URL",
                 SettingsKey::WsRpcUrl => "WS_RPC_URL",
                 SettingsKey::IndexerUrl => "INDEXER_URL",
                 SettingsKey::ProverUrl => "PROVER_URL",
                 SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
-                SettingsKey::BatchSize => "BATCH_SIZE",
+                SettingsKey::BatchSize => "PHOTON_BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
@@ -61,6 +61,7 @@ fn convert(json: &str) -> serde_json::Result<Vec<u8>> {
 }
 
 pub fn init_config() -> ForesterConfig {
+    let _ = dotenvy::dotenv();
     let config_path = locate_config_file();
 
     let settings = Config::builder()
@@ -69,9 +70,8 @@ pub fn init_config() -> ForesterConfig {
         .build()
         .unwrap();
 
-    let registry_pubkey = settings
-        .get_string(&SettingsKey::RegistryPubkey.to_string())
-        .unwrap();
+    let registry_pubkey = REGISTRY_PUBKEY.to_string();
+
     let payer = settings
         .get_string(&SettingsKey::Payer.to_string())
         .unwrap();
@@ -80,25 +80,25 @@ pub fn init_config() -> ForesterConfig {
 
     let rpc_url = settings
         .get_string(&SettingsKey::RpcUrl.to_string())
-        .unwrap();
+        .expect("RPC_URL not found in config file or environment variables");
     let ws_rpc_url = settings
         .get_string(&SettingsKey::WsRpcUrl.to_string())
-        .unwrap();
+        .expect("WS_RPC_URL not found in config file or environment variables");
     let indexer_url = settings
         .get_string(&SettingsKey::IndexerUrl.to_string())
-        .unwrap();
+        .expect("INDEXER_URL not found in config file or environment variables");
     let prover_url = settings
         .get_string(&SettingsKey::ProverUrl.to_string())
-        .unwrap();
+        .expect("PROVER_URL not found in config file or environment variables");
     let concurrency_limit = settings
         .get_int(&SettingsKey::ConcurrencyLimit.to_string())
-        .unwrap();
+        .expect("CONCURRENCY_LIMIT not found in config file or environment variables");
     let batch_size = settings
         .get_int(&SettingsKey::BatchSize.to_string())
-        .unwrap();
+        .expect("PHOTON_BATCH_SIZE not found in config file or environment variables");
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
-        .unwrap();
+        .expect("MAX_RETRIES not found in config file or environment variables");
     let cu_limit = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
     let rpc_pool_size = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
     ForesterConfig {

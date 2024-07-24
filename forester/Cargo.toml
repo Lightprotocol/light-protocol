@@ -37,6 +37,7 @@ light-test-utils = { path = "../test-utils" }
 log = "0.4"
 env_logger = "0.11"
 rand = "0.8.5"
+dotenvy = "0.15.7"
 
 [dev-dependencies]
 function_name = "0.3.0"
