@@ -359,7 +359,7 @@ pub struct MintToInstruction<'info> {
     pub mint: Account<'info, Mint>,
     /// CHECK: this account is checked implictly since a mint to from a mint
     /// account to a token account of a different mint will fail
-    #[account(mut)]
+    #[account(mut, seeds = [POOL_SEED, &mint.key().to_bytes()],bump)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,

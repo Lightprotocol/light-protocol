@@ -5,6 +5,8 @@ use light_system_program::{
     self,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
+
+use crate::POOL_SEED;
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
     /// UNCHECKED: only pays fees.
@@ -32,9 +34,9 @@ pub struct TransferInstruction<'info> {
     /// (different program) checked in light system program to derive
     /// cpi_authority_pda and check that this program is the signer of the cpi.
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
-    #[account(mut)]
+    #[account(mut,  seeds = [POOL_SEED, &token_pool_pda.mint.key().to_bytes()],bump)]
     pub token_pool_pda: Option<Account<'info, TokenAccount>>,
-    #[account(mut)]
+    #[account(mut, constraint= if token_pool_pda.is_some() {Ok(token_pool_pda.as_ref().unwrap().key() != compress_or_decompress_token_account.key())}else {err!(crate::ErrorCode::TokenPoolPdaUndefined)}? @crate::ErrorCode::IsTokenPoolPda)]
     pub compress_or_decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
     pub system_program: Program<'info, System>,
