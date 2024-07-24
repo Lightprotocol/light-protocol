@@ -3150,8 +3150,6 @@ dependencies = [
  "light-system-program",
  "light-utils",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
  "reqwest 0.12.4",
  "serde_json",

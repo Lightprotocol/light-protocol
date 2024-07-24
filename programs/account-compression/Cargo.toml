@@ -21,22 +21,20 @@ default = ["custom-heap"]
 test-sbf = []
 bench-sbf = []
 
-
-
 [dependencies]
-aligned-sized = { version = "0.2.1", path = "../../macros/aligned-sized" }
+aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
-bytemuck = { version = "1.14", features = ["min_const_generics"] }
-light-bounded-vec = { version = "0.2.1", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
-light-hash-set = { version = "0.2.1", path = "../../merkle-tree/hash-set", features = ["solana"] }
-light-hasher = { version = "0.2.1", path = "../../merkle-tree/hasher", features = ["solana"] }
-light-heap = { version = "0.2.1", path = "../../heap", optional = true }
-light-concurrent-merkle-tree = { version = "0.2.1", path = "../../merkle-tree/concurrent", features = ["solana"] }
-light-indexed-merkle-tree = { version = "0.2.1", path = "../../merkle-tree/indexed", features = ["solana"] }
-light-utils = { version = "0.2.1", path = "../../utils" }
-num-bigint = "0.4"
-num-traits = "0.2.18"
-solana-security-txt = "1.1.0"
+bytemuck = { workspace = true }
+light-bounded-vec = { workspace = true }
+light-hash-set = { workspace = true }
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-concurrent-merkle-tree = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-utils = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+solana-security-txt = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

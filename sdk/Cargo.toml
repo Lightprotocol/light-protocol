@@ -22,36 +22,38 @@ test-sbf = []
 bench-sbf = []
 
 [dependencies]
-aligned-sized = { version = "0.2.1", path = "../macros/aligned-sized" }
-light-macros = { version = "0.4.1", path = "../macros/light" }
+account-compression = { workspace = true }
+aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
-bytemuck = "1.14"
-light-hasher = { version = "0.2.1", path = "../merkle-tree/hasher" }
-light-heap = { version = "0.2.1", path = "../heap", optional = true }
-account-compression = { version = "0.4.1", path = "../programs/account-compression", features = ["cpi"] }
-light-system-program = { version = "0.4.1", path = "../programs/system", features = ["cpi"] }
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.2.1" }
-light-utils = { version = "0.2.1", path = "../utils" }
-groth16-solana = "0.0.3"
-light-verifier = { path = "../circuit-lib/verifier", version = "0.2.1", features = ["solana"] }
-borsh = "0.10.0"
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+groth16-solana = { workspace = true }
+light-concurrent-merkle-tree = { workspace = true }
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-macros = { workspace = true }
+light-system-program = { workspace = true }
+light-utils = { workspace = true }
+light-verifier = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
+# Local crates
+light-hash-set = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
+light-prover-client = { workspace = true }
+
+# External crates
+lazy_static = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+
 solana-banks-interface = { workspace = true }
 solana-cli-output = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
-serde_json = "1.0.114"
-reqwest = "0.12"
-tokio = "1.36.0"
-light-prover-client = { version = "0.2.1", path = "../circuit-lib/light-prover-client" }
-light-merkle-tree-reference = { version = "0.2.1", path = "../merkle-tree/reference/" }
-light-indexed-merkle-tree = { version = "0.2.1", path = "../merkle-tree/indexed/" }
-num-bigint = "0.4.6"
-num-traits = "0.2.18"
-lazy_static = "1.4.0"
-light-hash-set = { version = "0.2.1", path = "../merkle-tree/hash-set", features = ["solana"] }
-rand = "0.8.5"
+serde_json = { workspace = true }

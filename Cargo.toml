@@ -29,6 +29,34 @@ overflow-checks = true
 opt-level = 2
 
 [workspace.dependencies]
+# Local crates
+account-compression = { version = "0.4.1", path = "programs/account-compression", features = ["cpi"] }
+aligned-sized = { version = "0.2.1", path = "macros/aligned-sized" }
+groth16-solana = "0.0.3"
+light-bounded-vec = { version = "0.2.1", path = "merkle-tree/bounded-vec", features = ["solana"] }
+light-concurrent-merkle-tree = { path = "merkle-tree/concurrent", version = "0.2.1" }
+light-hasher = { version = "0.2.1", path = "merkle-tree/hasher" }
+light-hash-set = { version = "0.2.1", path = "merkle-tree/hash-set", features = ["solana"] }
+light-heap = { version = "0.2.1", path = "heap" }
+light-indexed-merkle-tree = { version = "0.2.1", path = "merkle-tree/indexed", features = ["solana"] }
+light-macros = { version = "0.4.1", path = "macros/light" }
+light-merkle-tree-reference = { version = "0.2.1", path = "merkle-tree/reference/" }
+light-prover-client = { version = "0.2.1", path = "circuit-lib/light-prover-client" }
+light-system-program = { version = "0.4.1", path = "programs/system", features = ["cpi"] }
+light-verifier = { path = "circuit-lib/verifier", version = "0.2.1", features = ["solana"] }
+light-utils = { version = "0.2.1", path = "utils" }
+
+# External crates
+borsh = "0.10.0"
+bytemuck = { version = "1.14", features = ["min_const_generics"] }
+lazy_static = "1.4.0"
+num-bigint = "0.4"
+num-traits = "0.2.18"
+serde_json = "1.0.114"
+rand = "0.8.5"
+reqwest = "0.12"
+tokio = "1.36.0"
+
 solana-banks-interface = "=1.18.11"
 solana-program = "=1.18.11"
 solana-sdk = "=1.18.11"
@@ -41,6 +69,7 @@ anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
 
 spl-token = "=4.0.0"
+solana-security-txt = "1.1.0"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.11-enforce-cpi-tracking" }
