@@ -10,6 +10,7 @@ import {
     createAccountWithLamports,
     defaultTestStateTreeAccounts,
     deriveAddress,
+    sleep,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
@@ -77,12 +78,12 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
-        executedTxs++;
-
         /// Executes a transfer using a 'validityProof' from Photon
         await transfer(rpc, payer, 1e5, payer, bob.publicKey);
+        executedTxs++;
+
+        /// Executes a transfer using a 'validityProof' directly from a prover.
+        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
     });
 
@@ -122,16 +123,6 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// Creates a compressed account with address using a (non-inclusion)
-        /// 'validityProof' directly from a prover.
-        await createAccount(
-            testRpc,
-            payer,
-            newAddressSeed,
-            LightSystemProgram.programId,
-        );
-        executedTxs++;
-
         /// Need a new unique address because the previous one has been created.
         const newAddressSeedTest = new Uint8Array([
             2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18, 19,
@@ -146,17 +137,29 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
         );
         executedTxs++;
+
+        /// Creates a compressed account with address using a (non-inclusion)
+        /// 'validityProof' directly from a prover.
+        await createAccount(
+            testRpc,
+            payer,
+            newAddressSeed,
+            LightSystemProgram.programId,
+        );
+        executedTxs++;
     });
 
     it('getValidityProof [noforester] (combined) should match', async () => {
-        const senderAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
         const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const hash = bn(senderAccounts[0].hash);
+        // wait for photon to be in sync
+        await sleep(3000);
+        const senderAccounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
         const hashTest = bn(senderAccountsTest[0].hash);
+        const hash = bn(senderAccounts[0].hash);
 
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
@@ -560,6 +563,8 @@ describe('rpc-interop', () => {
 
         assert.equal(signatures2.length, 1);
 
+        // wait for photon to be in sync
+        await sleep(3000);
         const signatures3 = (
             await rpc.getLatestCompressionSignatures(cursor!, 1)
         ).value.items;
@@ -582,8 +587,7 @@ describe('rpc-interop', () => {
         assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
     });
 
-    // TODO(photon): Fix 'internal server error'
-    it.skip('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
+    it('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
         const seed = new Uint8Array(randomBytes(32));
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const address = await deriveAddress(seed, addressTree);
