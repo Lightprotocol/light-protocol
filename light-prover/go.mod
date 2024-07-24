@@ -6,7 +6,7 @@ require (
 	github.com/consensys/gnark v0.8.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/iden3/go-iden3-crypto v0.0.13
-	github.com/reilabs/gnark-lean-extractor/v2 v2.2.0
+	github.com/reilabs/gnark-lean-extractor/v2 v2.4.0-0.8.0
 	github.com/urfave/cli/v2 v2.10.2
 )
 

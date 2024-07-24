@@ -372,4 +372,9 @@ def NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (Roots: Vector F 10) (Valu
     Gates.eq gate_0[9] Roots[9] ∧
     True
 
+def CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10 (Inclusion_Roots: Vector F 10) (Inclusion_Leaves: Vector F 10) (Inclusion_InPathIndices: Vector F 10) (Inclusion_InPathElements: Vector (Vector F 20) 10) (NonInclusion_Roots: Vector F 10) (NonInclusion_Values: Vector F 10) (NonInclusion_LeafLowerRangeValues: Vector F 10) (NonInclusion_LeafHigherRangeValues: Vector F 10) (NonInclusion_NextIndices: Vector F 10) (NonInclusion_InPathIndices: Vector F 10) (NonInclusion_InPathElements: Vector (Vector F 20) 10): Prop :=
+    InclusionProof_10_10_10_20_10_10_20 Inclusion_Roots Inclusion_Leaves Inclusion_InPathIndices Inclusion_InPathElements fun _ =>
+    NonInclusionProof_10_10_10_10_10_10_20_10_10_20 NonInclusion_Roots NonInclusion_Values NonInclusion_LeafLowerRangeValues NonInclusion_LeafHigherRangeValues NonInclusion_NextIndices NonInclusion_InPathIndices NonInclusion_InPathElements fun _ =>
+    True
+
 end LightProver

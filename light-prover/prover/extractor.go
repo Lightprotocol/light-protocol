@@ -13,10 +13,12 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
-	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+	inclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+	nonInclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inPathElements[i] = make([]frontend.Variable, treeDepth)
+		inclusionInPathElements[i] = make([]frontend.Variable, treeDepth)
+		nonInclusionInPathElements[i] = make([]frontend.Variable, treeDepth)
 	}
 
 	inclusionCircuit := InclusionCircuit{
@@ -25,7 +27,7 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 		Roots:                      roots,
 		Leaves:                     leaves,
 		InPathIndices:              inPathIndices,
-		InPathElements:             inPathElements,
+		InPathElements:             inclusionInPathElements,
 	}
 
 	nonInclusionCircuit := NonInclusionCircuit{
@@ -37,8 +39,13 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 		LeafHigherRangeValues:      leaves,
 		NextIndices:                leaves,
 		InPathIndices:              inPathIndices,
-		InPathElements:             inPathElements,
+		InPathElements:             nonInclusionInPathElements,
 	}
 
-	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit)
+	combinedCircuit := CombinedCircuit{
+		Inclusion:    inclusionCircuit,
+		NonInclusion: nonInclusionCircuit,
+	}
+
+	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit, &combinedCircuit)
 }

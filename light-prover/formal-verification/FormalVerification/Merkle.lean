@@ -78,7 +78,6 @@ theorem Std.Range.mem_toList_of_mem {r : Std.Range} (hp : i ∈ r) : i ∈ r.toL
       simp [toList] at ih
       apply ih <;> linarith
 
-@[simp]
 lemma InclusionProof_rw {roots leaves inPathIndices inPathElements k}:
   LightProver.InclusionProof_10_10_10_20_10_10_20 roots leaves inPathIndices inPathElements k ↔
   k roots ∧
@@ -131,12 +130,11 @@ theorem Vector.exists_ofElems {p : Fin n → α → Prop} : (∀ (i : Fin n), �
   . rintro ⟨v, h⟩ i
     exact ⟨v[i], h i i.2⟩
 
-theorem InclusionCircuit_correct [Fact (CollisionResistant poseidon₂)] {trees : Vector (MerkleTree F poseidon₂ 20) 10} {leaves : Vector F 10}:
-  (∃inPathIndices proofs, LightProver.InclusionCircuit_10_10_10_20_10_10_20 (trees.map (·.root)) leaves inPathIndices proofs) ↔
-  ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i] := by
-  unfold LightProver.InclusionCircuit_10_10_10_20_10_10_20
-
+theorem InclusionProof_correct [Fact (CollisionResistant poseidon₂)]  {trees : Vector (MerkleTree F poseidon₂ 20) 10} {leaves : Vector F 10}:
+  (∃inPathIndices proofs, LightProver.InclusionProof_10_10_10_20_10_10_20 (trees.map (·.root)) leaves inPathIndices proofs k) ↔
+  k (trees.map (·.root)) ∧ ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i] := by
   simp [InclusionProof_rw, MerkleTree.recoverAtFin_eq_root_iff_proof_and_item_correct]
+  intro
   apply Iff.intro
   . rintro ⟨_, _, hp⟩ i ir
     have := hp i ir
@@ -157,6 +155,12 @@ theorem InclusionCircuit_correct [Fact (CollisionResistant poseidon₂)] {trees 
       simp [getElem] at this
       rw [←this]
       congr
+
+theorem InclusionCircuit_correct [Fact (CollisionResistant poseidon₂)] {trees : Vector (MerkleTree F poseidon₂ 20) 10} {leaves : Vector F 10}:
+  (∃inPathIndices proofs, LightProver.InclusionCircuit_10_10_10_20_10_10_20 (trees.map (·.root)) leaves inPathIndices proofs) ↔
+  ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i] := by
+  unfold LightProver.InclusionCircuit_10_10_10_20_10_10_20
+  simp [InclusionProof_correct]
 
 structure Range : Type where
   lo : Fin (2^248)
@@ -371,6 +375,25 @@ theorem NonInclusionCircuit_rec_correct [Fact (CollisionResistant poseidon₃)] 
 
 theorem NonInclusionCircuit_correct [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)] {trees : Vector RangeTree 10} {leaves : Vector F 10}:
   (∃lo hi nxt inds proofs, LightProver.NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (trees.map (·.val.root)) leaves lo hi nxt inds proofs) ↔
-  ∀i (_: i∈[0:10]), Membership.mem leaves[i] trees[i] := by
+  ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i] := by
   unfold LightProver.NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20
   simp [←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct, Gates, GatesGnark8]
+
+lemma InclusionProof_swap_ex {k : α → Vector F 10 → Prop} : (∃ a, LightProver.InclusionProof_10_10_10_20_10_10_20 x y z w fun r => k a r) ↔
+  LightProver.InclusionProof_10_10_10_20_10_10_20 x y z w fun r => ∃a, k a r := by
+  simp [InclusionProof_rw]
+
+
+theorem CombinedCircuit_correct [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)]
+  {inclusionTrees : Vector (MerkleTree F poseidon₂ 20) 10} { nonInclusionTrees : Vector RangeTree 10}
+  {inclusionLeaves nonInclusionLeaves : Vector F 10}:
+  (∃a b c d e f g, LightProver.CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10 (inclusionTrees.map (·.root)) inclusionLeaves a b (nonInclusionTrees.map (·.val.root)) nonInclusionLeaves c d e f g) ↔
+  ∀i (_: i∈[0:10]), inclusionLeaves[i] ∈ inclusionTrees[i] ∧ nonInclusionLeaves[i] ∈ nonInclusionTrees[i] := by
+  unfold LightProver.CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10
+  simp [InclusionProof_swap_ex, InclusionProof_correct, ←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct]
+  apply Iff.intro
+  . tauto
+  . intro hp
+    apply And.intro
+    . exact fun i ir => (hp i ir).2
+    . exact fun i ir => (hp i ir).1
