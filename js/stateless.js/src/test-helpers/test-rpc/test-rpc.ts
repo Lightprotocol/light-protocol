@@ -19,6 +19,7 @@ import {
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
     SignatureWithMetadata,
+    WithContext,
 } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
@@ -567,7 +568,19 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ): Promise<CompressedProofWithContext> {
         return this.getValidityProof(hashes, newAddresses);
     }
-
+    /**
+     * @deprecated This method is not available for TestRpc. Please use
+     * {@link getValidityProof} instead.
+     */
+    async getValidityProofAndRpcContext(
+        hashes: BN254[] = [],
+        newAddresses: BN254[] = [],
+    ): Promise<WithContext<CompressedProofWithContext>> {
+        return {
+            value: await this.getValidityProof(hashes, newAddresses),
+            context: { slot: 1 },
+        };
+    }
     /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an

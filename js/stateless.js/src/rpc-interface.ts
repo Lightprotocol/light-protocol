@@ -460,6 +460,11 @@ export interface CompressionApiInterface {
         newAddresses: BN254[],
     ): Promise<CompressedProofWithContext>;
 
+    getValidityProofAndRpcContext(
+        hashes: BN254[],
+        newAddresses: BN254[],
+    ): Promise<WithContext<CompressedProofWithContext>>;
+
     getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]>;
