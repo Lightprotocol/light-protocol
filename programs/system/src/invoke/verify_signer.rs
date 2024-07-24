@@ -16,13 +16,19 @@ pub fn input_compressed_accounts_signer_check(
         .iter()
         .try_for_each(
             |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-                if compressed_account_with_context.compressed_account.owner == *authority {
+                if compressed_account_with_context.compressed_account.owner == *authority
+                    && compressed_account_with_context
+                        .compressed_account
+                        .data
+                        .is_none()
+                {
                     Ok(())
                 } else {
                     msg!(
-                        "signer check failed compressed account owner {} != authority {}",
+                        "signer check failed compressed account owner {} != authority {} or data is not none {} (only programs can own compressed accounts with data)",
                         compressed_account_with_context.compressed_account.owner,
-                        authority
+                        authority,
+                        compressed_account_with_context.compressed_account.data.is_none()
                     );
                     err!(SystemProgramError::SignerCheckFailed)
                 }
