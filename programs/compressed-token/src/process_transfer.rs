@@ -213,13 +213,13 @@ pub fn create_output_compressed_accounts(
         } else {
             (None, None)
         };
-        // 106/74 =
+        // 107/75 =
         //      32      mint
         // +    32      owner
         // +    8       amount
         // +    1 + 32  option + delegate (optional)
         // +    1       state
-        let capacity = if delegate.is_some() { 106 } else { 74 };
+        let capacity = if delegate.is_some() { 107 } else { 75 };
         let mut token_data_bytes = Vec::with_capacity(capacity);
         // 1,000 CU token data and serialize
         let token_data = TokenData {
