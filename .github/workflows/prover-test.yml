@@ -34,6 +34,17 @@ jobs:
         with:
           go-version-file: "./light-prover/go.mod"
 
+      - name: Install Elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:nightly-2023-07-12
+          echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> $GITHUB_ENV
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: formal-verification/lake-packages
+          key: "${{ env.LAKE_VERSION }}"
+
       - name: Download keys
         run: |
           cd light-prover
@@ -53,3 +64,5 @@ jobs:
         run: |
           cd light-prover
           go test -timeout 30m
+
+#  ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-depth=20 --compressed-accounts=10
