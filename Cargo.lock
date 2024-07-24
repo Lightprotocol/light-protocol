@@ -1760,6 +1760,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
 name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2057,6 +2063,7 @@ dependencies = [
  "chrono",
  "clap 4.5.9",
  "config",
+ "dotenvy",
  "env_logger 0.11.2",
  "function_name",
  "futures",
@@ -3065,7 +3072,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "bytemuck",
  "color-eyre",
  "duct",
