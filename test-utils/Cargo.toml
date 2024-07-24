@@ -28,7 +28,7 @@ light-system-program = { path = "../programs/system", version = "0.5.0", feature
 light-registry = { path = "../programs/registry", version = "0.5.0", features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 solana-transaction-status = { workspace = true }
-tokio = "1.38"
+tokio = { workspace = true }
 light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.3.0" }
 reqwest = "0.11.26"
 light-hasher = { version = "0.3.0", path = "../merkle-tree/hasher" }
