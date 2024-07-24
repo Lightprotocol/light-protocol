@@ -42,7 +42,7 @@ anchor-spl = "=0.29.0"
 
 spl-token = "=4.0.0"
 
-tokio = { version = "1.39.1", features = ["rt", "macros"] }
+tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.11-enforce-cpi-tracking" }
