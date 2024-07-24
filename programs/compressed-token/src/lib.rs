@@ -180,4 +180,7 @@ pub enum ErrorCode {
     #[msg("Provided authority is not the freeze authority")]
     InvalidFreezeAuthority,
     InvalidDelegateIndex,
+    TokenPoolPdaUndefined,
+    #[msg("Compress or decompress recipient is the same account as the token pool pda.")]
+    IsTokenPoolPda,
 }

@@ -344,7 +344,6 @@ async fn test_mint_to_failing() {
     let mint_pool_1 = get_token_pool_pda(&mint_1);
 
     let mint_2 = create_mint_helper(&mut rpc, &payer_2).await;
-    let mint_pool_2 = get_token_pool_pda(&mint_2);
 
     // Make sure that the tokal token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..MINTS)
@@ -405,14 +404,18 @@ async fn test_mint_to_failing() {
         )
         .unwrap();
     }
-    // 3. Try to mint token from `mint_1` while using `mint_2` pool.
+    // 3. Try to mint token to random token account.
     {
+        let token_account_keypair = Keypair::new();
+        create_token_account(&mut rpc, &mint_1, &token_account_keypair, &payer_1)
+            .await
+            .unwrap();
         let accounts = light_compressed_token::accounts::MintToInstruction {
             fee_payer: payer_1.pubkey(),
             authority: payer_1.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
             mint: mint_1.clone(),
-            token_pool_pda: mint_pool_2,
+            token_pool_pda: token_account_keypair.pubkey(),
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
@@ -438,7 +441,12 @@ async fn test_mint_to_failing() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
             .await;
-        assert_rpc_error(result, 0, TokenError::MintMismatch as u32).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
     }
     // 4. Try to mint token from `mint_2` while using `mint_1` pool.
     {
@@ -473,7 +481,12 @@ async fn test_mint_to_failing() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
             .await;
-        assert_rpc_error(result, 0, TokenError::MintMismatch as u32).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+        )
+        .unwrap();
     }
     // 5. Invalid CPI authority.
     {
@@ -2600,9 +2613,10 @@ async fn test_failing_thaw() {
 /// 3. Invalid decompression amount -1
 /// 4. Invalid decompression amount +1
 /// 5. Invalid decompression amount 0
-/// 6. Invalid compression amount -1
-/// 7. Invalid compression amount +1
-/// 8. Invalid compression amount 0
+/// 6: invalid token recipient
+/// 7. Invalid compression amount -1
+/// 8. Invalid compression amount +1
+/// 9. Invalid compression amount 0
 #[tokio::test]
 async fn test_failing_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
@@ -2655,6 +2669,10 @@ async fn test_failing_decompression() {
     }
     // Test 2: invalid token pool pda
     {
+        let invalid_token_account_keypair = Keypair::new();
+        create_token_account(&mut context, &mint, &invalid_token_account_keypair, &payer)
+            .await
+            .unwrap();
         failing_compress_decompress(
             &sender,
             &mut context,
@@ -2665,9 +2683,9 @@ async fn test_failing_decompression() {
             decompress_amount - 1,
             false,
             &token_account_keypair.pubkey(),
-            Some(get_token_pool_pda(&Pubkey::new_unique())),
+            Some(invalid_token_account_keypair.pubkey()),
             &mint,
-            anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
+            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
         )
         .await
         .unwrap();
@@ -2729,6 +2747,25 @@ async fn test_failing_decompression() {
         .await
         .unwrap();
     }
+    // Test 6: invalid token recipient
+    {
+        failing_compress_decompress(
+            &sender,
+            &mut context,
+            &mut test_indexer,
+            input_compressed_account.clone(),
+            decompress_amount, // need to be consistent with compression amount
+            &merkle_tree_pubkey,
+            decompress_amount,
+            false,
+            &get_token_pool_pda(&mint),
+            Some(get_token_pool_pda(&mint)),
+            &mint,
+            light_compressed_token::ErrorCode::IsTokenPoolPda.into(),
+        )
+        .await
+        .unwrap();
+    }
 
     // functional so that we have tokens to compress
     decompress_test(
@@ -2743,7 +2780,7 @@ async fn test_failing_decompression() {
     )
     .await;
     let compress_amount = decompress_amount - 100;
-    // Test 6: invalid compression amount -1
+    // Test 7: invalid compression amount -1
     {
         failing_compress_decompress(
             &sender,
@@ -2762,7 +2799,7 @@ async fn test_failing_decompression() {
         .await
         .unwrap();
     }
-    // Test 7: invalid compression amount +1
+    // Test 8: invalid compression amount +1
     {
         failing_compress_decompress(
             &sender,
@@ -2781,7 +2818,7 @@ async fn test_failing_decompression() {
         .await
         .unwrap();
     }
-    // Test 7: invalid compression amount 0
+    // Test 9: invalid compression amount 0
     {
         failing_compress_decompress(
             &sender,
