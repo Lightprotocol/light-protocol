@@ -236,6 +236,7 @@ async fn run_subscribe_state<R: RpcConnection>(
     let indexer_rpc = R::new(config.external_services.rpc_url.to_string(), None);
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
+        config.external_services.photon_api_key.to_string(),
         indexer_rpc,
     )));
 
@@ -251,6 +252,7 @@ async fn run_subscribe_addresses<R: RpcConnection>(
     let indexer_rpc = R::new(config.external_services.rpc_url.to_string(), None);
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
+        config.external_services.photon_api_key.to_string(),
         indexer_rpc,
     )));
 
@@ -266,6 +268,7 @@ async fn run_nullify_addresses<R: RpcConnection>(
     let indexer_rpc = R::new(config.external_services.rpc_url.to_string(), None);
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
+        config.external_services.photon_api_key.to_string(),
         indexer_rpc,
     )));
 
@@ -281,6 +284,7 @@ async fn run_nullify_state<R: RpcConnection>(
     let indexer_rpc = R::new(config.external_services.rpc_url.to_string(), None);
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
         config.external_services.indexer_url.to_string(),
+        config.external_services.photon_api_key.to_string(),
         indexer_rpc,
     )));
     nullify_state(config.clone(), rpc_pool, indexer, tree_data, rollover_state).await;
