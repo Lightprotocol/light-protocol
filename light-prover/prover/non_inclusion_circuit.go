@@ -39,10 +39,7 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Depth:                      circuit.Depth,
 	}
-	roots := abstractor.Call1(api, proof)
-	for i := 0; i < int(circuit.NumberOfCompressedAccounts); i++ {
-		api.AssertIsEqual(roots[i], circuit.Roots[i])
-	}
+	abstractor.Call1(api, proof)
 	return nil
 }
 

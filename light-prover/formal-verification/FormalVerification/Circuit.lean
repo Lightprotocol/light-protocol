@@ -315,11 +315,10 @@ def Poseidon3 (In1: F) (In2: F) (In3: F) (k: F -> Prop): Prop :=
     k gate_0[0]
 
 def LeafHashGadget (LeafLowerRangeValue: F) (NextIndex: F) (LeafHigherRangeValue: F) (Value: F) (k: F -> Prop): Prop :=
-    Gates.ne LeafLowerRangeValue Value ∧
     AssertIsLess_248 LeafLowerRangeValue Value ∧
     AssertIsLess_248 Value LeafHigherRangeValue ∧
-    Poseidon3 LeafLowerRangeValue NextIndex LeafHigherRangeValue fun gate_3 =>
-    k gate_3
+    Poseidon3 LeafLowerRangeValue NextIndex LeafHigherRangeValue fun gate_2 =>
+    k gate_2
 
 def NonInclusionProof_10_10_10_10_10_10_20_10_10_20 (Roots: Vector F 10) (Values: Vector F 10) (LeafLowerRangeValues: Vector F 10) (LeafHigherRangeValues: Vector F 10) (NextIndices: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10) (k: Vector F 10 -> Prop): Prop :=
     LeafHashGadget LeafLowerRangeValues[0] NextIndices[0] LeafHigherRangeValues[0] Values[0] fun gate_0 =>
@@ -359,17 +358,7 @@ def InclusionCircuit_10_10_10_20_10_10_20 (Roots: Vector F 10) (Leaves: Vector F
     True
 
 def NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (Roots: Vector F 10) (Values: Vector F 10) (LeafLowerRangeValues: Vector F 10) (LeafHigherRangeValues: Vector F 10) (NextIndices: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10): Prop :=
-    NonInclusionProof_10_10_10_10_10_10_20_10_10_20 Roots Values LeafLowerRangeValues LeafHigherRangeValues NextIndices InPathIndices InPathElements fun gate_0 =>
-    Gates.eq gate_0[0] Roots[0] ∧
-    Gates.eq gate_0[1] Roots[1] ∧
-    Gates.eq gate_0[2] Roots[2] ∧
-    Gates.eq gate_0[3] Roots[3] ∧
-    Gates.eq gate_0[4] Roots[4] ∧
-    Gates.eq gate_0[5] Roots[5] ∧
-    Gates.eq gate_0[6] Roots[6] ∧
-    Gates.eq gate_0[7] Roots[7] ∧
-    Gates.eq gate_0[8] Roots[8] ∧
-    Gates.eq gate_0[9] Roots[9] ∧
+    NonInclusionProof_10_10_10_10_10_10_20_10_10_20 Roots Values LeafLowerRangeValues LeafHigherRangeValues NextIndices InPathIndices InPathElements fun _ =>
     True
 
 def CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10 (Inclusion_Roots: Vector F 10) (Inclusion_Leaves: Vector F 10) (Inclusion_InPathIndices: Vector F 10) (Inclusion_InPathElements: Vector (Vector F 20) 10) (NonInclusion_Roots: Vector F 10) (NonInclusion_Values: Vector F 10) (NonInclusion_LeafLowerRangeValues: Vector F 10) (NonInclusion_LeafHigherRangeValues: Vector F 10) (NonInclusion_NextIndices: Vector F 10) (NonInclusion_InPathIndices: Vector F 10) (NonInclusion_InPathElements: Vector (Vector F 20) 10): Prop :=

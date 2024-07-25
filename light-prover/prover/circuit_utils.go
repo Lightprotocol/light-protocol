@@ -125,7 +125,6 @@ type LeafHashGadget struct {
 // Limit the number of bits to 248 + 1,
 // since we truncate address values to 31 bytes.
 func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
-	api.AssertIsDifferent(gadget.LeafLowerRangeValue, gadget.Value)
 	// Lower bound is less than value
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
@@ -146,7 +145,8 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 	// Add 2^N to B to ensure a positive number
 	oneShifted := new(big.Int).Lsh(big.NewInt(1), uint(gadget.N))
 	num := api.Add(gadget.A, api.Sub(*oneShifted, gadget.B))
-	return api.ToBinary(num, gadget.N)
+	api.ToBinary(num, gadget.N)
+	return []frontend.Variable{}
 }
 
 type MerkleRootGadget struct {

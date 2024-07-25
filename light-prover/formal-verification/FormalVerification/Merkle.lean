@@ -101,7 +101,7 @@ lemma LeafHashGadget_rw {r : Range} {v : F} {k : F → Prop}:
   unfold LightProver.LeafHashGadget
   simp only [Poseidon3_iff_uniqueAssignment]
   apply Iff.intro
-  . rintro ⟨_, lo, hi, cont⟩
+  . rintro ⟨lo, hi, cont⟩
     apply And.intro _ cont
     have lo' := AssertIsLess_range (by
       rw [ZMod.val_nat_cast, Nat.mod_eq_of_lt]
@@ -114,11 +114,7 @@ lemma LeafHashGadget_rw {r : Range} {v : F} {k : F → Prop}:
     . exact Nat.lt_trans r.hi.prop (by decide)
     . exact Nat.lt_trans r.lo.prop (by decide)
   . rintro ⟨⟨lo, hi⟩, cont⟩
-    refine ⟨?_, ?_, ?_, cont⟩
-    . rintro ⟨_⟩
-      rw [ZMod.val_nat_cast, Nat.mod_eq_of_lt] at lo
-      . linarith
-      . exact Nat.lt_trans r.lo.prop (by decide)
+    refine ⟨?_, ?_, cont⟩
     . rw [AssertIsLess_248_semantics]
       zify
       zify at lo hi
