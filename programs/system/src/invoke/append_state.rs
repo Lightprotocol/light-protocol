@@ -119,6 +119,9 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
     let mut index_merkle_tree_account = 0;
+    let number_of_merkle_trees =
+        output_compressed_accounts.last().unwrap().merkle_tree_index as usize + 1;
+    let mut merkle_tree_pubkeys = Vec::<Pubkey>::with_capacity(number_of_merkle_trees);
 
     // Anchor instruction signature.
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
@@ -154,6 +157,12 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                         .0
                 }
             };
+            // check Merkle tree uniqueness
+            if merkle_tree_pubkeys.contains(&account_info.key()) {
+                return err!(SystemProgramError::OutputMerkleTreeNotUnique);
+            } else {
+                merkle_tree_pubkeys.push(account_info.key());
+            }
             accounts.push(AccountMeta {
                 pubkey: account_info.key(),
                 is_signer: false,
