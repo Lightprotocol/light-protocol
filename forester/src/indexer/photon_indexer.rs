@@ -14,12 +14,12 @@ pub struct PhotonIndexer<R: RpcConnection> {
 }
 
 impl<R: RpcConnection> PhotonIndexer<R> {
-    pub fn new(path: String, api_key: String, rpc: R) -> Self {
+    pub fn new(path: String, api_key: Option<String>, rpc: R) -> Self {
         let configuration = Configuration {
             base_path: path,
-            api_key: Some(ApiKey {
+            api_key: api_key.map(|key| ApiKey {
                 prefix: Some("api-key".to_string()),
-                key: api_key.to_string(),
+                key,
             }),
             ..Default::default()
         };

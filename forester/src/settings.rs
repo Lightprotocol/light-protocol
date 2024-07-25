@@ -94,7 +94,7 @@ pub fn init_config() -> ForesterConfig {
         .expect("PROVER_URL not found in config file or environment variables");
     let photon_api_key = settings
         .get_string(&SettingsKey::PhotonApiKey.to_string())
-        .expect("PHOTON_API_KEY not found in config file or environment variables");
+        .ok();
     let concurrency_limit = settings
         .get_int(&SettingsKey::ConcurrencyLimit.to_string())
         .expect("CONCURRENCY_LIMIT not found in config file or environment variables");

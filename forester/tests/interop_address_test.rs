@@ -59,6 +59,7 @@ async fn test_photon_interop_address() {
     let indexer_rpc = SolanaRpcConnection::new(forester_config.external_services.rpc_url, None);
     let photon_indexer = PhotonIndexer::new(
         forester_config.external_services.indexer_url.to_string(),
+        forester_config.external_services.photon_api_key.clone(),
         indexer_rpc,
     );
 

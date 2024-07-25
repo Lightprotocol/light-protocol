@@ -4,6 +4,6 @@ pub struct ExternalServicesConfig {
     pub ws_rpc_url: String,
     pub indexer_url: String,
     pub prover_url: String,
-    pub photon_api_key: String,
+    pub photon_api_key: Option<String>,
     pub derivation: String,
 }
