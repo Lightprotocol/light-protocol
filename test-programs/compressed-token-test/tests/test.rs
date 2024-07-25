@@ -2655,7 +2655,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             decompress_amount,
             false,
@@ -2678,7 +2678,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             decompress_amount,
             false,
@@ -2699,7 +2699,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            0, // need to be consistent with compression amount
+            0, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             0,
             true,
@@ -2718,7 +2718,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             decompress_amount - 1,
             false,
@@ -2737,7 +2737,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             decompress_amount + 1,
             false,
@@ -2756,7 +2756,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             0,
             false,
@@ -2775,7 +2775,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             input_compressed_account.clone(),
-            decompress_amount, // need to be consistent with compression amount
+            decompress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             decompress_amount,
             false,
@@ -2808,7 +2808,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             Vec::new(),
-            compress_amount, // need to be consistent with compression amount
+            compress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             compress_amount - 1,
             true,
@@ -2827,7 +2827,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             Vec::new(),
-            compress_amount, // need to be consistent with compression amount
+            compress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             compress_amount + 1,
             true,
@@ -2846,7 +2846,7 @@ async fn test_failing_decompression() {
             &mut context,
             &mut test_indexer,
             Vec::new(),
-            compress_amount, // need to be consistent with compression amount
+            compress_amount, // needs to be consistent with compression amount
             &merkle_tree_pubkey,
             0,
             true,
