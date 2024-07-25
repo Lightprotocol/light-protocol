@@ -11,7 +11,7 @@ import { randomBytes } from 'tweetnacl';
 import * as dotenv from "dotenv";
 dotenv.config();
 
-const RPC_API_KEY = process.env.FORESTER_RPC_API_KEY;
+const RPC_API_KEY = process.env.PHOTON_API_KEY;
 console.log("RPC_API_KEY: ", RPC_API_KEY);
 
 const LAMPORTS = 0.9 * LAMPORTS_PER_SOL;
