@@ -60,7 +60,11 @@ async fn test_photon_interop_nullify_account() {
     .await;
 
     let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url, rpc);
+    let photon_indexer = PhotonIndexer::new(
+        forester_config.external_services.indexer_url,
+        forester_config.external_services.photon_api_key,
+        rpc,
+    );
     let user_index = 0;
     let balance = env
         .rpc

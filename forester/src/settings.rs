@@ -20,6 +20,7 @@ pub enum SettingsKey {
     ConcurrencyLimit,
     CULimit,
     RpcPoolSize,
+    PhotonApiKey,
 }
 
 impl Display for SettingsKey {
@@ -33,6 +34,7 @@ impl Display for SettingsKey {
                 SettingsKey::WsRpcUrl => "WS_RPC_URL",
                 SettingsKey::IndexerUrl => "INDEXER_URL",
                 SettingsKey::ProverUrl => "PROVER_URL",
+                SettingsKey::PhotonApiKey => "PHOTON_API_KEY",
                 SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
                 SettingsKey::BatchSize => "PHOTON_BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
@@ -90,6 +92,9 @@ pub fn init_config() -> ForesterConfig {
     let prover_url = settings
         .get_string(&SettingsKey::ProverUrl.to_string())
         .expect("PROVER_URL not found in config file or environment variables");
+    let photon_api_key = settings
+        .get_string(&SettingsKey::PhotonApiKey.to_string())
+        .ok();
     let concurrency_limit = settings
         .get_int(&SettingsKey::ConcurrencyLimit.to_string())
         .expect("CONCURRENCY_LIMIT not found in config file or environment variables");
@@ -107,6 +112,7 @@ pub fn init_config() -> ForesterConfig {
             ws_rpc_url,
             indexer_url,
             prover_url,
+            photon_api_key,
             derivation: payer.pubkey().to_string(),
         },
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),

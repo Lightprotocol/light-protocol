@@ -81,6 +81,7 @@ pub fn forester_config() -> ForesterConfig {
             ws_rpc_url: "ws://localhost:8900".to_string(),
             indexer_url: "http://localhost:8784".to_string(),
             prover_url: "http://localhost:3001".to_string(),
+            photon_api_key: None,
             derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
         },
         registry_pubkey: registry_keypair.pubkey(),
