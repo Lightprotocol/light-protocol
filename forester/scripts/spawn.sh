@@ -26,4 +26,4 @@ end_time=$(date +%s.%N)
 
 # Calculate and print execution time
 execution_time=$(echo "$end_time - $start_time" | bc)
-printf "Total execution time: %.3f seconds\n" $execution_time
+printf "Total execution time: %.3f seconds\n" "$execution_time"
