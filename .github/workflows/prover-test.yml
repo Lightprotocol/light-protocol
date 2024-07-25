@@ -37,7 +37,7 @@ jobs:
       - name: Install Elan
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
-          echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> $GITHUB_ENV
+          echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> "$GITHUB_ENV"
 
       - name: Cache dependencies
         uses: actions/cache@v3
