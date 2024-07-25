@@ -1,10 +1,13 @@
-use log::warn;
+use light_registry::sdk::get_registered_program_pda;
+use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use account_compression::AddressMerkleTreeConfig;
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
@@ -56,12 +59,13 @@ use {
     std::time::Duration,
 };
 
-use crate::indexer::{
-    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
-};
+use crate::e2e_test_env::KeypairActionConfig;
+use crate::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use crate::transaction_params::FeeConfig;
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
-    rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
+    rpc::rpc_connection::RpcConnection, spl::create_initialize_mint_instructions,
+    test_env::create_address_merkle_tree_and_queue_account,
 };
 
 #[derive(Debug)]
@@ -86,26 +90,28 @@ pub struct AddressMerkleTreeAccounts {
 
 #[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {
+    pub rollover_fee: i64,
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
 }
 
 #[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
+pub struct AddressMerkleTreeBundle {
+    pub rollover_fee: i64,
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
+    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
 }
 
 // TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
 #[derive(Debug)]
-pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
+pub struct TestIndexer<R: RpcConnection> {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
-    pub address_merkle_trees: Vec<AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>>,
+    pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
     pub payer: Keypair,
     pub group_pda: Pubkey,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
-    pub nullified_compressed_accounts: Arc<Mutex<Vec<CompressedAccountWithMerkleContext>>>,
+    pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
@@ -113,9 +119,7 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
-    for TestIndexer<INDEXED_ARRAY_SIZE, R>
-{
+impl<R: RpcConnection> Clone for TestIndexer<R> {
     fn clone(&self) -> Self {
         Self {
             state_merkle_trees: self.state_merkle_trees.clone(),
@@ -139,13 +143,12 @@ pub struct TokenDataWithContext {
     pub compressed_account: CompressedAccountWithMerkleContext,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> Indexer
-    for TestIndexer<INDEXED_ARRAY_SIZE, R>
-{
+impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
+        debug!("Getting proofs for {:?}", hashes);
         let mut proofs: Vec<MerkleProof> = Vec::new();
         hashes.iter().for_each(|hash| {
             let hash_array: [u8; 32] = bs58::decode(hash)
@@ -188,98 +191,66 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         Ok(hashes)
     }
 
-    // TODO: Unify this function with get_multiple_new_address_proofs.
-    async fn get_address_tree_proof(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> Result<MerkleProofWithAddressContext, IndexerError> {
-        let pubkey = Pubkey::from(merkle_tree_pubkey);
-        let address_tree_bundle = self
-            .address_merkle_trees
-            .iter()
-            .find(|x| x.accounts.merkle_tree == pubkey)
-            .unwrap();
-
-        let address_biguint = BigUint::from_bytes_be(address.as_slice());
-
-        let (old_low_address, old_low_address_next_value) = address_tree_bundle
-            .indexed_array
-            .find_low_element_for_nonexistent(&address_biguint)
-            .unwrap();
-        let address_bundle = address_tree_bundle
-            .indexed_array
-            .new_element_with_low_element_index(old_low_address.index, &address_biguint)
-            .unwrap();
-
-        // Get the Merkle proof for updating low element.
-        let low_address_proof = address_tree_bundle
-            .merkle_tree
-            .get_proof_of_leaf(old_low_address.index, false)
-            .unwrap();
-
-        let low_address_index: u64 = old_low_address.index as u64;
-        let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
-        let low_address_next_index: u64 = old_low_address.next_index as u64;
-        let low_address_next_value: [u8; 32] =
-            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-        let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
-
-        Ok(MerkleProofWithAddressContext {
-            merkle_tree: merkle_tree_pubkey,
-            low_address_index,
-            low_address_value,
-            low_address_next_index,
-            low_address_next_value,
-            low_address_proof,
-            new_low_element: address_bundle.new_low_element,
-            new_element: address_bundle.new_element,
-            new_element_next_value: address_bundle.new_element_next_value,
-        })
-    }
-
     async fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> Result<NewAddressProofWithContext, IndexerError> {
-        let pubkey = Pubkey::from(merkle_tree_pubkey);
-        let address_tree_bundle = self
-            .address_merkle_trees
-            .iter()
-            .find(|x| x.accounts.merkle_tree == pubkey)
-            .unwrap();
+        addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+        let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();
 
-        let address_biguint = BigUint::from_bytes_be(address.as_slice());
+        for address in addresses.iter() {
+            info!("Getting new address proof for {:?}", address);
+            let pubkey = Pubkey::from(merkle_tree_pubkey);
+            let address_tree_bundle = self
+                .address_merkle_trees
+                .iter()
+                .find(|x| x.accounts.merkle_tree == pubkey)
+                .unwrap();
 
-        let (old_low_address, old_low_address_next_value) = address_tree_bundle
-            .indexed_array
-            .find_low_element_for_nonexistent(&address_biguint)
-            .unwrap();
+            let address_biguint = BigUint::from_bytes_be(address.as_slice());
+            let (old_low_address, _old_low_address_next_value) = address_tree_bundle
+                .indexed_array
+                .find_low_element_for_nonexistent(&address_biguint)
+                .unwrap();
+            let address_bundle = address_tree_bundle
+                .indexed_array
+                .new_element_with_low_element_index(old_low_address.index, &address_biguint)
+                .unwrap();
 
-        // Get the Merkle proof for updating low element.
-        let low_address_proof = address_tree_bundle
-            .merkle_tree
-            .get_proof_of_leaf(old_low_address.index, true)
-            .unwrap();
+            let (old_low_address, old_low_address_next_value) = address_tree_bundle
+                .indexed_array
+                .find_low_element_for_nonexistent(&address_biguint)
+                .unwrap();
 
-        let low_address_index: u64 = old_low_address.index as u64;
-        let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
-        let low_address_next_index: u64 = old_low_address.next_index as u64;
-        let low_address_next_value: [u8; 32] =
-            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-        let low_address_proof = low_address_proof.to_vec();
+            // Get the Merkle proof for updating low element.
+            let low_address_proof = address_tree_bundle
+                .merkle_tree
+                .get_proof_of_leaf(old_low_address.index, false)
+                .unwrap();
 
-        Ok(NewAddressProofWithContext {
-            merkle_tree: merkle_tree_pubkey,
-            low_address_index,
-            low_address_value,
-            low_address_next_index,
-            low_address_next_value,
-            low_address_proof,
-            root: address_tree_bundle.merkle_tree.root(),
-            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64,
-        })
+            let low_address_index: u64 = old_low_address.index as u64;
+            let low_address_value: [u8; 32] =
+                bigint_to_be_bytes_array(&old_low_address.value).unwrap();
+            let low_address_next_index: u64 = old_low_address.next_index as u64;
+            let low_address_next_value: [u8; 32] =
+                bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
+            let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
+            let proof = NewAddressProofWithContext {
+                merkle_tree: merkle_tree_pubkey,
+                low_address_index,
+                low_address_value,
+                low_address_next_index,
+                low_address_next_value,
+                low_address_proof,
+                root: address_tree_bundle.merkle_tree.root(),
+                root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
+                new_low_element: Some(address_bundle.new_low_element),
+                new_element: Some(address_bundle.new_element),
+                new_element_next_value: Some(address_bundle.new_element_next_value),
+            };
+            proofs.push(proof);
+        }
+        Ok(proofs)
     }
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
@@ -307,59 +278,29 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
     fn address_tree_updated(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        context: MerkleProofWithAddressContext,
+        context: &NewAddressProofWithContext,
     ) {
         let pubkey = Pubkey::from(merkle_tree_pubkey);
-        let mut address_tree_bundle: &mut AddressMerkleTreeBundle<{ INDEXED_ARRAY_SIZE }> = self
+        let mut address_tree_bundle: &mut AddressMerkleTreeBundle = self
             .address_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == pubkey)
             .unwrap();
+
+        let new_low_element = context.new_low_element.clone().unwrap();
+        let new_element = context.new_element.clone().unwrap();
+        let new_element_next_value = context.new_element_next_value.clone().unwrap();
         address_tree_bundle
             .merkle_tree
-            .update(
-                &context.new_low_element,
-                &context.new_element,
-                &context.new_element_next_value,
-            )
+            .update(&new_low_element, &new_element, &new_element_next_value)
             .unwrap();
         address_tree_bundle
             .indexed_array
-            .append_with_low_element_index(
-                context.new_low_element.index,
-                &context.new_element.value,
-            )
+            .append_with_low_element_index(new_low_element.index, &new_element.value)
             .unwrap();
     }
-}
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRAY_SIZE, R> {
-    fn count_matching_hashes(&self, query_hashes: &[String]) -> usize {
-        self.nullified_compressed_accounts
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|account| self.compute_hash(account))
-            .filter(|bs58_hash| query_hashes.contains(bs58_hash))
-            .count()
-    }
-
-    fn compute_hash(&self, account: &CompressedAccountWithMerkleContext) -> String {
-        // replace AccountType with actual type
-        let hash = account
-            .compressed_account
-            .hash::<Poseidon>(
-                &account.merkle_context.merkle_tree_pubkey,
-                &account.merkle_context.leaf_index,
-            )
-            .unwrap();
-        bs58::encode(hash).into_string()
-    }
-
-    pub fn get_state_merkle_tree_accounts(
-        &self,
-        pubkeys: &[Pubkey],
-    ) -> Vec<StateMerkleTreeAccounts> {
+    fn get_state_merkle_tree_accounts(&self, pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts> {
         pubkeys
             .iter()
             .map(|x| {
@@ -371,175 +312,183 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             })
             .collect::<Vec<_>>()
     }
-    pub async fn init_from_env(
-        payer: &Keypair,
-        env: &EnvAccounts,
-        inclusion: bool,
-        non_inclusion: bool,
-    ) -> Self {
-        Self::new(
-            vec![StateMerkleTreeAccounts {
-                merkle_tree: env.merkle_tree_pubkey,
-                nullifier_queue: env.nullifier_queue_pubkey,
-                cpi_context: env.cpi_context_account_pubkey,
-            }],
-            vec![AddressMerkleTreeAccounts {
-                merkle_tree: env.address_merkle_tree_pubkey,
-                queue: env.address_merkle_tree_queue_pubkey,
-            }],
-            payer.insecure_clone(),
-            env.group_pda,
-            inclusion,
-            non_inclusion,
-        )
-        .await
-    }
-    pub async fn new(
-        state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
-        address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
-        payer: Keypair,
-        group_pda: Pubkey,
-        inclusion: bool,
-        non_inclusion: bool,
-    ) -> Self {
-        let mut vec_proof_types = vec![];
-        if inclusion {
-            vec_proof_types.push(ProofType::Inclusion);
-        }
-        if non_inclusion {
-            vec_proof_types.push(ProofType::NonInclusion);
-        }
-        if !vec_proof_types.is_empty() {
-            spawn_prover(true, vec_proof_types.as_slice()).await;
-        }
-        let mut state_merkle_trees = Vec::new();
-        for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
-            let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                STATE_MERKLE_TREE_HEIGHT as usize,
-                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-            ));
-            state_merkle_trees.push(StateMerkleTreeBundle {
-                accounts: *state_merkle_tree_account,
-                merkle_tree,
-            });
-        }
 
-        let mut address_merkle_trees = Vec::new();
-        for address_merkle_tree_account in address_merkle_tree_accounts {
-            address_merkle_trees.push(Self::add_address_merkle_tree_bundle(
-                address_merkle_tree_account,
-            ));
-        }
-        let nullified_compressed_accounts = Arc::new(Mutex::new(Vec::new()));
-
-        Self {
-            state_merkle_trees,
-            address_merkle_trees,
-            payer,
-            compressed_accounts: vec![],
-            nullified_compressed_accounts,
-            events: vec![],
-            token_compressed_accounts: vec![],
-            token_nullified_compressed_accounts: vec![],
-            proof_types: vec_proof_types,
-            phantom: Default::default(),
-            group_pda,
-        }
-    }
-
-    pub fn add_address_merkle_tree_bundle(
-        address_merkle_tree_accounts: AddressMerkleTreeAccounts,
-    ) -> AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE> {
-        let mut merkle_tree = Box::new(
-            IndexedMerkleTree::<Poseidon, usize>::new(
-                STATE_MERKLE_TREE_HEIGHT as usize,
-                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-            )
-            .unwrap(),
-        );
-        merkle_tree.init().unwrap();
-        let mut indexed_array = Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>::default();
-        indexed_array.init().unwrap();
-        AddressMerkleTreeBundle {
-            merkle_tree,
-            indexed_array,
-            accounts: address_merkle_tree_accounts,
-        }
-    }
-
-    pub async fn add_address_merkle_tree(
+    fn add_event_and_compressed_accounts(
         &mut self,
-        rpc: &mut R,
-        merkle_tree_keypair: &Keypair,
-        queue_keypair: &Keypair,
-        owning_program_id: Option<Pubkey>,
-    ) -> AddressMerkleTreeAccounts {
-        create_address_merkle_tree_and_queue_account(
-            &self.payer,
-            &self.group_pda,
-            rpc,
-            merkle_tree_keypair,
-            queue_keypair,
-            owning_program_id,
-            &AddressMerkleTreeConfig::default(),
-            self.address_merkle_trees.len() as u64,
-        )
-        .await;
-        let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
-            merkle_tree: merkle_tree_keypair.pubkey(),
-            queue: queue_keypair.pubkey(),
-        };
-        self.address_merkle_trees
-            .push(Self::add_address_merkle_tree_bundle(
-                address_merkle_tree_accounts,
-            ));
-        address_merkle_tree_accounts
-    }
-
-    pub async fn add_state_merkle_tree(
-        &mut self,
-        rpc: &mut R,
-        merkle_tree_keypair: &Keypair,
-        nullifier_queue_keypair: &Keypair,
-        cpi_context_keypair: &Keypair,
-        owning_program_id: Option<Pubkey>,
+        event: &PublicTransactionEvent,
+    ) -> (
+        Vec<CompressedAccountWithMerkleContext>,
+        Vec<TokenDataWithContext>,
     ) {
-        create_state_merkle_tree_and_queue_account(
-            &self.payer,
-            &self.group_pda,
-            rpc,
-            merkle_tree_keypair,
-            nullifier_queue_keypair,
-            owning_program_id,
-            self.state_merkle_trees.len() as u64,
-        )
-        .await;
-        #[cfg(feature = "cpi-context")]
-        crate::test_env::init_cpi_context_account(
-            rpc,
-            &merkle_tree_keypair.pubkey(),
-            cpi_context_keypair,
-            &self.payer,
-        )
-        .await;
+        for hash in event.input_compressed_account_hashes.iter() {
+            let index = self.compressed_accounts.iter().position(|x| {
+                x.compressed_account
+                    .hash::<Poseidon>(
+                        &x.merkle_context.merkle_tree_pubkey,
+                        &x.merkle_context.leaf_index,
+                    )
+                    .unwrap()
+                    == *hash
+            });
+            if let Some(index) = index {
+                self.nullified_compressed_accounts
+                    .push(self.compressed_accounts[index].clone());
+                self.compressed_accounts.remove(index);
+                continue;
+            };
+            if index.is_none() {
+                let index = self
+                    .token_compressed_accounts
+                    .iter()
+                    .position(|x| {
+                        x.compressed_account
+                            .compressed_account
+                            .hash::<Poseidon>(
+                                &x.compressed_account.merkle_context.merkle_tree_pubkey,
+                                &x.compressed_account.merkle_context.leaf_index,
+                            )
+                            .unwrap()
+                            == *hash
+                    })
+                    .expect("input compressed account not found");
+                self.token_nullified_compressed_accounts
+                    .push(self.token_compressed_accounts[index].clone());
+                self.token_compressed_accounts.remove(index);
+            }
+        }
 
-        let state_merkle_tree_account = StateMerkleTreeAccounts {
-            merkle_tree: merkle_tree_keypair.pubkey(),
-            nullifier_queue: nullifier_queue_keypair.pubkey(),
-            cpi_context: cpi_context_keypair.pubkey(),
-        };
-        let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-            STATE_MERKLE_TREE_HEIGHT as usize,
-            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        ));
+        let mut compressed_accounts = Vec::new();
+        let mut token_compressed_accounts = Vec::new();
+        for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
+            let nullifier_queue_pubkey = self
+                .state_merkle_trees
+                .iter()
+                .find(|x| {
+                    x.accounts.merkle_tree
+                        == event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                })
+                .unwrap()
+                .accounts
+                .nullifier_queue;
+            // if data is some, try to deserialize token data, if it fails, add to compressed_accounts
+            // if data is none add to compressed_accounts
+            // new accounts are inserted in front so that the newest accounts are found first
+            match compressed_account.compressed_account.data.as_ref() {
+                Some(data) => {
+                    if compressed_account.compressed_account.owner == light_compressed_token::ID
+                        && data.discriminator == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR
+                    {
+                        if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
+                            let token_account = TokenDataWithContext {
+                                token_data,
+                                compressed_account: CompressedAccountWithMerkleContext {
+                                    compressed_account: compressed_account
+                                        .compressed_account
+                                        .clone(),
+                                    merkle_context: MerkleContext {
+                                        leaf_index: event.output_leaf_indices[i],
+                                        merkle_tree_pubkey: event.pubkey_array[event
+                                            .output_compressed_accounts[i]
+                                            .merkle_tree_index
+                                            as usize],
+                                        nullifier_queue_pubkey,
+                                        queue_index: None,
+                                    },
+                                },
+                            };
+                            token_compressed_accounts.push(token_account.clone());
+                            self.token_compressed_accounts.insert(0, token_account);
+                        }
+                    } else {
+                        let compressed_account = CompressedAccountWithMerkleContext {
+                            compressed_account: compressed_account.compressed_account.clone(),
+                            merkle_context: MerkleContext {
+                                leaf_index: event.output_leaf_indices[i],
+                                merkle_tree_pubkey: event.pubkey_array[event
+                                    .output_compressed_accounts[i]
+                                    .merkle_tree_index
+                                    as usize],
+                                nullifier_queue_pubkey,
+                                queue_index: None,
+                            },
+                        };
+                        compressed_accounts.push(compressed_account.clone());
+                        self.compressed_accounts.insert(0, compressed_account);
+                    }
+                }
+                None => {
+                    let compressed_account = CompressedAccountWithMerkleContext {
+                        compressed_account: compressed_account.compressed_account.clone(),
+                        merkle_context: MerkleContext {
+                            leaf_index: event.output_leaf_indices[i],
+                            merkle_tree_pubkey: event.pubkey_array
+                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
+                            nullifier_queue_pubkey,
+                            queue_index: None,
+                        },
+                    };
+                    compressed_accounts.push(compressed_account.clone());
+                    self.compressed_accounts.insert(0, compressed_account);
+                }
+            };
+            let merkle_tree = &mut self
+                .state_merkle_trees
+                .iter_mut()
+                .find(|x| {
+                    x.accounts.merkle_tree
+                        == event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                })
+                .unwrap()
+                .merkle_tree;
+            merkle_tree
+                .append(
+                    &compressed_account
+                        .compressed_account
+                        .hash::<Poseidon>(
+                            &event.pubkey_array
+                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
+                            &event.output_leaf_indices[i],
+                        )
+                        .unwrap(),
+                )
+                .expect("insert failed");
+        }
 
-        self.state_merkle_trees.push(StateMerkleTreeBundle {
-            merkle_tree,
-            accounts: state_merkle_tree_account,
-        });
+        self.events.push(event.clone());
+        (compressed_accounts, token_compressed_accounts)
     }
 
-    pub async fn create_proof_for_compressed_accounts(
+    fn get_state_merkle_trees(&self) -> &Vec<StateMerkleTreeBundle> {
+        &self.state_merkle_trees
+    }
+
+    fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
+        &mut self.state_merkle_trees
+    }
+
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+        &self.address_merkle_trees
+    }
+
+    fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
+        &mut self.address_merkle_trees
+    }
+
+    fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithContext> {
+        &self.token_compressed_accounts
+    }
+
+    fn get_payer(&self) -> &Keypair {
+        &self.payer
+    }
+
+    fn get_group_pda(&self) -> &Pubkey {
+        &self.group_pda
+    }
+
+    async fn create_proof_for_compressed_accounts(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
@@ -602,11 +551,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 }
             };
 
-        let mut retries = 5;
+        let mut retries = 3;
         while retries > 0 {
-            if retries < 3 {
-                spawn_prover(true, self.proof_types.as_slice()).await;
-            }
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -629,14 +575,248 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                     },
                 };
             } else {
-                // print error message
                 warn!("Error: {}", response_result.text().await.unwrap());
-                // wait for a second before retrying
                 tokio::time::sleep(Duration::from_secs(1)).await;
+                spawn_prover(true, self.proof_types.as_slice()).await;
                 retries -= 1;
             }
         }
         panic!("Failed to get proof from server");
+    }
+
+    /// returns compressed_accounts with the owner pubkey
+    /// does not return token accounts.
+    fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        self.compressed_accounts
+            .iter()
+            .filter(|x| x.compressed_account.owner == *owner)
+            .cloned()
+            .collect()
+    }
+
+    fn get_compressed_token_accounts_by_owner(&self, owner: &Pubkey) -> Vec<TokenDataWithContext> {
+        self.token_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.owner == *owner)
+            .cloned()
+            .collect()
+    }
+
+    fn add_address_merkle_tree_accounts(
+        &mut self,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        _owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
+        info!("Adding address merkle tree accounts...");
+        let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: queue_keypair.pubkey(),
+        };
+        self.address_merkle_trees
+            .push(Self::add_address_merkle_tree_bundle(
+                address_merkle_tree_accounts,
+            ));
+        info!(
+            "Address merkle tree accounts added. Total: {}",
+            self.address_merkle_trees.len()
+        );
+        address_merkle_tree_accounts
+    }
+
+    fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
+        self.get_state_merkle_trees_mut().push(state_bundle);
+    }
+}
+
+impl<R: RpcConnection> TestIndexer<R> {
+    fn count_matching_hashes(&self, query_hashes: &[String]) -> usize {
+        self.nullified_compressed_accounts
+            .iter()
+            .map(|account| self.compute_hash(account))
+            .filter(|bs58_hash| query_hashes.contains(bs58_hash))
+            .count()
+    }
+
+    fn compute_hash(&self, account: &CompressedAccountWithMerkleContext) -> String {
+        // replace AccountType with actual type
+        let hash = account
+            .compressed_account
+            .hash::<Poseidon>(
+                &account.merkle_context.merkle_tree_pubkey,
+                &account.merkle_context.leaf_index,
+            )
+            .unwrap();
+        bs58::encode(hash).into_string()
+    }
+
+    pub async fn init_from_env(
+        payer: &Keypair,
+        env: &EnvAccounts,
+        inclusion: bool,
+        non_inclusion: bool,
+    ) -> Self {
+        Self::new(
+            vec![StateMerkleTreeAccounts {
+                merkle_tree: env.merkle_tree_pubkey,
+                nullifier_queue: env.nullifier_queue_pubkey,
+                cpi_context: env.cpi_context_account_pubkey,
+            }],
+            vec![AddressMerkleTreeAccounts {
+                merkle_tree: env.address_merkle_tree_pubkey,
+                queue: env.address_merkle_tree_queue_pubkey,
+            }],
+            payer.insecure_clone(),
+            env.group_pda,
+            inclusion,
+            non_inclusion,
+        )
+        .await
+    }
+
+    pub async fn new(
+        state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
+        address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
+        payer: Keypair,
+        group_pda: Pubkey,
+        inclusion: bool,
+        non_inclusion: bool,
+    ) -> Self {
+        let mut vec_proof_types = vec![];
+        if inclusion {
+            vec_proof_types.push(ProofType::Inclusion);
+        }
+        if non_inclusion {
+            vec_proof_types.push(ProofType::NonInclusion);
+        }
+        if !vec_proof_types.is_empty() {
+            spawn_prover(true, vec_proof_types.as_slice()).await;
+        }
+        let mut state_merkle_trees = Vec::new();
+        for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
+            let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+            ));
+            state_merkle_trees.push(StateMerkleTreeBundle {
+                accounts: *state_merkle_tree_account,
+                merkle_tree,
+                rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
+            });
+        }
+
+        let mut address_merkle_trees = Vec::new();
+        for address_merkle_tree_account in address_merkle_tree_accounts {
+            address_merkle_trees.push(Self::add_address_merkle_tree_bundle(
+                address_merkle_tree_account,
+            ));
+        }
+
+        Self {
+            state_merkle_trees,
+            address_merkle_trees,
+            payer,
+            compressed_accounts: vec![],
+            nullified_compressed_accounts: vec![],
+            events: vec![],
+            token_compressed_accounts: vec![],
+            token_nullified_compressed_accounts: vec![],
+            proof_types: vec_proof_types,
+            phantom: Default::default(),
+            group_pda,
+        }
+    }
+
+    pub fn add_address_merkle_tree_bundle(
+        address_merkle_tree_accounts: AddressMerkleTreeAccounts,
+        // TODO: add config here
+    ) -> AddressMerkleTreeBundle {
+        let mut merkle_tree = Box::new(
+            IndexedMerkleTree::<Poseidon, usize>::new(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+            )
+            .unwrap(),
+        );
+        merkle_tree.init().unwrap();
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
+        indexed_array.init().unwrap();
+        AddressMerkleTreeBundle {
+            merkle_tree,
+            indexed_array,
+            accounts: address_merkle_tree_accounts,
+            rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+        }
+    }
+
+    pub async fn add_address_merkle_tree(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
+        create_address_merkle_tree_and_queue_account(
+            &self.payer,
+            true,
+            rpc,
+            merkle_tree_keypair,
+            queue_keypair,
+            owning_program_id,
+            &AddressMerkleTreeConfig::default(),
+            &AddressQueueConfig::default(),
+            self.address_merkle_trees.len() as u64,
+        )
+        .await;
+        self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
+    }
+
+    pub async fn add_state_merkle_tree(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_keypair: &Keypair,
+        nullifier_queue_keypair: &Keypair,
+        cpi_context_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) {
+        create_state_merkle_tree_and_queue_account(
+            &self.payer,
+            true,
+            rpc,
+            merkle_tree_keypair,
+            nullifier_queue_keypair,
+            owning_program_id,
+            self.state_merkle_trees.len() as u64,
+            &StateMerkleTreeConfig::default(),
+            &NullifierQueueConfig::default(),
+        )
+        .await;
+        crate::test_env::init_cpi_context_account(
+            rpc,
+            &merkle_tree_keypair.pubkey(),
+            cpi_context_keypair,
+            &self.payer,
+        )
+        .await;
+
+        let state_merkle_tree_account = StateMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            nullifier_queue: nullifier_queue_keypair.pubkey(),
+            cpi_context: cpi_context_keypair.pubkey(),
+        };
+        let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
+            STATE_MERKLE_TREE_HEIGHT as usize,
+            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        ));
+
+        self.state_merkle_trees.push(StateMerkleTreeBundle {
+            merkle_tree,
+            accounts: state_merkle_tree_account,
+            rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
+        });
     }
 
     async fn process_inclusion_proofs(
@@ -670,6 +850,16 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 )
                 .await
             };
+            for i in 0..fetched_merkle_tree.roots.len() {
+                info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
+            }
+            debug!(
+                "sequence number {:?}",
+                fetched_merkle_tree.sequence_number()
+            );
+            debug!("root index {:?}", fetched_merkle_tree.root_index());
+            debug!("local sequence number {:?}", merkle_tree.sequence_number);
+
             assert_eq!(
                 merkle_tree.root(),
                 fetched_merkle_tree.root(),
@@ -734,152 +924,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         self.add_event_and_compressed_accounts(&event);
     }
 
-    pub fn add_event_and_compressed_accounts(
-        &mut self,
-        event: &PublicTransactionEvent,
-    ) -> (
-        Vec<CompressedAccountWithMerkleContext>,
-        Vec<TokenDataWithContext>,
-    ) {
-        for hash in event.input_compressed_account_hashes.iter() {
-            let index = self.compressed_accounts.iter().position(|x| {
-                x.compressed_account
-                    .hash::<Poseidon>(
-                        &x.merkle_context.merkle_tree_pubkey,
-                        &x.merkle_context.leaf_index,
-                    )
-                    .unwrap()
-                    == *hash
-            });
-            if let Some(index) = index {
-                self.nullified_compressed_accounts
-                    .lock()
-                    .unwrap()
-                    .push(self.compressed_accounts[index].clone());
-                self.compressed_accounts.remove(index);
-                continue;
-            };
-            if index.is_none() {
-                let index = self
-                    .token_compressed_accounts
-                    .iter()
-                    .position(|x| {
-                        x.compressed_account
-                            .compressed_account
-                            .hash::<Poseidon>(
-                                &x.compressed_account.merkle_context.merkle_tree_pubkey,
-                                &x.compressed_account.merkle_context.leaf_index,
-                            )
-                            .unwrap()
-                            == *hash
-                    })
-                    .expect("input compressed account not found");
-                self.token_nullified_compressed_accounts
-                    .push(self.token_compressed_accounts[index].clone());
-                self.token_compressed_accounts.remove(index);
-            }
-        }
-
-        let mut compressed_accounts = Vec::new();
-        let mut token_compressed_accounts = Vec::new();
-        for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
-            let nullifier_queue_pubkey = self
-                .state_merkle_trees
-                .iter()
-                .find(|x| {
-                    x.accounts.merkle_tree
-                        == event.pubkey_array
-                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
-                })
-                .unwrap()
-                .accounts
-                .nullifier_queue;
-            // if data is some, try to deserialize token data, if it fails, add to compressed_accounts
-            // if data is none add to compressed_accounts
-            // new accounts are inserted in front so that the newest accounts are found first
-            match compressed_account.compressed_account.data.as_ref() {
-                Some(data) => {
-                    if compressed_account.compressed_account.owner == light_compressed_token::ID
-                        && data.discriminator == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR
-                    {
-                        if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
-                            let token_account = TokenDataWithContext {
-                                token_data,
-                                compressed_account: CompressedAccountWithMerkleContext {
-                                    compressed_account: compressed_account
-                                        .compressed_account
-                                        .clone(),
-                                    merkle_context: MerkleContext {
-                                        leaf_index: event.output_leaf_indices[i],
-                                        merkle_tree_pubkey: event.pubkey_array[event
-                                            .output_compressed_accounts[i]
-                                            .merkle_tree_index
-                                            as usize],
-                                        nullifier_queue_pubkey,
-                                    },
-                                },
-                            };
-                            token_compressed_accounts.push(token_account.clone());
-                            self.token_compressed_accounts.insert(0, token_account);
-                        }
-                    } else {
-                        let compressed_account = CompressedAccountWithMerkleContext {
-                            compressed_account: compressed_account.compressed_account.clone(),
-                            merkle_context: MerkleContext {
-                                leaf_index: event.output_leaf_indices[i],
-                                merkle_tree_pubkey: event.pubkey_array[event
-                                    .output_compressed_accounts[i]
-                                    .merkle_tree_index
-                                    as usize],
-                                nullifier_queue_pubkey,
-                            },
-                        };
-                        compressed_accounts.push(compressed_account.clone());
-                        self.compressed_accounts.insert(0, compressed_account);
-                    }
-                }
-                None => {
-                    let compressed_account = CompressedAccountWithMerkleContext {
-                        compressed_account: compressed_account.compressed_account.clone(),
-                        merkle_context: MerkleContext {
-                            leaf_index: event.output_leaf_indices[i],
-                            merkle_tree_pubkey: event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
-                            nullifier_queue_pubkey,
-                        },
-                    };
-                    compressed_accounts.push(compressed_account.clone());
-                    self.compressed_accounts.insert(0, compressed_account);
-                }
-            };
-            let merkle_tree = &mut self
-                .state_merkle_trees
-                .iter_mut()
-                .find(|x| {
-                    x.accounts.merkle_tree
-                        == event.pubkey_array
-                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
-                })
-                .unwrap()
-                .merkle_tree;
-            merkle_tree
-                .append(
-                    &compressed_account
-                        .compressed_account
-                        .hash::<Poseidon>(
-                            &event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
-                            &event.output_leaf_indices[i],
-                        )
-                        .unwrap(),
-                )
-                .expect("insert failed");
-        }
-
-        self.events.push(event.clone());
-        (compressed_accounts, token_compressed_accounts)
-    }
-
     /// deserializes an event
     /// adds the output_compressed_accounts to the compressed_accounts
     /// removes the input_compressed_accounts from the compressed_accounts
@@ -888,30 +932,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     /// adds the token_compressed_accounts to the token_compressed_accounts
     pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
         self.add_event_and_compressed_accounts(event);
-    }
-
-    /// returns compressed_accounts with the owner pubkey
-    /// does not return token accounts.
-    pub fn get_compressed_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.compressed_accounts
-            .iter()
-            .filter(|x| x.compressed_account.owner == *owner)
-            .cloned()
-            .collect()
-    }
-
-    pub fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<TokenDataWithContext> {
-        self.token_compressed_accounts
-            .iter()
-            .filter(|x| x.token_data.owner == *owner)
-            .cloned()
-            .collect()
     }
 
     /// returns the compressed sol balance of the owner pubkey
@@ -934,62 +954,4 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             .map(|x| x.token_data.amount)
             .sum()
     }
-}
-
-pub fn create_initialize_mint_instructions(
-    payer: &Pubkey,
-    authority: &Pubkey,
-    rent: u64,
-    decimals: u8,
-    mint_keypair: &Keypair,
-) -> ([Instruction; 4], Pubkey) {
-    let account_create_ix = create_account_instruction(
-        payer,
-        spl_token::state::Mint::LEN,
-        rent,
-        &spl_token::ID,
-        Some(mint_keypair),
-    );
-
-    let mint_pubkey = mint_keypair.pubkey();
-    let create_mint_instruction = initialize_mint(
-        &spl_token::ID,
-        &mint_keypair.pubkey(),
-        authority,
-        None,
-        decimals,
-    )
-    .unwrap();
-    let transfer_ix =
-        anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
-
-    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
-    let pool_pubkey = get_token_pool_pda(&mint_pubkey);
-    (
-        [
-            account_create_ix,
-            create_mint_instruction,
-            transfer_ix,
-            instruction,
-        ],
-        pool_pubkey,
-    )
-}
-
-pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
-    let payer_pubkey = payer.pubkey();
-    let rent = rpc
-        .get_minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN)
-        .await
-        .unwrap();
-    let mint = Keypair::new();
-
-    let (instructions, _): ([Instruction; 4], Pubkey) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
-
-    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
-        .await
-        .unwrap();
-
-    mint.pubkey()
 }

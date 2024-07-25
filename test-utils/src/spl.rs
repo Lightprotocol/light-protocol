@@ -1,31 +1,4 @@
-use crate::{
-    assert_compressed_tx::get_merkle_tree_snapshots,
-    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
-    create_account_instruction,
-    rpc::errors::RpcError,
-};
-
-use crate::indexer::{TestIndexer, TokenDataWithContext};
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
-use light_compressed_token::{
-    anchor_spl::TokenAccount,
-    burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
-    delegation::sdk::{
-        create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
-        CreateRevokeInstructionInputs,
-    },
-    freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda,
-    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
-    process_transfer::{
-        get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
-    },
-    token_data::AccountState,
-    TokenData,
-};
-use light_hasher::Poseidon;
-use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
+use anchor_spl::token::{Mint, TokenAccount};
 use solana_program_test::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
@@ -34,16 +7,67 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 use spl_token::instruction::initialize_mint;
-use spl_token::state::Mint;
 
-pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+use light_compressed_token::{
+    burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
+    delegation::sdk::{
+        create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
+        CreateRevokeInstructionInputs,
+    },
+    freeze::sdk::{create_instruction, CreateInstructionInputs},
+    get_token_pool_pda,
+    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
+    token_data::AccountState,
+    TokenData,
+};
+use light_hasher::Poseidon;
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent},
+};
+
+use crate::indexer::{Indexer, TokenDataWithContext};
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
+use crate::{
+    assert_compressed_tx::get_merkle_tree_snapshots,
+    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
+    create_account_instruction,
+    rpc::errors::RpcError,
+};
+
+pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
     mint_authority: &Keypair,
     mint: &Pubkey,
     amounts: Vec<u64>,
     recipients: Vec<Pubkey>,
+) {
+    mint_tokens_helper_with_lamports(
+        rpc,
+        test_indexer,
+        merkle_tree_pubkey,
+        mint_authority,
+        mint,
+        amounts,
+        recipients,
+        None,
+    )
+    .await
+}
+#[allow(clippy::too_many_arguments)]
+pub async fn mint_tokens_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    test_indexer: &mut I,
+    merkle_tree_pubkey: &Pubkey,
+    mint_authority: &Keypair,
+    mint: &Pubkey,
+    amounts: Vec<u64>,
+    recipients: Vec<Pubkey>,
+    lamports: Option<u64>,
 ) {
     let payer_pubkey = mint_authority.pubkey();
     let instruction = create_mint_to_instruction(
@@ -53,13 +77,13 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
         merkle_tree_pubkey,
         amounts.clone(),
         recipients.clone(),
+        lamports,
     );
 
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&vec![*merkle_tree_pubkey; amounts.len()]);
 
-    let snapshots =
-        get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(rpc, &output_merkle_tree_accounts).await;
+    let snapshots = get_merkle_tree_snapshots::<R>(rpc, &output_merkle_tree_accounts).await;
     let previous_mint_supply =
         spl_token::state::Mint::unpack(&rpc.get_account(*mint).await.unwrap().unwrap().data)
             .unwrap()
@@ -70,7 +94,7 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
         spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
             .unwrap()
             .amount;
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer_pubkey,
@@ -249,14 +273,15 @@ pub async fn create_token_account<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     mint: &Pubkey,
     from: &Keypair,
     recipients: &[Pubkey],
     amounts: &[u64],
+    lamports: Option<Vec<Option<u64>>>,
     input_compressed_accounts: &[TokenDataWithContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
@@ -271,7 +296,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
     let mut sum_input_amounts = 0;
     for account in input_compressed_accounts {
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
-        input_compressed_account_token_data.push(account.token_data);
+        input_compressed_account_token_data.push(account.token_data.clone());
         input_compressed_account_hashes.push(
             account
                 .compressed_account
@@ -290,19 +315,23 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .merkle_context
                 .nullifier_queue_pubkey,
             leaf_index,
+            queue_index: None,
         });
     }
-
+    let output_lamports = lamports
+        .clone()
+        .unwrap_or_else(|| vec![None; recipients.len()]);
     let mut output_compressed_accounts = Vec::new();
-    for ((recipient, amount), merkle_tree_pubkey) in recipients
+    for (((recipient, amount), merkle_tree_pubkey), lamports) in recipients
         .iter()
         .zip(amounts)
         .zip(output_merkle_tree_pubkeys)
+        .zip(output_lamports)
     {
         let account = TokenTransferOutputData {
             amount: *amount,
             owner: *recipient,
-            lamports: None,
+            lamports,
             merkle_tree: *merkle_tree_pubkey,
         };
         sum_input_amounts -= amount;
@@ -346,7 +375,12 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         &output_compressed_accounts,
         &proof_rpc_result.root_indices,
         &Some(proof_rpc_result.proof),
-        input_compressed_account_token_data.as_slice(), // input_token_data
+        &input_compressed_account_token_data, // input_token_data
+        &input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         *mint,
         delegate_pubkey, // owner_if_delegate_change_account_index
         false,           // is_compress
@@ -355,28 +389,39 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         None,            // compress_or_decompress_token_account
         true,
         delegate_change_account_index,
+        None,
     )
     .unwrap();
+    let sum_input_lamports = input_compressed_accounts
+        .iter()
+        .map(|x| &x.compressed_account.compressed_account.lamports)
+        .sum::<u64>();
+    let sum_output_lamports = output_compressed_accounts
+        .iter()
+        .map(|x| x.lamports.unwrap_or(0))
+        .sum::<u64>();
+    let output_merkle_tree_pubkeys = if sum_input_lamports > sum_output_lamports {
+        let mut output_merkle_tree_pubkeys = output_merkle_tree_pubkeys.to_vec();
+        output_merkle_tree_pubkeys.push(*output_merkle_tree_pubkeys.last().unwrap());
+        output_merkle_tree_pubkeys
+    } else {
+        output_merkle_tree_pubkeys.to_vec()
+    };
+
     let output_merkle_tree_accounts =
-        test_indexer.get_state_merkle_tree_accounts(output_merkle_tree_pubkeys);
+        test_indexer.get_state_merkle_tree_accounts(output_merkle_tree_pubkeys.as_slice());
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
-    let input_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
+    let input_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let authority_signer = if delegate_change_account_index.is_some() {
         payer
     } else {
         from
     };
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer.pubkey(),
@@ -387,23 +432,28 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         .unwrap()
         .unwrap();
 
-    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
+    let (created_change_output_account, created_token_output_accounts) =
+        test_indexer.add_event_and_compressed_accounts(&event);
     let delegates = if let Some(index) = delegate_change_account_index {
-        let mut delegates = vec![None; created_output_accounts.len()];
+        let mut delegates = vec![None; created_token_output_accounts.len()];
         delegates[index as usize] = Some(payer.pubkey());
         Some(delegates)
     } else {
         None
     };
+    let mut created_output_accounts = Vec::new();
+    created_token_output_accounts.iter().for_each(|x| {
+        created_output_accounts.push(x.compressed_account.clone());
+    });
+    created_change_output_account.iter().for_each(|x| {
+        created_output_accounts.push(x.clone());
+    });
     assert_transfer(
         rpc,
         test_indexer,
         &output_compressed_accounts,
-        created_output_accounts
-            .iter()
-            .map(|x| x.compressed_account.clone())
-            .collect::<Vec<_>>()
-            .as_slice(),
+        created_output_accounts.as_slice(),
+        lamports,
         &input_compressed_account_hashes,
         &snapshots,
         &input_snapshots,
@@ -414,10 +464,10 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
@@ -464,9 +514,14 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         &Some(proof_rpc_result.proof),
         input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect::<Vec<_>>()
             .as_slice(), // input_token_data
+        &input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         mint,                            // mint
         None,                            // owner_if_delegate_change_account_index
         false,                           // is_compress
@@ -475,6 +530,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(*recipient_token_account),  // compress_or_decompress_token_account
         true,
         None,
+        None,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -482,16 +538,10 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
+    let input_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
         &rpc.get_account(*recipient_token_account)
             .await
@@ -501,7 +551,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &context_payer.pubkey(),
@@ -522,6 +572,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        None,
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
@@ -545,10 +596,10 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     amount: u64,
     mint: &Pubkey,
     output_merkle_tree_pubkey: &Pubkey,
@@ -561,15 +612,6 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         lamports: None,
         merkle_tree: *output_merkle_tree_pubkey,
     };
-    let approve_instruction = spl_token::instruction::approve(
-        &spl_token::ID,
-        sender_token_account,
-        &get_cpi_authority_pda().0,
-        &payer.pubkey(),
-        &[&payer.pubkey()],
-        amount,
-    )
-    .unwrap();
 
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
@@ -579,6 +621,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         &Vec::new(),                  // root_indices
         &None,
         &Vec::new(),                    // input_token_data
+        &Vec::new(),                    // input_compressed_accounts
         *mint,                          // mint
         None,                           // owner_if_delegate_is_signer
         true,                           // is_compress
@@ -587,16 +630,14 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(*sender_token_account),    // compress_or_decompress_token_account
         true,
         None,
+        None,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
     let input_merkle_tree_test_snapshots = Vec::new();
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
         &rpc.get_account(*sender_token_account)
@@ -607,9 +648,9 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
-            &[approve_instruction, instruction],
+            &[instruction],
             &payer.pubkey(),
             &[&context_payer, payer],
             transaction_params,
@@ -629,6 +670,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        None,
         Vec::new().as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
@@ -652,12 +694,13 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     delegated_amount: u64,
+    delegate_lamports: Option<u64>,
     delegate: &Pubkey,
     delegated_compressed_account_merkle_tree: &Pubkey,
     change_compressed_account_merkle_tree: &Pubkey,
@@ -671,6 +714,11 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         .iter()
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
+    println!(
+        "input_compressed_account_hashes: {:?}",
+        input_compressed_account_hashes
+    );
+    println!("input compressed accounts: {:?}", input_compressed_accounts);
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
@@ -690,10 +738,16 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
+        input_compressed_accounts: input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         mint,
         delegated_amount,
+        delegate_lamports,
         delegated_compressed_account_merkle_tree: *delegated_compressed_account_merkle_tree,
         change_compressed_account_merkle_tree: *change_compressed_account_merkle_tree,
         delegate: *delegate,
@@ -702,29 +756,51 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     };
 
     let instruction = create_approve_instruction(inputs).unwrap();
-    let output_merkle_tree_pubkeys = vec![
-        *delegated_compressed_account_merkle_tree,
-        *change_compressed_account_merkle_tree,
-    ];
+    let mut output_merkle_tree_pubkeys = vec![*delegated_compressed_account_merkle_tree];
+    let input_amount = input_compressed_accounts
+        .iter()
+        .map(|x| x.token_data.amount)
+        .sum::<u64>();
+    let change_amount = input_amount - delegated_amount;
+    let input_lamports = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.compressed_account.lamports)
+        .sum::<u64>();
+    let (change_lamports, change_lamports_greater_zero) =
+        if let Some(delegate_lamports) = delegate_lamports {
+            let change_lamports = input_lamports - delegate_lamports;
+            let option_change_lamports = if change_lamports > 0 {
+                Some(change_lamports)
+            } else {
+                None
+            };
+
+            (
+                Some(vec![Some(delegate_lamports), option_change_lamports]),
+                change_lamports > 0,
+            )
+        } else if input_lamports > 0 {
+            (Some(vec![None, Some(input_lamports)]), true)
+        } else {
+            (None, false)
+        };
+    if change_lamports_greater_zero || change_amount > 0 {
+        output_merkle_tree_pubkeys.push(*change_compressed_account_merkle_tree);
+    }
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
+
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let input_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -732,44 +808,41 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         .unwrap()
         .unwrap();
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-    let input_amount = input_compressed_accounts
-        .iter()
-        .map(|x| x.token_data.amount)
-        .sum::<u64>();
-    let change_amount = input_amount - delegated_amount;
+
     let expected_delegated_token_data = TokenData {
         mint,
         owner: authority.pubkey(),
         amount: delegated_amount,
         delegate: Some(*delegate),
         state: AccountState::Initialized,
+        tlv: None,
     };
-    let expected_change_token_data = TokenData {
-        mint,
-        owner: authority.pubkey(),
-        amount: change_amount,
-        delegate: None,
-        state: AccountState::Initialized,
-    };
+
     assert_eq!(
         expected_delegated_token_data,
         created_output_accounts[0].token_data
     );
-    assert_eq!(
-        expected_change_token_data,
-        created_output_accounts[1].token_data
-    );
-    let expected_compressed_output_accounts = create_expected_token_output_data(
-        vec![expected_delegated_token_data, expected_change_token_data],
-        &output_merkle_tree_pubkeys,
-    );
-    // left in case e2e tests create a situation where the order of the output accounts is different by sorting
-    // assert!(created_output_accounts
-    //     .iter()
-    //     .any(|y| y.token_data == expected_delegated_token_data));
-    // assert!(created_output_accounts
-    //     .iter()
-    //     .any(|y| y.token_data == expected_change_token_data));
+    let mut expected_token_data = vec![expected_delegated_token_data];
+    let mut delegates = vec![Some(*delegate)];
+    if delegated_amount != input_amount {
+        let expected_change_token_data = TokenData {
+            mint,
+            owner: authority.pubkey(),
+            amount: change_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            tlv: None,
+        };
+        assert_eq!(
+            expected_change_token_data,
+            created_output_accounts[1].token_data
+        );
+        expected_token_data.push(expected_change_token_data);
+        delegates.push(None);
+    }
+
+    let expected_compressed_output_accounts =
+        create_expected_token_output_data(expected_token_data, &output_merkle_tree_pubkeys);
 
     assert_transfer(
         rpc,
@@ -780,20 +853,21 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        change_lamports,
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
         &event,
-        Some(vec![Some(*delegate), None]),
+        Some(delegates),
     )
     .await;
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     output_account_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
@@ -825,8 +899,13 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
+        input_compressed_accounts: input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         mint,
         output_account_merkle_tree: *output_account_merkle_tree,
         root_indices: proof_rpc_result.root_indices,
@@ -839,21 +918,15 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
+    let input_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -871,11 +944,20 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         amount: input_amount,
         delegate: None,
         state: AccountState::Initialized,
+        tlv: None,
     };
     assert_eq!(expected_token_data, created_output_accounts[0].token_data);
     let expected_compressed_output_accounts =
         create_expected_token_output_data(vec![expected_token_data], &output_merkle_tree_pubkeys);
-
+    let sum_inputs = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.compressed_account.lamports)
+        .sum::<u64>();
+    let change_lamports = if sum_inputs > 0 {
+        Some(vec![Some(sum_inputs)])
+    } else {
+        None
+    };
     assert_transfer(
         rpc,
         test_indexer,
@@ -885,6 +967,7 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        change_lamports,
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
@@ -894,15 +977,15 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     .await;
 }
 
-pub async fn freeze_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn freeze_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
-    freeze_or_thaw_test::<INDEXED_ARRAY_SIZE, R, true>(
+    freeze_or_thaw_test::<R, true, I>(
         authority,
         rpc,
         test_indexer,
@@ -913,15 +996,15 @@ pub async fn freeze_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     .await;
 }
 
-pub async fn thaw_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn thaw_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
-    freeze_or_thaw_test::<INDEXED_ARRAY_SIZE, R, false>(
+    freeze_or_thaw_test::<R, false, I>(
         authority,
         rpc,
         test_indexer,
@@ -932,14 +1015,10 @@ pub async fn thaw_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     .await;
 }
 
-pub async fn freeze_or_thaw_test<
-    const INDEXED_ARRAY_SIZE: usize,
-    R: RpcConnection,
-    const FREEZE: bool,
->(
+pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
@@ -971,8 +1050,13 @@ pub async fn freeze_or_thaw_test<
             .collect(),
         input_token_data: input_compressed_accounts
             .iter()
-            .map(|x| x.token_data)
+            .map(|x| x.token_data.clone())
             .collect(),
+        input_compressed_accounts: input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
         outputs_merkle_tree: *outputs_merkle_tree,
         root_indices: proof_rpc_result.root_indices,
         proof: proof_rpc_result.proof,
@@ -985,21 +1069,15 @@ pub async fn freeze_or_thaw_test<
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        output_merkle_tree_accounts.as_slice(),
-    )
-    .await;
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
+    let input_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -1022,6 +1100,7 @@ pub async fn freeze_or_thaw_test<
             amount: account.token_data.amount,
             delegate: account.token_data.delegate,
             state,
+            tlv: None,
         };
         if let Some(delegate) = account.token_data.delegate {
             delegates.push(Some(delegate));
@@ -1032,6 +1111,23 @@ pub async fn freeze_or_thaw_test<
     }
     let expected_compressed_output_accounts =
         create_expected_token_output_data(expected_output_accounts, &output_merkle_tree_pubkeys);
+    let sum_inputs = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.compressed_account.lamports)
+        .sum::<u64>();
+    let change_lamports = if sum_inputs > 0 {
+        let mut change_lamports = Vec::new();
+        for account in input_compressed_accounts.iter() {
+            if account.compressed_account.compressed_account.lamports > 0 {
+                change_lamports.push(Some(account.compressed_account.compressed_account.lamports));
+            } else {
+                change_lamports.push(None);
+            }
+        }
+        Some(change_lamports)
+    } else {
+        None
+    };
     assert_transfer(
         rpc,
         test_indexer,
@@ -1041,6 +1137,7 @@ pub async fn freeze_or_thaw_test<
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        change_lamports,
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
@@ -1049,85 +1146,64 @@ pub async fn freeze_or_thaw_test<
     )
     .await;
 }
+
 #[allow(clippy::too_many_arguments)]
-pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,
     transaction_params: Option<TransactionParams>,
 ) {
-    let input_compressed_account_hashes = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.hash().unwrap())
-        .collect::<Vec<_>>();
-    let input_merkle_tree_pubkeys = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
-    let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
-            None,
-            None,
-            rpc,
-        )
-        .await;
-    let mint = input_compressed_accounts[0].token_data.mint;
-    let inputs = CreateBurnInstructionInputs {
-        fee_payer: rpc.get_payer().pubkey(),
-        authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
-        input_token_data: input_compressed_accounts
-            .iter()
-            .map(|x| x.token_data)
-            .collect(),
-        change_account_merkle_tree: *change_account_merkle_tree,
-        root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof,
+    let (
+        input_compressed_account_hashes,
+        input_merkle_tree_pubkeys,
         mint,
-        signer_is_delegate,
+        output_amount,
+        instruction,
+    ) = create_burn_test_instruction(
+        authority,
+        rpc,
+        test_indexer,
+        &input_compressed_accounts,
+        change_account_merkle_tree,
         burn_amount,
-    };
-    let input_amount_sum = input_compressed_accounts
-        .iter()
-        .map(|x| x.token_data.amount)
-        .sum::<u64>();
-    let output_amount = input_amount_sum - burn_amount;
-    let instruction = create_burn_instruction(inputs).unwrap();
+        signer_is_delegate,
+        BurnInstructionMode::Normal,
+    )
+    .await;
     let output_merkle_tree_pubkeys = vec![*change_account_merkle_tree; 1];
     let output_merkle_tree_test_snapshots = if output_amount > 0 {
         let output_merkle_tree_accounts =
             test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
 
-        get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-            rpc,
-            output_merkle_tree_accounts.as_slice(),
-        )
-        .await
+        get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await
     } else {
         Vec::new()
     };
 
+    let token_pool_pda_address = get_token_pool_pda(&mint);
+    let pre_token_pool_account = rpc
+        .get_account(token_pool_pda_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let pre_token_pool_balance = spl_token::state::Account::unpack(&pre_token_pool_account.data)
+        .unwrap()
+        .amount;
+
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
-        rpc,
-        input_merkle_tree_accounts.as_slice(),
-    )
-    .await;
+    let input_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature) = rpc
+    let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &authority.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, authority],
             transaction_params,
         )
@@ -1150,6 +1226,7 @@ pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             amount: output_amount,
             delegate,
             state: AccountState::Initialized,
+            tlv: None,
         };
         if let Some(delegate) = expected_token_data.delegate {
             delegates.push(Some(delegate));
@@ -1160,6 +1237,15 @@ pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     }
     let expected_compressed_output_accounts =
         create_expected_token_output_data(expected_output_accounts, &output_merkle_tree_pubkeys);
+    let sum_inputs = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.compressed_account.lamports)
+        .sum::<u64>();
+    let change_lamports = if sum_inputs > 0 {
+        Some(vec![Some(sum_inputs)])
+    } else {
+        None
+    };
     assert_transfer(
         rpc,
         test_indexer,
@@ -1169,6 +1255,7 @@ pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
+        change_lamports,
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
@@ -1176,6 +1263,105 @@ pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(delegates),
     )
     .await;
+    let post_token_pool_account = rpc
+        .get_account(token_pool_pda_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let post_token_pool_balance = spl_token::state::Account::unpack(&post_token_pool_account.data)
+        .unwrap()
+        .amount;
+    assert_eq!(
+        post_token_pool_balance,
+        pre_token_pool_balance - burn_amount
+    );
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BurnInstructionMode {
+    Normal,
+    InvalidProof,
+    InvalidMint,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
+    authority: &Keypair,
+    rpc: &mut R,
+    test_indexer: &mut I,
+    input_compressed_accounts: &[TokenDataWithContext],
+    change_account_merkle_tree: &Pubkey,
+    burn_amount: u64,
+    signer_is_delegate: bool,
+    mode: BurnInstructionMode,
+) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
+    let input_compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.hash().unwrap())
+        .collect::<Vec<_>>();
+    let input_merkle_tree_pubkeys = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .collect::<Vec<_>>();
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&input_compressed_account_hashes),
+            Some(&input_merkle_tree_pubkeys),
+            None,
+            None,
+            rpc,
+        )
+        .await;
+    let mint = if mode == BurnInstructionMode::InvalidMint {
+        Pubkey::new_unique()
+    } else {
+        input_compressed_accounts[0].token_data.mint
+    };
+    let proof = if mode == BurnInstructionMode::InvalidProof {
+        CompressedProof {
+            a: proof_rpc_result.proof.a,
+            b: proof_rpc_result.proof.b,
+            c: proof_rpc_result.proof.a, // flip c to make proof invalid but not run into decompress errors
+        }
+    } else {
+        proof_rpc_result.proof
+    };
+    let inputs = CreateBurnInstructionInputs {
+        fee_payer: rpc.get_payer().pubkey(),
+        authority: authority.pubkey(),
+        input_merkle_contexts: input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.merkle_context)
+            .collect(),
+        input_token_data: input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data.clone())
+            .collect(),
+        input_compressed_accounts: input_compressed_accounts
+            .iter()
+            .map(|x| &x.compressed_account.compressed_account)
+            .cloned()
+            .collect::<Vec<_>>(),
+        change_account_merkle_tree: *change_account_merkle_tree,
+        root_indices: proof_rpc_result.root_indices,
+        proof,
+        mint,
+        signer_is_delegate,
+        burn_amount,
+    };
+    let input_amount_sum = input_compressed_accounts
+        .iter()
+        .map(|x| x.token_data.amount)
+        .sum::<u64>();
+    let output_amount = input_amount_sum - burn_amount;
+    let instruction = create_burn_instruction(inputs).unwrap();
+    (
+        input_compressed_account_hashes,
+        input_merkle_tree_pubkeys,
+        mint,
+        output_amount,
+        instruction,
+    )
 }
 
 pub fn create_expected_token_output_data(

@@ -27,13 +27,7 @@ pub struct InsertIntoQueues<'info> {
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
-pub fn process_insert_into_queues<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    MerkleTreeAccount: Owner + ZeroCopy, // SequenceNumber,
->(
+pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: Owner + ZeroCopy>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     elements: &'a [[u8; 32]],
     queue_type: QueueType,
@@ -53,6 +47,9 @@ pub fn process_insert_into_queues<
     light_heap::bench_sbf_start!("acp_create_queue_map");
 
     let mut queue_map = QueueMap::new();
+    // Deduplicate tree and queue pairs.
+    // So that we iterate over every pair only once,
+    // and pay rollover fees only once.
     for i in (0..ctx.remaining_accounts.len()).step_by(2) {
         let queue: &AccountInfo<'info> = ctx.remaining_accounts.get(i).unwrap();
         let merkle_tree = ctx.remaining_accounts.get(i + 1).unwrap();

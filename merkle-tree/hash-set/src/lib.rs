@@ -4,6 +4,7 @@ use num_traits::{FromBytes, ToPrimitive};
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     cmp::Ordering,
+    marker::Send,
     mem,
     ptr::NonNull,
 };
@@ -56,6 +57,8 @@ pub struct HashSetCell {
     pub value: [u8; 32],
     pub sequence_number: Option<usize>,
 }
+
+unsafe impl Send for HashSet {}
 
 impl HashSetCell {
     /// Returns the value as a byte array.
@@ -113,6 +116,8 @@ pub struct HashSet {
     /// elements.
     buckets: NonNull<Option<HashSetCell>>,
 }
+
+unsafe impl Send for HashSetCell {}
 
 impl HashSet {
     /// Size of the struct **without** dynamically sized fields.
@@ -178,48 +183,40 @@ impl HashSet {
             ));
         }
 
-        let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
+        let capacity = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
-
-        let expected_size = Self::size_in_account(capacity_values);
+        let expected_size = Self::size_in_account(capacity);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
 
-        let next_value_index_layout = Layout::new::<usize>();
-        let next_value_index = unsafe { alloc::alloc(next_value_index_layout) as *mut usize };
-        if next_value_index.is_null() {
-            handle_alloc_error(next_value_index_layout);
-        }
-        unsafe {
-            *next_value_index = usize::from_ne_bytes(bytes[24..32].try_into().unwrap());
-        }
-
-        let values_layout = Layout::array::<Option<HashSetCell>>(capacity_values).unwrap();
+        let buckets_layout = Layout::array::<Option<HashSetCell>>(capacity).unwrap();
         // SAFETY: `I` is always a signed integer. Creating a layout for an
         // array of integers of any size won't cause any panic.
-        let values_dst_ptr = unsafe { alloc::alloc(values_layout) as *mut Option<HashSetCell> };
-        if values_dst_ptr.is_null() {
-            handle_alloc_error(values_layout);
+        let buckets_dst_ptr = unsafe { alloc::alloc(buckets_layout) as *mut Option<HashSetCell> };
+        if buckets_dst_ptr.is_null() {
+            handle_alloc_error(buckets_layout);
         }
-        let values = NonNull::new(values_dst_ptr).unwrap();
-        for i in 0..capacity_values {
-            std::ptr::write(values_dst_ptr.add(i), None);
+        let buckets = NonNull::new(buckets_dst_ptr).unwrap();
+        for i in 0..capacity {
+            std::ptr::write(buckets_dst_ptr.add(i), None);
         }
 
         let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
-        let values_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
-        std::ptr::copy(values_src_ptr, values_dst_ptr, capacity_values);
+        let buckets_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
+        std::ptr::copy(buckets_src_ptr, buckets_dst_ptr, capacity);
 
         Ok(Self {
-            capacity: capacity_values,
+            capacity,
             sequence_threshold,
-            buckets: values,
+            buckets,
         })
     }
 
     fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
-        let probe_index = (value.clone()
+        // Increase stepsize over the capacity of the hash set.
+        let iteration = iteration + self.capacity / 10;
+        let probe_index = (value
             + iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap())
             % self.capacity.to_biguint().unwrap();
         probe_index.to_usize().unwrap()
@@ -311,10 +308,10 @@ impl HashSet {
         &mut self,
         value: &BigUint,
         current_sequence_number: usize,
-    ) -> Result<(), HashSetError> {
+    ) -> Result<usize, HashSetError> {
         let index_bucket = self.find_element_iter(value, current_sequence_number, 0, 20)?;
         let (index, is_new) = match index_bucket {
-            Some(value_index) => value_index,
+            Some(index) => index,
             None => {
                 return Err(HashSetError::Full);
             }
@@ -324,7 +321,7 @@ impl HashSet {
             // The visited hash set cell points to a value in the array.
             false => {
                 if self.insert_into_occupied_cell(index, value, current_sequence_number)? {
-                    return Ok(());
+                    return Ok(index);
                 }
             }
             true => {
@@ -335,7 +332,7 @@ impl HashSet {
                     value: bigint_to_be_bytes_array(value)?,
                     sequence_number: None,
                 });
-                return Ok(());
+                return Ok(index);
             }
         }
         Err(HashSetError::Full)
@@ -345,7 +342,7 @@ impl HashSet {
     ///
     /// Uses the optional `current_sequence_number` arguments for checking the
     /// validity of the element.
-    fn find_element_index(
+    pub fn find_element_index(
         &self,
         value: &BigUint,
         current_sequence_number: Option<usize>,
@@ -354,7 +351,6 @@ impl HashSet {
             let probe_index = self.probe_index(value, i);
             // PANICS: `probe_index()` ensures the bounds.
             let bucket = self.get_bucket(probe_index).unwrap();
-
             match bucket {
                 Some(bucket) => {
                     if &bucket.value_biguint() == value {
@@ -509,14 +505,16 @@ impl HashSet {
     /// Marks the given element with a given sequence number.
     pub fn mark_with_sequence_number(
         &mut self,
-        value: &BigUint,
+        index: usize,
         sequence_number: usize,
     ) -> Result<(), HashSetError> {
         let sequence_threshold = self.sequence_threshold;
-        let element = self.find_element_mut(value, None)?;
+        let element = self
+            .get_bucket_mut(index)
+            .ok_or(HashSetError::ElementDoesNotExist)?;
 
         match element {
-            Some((element, _)) => {
+            Some(element) => {
                 element.sequence_number = Some(sequence_number + sequence_threshold);
                 Ok(())
             }
@@ -620,8 +618,8 @@ mod test {
         // Insert an element and immediately mark it with a sequence number.
         // An equivalent to a single insertion in Light Protocol
         let element_1_1 = 1.to_biguint().unwrap();
-        hs.insert(&element_1_1, 0).unwrap();
-        hs.mark_with_sequence_number(&element_1_1, 1).unwrap();
+        let index_1_1 = hs.insert(&element_1_1, 0).unwrap();
+        hs.mark_with_sequence_number(index_1_1, 1).unwrap();
 
         // Check if element exists in the set.
         assert_eq!(hs.contains(&element_1_1, Some(1)).unwrap(), true);
@@ -639,18 +637,18 @@ mod test {
         let element_2_6 = 6.to_biguint().unwrap();
         let element_2_8 = 8.to_biguint().unwrap();
         let element_2_9 = 9.to_biguint().unwrap();
-        hs.insert(&element_2_3, 1).unwrap();
-        hs.insert(&element_2_6, 1).unwrap();
-        hs.insert(&element_2_8, 1).unwrap();
-        hs.insert(&element_2_9, 1).unwrap();
+        let index_2_3 = hs.insert(&element_2_3, 1).unwrap();
+        let index_2_6 = hs.insert(&element_2_6, 1).unwrap();
+        let index_2_8 = hs.insert(&element_2_8, 1).unwrap();
+        let index_2_9 = hs.insert(&element_2_9, 1).unwrap();
         assert_eq!(hs.contains(&element_2_3, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_6, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_8, Some(2)).unwrap(), true);
         assert_eq!(hs.contains(&element_2_9, Some(2)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_2_3, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_6, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_8, 2).unwrap();
-        hs.mark_with_sequence_number(&element_2_9, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_3, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_6, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_8, 2).unwrap();
+        hs.mark_with_sequence_number(index_2_9, 2).unwrap();
         assert!(matches!(
             hs.insert(&element_2_3, 2),
             Err(HashSetError::ElementAlreadyExists)
@@ -672,18 +670,18 @@ mod test {
         let element_3_13 = 13.to_biguint().unwrap();
         let element_3_21 = 21.to_biguint().unwrap();
         let element_3_29 = 29.to_biguint().unwrap();
-        hs.insert(&element_3_11, 2).unwrap();
-        hs.insert(&element_3_13, 2).unwrap();
-        hs.insert(&element_3_21, 2).unwrap();
-        hs.insert(&element_3_29, 2).unwrap();
+        let index_3_11 = hs.insert(&element_3_11, 2).unwrap();
+        let index_3_13 = hs.insert(&element_3_13, 2).unwrap();
+        let index_3_21 = hs.insert(&element_3_21, 2).unwrap();
+        let index_3_29 = hs.insert(&element_3_29, 2).unwrap();
         assert_eq!(hs.contains(&element_3_11, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_13, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_21, Some(3)).unwrap(), true);
         assert_eq!(hs.contains(&element_3_29, Some(3)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_3_11, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_13, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_21, 3).unwrap();
-        hs.mark_with_sequence_number(&element_3_29, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_11, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_13, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_21, 3).unwrap();
+        hs.mark_with_sequence_number(index_3_29, 3).unwrap();
         assert!(matches!(
             hs.insert(&element_3_11, 3),
             Err(HashSetError::ElementAlreadyExists)
@@ -705,18 +703,18 @@ mod test {
         let element_4_65 = 64.to_biguint().unwrap();
         let element_4_72 = 72.to_biguint().unwrap();
         let element_4_15 = 15.to_biguint().unwrap();
-        hs.insert(&element_4_93, 3).unwrap();
-        hs.insert(&element_4_65, 3).unwrap();
-        hs.insert(&element_4_72, 3).unwrap();
-        hs.insert(&element_4_15, 3).unwrap();
+        let index_4_93 = hs.insert(&element_4_93, 3).unwrap();
+        let index_4_65 = hs.insert(&element_4_65, 3).unwrap();
+        let index_4_72 = hs.insert(&element_4_72, 3).unwrap();
+        let index_4_15 = hs.insert(&element_4_15, 3).unwrap();
         assert_eq!(hs.contains(&element_4_93, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_65, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_72, Some(4)).unwrap(), true);
         assert_eq!(hs.contains(&element_4_15, Some(4)).unwrap(), true);
-        hs.mark_with_sequence_number(&element_4_93, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_65, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_72, 4).unwrap();
-        hs.mark_with_sequence_number(&element_4_15, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_93, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_65, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_72, 4).unwrap();
+        hs.mark_with_sequence_number(index_4_15, 4).unwrap();
 
         // Try inserting the same elements we inserted before.
         //
@@ -765,7 +763,7 @@ mod test {
         for nf_chunk in nullifiers.chunks(2400) {
             for nullifier in nf_chunk.iter() {
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
-                hs.insert(&nullifier, seq as usize).unwrap();
+                let index = hs.insert(&nullifier, seq as usize).unwrap();
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
 
                 let nullifier_bytes = bigint_to_be_bytes_array(&nullifier).unwrap();
@@ -789,7 +787,7 @@ mod test {
                 assert!(!element.is_marked());
                 assert!(element.is_valid(seq));
 
-                hs.mark_with_sequence_number(&nullifier, seq).unwrap();
+                hs.mark_with_sequence_number(index, seq).unwrap();
                 let element = hs
                     .find_element(&nullifier, Some(seq))
                     .unwrap()
@@ -878,12 +876,14 @@ mod test {
             // encounter the `HashSetError::Full` at some point
             for i in 0..CAPACITY {
                 let value = BigUint::from(Fr::rand(&mut rng));
-                if let Err(e) = hs.insert(&value, 0) {
-                    assert!(matches!(e, HashSetError::Full));
-                    println!("initial insertions: {i}: failed, stopping");
-                    break;
+                match hs.insert(&value, 0) {
+                    Ok(index) => hs.mark_with_sequence_number(index, 0).unwrap(),
+                    Err(e) => {
+                        assert!(matches!(e, HashSetError::Full));
+                        println!("initial insertions: {i}: failed, stopping");
+                        break;
+                    }
                 }
-                hs.mark_with_sequence_number(&value, 0).unwrap();
             }
 
             // Keep inserting. It should mostly fail, although there might be
@@ -944,16 +944,19 @@ mod test {
         let mut rng = thread_rng();
 
         for _ in 0..1000 {
-            let value = BigUint::from(Fr::rand(&mut rng));
+            let index = rng.gen_range(0..4800);
 
             // Assert `ElementDoesNotExist` error.
-            let res = hs.mark_with_sequence_number(&value, 0);
+            let res = hs.mark_with_sequence_number(index, 0);
             assert!(matches!(res, Err(HashSetError::ElementDoesNotExist)));
+        }
 
+        for _ in 0..1000 {
             // After actually appending the value, the same operation should be
             // possible
-            hs.insert(&value, 0).unwrap();
-            hs.mark_with_sequence_number(&value, 1).unwrap();
+            let value = BigUint::from(Fr::rand(&mut rng));
+            let index = hs.insert(&value, 0).unwrap();
+            hs.mark_with_sequence_number(index, 1).unwrap();
         }
     }
 
@@ -988,52 +991,16 @@ mod test {
             .map(|(_, nullifier)| nullifier.value_biguint())
             .collect::<Vec<_>>();
         assert_eq!(inserted_nullifiers.len(), 10);
-        assert_eq!(inserted_nullifiers[0], nullifier_5);
-        assert_eq!(inserted_nullifiers[1], nullifier_4);
-        assert_eq!(inserted_nullifiers[2], nullifier_2);
-        assert_eq!(inserted_nullifiers[3], nullifier_9);
-        assert_eq!(inserted_nullifiers[4], nullifier_6);
-        assert_eq!(inserted_nullifiers[5], nullifier_7);
-        assert_eq!(inserted_nullifiers[6], nullifier_3);
-        assert_eq!(inserted_nullifiers[7], nullifier_10);
-        assert_eq!(inserted_nullifiers[8], nullifier_1);
-        assert_eq!(inserted_nullifiers[9], nullifier_8);
-    }
-
-    fn hash_set_iter_linear<
-        const INSERTIONS: usize,
-        const CAPACITY: usize,
-        const SEQUENCE_THRESHOLD: usize,
-    >() {
-        let mut hs = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
-
-        let mut expected_nullifiers = Vec::with_capacity(INSERTIONS);
-
-        for i in 0..INSERTIONS {
-            let nullifier = i.to_biguint().unwrap();
-            hs.insert(&nullifier, 0).unwrap();
-            expected_nullifiers.push(nullifier);
-        }
-
-        let inserted_nullifiers = hs
-            .iter()
-            .map(|(_, nullifier)| nullifier.value_biguint())
-            .collect::<Vec<_>>();
-        assert_eq!(inserted_nullifiers.len(), INSERTIONS);
-        assert_eq!(
-            expected_nullifiers.as_slice(),
-            inserted_nullifiers.as_slice()
-        );
-    }
-
-    #[test]
-    fn test_hash_set_iter_linear_6857_2400() {
-        hash_set_iter_linear::<3500, 6857, 2400>()
-    }
-
-    #[test]
-    fn test_hash_set_iter_linear_9601_2400() {
-        hash_set_iter_linear::<5000, 9601, 2400>()
+        assert_eq!(inserted_nullifiers[0], nullifier_7);
+        assert_eq!(inserted_nullifiers[1], nullifier_3);
+        assert_eq!(inserted_nullifiers[2], nullifier_10);
+        assert_eq!(inserted_nullifiers[3], nullifier_1);
+        assert_eq!(inserted_nullifiers[4], nullifier_8);
+        assert_eq!(inserted_nullifiers[5], nullifier_5);
+        assert_eq!(inserted_nullifiers[6], nullifier_4);
+        assert_eq!(inserted_nullifiers[7], nullifier_2);
+        assert_eq!(inserted_nullifiers[8], nullifier_9);
+        assert_eq!(inserted_nullifiers[9], nullifier_6);
     }
 
     fn hash_set_iter_random<
@@ -1078,21 +1045,23 @@ mod test {
     fn test_hash_set_get_bucket() {
         let mut hs = HashSet::new(6857, 2400).unwrap();
 
-        // Insert incremental elements, so they end up being in the same
-        // sequence in the hash set.
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
             hs.insert(&bn_i, i).unwrap();
         }
-
+        let mut unused_indices = vec![true; 6857];
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
+            let i = hs.find_element_index(&bn_i, None).unwrap().unwrap();
             let element = hs.get_bucket(i).unwrap().unwrap();
             assert_eq!(element.value_biguint(), bn_i);
+            unused_indices[i] = false;
         }
         // Unused cells within the capacity should be `Some(None)`.
-        for i in 3600..6857 {
-            assert!(hs.get_bucket(i).unwrap().is_none());
+        for i in unused_indices.iter().enumerate() {
+            if *i.1 {
+                assert!(hs.get_bucket(i.0).unwrap().is_none());
+            }
         }
         // Cells over the capacity should be `None`.
         for i in 6857..10_000 {
@@ -1104,17 +1073,19 @@ mod test {
     fn test_hash_set_get_bucket_mut() {
         let mut hs = HashSet::new(6857, 2400).unwrap();
 
-        // Insert incremental elements, so they end up being in the same
-        // sequence in the hash set.
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
             hs.insert(&bn_i, i).unwrap();
         }
+        let mut unused_indices = vec![false; 6857];
 
         for i in 0..3600 {
             let bn_i = i.to_biguint().unwrap();
+            let i = hs.find_element_index(&bn_i, None).unwrap().unwrap();
+
             let element = hs.get_bucket_mut(i).unwrap();
             assert_eq!(element.unwrap().value_biguint(), bn_i);
+            unused_indices[i] = true;
 
             // "Nullify" the element.
             *element = Some(HashSetCell {
@@ -1122,13 +1093,18 @@ mod test {
                 sequence_number: None,
             });
         }
-        for i in 0..3600 {
-            let element = hs.get_bucket_mut(i).unwrap().unwrap();
-            assert_eq!(element.value_bytes(), [0_u8; 32]);
+
+        for (i, is_used) in unused_indices.iter().enumerate() {
+            if *is_used {
+                let element = hs.get_bucket_mut(i).unwrap().unwrap();
+                assert_eq!(element.value_bytes(), [0_u8; 32]);
+            }
         }
         // Unused cells within the capacity should be `Some(None)`.
-        for i in 3600..6857 {
-            assert!(hs.get_bucket_mut(i).unwrap().is_none());
+        for (i, is_used) in unused_indices.iter().enumerate() {
+            if !*is_used {
+                assert!(hs.get_bucket_mut(i).unwrap().is_none());
+            }
         }
         // Cells over the capacity should be `None`.
         for i in 6857..10_000 {
@@ -1142,23 +1118,34 @@ mod test {
 
         // Insert incremental elements, so they end up being in the same
         // sequence in the hash set.
-        for i in 0..3600 {
+        (0..3600).for_each(|i| {
             let bn_i = i.to_biguint().unwrap();
             hs.insert(&bn_i, i).unwrap();
-        }
+        });
 
         for i in 0..3600 {
+            let i = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
             let element = hs.get_unmarked_bucket(i);
             assert!(element.is_some());
         }
 
         // Mark the elements.
         for i in 0..3600 {
-            let bn_i = i.to_biguint().unwrap();
-            hs.mark_with_sequence_number(&bn_i, i).unwrap();
+            let index = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
+            hs.mark_with_sequence_number(index, i).unwrap();
         }
 
         for i in 0..3600 {
+            let i = hs
+                .find_element_index(&i.to_biguint().unwrap(), None)
+                .unwrap()
+                .unwrap();
             let element = hs.get_unmarked_bucket(i);
             assert!(element.is_none());
         }

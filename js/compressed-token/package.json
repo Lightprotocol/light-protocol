@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "type": "module",
@@ -62,7 +62,7 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
-        "@solana/web3.js": "^1.91.8",
+        "@solana/web3.js": "^1.95.0",
         "@lightprotocol/stateless.js": "workspace:*"
     },
     "dependencies": {
@@ -92,7 +92,7 @@
         "eslint-plugin-n": "^15.0.0 || ^16.0.0",
         "eslint-plugin-promise": "^6.0.0",
         "eslint-plugin-vitest": "^0.5.4",
-        "prettier": "^3.3.2",
+        "prettier": "^3.3.3",
         "rimraf": "^5.0.7",
         "rollup": "^4.6.1",
         "rollup-plugin-copy": "^3.5.0",
@@ -101,7 +101,7 @@
         "rollup-plugin-visualizer": "^5.12.0",
         "ts-node": "^10.9.2",
         "tslib": "^2.6.2",
-        "typescript": "^5.4.5",
+        "typescript": "^5.5.3",
         "vitest": "^1.6.0"
     },
     "nx": {

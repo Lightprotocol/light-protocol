@@ -34,6 +34,7 @@ import {
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesResultPaginated,
     LatestNonVotingSignaturesPaginated,
+    WithContext,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -134,6 +135,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             state: ['uninitialized', 'initialized', 'frozen'].indexOf(
                 _tokenData.state,
             ),
+            tlv: null,
         };
 
         if (
@@ -194,6 +196,7 @@ function buildCompressedAccountWithMaybeTokenData(
         state: ['uninitialized', 'initialized', 'frozen'].indexOf(
             tokenDataResult.state,
         ),
+        tlv: null,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };
@@ -848,6 +851,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getTransactionWithCompressionInfo',
             { signature },
         );
+
         const res = create(
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
@@ -883,9 +887,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * @deprecated This method is currently not available. Please use
-     * {@link getCompressionSignaturesForAccount} instead.
-     *
      * Returns confirmed signatures for transactions involving the specified
      * address forward in time from genesis to the most recent confirmed block
      *
@@ -1001,6 +1002,28 @@ export class Rpc extends Connection implements CompressionApiInterface {
             throw new SolanaJSONRPCError(res.error, 'failed to get health');
         }
         return res.result;
+    }
+
+    /**
+     * Ensure that the Compression Indexer has already indexed the transaction
+     */
+    async confirmTransactionIndexed(slot: number): Promise<boolean> {
+        const startTime = Date.now();
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const indexerSlot = await this.getIndexerSlot();
+
+            if (indexerSlot >= slot) {
+                return true;
+            }
+            if (Date.now() - startTime > 20000) {
+                // 20 seconds
+                throw new Error(
+                    'Timeout: Indexer slot did not reach the required slot within 20 seconds',
+                );
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
     }
 
     /**
@@ -1278,6 +1301,30 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
+        const { value } = await this.getValidityProofAndRpcContext(
+            hashes,
+            newAddresses,
+        );
+        return value;
+    }
+    /**
+     * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account hashes. (2) new unique addresses specified by an
+     * array of addresses. Returns with context slot.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     *
+     * @param hashes        Array of BN254 hashes.
+     * @param newAddresses  Array of BN254 new addresses.
+     * @returns             validity proof with context
+     */
+    async getValidityProofAndRpcContext(
+        hashes: BN254[] = [],
+        newAddresses: BN254[] = [],
+    ): Promise<WithContext<CompressedProofWithContext>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
@@ -1289,31 +1336,37 @@ export class Rpc extends Connection implements CompressionApiInterface {
             },
         );
 
-        const res = create(unsafeRes, jsonRpcResult(ValidityProofResult));
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(ValidityProofResult),
+        );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
-        if (res.result === null) {
+
+        const result = res.result.value;
+
+        if (result === null) {
             throw new Error(
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
 
         const value: CompressedProofWithContext = {
-            compressedProof: res.result.compressedProof,
-            merkleTrees: res.result.merkleTrees,
-            leafIndices: res.result.leafIndices,
+            compressedProof: result.compressedProof,
+            merkleTrees: result.merkleTrees,
+            leafIndices: result.leafIndices,
             nullifierQueues: [
                 ...hashes.map(() => mockNullifierQueue),
                 ...newAddresses.map(() => mockAddressQueue),
             ],
-            rootIndices: res.result.rootIndices,
-            roots: res.result.roots,
-            leaves: res.result.leaves,
+            rootIndices: result.rootIndices,
+            roots: result.roots,
+            leaves: result.leaves,
         };
-        return value;
+        return { value, context: res.result.context };
     }
 }

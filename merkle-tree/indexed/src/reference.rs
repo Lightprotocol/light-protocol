@@ -63,7 +63,7 @@ where
     /// on-chain indexed concurrent merkle tree.
     /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
     pub fn init(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let mut indexed_array = IndexedArray::<H, I>::default();
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
         let nullifier_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = nullifier_bundle
@@ -76,6 +76,14 @@ where
             .hash::<H>(&nullifier_bundle.new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
         Ok(())
+    }
+
+    pub fn get_path_of_leaf(
+        &self,
+        index: usize,
+        full: bool,
+    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+        self.merkle_tree.get_path_of_leaf(index, full)
     }
 
     pub fn get_proof_of_leaf(
@@ -110,10 +118,10 @@ where
     }
 
     // TODO: add append with new value, so that we don't need to compute the lowlevel values manually
-    pub fn append<const T: usize>(
+    pub fn append(
         &mut self,
         value: &BigUint,
-        indexed_array: &mut IndexedArray<H, I, T>,
+        indexed_array: &mut IndexedArray<H, I>,
     ) -> Result<(), IndexedReferenceMerkleTreeError> {
         let nullifier_bundle = indexed_array.append(value).unwrap();
         self.update(
@@ -125,10 +133,10 @@ where
         Ok(())
     }
 
-    pub fn get_non_inclusion_proof<const T: usize>(
+    pub fn get_non_inclusion_proof(
         &self,
         value: &BigUint,
-        indexed_array: &IndexedArray<H, I, T>,
+        indexed_array: &IndexedArray<H, I>,
     ) -> Result<NonInclusionProof, IndexedReferenceMerkleTreeError> {
         let (low_element, _next_value) = indexed_array.find_low_element_for_nonexistent(value)?;
         let merkle_proof = self

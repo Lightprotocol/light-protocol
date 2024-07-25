@@ -25,7 +25,7 @@ pub struct QueueMetadata {
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum QueueType {
-    NullifierQueue = 1, // Explicitly assign values to the enum variants
+    NullifierQueue = 1,
     AddressQueue = 2,
 }
 
@@ -36,7 +36,6 @@ pub fn check_queue_type(queue_type: &u64, expected_queue_type: &QueueType) -> Re
         Ok(())
     }
 }
-
 impl QueueMetadata {
     pub fn init(
         &mut self,
@@ -96,7 +95,7 @@ impl GroupAccess for QueueAccount {
         &self.metadata.access_metadata.owner
     }
 
-    fn get_delegate(&self) -> &Pubkey {
+    fn get_program_owner(&self) -> &Pubkey {
         &self.metadata.access_metadata.program_owner
     }
 }

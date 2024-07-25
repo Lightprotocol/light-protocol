@@ -13,6 +13,12 @@ export interface PackedMerkleContext {
     merkleTreePubkeyIndex: number; // u8
     nullifierQueuePubkeyIndex: number; // u8
     leafIndex: number; // u32
+    queueIndex: null | QueueIndex; // Option<QueueIndex>
+}
+
+export interface QueueIndex {
+    queueId: number; // u8
+    index: number; // u16
 }
 
 /**
@@ -87,6 +93,7 @@ export type TokenTransferOutputData = {
     owner: PublicKey;
     amount: BN;
     lamports: BN | null;
+    tlv: Buffer | null;
 };
 
 export type CompressedTokenInstructionDataTransfer = {
@@ -98,6 +105,7 @@ export type CompressedTokenInstructionDataTransfer = {
     isCompress: boolean;
     compressOrDecompressAmount: BN | null;
     cpiContext: null;
+    lamportsChangeAccountMerkleTreeIndex: number | null;
 };
 
 export interface InputTokenDataWithContext {
@@ -106,6 +114,7 @@ export interface InputTokenDataWithContext {
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
     lamports: BN | null;
+    tlv: Buffer | null;
 }
 export type TokenData = {
     /// The mint associated with this account
@@ -119,4 +128,6 @@ export type TokenData = {
     delegate: PublicKey | null;
     /// The account's state
     state: number; // AccountState_IdlType;
+    /// TokenExtension tlv
+    tlv: Buffer | null;
 };

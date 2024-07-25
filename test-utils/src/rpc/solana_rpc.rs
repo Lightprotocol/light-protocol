@@ -1,9 +1,8 @@
-use std::fmt::{Debug, Display};
-
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
+use log::debug;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_program_test::BanksClientError;
@@ -15,20 +14,25 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 
 pub enum SolanaRpcUrl {
+    Testnet,
+    Devnet,
     Localnet,
     ZKTestnet,
     Custom(String),
 }
 
 impl Display for SolanaRpcUrl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let str = match self {
+            SolanaRpcUrl::Testnet => "https://api.testnet.solana.com".to_string(),
+            SolanaRpcUrl::Devnet => "https://api.devnet.solana.com".to_string(),
             SolanaRpcUrl::Localnet => "http://localhost:8899".to_string(),
             SolanaRpcUrl::ZKTestnet => "https://zk-testnet.helius.dev:8899".to_string(),
             SolanaRpcUrl::Custom(url) => url.clone(),
@@ -40,17 +44,20 @@ impl Display for SolanaRpcUrl {
 #[allow(dead_code)]
 pub struct SolanaRpcConnection {
     pub client: RpcClient,
-    payer: Keypair,
+    pub payer: Keypair,
+}
+
+impl Debug for SolanaRpcConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "SolanaRpcConnection {{ client: {:?} }}",
+            self.client.url()
+        )
+    }
 }
 
 impl SolanaRpcConnection {
-    pub fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
-        let payer = Keypair::new();
-        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
-        let client = RpcClient::new_with_commitment(url, commitment_config);
-        Self { client, payer }
-    }
-
     fn parse_inner_instructions<T: AnchorDeserialize>(
         &self,
         signature: Signature,
@@ -115,14 +122,27 @@ impl SolanaRpcConnection {
     }
 }
 
+impl Clone for SolanaRpcConnection {
+    fn clone(&self) -> Self {
+        unimplemented!()
+    }
+}
+
 impl RpcConnection for SolanaRpcConnection {
+    fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
+        let payer = Keypair::new();
+        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
+        let client = RpcClient::new_with_commitment(url, commitment_config);
+        Self { client, payer }
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature)>, RpcError>
+    ) -> Result<Option<(T, Signature, u64)>, RpcError>
     where
         T: AnchorDeserialize + Debug,
     {
@@ -141,6 +161,9 @@ impl RpcConnection for SolanaRpcConnection {
             latest_blockhash,
         );
         let signature = self.client.send_and_confirm_transaction(&transaction)?;
+        let sig_info = self.client.get_signature_statuses(&[signature]);
+        let sig_info = sig_info.unwrap().value.first().unwrap().clone();
+        let slot = sig_info.unwrap().slot;
 
         let mut event = transaction
             .message
@@ -197,25 +220,8 @@ impl RpcConnection for SolanaRpcConnection {
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
-    }
-
-    async fn create_and_send_transaction(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-    ) -> Result<Signature, RpcError> {
-        let transaction = Transaction::new_signed_with_payer(
-            instruction,
-            Some(payer),
-            &signers.to_vec(),
-            self.get_latest_blockhash().await.unwrap(),
-        );
-        let signature = transaction.signatures[0];
-        self.process_transaction(transaction).await?;
-        Ok(signature)
     }
 
     async fn confirm_transaction(&mut self, transaction: Signature) -> Result<bool, RpcError> {
@@ -229,6 +235,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
         let result = self
             .client
             .get_account_with_commitment(&address, self.client.commitment());
@@ -257,14 +264,31 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<Signature, RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
         match self.client.send_and_confirm_transaction(&transaction) {
             Ok(signature) => Ok(signature),
             Err(e) => Err(RpcError::ClientError(e)),
         }
     }
 
+    async fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(Signature, Slot), RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
+        match self.client.send_and_confirm_transaction(&transaction) {
+            Ok(signature) => {
+                let sig_info = self.client.get_signature_statuses(&[signature]);
+                let sig_info = sig_info.unwrap().value.first().unwrap().clone();
+                let slot = sig_info.unwrap().slot;
+                Ok((signature, slot))
+            }
+            Err(e) => Err(RpcError::ClientError(e)),
+        }
+    }
+
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        todo!()
+        self.client.get_slot().map_err(RpcError::from)
     }
 
     async fn airdrop_lamports(
@@ -276,7 +300,8 @@ impl RpcConnection for SolanaRpcConnection {
             .client
             .request_airdrop(to, lamports)
             .map_err(RpcError::from)?;
-
+        // TODO: Find a different way this can result in an infinite loop
+        println!("Airdrop signature: {:?}", signature);
         loop {
             let confirmed = self
                 .client
@@ -288,11 +313,6 @@ impl RpcConnection for SolanaRpcConnection {
         }
 
         Ok(signature)
-    }
-
-    async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {
-        let account = self.get_account(*pubkey).await.unwrap().unwrap();
-        T::deserialize(&mut &account.data[8..]).unwrap()
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {

@@ -19,10 +19,10 @@ use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::MerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::{create_mint_helper, TestIndexer};
+use light_test_utils::indexer::{Indexer, TestIndexer};
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::spl::mint_tokens_helper;
+use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use solana_sdk::instruction::{Instruction, InstructionError};
@@ -136,7 +136,7 @@ async fn test_escrow_with_compressed_pda() {
 }
 
 pub async fn perform_escrow_failing<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -166,7 +166,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
 }
 
 pub async fn perform_escrow_with_event<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -204,7 +204,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
 
 async fn create_escrow_ix<R: RpcConnection>(
     payer: &Keypair,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     seed: [u8; 32],
     context: &mut R,
@@ -248,7 +248,7 @@ async fn create_escrow_ix<R: RpcConnection>(
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
-        input_token_data: &[input_compressed_token_account_data.token_data],
+        input_token_data: &[input_compressed_token_account_data.token_data.clone()],
         lock_up_time,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -257,6 +257,7 @@ async fn create_escrow_ix<R: RpcConnection>(
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -268,13 +269,14 @@ async fn create_escrow_ix<R: RpcConnection>(
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
+        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
     let instruction = create_escrow_instruction(create_ix_inputs.clone(), escrow_amount);
     (payer_pubkey, instruction)
 }
 
 pub async fn assert_escrow<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -289,7 +291,8 @@ pub async fn assert_escrow<R: RpcConnection>(
         .iter()
         .find(|x| x.token_data.owner == token_owner_pda)
         .unwrap()
-        .token_data;
+        .token_data
+        .clone();
     assert_eq!(token_data_escrow.amount, *escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
@@ -338,7 +341,7 @@ pub async fn assert_escrow<R: RpcConnection>(
 }
 pub async fn perform_withdrawal_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -369,7 +372,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
 
 pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -397,7 +400,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
 }
 pub async fn perform_withdrawal<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -454,17 +457,19 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .await;
 
     let create_withdrawal_ix_inputs = CreateCompressedPdaWithdrawalInstructionInputs {
-        input_token_data: &[token_escrow.token_data],
+        input_token_data: &[token_escrow.token_data.clone()],
         signer: &payer_pubkey,
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         },
         input_cpda_merkle_context: MerkleContext {
             leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         },
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -478,6 +483,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         old_lock_up_time,
         new_lock_up_time,
         address: compressed_escrow_pda.compressed_account.address.unwrap(),
+        input_compressed_accounts: &[compressed_escrow_pda.compressed_account],
     };
     create_withdrawal_instruction(create_withdrawal_ix_inputs.clone(), escrow_amount)
 }
@@ -488,7 +494,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_withdrawal<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,

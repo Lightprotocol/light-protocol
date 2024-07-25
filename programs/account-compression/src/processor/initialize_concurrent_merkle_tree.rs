@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
 use crate::{
-    state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init, AccessMetadata,
-    RolloverMetadata,
+    initialize_address_queue::check_rollover_fee_sufficient, state::StateMerkleTreeAccount,
+    state_merkle_tree_from_bytes_zero_copy_init, AccessMetadata, RolloverMetadata,
 };
 
 #[allow(unused_variables)]
@@ -20,7 +20,7 @@ pub fn process_initialize_state_merkle_tree(
     network_fee: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
-    rent: u64,
+    merkle_tree_rent: u64,
     queue_rent: u64,
 ) -> Result<()> {
     // Initialize new Merkle trees.
@@ -29,10 +29,20 @@ pub fn process_initialize_state_merkle_tree(
 
         let rollover_fee = match rollover_threshold {
             Some(rollover_threshold) => {
-                compute_rollover_fee(rollover_threshold, *height, rent)
-                    .map_err(ProgramError::from)?
-                    + compute_rollover_fee(rollover_threshold, *height, queue_rent)
+                let rollover_fee =
+                    compute_rollover_fee(rollover_threshold, *height, merkle_tree_rent)
                         .map_err(ProgramError::from)?
+                        + compute_rollover_fee(rollover_threshold, *height, queue_rent)
+                            .map_err(ProgramError::from)?;
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    queue_rent,
+                    merkle_tree_rent,
+                    rollover_threshold,
+                    *height,
+                )?;
+                msg!(" state Merkle tree rollover_fee: {}", rollover_fee);
+                rollover_fee
             }
             None => 0,
         };

@@ -25,6 +25,7 @@ type TokenData = {
     amount: BN;
     delegate: PublicKey | null;
     state: number;
+    tlv: Buffer | null;
 };
 
 export type EventWithParsedTokenTlvData = {
@@ -157,8 +158,11 @@ export async function getCompressedTokenAccountsByOwnerTest(
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
 
-    return compressedTokenAccounts.filter(
+    const accounts = compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
+    );
+    return accounts.sort(
+        (a, b) => b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
     );
 }
 

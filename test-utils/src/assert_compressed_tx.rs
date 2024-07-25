@@ -1,10 +1,7 @@
 use crate::get_concurrent_merkle_tree;
+use crate::indexer::Indexer;
 use crate::rpc::rpc_connection::RpcConnection;
-use crate::{
-    get_hash_set,
-    indexer::{StateMerkleTreeAccounts, TestIndexer},
-    AccountZeroCopy,
-};
+use crate::{get_hash_set, indexer::StateMerkleTreeAccounts, AccountZeroCopy};
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
@@ -13,15 +10,15 @@ use light_system_program::sdk::{
     event::PublicTransactionEvent,
     invoke::get_sol_pool_pda,
 };
+use log::debug;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::pubkey::Pubkey;
 
-pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>
-{
+pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>> {
     pub rpc: &'a mut R,
-    pub test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    pub test_indexer: &'a mut I,
     pub output_compressed_accounts: &'a [CompressedAccount],
     pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
@@ -47,8 +44,8 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
-    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE, R>,
+pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R>>(
+    input: AssertCompressedTransactionInputs<'_, R, I>,
 ) {
     // CHECK 1
     assert_created_compressed_accounts(
@@ -216,8 +213,8 @@ pub fn assert_public_transaction_event(
             .iter_mut()
             .find(|x| x.pubkey == merkle_tree_pubkey);
         if index.is_none() {
-            println!("reference sequence numbers: {:?}", sequence_numbers);
-            println!("event: {:?}", event);
+            debug!("reference sequence numbers: {:?}", sequence_numbers);
+            debug!("event: {:?}", event);
             panic!(
                 "merkle tree pubkey not found in sequence numbers : {:?}",
                 merkle_tree_pubkey
@@ -248,10 +245,10 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
+    test_indexer: &mut I,
 ) -> Vec<MerkleTreeSequenceNumber> {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
@@ -263,47 +260,39 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             snapshot.accounts.merkle_tree,
         )
         .await;
+        debug!("sequence number: {:?}", merkle_tree.next_index() as u64);
+        debug!("next index: {:?}", snapshot.next_index);
+        debug!("prev sequence number: {:?}", snapshot.num_added_accounts);
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
             seq: merkle_tree.sequence_number() as u64,
         });
         if merkle_tree.root() == snapshot.root {
-            println!("deduped_snapshots: {:?}", deduped_snapshots);
-            println!("i: {:?}", i);
-            panic!("merkle tree root update failed");
+            debug!("deduped_snapshots: {:?}", deduped_snapshots);
+            debug!("i: {:?}", i);
+            panic!("merkle tree root update failed, it should have updated but didn't");
         }
         assert_eq!(
             merkle_tree.next_index(),
             snapshot.next_index + snapshot.num_added_accounts
         );
         let test_indexer_merkle_tree = test_indexer
-            .state_merkle_trees
+            .get_state_merkle_trees_mut()
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
             .expect("merkle tree not found in test indexer");
 
         if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
             // The following lines are just debug prints
-            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
+            debug!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
             for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
                 .iter()
                 .enumerate()
             {
-                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
+                debug!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
             }
             for i in 0..16 {
-                println!("root {} {:?}", i, merkle_tree.roots.get(i));
-            }
-            for i in 0..5 {
-                test_indexer_merkle_tree
-                    .merkle_tree
-                    .update(&[0u8; 32], 15 - i)
-                    .unwrap();
-                println!(
-                    "roll back root {} {:?}",
-                    15 - i,
-                    test_indexer_merkle_tree.merkle_tree.root()
-                );
+                debug!("root {} {:?}", i, merkle_tree.roots.get(i));
             }
 
             panic!("merkle tree root update failed");
@@ -318,7 +307,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
 /// 2. next_index
 /// 3. num_added_accounts // so that we can assert the expected next index after tx
 /// 4. lamports of all bundle accounts
-pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
     rpc: &mut R,
     accounts: &[StateMerkleTreeAccounts],
 ) -> Vec<MerkleTreeTestSnapShot> {

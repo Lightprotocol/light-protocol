@@ -1,5 +1,5 @@
 export type AccountCompression = {
-    version: '0.4.1';
+    version: '0.5.0';
     name: 'account_compression';
     constants: [
         {
@@ -35,7 +35,7 @@ export type AccountCompression = {
         {
             name: 'STATE_NULLIFIER_QUEUE_VALUES';
             type: 'u16';
-            value: '6857';
+            value: '28_807';
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD';
@@ -65,12 +65,12 @@ export type AccountCompression = {
         {
             name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG';
             type: 'u64';
-            value: '256';
+            value: '1400';
         },
         {
             name: 'ADDRESS_QUEUE_VALUES';
             type: 'u16';
-            value: '6857';
+            value: '28_807';
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD';
@@ -104,15 +104,17 @@ export type AccountCompression = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
             ];
             args: [
                 {
                     name: 'index';
                     type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
                 },
                 {
                     name: 'programOwner';
@@ -253,7 +255,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -296,7 +298,8 @@ export type AccountCompression = {
         {
             name: 'initializeGroupAuthority';
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access',
+                'to the same Merkle trees by registering the programs to the group)',
             ];
             accounts: [
                 {
@@ -383,6 +386,32 @@ export type AccountCompression = {
             args: [];
         },
         {
+            name: 'deregisterProgram';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'groupAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'closeRecipient';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
             name: 'initializeStateMerkleTreeAndNullifierQueue';
             docs: [
                 'Initializes a new Merkle tree from config bytes.',
@@ -405,19 +434,16 @@ export type AccountCompression = {
                     isSigner: false;
                 },
                 {
-                    name: 'systemProgram';
+                    name: 'registeredProgramPda';
                     isMut: false;
                     isSigner: false;
+                    isOptional: true;
                 },
             ];
             args: [
                 {
                     name: 'index';
                     type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
                 },
                 {
                     name: 'programOwner';
@@ -531,7 +557,7 @@ export type AccountCompression = {
                     };
                 },
                 {
-                    name: 'indices';
+                    name: 'leafIndices';
                     type: {
                         vec: 'u64';
                     };
@@ -590,7 +616,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -633,22 +659,6 @@ export type AccountCompression = {
     ];
     accounts: [
         {
-            name: 'groupAuthority';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'authority';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seed';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'registeredProgram';
             type: {
                 kind: 'struct';
@@ -677,7 +687,7 @@ export type AccountCompression = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -694,6 +704,22 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'groupAuthority';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'authority';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seed';
+                        type: 'publicKey';
                     },
                 ];
             };
@@ -987,99 +1013,119 @@ export type AccountCompression = {
         },
         {
             code: 6002;
-            name: 'InvalidVerifier';
-            msg: 'InvalidVerifier';
-        },
-        {
-            code: 6003;
             name: 'NumberOfLeavesMismatch';
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
         },
         {
-            code: 6004;
+            code: 6003;
             name: 'InvalidNoopPubkey';
             msg: 'Provided noop program public key is invalid';
         },
         {
-            code: 6005;
+            code: 6004;
             name: 'NumberOfChangeLogIndicesMismatch';
             msg: 'Number of change log indices mismatch';
         },
         {
-            code: 6006;
+            code: 6005;
             name: 'NumberOfIndicesMismatch';
             msg: 'Number of indices mismatch';
         },
         {
-            code: 6007;
+            code: 6006;
             name: 'NumberOfProofsMismatch';
             msg: 'NumberOfProofsMismatch';
         },
         {
-            code: 6008;
+            code: 6007;
             name: 'InvalidMerkleProof';
             msg: 'InvalidMerkleProof';
         },
         {
-            code: 6009;
-            name: 'InvalidMerkleTree';
-            msg: 'InvalidMerkleTree';
-        },
-        {
-            code: 6010;
+            code: 6008;
             name: 'LeafNotFound';
             msg: 'Could not find the leaf in the queue';
         },
         {
-            code: 6011;
+            code: 6009;
             name: 'MerkleTreeAndQueueNotAssociated';
             msg: 'MerkleTreeAndQueueNotAssociated';
         },
         {
-            code: 6012;
+            code: 6010;
             name: 'MerkleTreeAlreadyRolledOver';
             msg: 'MerkleTreeAlreadyRolledOver';
         },
         {
-            code: 6013;
+            code: 6011;
             name: 'NotReadyForRollover';
             msg: 'NotReadyForRollover';
         },
         {
-            code: 6014;
+            code: 6012;
             name: 'RolloverNotConfigured';
             msg: 'RolloverNotConfigured';
         },
         {
-            code: 6015;
+            code: 6013;
             name: 'NotAllLeavesProcessed';
             msg: 'NotAllLeavesProcessed';
         },
         {
-            code: 6016;
+            code: 6014;
             name: 'InvalidQueueType';
             msg: 'InvalidQueueType';
         },
         {
-            code: 6017;
+            code: 6015;
             name: 'InputElementsEmpty';
             msg: 'InputElementsEmpty';
         },
         {
-            code: 6018;
+            code: 6016;
             name: 'NoLeavesForMerkleTree';
             msg: 'NoLeavesForMerkleTree';
         },
         {
+            code: 6017;
+            name: 'InvalidAccountSize';
+            msg: 'InvalidAccountSize';
+        },
+        {
+            code: 6018;
+            name: 'InsufficientRolloverFee';
+            msg: 'InsufficientRolloverFee';
+        },
+        {
             code: 6019;
-            name: 'SizeMismatch';
-            msg: 'SizeMismatch';
+            name: 'UnsupportedHeight';
+            msg: 'Unsupported Merkle tree height';
+        },
+        {
+            code: 6020;
+            name: 'UnsupportedCanopyDepth';
+            msg: 'Unsupported canopy depth';
+        },
+        {
+            code: 6021;
+            name: 'InvalidSequenceThreshold';
+            msg: 'Invalid sequence threshold';
+        },
+        {
+            code: 6022;
+            name: 'UnsupportedCloseThreshold';
+            msg: 'Unsupported close threshold';
+        },
+        {
+            code: 6023;
+            name: 'InvalidAccountBalance';
+            msg: 'InvalidAccountBalance';
         },
     ];
 };
 
 export const IDL: AccountCompression = {
-    version: '0.4.1',
+    version: '0.5.0',
     name: 'account_compression',
     constants: [
         {
@@ -1115,7 +1161,7 @@ export const IDL: AccountCompression = {
         {
             name: 'STATE_NULLIFIER_QUEUE_VALUES',
             type: 'u16',
-            value: '6857',
+            value: '28_807',
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD',
@@ -1145,12 +1191,12 @@ export const IDL: AccountCompression = {
         {
             name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG',
             type: 'u64',
-            value: '256',
+            value: '1400',
         },
         {
             name: 'ADDRESS_QUEUE_VALUES',
             type: 'u16',
-            value: '6857',
+            value: '28_807',
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD',
@@ -1184,15 +1230,17 @@ export const IDL: AccountCompression = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
             ],
             args: [
                 {
                     name: 'index',
                     type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
                 },
                 {
                     name: 'programOwner',
@@ -1333,7 +1381,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -1376,7 +1424,8 @@ export const IDL: AccountCompression = {
         {
             name: 'initializeGroupAuthority',
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access',
+                'to the same Merkle trees by registering the programs to the group)',
             ],
             accounts: [
                 {
@@ -1463,6 +1512,32 @@ export const IDL: AccountCompression = {
             args: [],
         },
         {
+            name: 'deregisterProgram',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'groupAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'closeRecipient',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
             name: 'initializeStateMerkleTreeAndNullifierQueue',
             docs: [
                 'Initializes a new Merkle tree from config bytes.',
@@ -1485,19 +1560,16 @@ export const IDL: AccountCompression = {
                     isSigner: false,
                 },
                 {
-                    name: 'systemProgram',
+                    name: 'registeredProgramPda',
                     isMut: false,
                     isSigner: false,
+                    isOptional: true,
                 },
             ],
             args: [
                 {
                     name: 'index',
                     type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
                 },
                 {
                     name: 'programOwner',
@@ -1611,7 +1683,7 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
-                    name: 'indices',
+                    name: 'leafIndices',
                     type: {
                         vec: 'u64',
                     },
@@ -1670,7 +1742,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                     docs: [
                         'Signer used to receive rollover accounts rentexemption reimbursement.',
@@ -1713,22 +1785,6 @@ export const IDL: AccountCompression = {
     ],
     accounts: [
         {
-            name: 'groupAuthority',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'authority',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seed',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'registeredProgram',
             type: {
                 kind: 'struct',
@@ -1757,7 +1813,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -1774,6 +1830,22 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'groupAuthority',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'authority',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seed',
+                        type: 'publicKey',
                     },
                 ],
             },
@@ -2067,93 +2139,113 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6002,
-            name: 'InvalidVerifier',
-            msg: 'InvalidVerifier',
-        },
-        {
-            code: 6003,
             name: 'NumberOfLeavesMismatch',
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.',
         },
         {
-            code: 6004,
+            code: 6003,
             name: 'InvalidNoopPubkey',
             msg: 'Provided noop program public key is invalid',
         },
         {
-            code: 6005,
+            code: 6004,
             name: 'NumberOfChangeLogIndicesMismatch',
             msg: 'Number of change log indices mismatch',
         },
         {
-            code: 6006,
+            code: 6005,
             name: 'NumberOfIndicesMismatch',
             msg: 'Number of indices mismatch',
         },
         {
-            code: 6007,
+            code: 6006,
             name: 'NumberOfProofsMismatch',
             msg: 'NumberOfProofsMismatch',
         },
         {
-            code: 6008,
+            code: 6007,
             name: 'InvalidMerkleProof',
             msg: 'InvalidMerkleProof',
         },
         {
-            code: 6009,
-            name: 'InvalidMerkleTree',
-            msg: 'InvalidMerkleTree',
-        },
-        {
-            code: 6010,
+            code: 6008,
             name: 'LeafNotFound',
             msg: 'Could not find the leaf in the queue',
         },
         {
-            code: 6011,
+            code: 6009,
             name: 'MerkleTreeAndQueueNotAssociated',
             msg: 'MerkleTreeAndQueueNotAssociated',
         },
         {
-            code: 6012,
+            code: 6010,
             name: 'MerkleTreeAlreadyRolledOver',
             msg: 'MerkleTreeAlreadyRolledOver',
         },
         {
-            code: 6013,
+            code: 6011,
             name: 'NotReadyForRollover',
             msg: 'NotReadyForRollover',
         },
         {
-            code: 6014,
+            code: 6012,
             name: 'RolloverNotConfigured',
             msg: 'RolloverNotConfigured',
         },
         {
-            code: 6015,
+            code: 6013,
             name: 'NotAllLeavesProcessed',
             msg: 'NotAllLeavesProcessed',
         },
         {
-            code: 6016,
+            code: 6014,
             name: 'InvalidQueueType',
             msg: 'InvalidQueueType',
         },
         {
-            code: 6017,
+            code: 6015,
             name: 'InputElementsEmpty',
             msg: 'InputElementsEmpty',
         },
         {
-            code: 6018,
+            code: 6016,
             name: 'NoLeavesForMerkleTree',
             msg: 'NoLeavesForMerkleTree',
         },
         {
+            code: 6017,
+            name: 'InvalidAccountSize',
+            msg: 'InvalidAccountSize',
+        },
+        {
+            code: 6018,
+            name: 'InsufficientRolloverFee',
+            msg: 'InsufficientRolloverFee',
+        },
+        {
             code: 6019,
-            name: 'SizeMismatch',
-            msg: 'SizeMismatch',
+            name: 'UnsupportedHeight',
+            msg: 'Unsupported Merkle tree height',
+        },
+        {
+            code: 6020,
+            name: 'UnsupportedCanopyDepth',
+            msg: 'Unsupported canopy depth',
+        },
+        {
+            code: 6021,
+            name: 'InvalidSequenceThreshold',
+            msg: 'Invalid sequence threshold',
+        },
+        {
+            code: 6022,
+            name: 'UnsupportedCloseThreshold',
+            msg: 'Unsupported close threshold',
+        },
+        {
+            code: 6023,
+            name: 'InvalidAccountBalance',
+            msg: 'InvalidAccountBalance',
         },
     ],
 };

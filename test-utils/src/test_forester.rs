@@ -19,6 +19,7 @@ use light_registry::sdk::{
 };
 use light_registry::{get_forester_epoch_pda_address, ForesterEpoch, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::debug;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -53,6 +54,8 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     let pre_forester_counter = rpc
         .get_anchor_account::<ForesterEpoch>(&get_forester_epoch_pda_address(&forester.pubkey()).0)
         .await
+        .unwrap()
+        .unwrap()
         .counter;
     let onchain_merkle_tree =
         get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
@@ -75,16 +78,21 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                println!("element to nullify: {:?}", bucket.value_bytes());
+                debug!("element to nullify: {:?}", bucket.value_bytes());
                 let leaf_index: usize = state_tree_bundle
                     .merkle_tree
                     .get_leaf_index(&bucket.value_bytes())
                     .unwrap();
-                println!("leaf_index: {:?}", leaf_index);
+                debug!("leaf_index: {:?}", leaf_index);
                 compressed_account_to_nullify.push((i, bucket.value_bytes()));
             }
         }
     }
+
+    debug!(
+        "nullifying {:?} accounts ",
+        compressed_account_to_nullify.len()
+    );
 
     for (i, (index_in_nullifier_queue, compressed_account)) in
         compressed_account_to_nullify.iter().enumerate()
@@ -93,7 +101,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
-        println!("nullifying leaf: {:?}", leaf_index);
+        debug!("nullifying leaf: {:?}", leaf_index);
 
         let proof: Vec<[u8; 32]> = state_tree_bundle
             .merkle_tree
@@ -110,6 +118,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
             indices: vec![leaf_index as u64],
             proofs: vec![proof],
+            derivation: forester.pubkey(),
         });
         let instructions = [ix];
 
@@ -155,9 +164,9 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
-        println!("locally nullifying leaf_index {}", leaf_index);
-        println!("compressed_account {:?}", compressed_account);
-        println!(
+        debug!("locally nullifying leaf_index {}", leaf_index);
+        debug!("compressed_account {:?}", compressed_account);
+        debug!(
             "merkle tree pubkey {:?}",
             state_tree_bundle.accounts.merkle_tree
         );
@@ -216,7 +225,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
         array_element.sequence_number(),
         Some(
             onchain_merkle_tree.sequence_number()
-                + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+                + onchain_merkle_tree.roots.capacity()
                 + SAFETY_MARGIN as usize
         )
     );
@@ -228,12 +237,15 @@ pub async fn assert_forester_counter<R: RpcConnection>(
     pre: u64,
     num_nullified: u64,
 ) -> Result<(), RpcError> {
-    let account = rpc.get_anchor_account::<ForesterEpoch>(pubkey).await;
+    let account = rpc
+        .get_anchor_account::<ForesterEpoch>(pubkey)
+        .await?
+        .unwrap();
     if account.counter != pre + num_nullified {
-        println!("account.counter: {}", account.counter);
-        println!("pre: {}", pre);
-        println!("num_nullified: {}", num_nullified);
-        println!("forester pubkey: {:?}", pubkey);
+        debug!("account.counter: {}", account.counter);
+        debug!("pre: {}", pre);
+        debug!("num_nullified: {}", num_nullified);
+        debug!("forester pubkey: {:?}", pubkey);
         return Err(RpcError::CustomError(
             "Forester counter not updated correctly".to_string(),
         ));
@@ -242,17 +254,20 @@ pub async fn assert_forester_counter<R: RpcConnection>(
 }
 
 #[derive(Error, Debug)]
-pub enum RelayerUpdateError {}
+pub enum RelayerUpdateError {
+    #[error("Error in relayer update")]
+    RpcError,
+}
 /// Mocks the address insert logic of a forester.
 /// Gets addresses from the AddressQueue and inserts them into the AddressMerkleTree.
 /// Checks:
 /// 1. Element has been marked correctly
 /// 2. Merkle tree has been updated correctly
 /// TODO: Event has been emitted, event doesn't exist yet
-pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+pub async fn empty_address_queue_test<R: RpcConnection>(
     forester: &Keypair,
     rpc: &mut R,
-    address_tree_bundle: &mut AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>,
+    address_tree_bundle: &mut AddressMerkleTreeBundle,
     signer_is_owner: bool,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
@@ -277,6 +292,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 &get_forester_epoch_pda_address(&forester.pubkey()).0,
             )
             .await
+            .map_err(|e| RelayerUpdateError::RpcError)?
+            .unwrap()
             .counter
         } else {
             0
@@ -436,7 +453,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 )
                 .await;
 
-            let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+            let (old_low_address, _) = relayer_indexing_array
                 .find_low_element_for_nonexistent(&address.value_biguint())
                 .unwrap();
             let address_bundle = relayer_indexing_array
@@ -452,7 +469,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                     .unwrap()
                     .sequence_number()
                     .unwrap(),
-                old_sequence_number + ADDRESS_MERKLE_TREE_ROOTS as usize + SAFETY_MARGIN as usize
+                old_sequence_number + address_queue.sequence_threshold + 2 // We are doing two Merkle tree operations
             );
 
             relayer_merkle_tree
@@ -474,6 +491,32 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 relayer_merkle_tree.root(),
                 merkle_tree.root(),
                 "Root off-chain onchain inconsistent."
+            );
+
+            let changelog_entry = merkle_tree
+                .changelog
+                .get(merkle_tree.changelog_index())
+                .unwrap();
+            let path = relayer_merkle_tree
+                .get_path_of_leaf(merkle_tree.current_index(), true)
+                .unwrap();
+            assert_eq!(changelog_entry.path.as_slice(), path.as_slice());
+
+            let indexed_changelog_entry = merkle_tree
+                .indexed_changelog
+                .get(merkle_tree.indexed_changelog_index())
+                .unwrap();
+            let proof = relayer_merkle_tree
+                .get_proof_of_leaf(merkle_tree.current_index(), false)
+                .unwrap();
+            assert_eq!(
+                address_bundle.new_element,
+                indexed_changelog_entry.element.into(),
+            );
+            assert_eq!(indexed_changelog_entry.proof.as_slice(), proof.as_slice());
+            assert_eq!(
+                indexed_changelog_entry.changelog_index,
+                merkle_tree.changelog_index()
             );
         }
     }
@@ -500,7 +543,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     changelog_index: Option<u16>,
     indexed_changelog_index: Option<u16>,
     signer_is_owner: bool,
-) -> Result<Option<(MerkleTreeEvent, Signature)>, RpcError> {
+) -> Result<Option<(MerkleTreeEvent, Signature, u64)>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index,
         None => {
@@ -556,7 +599,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             program_id: ID,
             accounts: vec![
                 AccountMeta::new(forester.pubkey(), true),
-                AccountMeta::new(account_compression::ID, false),
+                AccountMeta::new(ID, false),
                 AccountMeta::new(address_queue_pubkey, false),
                 AccountMeta::new(address_merkle_tree_pubkey, false),
                 AccountMeta::new(NOOP_PROGRAM_ID, false),
@@ -579,7 +622,7 @@ pub async fn insert_addresses<R: RpcConnection>(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<Signature, RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
     let accounts = account_compression::accounts::InsertIntoQueues {
@@ -610,7 +653,7 @@ pub async fn insert_addresses<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
         Some(&context.get_payer().pubkey()),
-        &[&context.get_payer(), &context.get_payer()],
+        &[&context.get_payer()],
         latest_blockhash,
     );
     context.process_transaction(transaction).await

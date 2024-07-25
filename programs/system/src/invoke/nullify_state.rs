@@ -40,16 +40,8 @@ pub fn insert_nullifiers<
             is_signer: true,
             is_writable: true,
         },
-        AccountMeta {
-            pubkey: account_infos[1].key(),
-            is_signer: true,
-            is_writable: false,
-        },
-        AccountMeta {
-            pubkey: account_infos[2].key(),
-            is_signer: false,
-            is_writable: false,
-        },
+        AccountMeta::new_readonly(account_infos[1].key(), true),
+        AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
     // If the transaction contains at least one input compressed account a
@@ -78,17 +70,14 @@ pub fn insert_nullifiers<
                 network_fee.unwrap(),
             ));
         }
+        let account_info =
+            &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize];
         accounts.push(AccountMeta {
-            pubkey: ctx.remaining_accounts
-                [account.merkle_context.merkle_tree_pubkey_index as usize]
-                .key(),
+            pubkey: account_info.key(),
             is_signer: false,
             is_writable: false,
         });
-        account_infos.push(
-            ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize]
-                .clone(),
-        );
+        account_infos.push(account_info.clone());
     }
 
     light_heap::bench_sbf_end!("cpda_insert_nullifiers_prep_accs");

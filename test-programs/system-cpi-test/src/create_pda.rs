@@ -10,13 +10,14 @@ use light_system_program::{
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
     ProgramIsSigner,
     ProgramIsNotSigner,
     InvalidSignerSeeds,
     InvalidInvokingProgram,
     WriteToAccountNotOwned,
+    NoData,
 }
 
 pub fn process_create_pda<'info>(
@@ -85,6 +86,17 @@ pub fn process_create_pda<'info>(
                 cpi_context,
                 bump,
                 CreatePdaMode::WriteToAccountNotOwned,
+            )?;
+        }
+        CreatePdaMode::NoData => {
+            cpi_compressed_pda_transfer_as_program(
+                &ctx,
+                proof,
+                new_address_params,
+                compressed_pda,
+                cpi_context,
+                bump,
+                CreatePdaMode::NoData,
             )?;
         }
     }
@@ -161,6 +173,12 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             // account with data needs to be owned by the program
             let mut compressed_pda = compressed_pda;
             compressed_pda.compressed_account.owner = ctx.accounts.signer.key();
+            compressed_pda
+        }
+        CreatePdaMode::NoData => {
+            let mut compressed_pda = compressed_pda;
+
+            compressed_pda.compressed_account.data = None;
             compressed_pda
         }
         _ => compressed_pda,

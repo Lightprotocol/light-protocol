@@ -6,13 +6,16 @@ use account_compression::{
     errors::AccountCompressionErrorCode,
     state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, ID,
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::error::ErrorCode;
+use ark_bn254::Fr;
+use ark_ff::{BigInteger, PrimeField, UniformRand};
+use light_bounded_vec::BoundedVecError;
+use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
-use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::{
     address_tree_rollover::perform_address_merkle_tree_roll_over, create_account_instruction,
@@ -27,13 +30,18 @@ use light_test_utils::{
     test_env::create_address_merkle_tree_and_queue_account,
     test_forester::{empty_address_queue_test, insert_addresses},
 };
-use light_test_utils::{airdrop_lamports, rpc::rpc_connection::RpcConnection};
+use light_test_utils::{
+    airdrop_lamports,
+    rpc::{errors::RpcError, rpc_connection::RpcConnection},
+};
+use light_test_utils::{get_indexed_merkle_tree, transaction_params::FeeConfig};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
+use rand::thread_rng;
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     pubkey::Pubkey,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
 
@@ -42,10 +50,13 @@ use solana_sdk::{
 /// 2. inserts two addresses to the queue
 /// 3. inserts two addresses into the address Merkle tree
 /// 4. insert third address
-async fn address_queue_and_tree_functional(merkle_tree_config: &AddressMerkleTreeConfig) {
+async fn address_queue_and_tree_functional(
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+) {
     // CHECK: 1 create address Merkle tree and queue accounts
     let (mut context, _, mut address_merkle_tree_bundle) =
-        test_setup_with_address_merkle_tree(merkle_tree_config).await;
+        test_setup_with_address_merkle_tree(merkle_tree_config, queue_config).await;
     let payer = context.get_payer().insecure_clone();
     let address_queue_pubkey = address_merkle_tree_bundle.accounts.queue;
     let address_merkle_tree_pubkey = address_merkle_tree_bundle.accounts.merkle_tree;
@@ -104,28 +115,97 @@ async fn address_queue_and_tree_functional(merkle_tree_config: &AddressMerkleTre
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_default() {
-    address_queue_and_tree_functional(&AddressMerkleTreeConfig::default()).await
+    address_queue_and_tree_functional(
+        &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_custom() {
-    for changelog_size in (500..5000).step_by(500) {
-        let roots_size = changelog_size * 2;
-
-        for address_changelog_size in (250..1000).step_by(250) {
-            address_queue_and_tree_functional(&AddressMerkleTreeConfig {
-                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                changelog_size,
-                roots_size,
-                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                address_changelog_size,
-                network_fee: Some(5000),
-                rollover_threshold: Some(95),
-                close_threshold: None,
-            })
-            .await;
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
+            for queue_capacity in [5003, 6857, 7901] {
+                for address_changelog_size in (250..1000).step_by(250) {
+                    address_queue_and_tree_functional(
+                        &AddressMerkleTreeConfig {
+                            height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                            changelog_size,
+                            roots_size,
+                            canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                            address_changelog_size,
+                            network_fee: Some(5000),
+                            rollover_threshold: Some(95),
+                            close_threshold: None,
+                        },
+                        &AddressQueueConfig {
+                            capacity: queue_capacity,
+                            sequence_threshold: roots_size + SAFETY_MARGIN,
+                            network_fee: None,
+                        },
+                    )
+                    .await;
+                }
+            }
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
+    context: &mut R,
+    payer: &Keypair,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+    merkle_tree_size: usize,
+    queue_size: usize,
+) -> Result<Signature, RpcError> {
+    let queue_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        queue_size,
+        context
+            .get_minimum_balance_for_rent_exemption(queue_size)
+            .await
+            .unwrap(),
+        &ID,
+        Some(queue_keypair),
+    );
+    let mt_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        merkle_tree_size,
+        context
+            .get_minimum_balance_for_rent_exemption(merkle_tree_size)
+            .await
+            .unwrap(),
+        &ID,
+        Some(merkle_tree_keypair),
+    );
+
+    let instruction =
+        account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+            0,
+            payer.pubkey(),
+            None,
+            None,
+            merkle_tree_keypair.pubkey(),
+            queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
+        );
+    let transaction = Transaction::new_signed_with_payer(
+        &[queue_account_create_ix, mt_account_create_ix, instruction],
+        Some(&payer.pubkey()),
+        &vec![&payer, &queue_keypair, &merkle_tree_keypair],
+        context.get_latest_blockhash().await.unwrap(),
+    );
+
+    context.process_transaction(transaction.clone()).await
 }
 
 #[tokio::test]
@@ -143,11 +223,10 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     let queue_config = AddressQueueConfig::default();
     let merkle_tree_config = AddressMerkleTreeConfig::default();
 
-    let valid_queue_size = account_compression::state::QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
-    )
-    .unwrap();
-    let valid_tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+    let valid_queue_size =
+        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
+            .unwrap();
+    let valid_tree_size = AddressMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,
@@ -155,72 +234,272 @@ async fn test_address_queue_and_tree_invalid_sizes() {
         merkle_tree_config.address_changelog_size as usize,
     );
 
-    for invalid_queue_size in (8 + mem::size_of::<account_compression::state::QueueAccount>()
-        ..valid_queue_size)
-        .step_by(50_000)
+    // NOTE: Starting from 0 to the account struct size triggers a panic in Anchor
+    // macros (sadly, not assertable...), which happens earlier than our
+    // serialization error.
+    // Our recoverable error is thrown for ranges from the struct size
+    // (+ discriminator) up to the expected account size.
+
+    // Invalid MT size + invalid queue size.
+    for tree_size in
+        (8 + mem::size_of::<AddressMerkleTreeAccount>()..=valid_tree_size).step_by(200_000)
     {
-        for invalid_tree_size in (8 + mem::size_of::<
-            account_compression::state::AddressMerkleTreeAccount,
-        >()..valid_tree_size)
-            .step_by(200_000)
-        {
-            let queue_account_create_ix = create_account_instruction(
-                &payer.pubkey(),
-                invalid_queue_size,
-                context
-                    .get_minimum_balance_for_rent_exemption(invalid_queue_size)
-                    .await
-                    .unwrap(),
-                &account_compression::ID,
-                Some(&address_queue_keypair),
-            );
-            let mt_account_create_ix = create_account_instruction(
-                &payer.pubkey(),
-                invalid_tree_size,
-                context
-                    .get_minimum_balance_for_rent_exemption(invalid_tree_size)
-                    .await
-                    .unwrap(),
-                &account_compression::ID,
-                Some(&address_merkle_tree_keypair),
-            );
-
-            let instruction =  account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
-                0,
-                payer.pubkey(),
-                payer.pubkey(),
-                None,
-                address_merkle_tree_keypair.pubkey(),
-                address_queue_keypair.pubkey(),
-                merkle_tree_config.clone(),
-                queue_config.clone(),
-            );
-            let c_ix = solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
-                10_000_000,
-            );
-            let transaction = Transaction::new_signed_with_payer(
-                &[
-                    c_ix,
-                    queue_account_create_ix,
-                    mt_account_create_ix,
-                    instruction,
-                ],
-                Some(&payer.pubkey()),
-                &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
-                context.get_latest_blockhash().await.unwrap(),
-            );
-
-            let result = context.process_transaction(transaction.clone()).await;
+        for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
+            let result = initialize_address_merkle_tree_and_queue(
+                &mut context,
+                &payer,
+                &address_merkle_tree_keypair,
+                &address_queue_keypair,
+                &merkle_tree_config,
+                &queue_config,
+                tree_size,
+                queue_size,
+            )
+            .await;
             assert_rpc_error(
-                result, 3, 9006, // HashSetError::BufferSize
+                result,
+                2,
+                AccountCompressionErrorCode::InvalidAccountSize.into(),
             )
             .unwrap()
         }
     }
+    // Invalid MT size + valid queue size.
+    for tree_size in
+        (8 + mem::size_of::<AddressMerkleTreeAccount>()..=valid_tree_size).step_by(200_000)
+    {
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            valid_queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::InvalidAccountSize.into(),
+        )
+        .unwrap()
+    }
+    // Valid MT size + invalid queue size.
+    for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            valid_tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::InvalidAccountSize.into(),
+        )
+        .unwrap()
+    }
 }
 
-/// Try to insert an address to the tree while pointing to an invalid low
-/// address.
+/// Tries to initzalize Merkle tree and queue with unsupported configuration
+/// parameters:
+///
+/// 1. Merkle tree height (different than 26).
+/// 2. Merkle tree canopy depth (different than 10).
+/// 3. Merkle tree changelog size (zero).
+/// 4. Merkle tree roots size (zero).
+/// 5. Merkle tree close threshold (any).
+/// 6. Queue sequence threshold (lower than roots + safety margin).
+#[tokio::test]
+async fn test_address_queue_and_tree_invalid_config() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    let context = program_test.start_with_context().await;
+    let mut context = ProgramTestRpcConnection { context };
+    let payer = context.get_payer().insecure_clone();
+
+    let address_merkle_tree_keypair = Keypair::new();
+    let address_queue_keypair = Keypair::new();
+
+    let queue_config = AddressQueueConfig::default();
+    let merkle_tree_config = AddressMerkleTreeConfig::default();
+
+    let queue_size =
+        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
+            .unwrap();
+    let tree_size = AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+
+    for invalid_height in (0..26).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        println!("Invalid result: {}", result.as_ref().unwrap_err());
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedHeight.into(),
+        )
+        .unwrap();
+    }
+    for invalid_height in (27..50).step_by(5) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.height = invalid_height;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedHeight.into(),
+        )
+        .unwrap();
+    }
+    for invalid_canopy_depth in (0..10).step_by(3) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.canopy_depth = invalid_canopy_depth;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedCanopyDepth.into(),
+        )
+        .unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.changelog_size = 0;
+        let tree_size = AddressMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+            merkle_tree_config.address_changelog_size as usize,
+        );
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::ChangelogZero.into()).unwrap();
+    }
+    {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.roots_size = 0;
+        let tree_size = AddressMerkleTreeAccount::size(
+            merkle_tree_config.height as usize,
+            merkle_tree_config.changelog_size as usize,
+            merkle_tree_config.roots_size as usize,
+            merkle_tree_config.canopy_depth as usize,
+            merkle_tree_config.address_changelog_size as usize,
+        );
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(result, 2, ConcurrentMerkleTreeError::RootsZero.into()).unwrap();
+    }
+    for invalid_close_threshold in (0..100).step_by(20) {
+        let mut merkle_tree_config = merkle_tree_config.clone();
+        merkle_tree_config.close_threshold = Some(invalid_close_threshold);
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedCloseThreshold.into(),
+        )
+        .unwrap();
+    }
+    for invalid_sequence_threshold in
+        (0..merkle_tree_config.roots_size + SAFETY_MARGIN).step_by(200)
+    {
+        let mut queue_config = queue_config.clone();
+        queue_config.sequence_threshold = invalid_sequence_threshold;
+        let result = initialize_address_merkle_tree_and_queue(
+            &mut context,
+            &payer,
+            &address_merkle_tree_keypair,
+            &address_queue_keypair,
+            &merkle_tree_config,
+            &queue_config,
+            tree_size,
+            queue_size,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::InvalidSequenceThreshold.into(),
+        )
+        .unwrap();
+    }
+}
+
+/// Try to insert an address to the tree while providing invalid parameters.
 ///
 /// Such invalid insertion needs to be performed manually, without relayer's
 /// help (which would always insert that nullifier correctly).
@@ -238,12 +517,16 @@ async fn test_address_queue_and_tree_invalid_sizes() {
 /// 8. invalid low element proof
 /// 9. invalid changelog index (lower)
 /// 10. invalid changelog index (higher)
-/// 11. invalid queue account
-/// 12. invalid Merkle tree account
-/// 13. non-associated Merkle tree
-async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMerkleTreeConfig) {
+/// 11. invalid indexed changelog index (higher)
+/// 12. invalid queue account
+/// 13. invalid Merkle tree account
+/// 14. non-associated Merkle tree
+async fn update_address_merkle_tree_failing_tests(
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+) {
     let (mut context, payer, mut address_merkle_tree_bundle) =
-        test_setup_with_address_merkle_tree(merkle_tree_config).await;
+        test_setup_with_address_merkle_tree(merkle_tree_config, queue_config).await;
     let address_queue_pubkey = address_merkle_tree_bundle.accounts.queue;
     let address_merkle_tree_pubkey = address_merkle_tree_bundle.accounts.merkle_tree;
     // Insert a pair of addresses, correctly. Just do it with relayer.
@@ -258,7 +541,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         &mut context,
         address_queue_pubkey,
         address_merkle_tree_pubkey,
-        addresses,
+        addresses.clone(),
     )
     .await
     .unwrap();
@@ -404,7 +687,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     assert_rpc_error(
         error_invalid_low_element_index,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -429,7 +712,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     assert_rpc_error(
         error_invalid_low_element_value,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -454,7 +737,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     assert_rpc_error(
         error_invalid_low_element_next_index,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -479,7 +762,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     assert_rpc_error(
         error_invalid_low_element_next_value,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
 
@@ -505,7 +788,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     assert_rpc_error(
         error_invalid_low_element_proof,
         0,
-        10008, // ConcurrentMerkleTreeError::InvalidProof
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
     )
     .unwrap();
     let address_merkle_tree = get_indexed_merkle_tree::<
@@ -517,56 +800,91 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         16,
     >(&mut context, address_merkle_tree_pubkey)
     .await;
-    let changelog_index = address_merkle_tree.changelog_index();
-    // CHECK: 9 invalid changelog index
-    let invalid_changelog_index_low = changelog_index - 2;
-    let error_invalid_changelog_index_low = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_low as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_low,
-        0,
-        10009, // ConcurrentMerkleTreeError::InvalidProof
-    )
-    .unwrap();
 
-    let invalid_changelog_index_high = changelog_index + 2;
-    let error_invalid_changelog_index_high = update_merkle_tree(
-        &mut context,
-        &payer,
-        address_queue_pubkey,
-        address_merkle_tree_pubkey,
-        value_index,
-        low_element.index as u64,
-        bigint_to_be_bytes_array(&low_element.value).unwrap(),
-        low_element.next_index as u64,
-        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
-        Some(invalid_changelog_index_high as u16),
-        None,
-        true,
-    )
-    .await;
-    assert_rpc_error(
-        error_invalid_changelog_index_high,
-        0,
-        8003, // BoundedVecError::IterFromOutOfBounds
-    )
-    .unwrap();
-    // CHECK: 11 invalid queue account
+    let changelog_index = address_merkle_tree.changelog_index();
+
+    if merkle_tree_config.changelog_size >= 2 {
+        // CHECK: 9 invalid changelog index (lower)
+        let invalid_changelog_index_low = changelog_index - 2;
+        let error_invalid_changelog_index_low = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_low as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_low,
+            0,
+            ConcurrentMerkleTreeError::CannotUpdateLeaf.into(),
+        )
+        .unwrap();
+
+        // CHECK: 10 invalid changelog index (higher)
+        let invalid_changelog_index_high = changelog_index + 2;
+        let error_invalid_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            Some(invalid_changelog_index_high as u16),
+            None,
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_changelog_index_high,
+            0,
+            BoundedVecError::IterFromOutOfBounds.into(),
+        )
+        .unwrap();
+    }
+
+    let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
+
+    if merkle_tree_config.address_changelog_size >= 2 {
+        // CHECK: 11 invalid indexed changelog index (higher)
+        let invalid_indexed_changelog_index_high = indexed_changelog_index + 1;
+        let error_invalid_indexed_changelog_index_high = update_merkle_tree(
+            &mut context,
+            &payer,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            value_index,
+            low_element.index as u64,
+            bigint_to_be_bytes_array(&low_element.value).unwrap(),
+            low_element.next_index as u64,
+            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+            low_element_proof.to_array().unwrap(),
+            None,
+            Some(invalid_indexed_changelog_index_high as u16),
+            true,
+        )
+        .await;
+        assert_rpc_error(
+            error_invalid_indexed_changelog_index_high,
+            0,
+            BoundedVecError::IterFromOutOfBounds.into(),
+        )
+        .unwrap();
+    }
+
+    // CHECK: 12 invalid queue account
     let invalid_queue = address_merkle_tree_pubkey;
     let error_invalid_queue = update_merkle_tree(
         &mut context,
@@ -591,7 +909,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     )
     .unwrap();
 
-    // CHECK: 12 invalid Merkle tree account
+    // CHECK: 13 invalid Merkle tree account
     let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
     let invalid_merkle_tree = address_queue_pubkey;
     let error_invalid_merkle_tree = update_merkle_tree(
@@ -621,17 +939,18 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     let invalid_address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &invalid_address_merkle_tree_keypair,
         &invalid_address_queue_keypair,
         None,
         merkle_tree_config,
+        queue_config,
         2,
     )
     .await;
 
-    // CHECK: 13 non-associated Merkle tree
+    // CHECK: 14 non-associated Merkle tree
     let invalid_merkle_tree = invalid_address_merkle_tree_keypair.pubkey();
     let error_non_associated_merkle_tree = update_merkle_tree(
         &mut context,
@@ -659,16 +978,128 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
 
 #[tokio::test]
 async fn update_address_merkle_tree_failing_tests_default() {
-    update_address_merkle_tree_failing_tests(&AddressMerkleTreeConfig::default()).await
+    update_address_merkle_tree_failing_tests(
+        &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
+    )
+    .await
+}
+
+async fn update_address_merkle_tree_wrap_around(
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+) {
+    let (mut context, payer, mut address_merkle_tree_bundle) =
+        test_setup_with_address_merkle_tree(merkle_tree_config, queue_config).await;
+    let address_queue_pubkey = address_merkle_tree_bundle.accounts.queue;
+    let address_merkle_tree_pubkey = address_merkle_tree_bundle.accounts.merkle_tree;
+    // Insert a pair of addresses, correctly. Just do it with relayer.
+    let address1 = 30_u32.to_biguint().unwrap();
+    let address2 = 10_u32.to_biguint().unwrap();
+    let addresses: Vec<[u8; 32]> = vec![
+        bigint_to_be_bytes_array(&address1).unwrap(),
+        bigint_to_be_bytes_array(&address2).unwrap(),
+    ];
+
+    let (low_element, low_element_next_value) = address_merkle_tree_bundle
+        .indexed_array
+        .find_low_element_for_nonexistent(&address1)
+        .unwrap();
+    // Get the Merkle proof for updating low element.
+    let low_element_proof = address_merkle_tree_bundle
+        .merkle_tree
+        .get_proof_of_leaf(low_element.index, false)
+        .unwrap();
+
+    // Wrap around the indexed changelog with conflicting elements.
+    let mut rng = thread_rng();
+    for _ in (0..merkle_tree_config.address_changelog_size).step_by(10) {
+        let addresses: Vec<[u8; 32]> = (0..10)
+            .map(|_| {
+                Fr::rand(&mut rng)
+                    .into_bigint()
+                    .to_bytes_be()
+                    .try_into()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        insert_addresses(
+            &mut context,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            addresses,
+        )
+        .await
+        .unwrap();
+        empty_address_queue_test(&payer, &mut context, &mut address_merkle_tree_bundle, true)
+            .await
+            .unwrap();
+    }
+
+    insert_addresses(
+        &mut context,
+        address_queue_pubkey,
+        address_merkle_tree_pubkey,
+        addresses.clone(),
+    )
+    .await
+    .unwrap();
+
+    let address_queue = unsafe {
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
+            .await
+    };
+    let value_index = address_queue
+        .find_element_index(&address1, None)
+        .unwrap()
+        .unwrap();
+
+    let error = update_merkle_tree(
+        &mut context,
+        &payer,
+        address_queue_pubkey,
+        address_merkle_tree_pubkey,
+        value_index as u16,
+        low_element.index as u64,
+        bigint_to_be_bytes_array(&low_element.value).unwrap(),
+        low_element.next_index as u64,
+        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+        low_element_proof.to_array().unwrap(),
+        None,
+        None,
+        true,
+    )
+    .await;
+    assert_rpc_error(
+        error,
+        0,
+        ConcurrentMerkleTreeError::InvalidProof([0; 32], [0; 32]).into(),
+    )
+    .unwrap();
 }
 
 #[tokio::test]
-async fn update_address_merkle_tree_failing_tests_custom() {
-    for changelog_size in (500..5000).step_by(500) {
-        let roots_size = changelog_size * 2;
+async fn update_address_merkle_tree_wrap_around_default() {
+    update_address_merkle_tree_wrap_around(
+        &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
+    )
+    .await
+}
 
-        for address_changelog_size in (250..1000).step_by(250) {
-            update_address_merkle_tree_failing_tests(&AddressMerkleTreeConfig {
+#[tokio::test]
+async fn update_address_merkle_tree_wrap_around_custom() {
+    let changelog_size = 250;
+    let queue_capacity = 5003;
+    let roots_size = changelog_size * 2;
+
+    for address_changelog_size in (250..1000).step_by(250) {
+        println!(
+            "changelog_size {} queue_capacity {} address_changelog_size {}",
+            changelog_size, queue_capacity, address_changelog_size
+        );
+        update_address_merkle_tree_wrap_around(
+            &AddressMerkleTreeConfig {
                 height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
                 changelog_size,
                 roots_size,
@@ -677,9 +1108,14 @@ async fn update_address_merkle_tree_failing_tests_custom() {
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
-            })
-            .await;
-        }
+            },
+            &AddressQueueConfig {
+                capacity: queue_capacity,
+                sequence_threshold: roots_size + SAFETY_MARGIN,
+                network_fee: None,
+            },
+        )
+        .await;
     }
 }
 
@@ -690,21 +1126,25 @@ async fn update_address_merkle_tree_failing_tests_custom() {
 /// 4. Merkle tree and queue not associated (Invalid Merkle tree).
 /// 5. Successful rollover.
 /// 6. Attempt to rollover already rolled over Queue and Merkle tree.
-async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerkleTreeConfig) {
+async fn address_merkle_tree_and_queue_rollover(
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+) {
     let (mut context, payer, bundle) =
-        test_setup_with_address_merkle_tree(merkle_tree_config).await;
+        test_setup_with_address_merkle_tree(merkle_tree_config, queue_config).await;
     let address_merkle_tree_pubkey = bundle.accounts.merkle_tree;
     let address_queue_pubkey = bundle.accounts.queue;
     let address_merkle_tree_keypair_2 = Keypair::new();
     let address_queue_keypair_2 = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &address_merkle_tree_keypair_2,
         &address_queue_keypair_2,
         None,
         merkle_tree_config,
+        queue_config,
         2,
     )
     .await;
@@ -722,6 +1162,7 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -770,6 +1211,7 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -796,6 +1238,7 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_pubkey,
         &address_queue_keypair_2.pubkey(),
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -814,6 +1257,7 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_keypair_2.pubkey(),
         &address_queue_pubkey,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -838,11 +1282,13 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
         merkle_tree_config,
+        queue_config,
     )
     .await
     .unwrap();
-
+    let payer: Keypair = context.get_payer().insecure_clone();
     assert_rolled_over_address_merkle_tree_and_queue(
+        &payer.pubkey(),
         &mut context,
         &signer_prior_balance,
         &address_merkle_tree_pubkey,
@@ -863,6 +1309,7 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -876,36 +1323,53 @@ async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerk
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_default() {
-    address_merkle_tree_and_queue_rollover(&AddressMerkleTreeConfig::default()).await
+    address_merkle_tree_and_queue_rollover(
+        &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_custom() {
-    for changelog_size in (500..5000).step_by(500) {
-        let roots_size = changelog_size * 2;
-
-        for address_changelog_size in (250..1000).step_by(250) {
-            address_merkle_tree_and_queue_rollover(&AddressMerkleTreeConfig {
-                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                changelog_size,
-                roots_size,
-                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-                address_changelog_size,
-                network_fee: Some(5000),
-                rollover_threshold: Some(95),
-                close_threshold: None,
-            })
-            .await;
+    for changelog_size in [1, 1000, 2000] {
+        for roots_size in [1, 1000, 2000] {
+            if roots_size < changelog_size {
+                continue;
+            }
+            for queue_capacity in [5003, 6857, 7901] {
+                for address_changelog_size in (250..1000).step_by(250) {
+                    address_merkle_tree_and_queue_rollover(
+                        &AddressMerkleTreeConfig {
+                            height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                            changelog_size,
+                            roots_size,
+                            canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                            address_changelog_size,
+                            network_fee: Some(5000),
+                            rollover_threshold: Some(95),
+                            close_threshold: None,
+                        },
+                        &AddressQueueConfig {
+                            capacity: queue_capacity,
+                            sequence_threshold: roots_size + SAFETY_MARGIN,
+                            network_fee: None,
+                        },
+                    )
+                    .await;
+                }
+            }
         }
     }
 }
 
 pub async fn test_setup_with_address_merkle_tree(
     merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
 ) -> (
     ProgramTestRpcConnection, // rpc
     Keypair,                  // payer
-    AddressMerkleTreeBundle<200>,
+    AddressMerkleTreeBundle,
 ) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
@@ -918,12 +1382,13 @@ pub async fn test_setup_with_address_merkle_tree(
     let address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &payer.pubkey(),
+        false,
         &mut context,
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
         merkle_tree_config,
+        queue_config,
         1,
     )
     .await;
@@ -931,17 +1396,7 @@ pub async fn test_setup_with_address_merkle_tree(
     // Local indexing array and queue. We will use them to get the correct
     // elements and Merkle proofs, which we will modify later, to pass invalid
     // values. 😈
-    let mut local_indexed_array = Box::<
-        IndexedArray<
-            Poseidon,
-            usize,
-            // This is not a correct value you would normally use in relayer, A
-            // correct size would be number of leaves which the merkle tree can fit
-            // (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
-            // elements ain't easy and is not worth doing here.
-            200,
-        >,
-    >::default();
+    let mut local_indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
     local_indexed_array.init().unwrap();
 
     let mut local_merkle_tree = Box::new(
@@ -952,13 +1407,14 @@ pub async fn test_setup_with_address_merkle_tree(
         .unwrap(),
     );
     local_merkle_tree.init().unwrap();
-    let address_merkle_tree_bundle = AddressMerkleTreeBundle::<200> {
+    let address_merkle_tree_bundle = AddressMerkleTreeBundle {
         merkle_tree: local_merkle_tree,
         indexed_array: local_indexed_array,
         accounts: AddressMerkleTreeAccounts {
             merkle_tree: address_merkle_tree_keypair.pubkey(),
             queue: address_queue_keypair.pubkey(),
         },
+        rollover_fee: FeeConfig::default().address_queue_rollover as i64,
     };
     (context, payer, address_merkle_tree_bundle)
 }
@@ -968,7 +1424,7 @@ pub async fn test_with_invalid_low_element(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     address_queue: &HashSet,
-    address_merkle_tree_bundle: &AddressMerkleTreeBundle<200>,
+    address_merkle_tree_bundle: &AddressMerkleTreeBundle,
     index: usize,
     expected_error: u32,
 ) {

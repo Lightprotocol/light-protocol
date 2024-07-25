@@ -1,6 +1,6 @@
 [package]
 name = "light-test-utils"
-version = "0.2.1"
+version = "0.3.0"
 description = "Utilities used in Light Protocol program tests"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -8,38 +8,38 @@ edition = "2021"
 
 [features]
 default = []
-cpi-context = []
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
 anyhow = "1.0"
 ark-ff = "0.4"
-light-hash-set = { path = "../merkle-tree/hash-set", version = "0.2.1" }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.3.0" }
 num-bigint = "0.4"
 num-traits = "0.2"
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 thiserror = "1.0"
-light-macros = { path = "../macros/light", version = "0.4.1" }
-account-compression = { path = "../programs/account-compression", version = "0.4.1", features = ["cpi"] }
-light-compressed-token = { path = "../programs/compressed-token", version = "0.4.1", features = ["cpi"] }
-light-system-program = { path = "../programs/system", version = "0.4.1", features = ["cpi"] }
-light-registry = { path = "../programs/registry", version = "0.4.1", features = ["cpi"] }
-spl-token = { version="3.5.0", features = ["no-entrypoint"] }
-solana-transaction-status = "1.18.11"
-tokio = "1.36"
-light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.2.1" }
+light-macros = { path = "../macros/light", version = "0.5.0" }
+account-compression = { path = "../programs/account-compression", version = "0.5.0", features = ["cpi"] }
+light-compressed-token = { path = "../programs/compressed-token", version = "0.5.0", features = ["cpi"] }
+light-system-program = { path = "../programs/system", version = "0.5.0", features = ["cpi"] }
+light-registry = { path = "../programs/registry", version = "0.5.0", features = ["cpi"] }
+spl-token = { workspace = true, features = ["no-entrypoint"] }
+solana-transaction-status = { workspace = true }
+tokio = { workspace = true }
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.3.0" }
 reqwest = "0.11.26"
-light-hasher = { version = "0.2.1", path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { version = "0.2.1", path = "../merkle-tree/reference" }
-light-concurrent-merkle-tree = { version = "0.2.1", path = "../merkle-tree/concurrent" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.2.1" }
-light-verifier = { path = "../circuit-lib/verifier", version = "0.2.1" }
-light-utils = { path = "../utils", version = "0.2.1" }
+light-hasher = { version = "0.3.0", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "0.3.0", path = "../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "0.3.0", path = "../merkle-tree/concurrent" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.3.0" }
+light-verifier = { path = "../circuit-lib/verifier", version = "0.3.0" }
+light-utils = { path = "../utils", version = "0.3.0" }
 memoffset = "0.9.1"
 rand = "0.8"
-photon-api = { path = "../photon-api", version = "0.28.1" }
+photon-api = { path = "../photon-api", version = "0.29.0" }
 log = "0.4"
 
 [dev-dependencies]

@@ -6,38 +6,20 @@
     "restart-db": "docker compose down -v && docker compose up -d",
     "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
     "wait-for-db": "./scripts/wait_for_db.sh",
-    "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
+    "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres --skip-forester",
     "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
     "build": "cargo build",
-    "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --nocapture --test-threads=1",
-
-    "interop-nullify-test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test test_photon_interop_nullify_account -- --nocapture",
-    "interop-address-test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test test_photon_interop_address -- --nocapture",
-
-    "test-indexer": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
-    "address-tree-test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test empty_address_tree_test -- --nocapture",
-    "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
-    "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
-    "queue-info": "RUST_MIN_STACK=8388608 cargo test queue_info_test -- --nocapture",
-    "test-10-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify",
-    "test-1000": "pnpm restart-validator && pnpm transfer && pnpm nullify && pnpm transfer && pnpm nullify",
-    "transfer-100k": "ts-node scripts/generate_100k.ts",
-    "subscribe": "RUST_MIN_STACK=8388608 cargo run --release -- subscribe",
-    "nullify": "RUST_MIN_STACK=8388608 cargo run --release -- nullify",
-    "reindex": "RUST_MIN_STACK=8388608 cargo run --release -- index",
-    "dump-accounts": "./scripts/dump.sh",
-    "transfer": "ts-node ./scripts/generate.ts",
-    "transfer-10": "ts-node ./scripts/generate_10.ts",
-    "transfer-sync": "ts-node ./scripts/generate_sync.ts",
-    "get-queue": "ts-node ./scripts/get_queue.ts",
-    "tnt": "pnpm start-validator && pnpm transfer-sync && pnpm queue-info && pnpm nullify && pnpm queue-info && pnpm transfer-sync"
+    "test": "RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
+    "generate": "ts-node ./scripts/generate.ts"
   },
   "devDependencies": {
     "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/zk-compression-cli": "workspace:*",
-    "@solana/web3.js": "^1.91.8",
+    "@solana/web3.js": "^1.95.0",
     "borsh": "^2.0.0",
-    "ts-node": "^10.9.2"
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2",
+    "tweetnacl": "^1.0.3"
   },
   "nx": {
     "targets": {

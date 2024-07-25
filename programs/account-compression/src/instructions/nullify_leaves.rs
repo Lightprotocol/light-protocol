@@ -43,7 +43,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],
     leaves_queue_indices: &'a [u16],
-    indices: &'a [u64],
+    leaf_indices: &'a [u64],
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
     if change_log_indices.len() != 1 {
@@ -54,7 +54,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfLeavesMismatch.into());
     }
-    if indices.len() != change_log_indices.len() {
+    if leaf_indices.len() != change_log_indices.len() {
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfIndicesMismatch.into());
     }
@@ -66,7 +66,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         proofs,
         change_log_indices,
         leaves_queue_indices,
-        indices,
+        leaf_indices,
         ctx,
     )?;
 
@@ -78,7 +78,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
     proofs: &[Vec<[u8; 32]>],
     change_log_indices: &[u64],
     leaves_queue_indices: &[u16],
-    indices: &[u64],
+    leaf_indices: &[u64],
     ctx: &Context<'a, '_, 'c, 'info, NullifyLeaves<'info>>,
 ) -> Result<()> {
     {
@@ -131,18 +131,18 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
                 change_log_indices[i] as usize,
                 &leaf_cell.value_bytes(),
                 &ZERO_BYTES[0],
-                indices[i] as usize,
+                leaf_indices[i] as usize,
                 &mut proof,
             )
             .map_err(ProgramError::from)?;
 
         nullifier_queue
-            .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number())
+            .mark_with_sequence_number(*leaf_queue_index as usize, merkle_tree.sequence_number())
             .map_err(ProgramError::from)?;
     }
     let nullify_event = NullifierEvent {
         id: ctx.accounts.merkle_tree.key().to_bytes(),
-        nullified_leaves_indices: indices.to_vec(),
+        nullified_leaves_indices: leaf_indices.to_vec(),
         seq,
     };
     let nullify_event = MerkleTreeEvent::V2(nullify_event);
@@ -168,7 +168,7 @@ pub mod sdk_nullify {
     pub fn create_nullify_instruction(
         change_log_indices: &[u64],
         leaves_queue_indices: &[u16],
-        indices: &[u64],
+        leaf_indices: &[u64],
         proofs: &[Vec<[u8; 32]>],
         payer: &Pubkey,
         merkle_tree_pubkey: &Pubkey,
@@ -176,7 +176,7 @@ pub mod sdk_nullify {
     ) -> Instruction {
         let instruction_data = crate::instruction::NullifyLeaves {
             leaves_queue_indices: leaves_queue_indices.to_vec(),
-            indices: indices.to_vec(),
+            leaf_indices: leaf_indices.to_vec(),
             change_log_indices: change_log_indices.to_vec(),
             proofs: proofs.to_vec(),
         };

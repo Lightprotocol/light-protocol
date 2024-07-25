@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.4.1",
+    "version": "0.5.0",
     "description": "JavaScript API for Light and ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -35,7 +35,7 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
-        "@solana/web3.js": "^1.91.8"
+        "@solana/web3.js": "^1.95.0"
     },
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
@@ -60,19 +60,19 @@
         "@types/node": "^20.12.8",
         "@typescript-eslint/eslint-plugin": "^7.6.0",
         "eslint": "8.57.0",
-        "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+        "eslint-plugin-n": "^15.0.0 || ^16.0.0",
         "eslint-plugin-promise": "^6.0.0",
-        "eslint-plugin-vitest": "^0.3.26",
+        "eslint-plugin-vitest": "^0.5.4",
         "http-server": "^14.1.1",
-        "playwright": "^1.44.1",
-        "prettier": "^3.3.2",
+        "playwright": "^1.45.1",
+        "prettier": "^3.3.3",
         "rimraf": "^5.0.7",
         "rollup": "^4.6.1",
         "rollup-plugin-dts": "^6.1.0",
         "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-node": "^10.9.2",
         "tslib": "^2.6.2",
-        "typescript": "^5.4.5",
+        "typescript": "^5.5.3",
         "vitest": "^1.6.0"
     },
     "scripts": {
@@ -89,6 +89,7 @@
         "test:index": "vitest run tests/e2e/program.test.ts",
         "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
         "test:verbose": "vitest run --reporter=verbose",
+        "test:testnet": "vitest run tests/e2e/testnet.test.ts --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm pull-idls && pnpm build:bundle",
         "build:bundle": "rollup -c",

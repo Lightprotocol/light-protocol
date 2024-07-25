@@ -17,6 +17,10 @@ export type TokenTransferOutputData = {
      * lamports associated with the output token account
      */
     lamports: BN | null;
+    /**
+     * TokenExtension tlv
+     */
+    tlv: Buffer | null;
 };
 
 export type PackedTokenTransferOutputData = {
@@ -36,6 +40,10 @@ export type PackedTokenTransferOutputData = {
      * Merkle tree pubkey index in remaining accounts
      */
     merkleTreeIndex: number;
+    /**
+     * TokenExtension tlv
+     */
+    tlv: Buffer | null;
 };
 
 export type InputTokenDataWithContext = {
@@ -63,6 +71,10 @@ export type InputTokenDataWithContext = {
      * Lamports in the input token account.
      */
     lamports: BN | null;
+    /**
+     * TokenExtension tlv
+     */
+    tlv: Buffer | null;
 };
 
 export type CompressedTokenInstructionDataInvoke = {
@@ -96,6 +108,10 @@ export type CompressedTokenInstructionDataInvoke = {
      * accounts'
      */
     outputStateMerkleTreeAccountIndices: Buffer;
+    /**
+     * The index of the Merkle tree for a lamport change account.
+     */
+    lamportsChangeAccountMerkleTreeIndex: number | null;
 };
 
 export type TokenData = {
@@ -120,4 +136,8 @@ export type TokenData = {
      * The account's state
      */
     state: number;
+    /**
+     * TokenExtension tlv
+     */
+    tlv: Buffer | null;
 };

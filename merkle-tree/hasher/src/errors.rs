@@ -28,8 +28,8 @@ impl From<HasherError> for u32 {
             #[cfg(not(target_os = "solana"))]
             HasherError::Poseidon(_) => 7002,
             #[cfg(target_os = "solana")]
-            HasherError::PoseidonSyscall(e) => (u64::from(e)).try_into().unwrap_or(7002),
-            HasherError::UnknownSolanaSyscall(e) => e.try_into().unwrap_or(7002),
+            HasherError::PoseidonSyscall(e) => (u64::from(e)).try_into().unwrap_or(7003),
+            HasherError::UnknownSolanaSyscall(e) => e.try_into().unwrap_or(7004),
         }
     }
 }

@@ -43,10 +43,11 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
         owner: ctx.accounts.signer.key(),
         lamports: None,
         merkle_tree_index: output_state_merkle_tree_account_indices[0],
+        tlv: None,
     };
     let escrow_change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
-        &[withdrawal_token_data],
+        &[withdrawal_token_data.clone()],
         &ctx.accounts.token_owner_pda.key(),
         output_state_merkle_tree_account_indices[1],
     );
@@ -127,13 +128,14 @@ fn cpi_compressed_pda_withdrawal<'info>(
     proof: CompressedProof,
     old_state: PackedCompressedAccountWithMerkleContext,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
+    mut cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
     // Create CPI signer seed
     let bump_seed = &[bump];
     let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
+    cpi_context.first_set_context = false;
 
     // Create CPI inputs
     let inputs_struct = InstructionDataInvokeCpi {
@@ -152,6 +154,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
 
     Ok(())
 }
+
 // TODO: test with delegate (is disabled right now)
 #[inline(never)]
 pub fn cpi_compressed_token_withdrawal<'info>(
@@ -178,6 +181,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
         is_compress: false,
         compress_or_decompress_amount: None,
         cpi_context: Some(cpi_context),
+        lamports_change_account_merkle_tree_index: None,
     };
 
     let mut inputs = Vec::new();

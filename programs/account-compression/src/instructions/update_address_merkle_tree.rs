@@ -44,13 +44,11 @@ pub fn process_update_address_merkle_tree<'info>(
     // Address to dequeue.
     value_index: u16,
     // Low address.
-    low_address_index: u64,
-    low_address_value: [u8; 32],
-    low_address_next_index: u64,
-    // Value of the next address.
-    low_address_next_value: [u8; 32],
-    // Merkle proof for updating the low address.
-    low_address_proof: [[u8; 32]; 16],
+    low_address_value: [u8; 32],       // included in leaf hash
+    low_address_next_index: u64,       // included in leaf hash
+    low_address_next_value: [u8; 32],  // included in leaf hash
+    low_address_index: u64,            // leaf index of low element
+    low_address_proof: [[u8; 32]; 16], // Merkle proof for updating the low address.
 ) -> Result<()> {
     let address_queue = ctx.accounts.queue.to_account_info();
     let mut address_queue = address_queue.try_borrow_mut_data()?;
@@ -76,22 +74,19 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut merkle_tree = merkle_tree.try_borrow_mut_data()?;
     let mut merkle_tree = address_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
 
-    let sequence_number = merkle_tree.sequence_number();
-
     let value = address_queue
         .get_unmarked_bucket(value_index as usize)
         .ok_or(AccountCompressionErrorCode::LeafNotFound)?
         .ok_or(AccountCompressionErrorCode::LeafNotFound)?
         .value_biguint();
 
-    // Update the address with ranges adjusted to the Merkle tree state.
-    let address: IndexedElement<usize> = IndexedElement {
-        index: merkle_tree.next_index(),
-        value: value.clone(),
-        next_index: low_address_next_index as usize,
-    };
+    // Indexed Merkle tree update:
+    // - the range represented by the low element is split into two ranges
+    // - the new low element(lower range, next value is address) and the address
+    //   element (higher range, next value is low_element.next_value)
+    // - the new low element is updated, and the address element is appended
 
-    // Convert byte inputs to big integers.
+    // Lower range
     let low_address: IndexedElement<usize> = IndexedElement {
         index: low_address_index as usize,
         value: BigUint::from_bytes_be(&low_address_value),
@@ -102,17 +97,19 @@ pub fn process_update_address_merkle_tree<'info>(
 
     let mut proof =
         from_vec(low_address_proof.as_slice(), merkle_tree.height).map_err(ProgramError::from)?;
+
     // Update the Merkle tree.
     // Inputs check:
     // - address is element of (value, next_value)
     // - changelog index gets values from account
+    // - indexed changelog index gets values from account
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
     let indexed_merkle_tree_update = merkle_tree
         .update(
             usize::from(changelog_index),
             usize::from(indexed_changelog_index),
-            address,
+            value.clone(),
             low_address,
             low_address_next_value,
             &mut proof,
@@ -121,7 +118,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Mark the address with the current sequence number.
     address_queue
-        .mark_with_sequence_number(&value, sequence_number)
+        .mark_with_sequence_number(value_index as usize, merkle_tree.sequence_number())
         .map_err(ProgramError::from)?;
 
     let address_event = MerkleTreeEvent::V3(IndexedMerkleTreeEvent {
@@ -134,6 +131,5 @@ pub fn process_update_address_merkle_tree<'info>(
     emit_indexer_event(
         address_event.try_to_vec()?,
         &ctx.accounts.log_wrapper.to_account_info(),
-    )?;
-    Ok(())
+    )
 }

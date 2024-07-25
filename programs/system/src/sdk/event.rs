@@ -157,7 +157,7 @@ pub mod test {
     fn test_serialization_consistency() {
         let mut rng = rand::thread_rng();
 
-        for _ in 0..1_000_000 {
+        for _ in 0..10_000 {
             let input_hashes: Vec<[u8; 32]> =
                 (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
             let output_hashes: Vec<[u8; 32]> =

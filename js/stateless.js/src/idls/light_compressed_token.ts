@@ -1,20 +1,21 @@
 export type LightCompressedToken = {
-    version: '0.4.1';
+    version: '0.5.0';
     name: 'light_compressed_token';
     instructions: [
         {
             name: 'createTokenPool';
             docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
+                'This instruction creates a token pool for a given mint. Every spl mint',
+                'can have one token pool. When a token is compressed the tokens are',
+                'transferrred to the token pool, and their compressed equivalent is',
+                'minted into a Merkle tree.',
             ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -50,13 +51,17 @@ export type LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
+                'every amount and pubkey input pair. A constant amount of lamports can be',
+                'transferred to each output account to enable. A use case to add lamports',
+                'to a compressed token account is to prevent spam. This is the only way',
+                'to add lamports to a compressed token account.',
             ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -77,6 +82,9 @@ export type LightCompressedToken = {
                     name: 'tokenPoolPda';
                     isMut: true;
                     isSigner: false;
+                    docs: [
+                        'account to a token account of a different mint will fail',
+                    ];
                 },
                 {
                     name: 'tokenProgram';
@@ -97,6 +105,7 @@ export type LightCompressedToken = {
                     name: 'noopProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: ['programs'];
                 },
                 {
                     name: 'accountCompressionAuthority';
@@ -123,6 +132,12 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                 },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
             ];
             args: [
                 {
@@ -137,20 +152,42 @@ export type LightCompressedToken = {
                         vec: 'u64';
                     };
                 },
+                {
+                    name: 'lamports';
+                    type: {
+                        option: 'u64';
+                    };
+                },
             ];
         },
         {
             name: 'transfer';
+            docs: [
+                'Transfers compressed tokens from one account to another. All accounts',
+                'must be of the same mint. Additional spl tokens can be compressed or',
+                'decompressed. In one transaction only compression or decompression is',
+                'possible. Lamports can be transferred alongside tokens. If output token',
+                'accounts specify less lamports than inputs the remaining lamports are',
+                'transferred to an output compressed account. Signer must be owner or',
+                'delegate. If a delegated token account is transferred the delegate is',
+                'not preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -186,6 +223,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -220,16 +261,30 @@ export type LightCompressedToken = {
         },
         {
             name: 'approve';
+            docs: [
+                'Delegates an amount to a delegate. A compressed token account is either',
+                'completely delegated or not. Prior delegates are not preserved. Cannot',
+                'be called by a delegate.',
+                'The instruction creates two output accounts:',
+                '1. one account with delegated amount',
+                '2. one account with remaining(change) amount',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -265,6 +320,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -281,16 +340,26 @@ export type LightCompressedToken = {
         },
         {
             name: 'revoke';
+            docs: [
+                'Revokes a delegation. The instruction merges all inputs into one output',
+                'account. Cannot be called by a delegate. Delegates are not preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -326,6 +395,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -342,11 +415,16 @@ export type LightCompressedToken = {
         },
         {
             name: 'freeze';
+            docs: [
+                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
+                'many outputs as inputs. Balances and delegates are preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -387,6 +465,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -408,11 +490,16 @@ export type LightCompressedToken = {
         },
         {
             name: 'thaw';
+            docs: [
+                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
+                'as many outputs as inputs. Balances and delegates are preserved.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
@@ -453,6 +540,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -474,19 +565,45 @@ export type LightCompressedToken = {
         },
         {
             name: 'burn';
+            docs: [
+                'Burns compressed tokens and spl tokens from the pool account. Delegates',
+                'can burn tokens. The output compressed token account remains delegated.',
+                'Creates one output compressed token account.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'mint';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenProgram';
                     isMut: false;
                     isSigner: false;
                 },
@@ -545,11 +662,17 @@ export type LightCompressedToken = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -585,6 +708,10 @@ export type LightCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -626,24 +753,6 @@ export type LightCompressedToken = {
             ];
         },
     ];
-    accounts: [
-        {
-            name: 'RegisteredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'registeredProgramId';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-    ];
     types: [
         {
             name: 'AccessMetadata';
@@ -658,7 +767,7 @@ export type LightCompressedToken = {
                     {
                         name: 'programOwner';
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
                     },
@@ -742,10 +851,25 @@ export type LightCompressedToken = {
                 fields: [
                     {
                         name: 'setContext';
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ];
+                        type: 'bool';
+                    },
+                    {
+                        name: 'firstSetContext';
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ];
                         type: 'bool';
                     },
                     {
                         name: 'cpiContextAccountIndex';
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ];
                         type: 'u8';
                     },
                 ];
@@ -797,9 +921,9 @@ export type LightCompressedToken = {
                     {
                         name: 'delegatedTransfer';
                         docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'Is required if the signer is delegate,',
+                            '-> delegate is authority account,',
                             'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
                         ];
                         type: {
                             option: {
@@ -841,11 +965,20 @@ export type LightCompressedToken = {
                             };
                         };
                     },
+                    {
+                        name: 'lamportsChangeAccountMerkleTreeIndex';
+                        type: {
+                            option: 'u8';
+                        };
+                    },
                 ];
             };
         },
         {
             name: 'DelegatedTransfer';
+            docs: [
+                'Struct to provide the owner when the delegate is signer of the transaction.',
+            ];
             type: {
                 kind: 'struct';
                 fields: [
@@ -855,7 +988,15 @@ export type LightCompressedToken = {
                     },
                     {
                         name: 'delegateChangeAccountIndex';
-                        type: 'u8';
+                        docs: [
+                            'Index of change compressed account in output compressed accounts. In',
+                            "case that the delegate didn't spend the complete delegated compressed",
+                            'account balance the change compressed account will be delegated to her',
+                            'as well.',
+                        ];
+                        type: {
+                            option: 'u8';
+                        };
                     },
                 ];
             };
@@ -889,6 +1030,15 @@ export type LightCompressedToken = {
                         name: 'lamports';
                         type: {
                             option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
                         };
                     },
                 ];
@@ -1152,6 +1302,18 @@ export type LightCompressedToken = {
                         name: 'leafIndex';
                         type: 'u32';
                     },
+                    {
+                        name: 'queueIndex';
+                        docs: [
+                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
+                            'currently unimplemented.',
+                        ];
+                        type: {
+                            option: {
+                                defined: 'QueueIndex';
+                            };
+                        };
+                    },
                 ];
             };
         },
@@ -1177,6 +1339,15 @@ export type LightCompressedToken = {
                     {
                         name: 'merkleTreeIndex';
                         type: 'u8';
+                    },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
+                        };
                     },
                 ];
             };
@@ -1251,6 +1422,24 @@ export type LightCompressedToken = {
                         type: {
                             option: 'bytes';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'QueueIndex';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'queueId';
+                        docs: ['Id of queue in queue account.'];
+                        type: 'u8';
+                    },
+                    {
+                        name: 'index';
+                        docs: ['Index of compressed account hash in queue.'];
+                        type: 'u16';
                     },
                 ];
             };
@@ -1341,6 +1530,15 @@ export type LightCompressedToken = {
                             defined: 'AccountState';
                         };
                     },
+                    {
+                        name: 'tlv';
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ];
+                        type: {
+                            option: 'bytes';
+                        };
+                    },
                 ];
             };
         },
@@ -1369,22 +1567,23 @@ export type LightCompressedToken = {
     ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.4.1',
+    version: '0.5.0',
     name: 'light_compressed_token',
     instructions: [
         {
             name: 'createTokenPool',
             docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
+                'This instruction creates a token pool for a given mint. Every spl mint',
+                'can have one token pool. When a token is compressed the tokens are',
+                'transferrred to the token pool, and their compressed equivalent is',
+                'minted into a Merkle tree.',
             ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -1420,13 +1619,17 @@ export const IDL: LightCompressedToken = {
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
                 'Minted tokens are transferred to a pool account owned by the compressed',
                 'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
+                'every amount and pubkey input pair. A constant amount of lamports can be',
+                'transferred to each output account to enable. A use case to add lamports',
+                'to a compressed token account is to prevent spam. This is the only way',
+                'to add lamports to a compressed token account.',
             ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1447,6 +1650,9 @@ export const IDL: LightCompressedToken = {
                     name: 'tokenPoolPda',
                     isMut: true,
                     isSigner: false,
+                    docs: [
+                        'account to a token account of a different mint will fail',
+                    ],
                 },
                 {
                     name: 'tokenProgram',
@@ -1467,6 +1673,7 @@ export const IDL: LightCompressedToken = {
                     name: 'noopProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: ['programs'],
                 },
                 {
                     name: 'accountCompressionAuthority',
@@ -1493,6 +1700,12 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                 },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
             ],
             args: [
                 {
@@ -1507,20 +1720,42 @@ export const IDL: LightCompressedToken = {
                         vec: 'u64',
                     },
                 },
+                {
+                    name: 'lamports',
+                    type: {
+                        option: 'u64',
+                    },
+                },
             ],
         },
         {
             name: 'transfer',
+            docs: [
+                'Transfers compressed tokens from one account to another. All accounts',
+                'must be of the same mint. Additional spl tokens can be compressed or',
+                'decompressed. In one transaction only compression or decompression is',
+                'possible. Lamports can be transferred alongside tokens. If output token',
+                'accounts specify less lamports than inputs the remaining lamports are',
+                'transferred to an output compressed account. Signer must be owner or',
+                'delegate. If a delegated token account is transferred the delegate is',
+                'not preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1556,6 +1791,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -1590,16 +1829,30 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'approve',
+            docs: [
+                'Delegates an amount to a delegate. A compressed token account is either',
+                'completely delegated or not. Prior delegates are not preserved. Cannot',
+                'be called by a delegate.',
+                'The instruction creates two output accounts:',
+                '1. one account with delegated amount',
+                '2. one account with remaining(change) amount',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1635,6 +1888,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1651,16 +1908,26 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'revoke',
+            docs: [
+                'Revokes a delegation. The instruction merges all inputs into one output',
+                'account. Cannot be called by a delegate. Delegates are not preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1696,6 +1963,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1712,11 +1983,16 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'freeze',
+            docs: [
+                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
+                'many outputs as inputs. Balances and delegates are preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1757,6 +2033,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1778,11 +2058,16 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'thaw',
+            docs: [
+                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
+                'as many outputs as inputs. Balances and delegates are preserved.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
@@ -1823,6 +2108,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1844,19 +2133,45 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'burn',
+            docs: [
+                'Burns compressed tokens and spl tokens from the pool account. Delegates',
+                'can burn tokens. The output compressed token account remains delegated.',
+                'Creates one output compressed token account.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenProgram',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1915,11 +2230,17 @@ export const IDL: LightCompressedToken = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -1955,6 +2276,10 @@ export const IDL: LightCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                    docs: [
+                        '(different program) checked in light system program to derive',
+                        'cpi_authority_pda and check that this program is the signer of the cpi.',
+                    ],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -1996,24 +2321,6 @@ export const IDL: LightCompressedToken = {
             ],
         },
     ],
-    accounts: [
-        {
-            name: 'RegisteredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'registeredProgramId',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-    ],
     types: [
         {
             name: 'AccessMetadata',
@@ -2028,7 +2335,7 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'programOwner',
                         docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
                     },
@@ -2112,10 +2419,25 @@ export const IDL: LightCompressedToken = {
                 fields: [
                     {
                         name: 'setContext',
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ],
+                        type: 'bool',
+                    },
+                    {
+                        name: 'firstSetContext',
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ],
                         type: 'bool',
                     },
                     {
                         name: 'cpiContextAccountIndex',
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ],
                         type: 'u8',
                     },
                 ],
@@ -2167,9 +2489,9 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'delegatedTransfer',
                         docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'Is required if the signer is delegate,',
+                            '-> delegate is authority account,',
                             'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
                         ],
                         type: {
                             option: {
@@ -2211,11 +2533,20 @@ export const IDL: LightCompressedToken = {
                             },
                         },
                     },
+                    {
+                        name: 'lamportsChangeAccountMerkleTreeIndex',
+                        type: {
+                            option: 'u8',
+                        },
+                    },
                 ],
             },
         },
         {
             name: 'DelegatedTransfer',
+            docs: [
+                'Struct to provide the owner when the delegate is signer of the transaction.',
+            ],
             type: {
                 kind: 'struct',
                 fields: [
@@ -2225,7 +2556,15 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'delegateChangeAccountIndex',
-                        type: 'u8',
+                        docs: [
+                            'Index of change compressed account in output compressed accounts. In',
+                            "case that the delegate didn't spend the complete delegated compressed",
+                            'account balance the change compressed account will be delegated to her',
+                            'as well.',
+                        ],
+                        type: {
+                            option: 'u8',
+                        },
                     },
                 ],
             },
@@ -2259,6 +2598,15 @@ export const IDL: LightCompressedToken = {
                         name: 'lamports',
                         type: {
                             option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
                         },
                     },
                 ],
@@ -2526,6 +2874,18 @@ export const IDL: LightCompressedToken = {
                         name: 'leafIndex',
                         type: 'u32',
                     },
+                    {
+                        name: 'queueIndex',
+                        docs: [
+                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
+                            'currently unimplemented.',
+                        ],
+                        type: {
+                            option: {
+                                defined: 'QueueIndex',
+                            },
+                        },
+                    },
                 ],
             },
         },
@@ -2551,6 +2911,15 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'merkleTreeIndex',
                         type: 'u8',
+                    },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
+                        },
                     },
                 ],
             },
@@ -2626,6 +2995,24 @@ export const IDL: LightCompressedToken = {
                         type: {
                             option: 'bytes',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'QueueIndex',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'queueId',
+                        docs: ['Id of queue in queue account.'],
+                        type: 'u8',
+                    },
+                    {
+                        name: 'index',
+                        docs: ['Index of compressed account hash in queue.'],
+                        type: 'u16',
                     },
                 ],
             },
@@ -2714,6 +3101,15 @@ export const IDL: LightCompressedToken = {
                         docs: ["The account's state"],
                         type: {
                             defined: 'AccountState',
+                        },
+                    },
+                    {
+                        name: 'tlv',
+                        docs: [
+                            'Placeholder for TokenExtension tlv data (unimplemented)',
+                        ],
+                        type: {
+                            option: 'bytes',
                         },
                     },
                 ],

@@ -1,6 +1,6 @@
 [package]
 name = "account-compression-test"
-version = "0.2.1"
+version = "0.3.0"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -19,18 +19,19 @@ default = ["custom-heap"]
 
 [dependencies]
 
-
 [dev-dependencies]
+ark-bn254 = "0.4.0"
+ark-ff = "0.4.0"
 solana-program-test =  { workspace = true}
-light-test-utils = { version = "0.2.1", path = "../../test-utils" }
+light-test-utils = { version = "0.3.0", path = "../../test-utils" }
 reqwest = "0.11.26"
-tokio = "1.36.0"
+tokio = { workspace = true }
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
-num-bigint = "0.4.4"
+num-bigint = "0.4.6"
 num-traits = "0.2.18"
-spl-token = "3.5.0"
-anchor-spl = "0.29.0"
-anchor-lang ={ version="0.29.0" }
+spl-token = { workspace = true }
+anchor-spl = { workspace = true }
+anchor-lang = { workspace = true }
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
 light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
@@ -42,7 +43,8 @@ light-merkle-tree-reference = {path = "../../merkle-tree/reference"}
 light-bounded-vec = {path = "../../merkle-tree/bounded-vec"}
 light-utils = {path = "../../utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}
-solana-cli-output = "1.18.11"
+rand = "0.8"
+solana-cli-output = { workspace = true }
 serde_json = "1.0.114"
 solana-sdk = { workspace = true }
 thiserror = "1.0"

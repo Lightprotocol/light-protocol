@@ -2,13 +2,22 @@
 
 use std::collections::HashMap;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::process_transfer::{
-    get_cpi_authority_pda, transfer_sdk::to_account_metas,
+use account_compression::{
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
 };
+use anchor_lang::{InstructionData, ToAccountMetas};
+use light_compressed_token::{
+    get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
+};
+use light_registry::sdk::get_registered_program_pda;
 use light_system_program::{
-    invoke::processor::CompressedProof, sdk::address::pack_new_address_params,
-    sdk::compressed_account::PackedCompressedAccountWithMerkleContext, NewAddressParams,
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::pack_new_address_params,
+        compressed_account::PackedCompressedAccountWithMerkleContext,
+    },
+    NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -84,7 +93,9 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
     pub token_transfer_data: Option<crate::TokenTransferData>,
     pub cpi_context: Option<crate::CompressedCpiContext>,
+    pub invalid_fee_payer: &'a Pubkey,
 }
+
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
     mode: crate::WithInputAccountsMode,
@@ -97,6 +108,7 @@ pub fn create_invalidate_not_owned_account_instruction(
     remaining_accounts.insert(*input_params.input_merkle_tree_pubkey, 0);
     remaining_accounts.insert(*input_params.input_nullifier_pubkey, 1);
     remaining_accounts.insert(*input_params.cpi_context_account, 2);
+    remaining_accounts.insert(*input_params.invalid_fee_payer, 3);
 
     let instruction_data = crate::instruction::WithInputAccounts {
         proof: Some(input_params.proof.clone()),
@@ -104,7 +116,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         bump,
         mode,
         cpi_context,
-        token_transfer_data: input_params.token_transfer_data,
+        token_transfer_data: input_params.token_transfer_data.clone(),
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -112,10 +124,15 @@ pub fn create_invalidate_not_owned_account_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda =
+        light_compressed_token::process_transfer::get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-
+    let mint = match input_params.token_transfer_data.as_ref() {
+        Some(data) => data.mint,
+        None => Pubkey::new_unique(),
+    };
+    let token_pool_account = get_token_pool_pda(&mint);
     let accounts = crate::accounts::InvalidateNotOwnedCompressedAccount {
         signer: *input_params.signer,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
@@ -128,12 +145,99 @@ pub fn create_invalidate_not_owned_account_instruction(
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
         compressed_token_program: light_compressed_token::ID,
+        invalid_fee_payer: *input_params.invalid_fee_payer,
+        token_pool_account,
+        mint,
+        token_program: anchor_spl::token::ID,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
     Instruction {
         program_id: crate::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    }
+}
+pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::ID)
+}
+
+pub fn create_initialize_address_merkle_tree_and_queue_instruction(
+    index: u64,
+    payer: Pubkey,
+    program_owner: Option<Pubkey>,
+    merkle_tree_pubkey: Pubkey,
+    queue_pubkey: Pubkey,
+    address_merkle_tree_config: AddressMerkleTreeConfig,
+    address_queue_config: AddressQueueConfig,
+    invalid_group: bool,
+) -> Instruction {
+    let register_program_pda = if invalid_group {
+        get_registered_program_pda(&light_registry::ID)
+    } else {
+        get_registered_program_pda(&crate::ID)
+    };
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeAddressMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: address_merkle_tree_config,
+        queue_config: address_queue_config,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    nullifier_queue_pubkey: Pubkey,
+    state_merkle_tree_config: StateMerkleTreeConfig,
+    nullifier_queue_config: NullifierQueueConfig,
+    program_owner: Option<Pubkey>,
+    index: u64,
+    additional_rent: u64,
+    invalid_group: bool,
+) -> Instruction {
+    let register_program_pda = if invalid_group {
+        get_registered_program_pda(&light_registry::ID)
+    } else {
+        get_registered_program_pda(&crate::ID)
+    };
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeStateMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: state_merkle_tree_config,
+        queue_config: nullifier_queue_config,
+        additional_rent,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: nullifier_queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     }
 }

@@ -31,7 +31,7 @@ impl RolloverMetadata {
         Self {
             index,
             rollover_fee,
-            rollover_threshold: rollover_threshold.unwrap_or_default(),
+            rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
             network_fee,
             rolledover_slot: u64::MAX,
             close_threshold: close_threshold.unwrap_or(u64::MAX),
@@ -39,15 +39,53 @@ impl RolloverMetadata {
     }
 
     pub fn rollover(&mut self) -> Result<()> {
-        if self.rollover_threshold == 0 {
+        if self.rollover_threshold == u64::MAX {
             return err!(crate::errors::AccountCompressionErrorCode::RolloverNotConfigured);
         }
         if self.rolledover_slot != u64::MAX {
             return err!(crate::errors::AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver);
         }
 
-        self.rolledover_slot = Clock::get()?.slot;
-
+        #[cfg(target_os = "solana")]
+        {
+            self.rolledover_slot = Clock::get()?.slot;
+        }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rollover_metadata() {
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, Some(100));
+        assert_eq!(metadata.rollover_threshold, 95);
+        assert_eq!(metadata.close_threshold, 100);
+        assert_eq!(metadata.rolledover_slot, u64::MAX);
+
+        metadata.rollover().unwrap();
+
+        let mut metadata = RolloverMetadata::new(0, 0, None, 0, None);
+        assert_eq!(metadata.rollover_threshold, u64::MAX);
+        assert_eq!(metadata.close_threshold, u64::MAX);
+
+        assert_eq!(
+            metadata.rollover(),
+            Err(crate::errors::AccountCompressionErrorCode::RolloverNotConfigured.into())
+        );
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None);
+        assert_eq!(metadata.close_threshold, u64::MAX);
+
+        metadata.rollover().unwrap();
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None);
+        metadata.rolledover_slot = 0;
+        assert_eq!(metadata.close_threshold, u64::MAX);
+
+        assert_eq!(
+            metadata.rollover(),
+            Err(crate::errors::AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into())
+        );
     }
 }

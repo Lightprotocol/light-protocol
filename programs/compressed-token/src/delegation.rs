@@ -7,6 +7,7 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
+    constants::NOT_FROZEN,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts,
@@ -24,8 +25,11 @@ pub struct CompressedTokenInstructionDataApprove {
     pub cpi_context: Option<CompressedCpiContext>,
     pub delegate: Pubkey,
     pub delegated_amount: u64,
+    /// Index in remaining accounts.
     pub delegate_merkle_tree_index: u8,
+    /// Index in remaining accounts.
     pub change_account_merkle_tree_index: u8,
+    pub delegate_lamports: Option<u64>,
 }
 
 /// Processes an approve instruction.
@@ -59,8 +63,7 @@ pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts.light_system_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn create_input_and_output_accounts_approve(
@@ -71,8 +74,8 @@ pub fn create_input_and_output_accounts_approve(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
+    let (mut compressed_input_accounts, input_token_data, sum_lamports) =
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
             remaining_accounts,
@@ -84,28 +87,70 @@ pub fn create_input_and_output_accounts_approve(
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
-    let mut output_compressed_accounts =
-        vec![OutputCompressedAccountWithPackedContext::default(); 2];
+
+    let delegated_lamports = inputs.delegate_lamports.unwrap_or(0);
+    let change_lamports = match sum_lamports.checked_sub(delegated_lamports) {
+        Some(change_lamports) => change_lamports,
+        None => return err!(ErrorCode::ArithmeticUnderflow),
+    };
+
     let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
 
+    let lamports = if sum_lamports != 0 {
+        let change_lamports = if change_lamports != 0 {
+            Some(change_lamports)
+        } else {
+            None
+        };
+        Some(vec![inputs.delegate_lamports, change_lamports])
+    } else {
+        None
+    };
+    // Only create outputs if the change amount is not zero.
+    let (
+        mut output_compressed_accounts,
+        pubkeys,
+        is_delegate,
+        amounts,
+        lamports,
+        merkle_tree_indices,
+    ) = if change_amount > 0 || change_lamports > 0 {
+        (
+            vec![OutputCompressedAccountWithPackedContext::default(); 2],
+            vec![*authority, *authority],
+            Some(vec![true, false]),
+            vec![inputs.delegated_amount, change_amount],
+            lamports,
+            vec![
+                inputs.delegate_merkle_tree_index,
+                inputs.change_account_merkle_tree_index,
+            ],
+        )
+    } else {
+        (
+            vec![OutputCompressedAccountWithPackedContext::default(); 1],
+            vec![*authority],
+            Some(vec![true]),
+            vec![inputs.delegated_amount],
+            lamports,
+            vec![inputs.delegate_merkle_tree_index],
+        )
+    };
     create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
-        &[*authority; 2],
+        pubkeys.as_slice(),
         Some(inputs.delegate),
-        Some(vec![true, false]),
-        &[inputs.delegated_amount, change_amount],
-        None,
+        is_delegate,
+        amounts.as_slice(),
+        lamports,
         &hashed_mint,
-        &[
-            inputs.delegate_merkle_tree_index,
-            inputs.change_account_merkle_tree_index,
-        ],
+        &merkle_tree_indices,
     )?;
-    add_token_data_to_input_compressed_accounts::<false>(
+    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -156,8 +201,8 @@ pub fn create_input_and_output_accounts_revoke(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
+    let (mut compressed_input_accounts, input_token_data, sum_lamports) =
+        get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
             &None,
             remaining_accounts,
@@ -165,6 +210,11 @@ pub fn create_input_and_output_accounts_revoke(
             &inputs.mint,
         )?;
     let sum_inputs = input_token_data.iter().map(|x| x.amount).sum::<u64>();
+    let lamports = if sum_lamports != 0 {
+        Some(vec![Some(sum_lamports)])
+    } else {
+        None
+    };
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); 1];
     let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
@@ -179,11 +229,11 @@ pub fn create_input_and_output_accounts_revoke(
         None,
         None,
         &[sum_inputs],
-        None, // TODO: add wrapped sol support
+        lamports,
         &hashed_mint,
         &[inputs.output_account_merkle_tree_index],
     )?;
-    add_token_data_to_input_compressed_accounts::<false>(
+    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -196,7 +246,8 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -218,9 +269,11 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub mint: Pubkey,
         pub delegated_amount: u64,
+        pub delegate_lamports: Option<u64>,
         pub delegated_compressed_account_merkle_tree: Pubkey,
         pub change_compressed_account_merkle_tree: Pubkey,
         pub delegate: Pubkey,
@@ -236,6 +289,7 @@ pub mod sdk {
                     inputs.change_compressed_account_merkle_tree,
                 ],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
@@ -259,6 +313,7 @@ pub mod sdk {
             delegated_amount: inputs.delegated_amount,
             delegate_merkle_tree_index: *delegated_merkle_tree_index as u8,
             change_account_merkle_tree_index: *change_account_merkle_tree_index as u8,
+            delegate_lamports: inputs.delegate_lamports,
         };
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
@@ -303,6 +358,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub mint: Pubkey,
         pub output_account_merkle_tree: Pubkey,
@@ -315,6 +371,7 @@ pub mod sdk {
             create_input_output_and_remaining_accounts(
                 &[inputs.output_account_merkle_tree],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
@@ -422,10 +479,12 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -434,10 +493,12 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: None,
                 lamports: None,
+                tlv: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataApprove {
@@ -449,6 +510,7 @@ mod test {
             delegated_amount: 50,
             delegate_merkle_tree_index: 0,
             change_account_merkle_tree_index: 1,
+            delegate_lamports: None,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
             create_input_and_output_accounts_approve(&inputs, &authority, &remaining_accounts)
@@ -461,6 +523,7 @@ mod test {
             amount: 151,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_delegated_token_data = TokenData {
             mint,
@@ -468,6 +531,7 @@ mod test {
             amount: 50,
             delegate: Some(delegate),
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
             vec![expected_delegated_token_data, expected_change_token_data],
@@ -521,10 +585,12 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -533,10 +599,12 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
+                tlv: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataRevoke {
@@ -557,6 +625,7 @@ mod test {
             amount: 201,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let expected_compressed_output_accounts =
             create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);

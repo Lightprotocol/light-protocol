@@ -8,11 +8,9 @@ on:
         type: choice
         options:
           - all
-          - circuit-lib.js
           - cli
           - compressed-token
           - hasher.rs
-          - prover.js
           - stateless.js
       version:
         description: Version to release
@@ -35,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2.4.0
+        uses: pnpm/action-setup@v4.0.0
         with:
           run_install: false
 

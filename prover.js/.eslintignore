@@ -1,5 +1,0 @@
-node_modules
-lib
-tests/circuits
-vitest.config.js
-rollup.config.js

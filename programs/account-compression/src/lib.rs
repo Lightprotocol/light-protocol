@@ -4,10 +4,8 @@ pub mod instructions;
 pub use instructions::*;
 pub mod state;
 pub use state::*;
-pub mod config_accounts;
-pub mod utils;
-pub use config_accounts::*;
 pub mod processor;
+pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
@@ -36,7 +34,6 @@ pub mod account_compression {
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
-        owner: Pubkey,
         program_owner: Option<Pubkey>,
         address_merkle_tree_config: AddressMerkleTreeConfig,
         address_queue_config: AddressQueueConfig,
@@ -44,7 +41,6 @@ pub mod account_compression {
         process_initialize_address_merkle_tree_and_queue(
             ctx,
             index,
-            owner,
             program_owner,
             address_merkle_tree_config,
             address_queue_config,
@@ -84,10 +80,10 @@ pub mod account_compression {
             changelog_index,
             indexed_changelog_index,
             value,
-            low_address_index,
             low_address_value,
             low_address_next_index,
             low_address_next_value,
+            low_address_index,
             low_address_proof,
         )
     }
@@ -98,7 +94,8 @@ pub mod account_compression {
         process_rollover_address_merkle_tree_and_queue(ctx)
     }
 
-    /// initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)
+    /// initialize group (a group can be used to give multiple programs access
+    /// to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
         authority: Pubkey,
@@ -125,12 +122,15 @@ pub mod account_compression {
         process_register_program(ctx)
     }
 
+    pub fn deregister_program(_ctx: Context<DeregisterProgram>) -> Result<()> {
+        Ok(())
+    }
+
     /// Initializes a new Merkle tree from config bytes.
     /// Index is an optional identifier and not checked by the program.
-    pub fn initialize_state_merkle_tree_and_nullifier_queue(
-        ctx: Context<InitializeStateMerkleTreeAndNullifierQueue>,
+    pub fn initialize_state_merkle_tree_and_nullifier_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
         index: u64,
-        owner: Pubkey,
         program_owner: Option<Pubkey>,
         state_merkle_tree_config: StateMerkleTreeConfig,
         nullifier_queue_config: NullifierQueueConfig,
@@ -141,7 +141,6 @@ pub mod account_compression {
         process_initialize_state_merkle_tree_and_nullifier_queue(
             ctx,
             index,
-            owner,
             program_owner,
             state_merkle_tree_config,
             nullifier_queue_config,
@@ -160,14 +159,14 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
         change_log_indices: Vec<u64>,
         leaves_queue_indices: Vec<u16>,
-        indices: Vec<u64>,
+        leaf_indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {
         process_nullify_leaves(
             &ctx,
             &change_log_indices,
             &leaves_queue_indices,
-            &indices,
+            &leaf_indices,
             &proofs,
         )
     }

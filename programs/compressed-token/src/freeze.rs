@@ -52,7 +52,6 @@ pub fn process_freeze_or_thaw<
             &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
         )?;
-    // TODO: implement trait for TransferInstruction and FreezeInstruction
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
@@ -63,8 +62,7 @@ pub fn process_freeze_or_thaw<
         ctx.accounts.light_system_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn create_input_and_output_accounts_freeze_or_thaw<
@@ -78,7 +76,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
-    let (mut compressed_input_accounts, input_token_data) =
+    let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
             &inputs.owner,
             &None,
@@ -110,7 +108,8 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
 }
 
 /// This is a separate function from create_output_compressed_accounts to allow
-/// for a flexible number of delegates.
+/// for a flexible number of delegates. create_output_compressed_accounts only
+/// supports one delegate.
 fn create_token_output_accounts<const IS_FROZEN: bool>(
     input_token_data_with_context: &[InputTokenDataWithContext],
     remaining_accounts: &[AccountInfo],
@@ -119,16 +118,20 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     outputs_merkle_tree_index: &u8,
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
-    for (i, token_data) in input_token_data_with_context.iter().enumerate() {
-        // 83 =
-        //      32  mint
-        // +    32  owner
-        // +    8   amount
-        // +    1   delegate
-        // +    1   state
-        // +    8   delegated_amount
-        let mut token_data_bytes = Vec::with_capacity(83);
-        let delegate = token_data
+    for (i, token_data_with_context) in input_token_data_with_context.iter().enumerate() {
+        // 106/74 =
+        //      32      mint
+        // +    32      owner
+        // +    8       amount
+        // +    1 + 32  option + delegate (optional)
+        // +    1       state
+        let capacity = if token_data_with_context.delegate_index.is_some() {
+            106
+        } else {
+            74
+        };
+        let mut token_data_bytes = Vec::with_capacity(capacity);
+        let delegate = token_data_with_context
             .delegate_index
             .map(|index| remaining_accounts[index as usize].key());
         let state = if IS_FROZEN {
@@ -140,9 +143,10 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         let token_data = TokenData {
             mint: *mint,
             owner: *owner,
-            amount: token_data.amount,
+            amount: token_data_with_context.amount,
             delegate,
             state,
+            tlv: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
 
@@ -152,11 +156,10 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             data: token_data_bytes,
             data_hash,
         };
-
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
-                lamports: 0,
+                lamports: token_data_with_context.lamports.unwrap_or(0),
                 data: Some(data),
                 address: None,
             },
@@ -165,6 +168,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     }
     Ok(())
 }
+
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataThaw {
     pub proof: CompressedProof,
@@ -179,7 +183,8 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -198,6 +203,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
+        pub input_compressed_accounts: Vec<CompressedAccount>,
         pub input_merkle_contexts: Vec<MerkleContext>,
         pub outputs_merkle_tree: Pubkey,
     }
@@ -209,6 +215,7 @@ pub mod sdk {
             create_input_output_and_remaining_accounts(
                 &[inputs.outputs_merkle_tree],
                 &inputs.input_token_data,
+                &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
@@ -287,6 +294,7 @@ pub mod test_freeze {
     use crate::{
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::AccountState, TokenData,
     };
+    use rand::Rng;
 
     use super::*;
     use anchor_lang::solana_program::account_info::AccountInfo;
@@ -350,10 +358,12 @@ pub mod test_freeze {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: None,
                 lamports: None,
+                tlv: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -362,10 +372,12 @@ pub mod test_freeze {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
+                    queue_index: None,
                 },
                 root_index: 0,
                 delegate_index: Some(2),
                 lamports: None,
+                tlv: None,
             },
         ];
         // Freeze
@@ -392,6 +404,7 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Frozen,
+                tlv: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -399,6 +412,7 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Frozen,
+                tlv: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -434,6 +448,7 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -441,6 +456,7 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Initialized,
+                tlv: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -484,5 +500,71 @@ pub mod test_freeze {
             });
         }
         expected_compressed_output_accounts
+    }
+    pub fn get_rnd_input_token_data_with_contexts(
+        rng: &mut rand::rngs::ThreadRng,
+        num: usize,
+    ) -> Vec<InputTokenDataWithContext> {
+        let mut vec = Vec::with_capacity(num);
+        for _ in 0..num {
+            let delegate_index = if rng.gen_bool(0.5) { Some(1) } else { None };
+            vec.push(InputTokenDataWithContext {
+                amount: rng.gen_range(0..1_000_000_000),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 1,
+                    leaf_index: rng.gen_range(0..1_000_000_000),
+                    queue_index: None,
+                },
+                root_index: rng.gen_range(0..=65_535),
+                delegate_index,
+                lamports: None,
+                tlv: None,
+            });
+        }
+        vec
+    }
+    pub fn create_expected_input_accounts(
+        input_token_data_with_context: &Vec<InputTokenDataWithContext>,
+        mint: &Pubkey,
+        owner: &Pubkey,
+        remaining_accounts: &[Pubkey],
+    ) -> Vec<PackedCompressedAccountWithMerkleContext> {
+        use light_hasher::DataHasher;
+        input_token_data_with_context
+            .iter()
+            .map(|x| {
+                let delegate = if let Some(index) = x.delegate_index {
+                    Some(remaining_accounts[index as usize])
+                } else {
+                    None
+                };
+                let token_data = TokenData {
+                    mint: *mint,
+                    owner: *owner,
+                    amount: x.amount,
+                    delegate,
+                    state: AccountState::Initialized,
+                    tlv: None,
+                };
+                let mut data = Vec::new();
+                token_data.serialize(&mut data).unwrap();
+                let data_hash = token_data.hash::<Poseidon>().unwrap();
+                PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: crate::ID,
+                        lamports: 0,
+                        address: None,
+                        data: Some(CompressedAccountData {
+                            data,
+                            data_hash,
+                            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                        }),
+                    },
+                    root_index: x.root_index,
+                    merkle_context: x.merkle_context,
+                }
+            })
+            .collect()
     }
 }

@@ -8,6 +8,7 @@ on:
       - "circuit-lib/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
+      - "test-utils/**"
   pull_request:
     branches:
       - "*"
@@ -17,13 +18,14 @@ on:
       - "circuit-lib/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
+      - "test-utils/**"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: system-programs-psp-examples-tests
+name: system-programs-examples-tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,7 +42,7 @@ jobs:
         include:
           - program: account-compression
             sub-tests: '[
-              "cargo-test-sbf -p account-compression-test -- --test-threads=1"
+              "cargo-test-sbf -p account-compression-test"
             ]'
           - program: light-system-program
             sub-tests: '[
@@ -62,6 +64,11 @@ jobs:
             sub-tests: '[
               "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
             ]'
+          - program: token-escrow-test
+            sub-tests: '[
+              "cargo test-sbf -p token-escrow -- --test-threads=1"
+            ]'
+            
 
     steps:
       - name: Checkout sources

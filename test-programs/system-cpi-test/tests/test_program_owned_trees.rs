@@ -1,33 +1,39 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use solana_sdk::instruction::Instruction;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
-
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
-use account_compression::{AddressMerkleTreeConfig, QueueAccount, StateMerkleTreeAccount};
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
+};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_registry::get_forester_epoch_pda_address;
 use light_registry::sdk::{
-    create_nullify_instruction, get_cpi_authority_pda, CreateNullifyInstructionInputs,
+    create_nullify_instruction, get_cpi_authority_pda, get_registered_program_pda,
+    CreateNullifyInstructionInputs,
 };
-use light_system_program::utils::get_registered_program_pda;
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::spl::create_mint_helper;
 use light_test_utils::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
     initialize_new_group, register_program_with_registry_program, NOOP_PROGRAM_ID,
 };
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{airdrop_lamports, create_account_instruction};
 use light_test_utils::{
-    assert_custom_error_or_program_error,
-    indexer::{create_mint_helper, TestIndexer},
+    assert_custom_error_or_program_error, indexer::TestIndexer,
     test_env::setup_test_programs_with_accounts,
+};
+use solana_sdk::instruction::Instruction;
+use solana_sdk::signature::Signature;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use system_cpi_test::sdk::{
+    create_initialize_address_merkle_tree_and_queue_instruction,
+    create_initialize_merkle_tree_instruction,
 };
 
 #[tokio::test]
@@ -46,7 +52,7 @@ async fn test_program_owned_merkle_tree() {
     let cpi_context_keypair = Keypair::new();
 
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,
@@ -67,6 +73,7 @@ async fn test_program_owned_merkle_tree() {
         &program_owned_merkle_tree_pubkey,
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
+        None,
     );
     let pre_merkle_tree = get_concurrent_merkle_tree::<
         StateMerkleTreeAccount,
@@ -127,6 +134,7 @@ async fn test_program_owned_merkle_tree() {
         &invalid_program_owned_merkle_tree_pubkey,
         vec![amount + 1; 1],
         vec![recipient_keypair.pubkey(); 1],
+        None,
     );
 
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
@@ -166,6 +174,8 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 /// 8. FAIL: nullify leaves with invalid group
 /// 9. FAIL: insert into address queue with invalid group
 /// 10. FAIL: insert into nullifier queue with invalid group
+/// 11. FAIL: create address Merkle tree with invalid group
+/// 12. FAIL: create state Merkle tree with invalid group
 #[tokio::test]
 async fn test_invalid_registered_program() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
@@ -179,6 +189,7 @@ async fn test_invalid_registered_program() {
         .unwrap();
     let group_seed_keypair = Keypair::new();
     let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
+    println!("program_id_keypair: {:?}", program_id_keypair.pubkey());
     let invalid_group_pda =
         initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey()).await;
     let invalid_group_registered_program_pda =
@@ -189,27 +200,32 @@ async fn test_invalid_registered_program() {
     let invalid_group_nullifier_queue = Keypair::new();
     create_state_merkle_tree_and_queue_account(
         &payer,
-        &invalid_group_pda,
         &mut rpc,
         &invalid_group_state_merkle_tree,
         &invalid_group_nullifier_queue,
         None,
         3,
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+        false,
     )
-    .await;
+    .await
+    .unwrap();
     let invalid_group_address_merkle_tree = Keypair::new();
     let invalid_group_address_queue = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &invalid_group_pda,
         &mut rpc,
         &invalid_group_address_merkle_tree,
         &invalid_group_address_queue,
         None,
         &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
         3,
+        false,
     )
-    .await;
+    .await
+    .unwrap();
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
@@ -263,10 +279,14 @@ async fn test_invalid_registered_program() {
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     let other_program_id_keypair = Keypair::new();
-    let token_program_registered_program_pda =
-        register_program_with_registry_program(&mut rpc, &env, &other_program_id_keypair)
-            .await
-            .unwrap();
+    let token_program_registered_program_pda = register_program_with_registry_program(
+        &mut rpc,
+        &env.governance_authority,
+        &env.group_pda,
+        &other_program_id_keypair,
+    )
+    .await
+    .unwrap();
     // 4. use registered_program_pda of other program
     {
         let derived_address =
@@ -446,6 +466,7 @@ async fn test_invalid_registered_program() {
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
+            derivation: env.forester.pubkey(),
         };
         let ix = create_nullify_instruction(inputs);
 
@@ -558,6 +579,47 @@ async fn test_invalid_registered_program() {
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
+
+    // 11. create address Merkle tree with invalid group
+    {
+        let invalid_group_state_merkle_tree = Keypair::new();
+        let invalid_group_nullifier_queue = Keypair::new();
+        let result = create_state_merkle_tree_and_queue_account(
+            &payer,
+            &mut rpc,
+            &invalid_group_state_merkle_tree,
+            &invalid_group_nullifier_queue,
+            None,
+            3,
+            &StateMerkleTreeConfig::default(),
+            &NullifierQueueConfig::default(),
+            true,
+        )
+        .await;
+        let expected_error_code =
+            account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
+
+        assert_rpc_error(result, 2, expected_error_code).unwrap();
+    }
+    {
+        let invalid_group_address_merkle_tree = Keypair::new();
+        let invalid_group_address_queue = Keypair::new();
+        let result = create_address_merkle_tree_and_queue_account(
+            &payer,
+            &mut rpc,
+            &invalid_group_address_merkle_tree,
+            &invalid_group_address_queue,
+            None,
+            &AddressMerkleTreeConfig::default(),
+            &AddressQueueConfig::default(),
+            3,
+            true,
+        )
+        .await;
+        let expected_error_code =
+            account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
+        assert_rpc_error(result, 2, expected_error_code).unwrap();
+    }
 }
 
 pub async fn register_program(
@@ -593,4 +655,132 @@ pub async fn register_program(
     .await?;
 
     Ok(registered_program_pda)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
+    payer: &Keypair,
+    rpc: &mut R,
+    merkle_tree_keypair: &Keypair,
+    nullifier_queue_keypair: &Keypair,
+    program_owner: Option<Pubkey>,
+    index: u64,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+    invalid_group: bool,
+) -> Result<Signature, RpcError> {
+    let size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
+
+    let merkle_tree_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        size,
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(merkle_tree_keypair),
+    );
+    let size =
+        account_compression::state::queue::QueueAccount::size(queue_config.capacity as usize)
+            .unwrap();
+    let nullifier_queue_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        size,
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(nullifier_queue_keypair),
+    );
+
+    let instruction = create_initialize_merkle_tree_instruction(
+        payer.pubkey(),
+        merkle_tree_keypair.pubkey(),
+        nullifier_queue_keypair.pubkey(),
+        merkle_tree_config.clone(),
+        queue_config.clone(),
+        program_owner,
+        index,
+        0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT
+        invalid_group,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[
+            merkle_tree_account_create_ix,
+            nullifier_queue_account_create_ix,
+            instruction,
+        ],
+        Some(&payer.pubkey()),
+        &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
+        rpc.get_latest_blockhash().await.unwrap(),
+    );
+    rpc.process_transaction(transaction.clone()).await
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
+    payer: &Keypair,
+    context: &mut R,
+    address_merkle_tree_keypair: &Keypair,
+    address_queue_keypair: &Keypair,
+    program_owner: Option<Pubkey>,
+    merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
+    index: u64,
+    invalid_group: bool,
+) -> Result<Signature, RpcError> {
+    let size =
+        account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
+    let account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        size,
+        context
+            .get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(address_queue_keypair),
+    );
+
+    let size = account_compression::state::AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+    let mt_account_create_ix = create_account_instruction(
+        &payer.pubkey(),
+        size,
+        context
+            .get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
+        &account_compression::ID,
+        Some(address_merkle_tree_keypair),
+    );
+    let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
+        index,
+        payer.pubkey(),
+        program_owner,
+        address_merkle_tree_keypair.pubkey(),
+        address_queue_keypair.pubkey(),
+        merkle_tree_config.clone(),
+        queue_config.clone(),
+        invalid_group,
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[account_create_ix, mt_account_create_ix, instruction],
+        Some(&payer.pubkey()),
+        &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
+        context.get_latest_blockhash().await.unwrap(),
+    );
+    context.process_transaction(transaction.clone()).await
 }

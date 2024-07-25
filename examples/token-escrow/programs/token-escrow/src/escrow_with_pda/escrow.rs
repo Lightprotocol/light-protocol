@@ -66,10 +66,11 @@ pub fn process_escrow_compressed_tokens_with_pda<'info>(
         owner: ctx.accounts.token_owner_pda.key(),
         lamports: None,
         merkle_tree_index: output_state_merkle_tree_account_indices[0],
+        tlv: None,
     };
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
-        &[escrow_token_data],
+        &[escrow_token_data.clone()],
         &ctx.accounts.signer.key(),
         output_state_merkle_tree_account_indices[1],
     );
@@ -98,12 +99,12 @@ pub fn cpi_compressed_token_transfer<'info>(
         proof: Some(proof),
         mint,
         delegated_transfer: None,
-
         input_token_data_with_context,
         output_compressed_accounts,
         is_compress: false,
         compress_or_decompress_amount: None,
         cpi_context: None,
+        lamports_change_account_merkle_tree_index: None,
     };
 
     let mut inputs = Vec::new();

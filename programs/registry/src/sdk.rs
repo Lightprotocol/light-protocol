@@ -1,6 +1,9 @@
 #![cfg(not(target_os = "solana"))]
 use crate::get_forester_epoch_pda_address;
-use account_compression::{self, utils::constants::GROUP_AUTHORITY_SEED, ID};
+use account_compression::{
+    self, utils::constants::GROUP_AUTHORITY_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig, ID,
+};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
 use solana_sdk::{
@@ -169,12 +172,13 @@ pub struct CreateNullifyInstructionInputs {
     pub leaves_queue_indices: Vec<u16>,
     pub indices: Vec<u64>,
     pub proofs: Vec<Vec<[u8; 32]>>,
+    pub derivation: Pubkey,
 }
 
 pub fn create_nullify_instruction(inputs: CreateNullifyInstructionInputs) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.authority).0;
-
+    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.derivation).0;
+    log::info!("registered_forester_pda: {:?}", registered_forester_pda);
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
         bump,
@@ -301,6 +305,76 @@ pub fn create_update_address_merkle_tree_instruction(
         merkle_tree: instructions.address_merkle_tree,
         queue: instructions.address_queue,
         log_wrapper: NOOP_PROGRAM_ID,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_address_merkle_tree_and_queue_instruction(
+    index: u64,
+    payer: Pubkey,
+    program_owner: Option<Pubkey>,
+    merkle_tree_pubkey: Pubkey,
+    queue_pubkey: Pubkey,
+    address_merkle_tree_config: AddressMerkleTreeConfig,
+    address_queue_config: AddressQueueConfig,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeAddressMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: address_merkle_tree_config,
+        queue_config: address_queue_config,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    nullifier_queue_pubkey: Pubkey,
+    state_merkle_tree_config: StateMerkleTreeConfig,
+    nullifier_queue_config: NullifierQueueConfig,
+    program_owner: Option<Pubkey>,
+    index: u64,
+    additional_rent: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = crate::sdk::get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeStateMerkleTree {
+        bump,
+        index,
+        program_owner,
+        merkle_tree_config: state_merkle_tree_config,
+        queue_config: nullifier_queue_config,
+        additional_rent,
+    };
+    let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: nullifier_queue_pubkey,
         cpi_authority,
         account_compression_program: account_compression::ID,
     };

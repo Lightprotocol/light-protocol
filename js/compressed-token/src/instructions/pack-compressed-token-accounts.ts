@@ -82,11 +82,13 @@ export function packCompressedTokenAccounts(
                     merkleTreePubkeyIndex,
                     nullifierQueuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
+                    queueIndex: null,
                 },
                 rootIndex: rootIndices[index],
                 lamports: account.compressedAccount.lamports.eq(bn(0))
                     ? null
                     : account.compressedAccount.lamports,
+                tlv: null,
             });
         },
     );
@@ -107,6 +109,7 @@ export function packCompressedTokenAccounts(
                 ? null
                 : tokenTransferOutputs[index].lamports,
             merkleTreeIndex,
+            tlv: null,
         });
     });
     // to meta

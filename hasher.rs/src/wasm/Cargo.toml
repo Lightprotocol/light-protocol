@@ -1,6 +1,6 @@
 [package]
 name = "light-wasm-hasher"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "WASM wrapper for blake2 and Poseidon hashing"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -18,7 +18,7 @@ js-sys = "0.3.64"
 web-sys = { version = "0.3.64", features = ['console'] }
 hex = { version = "0.4.3", features = [] }
 blake2b_simd = "1"
-num-bigint = "0.4.4"
+num-bigint = "0.4.6"
 console_error_panic_hook = "0.1.7"
 thiserror = "1.0.56"
 

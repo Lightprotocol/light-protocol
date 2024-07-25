@@ -1,6 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use account_compression::{config_accounts::GroupAuthority, program::AccountCompression};
+use account_compression::{program::AccountCompression, state::GroupAuthority};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
+use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::prelude::*;
 
 pub mod forester;
@@ -247,6 +249,75 @@ pub mod light_registry {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize_address_merkle_tree(
+        ctx: Context<InitializeAddressMerkleTreeAndQueue>,
+        bump: u8,
+        index: u64, // TODO: replace with counter from pda
+        program_owner: Option<Pubkey>,
+        merkle_tree_config: AddressMerkleTreeConfig, // TODO: check config with protocol config
+        queue_config: AddressQueueConfig,
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+        let accounts = account_compression::cpi::accounts::InitializeAddressMerkleTreeAndQueue {
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+            queue: ctx.accounts.queue.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::initialize_address_merkle_tree_and_queue(
+            cpi_ctx,
+            index,
+            program_owner,
+            merkle_tree_config,
+            queue_config,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn initialize_state_merkle_tree(
+        ctx: Context<InitializeAddressMerkleTreeAndQueue>,
+        bump: u8,
+        index: u64, // TODO: replace with counter from pda
+        program_owner: Option<Pubkey>,
+        merkle_tree_config: StateMerkleTreeConfig, // TODO: check config with protocol config
+        queue_config: NullifierQueueConfig,
+        additional_rent: u64,
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+        let accounts =
+            account_compression::cpi::accounts::InitializeStateMerkleTreeAndNullifierQueue {
+                authority: ctx.accounts.cpi_authority.to_account_info(),
+                merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+                nullifier_queue: ctx.accounts.queue.to_account_info(),
+                registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
+            };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::initialize_state_merkle_tree_and_nullifier_queue(
+            cpi_ctx,
+            index,
+            program_owner,
+            merkle_tree_config,
+            queue_config,
+            additional_rent,
+        )
+    }
+
     // TODO: update rewards field
     // signer is light governance authority
 
@@ -281,6 +352,46 @@ pub mod light_registry {
     // signer is registered relayer
     // cpi to account compression program nullify compressed_account
     // increment points in registered relayer account
+}
+
+#[derive(Accounts)]
+pub struct InitializeAddressMerkleTreeAndQueue<'info> {
+    /// Anyone can create new trees just the fees cannot be set arbitrarily.
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
+    /// CHECK:
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    account_compression_program: Program<'info, AccountCompression>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeStateMerkleTreeAndQueue<'info> {
+    /// Anyone can create new trees just the fees cannot be set arbitrarily.
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
+    /// CHECK:
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    account_compression_program: Program<'info, AccountCompression>,
 }
 
 #[derive(Debug)]
@@ -369,6 +480,7 @@ pub struct RolloverMerkleTreeAndQueue<'info> {
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpoch>,
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]

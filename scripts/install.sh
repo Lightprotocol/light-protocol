@@ -110,14 +110,11 @@ check_flag() {
 
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
-PNPM_VERSION="9.2.0"
+PNPM_VERSION="9.5.0"
 SOLANA_VERSION="1.18.11"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
-CIRCOM_VERSION=$(latest_release Lightprotocol circom)
-MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
-LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
-PHOTON_VERSION="0.28.0"
+PHOTON_VERSION="0.37.0"
 PHOTON_BRANCH=""
 
 case "${OS}" in
@@ -270,29 +267,8 @@ download_file_github \
     jq \
     "${PREFIX}/bin"
 
-echo "📥 Downloading Circom"
-download_file_github \
-    Lightprotocol \
-    circom \
-    "${CIRCOM_VERSION}" \
-    "circom-${ARCH_SUFFIX_LP}" \
-    circom \
-    "${PREFIX}/bin"
-
-echo "📥 Downloading macro-circom"
-download_file_github \
-    Lightprotocol \
-    macro-circom \
-    "${MACRO_CIRCOM_VERSION}" \
-    "macro-circom-${ARCH_SUFFIX_LP}" \
-    macro-circom \
-    "${PREFIX}/bin"
-
 echo "📦 Installing pnpm dependencies"
 pnpm install
-
-echo "📦 Installing Playwright"
-pnpm exec playwright install --with-deps
 
 echo "✨ Light Protocol development dependencies installed"
 

@@ -159,6 +159,10 @@ where
         Self { metadata, data }
     }
 
+    pub fn metadata(&self) -> &BoundedVecMetadata {
+        unsafe { &*self.metadata }
+    }
+
     pub fn from_array<const N: usize>(array: &[T; N]) -> Self {
         let mut vec = Self::with_capacity(N);
         for element in array {
@@ -369,34 +373,6 @@ where
         }
 
         new_vec
-    }
-
-    fn clone_from(&mut self, source: &Self) {
-        if self.capacity() != source.capacity() {
-            // Otherwise, reallocate the vector to new capacity.
-
-            let old_layout = Layout::array::<T>(self.capacity()).unwrap();
-            let new_layout = Layout::array::<T>(source.capacity()).unwrap();
-            let new_ptr = unsafe {
-                alloc::realloc(self.data.as_ptr() as *mut u8, old_layout, new_layout.size())
-                    as *mut T
-            };
-            if new_ptr.is_null() {
-                handle_alloc_error(new_layout);
-            }
-            self.data = NonNull::new(new_ptr).unwrap();
-            unsafe { (*self.metadata).capacity = source.capacity() };
-        }
-
-        // Copy all elements from `source` and update the length.
-        for i in 0..source.len() {
-            // SAFETY: `length` is guaranteed to be lower than `capacity`,
-            // if `BoundedVec` was created safely.
-            unsafe { ptr::write(self.data.as_ptr().add(i), (*source.get(i).unwrap()).clone()) };
-        }
-        // SAFETY: `self.metadata` should be initialized if `BoundedVec`
-        // was created safely.
-        unsafe { (*self.metadata).length = source.len() };
     }
 }
 
@@ -638,6 +614,10 @@ where
         Self { metadata, data }
     }
 
+    pub fn metadata(&self) -> &CyclicBoundedVecMetadata {
+        unsafe { &*self.metadata }
+    }
+
     /// Creates a `CyclicBoundedVec<T>` directly from a pointer, a capacity, and a length.
     ///
     /// # Safety
@@ -776,7 +756,7 @@ where
     #[inline]
     fn inc_first_index(&self) {
         unsafe {
-            (*self.metadata).first_index = ((*self.metadata).last_index + 1) % self.capacity();
+            (*self.metadata).first_index = ((*self.metadata).first_index + 1) % self.capacity();
         }
     }
 
@@ -1186,35 +1166,6 @@ mod test {
         for _ in 0..1000 {
             let bounded_vec = rand_bounded_vec::<u32>();
             let cloned_bounded_vec = bounded_vec.clone();
-
-            assert_eq!(bounded_vec.capacity(), cloned_bounded_vec.capacity());
-            assert_eq!(bounded_vec.len(), cloned_bounded_vec.len());
-            assert_eq!(bounded_vec, cloned_bounded_vec);
-        }
-    }
-
-    #[test]
-    fn test_bounded_vec_clone_from_equal_capacity() {
-        for _ in 0..1000 {
-            let bounded_vec = rand_bounded_vec::<u32>();
-            let mut cloned_bounded_vec = BoundedVec::with_capacity(bounded_vec.capacity());
-            cloned_bounded_vec.clone_from(&bounded_vec);
-
-            assert_eq!(bounded_vec.capacity(), cloned_bounded_vec.capacity());
-            assert_eq!(bounded_vec.len(), cloned_bounded_vec.len());
-            assert_eq!(bounded_vec, cloned_bounded_vec);
-        }
-    }
-
-    #[test]
-    fn test_bounded_vec_clone_from_non_unequal_capacity() {
-        let mut rng = rand::thread_rng();
-
-        for _ in 0..1000 {
-            let bounded_vec = rand_bounded_vec::<u32>();
-            let rand_capacity = gen_range_exclude(&mut rng, 1..1000, &[bounded_vec.capacity()]);
-            let mut cloned_bounded_vec = BoundedVec::with_capacity(rand_capacity);
-            cloned_bounded_vec.clone_from(&bounded_vec);
 
             assert_eq!(bounded_vec.capacity(), cloned_bounded_vec.capacity());
             assert_eq!(bounded_vec.len(), cloned_bounded_vec.len());

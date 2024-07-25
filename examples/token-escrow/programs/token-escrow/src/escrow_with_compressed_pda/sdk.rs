@@ -11,7 +11,7 @@ use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         address::{add_and_get_remaining_account_indices, pack_new_address_params},
-        compressed_account::{pack_merkle_context, MerkleContext},
+        compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
         CompressedCpiContext,
     },
     NewAddressParams,
@@ -28,6 +28,7 @@ pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
+    pub input_compressed_accounts: &'a [CompressedAccount],
     pub mint: &'a Pubkey,
     pub new_address_params: NewAddressParams,
     pub cpi_context_account: &'a Pubkey,
@@ -40,6 +41,7 @@ pub fn create_escrow_instruction(
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
+        input_params.input_compressed_accounts,
         input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
@@ -48,6 +50,7 @@ pub fn create_escrow_instruction(
         *input_params.mint,
         input_params.signer,
         false,
+        None,
         None,
         None,
     )
@@ -80,6 +83,7 @@ pub fn create_escrow_instruction(
         new_address_params: new_address_params[0],
         cpi_context: CompressedCpiContext {
             set_context: false,
+            first_set_context: true,
             cpi_context_account_index,
         },
         bump: token_owner_pda.1,
@@ -135,6 +139,7 @@ pub struct CreateCompressedPdaWithdrawalInstructionInputs<'a> {
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
+    pub input_compressed_accounts: &'a [CompressedAccount],
     pub mint: &'a Pubkey,
     pub old_lock_up_time: u64,
     pub new_lock_up_time: u64,
@@ -149,6 +154,7 @@ pub fn create_withdrawal_instruction(
     let (token_owner_pda, bump) = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
+        input_params.input_compressed_accounts,
         &[input_params.input_token_escrow_merkle_context],
         None,
         input_params.output_compressed_accounts,
@@ -157,6 +163,7 @@ pub fn create_withdrawal_instruction(
         *input_params.mint,
         &token_owner_pda,
         false,
+        None,
         None,
         None,
     )
@@ -185,6 +192,7 @@ pub fn create_withdrawal_instruction(
     };
     let cpi_context = CompressedCpiContext {
         set_context: false,
+        first_set_context: true,
         cpi_context_account_index,
     };
     let input_compressed_pda = PackedInputCompressedPda {

@@ -2,19 +2,19 @@
   "scripts": {
     "lint:fix": "prettier \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier  \"*/**/*{.js,.ts}\" --check",
-    "test": "cargo test-sbf --features cpi-context -p token-escrow -- --test-threads 1"
+    "test": "cargo test-sbf -p token-escrow -- --test-threads=1"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0"
+    "@coral-xyz/anchor": "0.29.0"
   },
   "devDependencies": {
-    "chai": "^4.4.1",
-    "mocha": "^10.2.0",
+    "chai": "^5.1.1",
+    "mocha": "^10.6.0",
     "ts-mocha": "^10.0.0",
     "@types/bn.js": "^5.1.5",
-    "@types/chai": "^4.3.14",
-    "@types/mocha": "^10.0.6",
-    "typescript": "^5.4.5",
-    "prettier": "^3.3.2"
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.7",
+    "typescript": "^5.5.3",
+    "prettier": "^3.3.3"
   }
 }

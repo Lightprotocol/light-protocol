@@ -13,8 +13,8 @@
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::airdrop_lamports;
-use light_test_utils::indexer::{create_mint_helper, TestIndexer};
-use light_test_utils::spl::mint_tokens_helper;
+use light_test_utils::indexer::{Indexer, TestIndexer};
+use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
@@ -197,7 +197,7 @@ async fn test_escrow_pda() {
 
 pub async fn perform_escrow<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -241,7 +241,7 @@ pub async fn perform_escrow<R: RpcConnection>(
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
-        input_token_data: &[input_compressed_token_account_data.token_data],
+        input_token_data: &[input_compressed_token_account_data.token_data.clone()],
         lock_up_time: *lock_up_time,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -250,6 +250,7 @@ pub async fn perform_escrow<R: RpcConnection>(
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -259,13 +260,14 @@ pub async fn perform_escrow<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
+        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
     create_escrow_instruction(create_ix_inputs, *escrow_amount)
 }
 
 pub async fn perform_escrow_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -298,7 +300,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
 
 pub async fn perform_escrow_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -317,7 +319,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
 
 pub async fn assert_escrow<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &TestIndexer<200, R>,
+    test_indexer: &TestIndexer<R>,
     payer_pubkey: &Pubkey,
     amount: u64,
     escrow_amount: u64,
@@ -329,12 +331,13 @@ pub async fn assert_escrow<R: RpcConnection>(
         .iter()
         .find(|x| x.token_data.owner == token_owner_pda)
         .unwrap()
-        .token_data;
+        .token_data
+        .clone();
     assert_eq!(token_data_escrow.amount, escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
     let token_data_change_compressed_token_account =
-        test_indexer.token_compressed_accounts[0].token_data;
+        test_indexer.token_compressed_accounts[0].token_data.clone();
     assert_eq!(
         token_data_change_compressed_token_account.amount,
         amount - escrow_amount
@@ -346,14 +349,16 @@ pub async fn assert_escrow<R: RpcConnection>(
     let time_lock_pubkey = get_timelock_pda(payer_pubkey);
     let timelock_account = rpc
         .get_anchor_account::<EscrowTimeLock>(&time_lock_pubkey)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     let current_slot = rpc.get_slot().await.unwrap();
     assert_eq!(timelock_account.slot, *lock_up_time + current_slot);
 }
 
 pub async fn perform_withdrawal<R: RpcConnection>(
     context: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -394,7 +399,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
-        input_token_data: &[escrow_token_data_with_context.token_data],
+        input_token_data: &[escrow_token_data_with_context.token_data.clone()],
         lock_up_time: 0,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -403,6 +408,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -412,6 +418,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &escrow_token_data_with_context.token_data.mint,
+        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
 
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)
@@ -419,7 +426,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 
 pub async fn perform_withdrawal_with_event<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -449,7 +456,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
 
 pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<200, R>,
+    test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -473,7 +480,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
     rpc.process_transaction(transaction).await
 }
 pub fn assert_withdrawal<R: RpcConnection>(
-    test_indexer: &TestIndexer<200, R>,
+    test_indexer: &TestIndexer<R>,
     payer_pubkey: &Pubkey,
     withdrawal_amount: u64,
     escrow_amount: u64,

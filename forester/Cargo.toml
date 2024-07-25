@@ -1,15 +1,15 @@
 [package]
 name = "forester"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
 config = "0.14.0"
-anchor-lang = "0.29.0"
-clap = {version = "4.0.26", features = ["derive"]}
-solana-sdk = "1.18.11"
-solana-client = "1.18.11"
-solana-transaction-status = "1.18.11"
+anchor-lang = { workspace = true }
+clap = {version = "4.5.9", features = ["derive"]}
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-transaction-status = { workspace = true }
 tiny-bip39 = "0.8.2"
 chrono = "0.4.37"
 time = "0.3.34"
@@ -19,6 +19,7 @@ light-hash-set = { path = "../merkle-tree/hash-set", features = ["solana"] }
 light-hasher = { path = "../merkle-tree/hasher" }
 light-concurrent-merkle-tree = {path = "../merkle-tree/concurrent"}
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed" }
+light-merkle-tree-reference = { path = "../merkle-tree/reference" }
 light-registry = { path = "../programs/registry", features = ["cpi"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -35,10 +36,12 @@ sysinfo = "0.30"
 light-test-utils = { path = "../test-utils" }
 log = "0.4"
 env_logger = "0.11"
+rand = "0.8.5"
+dotenvy = "0.15.7"
 
 [dev-dependencies]
 function_name = "0.3.0"
-serial_test = "2.0.0"
+serial_test = "3.0.0"
 rstest = "0.18.2"
 light-prover-client = {path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = {path = "../merkle-tree/reference"}

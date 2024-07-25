@@ -4,6 +4,7 @@ use crate::{
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
+        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
@@ -15,6 +16,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
+    #[account(mut)]
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -49,14 +51,20 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
-    assert_size_equal(
-        &ctx.accounts.old_queue.to_account_info(),
-        &ctx.accounts.new_queue.to_account_info(),
+    let new_merkle_tree_account_info = ctx.accounts.new_address_merkle_tree.to_account_info();
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        &new_merkle_tree_account_info,
+        ctx.accounts
+            .old_address_merkle_tree
+            .to_account_info()
+            .data_len(),
     )?;
-    assert_size_equal(
-        &ctx.accounts.old_address_merkle_tree.to_account_info(),
-        &ctx.accounts.new_address_merkle_tree.to_account_info(),
+    let new_queue_account_info = ctx.accounts.new_queue.to_account_info();
+    let queue_rent = check_account_balance_is_rent_exempt(
+        &new_queue_account_info,
+        ctx.accounts.old_queue.to_account_info().data_len(),
     )?;
+
     let (queue_metadata, height) = {
         let (merkle_tree_metadata, queue_metadata) = {
             let mut merkle_tree_account_loaded = ctx.accounts.old_address_merkle_tree.load_mut()?;
@@ -128,11 +136,10 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             Some(queue_metadata.rollover_metadata.rollover_threshold),
             Some(queue_metadata.rollover_metadata.close_threshold),
             height as u32,
-            ctx.accounts.new_address_merkle_tree.get_lamports(),
+            merkle_tree_rent,
         )?;
     }
-    let lamports =
-        ctx.accounts.new_queue.get_lamports() + ctx.accounts.new_address_merkle_tree.get_lamports();
+    let lamports = merkle_tree_rent + queue_rent;
 
     transfer_lamports(
         &ctx.accounts.old_queue.to_account_info(),
@@ -140,12 +147,5 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         lamports,
     )?;
 
-    Ok(())
-}
-
-pub fn assert_size_equal(a: &AccountInfo, b: &AccountInfo) -> Result<()> {
-    if a.data_len() != b.data_len() {
-        return err!(crate::errors::AccountCompressionErrorCode::SizeMismatch);
-    }
     Ok(())
 }

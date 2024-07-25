@@ -67,10 +67,7 @@ where
     pub _hasher: PhantomData<H>,
 }
 
-pub type ConcurrentMerkleTree22<H> = ConcurrentMerkleTree<H, 22>;
 pub type ConcurrentMerkleTree26<H> = ConcurrentMerkleTree<H, 26>;
-pub type ConcurrentMerkleTree32<H> = ConcurrentMerkleTree<H, 32>;
-pub type ConcurrentMerkleTree40<H> = ConcurrentMerkleTree<H, 40>;
 
 impl<H, const HEIGHT: usize> ConcurrentMerkleTree<H, HEIGHT>
 where
@@ -124,14 +121,20 @@ where
         + mem::size_of::<[u8; 32]>() * Self::canopy_size(canopy_depth)
     }
 
-    pub fn new(
+    fn check_size_constraints_new(
         height: usize,
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Result<Self, ConcurrentMerkleTreeError> {
+    ) -> Result<(), ConcurrentMerkleTreeError> {
         if height == 0 || HEIGHT == 0 {
             return Err(ConcurrentMerkleTreeError::HeightZero);
+        }
+        if height != HEIGHT {
+            return Err(ConcurrentMerkleTreeError::InvalidHeight(HEIGHT));
+        }
+        if canopy_depth > height {
+            return Err(ConcurrentMerkleTreeError::CanopyGeThanHeight);
         }
         // Changelog needs to be at least 1, because it's used for storing
         // Merkle paths in `append`/`append_batch`.
@@ -141,6 +144,25 @@ where
         if roots_size == 0 {
             return Err(ConcurrentMerkleTreeError::RootsZero);
         }
+        Ok(())
+    }
+
+    fn check_size_constraints(&self) -> Result<(), ConcurrentMerkleTreeError> {
+        Self::check_size_constraints_new(
+            self.height,
+            self.changelog.capacity(),
+            self.roots.capacity(),
+            self.canopy_depth,
+        )
+    }
+
+    pub fn new(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        Self::check_size_constraints_new(height, changelog_size, roots_size, canopy_depth)?;
 
         let layout = Layout::new::<usize>();
         let next_index = unsafe { alloc::alloc(layout) as *mut usize };
@@ -182,6 +204,8 @@ where
 
     /// Initializes the Merkle tree.
     pub fn init(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
+        self.check_size_constraints()?;
+
         // Initialize root.
         let root = H::zero_bytes()[self.height];
         self.roots.push(root);
@@ -395,9 +419,9 @@ where
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let mut current_node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
-        for (i, sibling) in proof.iter().enumerate() {
-            changelog_path[i] = current_node;
-            current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, i)?;
+        for (level, sibling) in proof.iter().enumerate() {
+            changelog_path[level] = current_node;
+            current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, level)?;
         }
 
         self.inc_sequence_number()?;
@@ -415,6 +439,10 @@ where
             }
         }
         self.changelog.push(changelog_entry);
+
+        if self.canopy_depth > 0 {
+            self.update_canopy(self.changelog.last_index(), 1);
+        }
 
         Ok((self.changelog.last_index(), self.sequence_number()))
     }
@@ -539,25 +567,9 @@ where
             let mut current_index = self.next_index();
             let mut current_node = **leaf;
 
-            // Limit until which we fill up the current Merkle path.
-            let fillup_index = if leaf_i < (leaves.len() - 1) {
-                self.next_index().trailing_ones() as usize + 1
-            } else {
-                self.height
-            };
-
             self.changelog[changelog_index].path[0] = **leaf;
 
-            // Compute the whole Merkle path up to the `fillup_index`.
-            //
-            // On each iteration, we also fill up empty nodes of previous Merkle
-            // paths with the nodes from the current path - this way we eventually
-            // fill all the paths while avoiding to calculate too many hashes.
-            //
-            // `fillup_index` of the last iteration should be always equal to
-            // the Merkle tree height. Therefore, after the last iteration, no
-            // path is going to contain and empty node.
-            for i in 0..fillup_index {
+            for i in 0..self.height {
                 let is_left = current_index % 2 == 0;
 
                 if is_left {
@@ -580,6 +592,15 @@ where
                     }
 
                     self.filled_subtrees[i] = current_node;
+
+                    // For all non-terminal leaves, stop computing parents as
+                    // soon as we are on the left side.
+                    // Computation of the parent nodes is going to happen in
+                    // the next iterations.
+                    if leaf_i < leaves.len() - 1 {
+                        break;
+                    }
+
                     current_node = H::hashv(&[&current_node, &empty_node])?;
                 } else {
                     // If the current node is on the right side:
@@ -663,7 +684,7 @@ where
         let mut paths = Vec::with_capacity(num_changelog_entries);
         for i in 0..num_changelog_entries {
             let changelog_index = (first_changelog_index + i) % self.changelog.capacity();
-            let mut path = Vec::with_capacity(self.height);
+            let mut path = Vec::with_capacity(self.height + 1);
 
             // Add all nodes from the changelog path.
             for (level, node) in self.changelog[changelog_index].path.iter().enumerate() {

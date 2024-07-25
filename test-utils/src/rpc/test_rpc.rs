@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -18,14 +20,57 @@ pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
 }
 
+impl Debug for ProgramTestRpcConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ProgramTestRpcConnection")
+    }
+}
+
+impl Clone for ProgramTestRpcConnection {
+    fn clone(&self) -> Self {
+        unimplemented!()
+    }
+}
+
 impl RpcConnection for ProgramTestRpcConnection {
+    async fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        Ok(sig)
+    }
+
+    async fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(Signature, Slot), RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        let slot = self.context.banks_client.get_root_slot().await?;
+        Ok((sig, slot))
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, solana_sdk::signature::Signature)>, RpcError>
+    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
     where
         T: AnchorDeserialize,
     {
@@ -125,31 +170,16 @@ impl RpcConnection for ProgramTestRpcConnection {
                     transaction_params.fee_config.address_network_fee
                 );
                 println!("network_fee: {}", network_fee);
+                println!("num signers {}", deduped_signers.len());
                 return Err(RpcError::from(BanksClientError::TransactionError(
                     TransactionError::InstructionError(0, InstructionError::Custom(11111)),
                 )));
             }
         }
 
-        let result = event.map(|event| (event, signature));
+        let slot = self.context.banks_client.get_root_slot().await?;
+        let result = event.map(|event| (event, signature, slot));
         Ok(result)
-    }
-
-    async fn create_and_send_transaction(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-    ) -> Result<Signature, RpcError> {
-        let transaction = Transaction::new_signed_with_payer(
-            instruction,
-            Some(payer),
-            &signers.to_vec(),
-            self.get_latest_blockhash().await.unwrap(),
-        );
-        let signature = transaction.signatures[0];
-        self.process_transaction(transaction).await?;
-        Ok(signature)
     }
 
     async fn confirm_transaction(&mut self, _transaction: Signature) -> Result<bool, RpcError> {
@@ -193,21 +223,6 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 
-    async fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<Signature, RpcError> {
-        let sig = *transaction.signatures.first().unwrap();
-        let result = self
-            .context
-            .banks_client
-            .process_transaction_with_metadata(transaction)
-            .await
-            .map_err(RpcError::from)?;
-        result.result.map_err(RpcError::TransactionError)?;
-        Ok(sig)
-    }
-
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
         self.context
             .banks_client
@@ -241,11 +256,6 @@ impl RpcConnection for ProgramTestRpcConnection {
             .await?;
 
         Ok(sig)
-    }
-
-    async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {
-        let account = self.get_account(*pubkey).await.unwrap().unwrap();
-        T::deserialize(&mut &account.data[8..]).unwrap()
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {

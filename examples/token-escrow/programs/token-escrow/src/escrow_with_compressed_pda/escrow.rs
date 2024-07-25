@@ -77,10 +77,11 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         owner: ctx.accounts.token_owner_pda.key(),
         lamports: None,
         merkle_tree_index: output_state_merkle_tree_account_indices[0],
+        tlv: None,
     };
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
-        &[escrow_token_data],
+        &[escrow_token_data.clone()],
         &ctx.accounts.signer.key(),
         output_state_merkle_tree_account_indices[1],
     );
@@ -95,7 +96,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         proof.clone(),
         cpi_context,
     )?;
-    msg!("escrow compressed tokens with compressed pda");
     cpi_compressed_pda_transfer(
         ctx,
         proof,
@@ -112,14 +112,14 @@ fn cpi_compressed_pda_transfer<'info>(
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
+    mut cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
     // Create CPI signer seed
     let bump_seed = &[bump];
     let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
-
+    cpi_context.first_set_context = false;
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_address(
         proof,
@@ -194,6 +194,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
         is_compress: false,
         compress_or_decompress_amount: None,
         cpi_context: Some(cpi_context),
+        lamports_change_account_merkle_tree_index: None,
     };
 
     let mut inputs = Vec::new();

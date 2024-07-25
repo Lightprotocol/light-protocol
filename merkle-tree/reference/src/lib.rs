@@ -50,6 +50,11 @@ where
         }
     }
 
+    /// Number of nodes to include in canopy, based on `canopy_depth`.
+    pub fn canopy_size(&self) -> usize {
+        (1 << (self.canopy_depth + 1)) - 2
+    }
+
     fn update_upper_layers(&mut self, mut i: usize) -> Result<(), HasherError> {
         for level in 1..self.height {
             i /= 2;
@@ -100,7 +105,13 @@ where
         self.update_upper_layers(i)?;
 
         self.sequence_number += 1;
+        Ok(())
+    }
 
+    pub fn append_batch(&mut self, leaves: &[&[u8; 32]]) -> Result<(), HasherError> {
+        for leaf in leaves {
+            self.append(leaf)?;
+        }
         Ok(())
     }
 
@@ -116,7 +127,6 @@ where
         self.update_upper_layers(leaf_index)?;
 
         self.sequence_number += 1;
-
         Ok(())
     }
 
@@ -176,6 +186,28 @@ where
         }
 
         Ok(proof)
+    }
+
+    pub fn get_canopy(&self) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+        if self.canopy_depth == 0 {
+            return Ok(BoundedVec::with_capacity(0));
+        }
+        let mut canopy = BoundedVec::with_capacity(self.canopy_size());
+
+        let mut num_nodes_in_level = 2;
+        for i in 0..self.canopy_depth {
+            let level = self.height - 1 - i;
+            for j in 0..num_nodes_in_level {
+                let node = self.layers[level]
+                    .get(j)
+                    .cloned()
+                    .unwrap_or(H::zero_bytes()[level]);
+                canopy.push(node)?;
+            }
+            num_nodes_in_level *= 2;
+        }
+
+        Ok(canopy)
     }
 
     pub fn leaf(&self, leaf_index: usize) -> [u8; 32] {

@@ -34,7 +34,7 @@ pub struct MerkleContextWithNewAddressProof {
     #[serde(rename = "root")]
     pub root: String,
     #[serde(rename = "rootSeq")]
-    pub root_seq: i32,
+    pub root_seq: u64,
 }
 
 impl MerkleContextWithNewAddressProof {
@@ -48,7 +48,7 @@ impl MerkleContextWithNewAddressProof {
         next_index: i32,
         proof: Vec<String>,
         root: String,
-        root_seq: i32,
+        root_seq: u64,
     ) -> MerkleContextWithNewAddressProof {
         MerkleContextWithNewAddressProof {
             address,

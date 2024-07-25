@@ -40,24 +40,34 @@ pub enum SystemProgramError {
     InvalidMerkleTreeOwner,
     #[msg("ProofIsNone")]
     ProofIsNone,
-    #[msg("ProofIsSome")]
+    #[msg("Proof is some but no input compressed accounts or new addresses provided.")]
     ProofIsSome,
     #[msg("EmptyInputs")]
     EmptyInputs,
     #[msg("CpiContextAccountUndefined")]
     CpiContextAccountUndefined,
-    #[msg("CpiContextMismatch")]
-    CpiContextProofMismatch,
     #[msg("CpiContextEmpty")]
     CpiContextEmpty,
     #[msg("CpiContextMissing")]
     CpiContextMissing,
-    #[msg("DecompressionRecipienDefined")]
-    DecompressionRecipienDefined,
+    #[msg("DecompressionRecipientDefined")]
+    DecompressionRecipientDefined,
     #[msg("SolPoolPdaDefined")]
     SolPoolPdaDefined,
     #[msg("AppendStateFailed")]
     AppendStateFailed,
     #[msg("The instruction is not callable")]
     InstructionNotCallable,
+    #[msg("CpiContextFeePayerMismatch")]
+    CpiContextFeePayerMismatch,
+    #[msg("CpiContextAssociatedMerkleTreeMismatch")]
+    CpiContextAssociatedMerkleTreeMismatch,
+    #[msg("NoInputs")]
+    NoInputs,
+    #[msg("Input merkle tree indices are not in ascending order.")]
+    InputMerkleTreeIndicesNotInOrder,
+    #[msg("Output merkle tree indices are not in ascending order.")]
+    OutputMerkleTreeIndicesNotInOrder,
+    OutputMerkleTreeNotUnique,
+    DataFieldUndefined,
 }

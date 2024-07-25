@@ -26,17 +26,23 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     )?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpda_process_cpi_context");
-    #[cfg(feature = "cpi-context")]
-    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(inputs, &mut ctx)
+    #[allow(unused)]
+    let mut cpi_context_inputs_len = if let Some(value) = ctx.accounts.cpi_context_account.as_ref()
     {
+        value.context.len()
+    } else {
+        0
+    };
+    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(
+        inputs,
+        &mut ctx.accounts.cpi_context_account,
+        ctx.accounts.fee_payer.key(),
+        ctx.remaining_accounts,
+    ) {
         Ok(Some(inputs)) => inputs,
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
-    #[cfg(not(feature = "cpi-context"))]
-    if inputs.cpi_context.is_some() || ctx.accounts.cpi_context_account.is_some() {
-        unimplemented!("cpi-context feature is not enabled");
-    }
     bench_sbf_end!("cpda_process_cpi_context");
 
     let data = InstructionDataInvoke {
@@ -49,5 +55,10 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
         is_compress: inputs.is_compress,
     };
-    process(data, Some(ctx.accounts.invoking_program.key()), ctx)
+    process(
+        data,
+        Some(ctx.accounts.invoking_program.key()),
+        ctx,
+        cpi_context_inputs_len,
+    )
 }

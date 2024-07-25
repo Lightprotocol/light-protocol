@@ -48,7 +48,7 @@ export async function compress(
 ): Promise<TransactionSignature> {
     amount = bn(amount);
 
-    const [approveIx, compressIx] = await CompressedTokenProgram.compress({
+    const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
         owner: owner.publicKey,
         source: sourceTokenAccount,
@@ -65,7 +65,6 @@ export async function compress(
             ComputeBudgetProgram.setComputeUnitLimit({
                 units: 1_000_000,
             }),
-            approveIx,
             compressIx,
         ],
         payer,

@@ -1,15 +1,22 @@
 use anchor_lang::prelude::*;
 
 use crate::{
+    errors::AccountCompressionErrorCode,
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::QueueAccount,
-    utils::constants::{
-        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
-        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-        ADDRESS_MERKLE_TREE_ROOTS,
+    utils::{
+        check_account::check_account_balance_is_rent_exempt,
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
+        },
+        constants::{
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
+            ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+            ADDRESS_MERKLE_TREE_ROOTS,
+        },
     },
-    AddressMerkleTreeAccount, NullifierQueueConfig,
+    AddressMerkleTreeAccount, NullifierQueueConfig, RegisteredProgram, SAFETY_MARGIN,
 };
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
@@ -49,21 +56,89 @@ pub struct InitializeAddressMerkleTreeAndQueue<'info> {
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     #[account(zero)]
     pub queue: AccountLoader<'info, QueueAccount>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
+}
+
+impl<'info> GroupAccounts<'info> for InitializeAddressMerkleTreeAndQueue<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
+}
+
+impl GroupAccess for RegisteredProgram {
+    fn get_owner(&self) -> &Pubkey {
+        &self.group_authority_pda
+    }
+    fn get_program_owner(&self) -> &Pubkey {
+        &self.registered_program_id
+    }
 }
 
 pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
     index: u64,
-    owner: Pubkey,
     program_owner: Option<Pubkey>,
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
-    if queue_config != AddressQueueConfig::default() {
-        unimplemented!("Only default address queue config is supported.");
+    if merkle_tree_config.height as u64 != ADDRESS_MERKLE_TREE_HEIGHT {
+        msg!(
+            "Unsupported Merkle tree height: {}. The only currently supported height is: {}",
+            merkle_tree_config.height,
+            ADDRESS_MERKLE_TREE_HEIGHT
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedHeight);
     }
-
-    let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
+    if merkle_tree_config.canopy_depth != ADDRESS_MERKLE_TREE_CANOPY_DEPTH {
+        msg!(
+            "Unsupported canopy depth: {}. The only currently supported depth is: {}",
+            merkle_tree_config.canopy_depth,
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
+    }
+    if merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
+    let minimum_sequence_threshold = merkle_tree_config.roots_size + SAFETY_MARGIN;
+    if queue_config.sequence_threshold < minimum_sequence_threshold {
+        msg!(
+            "Invalid sequence threshold: {}. Should be at least {}",
+            queue_config.sequence_threshold,
+            minimum_sequence_threshold
+        );
+        return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
+    }
+    let owner = match ctx.accounts.registered_program_pda.as_ref() {
+        Some(registered_program_pda) => {
+            check_signer_is_registered_or_authority::<
+                InitializeAddressMerkleTreeAndQueue,
+                RegisteredProgram,
+            >(&ctx, registered_program_pda)?;
+            registered_program_pda.group_authority_pda
+        }
+        None => ctx.accounts.authority.key(),
+    };
+    let merkle_tree_expected_size = AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+    let queue_expected_size = QueueAccount::size(queue_config.capacity as usize)?;
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.merkle_tree.to_account_info(),
+        merkle_tree_expected_size,
+    )?;
+    check_account_balance_is_rent_exempt(
+        &ctx.accounts.queue.to_account_info(),
+        queue_expected_size,
+    )?;
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
         &ctx.accounts.queue,

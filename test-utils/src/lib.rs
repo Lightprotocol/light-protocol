@@ -16,6 +16,7 @@ use solana_sdk::{
 };
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
+pub mod address_merkle_tree_config;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
@@ -159,7 +160,7 @@ pub fn create_account_instruction(
 /// or a program error.
 /// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
 /// we allow program error as well.
-// TODO: add generic that parses the error code from the result
+// TODO: unify with assert_rpc_error
 pub fn assert_custom_error_or_program_error(
     result: Result<solana_sdk::signature::Signature, RpcError>,
     error_code: u32,

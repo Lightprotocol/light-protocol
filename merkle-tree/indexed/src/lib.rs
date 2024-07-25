@@ -52,10 +52,7 @@ where
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22, 12>;
 pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26, 16>;
-pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32, 22>;
-pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40, 30>;
 
 impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
@@ -128,7 +125,7 @@ where
         // operation.
         self.merkle_tree.append(&H::zero_indexed_leaf())?;
 
-        // Emit first changelog entry.
+        // Emit first changelog entries.
         let element = RawIndexedElement {
             value: [0_u8; 32],
             next_index: I::zero(),
@@ -140,7 +137,9 @@ where
             proof: H::zero_bytes()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: 0,
         };
+        self.indexed_changelog.push(changelog_entry.clone());
         self.indexed_changelog.push(changelog_entry);
+
         Ok(())
     }
 
@@ -157,7 +156,7 @@ where
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
 
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let mut indexed_array = IndexedArray::<H, I>::default();
         let element_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = element_bundle
             .new_low_element
@@ -336,11 +335,18 @@ where
         &mut self,
         mut changelog_index: usize,
         indexed_changelog_index: usize,
-        mut new_element: IndexedElement<I>,
+        new_element_value: BigUint,
         mut low_element: IndexedElement<I>,
         mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<IndexedMerkleTreeUpdate<I>, IndexedMerkleTreeError> {
+        let mut new_element = IndexedElement {
+            index: I::try_from(self.merkle_tree.next_index())
+                .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?,
+            value: new_element_value,
+            next_index: low_element.next_index,
+        };
+
         self.patch_elements_and_proof(
             indexed_changelog_index,
             &mut changelog_index,
@@ -369,9 +375,6 @@ where
             if new_element.value >= low_element_next_value {
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
-        }
-        if new_element.next_index != low_element.next_index {
-            return Err(IndexedMerkleTreeError::NewElementNextIndexMismatch);
         }
         // Instantiate `new_low_element` - the low element with updated values.
         let new_low_element = IndexedElement {

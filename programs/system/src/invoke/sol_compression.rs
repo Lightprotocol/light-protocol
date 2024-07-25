@@ -31,10 +31,8 @@ pub fn compress_or_decompress_lamports<
 ) -> Result<()> {
     if inputs.is_compress {
         compress_lamports(inputs, ctx)
-    } else if inputs.compress_or_decompress_lamports.is_some() {
-        decompress_lamports(inputs, ctx)
     } else {
-        Ok(())
+        decompress_lamports(inputs, ctx)
     }
 }
 
@@ -61,9 +59,7 @@ pub fn decompress_lamports<
         None => return err!(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol),
     };
 
-    transfer_lamports(&sol_pool_pda, &recipient, lamports)?;
-
-    Ok(())
+    transfer_lamports(&sol_pool_pda, &recipient, lamports)
 }
 
 pub fn compress_lamports<
@@ -86,7 +82,7 @@ pub fn compress_lamports<
     };
 
     transfer_lamports_cpi(
-        &ctx.accounts.get_authority().to_account_info(),
+        &ctx.accounts.get_fee_payer().to_account_info(),
         &recipient,
         lamports,
     )

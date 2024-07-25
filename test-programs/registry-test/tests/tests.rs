@@ -10,7 +10,6 @@ use light_registry::{
     },
     ForesterEpoch, LightGovernanceAuthority, RegistryError,
 };
-use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::{
     registry::{
         create_rollover_address_merkle_tree_instructions,
@@ -23,6 +22,7 @@ use light_test_utils::{
         setup_test_programs_with_accounts,
     },
 };
+use light_test_utils::{rpc::solana_rpc::SolanaRpcUrl, test_env::setup_accounts_devnet};
 use solana_sdk::{
     instruction::Instruction,
     native_token::LAMPORTS_PER_SOL,
@@ -36,9 +36,14 @@ use std::str::FromStr;
 async fn test_register_program() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let random_program_keypair = Keypair::new();
-    register_program_with_registry_program(&mut rpc, &env, &random_program_keypair)
-        .await
-        .unwrap();
+    register_program_with_registry_program(
+        &mut rpc,
+        &env.governance_authority,
+        &env.group_pda,
+        &random_program_keypair,
+    )
+    .await
+    .unwrap();
 }
 
 /// Test:
@@ -120,6 +125,7 @@ async fn failing_test_forester() {
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
+            derivation: payer.pubkey(),
         };
         let mut ix = create_nullify_instruction(inputs);
         // Swap the derived forester pda with an initialized but invalid one.
@@ -188,6 +194,7 @@ async fn failing_test_forester() {
     {
         let new_nullifier_queue_keypair = Keypair::new();
         let new_state_merkle_tree_keypair = Keypair::new();
+        let new_cpi_context = Keypair::new();
         let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let authority = rpc.get_payer().insecure_clone();
         let mut instructions = create_rollover_state_merkle_tree_instructions(
@@ -197,6 +204,7 @@ async fn failing_test_forester() {
             &new_state_merkle_tree_keypair,
             &env.merkle_tree_pubkey,
             &env.nullifier_queue_pubkey,
+            &new_cpi_context.pubkey(),
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
@@ -228,11 +236,13 @@ async fn update_forester_on_testnet() {
         .await
         .unwrap();
     let forester_epoch_account =
-        Pubkey::from_str("8KEKiyAMugpKq9XCGzx81UtTBuytByW8arm9EaBVpD5k").unwrap();
+        Pubkey::from_str("DFiGEbaz75wSdqy9bpeWacqLWrqAwWBfqh4iSYtejiwK").unwrap();
     let forester_epoch = rpc
         .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
-        .await;
-    println!("ForesterEpoch: {:?}", forester_epoch_account);
+        .await
+        .unwrap()
+        .unwrap();
+    println!("ForesterEpoch: {:?}", forester_epoch);
     assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
 
     let updated_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
@@ -242,7 +252,9 @@ async fn update_forester_on_testnet() {
         .unwrap();
     let forester_epoch = rpc
         .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     println!("ForesterEpoch: {:?}", forester_epoch_account);
     assert_eq!(forester_epoch.authority, updated_keypair.pubkey());
 }
@@ -260,7 +272,9 @@ async fn update_registry_governance_on_testnet() {
     .unwrap();
     let governance_authority = rpc
         .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     println!("GroupAuthority: {:?}", governance_authority);
     assert_eq!(
         governance_authority.authority,
@@ -295,6 +309,21 @@ async fn update_registry_governance_on_testnet() {
     println!("signature: {:?}", signature);
     let governance_authority = rpc
         .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
-        .await;
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(governance_authority.authority, updated_keypair.pubkey());
+}
+
+// cargo test-sbf -p registry-test -- --test init_accounts --ignored --nocapture
+// TODO: refactor into xtask
+#[ignore]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn init_accounts() {
+    let authority_keypair =
+        read_keypair_file("../../target/governance-authority-keypair.json").unwrap();
+    let forester_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
+    println!("authority pubkey: {:?}", authority_keypair.pubkey());
+    println!("forester pubkey: {:?}", forester_keypair.pubkey());
+    setup_accounts_devnet(&authority_keypair, &forester_keypair).await;
 }

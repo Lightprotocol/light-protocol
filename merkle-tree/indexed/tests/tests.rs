@@ -1,4 +1,4 @@
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
@@ -6,6 +6,7 @@ use light_concurrent_merkle_tree::{
     event::IndexedMerkleTreeUpdate,
     light_hasher::{Hasher, Poseidon},
 };
+use light_hash_set::{HashSet, HashSetError};
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
@@ -25,8 +26,7 @@ const MERKLE_TREE_INDEXED_CHANGELOG: usize = 64;
 const NET_HEIGHT: usize = MERKLE_TREE_HEIGHT - MERKLE_TREE_CANOPY;
 
 const QUEUE_ELEMENTS: usize = 1024;
-
-const INDEXING_ARRAY_ELEMENTS: usize = 1024;
+const SAFETY_MARGIN: usize = 10;
 
 const NR_NULLIFIERS: usize = 2;
 
@@ -34,16 +34,17 @@ const NR_NULLIFIERS: usize = 2;
 /// inserting nullifiers into the queue.
 fn program_insert<H>(
     // PDA
-    mut queue: RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
+    mut queue: RefMut<'_, HashSet>,
+    merkle_tree: Ref<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
     // Instruction data
     nullifiers: [[u8; 32]; NR_NULLIFIERS],
-) -> Result<(), IndexedMerkleTreeError>
+) -> Result<(), HashSetError>
 where
     H: Hasher,
 {
     for i in 0..NR_NULLIFIERS {
         let nullifier = BigUint::from_be_bytes(nullifiers[i].as_slice());
-        queue.append(&nullifier)?;
+        queue.insert(&nullifier, merkle_tree.sequence_number())?;
     }
     Ok(())
 }
@@ -58,14 +59,12 @@ enum RelayerUpdateError {
 /// inserting nullifiers from the queue to the tree.
 fn program_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, HashSet>,
     merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
     // Instruction data
     changelog_index: u16,
     indexed_changelog_index: u16,
     queue_index: u16,
-    nullifier_index: usize,
-    nullifier_next_index: usize,
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
@@ -73,26 +72,28 @@ fn program_update<H>(
 where
     H: Hasher,
 {
-    // Remove the nullifier from the queue.
-    let nullifier = queue.dequeue_at(queue_index).unwrap().unwrap();
-
-    // Update the nullifier with ranges adjusted to the Merkle tree state,
-    // coming from relayer.
-    let nullifier: IndexedElement<usize> = IndexedElement {
-        index: nullifier_index,
-        value: nullifier.value,
-        next_index: nullifier_next_index,
-    };
+    // Get the nullifier from the queue.
+    let nullifier = queue
+        .get_unmarked_bucket(queue_index as usize)
+        .unwrap()
+        .unwrap();
 
     // Update the Merkle tree.
-    merkle_tree.update(
+    let update = merkle_tree.update(
         usize::from(changelog_index),
         usize::from(indexed_changelog_index),
-        nullifier,
+        nullifier.value_biguint(),
         low_nullifier.clone(),
         low_nullifier_next_value.clone(),
         low_nullifier_proof,
-    )
+    )?;
+
+    // Mark the nullifier.
+    queue
+        .mark_with_sequence_number(queue_index as usize, merkle_tree.sequence_number())
+        .unwrap();
+
+    Ok(update)
 }
 
 // TODO: unify these helpers with MockIndexer
@@ -100,34 +101,35 @@ where
 /// nullifier Merkle tree.
 fn relayer_update<H>(
     // PDAs
-    queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
+    queue: &mut RefMut<'_, HashSet>,
     merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
 ) -> Result<(), RelayerUpdateError>
 where
     H: Hasher,
 {
-    let mut relayer_indexing_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexing_array = IndexedArray::<H, usize>::default();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
             .unwrap();
 
     let mut update_errors: Vec<IndexedMerkleTreeError> = Vec::new();
 
-    while !queue.is_empty() {
+    let queue_indices = queue.iter().map(|(index, _)| index).collect::<Vec<_>>();
+    for queue_index in queue_indices {
         let changelog_index = merkle_tree.changelog_index();
         let indexed_changelog_index = merkle_tree.indexed_changelog_index();
 
-        let lowest_from_queue = match queue.lowest() {
-            Some(lowest) => lowest,
-            None => break,
-        };
+        let queue_element = queue.get_unmarked_bucket(queue_index).unwrap().unwrap();
 
         // Create new element from the dequeued value.
         let (old_low_nullifier, old_low_nullifier_next_value) = relayer_indexing_array
-            .find_low_element_for_nonexistent(&lowest_from_queue.value)
+            .find_low_element_for_nonexistent(&queue_element.value_biguint())
             .unwrap();
         let nullifier_bundle = relayer_indexing_array
-            .new_element_with_low_element_index(old_low_nullifier.index, &lowest_from_queue.value)
+            .new_element_with_low_element_index(
+                old_low_nullifier.index,
+                &queue_element.value_biguint(),
+            )
             .unwrap();
         let mut low_nullifier_proof = relayer_merkle_tree
             .get_proof_of_leaf(usize::from(old_low_nullifier.index), false)
@@ -139,9 +141,7 @@ where
             merkle_tree,
             changelog_index as u16,
             indexed_changelog_index as u16,
-            lowest_from_queue.index,
-            nullifier_bundle.new_element.index,
-            nullifier_bundle.new_element.next_index,
+            queue_index as u16,
             old_low_nullifier,
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -266,8 +266,8 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
-        RefCell::new(IndexedArray::default());
+    let onchain_queue: RefCell<HashSet> =
+        RefCell::new(HashSet::new(QUEUE_ELEMENTS, MERKLE_TREE_ROOTS + SAFETY_MARGIN).unwrap());
     let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
         RefCell::new(
             IndexedMerkleTree::new(
@@ -286,6 +286,7 @@ where
     let nullifier2 = 10_u32.to_biguint().unwrap();
     program_insert::<H>(
         onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
         [
             bigint_to_be_bytes_array(&nullifier1).unwrap(),
             bigint_to_be_bytes_array(&nullifier2).unwrap(),
@@ -298,6 +299,7 @@ where
     let nullifier4 = 50_u32.to_biguint().unwrap();
     program_insert::<H>(
         onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
         [
             bigint_to_be_bytes_array(&nullifier3).unwrap(),
             bigint_to_be_bytes_array(&nullifier4).unwrap(),
@@ -325,8 +327,7 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
-        RefCell::new(IndexedArray::default());
+    let onchain_queue: RefCell<HashSet> = RefCell::new(HashSet::new(20, 0).unwrap());
     let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
         RefCell::new(
             IndexedMerkleTree::new(
@@ -345,14 +346,20 @@ where
     let nullifier1: [u8; 32] = bigint_to_be_bytes_array(&nullifier1).unwrap();
     let nullifier2 = 10_u32.to_biguint().unwrap();
     let nullifier2: [u8; 32] = bigint_to_be_bytes_array(&nullifier2).unwrap();
-    program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]).unwrap();
+    program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
+        [nullifier1, nullifier2],
+    )
+    .unwrap();
 
     // Try inserting the same pair into the queue. It should fail with an error.
-    let res = program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]);
-    assert!(matches!(
-        res,
-        Err(IndexedMerkleTreeError::ElementAlreadyExists),
-    ));
+    let res = program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
+        [nullifier1, nullifier2],
+    );
+    assert!(matches!(res, Err(HashSetError::ElementAlreadyExists)));
 
     // Update the on-chain tree (so it contains the nullifiers we inserted).
     relayer_update::<H>(
@@ -363,7 +370,12 @@ where
 
     // The nullifiers are in the tree and not in the queue anymore. We can try
     // our luck with double-spending again.
-    program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]).unwrap();
+    program_insert::<H>(
+        onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
+        [nullifier1, nullifier2],
+    )
+    .unwrap();
     // At the same time, insert also some new nullifiers which aren't spent
     // yet. We want to make sure that they will be processed successfully and
     // only the invalid nullifiers will produce errors.
@@ -371,6 +383,7 @@ where
     let nullifier4 = 5_u32.to_biguint().unwrap();
     program_insert::<H>(
         onchain_queue.borrow_mut(),
+        onchain_tree.borrow(),
         [
             bigint_to_be_bytes_array(&nullifier3).unwrap(),
             bigint_to_be_bytes_array(&nullifier4).unwrap(),
@@ -401,8 +414,8 @@ where
     H: Hasher,
 {
     // On-chain PDAs.
-    let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
-        RefCell::new(IndexedArray::default());
+    let onchain_queue: RefCell<HashSet> =
+        RefCell::new(HashSet::new(QUEUE_ELEMENTS, MERKLE_TREE_ROOTS + SAFETY_MARGIN).unwrap());
     let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
         RefCell::new(
             IndexedMerkleTree::new(
@@ -417,7 +430,7 @@ where
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.
-    let mut local_indexed_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut local_indexed_array = IndexedArray::<H, usize>::default();
     let mut local_merkle_tree =
         reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
             .unwrap();
@@ -425,8 +438,14 @@ where
     // Insert a pair of nullifiers, correctly. Just do it with relayer.
     let nullifier1 = 30_u32.to_biguint().unwrap();
     let nullifier2 = 10_u32.to_biguint().unwrap();
-    onchain_queue.borrow_mut().append(&nullifier1).unwrap();
-    onchain_queue.borrow_mut().append(&nullifier2).unwrap();
+    onchain_queue
+        .borrow_mut()
+        .insert(&nullifier1, onchain_tree.borrow().sequence_number())
+        .unwrap();
+    onchain_queue
+        .borrow_mut()
+        .insert(&nullifier2, onchain_tree.borrow().sequence_number())
+        .unwrap();
     let nullifier_bundle = local_indexed_array.append(&nullifier1).unwrap();
     local_merkle_tree
         .update(
@@ -453,15 +472,18 @@ where
     // nullifier. Point to index 2 (value 10) as next value.
     // Therefore, the new element is lowe than the supposed low element.
     let nullifier3 = 20_u32.to_biguint().unwrap();
-    onchain_queue.borrow_mut().append(&nullifier3).unwrap();
+    onchain_queue
+        .borrow_mut()
+        .insert(&nullifier3, onchain_tree.borrow().sequence_number())
+        .unwrap();
     let changelog_index = onchain_tree.borrow().changelog_index();
     let indexed_changelog_index = onchain_tree.borrow().indexed_changelog_index();
     // Index of our new nullifier in the queue.
-    let queue_index = 1_u16;
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_usize;
-    // (Invalid) index of the next nullifier.
-    let nullifier_next_index = 2_usize;
+    let queue_index = onchain_queue
+        .borrow()
+        .find_element_index(&nullifier3, None)
+        .unwrap()
+        .unwrap();
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(1).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -476,9 +498,7 @@ where
             &mut onchain_tree.borrow_mut(),
             changelog_index as u16,
             indexed_changelog_index as u16,
-            queue_index,
-            nullifier_index,
-            nullifier_next_index,
+            queue_index as u16,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -489,15 +509,18 @@ where
     // Try inserting nullifier 50, while pointing to index 0 as low nullifier.
     // Therefore, the new element is greate than next element.
     let nullifier3 = 50_u32.to_biguint().unwrap();
-    onchain_queue.borrow_mut().append(&nullifier3).unwrap();
+    onchain_queue
+        .borrow_mut()
+        .insert(&nullifier3, onchain_tree.borrow().sequence_number())
+        .unwrap();
     let changelog_index = onchain_tree.borrow().changelog_index();
     let indexed_changelog_index = onchain_tree.borrow().indexed_changelog_index();
     // Index of our new nullifier in the queue.
-    let queue_index = 1_u16;
-    // Index of our new nullifier in the tree / on-chain state.
-    let nullifier_index = 3_usize;
-    // (Invalid) index of the next nullifier. Value: 30.
-    let nullifier_next_index = 1_usize;
+    let queue_index = onchain_queue
+        .borrow()
+        .find_element_index(&nullifier3, None)
+        .unwrap()
+        .unwrap();
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(0).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -512,9 +535,7 @@ where
             &mut onchain_tree.borrow_mut(),
             changelog_index as u16,
             indexed_changelog_index as u16,
-            queue_index,
-            nullifier_index,
-            nullifier_next_index,
+            queue_index as u16,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -522,13 +543,15 @@ where
         Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
     ));
     let nullifier4 = 45_u32.to_biguint().unwrap();
-    onchain_queue.borrow_mut().append(&nullifier3).unwrap();
+    onchain_queue
+        .borrow_mut()
+        .insert(&nullifier4, onchain_tree.borrow().sequence_number())
+        .unwrap();
     let changelog_index = onchain_tree.borrow().changelog_index();
     let indexed_changelog_index = onchain_tree.borrow().indexed_changelog_index();
     let (low_nullifier, low_nullifier_next_value) = local_indexed_array
         .find_low_element_for_nonexistent(&nullifier4)
         .unwrap();
-    let nullifier_next_index = low_nullifier.next_index + 1;
     let mut low_nullifier_proof = local_merkle_tree
         .get_proof_of_leaf(low_nullifier.index(), false)
         .unwrap();
@@ -537,9 +560,7 @@ where
         &mut onchain_tree.borrow_mut(),
         changelog_index as u16,
         indexed_changelog_index as u16,
-        queue_index,
-        nullifier_index,
-        nullifier_next_index,
+        queue_index as u16,
         low_nullifier,
         &low_nullifier_next_value,
         &mut low_nullifier_proof,
@@ -547,7 +568,9 @@ where
     println!("result {:?}", result);
     assert!(matches!(
         result,
-        Err(IndexedMerkleTreeError::NewElementNextIndexMismatch)
+        Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+            ConcurrentMerkleTreeError::InvalidProof(_, _)
+        ))
     ));
 }
 
@@ -577,8 +600,7 @@ pub fn hash_reference_indexed_element() {
 
 #[test]
 pub fn functional_non_inclusion_test() {
-    let mut relayer_indexing_array =
-        IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
 
     // appends the first element
     let mut relayer_merkle_tree = reference::IndexedMerkleTree::<Poseidon, usize>::new(
@@ -678,7 +700,7 @@ pub fn functional_non_inclusion_test() {
 // #[test]
 // pub fn print_test_data() {
 //     let mut relayer_indexing_array =
-//         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+//         IndexedArray::<Poseidon, usize>::default();
 //     relayer_indexing_array.init().unwrap();
 //     let mut relayer_merkle_tree =
 //         reference::IndexedMerkleTree::<Poseidon, usize>::new(26, 10).unwrap();
@@ -1029,8 +1051,7 @@ fn perform_change_log_test<
     addresses: &[BigUint],
 ) {
     // Initialize the trees and indexed array.
-    let mut relayer_indexed_array =
-        IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    let mut relayer_indexed_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
@@ -1075,7 +1096,7 @@ fn perform_change_log_test<
             let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle.new_element,
+                address_bundle.new_element.value,
                 old_low_address,
                 old_low_address_next_value,
                 &mut low_element_proof,
@@ -1090,7 +1111,7 @@ fn perform_change_log_test<
             let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle.new_element.clone(),
+                address_bundle.new_element.value.clone(),
                 old_low_address.clone(),
                 old_low_address_next_value,
                 &mut low_element_proof,
@@ -1119,7 +1140,7 @@ fn perform_change_log_test<
                 .update(
                     changelog_index,
                     indexed_changelog_index,
-                    address_bundle.new_element,
+                    address_bundle.new_element.value,
                     old_low_address,
                     old_low_address_next_value,
                     &mut low_element_proof,

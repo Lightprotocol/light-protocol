@@ -13,7 +13,7 @@ pub enum AccountState {
     Frozen,
 }
 
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,
@@ -26,6 +26,8 @@ pub struct TokenData {
     pub delegate: Option<Pubkey>,
     /// The account's state
     pub state: AccountState,
+    /// Placeholder for TokenExtension tlv data (unimplemented)
+    pub tlv: Option<Vec<u8>>,
 }
 
 /// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
@@ -148,6 +150,7 @@ pub mod test {
             amount: 100,
             delegate: Some(Pubkey::new_unique()),
             state: AccountState::Initialized,
+            tlv: None,
         };
         let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -176,6 +179,7 @@ pub mod test {
             amount: 101,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -204,6 +208,7 @@ pub mod test {
                 amount: rng.gen(),
                 delegate: Some(Pubkey::new_unique()),
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let hashed_token_data = token_data.hash::<H>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -231,6 +236,7 @@ pub mod test {
                 amount: rng.gen(),
                 delegate: None,
                 state: AccountState::Initialized,
+                tlv: None,
             };
             let hashed_token_data = token_data.hash::<H>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -269,6 +275,7 @@ pub mod test {
             amount: 100,
             delegate: Some(Pubkey::new_unique()),
             state: AccountState::Initialized,
+            tlv: None,
         };
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
@@ -300,6 +307,7 @@ pub mod test {
             amount: 100,
             delegate: None,
             state: AccountState::Initialized,
+            tlv: None,
         };
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()

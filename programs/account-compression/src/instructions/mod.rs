@@ -25,8 +25,11 @@ pub use update_group_authority::*;
 pub mod register_program;
 pub use register_program::*;
 
-pub mod rollover_state_merkle_tree;
-pub use rollover_state_merkle_tree::*;
+pub mod rollover_state_merkle_tree_and_queue;
+pub use rollover_state_merkle_tree_and_queue::*;
 
 pub mod rollover_address_merkle_tree_and_queue;
 pub use rollover_address_merkle_tree_and_queue::*;
+
+pub mod deregister_program;
+pub use deregister_program::*;

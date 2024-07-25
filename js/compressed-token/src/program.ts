@@ -26,7 +26,6 @@ import {
 import {
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
-    createApproveInstruction,
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
@@ -306,6 +305,7 @@ export function createTransferOutputState(
                 owner: toAddress,
                 amount,
                 lamports: inputLamports,
+                tlv: null,
             },
         ];
     }
@@ -321,11 +321,13 @@ export function createTransferOutputState(
             owner: inputCompressedTokenAccounts[0].parsed.owner,
             amount: changeAmount,
             lamports: inputLamports,
+            tlv: null,
         },
         {
             owner: toAddress,
             amount,
             lamports: bn(0),
+            tlv: null,
         },
     ];
     return outputCompressedAccounts;
@@ -366,6 +368,7 @@ export function createDecompressOutputState(
             owner: inputCompressedTokenAccounts[0].parsed.owner,
             amount: changeAmount,
             lamports: inputLamports,
+            tlv: null,
         },
     ];
     return tokenTransferOutputs;
@@ -511,7 +514,7 @@ export class CompressedTokenProgram {
 
         const toPubkeys = toArray(toPubkey);
         const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts)
+            .mintTo(toPubkeys, amounts, null)
             .accounts({
                 feePayer,
                 authority,
@@ -528,6 +531,7 @@ export class CompressedTokenProgram {
                 merkleTree:
                     merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
                 selfProgram: this.programId,
+                solPoolPda: null,
             })
             .instruction();
         return instruction;
@@ -558,7 +562,7 @@ export class CompressedTokenProgram {
         );
 
         /// 2. Compress from mint authority ATA to recipient compressed account
-        const [approveInstruction, compressInstruction] = await this.compress({
+        const compressInstruction = await this.compress({
             payer: feePayer,
             owner: authority,
             source: authorityTokenAccount,
@@ -568,7 +572,7 @@ export class CompressedTokenProgram {
             outputStateTree: merkleTree,
         });
 
-        return [splMintToInstruction, approveInstruction, compressInstruction];
+        return [splMintToInstruction, compressInstruction];
     }
     /**
      * Construct transfer instruction for compressed tokens
@@ -616,6 +620,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: null,
             isCompress: false,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -653,12 +658,12 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct approve and compress instructions
-     * @returns [approveInstruction, compressInstruction]
+     * Construct compress instruction
+     * @returns compressInstruction
      */
     static async compress(
         params: CompressParams,
-    ): Promise<TransactionInstruction[]> {
+    ): Promise<TransactionInstruction> {
         const { payer, owner, source, toAddress, mint, outputStateTree } =
             params;
         const amount = bn(params.amount);
@@ -668,6 +673,7 @@ export class CompressedTokenProgram {
                 owner: toAddress,
                 amount,
                 lamports: bn(0),
+                tlv: null,
             },
         ];
         const {
@@ -690,6 +696,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: amount,
             isCompress: true,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -703,13 +710,6 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
-
-        const approveInstruction = createApproveInstruction(
-            source,
-            this.deriveCpiAuthorityPda,
-            owner,
-            BigInt(amount.toString()),
-        );
 
         const instruction = await this.program.methods
             .transfer(encodedData)
@@ -730,7 +730,7 @@ export class CompressedTokenProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        return [approveInstruction, instruction];
+        return instruction;
     }
 
     /**
@@ -779,6 +779,7 @@ export class CompressedTokenProgram {
             compressOrDecompressAmount: amount,
             isCompress: false,
             cpiContext: null,
+            lamportsChangeAccountMerkleTreeIndex: null,
         };
 
         const encodedData = this.program.coder.types.encode(

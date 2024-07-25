@@ -59,7 +59,7 @@ fn bench(opts: BenchOptions) -> anyhow::Result<()> {
 
     for load_factor in opts.load_factors {
         let capacity_with_load_factor =
-            find_next_prime_with_load_factor(opts.expected_capacity as f64, load_factor) as usize;
+            find_next_prime_with_load_factor(opts.expected_capacity, load_factor) as usize;
 
         let mut hs = HashSet::new(capacity_with_load_factor, opts.sequence_threshold)?;
         let mut rng = thread_rng();
@@ -70,11 +70,13 @@ fn bench(opts: BenchOptions) -> anyhow::Result<()> {
 
             for element_i in 0..capacity_with_load_factor {
                 let value = BigUint::from(Fr::rand(&mut rng));
-                if hs.insert(&value, sequence_number).is_err() {
-                    successful_insertions = element_i;
-                    break;
+                match hs.insert(&value, sequence_number) {
+                    Ok(index) => hs.mark_with_sequence_number(index, sequence_number)?,
+                    Err(_) => {
+                        successful_insertions = element_i;
+                        break;
+                    }
                 }
-                hs.mark_with_sequence_number(&value, sequence_number)?;
             }
 
             let bench_data = BenchData {

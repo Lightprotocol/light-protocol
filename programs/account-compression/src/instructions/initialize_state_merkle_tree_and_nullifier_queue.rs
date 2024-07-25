@@ -1,12 +1,20 @@
 use crate::{
+    errors::AccountCompressionErrorCode,
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
     initialize_nullifier_queue::process_initialize_nullifier_queue,
     state::{QueueAccount, StateMerkleTreeAccount},
-    utils::constants::{
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-        STATE_NULLIFIER_QUEUE_VALUES,
+    utils::{
+        check_account::check_account_balance_is_rent_exempt,
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
+        constants::{
+            STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+            STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+            STATE_NULLIFIER_QUEUE_VALUES,
+        },
     },
+    RegisteredProgram,
 };
 use anchor_lang::prelude::*;
 use std::default;
@@ -19,7 +27,7 @@ pub struct InitializeStateMerkleTreeAndNullifierQueue<'info> {
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
     pub nullifier_queue: AccountLoader<'info, QueueAccount>,
-    pub system_program: Program<'info, System>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
@@ -46,7 +54,14 @@ impl default::Default for StateMerkleTreeConfig {
         }
     }
 }
-
+impl<'info> GroupAccounts<'info> for InitializeStateMerkleTreeAndNullifierQueue<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
+}
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct NullifierQueueConfig {
     pub capacity: u16,
@@ -66,24 +81,68 @@ impl default::Default for NullifierQueueConfig {
     }
 }
 
-pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
-    ctx: Context<'_, '_, '_, '_, InitializeStateMerkleTreeAndNullifierQueue<'_>>,
+pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
     index: u64,
-    owner: Pubkey,
     program_owner: Option<Pubkey>,
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
-    if nullifier_queue_config != NullifierQueueConfig::default() {
-        unimplemented!("Only default nullifier queue config is supported.");
+    if state_merkle_tree_config.height as u64 != STATE_MERKLE_TREE_HEIGHT {
+        msg!(
+            "Unsupported Merkle tree height: {}. The only currently supported height is: {}",
+            state_merkle_tree_config.height,
+            STATE_MERKLE_TREE_HEIGHT
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedHeight);
     }
-    // Will be used to configure rollover fees for additional accounts (cpi
-    // context account).
-    if additional_rent != 0 {
-        unimplemented!("Additional rent is not supported.");
+    if state_merkle_tree_config.canopy_depth != STATE_MERKLE_TREE_CANOPY_DEPTH {
+        msg!(
+            "Unsupported canopy depth: {}. The only currently supported depth is: {}",
+            state_merkle_tree_config.canopy_depth,
+            STATE_MERKLE_TREE_CANOPY_DEPTH
+        );
+        return err!(AccountCompressionErrorCode::UnsupportedCanopyDepth);
     }
-
+    if state_merkle_tree_config.close_threshold.is_some() {
+        msg!("close_threshold is not supported yet");
+        return err!(AccountCompressionErrorCode::UnsupportedCloseThreshold);
+    }
+    let minimum_sequence_threshold = state_merkle_tree_config.roots_size + SAFETY_MARGIN;
+    if nullifier_queue_config.sequence_threshold < minimum_sequence_threshold {
+        msg!(
+            "Invalid sequence threshold: {}. Should be at least: {}",
+            nullifier_queue_config.sequence_threshold,
+            minimum_sequence_threshold
+        );
+        return err!(AccountCompressionErrorCode::InvalidSequenceThreshold);
+    }
+    let merkle_tree_expected_size = StateMerkleTreeAccount::size(
+        state_merkle_tree_config.height as usize,
+        state_merkle_tree_config.changelog_size as usize,
+        state_merkle_tree_config.roots_size as usize,
+        state_merkle_tree_config.canopy_depth as usize,
+    );
+    let queue_expected_size = QueueAccount::size(nullifier_queue_config.capacity as usize)?;
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.merkle_tree.to_account_info(),
+        merkle_tree_expected_size,
+    )?;
+    let queue_rent = check_account_balance_is_rent_exempt(
+        &ctx.accounts.nullifier_queue.to_account_info(),
+        queue_expected_size,
+    )?;
+    let owner = match ctx.accounts.registered_program_pda.as_ref() {
+        Some(registered_program_pda) => {
+            check_signer_is_registered_or_authority::<
+                InitializeStateMerkleTreeAndNullifierQueue,
+                RegisteredProgram,
+            >(&ctx, registered_program_pda)?;
+            registered_program_pda.group_authority_pda
+        }
+        None => ctx.accounts.authority.key(),
+    };
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,
         index,
@@ -97,8 +156,8 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config.network_fee.unwrap_or(0),
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
-        ctx.accounts.merkle_tree.get_lamports() + additional_rent,
-        ctx.accounts.nullifier_queue.get_lamports(),
+        merkle_tree_rent + additional_rent,
+        queue_rent,
     )?;
     process_initialize_nullifier_queue(
         ctx.accounts.nullifier_queue.to_account_info(),

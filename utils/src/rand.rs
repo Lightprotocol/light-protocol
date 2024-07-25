@@ -1,7 +1,45 @@
+use std::ops::{Bound, RangeBounds};
+
 use rand::{
     distributions::uniform::{SampleRange, SampleUniform},
     Rng,
 };
+
+use crate::prime::find_next_prime;
+
+const PRIME_RETRIES: usize = 10;
+
+/// Generates a random prime number in the given range. It returns `None` when
+/// generating such number was not possible.
+pub fn gen_prime<N, R, T>(rng: &mut N, range: R) -> Option<T>
+where
+    N: Rng,
+    R: Clone + RangeBounds<T> + SampleRange<T>,
+    T: Into<u32> + From<u32> + Copy + PartialOrd + SampleUniform,
+{
+    for _ in 0..PRIME_RETRIES {
+        let sample: T = rng.gen_range(range.clone());
+        let next_prime = find_next_prime(sample.into());
+
+        match range.end_bound() {
+            Bound::Included(end) => {
+                if next_prime > (*end).into() {
+                    continue;
+                }
+            }
+            Bound::Excluded(end) => {
+                if next_prime >= (*end).into() {
+                    continue;
+                }
+            }
+            _ => {}
+        };
+
+        return Some(T::from(next_prime));
+    }
+
+    None
+}
 
 /// Generates a random value in the given range, excluding the values provided
 /// in `exclude`.
@@ -26,7 +64,26 @@ where
 mod test {
     use rand::Rng;
 
+    use crate::prime::is_prime;
+
     use super::*;
+
+    #[test]
+    fn test_gen_prime() {
+        let mut rng = rand::thread_rng();
+
+        let mut successful_gens = 0;
+        for i in 0..10_000 {
+            let sample: Option<u32> = gen_prime(&mut rng, 1..10_000);
+            println!("sample {i}: {sample:?}");
+            if let Some(sample) = sample {
+                successful_gens += 1;
+                assert!(is_prime(sample));
+            }
+        }
+
+        println!("generated {successful_gens} prime numbers out of 10000 iterations");
+    }
 
     #[test]
     fn test_gen_range_exclude() {

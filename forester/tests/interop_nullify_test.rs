@@ -1,106 +1,29 @@
-use env_logger::Env;
-use forester::constants::INDEXER_URL;
+use log::info;
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::signature::Signer;
+
 use forester::indexer::PhotonIndexer;
-use forester::utils::{spawn_validator, LightValidatorConfig};
-use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
-use light_test_utils::indexer::Indexer;
+use forester::utils::LightValidatorConfig;
+use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
-use log::info;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
+mod test_utils;
+use test_utils::*;
 
-pub async fn assert_accounts_by_owner(
-    indexer: &mut TestIndexer<500, SolanaRpcConnection>,
-    user: &User,
-    photon_indexer: &PhotonIndexer,
-) {
-    let photon_accs = photon_indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
-        .await
-        .unwrap();
-    let test_accs = indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
-        .await
-        .unwrap();
-
-    info!(
-        "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
-        user.keypair.pubkey().to_string(),
-        test_accs.len(),
-        photon_accs.len()
-    );
-    assert_eq!(test_accs.len(), photon_accs.len());
-    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
-        assert_eq!(test_acc, indexer_acc);
-    }
-}
-
-pub async fn assert_account_proofs_for_photon_and_test_indexer(
-    indexer: &mut TestIndexer<500, SolanaRpcConnection>,
-    user_pubkey: &Pubkey,
-    photon_indexer: &PhotonIndexer,
-) {
-    let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
-        .get_rpc_compressed_accounts_by_owner(user_pubkey)
-        .await;
-    for account_hash in accs.unwrap() {
-        let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
-            .await;
-        let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
-            .await;
-
-        if photon_result.is_err() {
-            panic!("Photon error: {:?}", photon_result);
-        }
-
-        if test_indexer_result.is_err() {
-            panic!("Test indexer error: {:?}", test_indexer_result);
-        }
-
-        let photon_result = photon_result.unwrap();
-        let test_indexer_result = test_indexer_result.unwrap();
-        info!(
-            "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
-            account_hash, photon_result, test_indexer_result
-        );
-
-        assert_eq!(photon_result.len(), test_indexer_result.len());
-        for (photon_proof, test_indexer_proof) in
-            photon_result.iter().zip(test_indexer_result.iter())
-        {
-            assert_eq!(photon_proof.hash, test_indexer_proof.hash);
-            assert_eq!(photon_proof.leaf_index, test_indexer_proof.leaf_index);
-            assert_eq!(photon_proof.merkle_tree, test_indexer_proof.merkle_tree);
-            assert_eq!(photon_proof.root_seq, test_indexer_proof.root_seq);
-            assert_eq!(photon_proof.proof.len(), test_indexer_proof.proof.len());
-            for (photon_proof_hash, test_indexer_proof_hash) in photon_proof
-                .proof
-                .iter()
-                .zip(test_indexer_proof.proof.iter())
-            {
-                assert_eq!(photon_proof_hash, test_indexer_proof_hash);
-            }
-        }
-    }
-}
 #[ignore = "TokenData breaking changes break photon 0.26.0"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_nullify_account() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
-    let mut validator_config = LightValidatorConfig::default();
-    validator_config.enable_indexer = true;
-    validator_config.enable_prover = true;
-    validator_config.enable_forester = true;
-    validator_config.wait_time = 25;
-    spawn_validator(validator_config).await;
+    let validator_config = LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: true,
+        enable_forester: true,
+        wait_time: 25,
+        ..LightValidatorConfig::default()
+    };
+    init(Some(validator_config)).await;
 
     let env_accounts = get_test_env_accounts();
 
@@ -115,27 +38,29 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
-        rpc,
+    let forester_config = forester_config();
+
+    let indexer: TestIndexer<SolanaRpcConnection> = TestIndexer::init_from_env(
+        &forester_config.payer_keypair,
         &env_accounts,
-        KeypairActionConfig {
-            max_output_accounts: Some(1),
-            ..KeypairActionConfig::all_default()
-        },
-        GeneralActionConfig {
-            nullify_compressed_accounts: Some(1.0),
-            empty_address_queue: Some(1.0),
-            add_keypair: None,
-            create_state_mt: None,
-            create_address_mt: None,
-            ..GeneralActionConfig::default()
-        },
+        keypair_action_config().inclusion(),
+        keypair_action_config().non_inclusion(),
+    )
+    .await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
+        rpc,
+        indexer,
+        &env_accounts,
+        keypair_action_config(),
+        general_action_config(),
         0,
         Some(1),
     )
     .await;
 
-    let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    let photon_indexer = PhotonIndexer::new(forester_config.external_services.indexer_url, rpc);
     let user_index = 0;
     let balance = env
         .rpc
@@ -143,33 +68,39 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    // Create starting output account
-    info!("Compressing sol");
-    env.compress_sol(user_index, balance).await;
+    let iterations = 10;
 
-    {
-        let alice = &mut env.users[0];
-        assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
-    }
+    for i in 0..iterations {
+        info!("Round {} of {}", i, iterations);
 
-    // Insert output into nullifier queue
-    info!("Transferring sol");
-    env.transfer_sol(user_index).await;
+        // Create starting output account
+        info!("Compressing sol");
+        env.compress_sol(user_index, balance).await;
 
-    {
-        let alice = &mut env.users[0];
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
+        {
+            let alice = &mut env.users[0];
+            assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+            .await;
+        }
+
+        // Insert output into nullifier queue
+        info!("Transferring sol");
+        env.transfer_sol(user_index).await;
+
+        {
+            let alice = &mut env.users[0];
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+            .await;
+        }
     }
 
     // Nullifies all hashes in nullifier queue
@@ -180,7 +111,7 @@ async fn test_photon_interop_nullify_account() {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
         // TODO(photon): Test-indexer and photon should return equivalent
-        // merkleproofs for the same account.
+        // merkle proofs for the same account.
         assert_account_proofs_for_photon_and_test_indexer(
             &mut env.indexer,
             &alice.keypair.pubkey(),
@@ -196,4 +127,22 @@ async fn test_photon_interop_nullify_account() {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
     };
+}
+
+fn keypair_action_config() -> KeypairActionConfig {
+    KeypairActionConfig {
+        max_output_accounts: Some(1),
+        ..KeypairActionConfig::all_default()
+    }
+}
+
+fn general_action_config() -> GeneralActionConfig {
+    GeneralActionConfig {
+        nullify_compressed_accounts: Some(1.0),
+        empty_address_queue: Some(1.0),
+        add_keypair: None,
+        create_state_mt: None,
+        create_address_mt: None,
+        rollover: None,
+    }
 }
