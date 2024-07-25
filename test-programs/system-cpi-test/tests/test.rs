@@ -4,6 +4,7 @@ use anchor_lang::AnchorDeserialize;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
+use light_system_program::errors::SystemProgramError;
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
@@ -17,6 +18,7 @@ use light_test_utils::indexer::{Indexer, TestIndexer, TokenDataWithContext};
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
+use light_test_utils::system_program::transfer_compressed_sol_test;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
@@ -44,6 +46,8 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 9. test signer checks trying to insert into cpi context account (invalid signer seeds)
 /// 10. provide cpi context account but cpi context has a different fee payer (CpiContextFeePayerMismatch)
 /// 11. write data to an account that it doesn't own (WriteAccessCheckFailed)
+/// 12. Spend Program owned account with program keypair (SignerCheckFailed)
+/// 13. Create program owned account without data (DataFieldUndefined)
 #[tokio::test]
 async fn only_test_create_pda() {
     let (mut rpc, env) =
@@ -256,6 +260,43 @@ async fn only_test_create_pda() {
             None,
             light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
             WithInputAccountsMode::CpiContextWriteToNotOwnedAccount,
+        )
+        .await
+        .unwrap();
+
+        // Failing 12 Spend with program keypair
+        {
+            const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
+                57, 80, 188, 3, 162, 80, 232, 181, 222, 192, 247, 98, 140, 227, 70, 15, 169, 202,
+                73, 184, 23, 90, 69, 95, 211, 74, 128, 232, 155, 216, 5, 230, 213, 158, 155, 203,
+                26, 211, 193, 195, 11, 219, 9, 155, 58, 172, 58, 200, 254, 75, 231, 106, 31, 168,
+                183, 76, 179, 113, 234, 101, 191, 99, 156, 98,
+            ];
+            let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+            let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
+            let result = transfer_compressed_sol_test(
+                &mut rpc,
+                &mut test_indexer,
+                &keypair,
+                &[compressed_account],
+                &[Pubkey::new_unique()],
+                &[env.merkle_tree_pubkey],
+                None,
+            )
+            .await;
+            assert_rpc_error(result, 0, SystemProgramError::SignerCheckFailed.into()).unwrap();
+        }
+        // Failing 13 DataFieldUndefined ----------------------------------------------
+        perform_create_pda_failing(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::NoData,
+            light_system_program::errors::SystemProgramError::DataFieldUndefined.into(),
         )
         .await
         .unwrap();

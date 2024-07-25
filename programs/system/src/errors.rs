@@ -69,4 +69,5 @@ pub enum SystemProgramError {
     #[msg("Output merkle tree indices are not in ascending order.")]
     OutputMerkleTreeIndicesNotInOrder,
     OutputMerkleTreeNotUnique,
+    DataFieldUndefined,
 }

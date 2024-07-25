@@ -114,6 +114,13 @@ pub fn output_compressed_accounts_write_access_check(
             msg!("compressed_account: {:?}", compressed_account);
             return err!(SystemProgramError::WriteAccessCheckFailed);
         }
+        if compressed_account.compressed_account.data.is_none()
+            && compressed_account.compressed_account.owner == invoking_program_id.key()
+        {
+            msg!("For program owned compressed accounts the data field needs to be defined.");
+            msg!("compressed_account: {:?}", compressed_account);
+            return err!(SystemProgramError::DataFieldUndefined);
+        }
     }
     Ok(())
 }

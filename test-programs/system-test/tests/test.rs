@@ -444,7 +444,7 @@ pub async fn failing_transaction_inputs_inner(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::SignerCheckFailed.into(),
         )
         .await
         .unwrap();
