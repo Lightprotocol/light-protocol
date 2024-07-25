@@ -2667,7 +2667,7 @@ async fn test_failing_decompression() {
         .await
         .unwrap_err();
     }
-    // Test 2: invalid token pool pda
+    // Test 2: invalid token pool pda (compress and decompress)
     {
         let invalid_token_account_keypair = Keypair::new();
         create_token_account(&mut context, &mint, &invalid_token_account_keypair, &payer)
@@ -2680,12 +2680,33 @@ async fn test_failing_decompression() {
             input_compressed_account.clone(),
             decompress_amount, // need to be consistent with compression amount
             &merkle_tree_pubkey,
-            decompress_amount - 1,
+            decompress_amount,
             false,
             &token_account_keypair.pubkey(),
             Some(invalid_token_account_keypair.pubkey()),
             &mint,
-            anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+            ErrorCode::InvalidTokenPoolPda.into(),
+        )
+        .await
+        .unwrap();
+
+        let invalid_token_account_keypair = Keypair::new();
+        create_token_account(&mut context, &mint, &invalid_token_account_keypair, &payer)
+            .await
+            .unwrap();
+        failing_compress_decompress(
+            &sender,
+            &mut context,
+            &mut test_indexer,
+            input_compressed_account.clone(),
+            0, // need to be consistent with compression amount
+            &merkle_tree_pubkey,
+            0,
+            true,
+            &token_account_keypair.pubkey(),
+            Some(invalid_token_account_keypair.pubkey()),
+            &mint,
+            ErrorCode::InvalidTokenPoolPda.into(),
         )
         .await
         .unwrap();

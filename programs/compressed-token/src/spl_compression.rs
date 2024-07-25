@@ -3,7 +3,7 @@ use anchor_spl::token::Transfer;
 
 use crate::{
     process_transfer::get_cpi_signer_seeds, CompressedTokenInstructionDataTransfer,
-    TransferInstruction,
+    TransferInstruction, POOL_SEED,
 };
 
 pub fn process_compression_or_decompression<'info>(
@@ -14,6 +14,20 @@ pub fn process_compression_or_decompression<'info>(
         compress_spl_tokens(inputs, ctx)
     } else {
         decompress_spl_tokens(inputs, ctx)
+    }
+}
+
+pub fn spl_token_pool_derivation(
+    mint: &Pubkey,
+    program_id: &Pubkey,
+    token_pool_pubkey: &Pubkey,
+) -> Result<()> {
+    let seeds = &[POOL_SEED, &mint.to_bytes()[..]];
+    let (pda, _bump_seed) = Pubkey::find_program_address(seeds, program_id);
+    if pda == *token_pool_pubkey {
+        Ok(())
+    } else {
+        err!(crate::ErrorCode::InvalidTokenPoolPda)
     }
 }
 
@@ -29,6 +43,8 @@ pub fn decompress_spl_tokens<'info>(
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
     };
+    spl_token_pool_derivation(&inputs.mint, &crate::ID, &token_pool_pda.key())?;
+
     let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
@@ -50,10 +66,11 @@ pub fn compress_spl_tokens<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.token_pool_pda.as_ref() {
+    let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForCompress),
     };
+    spl_token_pool_derivation(&inputs.mint, &crate::ID, &recipient_token_pool.key())?;
     let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForCompress),
@@ -65,7 +82,7 @@ pub fn compress_spl_tokens<'info>(
             .as_ref()
             .unwrap()
             .to_account_info(),
-        &recipient,
+        &recipient_token_pool,
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts
             .token_program
