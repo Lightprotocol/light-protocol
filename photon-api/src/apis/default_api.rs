@@ -991,14 +991,11 @@ pub async fn get_multiple_compressed_account_proofs_post(
 
     let local_var_client = &local_var_configuration.client;
 
-    let mut local_var_uri_str = format!(
+    let local_var_uri_str = format!(
         "{}/getMultipleCompressedAccountProofs",
         local_var_configuration.base_path
     );
-
-    if let Some(ref api_key) = local_var_configuration.api_key {
-        local_var_uri_str = format!("{}?api_key={}", local_var_uri_str, api_key.key);
-    }
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
 
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
