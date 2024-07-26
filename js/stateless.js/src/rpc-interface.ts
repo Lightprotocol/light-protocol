@@ -28,14 +28,24 @@ import { BN } from '@coral-xyz/anchor';
 export interface LatestNonVotingSignatures {
     context: { slot: number };
     value: {
-        items: { signature: string; slot: number; blockTime: number }[];
+        items: {
+            signature: string;
+            slot: number;
+            blockTime: number;
+            error: string | null;
+        }[];
     };
 }
 
 export interface LatestNonVotingSignaturesPaginated {
     context: { slot: number };
     value: {
-        items: { signature: string; slot: number; blockTime: number }[];
+        items: {
+            signature: string;
+            slot: number;
+            blockTime: number;
+            error: string | null;
+        }[];
         cursor: string | null;
     };
 }
@@ -290,6 +300,7 @@ export const LatestNonVotingSignaturesResult = pick({
             signature: string(),
             slot: number(),
             blockTime: number(),
+            error: nullable(string()),
         }),
     ),
 });
@@ -303,6 +314,7 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
             signature: string(),
             slot: number(),
             blockTime: number(),
+            error: nullable(string()),
         }),
     ),
     cursor: nullable(string()),
