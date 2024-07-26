@@ -8,7 +8,7 @@ package «formal-verification» {
 require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git"@"v4.2.0"
 
-require ProvenZK from git
+require «proven-zk» from git
   "https://github.com/reilabs/proven-zk.git"@"v1.4.0"
 
 lean_lib FormalVerification {

@@ -1,5 +1,5 @@
 import Mathlib
-import ProvenZK
+import «ProvenZk»
 import FormalVerification.Circuit
 
 open LightProver (F Order)

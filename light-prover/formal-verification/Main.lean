@@ -1,4 +1,4 @@
-import ProvenZK
+import «ProvenZk»
 import FormalVerification.Circuit
 import FormalVerification.Lemmas
 import FormalVerification.Merkle
