@@ -183,4 +183,5 @@ pub enum ErrorCode {
     TokenPoolPdaUndefined,
     #[msg("Compress or decompress recipient is the same account as the token pool pda.")]
     IsTokenPoolPda,
+    InvalidTokenPoolPda,
 }
