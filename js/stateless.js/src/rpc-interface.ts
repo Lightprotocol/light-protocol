@@ -44,7 +44,6 @@ export interface LatestNonVotingSignaturesPaginated {
             signature: string;
             slot: number;
             blockTime: number;
-            error: string | null;
         }[];
         cursor: string | null;
     };
@@ -314,7 +313,6 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
             signature: string(),
             slot: number(),
             blockTime: number(),
-            error: nullable(string()),
         }),
     ),
     cursor: nullable(string()),
