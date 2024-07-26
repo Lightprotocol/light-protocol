@@ -74,4 +74,4 @@ jobs:
         run: |
           cd light-prover/formal-verification
           ~/.elan/bin/lake exe cache get
-          ~/.elan/bin/lake build
+          ~/.elan/bin/lake build || ~/.elan/bin/lake build
