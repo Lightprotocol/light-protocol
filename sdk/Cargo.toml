@@ -51,7 +51,7 @@ light-prover-client = { version = "0.3.0", path = "../circuit-lib/light-prover-c
 light-merkle-tree-reference = { version = "0.3.0", path = "../merkle-tree/reference/" }
 light-indexed-merkle-tree = { version = "0.3.0", path = "../merkle-tree/indexed/" }
 num-bigint = "0.4.6"
-num-traits = "0.2.18"
+num-traits = "0.2.19"
 lazy_static = "1.4.0"
 light-hash-set = { version = "0.3.0", path = "../merkle-tree/hash-set", features = ["solana"] }
 rand = "0.8.5"

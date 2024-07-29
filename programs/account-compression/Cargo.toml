@@ -35,7 +35,7 @@ light-concurrent-merkle-tree = { version = "0.3.0", path = "../../merkle-tree/co
 light-indexed-merkle-tree = { version = "0.3.0", path = "../../merkle-tree/indexed", features = ["solana"] }
 light-utils = { version = "0.3.0", path = "../../utils" }
 num-bigint = "0.4"
-num-traits = "0.2.18"
+num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

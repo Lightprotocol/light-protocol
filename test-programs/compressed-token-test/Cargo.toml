@@ -37,7 +37,7 @@ reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
 num-bigint = "0.4.6"
-num-traits = "0.2.18"
+num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = "0.8"
