@@ -11,7 +11,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "bs58": "^4.0.1",
+    "bs58": "^6.0.0",
     "@coral-xyz/anchor": "^0.30.0",
     "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/compressed-token": "workspace:*",
