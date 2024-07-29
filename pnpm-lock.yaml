@@ -15,8 +15,8 @@ importers:
         specifier: ^19.4.2
         version: 19.4.2
       playwright:
-        specifier: ^1.45.1
-        version: 1.45.1
+        specifier: ^1.45.3
+        version: 1.45.3
       prettier:
         specifier: ^3.3.3
         version: 3.3.3
@@ -381,10 +381,6 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
-
-  hasher.rs/src/main/wasm: {}
-
-  hasher.rs/src/main/wasm-simd: {}
 
   js/compressed-token:
     dependencies:
@@ -6288,6 +6284,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  playwright-core@1.45.3:
+    resolution: {integrity: sha512-+ym0jNbcjikaOwwSZycFbwkWgfruWvYlJfThKYAlImbxUgdWFO2oW70ojPm4OpE4t6TAo2FY/smM+hpVTtkhDA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright@1.43.1:
     resolution: {integrity: sha512-V7SoH0ai2kNt1Md9E3Gwas5B9m8KR2GVvwZnAI6Pg0m3sh7UvgiYhRrhsziCmqMJNouPckiOhk8T+9bSAK0VIA==}
     engines: {node: '>=16'}
@@ -6295,6 +6296,11 @@ packages:
 
   playwright@1.45.1:
     resolution: {integrity: sha512-Hjrgae4kpSQBr98nhCj3IScxVeVUixqj+5oyif8TdIn2opTCPEzqAqNMeK42i3cWDCVu9MI+ZsGWw+gVR4ISBg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.45.3:
+    resolution: {integrity: sha512-QhVaS+lpluxCaioejDZ95l4Y4jSFCsBvl2UZkpeXlzxmqS+aABr5c82YmfMHrL6x27nvrvykJAFpkzT2eWdJww==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -14955,6 +14961,8 @@ snapshots:
 
   playwright-core@1.45.1: {}
 
+  playwright-core@1.45.3: {}
+
   playwright@1.43.1:
     dependencies:
       playwright-core: 1.43.1
@@ -14964,6 +14972,12 @@ snapshots:
   playwright@1.45.1:
     dependencies:
       playwright-core: 1.45.1
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright@1.45.3:
+    dependencies:
+      playwright-core: 1.45.3
     optionalDependencies:
       fsevents: 2.3.2
 
