@@ -8,9 +8,9 @@ pub struct NullifyLeaves<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpochPda>,
-    /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    /// CHECK: TODO: must be authority of ForesterEpochPda.
     pub authority: Signer<'info>,
-    /// CHECK:
+    /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority: AccountInfo<'info>,
     /// CHECK: (account compression program) group access control.
@@ -18,10 +18,10 @@ pub struct NullifyLeaves<'info> {
     pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: (account compression program) when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: (account compression program)
+    /// CHECK: (account compression program).
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-    /// CHECK: (account compression program)
+    /// CHECK: (account compression program).
     #[account(mut)]
     pub nullifier_queue: AccountInfo<'info>,
 }

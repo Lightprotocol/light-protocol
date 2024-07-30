@@ -5,25 +5,21 @@ use crate::epoch::register_epoch::ForesterEpochPda;
 
 #[derive(Accounts)]
 pub struct UpdateAddressMerkleTree<'info> {
-    /// CHECK:
+    /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpochPda>,
-    /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    /// CHECK: TODO: must be authority of ForesterEpochPda.
     pub authority: Signer<'info>,
-    /// CHECK:
+    /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority: AccountInfo<'info>,
-    /// CHECK:
-    #[account(
-        seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
-        )]
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    /// CHECK: (account compression program) group access control.
+    pub registered_program_pda: AccountInfo<'info>,
     pub account_compression_program: Program<'info, AccountCompression>,
-    /// CHECK: in account compression program
+    /// CHECK: (account compression program).
     #[account(mut)]
     pub queue: AccountInfo<'info>,
-    /// CHECK: in account compression program
+    /// CHECK: (account compression program).
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
     /// CHECK: when emitting event.
