@@ -633,5 +633,67 @@ mod test {
             output_compressed_accounts,
             expected_compressed_output_accounts
         );
+
+        let lamports_amount = 2;
+
+        let input_token_data_with_context = vec![
+            InputTokenDataWithContext {
+                amount: 100,
+
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 1,
+                    leaf_index: 1,
+                    queue_index: None,
+                },
+                root_index: 0,
+                delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: Some(lamports_amount / 2),
+                tlv: None,
+            },
+            InputTokenDataWithContext {
+                amount: 101,
+
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 1,
+                    leaf_index: 2,
+                    queue_index: None,
+                },
+                root_index: 0,
+                delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: Some(lamports_amount / 2),
+                tlv: None,
+            },
+        ];
+        let inputs = CompressedTokenInstructionDataRevoke {
+            proof: CompressedProof::default(),
+            mint,
+            input_token_data_with_context,
+            cpi_context: None,
+            output_account_merkle_tree_index: 1,
+        };
+        let (compressed_input_accounts, output_compressed_accounts) =
+            create_input_and_output_accounts_revoke(&inputs, &authority, &remaining_accounts)
+                .unwrap();
+        assert_eq!(compressed_input_accounts.len(), 2);
+        assert_eq!(output_compressed_accounts.len(), 1);
+        let expected_change_token_data = TokenData {
+            mint,
+            owner: authority,
+            amount: 201,
+            delegate: None,
+            state: AccountState::Initialized,
+            tlv: None,
+        };
+        let mut expected_compressed_output_accounts =
+            create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+        expected_compressed_output_accounts[0]
+            .compressed_account
+            .lamports = lamports_amount;
+        assert_eq!(
+            output_compressed_accounts,
+            expected_compressed_output_accounts
+        );
     }
 }
