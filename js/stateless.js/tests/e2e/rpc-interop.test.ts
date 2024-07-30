@@ -40,6 +40,25 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
+    it('getCompressedAccountsByOnwer [noforester] filter should work', async () => {
+        let accs = await rpc.getCompressedAccountsByOwner(payer.publicKey, {
+            filters: [
+                {
+                    memcmp: {
+                        offset: 1,
+                        bytes: '5Vf',
+                    },
+                },
+            ],
+        });
+        assert.equal(accs.items.length, 0);
+
+        accs = await rpc.getCompressedAccountsByOwner(payer.publicKey, {
+            dataSlice: { offset: 1, length: 2 },
+        });
+        /// TODO: DataSlice filter does not work in photon. Adapt once photon is fixed.
+        assert.equal(accs.items.length, 1);
+    });
     it('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,

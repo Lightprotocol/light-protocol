@@ -35,6 +35,7 @@ import {
     LatestNonVotingSignaturesResultPaginated,
     LatestNonVotingSignaturesPaginated,
     WithContext,
+    GetCompressedAccountsByOwnerConfig,
     WithCursor,
 } from './rpc-interface';
 import {
@@ -663,17 +664,25 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
+        config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
-            { owner: owner.toBase58() },
+            {
+                owner: owner.toBase58(),
+                filters: config?.filters || [],
+                dataSlice: config?.dataSlice,
+                cursor: config?.cursor,
+                limit: config?.limit?.toNumber(),
+            },
         );
 
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(CompressedAccountsByOwnerResult),
         );
+
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,

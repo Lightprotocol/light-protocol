@@ -62,6 +62,7 @@ get_version() {
     echo "unknown"
 }
 
+<<<<<<< HEAD
 get_suffix() {
     local key="${1}_${OS}_${ARCH}"
     for item in "${SUFFIXES[@]}"; do
@@ -73,6 +74,16 @@ get_suffix() {
     done
     echo "unknown"
 }
+=======
+GO_VERSION="1.21.7"
+NODE_VERSION="20.9.0"
+PNPM_VERSION="9.5.0"
+SOLANA_VERSION="1.18.11"
+ANCHOR_VERSION="anchor-v0.29.0"
+JQ_VERSION="jq-1.7.1"
+PHOTON_VERSION="0.39.0"
+PHOTON_BRANCH=""
+>>>>>>> 041775d08 (bump 1)
 
 download() {
     curl -sSL --retry 5 --retry-delay 10 -o "$2" "$1"

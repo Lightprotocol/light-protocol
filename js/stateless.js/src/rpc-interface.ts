@@ -1,4 +1,4 @@
-import { PublicKey, DataSizeFilter, MemcmpFilter } from '@solana/web3.js';
+import { PublicKey, MemcmpFilter, DataSlice } from '@solana/web3.js';
 import {
     type as pick,
     number,
@@ -35,6 +35,13 @@ export interface LatestNonVotingSignatures {
             error: string | null;
         }[];
     };
+}
+
+export interface GetCompressedAccountsByOwnerConfig {
+    filters?: GetCompressedAccountsFilter[];
+    dataSlice?: DataSlice;
+    cursor?: string;
+    limit?: BN;
 }
 
 export interface LatestNonVotingSignaturesPaginated {
@@ -107,14 +114,17 @@ export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     limit?: BN;
 }
 
-export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
+/**
+ * Note, DataSizeFilter is currently not available.
+ */
+export type GetCompressedAccountsFilter = MemcmpFilter; // | DataSizeFilter;
 
 export type GetCompressedAccountConfig = {
     encoding?: string;
 };
 
 export type GetCompressedAccountsConfig = {
-    encoding?: string;
+    dataSlice: DataSlice;
     filters?: GetCompressedAccountsFilter[];
 };
 
@@ -131,6 +141,7 @@ export type WithContext<T> = {
     /** response value */
     value: T;
 };
+
 export type WithCursor<T> = {
     /** context */
     cursor: string | null;
@@ -493,6 +504,7 @@ export interface CompressionApiInterface {
 
     getCompressedAccountsByOwner(
         owner: PublicKey,
+        config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>>;
 
     getCompressedTokenAccountsByOwner(
