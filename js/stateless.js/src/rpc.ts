@@ -35,6 +35,8 @@ import {
     LatestNonVotingSignaturesResultPaginated,
     LatestNonVotingSignaturesPaginated,
     WithContext,
+    GetCompressedAccountsByOwnerConfig,
+    WithCursor,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -657,19 +659,27 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Fetch all the compressed accounts owned by the specified public key.
      * Owner can be a program or user account
      */
-    async getCompressedAccountsByOwner(
+    async getCompressedAccountsByOwnerWithCursor(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[]> {
+        config?: GetCompressedAccountsByOwnerConfig,
+    ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
-            { owner: owner.toBase58() },
+            {
+                owner: owner.toBase58(),
+                filters: config?.filters || [],
+                dataSlice: config?.dataSlice,
+                cursor: config?.cursor,
+                limit: config?.limit?.toNumber(),
+            },
         );
 
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(CompressedAccountsByOwnerResult),
         );
+
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
@@ -677,7 +687,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            return [];
+            return { cursor: null, value: [] };
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
 
@@ -698,7 +708,31 @@ export class Rpc extends Connection implements CompressionApiInterface {
             accounts.push(account);
         });
 
-        return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
+        return {
+            value: accounts.sort((a, b) => b.leafIndex - a.leafIndex),
+            cursor: res.result.value.cursor,
+        };
+    }
+    /**
+     * Fetch all the compressed accounts owned by the specified public key.
+     * Owner can be a program or user account
+     *
+     * To use `config.limit` or `config.cursor`, please use {@link getCompressedAccountsByOwnerWithCursor} instead.
+     */
+    async getCompressedAccountsByOwner(
+        owner: PublicKey,
+        config?: GetCompressedAccountsByOwnerConfig,
+    ): Promise<CompressedAccountWithMerkleContext[]> {
+        if (config?.cursor || config?.limit) {
+            throw new Error(
+                'To use `limit` and `cursor`, please use getCompressedAccountsByOwnerWithCursor instead.',
+            );
+        }
+        const res = await this.getCompressedAccountsByOwnerWithCursor(
+            owner,
+            config,
+        );
+        return res.value;
     }
 
     /**
