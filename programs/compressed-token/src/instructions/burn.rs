@@ -18,10 +18,10 @@ pub struct BurnInstruction<'info> {
     /// CHECK: (seed constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: that authority is mint authority
+    /// CHECK: is used to burn tokens.
     #[account(mut)]
     pub mint: Account<'info, Mint>,
-    /// CHECK: (seed constraint).
+    /// CHECK: (seed constraint) is derived from mint account.
     #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
