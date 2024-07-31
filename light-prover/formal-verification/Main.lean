@@ -13,33 +13,33 @@ theorem poseidon₃_testVector :
 
 theorem InclusionCircuit.correct
   [Fact (CollisionResistant poseidon₂)]
-  {trees : Vector (MerkleTree F poseidon₂ 20) 10}
-  {leaves : Vector F 10}:
-    (∃p₁ p₂, LightProver.InclusionCircuit_10_10_10_20_10_10_20 (trees.map (·.root)) leaves p₁ p₂)
-    ↔ ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i]
+  {trees : Vector (MerkleTree F poseidon₂ 26) 8}
+  {leaves : Vector F 8}:
+    (∃p₁ p₂, LightProver.InclusionCircuit_8_8_8_26_8_8_26 (trees.map (·.root)) leaves p₁ p₂)
+    ↔ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i]
   := InclusionCircuit_correct
 
 theorem NonInclusionCircuit.correct
   [Fact (CollisionResistant poseidon₃)]
   [Fact (CollisionResistant poseidon₂)]
-  {trees : Vector (RangeTree 20) 10}
-  {leaves : Vector F 10}:
+  {trees : Vector (RangeTree 26) 8}
+  {leaves : Vector F 8}:
     (∃p₁ p₂ p₃ p₄ p₅,
-      LightProver.NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (trees.map (·.val.root)) leaves p₁ p₂ p₃ p₄ p₅)
-    ↔ ∀i (_: i∈[0:10]), leaves[i] ∈ trees[i]
+      LightProver.NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (trees.map (·.val.root)) leaves p₁ p₂ p₃ p₄ p₅)
+    ↔ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i]
   := NonInclusionCircuit_correct
 
 theorem CombinedCircuit.correct
   [Fact (CollisionResistant poseidon₃)]
   [Fact (CollisionResistant poseidon₂)]
-  {inclusionTrees : Vector (MerkleTree F poseidon₂ 20) 10}
-  {nonInclusionTrees : Vector (RangeTree 20) 10}
-  {inclusionLeaves nonInclusionLeaves : Vector F 10}:
+  {inclusionTrees : Vector (MerkleTree F poseidon₂ 26) 8}
+  {nonInclusionTrees : Vector (RangeTree 26) 8}
+  {inclusionLeaves nonInclusionLeaves : Vector F 8}:
     (∃p₁ p₂ p₃ p₄ p₅ p₆ p₇,
-      LightProver.CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10
+      LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8
         (inclusionTrees.map (·.root)) inclusionLeaves p₁ p₂
         (nonInclusionTrees.map (·.val.root)) nonInclusionLeaves p₃ p₄ p₅ p₆ p₇)
-    ↔ ∀i (_: i∈[0:10]), inclusionLeaves[i] ∈ inclusionTrees[i]
+    ↔ ∀i (_: i∈[0:8]), inclusionLeaves[i] ∈ inclusionTrees[i]
                       ∧ nonInclusionLeaves[i] ∈ nonInclusionTrees[i]
   := CombinedCircuit_correct
 

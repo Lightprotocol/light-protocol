@@ -68,7 +68,7 @@ jobs:
       - name: Extract circuit to Lean
         run: |
           cd light-prover
-          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-depth=20 --compressed-accounts=10
+          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-depth=26 --compressed-accounts=8
 
       - name: Build lean project
         run: |

@@ -51,7 +51,7 @@ This part explains the existing cli commands.
    Flags:  
    1. output *file path* - File to be writen to
    2. tree-depth *n* - Merkle tree depth  
-   3. batch-size *n* - Batch size for Merkle tree updates
+   3. compressed-accounts *n* - number of COMPRESSED_ACCOUNTs
 
 ## Running
 
@@ -124,3 +124,12 @@ light-prover:
   docker compose build
   docker compose up -d
 ```
+
+## Formal Verification
+
+1. Install [Elan](https://github.com/leanprover/elan).
+2. ```
+   cd formal-verification
+   lake exe cache get # optional, but speeds up dependency compilation
+   lake build         # compiles and checks the theorems
+   ```

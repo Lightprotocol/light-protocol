@@ -134,8 +134,8 @@ def ProveParentHash (Bit: F) (Hash: F) (Sibling: F) (k: F -> Prop): Prop :=
     Poseidon2 gate_1 gate_2 fun gate_3 =>
     k gate_3
 
-def MerkleRootGadget_20_20 (Hash: F) (Index: F) (Path: Vector F 20) (k: F -> Prop): Prop :=
-    ∃gate_0, Gates.to_binary Index 20 gate_0 ∧
+def MerkleRootGadget_26_26 (Hash: F) (Index: F) (Path: Vector F 26) (k: F -> Prop): Prop :=
+    ∃gate_0, Gates.to_binary Index 26 gate_0 ∧
     ProveParentHash gate_0[0] Hash Path[0] fun gate_1 =>
     ProveParentHash gate_0[1] gate_1 Path[1] fun gate_2 =>
     ProveParentHash gate_0[2] gate_2 Path[2] fun gate_3 =>
@@ -156,30 +156,32 @@ def MerkleRootGadget_20_20 (Hash: F) (Index: F) (Path: Vector F 20) (k: F -> Pro
     ProveParentHash gate_0[17] gate_17 Path[17] fun gate_18 =>
     ProveParentHash gate_0[18] gate_18 Path[18] fun gate_19 =>
     ProveParentHash gate_0[19] gate_19 Path[19] fun gate_20 =>
-    k gate_20
+    ProveParentHash gate_0[20] gate_20 Path[20] fun gate_21 =>
+    ProveParentHash gate_0[21] gate_21 Path[21] fun gate_22 =>
+    ProveParentHash gate_0[22] gate_22 Path[22] fun gate_23 =>
+    ProveParentHash gate_0[23] gate_23 Path[23] fun gate_24 =>
+    ProveParentHash gate_0[24] gate_24 Path[24] fun gate_25 =>
+    ProveParentHash gate_0[25] gate_25 Path[25] fun gate_26 =>
+    k gate_26
 
-def InclusionProof_10_10_10_20_10_10_20 (Roots: Vector F 10) (Leaves: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10) (k: Vector F 10 -> Prop): Prop :=
-    MerkleRootGadget_20_20 Leaves[0] InPathIndices[0] InPathElements[0] fun gate_0 =>
+def InclusionProof_8_8_8_26_8_8_26 (Roots: Vector F 8) (Leaves: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8) (k: Vector F 8 -> Prop): Prop :=
+    MerkleRootGadget_26_26 Leaves[0] InPathIndices[0] InPathElements[0] fun gate_0 =>
     Gates.eq gate_0 Roots[0] ∧
-    MerkleRootGadget_20_20 Leaves[1] InPathIndices[1] InPathElements[1] fun gate_2 =>
+    MerkleRootGadget_26_26 Leaves[1] InPathIndices[1] InPathElements[1] fun gate_2 =>
     Gates.eq gate_2 Roots[1] ∧
-    MerkleRootGadget_20_20 Leaves[2] InPathIndices[2] InPathElements[2] fun gate_4 =>
+    MerkleRootGadget_26_26 Leaves[2] InPathIndices[2] InPathElements[2] fun gate_4 =>
     Gates.eq gate_4 Roots[2] ∧
-    MerkleRootGadget_20_20 Leaves[3] InPathIndices[3] InPathElements[3] fun gate_6 =>
+    MerkleRootGadget_26_26 Leaves[3] InPathIndices[3] InPathElements[3] fun gate_6 =>
     Gates.eq gate_6 Roots[3] ∧
-    MerkleRootGadget_20_20 Leaves[4] InPathIndices[4] InPathElements[4] fun gate_8 =>
+    MerkleRootGadget_26_26 Leaves[4] InPathIndices[4] InPathElements[4] fun gate_8 =>
     Gates.eq gate_8 Roots[4] ∧
-    MerkleRootGadget_20_20 Leaves[5] InPathIndices[5] InPathElements[5] fun gate_10 =>
+    MerkleRootGadget_26_26 Leaves[5] InPathIndices[5] InPathElements[5] fun gate_10 =>
     Gates.eq gate_10 Roots[5] ∧
-    MerkleRootGadget_20_20 Leaves[6] InPathIndices[6] InPathElements[6] fun gate_12 =>
+    MerkleRootGadget_26_26 Leaves[6] InPathIndices[6] InPathElements[6] fun gate_12 =>
     Gates.eq gate_12 Roots[6] ∧
-    MerkleRootGadget_20_20 Leaves[7] InPathIndices[7] InPathElements[7] fun gate_14 =>
+    MerkleRootGadget_26_26 Leaves[7] InPathIndices[7] InPathElements[7] fun gate_14 =>
     Gates.eq gate_14 Roots[7] ∧
-    MerkleRootGadget_20_20 Leaves[8] InPathIndices[8] InPathElements[8] fun gate_16 =>
-    Gates.eq gate_16 Roots[8] ∧
-    MerkleRootGadget_20_20 Leaves[9] InPathIndices[9] InPathElements[9] fun gate_18 =>
-    Gates.eq gate_18 Roots[9] ∧
-    k vec![gate_0, gate_2, gate_4, gate_6, gate_8, gate_10, gate_12, gate_14, gate_16, gate_18]
+    k vec![gate_0, gate_2, gate_4, gate_6, gate_8, gate_10, gate_12, gate_14]
 
 def AssertIsLess_248 (A: F) (B: F) : Prop :=
     ∃gate_0, gate_0 = Gates.sub (452312848583266388373324160190187140051835877600158453279131187530910662656:F) B ∧
@@ -320,50 +322,44 @@ def LeafHashGadget (LeafLowerRangeValue: F) (NextIndex: F) (LeafHigherRangeValue
     Poseidon3 LeafLowerRangeValue NextIndex LeafHigherRangeValue fun gate_2 =>
     k gate_2
 
-def NonInclusionProof_10_10_10_10_10_10_20_10_10_20 (Roots: Vector F 10) (Values: Vector F 10) (LeafLowerRangeValues: Vector F 10) (LeafHigherRangeValues: Vector F 10) (NextIndices: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10) (k: Vector F 10 -> Prop): Prop :=
+def NonInclusionProof_8_8_8_8_8_8_26_8_8_26 (Roots: Vector F 8) (Values: Vector F 8) (LeafLowerRangeValues: Vector F 8) (LeafHigherRangeValues: Vector F 8) (NextIndices: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8) (k: Vector F 8 -> Prop): Prop :=
     LeafHashGadget LeafLowerRangeValues[0] NextIndices[0] LeafHigherRangeValues[0] Values[0] fun gate_0 =>
-    MerkleRootGadget_20_20 gate_0 InPathIndices[0] InPathElements[0] fun gate_1 =>
+    MerkleRootGadget_26_26 gate_0 InPathIndices[0] InPathElements[0] fun gate_1 =>
     Gates.eq gate_1 Roots[0] ∧
     LeafHashGadget LeafLowerRangeValues[1] NextIndices[1] LeafHigherRangeValues[1] Values[1] fun gate_3 =>
-    MerkleRootGadget_20_20 gate_3 InPathIndices[1] InPathElements[1] fun gate_4 =>
+    MerkleRootGadget_26_26 gate_3 InPathIndices[1] InPathElements[1] fun gate_4 =>
     Gates.eq gate_4 Roots[1] ∧
     LeafHashGadget LeafLowerRangeValues[2] NextIndices[2] LeafHigherRangeValues[2] Values[2] fun gate_6 =>
-    MerkleRootGadget_20_20 gate_6 InPathIndices[2] InPathElements[2] fun gate_7 =>
+    MerkleRootGadget_26_26 gate_6 InPathIndices[2] InPathElements[2] fun gate_7 =>
     Gates.eq gate_7 Roots[2] ∧
     LeafHashGadget LeafLowerRangeValues[3] NextIndices[3] LeafHigherRangeValues[3] Values[3] fun gate_9 =>
-    MerkleRootGadget_20_20 gate_9 InPathIndices[3] InPathElements[3] fun gate_10 =>
+    MerkleRootGadget_26_26 gate_9 InPathIndices[3] InPathElements[3] fun gate_10 =>
     Gates.eq gate_10 Roots[3] ∧
     LeafHashGadget LeafLowerRangeValues[4] NextIndices[4] LeafHigherRangeValues[4] Values[4] fun gate_12 =>
-    MerkleRootGadget_20_20 gate_12 InPathIndices[4] InPathElements[4] fun gate_13 =>
+    MerkleRootGadget_26_26 gate_12 InPathIndices[4] InPathElements[4] fun gate_13 =>
     Gates.eq gate_13 Roots[4] ∧
     LeafHashGadget LeafLowerRangeValues[5] NextIndices[5] LeafHigherRangeValues[5] Values[5] fun gate_15 =>
-    MerkleRootGadget_20_20 gate_15 InPathIndices[5] InPathElements[5] fun gate_16 =>
+    MerkleRootGadget_26_26 gate_15 InPathIndices[5] InPathElements[5] fun gate_16 =>
     Gates.eq gate_16 Roots[5] ∧
     LeafHashGadget LeafLowerRangeValues[6] NextIndices[6] LeafHigherRangeValues[6] Values[6] fun gate_18 =>
-    MerkleRootGadget_20_20 gate_18 InPathIndices[6] InPathElements[6] fun gate_19 =>
+    MerkleRootGadget_26_26 gate_18 InPathIndices[6] InPathElements[6] fun gate_19 =>
     Gates.eq gate_19 Roots[6] ∧
     LeafHashGadget LeafLowerRangeValues[7] NextIndices[7] LeafHigherRangeValues[7] Values[7] fun gate_21 =>
-    MerkleRootGadget_20_20 gate_21 InPathIndices[7] InPathElements[7] fun gate_22 =>
+    MerkleRootGadget_26_26 gate_21 InPathIndices[7] InPathElements[7] fun gate_22 =>
     Gates.eq gate_22 Roots[7] ∧
-    LeafHashGadget LeafLowerRangeValues[8] NextIndices[8] LeafHigherRangeValues[8] Values[8] fun gate_24 =>
-    MerkleRootGadget_20_20 gate_24 InPathIndices[8] InPathElements[8] fun gate_25 =>
-    Gates.eq gate_25 Roots[8] ∧
-    LeafHashGadget LeafLowerRangeValues[9] NextIndices[9] LeafHigherRangeValues[9] Values[9] fun gate_27 =>
-    MerkleRootGadget_20_20 gate_27 InPathIndices[9] InPathElements[9] fun gate_28 =>
-    Gates.eq gate_28 Roots[9] ∧
-    k vec![gate_1, gate_4, gate_7, gate_10, gate_13, gate_16, gate_19, gate_22, gate_25, gate_28]
+    k vec![gate_1, gate_4, gate_7, gate_10, gate_13, gate_16, gate_19, gate_22]
 
-def InclusionCircuit_10_10_10_20_10_10_20 (Roots: Vector F 10) (Leaves: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10): Prop :=
-    InclusionProof_10_10_10_20_10_10_20 Roots Leaves InPathIndices InPathElements fun _ =>
+def InclusionCircuit_8_8_8_26_8_8_26 (Roots: Vector F 8) (Leaves: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8): Prop :=
+    InclusionProof_8_8_8_26_8_8_26 Roots Leaves InPathIndices InPathElements fun _ =>
     True
 
-def NonInclusionCircuit_10_10_10_10_10_10_20_10_10_20 (Roots: Vector F 10) (Values: Vector F 10) (LeafLowerRangeValues: Vector F 10) (LeafHigherRangeValues: Vector F 10) (NextIndices: Vector F 10) (InPathIndices: Vector F 10) (InPathElements: Vector (Vector F 20) 10): Prop :=
-    NonInclusionProof_10_10_10_10_10_10_20_10_10_20 Roots Values LeafLowerRangeValues LeafHigherRangeValues NextIndices InPathIndices InPathElements fun _ =>
+def NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (Roots: Vector F 8) (Values: Vector F 8) (LeafLowerRangeValues: Vector F 8) (LeafHigherRangeValues: Vector F 8) (NextIndices: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8): Prop :=
+    NonInclusionProof_8_8_8_8_8_8_26_8_8_26 Roots Values LeafLowerRangeValues LeafHigherRangeValues NextIndices InPathIndices InPathElements fun _ =>
     True
 
-def CombinedCircuit_10_10_10_20_10_10_10_10_10_10_10_20_10 (Inclusion_Roots: Vector F 10) (Inclusion_Leaves: Vector F 10) (Inclusion_InPathIndices: Vector F 10) (Inclusion_InPathElements: Vector (Vector F 20) 10) (NonInclusion_Roots: Vector F 10) (NonInclusion_Values: Vector F 10) (NonInclusion_LeafLowerRangeValues: Vector F 10) (NonInclusion_LeafHigherRangeValues: Vector F 10) (NonInclusion_NextIndices: Vector F 10) (NonInclusion_InPathIndices: Vector F 10) (NonInclusion_InPathElements: Vector (Vector F 20) 10): Prop :=
-    InclusionProof_10_10_10_20_10_10_20 Inclusion_Roots Inclusion_Leaves Inclusion_InPathIndices Inclusion_InPathElements fun _ =>
-    NonInclusionProof_10_10_10_10_10_10_20_10_10_20 NonInclusion_Roots NonInclusion_Values NonInclusion_LeafLowerRangeValues NonInclusion_LeafHigherRangeValues NonInclusion_NextIndices NonInclusion_InPathIndices NonInclusion_InPathElements fun _ =>
+def CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8 (Inclusion_Roots: Vector F 8) (Inclusion_Leaves: Vector F 8) (Inclusion_InPathIndices: Vector F 8) (Inclusion_InPathElements: Vector (Vector F 26) 8) (NonInclusion_Roots: Vector F 8) (NonInclusion_Values: Vector F 8) (NonInclusion_LeafLowerRangeValues: Vector F 8) (NonInclusion_LeafHigherRangeValues: Vector F 8) (NonInclusion_NextIndices: Vector F 8) (NonInclusion_InPathIndices: Vector F 8) (NonInclusion_InPathElements: Vector (Vector F 26) 8): Prop :=
+    InclusionProof_8_8_8_26_8_8_26 Inclusion_Roots Inclusion_Leaves Inclusion_InPathIndices Inclusion_InPathElements fun _ =>
+    NonInclusionProof_8_8_8_8_8_8_26_8_8_26 NonInclusion_Roots NonInclusion_Values NonInclusion_LeafLowerRangeValues NonInclusion_LeafHigherRangeValues NonInclusion_NextIndices NonInclusion_InPathIndices NonInclusion_InPathElements fun _ =>
     True
 
 end LightProver
