@@ -46,15 +46,6 @@ pub fn process_deposit_or_withdrawal<'a, 'b, 'c, 'info: 'b + 'c, const IS_DEPOSI
     change_compressed_account_merkle_tree_index: u8,
     output_delegate_compressed_account_merkle_tree_index: u8,
 ) -> Result<()> {
-    // if !IS_DEPOSIT {
-    //     let slot = Clock::get()?.slot;
-    //     let epoch = ctx.accounts.protocol_config.config.get_current_epoch(slot);
-    //     delegate_account
-    //         .as_ref()
-    //         .unwrap()
-    //         .delegate_account
-    //         .sync_pending_stake_weight(epoch);
-    // }
     let mint = &ctx.accounts.protocol_config.config.mint;
     let slot = Clock::get()?.slot;
     let epoch = ctx.accounts.protocol_config.config.get_current_epoch(slot);

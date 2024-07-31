@@ -19,7 +19,8 @@ pub struct DepositOrWithdrawInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    /// CHECK:
+    /// CHECK: (seed constraint).
+    /// Authority derived from delegate authority and salt.
     #[account(
         seeds = [ESCROW_TOKEN_ACCOUNT_SEED, authority.key().as_ref(), salt.to_le_bytes().as_slice()], bump
         )]

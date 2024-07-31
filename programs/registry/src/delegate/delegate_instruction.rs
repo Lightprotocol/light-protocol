@@ -11,29 +11,26 @@ pub struct DelegatetOrUndelegateInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
+    pub protocol_config: Account<'info, ProtocolConfigPda>,
     /// CHECK:
     #[account(
         seeds = [CPI_AUTHORITY_PDA_SEED], bump
         )]
     pub cpi_authority: AccountInfo<'info>,
-    pub protocol_config: Account<'info, ProtocolConfigPda>,
+    /// Forester pda which is being delegated or undelegated to or from.
     #[account(mut)]
     pub forester_pda: Account<'info, ForesterAccount>,
-    /// CHECK:
+    /// CHECK: (account compression program) as part of light system program invocation.
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: checked in emit_event.rs.
     pub noop_program: AccountInfo<'info>,
-    /// CHECK:
+    /// CHECK: (account compression program) as part of light system program invocation.
+    /// Cpi authority of light system program to invoke account
+    /// compression program.
     pub account_compression_authority: AccountInfo<'info>,
-    /// CHECK:
     pub account_compression_program: Program<'info, AccountCompression>,
-    /// CHECK: checked in cpi_signer_check.
-    pub invoking_program: AccountInfo<'info>,
-    /// CHECK:
+    /// CHECK: (account compression program) as part of light system program invocation.
     pub system_program: AccountInfo<'info>,
-    // /// CHECK:
-    // #[account(mut)]
-    // pub cpi_context_account: AccountInfo<'info>,
     pub self_program: Program<'info, crate::program::LightRegistry>,
     pub light_system_program: Program<'info, LightSystemProgram>,
 }
@@ -64,7 +61,7 @@ impl<'info> SystemProgramAccounts<'info> for DelegatetOrUndelegateInstruction<'i
         self.light_system_program.to_account_info()
     }
     fn get_self_program(&self) -> AccountInfo<'info> {
-        self.invoking_program.to_account_info()
+        unimplemented!()
     }
 }
 

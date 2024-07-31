@@ -1,4 +1,7 @@
-use crate::protocol_config::state::ProtocolConfig;
+use crate::{
+    constants::{FORESTER_SEED, FORESTER_TOKEN_POOL_SEED},
+    protocol_config::state::ProtocolConfig,
+};
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
@@ -25,6 +28,7 @@ pub struct ForesterAccount {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 pub struct ForesterConfig {
+    // TODO: switch to promille
     /// Fee in percentage points.
     pub fee: u64,
     pub fee_recipient: Pubkey,
@@ -39,44 +43,22 @@ impl ForesterAccount {
         let current_epoch = protocol_config.get_current_epoch(
             current_slot.saturating_sub(protocol_config.registration_phase_length),
         );
-        // msg!("current_epoch: {}", current_epoch);
-        // msg!("self.current_epoch: {}", self.current_epoch);
         // If the current epoch is greater than the last registered epoch, or next epoch is in registration phase
         if current_epoch > self.current_epoch
             || protocol_config.is_registration_phase(current_slot).is_ok()
         {
-            // msg!("self pending stake weight: {}", self.pending_undelegated_stake_weight);
-            // msg!("self active stake weight: {}", self.active_stake_weight);
             self.current_epoch = current_epoch;
             self.active_stake_weight += self.pending_undelegated_stake_weight;
             self.pending_undelegated_stake_weight = 0;
-            // msg!("self pending stake weight: {}", self.pending_undelegated_stake_weight);
-            // msg!("self active stake weight: {}", self.active_stake_weight);
         }
         Ok(())
     }
 }
 
-pub const FORESTER_SEED: &[u8] = b"forester";
-pub const FORESTER_TOKEN_POOL_SEED: &[u8] = b"forester_token_pool";
 #[derive(Accounts)]
 pub struct RegisterForester<'info> {
-    /// CHECK:
-    #[account(init, seeds = [FORESTER_SEED, authority.key().to_bytes().as_slice()], bump, space =ForesterAccount::LEN , payer = signer)]
-    pub forester_pda: Account<'info, ForesterAccount>,
-    #[account(
-        init,
-        seeds = [
-        FORESTER_TOKEN_POOL_SEED, authority.key().to_bytes().as_slice(),
-        ],
-        bump,
-        payer = signer,
-          token::mint = mint,
-          token::authority = cpi_authority_pda,
-    )]
-    pub token_pool_pda: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub signer: Signer<'info>,
+    pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
@@ -84,15 +66,29 @@ pub struct RegisterForester<'info> {
     pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
     #[account(constraint = mint.key() == protocol_config_pda.config.mint)]
     pub mint: Account<'info, Mint>,
+    /// CHECK:
+    #[account(init, seeds = [FORESTER_SEED, authority.key().as_ref()], bump, space =ForesterAccount::LEN , payer = fee_payer)]
+    pub forester_pda: Account<'info, ForesterAccount>,
+    #[account(
+        init,
+        seeds = [
+        FORESTER_TOKEN_POOL_SEED, forester_pda.key().as_ref(),
+        ],
+        bump,
+        payer = fee_payer,
+          token::mint = mint,
+          token::authority = cpi_authority_pda,
+    )]
+    pub token_pool_pda: Account<'info, TokenAccount>,
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateForester<'info> {
-    /// CHECK:
+    pub authority: Signer<'info>,
+    /// CHECK: authority is forester pda authority.
     #[account(mut, has_one = authority)]
     pub forester_pda: Account<'info, ForesterAccount>,
-    pub authority: Signer<'info>,
     pub new_authority: Option<Signer<'info>>,
 }

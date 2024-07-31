@@ -1,3 +1,4 @@
+use crate::constants::{EPOCH_SEED, FORESTER_EPOCH_SEED};
 use crate::errors::RegistryError;
 use crate::forester::state::{ForesterAccount, ForesterConfig};
 use crate::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
@@ -5,6 +6,7 @@ use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 
+//TODO: add mechanism to fund epoch account creation
 /// Is used for tallying and rewards calculation
 #[account]
 #[aligned_sized(anchor)]
@@ -14,6 +16,7 @@ pub struct EpochPda {
     pub protocol_config: ProtocolConfig,
     pub total_work: u64,
     pub registered_stake: u64,
+    pub claimed_stake: u64,
 }
 
 #[aligned_sized(anchor)]
@@ -152,9 +155,6 @@ pub fn set_total_registered_stake_instruction(
 ) {
     forester_epoch_pda.total_epoch_state_weight = Some(epoch_pda.registered_stake);
 }
-// TODO: move to constants
-pub const FORESTER_EPOCH_SEED: &[u8] = b"forester_epoch";
-pub const EPOCH_SEED: &[u8] = b"epoch";
 
 #[derive(Accounts)]
 pub struct UpdateForesterEpochPda<'info> {
@@ -170,12 +170,12 @@ pub struct UpdateForesterEpochPda<'info> {
 pub struct RegisterForesterEpoch<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub protocol_config: Account<'info, ProtocolConfigPda>,
     #[account(mut, has_one = authority)]
     pub forester_pda: Account<'info, ForesterAccount>,
     /// CHECK:
     #[account(init, seeds = [FORESTER_EPOCH_SEED, forester_pda.key().to_bytes().as_slice(), current_epoch.to_le_bytes().as_slice()], bump, space =ForesterEpochPda::LEN , payer = authority)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
-    pub protocol_config: Account<'info, ProtocolConfigPda>,
     /// CHECK: TODO: check that this is the correct epoch account
     #[account(init_if_needed, seeds = [EPOCH_SEED, current_epoch.to_le_bytes().as_slice()], bump, space =EpochPda::LEN, payer = authority)]
     pub epoch_pda: Account<'info, EpochPda>,

@@ -75,9 +75,8 @@ pub fn create_update_authority_instruction(
     new_authority: Pubkey,
     new_protocol_config: ProtocolConfig,
 ) -> Instruction {
-    let authority_pda = get_protocol_config_pda_address();
-    let update_authority_ix = crate::instruction::UpdateGovernanceAuthority {
-        _bump: authority_pda.1,
+    let protocol_config_pda = get_protocol_config_pda_address();
+    let update_authority_ix = crate::instruction::UpdateProtocolConfig {
         new_authority,
         new_config: new_protocol_config,
     };
@@ -87,7 +86,7 @@ pub fn create_update_authority_instruction(
         program_id: crate::ID,
         accounts: vec![
             AccountMeta::new(signer_pubkey, true),
-            AccountMeta::new(authority_pda.0, false),
+            AccountMeta::new(protocol_config_pda.0, false),
         ],
         data: update_authority_ix.data(),
     }
@@ -95,7 +94,7 @@ pub fn create_update_authority_instruction(
 
 pub fn create_register_program_instruction(
     signer_pubkey: Pubkey,
-    authority_pda: (Pubkey, u8),
+    protocol_config_pda: (Pubkey, u8),
     group_account: Pubkey,
     program_id_to_be_registered: Pubkey,
 ) -> (Instruction, Pubkey) {
@@ -106,11 +105,11 @@ pub fn create_register_program_instruction(
     let register_program_ix = crate::instruction::RegisterSystemProgram {
         bump: cpi_authority_pda.1,
     };
-    let register_program_accounts = crate::accounts::RegisteredProgram {
+    let register_program_accounts = crate::accounts::RegisterSystemProgram {
         authority: signer_pubkey,
         program_to_be_registered: program_id_to_be_registered,
         registered_program_pda,
-        authority_pda: authority_pda.0,
+        protocol_config_pda: protocol_config_pda.0,
         group_pda: group_account,
         cpi_authority: cpi_authority_pda.0,
         account_compression_program: ID,
@@ -129,19 +128,20 @@ pub fn create_initialize_governance_authority_instruction(
     signer_pubkey: Pubkey,
     protocol_config: ProtocolConfig,
 ) -> Instruction {
-    let authority_pda = get_protocol_config_pda_address();
-    let ix = crate::instruction::InitializeGovernanceAuthority {
-        bump: authority_pda.1,
+    let protocol_config_pda = get_protocol_config_pda_address();
+    let ix = crate::instruction::InitializeProtocolConfig {
+        bump: protocol_config_pda.1,
         protocol_config,
     };
     let cpi_authority_pda = get_cpi_authority_pda().0;
 
-    let accounts = crate::accounts::InitializeAuthority {
-        authority_pda: authority_pda.0,
+    let accounts = crate::accounts::InitializeProtocolConfig {
+        protocol_config_pda: protocol_config_pda.0,
         authority: signer_pubkey,
         system_program: system_program::ID,
         mint: protocol_config.mint,
         cpi_authority: cpi_authority_pda,
+        self_program: crate::ID,
     };
     Instruction {
         program_id: crate::ID,
@@ -151,7 +151,7 @@ pub fn create_initialize_governance_authority_instruction(
 }
 
 pub fn create_register_forester_instruction(
-    governance_authority: &Pubkey,
+    fee_payer: &Pubkey,
     forester_authority: &Pubkey,
     config: ForesterConfig,
 ) -> Instruction {
@@ -161,7 +161,7 @@ pub fn create_register_forester_instruction(
     let token_pool_pda = get_forester_token_pool_pda(forester_authority);
     let accounts = crate::accounts::RegisterForester {
         forester_pda,
-        signer: *governance_authority,
+        fee_payer: *fee_payer,
         protocol_config_pda,
         system_program: solana_sdk::system_program::id(),
         authority: *forester_authority,
@@ -548,7 +548,7 @@ pub struct CreateDelegateInstructionInputs {
     pub output_delegate_compressed_account_merkle_tree: Pubkey,
     pub proof: CompressedProof,
     pub root_index: u16,
-    pub no_sync: bool,
+    // pub no_sync: bool,
     pub forester_pda: Pubkey,
 }
 
@@ -577,7 +577,7 @@ pub fn create_delegate_instruction<const IS_DELEGATE: bool>(
             delegate_account,
             delegate_amount: inputs.amount,
             proof: inputs.proof,
-            no_sync: inputs.no_sync,
+            // no_sync: inputs.no_sync,
         }
         .data()
     } else {
@@ -585,7 +585,7 @@ pub fn create_delegate_instruction<const IS_DELEGATE: bool>(
             delegate_account,
             delegate_amount: inputs.amount,
             proof: inputs.proof,
-            no_sync: inputs.no_sync,
+            // no_sync: inputs.no_sync,
         }
         .data()
     };
@@ -603,7 +603,6 @@ pub fn create_delegate_instruction<const IS_DELEGATE: bool>(
         account_compression_authority: standard_accounts.account_compression_authority,
         account_compression_program: standard_accounts.account_compression_program,
         system_program: standard_accounts.system_program,
-        invoking_program: standard_registry_accounts.self_program,
         protocol_config: standard_registry_accounts.protocol_config_pda,
         self_program: standard_registry_accounts.self_program,
         forester_pda: inputs.forester_pda,
@@ -696,7 +695,7 @@ pub fn create_sync_delegate_instruction(
         let packed_merkle_context =
             pack_merkle_context(&[delegate_account.merkle_context], &mut remaining_accounts);
         DelegateAccountWithPackedContext {
-            delegate_account: delegate_account.delegate_account.into(),
+            delegate_account: delegate_account.delegate_account,
             merkle_context: packed_merkle_context[0],
             root_index: inputs.root_indices[0],
             output_merkle_tree_index,
@@ -766,7 +765,6 @@ pub fn create_sync_delegate_instruction(
         _salt: inputs.salt,
         input_escrow_token_account,
         delegate_account,
-        forester_pda_pubkey,
         previous_hash: inputs.previous_hash,
         compressed_forester_epoch_pdas: inputs.compressed_forester_epoch_pdas,
         last_account_merkle_context,
@@ -799,6 +797,7 @@ pub fn create_sync_delegate_instruction(
         forester_token_pool,
         spl_token_pool,
         spl_token_program,
+        forester_pda: forester_pda_pubkey,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
     Instruction {

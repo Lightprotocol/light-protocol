@@ -1,4 +1,6 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::{
+    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, RegisteredProgram,
+};
 use anchor_lang::prelude::*;
 
 use crate::epoch::register_epoch::ForesterEpochPda;
@@ -17,8 +19,7 @@ pub struct NullifyLeaves<'info> {
     #[account(
         seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
         )]
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub registered_program_pda: Account<'info, RegisteredProgram>,
     pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,

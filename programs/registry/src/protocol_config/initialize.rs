@@ -4,23 +4,25 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 
 #[constant]
-pub const AUTHORITY_PDA_SEED: &[u8] = b"authority";
+pub const PROTOCOL_CONFIG_PDA_SEED: &[u8] = b"authority";
 
 #[derive(Accounts)]
 #[instruction(bump: u8)]
-pub struct InitializeAuthority<'info> {
-    // TODO: add check that this is upgrade authority
-    #[account(mut)]
+pub struct InitializeProtocolConfig<'info> {
+    /// CHECK: initial authority is program keypair.
+    /// The authority should be updated to a different keypair after
+    /// initialization.
+    #[account(mut, constraint= authority.key() == self_program.key())]
     pub authority: Signer<'info>,
-    /// CHECK:
-    #[account(init, seeds = [AUTHORITY_PDA_SEED], bump, space = ProtocolConfigPda::LEN, payer = authority)]
-    pub authority_pda: Account<'info, ProtocolConfigPda>,
+    #[account(init, seeds = [PROTOCOL_CONFIG_PDA_SEED], bump, space = ProtocolConfigPda::LEN, payer = authority)]
+    pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
     pub system_program: Program<'info, System>,
     pub mint: Account<'info, Mint>,
-    /// CHECK:
+    /// CHECK: (seed derivation).
     #[account(
         seeds = [CPI_AUTHORITY_PDA_SEED],
         bump,
     )]
     pub cpi_authority: AccountInfo<'info>,
+    pub self_program: Program<'info, crate::program::LightRegistry>,
 }

@@ -1,17 +1,17 @@
 use anchor_lang::prelude::*;
 
-use crate::AUTHORITY_PDA_SEED;
+use crate::PROTOCOL_CONFIG_PDA_SEED;
 
 use super::state::ProtocolConfigPda;
 
 #[derive(Accounts)]
-#[instruction(bump: u8)]
-pub struct UpdateAuthority<'info> {
-    #[account(mut, constraint = authority.key() == authority_pda.authority)]
+pub struct UpdateProtocolConfig<'info> {
+    /// CHECK: authority is protocol config authority.
+    #[account(mut, constraint = authority.key() == protocol_config_pda.authority)]
     pub authority: Signer<'info>,
-    /// CHECK:
-    // TODO: rename to protocol config pda
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED], bump)]
-    pub authority_pda: Account<'info, ProtocolConfigPda>,
+    /// CHECK: (seed constraints).
+    #[account(mut, seeds = [PROTOCOL_CONFIG_PDA_SEED], bump)]
+    pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
+    /// CHECK: is signer to reduce risk of updating with a wrong authority.
     pub new_authority: Signer<'info>,
 }

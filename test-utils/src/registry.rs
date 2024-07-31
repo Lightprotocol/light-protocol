@@ -613,7 +613,6 @@ pub struct DelegateInputs<'a> {
     pub amount: u64,
     pub delegate_account: FetchedAccount<DelegateAccount>,
     pub forester_pda: Pubkey,
-    pub no_sync: bool,
     pub output_merkle_tree: Pubkey,
 }
 
@@ -622,7 +621,6 @@ pub struct UndelegateInputs<'a> {
     pub amount: u64,
     pub delegate_account: FetchedAccount<DelegateAccount>,
     pub forester_pda: Pubkey,
-    pub no_sync: bool,
     pub output_merkle_tree: Pubkey,
 }
 
@@ -644,7 +642,6 @@ pub async fn undelegate_test<'a, R: RpcConnection, I: Indexer<R>>(
         amount: inputs.amount,
         delegate_account: inputs.delegate_account,
         forester_pda: inputs.forester_pda,
-        no_sync: inputs.no_sync,
         output_merkle_tree: inputs.output_merkle_tree,
     };
     delegate_or_undelegate_test::<R, I, false>(rpc, indexer, inputs).await
@@ -697,7 +694,6 @@ pub async fn delegate_or_undelegate_test<
         proof: proof_rpc_result.proof,
         forester_pda: inputs.forester_pda,
         root_index: proof_rpc_result.root_indices[0],
-        no_sync: inputs.no_sync,
     };
     let ix = create_delegate_instruction::<IS_DEPOSIT>(create_deposit_instruction_inputs.clone());
     println!("trying to fetch forester pda");
@@ -749,11 +745,10 @@ pub async fn assert_delegate_or_undelegate<const IS_DEPOSIT: bool, R: RpcConnect
     {
         let expected_forester_pda = {
             let mut input_pda = pre_forester_pda.clone();
-            if !inputs.no_sync {
-                input_pda
-                    .sync(current_slot, &protocol_config.config)
-                    .unwrap();
-            }
+            input_pda
+                .sync(current_slot, &protocol_config.config)
+                .unwrap();
+
             if IS_DEPOSIT {
                 input_pda.pending_undelegated_stake_weight += inputs.amount;
             } else {

@@ -16,6 +16,7 @@ pub use account_compression_cpi::{
 };
 
 pub use protocol_config::{initialize::*, mint::*, update::*};
+pub mod constants;
 pub mod delegate;
 pub mod epoch;
 pub mod forester;
@@ -48,8 +49,8 @@ pub mod light_registry {
 
     use super::*;
 
-    pub fn initialize_governance_authority(
-        ctx: Context<InitializeAuthority>,
+    pub fn initialize_protocol_config(
+        ctx: Context<InitializeProtocolConfig>,
         bump: u8,
         protocol_config: ProtocolConfig,
     ) -> Result<()> {
@@ -58,30 +59,26 @@ pub mod light_registry {
         {
             return err!(errors::RegistryError::InvalidMint);
         }
-        ctx.accounts.authority_pda.authority = ctx.accounts.authority.key();
-        ctx.accounts.authority_pda.bump = bump;
-        ctx.accounts.authority_pda.config = protocol_config;
-        msg!("mint: {:?}", ctx.accounts.mint.key());
+        ctx.accounts.protocol_config_pda.authority = ctx.accounts.authority.key();
+        ctx.accounts.protocol_config_pda.bump = bump;
+        ctx.accounts.protocol_config_pda.config = protocol_config;
         Ok(())
     }
 
-    // TODO: rename to update_protocol_config
-    pub fn update_governance_authority(
-        ctx: Context<UpdateAuthority>,
-        _bump: u8,
+    pub fn update_protocol_config(
+        ctx: Context<UpdateProtocolConfig>,
         new_authority: Pubkey,
         new_config: ProtocolConfig,
     ) -> Result<()> {
-        ctx.accounts.authority_pda.authority = new_authority;
-        // ctx.accounts.authority_pda.bump = bump;
+        ctx.accounts.protocol_config_pda.authority = new_authority;
         // mint cannot be updated
-        if ctx.accounts.authority_pda.config.mint != new_config.mint {
+        if ctx.accounts.protocol_config_pda.config.mint != new_config.mint {
             return err!(errors::RegistryError::InvalidMint);
         }
         // forester registration guarded can only be disabled
         if !ctx
             .accounts
-            .authority_pda
+            .protocol_config_pda
             .config
             .forester_registration_guarded
             && new_config.forester_registration_guarded
@@ -91,6 +88,7 @@ pub mod light_registry {
         Ok(())
     }
 
+    /// Mint compressed tokens of protocol_config.mint tokens to the recipients.
     pub fn mint<'info>(
         ctx: Context<'_, '_, '_, 'info, Mint<'info>>,
         amounts: Vec<u64>,
@@ -105,7 +103,7 @@ pub mod light_registry {
         )
     }
 
-    pub fn register_system_program(ctx: Context<RegisteredProgram>, bump: u8) -> Result<()> {
+    pub fn register_system_program(ctx: Context<RegisterSystemProgram>, bump: u8) -> Result<()> {
         let bump = &[bump];
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
         let signer_seeds = &[&seeds[..]];
@@ -213,7 +211,7 @@ pub mod light_registry {
         _bump: u8,
         config: ForesterConfig,
     ) -> Result<()> {
-        if ctx.accounts.protocol_config_pda.authority != ctx.accounts.signer.key()
+        if ctx.accounts.protocol_config_pda.authority != ctx.accounts.fee_payer.key()
             && ctx
                 .accounts
                 .protocol_config_pda
@@ -277,6 +275,7 @@ pub mod light_registry {
                 protocol_config: ctx.accounts.protocol_config.config,
                 total_work: 0,
                 registered_stake: 0,
+                claimed_stake: 0,
             });
         }
         register_for_epoch_instruction(
@@ -292,9 +291,6 @@ pub mod light_registry {
     /// This transaction can be included as additional instruction in the first
     /// work instructions during the active phase.
     /// Registration Period must be over.
-    /// TODO: introduce grace period between registration and before
-    /// active phase starts, do I really need it or isn't it clear who gets the
-    /// first slot the first sign up?
     pub fn finalize_registration<'info>(
         ctx: Context<'_, '_, '_, 'info, FinalizeRegistration<'info>>,
     ) -> Result<()> {
@@ -318,29 +314,21 @@ pub mod light_registry {
     }
 
     pub fn update_forester_epoch_pda(
-        ctx: Context<UpdateForesterEpochPda>,
-        authority: Pubkey,
+        _ctx: Context<UpdateForesterEpochPda>,
+        _authority: Pubkey,
     ) -> Result<()> {
-        ctx.accounts.forester_epoch_pda.authority = authority;
-        Ok(())
+        unimplemented!();
+        // _ctx.accounts.forester_epoch_pda.authority = _authority;
+        // Ok(())
     }
 
     pub fn report_work<'info>(ctx: Context<'_, '_, '_, 'info, ReportWork<'info>>) -> Result<()> {
         let current_solana_slot = anchor_lang::solana_program::clock::Clock::get()?.slot;
-        ctx.accounts
-            .epoch_pda
-            .protocol_config
-            .is_report_work_phase(current_solana_slot, ctx.accounts.epoch_pda.epoch)?;
-        // TODO: unify epoch security checks
-        if ctx.accounts.epoch_pda.epoch != ctx.accounts.forester_epoch_pda.epoch {
-            return err!(errors::RegistryError::InvalidEpoch);
-        }
-        if ctx.accounts.forester_epoch_pda.has_reported_work {
-            return err!(errors::RegistryError::ForesterAlreadyReportedWork);
-        }
-        ctx.accounts.epoch_pda.total_work += ctx.accounts.forester_epoch_pda.work_counter;
-        ctx.accounts.forester_epoch_pda.has_reported_work = true;
-        Ok(())
+        process_report_work(
+            &mut ctx.accounts.forester_epoch_pda,
+            &mut ctx.accounts.epoch_pda,
+            current_solana_slot,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -443,15 +431,8 @@ pub mod light_registry {
         proof: CompressedProof,
         delegate_account: DelegateAccountWithPackedContext,
         delegate_amount: u64,
-        no_sync: bool,
     ) -> Result<()> {
-        process_delegate_or_undelegate::<true>(
-            ctx,
-            proof,
-            delegate_account,
-            delegate_amount,
-            no_sync,
-        )
+        process_delegate_or_undelegate::<true>(ctx, proof, delegate_account, delegate_amount, false)
     }
 
     pub fn undelegate<'info>(
@@ -459,14 +440,13 @@ pub mod light_registry {
         proof: CompressedProof,
         delegate_account: DelegateAccountWithPackedContext,
         delegate_amount: u64,
-        no_sync: bool,
     ) -> Result<()> {
         process_delegate_or_undelegate::<false>(
             ctx,
             proof,
             delegate_account,
             delegate_amount,
-            no_sync,
+            false,
         )
     }
 
@@ -478,14 +458,13 @@ pub mod light_registry {
 
     pub fn sync_delegate<'info>(
         ctx: Context<'_, '_, '_, 'info, SyncDelegateInstruction<'info>>,
-        _salt: u64,
+        _salt: u64, // TODO: test integration
         delegate_account: DelegateAccountWithPackedContext,
-        previous_hash: [u8; 32],
-        forester_pda_pubkey: Pubkey,
+        previous_hash: [u8; 32], // TODO: test integration
         compressed_forester_epoch_pdas: Vec<CompressedForesterEpochAccountInput>,
-        last_account_root_index: u16,
+        last_account_root_index: u16, // TODO: test integration
         last_account_merkle_context: PackedMerkleContext,
-        inclusion_proof: CompressedProof,
+        inclusion_proof: CompressedProof, //TODO: test integration
         sync_delegate_token_account: Option<SyncDelegateTokenAccount>,
         input_escrow_token_account: Option<InputTokenDataWithContext>,
         output_token_account_merkle_tree_index: u8,
@@ -494,7 +473,6 @@ pub mod light_registry {
             ctx,
             delegate_account,
             previous_hash,
-            forester_pda_pubkey,
             compressed_forester_epoch_pdas,
             last_account_root_index,
             last_account_merkle_context,
@@ -505,25 +483,8 @@ pub mod light_registry {
         )
     }
 
-    // TODO: update rewards field
-    // signer is light governance authority
-
-    // TODO: sync rewards
-    // signer is registered relayer
-    // sync rewards field with Light Governance Authority rewards field
-
-    // TODO: add register relayer
-    // signer is light governance authority
-    // creates a registered relayer pda which is derived from the relayer
-    // pubkey, with fields: signer_pubkey, points_counter, rewards: Vec<u64>,
-    // last_rewards_sync
-
-    // TODO: deregister relayer
-    // signer is light governance authority
-
-    // TODO: update registered relayer
-    // signer is registered relayer
-    // update the relayer signer pubkey in the pda
+    // TODO: close forester account (cannot be closed  can just be marked as closed then nobody can delegate to it anymore)
+    // signer is light governance authority when guarded or forester authority
 
     // TODO: add rollover lookup table with rewards
     // signer is registered relayer

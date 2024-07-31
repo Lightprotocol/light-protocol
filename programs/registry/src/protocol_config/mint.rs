@@ -9,7 +9,7 @@ use crate::{
     delegate::traits::{
         CompressedTokenProgramAccounts, MintToAccounts, SignerAccounts, SystemProgramAccounts,
     },
-    AUTHORITY_PDA_SEED,
+    PROTOCOL_CONFIG_PDA_SEED,
 };
 
 use super::state::ProtocolConfigPda;
@@ -21,34 +21,33 @@ pub struct Mint<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    /// CHECK:
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED], bump, has_one = authority)]
+    /// CHECK: (seed constraint) authority is protocol config authority.
+    #[account(mut, seeds = [PROTOCOL_CONFIG_PDA_SEED], bump, has_one = authority)]
     pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
-    #[account(mut)]
+    /// CHECK: is mint in protocol config.
+    #[account(mut, constraint = mint.key() == protocol_config_pda.config.mint)]
     pub mint: Account<'info, SplMint>,
-    /// CHECK:
+    /// CHECK: (seed constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority: AccountInfo<'info>,
-    /// CHECK:
+    /// CHECK: (compressed token program).
     pub token_cpi_authority_pda: AccountInfo<'info>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
-    /// CHECK: this account is checked implictly since a mint to from a mint
-    /// account to a token account of a different mint will fail
+    /// CHECK: (compressed token program).
     #[account(mut)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub light_system_program: Program<'info, LightSystemProgram>,
-    /// CHECK: (different program) checked in account compression program
+    /// CHECK: (account compression program).
     pub registered_program_pda: AccountInfo<'info>,
-    /// CHECK: (different program) checked in system and account compression
-    /// programs
+    /// CHECK: (account compression program) when emitting event.
     pub noop_program: AccountInfo<'info>,
-    /// CHECK: this account in account compression program
+    /// CHECK: (account compression program).
     pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    /// CHECK: (different program) will be checked by the system program
+    /// CHECK: (account compression program).
+    /// State Merkle tree minted compressed token accounts are stored in.
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,

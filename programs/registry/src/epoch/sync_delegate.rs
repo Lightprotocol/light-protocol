@@ -35,13 +35,12 @@ pub struct SyncDelegateTokenAccount {
 
 /// THIS IS INSECURE
 /// TODO: make secure by checking inclusion of the last compressed forester epoch pda
-// 392 bytes + 576 accounts + 64 signature = 1032 bytes -> 200 bytes for 8
+// 360 bytes +( 576 + 32 )accounts + 64 signature = 1032 bytes -> 200 bytes for 8
 // CompressedForesterEpochAccountInput compressed accounts
 pub fn process_sync_delegate_account<'info>(
     ctx: Context<'_, '_, '_, 'info, SyncDelegateInstruction<'info>>,
     delegate_account: DelegateAccountWithPackedContext, // 155 bytes
     previous_hash: [u8; 32],                            // 32 bytes
-    forester_pda_pubkey: Pubkey,                        // 32 bytes
     compressed_forester_epoch_pdas: Vec<CompressedForesterEpochAccountInput>, // 4 bytes
     last_account_root_index: u16,                       // 2 bytes
     last_account_merkle_context: PackedMerkleContext,   // 7 bytes
@@ -51,11 +50,11 @@ pub fn process_sync_delegate_account<'info>(
     output_token_account_merkle_tree_index: u8,
 ) -> Result<()> {
     let authority = ctx.accounts.authority.key();
-    let escrow_authority = if let Some(authority) = ctx.accounts.escrow_token_authority.as_ref() {
-        Some(authority.key())
-    } else {
-        None
-    };
+    let escrow_authority = ctx
+        .accounts
+        .escrow_token_authority
+        .as_ref()
+        .map(|authority| authority.key());
     let slot = Clock::get()?.slot;
     let epoch = ctx.accounts.protocol_config.config.get_current_epoch(slot);
     let (
@@ -69,7 +68,7 @@ pub fn process_sync_delegate_account<'info>(
         delegate_account,
         compressed_forester_epoch_pdas,
         previous_hash,
-        forester_pda_pubkey,
+        ctx.accounts.forester_pda.key(),
         last_account_merkle_context,
         last_account_root_index,
         &input_escrow_token_account,

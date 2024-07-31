@@ -184,8 +184,7 @@ mod tests {
             .is_ok());
         // ----------------------------------------------------------------------------------------
         // 7. Report work from active epoch phase
-        report_work_instruction(&mut forester_epoch_pda, &mut epoch_pda, current_solana_slot)
-            .unwrap();
+        process_report_work(&mut forester_epoch_pda, &mut epoch_pda, current_solana_slot).unwrap();
 
         // ----------------------------------------------------------------------------------------
         // Report work phase ends (epoch 1)

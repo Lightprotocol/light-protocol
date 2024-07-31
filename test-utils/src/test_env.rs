@@ -245,7 +245,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     register_forester_and_advance_to_active_phase: bool,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
-    let authority_pda = get_protocol_config_pda_address();
+    let protocol_config_pda = get_protocol_config_pda_address();
     let token_mint_keypair = Keypair::from_bytes(STANDARD_TOKEN_MINT_KEYPAIR.as_slice()).unwrap();
     println!("mint keypair: {:?}", token_mint_keypair.pubkey());
     create_mint_helper_with_keypair(
@@ -268,7 +268,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         initialize_new_group(&group_seed_keypair, payer, context, cpi_authority_pda.0).await;
 
     let gov_authority = context
-        .get_anchor_account::<GroupAuthority>(&authority_pda.0)
+        .get_anchor_account::<GroupAuthority>(&protocol_config_pda.0)
         .await
         .unwrap()
         .unwrap();
@@ -385,7 +385,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         nullifier_queue_pubkey,
         group_pda,
         governance_authority: payer.insecure_clone(),
-        governance_authority_pda: authority_pda.0,
+        governance_authority_pda: protocol_config_pda.0,
         forester: forester.insecure_clone(),
         registered_program_pda: registered_system_program_pda,
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
@@ -601,10 +601,10 @@ pub fn get_test_env_accounts() -> EnvAccounts {
     let group_pda = get_group_pda(group_seed_keypair.pubkey());
 
     let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-    let authority_pda = get_protocol_config_pda_address();
+    let protocol_config_pda = get_protocol_config_pda_address();
     let (_, registered_program_pda) = create_register_program_instruction(
         payer.pubkey(),
-        authority_pda,
+        protocol_config_pda,
         group_pda,
         light_system_program::ID,
     );
@@ -623,7 +623,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         nullifier_queue_pubkey,
         group_pda,
         governance_authority: payer,
-        governance_authority_pda: authority_pda.0,
+        governance_authority_pda: protocol_config_pda.0,
         registered_forester_pda: get_forester_pda_address(&forester.pubkey()).0,
         forester,
         registered_program_pda,
@@ -1006,7 +1006,6 @@ pub async fn create_delegate(
             amount: deposit_amount,
             delegate_account: delegate_account[0].as_ref().unwrap().clone(),
             forester_pda,
-            no_sync: false,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
         delegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)

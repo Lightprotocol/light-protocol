@@ -1368,8 +1368,8 @@ async fn update_registry_governance_on_testnet() {
         _bump: bump,
         new_config: ProtocolConfig::default(),
     };
-    let accounts = light_registry::accounts::UpdateAuthority {
-        authority_pda: env_accounts.governance_authority_pda,
+    let accounts = light_registry::accounts::UpdateProtocolConfig {
+        protocol_config_pda: env_accounts.governance_authority_pda,
         authority: env_accounts.governance_authority.pubkey(),
         new_authority: updated_keypair.pubkey(),
     };

@@ -19,7 +19,7 @@ use anchor_lang::prelude::*;
 ///     for weighted cap we need this round, hardcoded cap would work without
 ///     this round)
 ///   - reward could be in sol, or light tokens
-pub fn report_work_instruction(
+pub fn process_report_work(
     forester_epoch_pda: &mut ForesterEpochPda,
     epoch_pda: &mut EpochPda,
     current_slot: u64,
@@ -32,7 +32,7 @@ pub fn report_work_instruction(
         return err!(RegistryError::InvalidEpochAccount);
     }
     if forester_epoch_pda.has_reported_work {
-        return err!(RegistryError::ForesterAlreadyRegistered);
+        return err!(RegistryError::ForesterAlreadyReportedWork);
     }
 
     forester_epoch_pda.has_reported_work = true;
@@ -43,7 +43,6 @@ pub fn report_work_instruction(
 #[derive(Accounts)]
 pub struct ReportWork<'info> {
     authority: Signer<'info>,
-    // TODO: rename forester_epoch_pda to forester_epoch_pda
     #[account(mut, has_one = authority)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
     #[account(mut)]

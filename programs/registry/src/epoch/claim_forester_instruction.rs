@@ -1,10 +1,11 @@
+use crate::constants::{FORESTER_EPOCH_SEED, FORESTER_TOKEN_POOL_SEED};
 use crate::delegate::traits::MintToAccounts;
 use crate::delegate::traits::{
     CompressedCpiContextTrait, CompressedTokenProgramAccounts, SignerAccounts,
     SystemProgramAccounts,
 };
 use crate::errors::RegistryError;
-use crate::{EpochPda, ForesterAccount, ForesterEpochPda, FORESTER_EPOCH_SEED};
+use crate::{EpochPda, ForesterAccount, ForesterEpochPda};
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -18,14 +19,15 @@ pub struct ClaimForesterInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    /// CHECK:
+    /// CHECK: (seed constraint).
     #[account(
         seeds = [CPI_AUTHORITY_PDA_SEED], bump
         )]
     pub cpi_authority: AccountInfo<'info>,
-    /// CHECK:
+    // START LIGHT ACCOUNTS
+    /// CHECK: (light system program).
     pub registered_program_pda: AccountInfo<'info>,
-    /// CHECK: checked in emit_event.rs.
+    /// CHECK: (light system program) in emit_event.rs.
     pub noop_program: AccountInfo<'info>,
     /// CHECK:
     pub account_compression_authority: AccountInfo<'info>,
@@ -41,10 +43,14 @@ pub struct ClaimForesterInstruction<'info> {
     pub light_system_program: Program<'info, LightSystemProgram>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
     pub spl_token_program: Program<'info, Token>,
-    #[account(mut)]
+    // END LIGHT ACCOUNTS
+    /// CHECK: (seed constraint).
+    /// Pool account for epoch rewards excluding forester fee.
+    #[account(mut, seeds = [FORESTER_TOKEN_POOL_SEED, forester_pda.key().as_ref()],bump,)]
     pub forester_token_pool: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(mut, has_one = authority)]
     pub forester_pda: Account<'info, ForesterAccount>,
+    /// CHECK: (seed constraint) derived from epoch_pda.epoch and forester_pda.
     #[account(mut, seeds=[FORESTER_EPOCH_SEED, forester_pda.key().as_ref(), epoch_pda.epoch.to_le_bytes().as_ref()], bump ,close=fee_payer)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
     #[account(mut)]

@@ -1,18 +1,21 @@
+use crate::constants::FORESTER_TOKEN_POOL_SEED;
+use crate::delegate::deposit::DelegateAccountWithPackedContext;
 use crate::delegate::traits::{CompressedCpiContextTrait, CompressedTokenProgramAccounts};
-use crate::protocol_config::state::ProtocolConfigPda;
-
 use crate::delegate::{
     traits::{SignerAccounts, SystemProgramAccounts},
     ESCROW_TOKEN_ACCOUNT_SEED,
 };
+use crate::protocol_config::state::ProtocolConfigPda;
+use crate::ForesterAccount;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 use light_compressed_token::program::LightCompressedToken;
+use light_compressed_token::POOL_SEED;
 use light_system_program::program::LightSystemProgram;
 
 #[derive(Accounts)]
-#[instruction(salt: u64)]
+#[instruction(salt: u64,delegate_account: DelegateAccountWithPackedContext)]
 pub struct SyncDelegateInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     #[account(mut)]
@@ -29,6 +32,7 @@ pub struct SyncDelegateInstruction<'info> {
         )]
     pub cpi_authority: AccountInfo<'info>,
     pub protocol_config: Account<'info, ProtocolConfigPda>,
+    // START LIGHT ACCOUNTS
     /// CHECK:
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: checked in emit_event.rs.
@@ -46,11 +50,14 @@ pub struct SyncDelegateInstruction<'info> {
     pub compressed_token_program: Option<Program<'info, LightCompressedToken>>,
     /// CHECK:
     pub token_cpi_authority_pda: Option<AccountInfo<'info>>,
-    #[account(mut)]
-    pub forester_token_pool: Option<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub spl_token_pool: Option<Account<'info, TokenAccount>>,
     pub spl_token_program: Option<Program<'info, Token>>,
+    #[account(mut, seeds= [POOL_SEED, protocol_config.config.mint.as_ref()], bump, seeds::program= compressed_token_program.as_ref().unwrap())]
+    pub spl_token_pool: Option<Account<'info, TokenAccount>>,
+    // END LIGHT ACCOUNTS
+    #[account(constraint = forester_pda.key() == delegate_account.delegate_account.delegate_forester_delegate_account.unwrap())]
+    pub forester_pda: Account<'info, ForesterAccount>,
+    #[account(mut, seeds = [FORESTER_TOKEN_POOL_SEED, forester_pda.key().as_ref()],bump,)]
+    pub forester_token_pool: Option<Account<'info, TokenAccount>>,
 }
 
 impl<'info> SystemProgramAccounts<'info> for SyncDelegateInstruction<'info> {

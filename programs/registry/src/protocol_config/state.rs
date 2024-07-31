@@ -80,12 +80,6 @@ impl ProtocolConfig {
         (slot.saturating_sub(self.genesis_slot)) / self.active_phase_length
     }
     pub fn get_current_active_epoch(&self, slot: u64) -> Result<u64> {
-        // msg!("slot: {}", slot);
-        // msg!("genesis_slot: {}", self.genesis_slot);
-        // msg!(
-        //     "registration_phase_length: {}",
-        //     self.registration_phase_length
-        // );
         let slot = match slot.checked_sub(self.genesis_slot + self.registration_phase_length) {
             Some(slot) => slot,
             None => return err!(RegistryError::EpochEnded),
