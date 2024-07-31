@@ -4,8 +4,6 @@ use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_hasher::{errors::HasherError, Hasher};
 use thiserror::Error;
 
-pub mod store;
-
 #[derive(Debug, Error)]
 pub enum ReferenceMerkleTreeError {
     #[error("Leaf {0} does not exist")]

@@ -2,17 +2,17 @@ use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::{BoundedVec, BoundedVecError, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
-    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
-    zero_copy::ConcurrentMerkleTreeZeroCopyMut, ConcurrentMerkleTree,
+    changelog::{ChangelogEntry, ChangelogPath},
+    errors::ConcurrentMerkleTreeError,
+    zero_copy::ConcurrentMerkleTreeZeroCopyMut,
+    ConcurrentMerkleTree,
 };
 use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
-use light_merkle_tree_reference::store::Store;
 use light_utils::rand::gen_range_exclude;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
-use solana_program::pubkey::Pubkey;
 use std::cmp;
 
 /// Tests whether append operations work as expected.
@@ -74,7 +74,7 @@ where
     //  /    \
     // L1   Z[0]
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [leaf1, h1, h2, h3];
+    let expected_changelog_path = ChangelogPath([Some(leaf1), Some(h1), Some(h2), Some(h3)]);
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf1, h1, h2, h3]);
 
     merkle_tree.append(&leaf1).unwrap();
@@ -82,7 +82,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 1);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 0)
+        ChangelogEntry::new(expected_changelog_path, 0)
     );
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 1);
@@ -112,7 +112,7 @@ where
     let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
     let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [leaf2, h1, h2, h3];
+    let expected_changelog_path = ChangelogPath([Some(leaf2), Some(h1), Some(h2), Some(h3)]);
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf1, h1, h2, h3]);
 
     merkle_tree.append(&leaf2).unwrap();
@@ -120,7 +120,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 2);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 1),
+        ChangelogEntry::new(expected_changelog_path, 1),
     );
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 2);
@@ -150,7 +150,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [leaf3, h2, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(leaf3), Some(h2), Some(h3), Some(h4)]);
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf3).unwrap();
@@ -158,7 +158,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 3);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 2),
+        ChangelogEntry::new(expected_changelog_path, 2),
     );
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 3);
@@ -188,7 +188,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [leaf4, h2, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(leaf4), Some(h2), Some(h3), Some(h4)]);
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf4).unwrap();
@@ -196,7 +196,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 4);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3),
+        ChangelogEntry::new(expected_changelog_path, 3),
     );
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(merkle_tree.roots.last_index(), 4);
@@ -369,7 +369,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [leaf4, h2, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(leaf4), Some(h2), Some(h3), Some(h4)]);
     let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf1).unwrap();
@@ -400,7 +400,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 4 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3),
+        ChangelogEntry::new(expected_changelog_path, 3),
     );
 
     assert_eq!(merkle_tree.root(), reference_tree.root());
@@ -456,7 +456,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [new_leaf1, h1, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(new_leaf1), Some(h1), Some(h3), Some(h4)]);
 
     let canopy_levels = [
         &[h4, H::zero_bytes()[3]][..],
@@ -475,7 +475,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 5 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 0),
+        ChangelogEntry::new(expected_changelog_path, 0),
     );
 
     assert_eq!(merkle_tree.root(), reference_tree.root());
@@ -530,7 +530,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [new_leaf2, h1, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(new_leaf2), Some(h1), Some(h3), Some(h4)]);
 
     let canopy_levels = [
         &[h4, H::zero_bytes()[3]][..],
@@ -549,7 +549,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 6 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 1),
+        ChangelogEntry::new(expected_changelog_path, 1),
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
@@ -603,7 +603,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [new_leaf3, h2, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(new_leaf3), Some(h2), Some(h3), Some(h4)]);
 
     let canopy_levels = [
         &[h4, H::zero_bytes()[3]][..],
@@ -622,7 +622,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 7 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 2)
+        ChangelogEntry::new(expected_changelog_path, 2)
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
@@ -676,7 +676,7 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_changelog_path = [new_leaf4, h2, h3, h4];
+    let expected_changelog_path = ChangelogPath([Some(new_leaf4), Some(h2), Some(h3), Some(h4)]);
 
     let canopy_levels = [
         &[h4, H::zero_bytes()[3]][..],
@@ -695,7 +695,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 8 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3)
+        ChangelogEntry::new(expected_changelog_path, 3)
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
@@ -858,10 +858,6 @@ where
         // Reference tree for checking the correctness of proofs.
         let mut reference_mt = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
-        // Store to which we are passing the changelog events from `concurrent_mt_1`.
-        // We will get proofs from it and validate against proofs from `reference_mt`.
-        let mut store = Store::<H>::default();
-
         let leaves: Vec<[u8; 32]> = (0..batch_size)
             .map(|_| {
                 Fr::rand(&mut rng)
@@ -874,54 +870,35 @@ where
         let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
 
         // Append leaves to all Merkle tree implementations.
-        let (first_changelog_index, first_sequence_number) =
-            concurrent_mt_1.append_batch(leaves.as_slice()).unwrap();
-        let changelog_event_1 = concurrent_mt_1
-            .get_changelog_event(
-                [0u8; 32],
-                first_changelog_index,
-                first_sequence_number,
-                batch_size,
-            )
-            .unwrap();
-        let changelog_event_1 = match changelog_event_1 {
-            MerkleTreeEvent::V1(changelog_event_1) => changelog_event_1,
-            MerkleTreeEvent::V2(_) => unreachable!(),
-            MerkleTreeEvent::V3(_) => unreachable!(),
-        };
 
-        let mut changelog_index = 0;
-        let mut sequence_number = 0;
+        // Batch append.
+        concurrent_mt_1.append_batch(leaves.as_slice()).unwrap();
+
+        // Singular appends.
         for leaf in leaves.iter() {
-            (changelog_index, sequence_number) = concurrent_mt_2.append(leaf).unwrap();
+            concurrent_mt_2.append(leaf).unwrap();
         }
-        let changelog_event_2 = concurrent_mt_2
-            .get_changelog_event([0u8; 32], changelog_index, sequence_number, 1)
-            .unwrap();
-        let changelog_event_2 = match changelog_event_2 {
-            MerkleTreeEvent::V1(changelog_event_2) => changelog_event_2,
-            MerkleTreeEvent::V2(_) => unreachable!(),
-            MerkleTreeEvent::V3(_) => unreachable!(),
-        };
 
+        // Singular appends to reference MT.
         for leaf in leaves.iter() {
             reference_mt.append(leaf).unwrap();
         }
 
-        for path in changelog_event_1.paths.iter() {
-            for node in path {
-                store.add_node(node.node, node.index.try_into().unwrap());
-            }
-        }
-
-        // Check wether the last Merkle paths are the same.
-        let changelog_path_1 = changelog_event_1.paths.last().unwrap();
-        let changelog_path_2 = changelog_event_2.paths.last().unwrap();
-        assert_eq!(changelog_path_1, changelog_path_2);
-
         // Check whether roots are the same.
+        assert_eq!(
+            concurrent_mt_1.roots.iter().collect::<Vec<_>>().as_slice(),
+            concurrent_mt_2
+                .roots
+                .iter()
+                // Skip roots which are an output of singular, non-terminal
+                // appends - we expect them to not be included in the tree
+                // with batched appends.
+                .step_by(batch_size)
+                .collect::<Vec<_>>()
+                .as_slice()
+        );
         assert_eq!(concurrent_mt_1.root(), reference_mt.root());
-        assert_eq!(concurrent_mt_2.root(), reference_mt.root(),);
+        assert_eq!(concurrent_mt_2.root(), reference_mt.root());
     }
 }
 
@@ -1321,8 +1298,11 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
     for i in 0..concurrent_mt.changelog.len() {
         let changelog_entry = concurrent_mt.changelog[i].clone();
         let spl_changelog_entry = spl_concurrent_mt.change_logs[i];
-        assert_eq!(changelog_entry.root, spl_changelog_entry.root);
-        assert_eq!(changelog_entry.path.as_slice(), spl_changelog_entry.path);
+        for j in 0..HEIGHT {
+            let changelog_node = changelog_entry.path[j].unwrap();
+            let spl_changelog_node = spl_changelog_entry.path[j];
+            assert_eq!(changelog_node, spl_changelog_node);
+        }
         assert_eq!(changelog_entry.index, spl_changelog_entry.index as u64);
     }
     assert_eq!(
@@ -1541,16 +1521,18 @@ where
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
-        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+        for ((leaf_index, merkle_path), changelog_entry) in leaf_indices
             .iter()
             .skip(1)
             .zip(merkle_paths.iter().skip(1))
-            .zip(roots.iter().skip(1))
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            assert_eq!(&changelog_entry.root, root);
-            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+            for i in 0..HEIGHT {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = merkle_path[i];
+                assert_eq!(changelog_node, path_node);
+            }
         }
 
         for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
@@ -1602,16 +1584,18 @@ where
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
-        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+        for ((leaf_index, merkle_path), changelog_entry) in leaf_indices
             .iter()
             .skip(1)
             .zip(merkle_paths.iter().skip(1))
-            .zip(roots.iter().skip(1))
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            assert_eq!(&changelog_entry.root, root);
-            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+            for i in 0..HEIGHT {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = merkle_path[i];
+                assert_eq!(changelog_node, path_node);
+            }
         }
 
         for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
@@ -1673,16 +1657,18 @@ where
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
-        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+        for ((leaf_index, merkle_path), changelog_entry) in leaf_indices
             .iter()
             .skip(1)
             .zip(merkle_paths.iter().skip(1))
-            .zip(roots.iter().skip(1))
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            assert_eq!(&changelog_entry.root, root);
-            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+            for i in 0..HEIGHT {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = merkle_path[i];
+                assert_eq!(changelog_node, path_node);
+            }
         }
 
         for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
@@ -2128,68 +2114,6 @@ fn hasher_error() {
     // Append a leaf which exceed the modulus.
     let res = merkle_tree.append(&[255_u8; 32]);
     assert!(matches!(res, Err(ConcurrentMerkleTreeError::Hasher(_))));
-}
-
-#[test]
-fn test_changelog_event_v1() {
-    const HEIGHT: usize = 26;
-    const MAX_CHANGELOG: usize = 8;
-    const MAX_ROOTS: usize = 8;
-    const CANOPY: usize = 0;
-
-    let pubkey = [0u8; 32];
-
-    // Fill up the Merkle tree with random leaves.
-    let mut merkle_tree =
-        ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS, CANOPY)
-            .unwrap();
-    merkle_tree.init().unwrap();
-    let mut spl_merkle_tree =
-        spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<
-            HEIGHT,
-            MAX_CHANGELOG,
-        >::new();
-    spl_merkle_tree.initialize().unwrap();
-
-    let leaves = 8;
-
-    for i in 0..leaves {
-        merkle_tree.append(&[(i + 1) as u8; 32]).unwrap();
-        spl_merkle_tree.append([(i + 1) as u8; 32]).unwrap();
-    }
-
-    for i in 0..leaves {
-        let changelog_event = merkle_tree.get_changelog_event([0u8; 32], i, i, 1).unwrap();
-        let changelog_event = match changelog_event {
-            MerkleTreeEvent::V1(changelog_event) => changelog_event,
-            MerkleTreeEvent::V2(_) => unreachable!(),
-            MerkleTreeEvent::V3(_) => unreachable!(),
-        };
-
-        let spl_changelog_entry = Box::new(spl_merkle_tree.change_logs[i]);
-        let spl_changelog_event: Box<spl_account_compression::ChangeLogEvent> =
-            Box::<spl_account_compression::ChangeLogEvent>::from((
-                spl_changelog_entry,
-                Pubkey::new_from_array(pubkey),
-                i as u64,
-            ));
-
-        match *spl_changelog_event {
-            spl_account_compression::ChangeLogEvent::V1(
-                spl_account_compression::events::ChangeLogEventV1 {
-                    id, path, index, ..
-                },
-            ) => {
-                assert_eq!(id.to_bytes(), changelog_event.id);
-                assert_eq!(path.len(), changelog_event.paths[0].len());
-                for j in 0..HEIGHT {
-                    assert_eq!(path[j].node, changelog_event.paths[0][j].node);
-                    assert_eq!(path[j].index, changelog_event.paths[0][j].index);
-                }
-                assert_eq!(index, changelog_event.index);
-            }
-        }
-    }
 }
 
 #[test]
@@ -2830,14 +2754,14 @@ where
     assert_eq!(
         changelog_leaves.as_slice(),
         &[
-            [
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 2
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 3
-            ]
+            ])
         ]
     );
 
@@ -2869,30 +2793,30 @@ where
     assert_eq!(
         changelog_leaves.as_slice(),
         &[
-            [
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 10
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 11
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 12
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 13
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 14
-            ],
-            [
+            ]),
+            Some([
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 15
-            ]
+            ])
         ]
     );
 
@@ -2996,16 +2920,18 @@ where
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
-        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+        for ((leaf_index, merkle_path), changelog_entry) in leaf_indices
             .iter()
             .skip(1)
             .zip(merkle_paths.iter().skip(1))
-            .zip(roots.iter().skip(1))
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            assert_eq!(&changelog_entry.root, root);
-            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+            for i in 0..HEIGHT {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = merkle_path[i];
+                assert_eq!(changelog_node, path_node);
+            }
         }
 
         // Requesting changelog entries starting from the current `changelog_index()`
@@ -3047,16 +2973,18 @@ where
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
-        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+        for ((leaf_index, merkle_path), changelog_entry) in leaf_indices
             .iter()
             .skip(1)
             .zip(merkle_paths.iter().skip(1))
-            .zip(roots.iter().skip(1))
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            assert_eq!(&changelog_entry.root, root);
-            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+            for i in 0..HEIGHT {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = merkle_path[i];
+                assert_eq!(changelog_node, path_node);
+            }
         }
 
         // Requesting changelog entries starting from the current `changelog_index()`
@@ -3337,21 +3265,93 @@ fn test_append_batch() {
     let leaf_0 = [0; 32];
     let leaf_1 = [1; 32];
     tree.append_batch(&[&leaf_0, &leaf_1]).unwrap();
-    let change_log_0 = tree
+    let change_log_0 = &tree
         .changelog
         .get(tree.changelog.first_index())
         .unwrap()
         .path;
-    let change_log_1 = tree
+    let change_log_1 = &tree
         .changelog
         .get(tree.changelog.last_index())
         .unwrap()
         .path;
-    let path_0 = [leaf_0, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
-    let path_1 = [leaf_1, Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()];
+    let path_0 = ChangelogPath([Some(leaf_0), None]);
+    let path_1 = ChangelogPath([
+        Some(leaf_1),
+        Some(Sha256::hashv(&[&leaf_0, &leaf_1]).unwrap()),
+    ]);
 
-    assert_eq!(change_log_1, path_1);
-    assert_eq!(change_log_0, path_0);
+    assert_eq!(change_log_1, &path_1);
+    assert_eq!(change_log_0, &path_0);
+}
+
+/// Tests that updating proof with changelog entries with incomplete paths (coming
+/// from batched appends) works.
+#[test]
+fn test_append_batch_and_update() {
+    let mut tree = ConcurrentMerkleTree::<Sha256, 3>::new(3, 10, 10, 0).unwrap();
+    tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<Sha256>::new(3, 0);
+
+    // Append two leaves.
+    let leaf_0 = [0; 32];
+    let leaf_1 = [1; 32];
+    tree.append_batch(&[&leaf_0, &leaf_1]).unwrap();
+    reference_tree.append(&leaf_0).unwrap();
+    reference_tree.append(&leaf_1).unwrap();
+
+    let changelog_index = tree.changelog_index();
+    let mut proof_leaf_0 = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    let mut proof_leaf_1 = reference_tree.get_proof_of_leaf(1, false).unwrap();
+
+    // Append another two leaves.
+    let leaf_2 = [2; 32];
+    let leaf_3 = [3; 32];
+    tree.append_batch(&[&leaf_2, &leaf_3]).unwrap();
+    reference_tree.append(&leaf_2).unwrap();
+    reference_tree.append(&leaf_3).unwrap();
+
+    let changelog_entry_leaf_2 = &tree.changelog[3];
+    // Make sure that the non-terminal changelog entry has `None` nodes.
+    assert_eq!(
+        changelog_entry_leaf_2.path,
+        ChangelogPath([Some([2; 32]), None, None])
+    );
+    let changelog_entry_leaf_3 = &tree.changelog[4];
+    // And that the terminal one has no `None` nodes.
+    assert_eq!(
+        changelog_entry_leaf_3.path,
+        ChangelogPath([
+            Some([3; 32]),
+            Some([
+                39, 243, 47, 187, 250, 194, 251, 187, 206, 88, 177, 7, 82, 20, 75, 90, 116, 70,
+                212, 185, 30, 75, 169, 15, 253, 238, 48, 94, 145, 89, 128, 232
+            ]),
+            Some([
+                211, 95, 81, 105, 147, 137, 218, 126, 236, 124, 229, 235, 2, 100, 12, 109, 49, 140,
+                245, 26, 227, 158, 202, 137, 11, 188, 123, 132, 236, 181, 218, 104
+            ])
+        ])
+    );
+
+    // The tree (only the used fragment) looks like:
+    //
+    //       _ H2 _
+    //     /        \
+    //    H0        H1
+    //   /   \    /    \
+    // L0    L1  L2     L3
+
+    // Update `leaf_0`. Expect a success.
+    let new_leaf_0 = [10; 32];
+    tree.update(changelog_index, &leaf_0, &new_leaf_0, 0, &mut proof_leaf_0)
+        .unwrap();
+
+    // Update `leaf_1`. Expect a success.
+    let new_leaf_1 = [20; 32];
+    tree.update(changelog_index, &leaf_1, &new_leaf_1, 1, &mut proof_leaf_1)
+        .unwrap();
 }
 
 /// Makes sure canopy works by:

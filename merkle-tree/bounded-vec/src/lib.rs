@@ -535,7 +535,6 @@ impl CyclicBoundedVecMetadata {
 /// * Forbids post-initialization reallocations.
 /// * Starts overwriting elements from the beginning once it reaches its
 ///   capacity.
-#[derive(Debug)]
 pub struct CyclicBoundedVec<T>
 where
     T: Clone,
@@ -658,6 +657,11 @@ where
     #[inline]
     pub fn capacity(&self) -> usize {
         unsafe { (*self.metadata).capacity }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self.data.as_ptr(), self.len()) }
     }
 
     /// Appends an element to the back of a collection.
@@ -790,6 +794,15 @@ where
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
         self.get_mut(self.last_index())
+    }
+}
+
+impl<T> fmt::Debug for CyclicBoundedVec<T>
+where
+    T: Clone + fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.as_slice())
     }
 }
 
