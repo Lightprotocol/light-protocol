@@ -1041,6 +1041,14 @@ export type LightSystemProgram = {
             name: 'OutputMerkleTreeIndicesNotInOrder';
             msg: 'Output merkle tree indices are not in ascending order.';
         },
+        {
+            code: 6033;
+            name: 'OutputMerkleTreeNotUnique';
+        },
+        {
+            code: 6034;
+            name: 'DataFieldUndefined';
+        },
     ];
 };
 
@@ -2091,6 +2099,14 @@ export const IDL: LightSystemProgram = {
             code: 6032,
             name: 'OutputMerkleTreeIndicesNotInOrder',
             msg: 'Output merkle tree indices are not in ascending order.',
+        },
+        {
+            code: 6033,
+            name: 'OutputMerkleTreeNotUnique',
+        },
+        {
+            code: 6034,
+            name: 'DataFieldUndefined',
         },
     ],
 };

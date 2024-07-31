@@ -20,11 +20,13 @@ pub mod address_merkle_tree_config;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
+pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
 pub mod e2e_test_env;
+pub mod forester_epoch;
 #[allow(unused)]
 pub mod indexer;
 pub mod registry;

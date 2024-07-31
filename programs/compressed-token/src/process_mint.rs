@@ -31,11 +31,11 @@ pub struct CreateTokenPoolInstruction<'info> {
     )]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
-    /// CHECK:
+    /// CHECK: is mint account.
     #[account(mut)]
     pub mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
-    /// CHECK:
+    /// CHECK: (seeds anchor constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
 }

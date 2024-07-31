@@ -1,4 +1,3 @@
-use light_registry::sdk::get_registered_program_pda;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;

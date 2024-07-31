@@ -20,6 +20,7 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
+light-registry = { path = "../../programs/registry"  , features = ["cpi"]}
 light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
 light-hasher = {path = "../../merkle-tree/hasher"}

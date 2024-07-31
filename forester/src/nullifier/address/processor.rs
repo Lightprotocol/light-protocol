@@ -8,7 +8,8 @@ use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
 };
-use light_registry::sdk::{
+
+use light_registry::account_compression_cpi::sdk::{
     create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
 };
 use light_test_utils::indexer::Indexer;
@@ -268,8 +269,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
 ) -> Result<bool, ForesterError> {
     let start = Instant::now();
 
-    let update_ix =
-        create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
+    let update_ix = create_update_address_merkle_tree_instruction(
+        UpdateAddressMerkleTreeInstructionInputs {
             authority: config.payer_keypair.pubkey(),
             address_merkle_tree: tree_data.tree_pubkey,
             address_queue: tree_data.queue_pubkey,
@@ -283,7 +284,9 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             indexed_changelog_index: ((account_data.proof.root_seq - 1)
                 % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
                 as u16,
-        });
+        },
+        0, // TODO: add correct epoch
+    );
 
     // Prepare the instructions
     let instructions = vec![
