@@ -885,14 +885,20 @@ where
         }
 
         // Check whether roots are the same.
+        // Skip roots which are an output of singular, non-terminal
+        // appends - we don't compute them in batch appends and instead,
+        // emit a "zero root" (just to appease the clients assuming that
+        // root index is equal to sequence number).
         assert_eq!(
-            concurrent_mt_1.roots.iter().collect::<Vec<_>>().as_slice(),
+            concurrent_mt_1
+                .roots
+                .iter()
+                .step_by(batch_size)
+                .collect::<Vec<_>>()
+                .as_slice(),
             concurrent_mt_2
                 .roots
                 .iter()
-                // Skip roots which are an output of singular, non-terminal
-                // appends - we expect them to not be included in the tree
-                // with batched appends.
                 .step_by(batch_size)
                 .collect::<Vec<_>>()
                 .as_slice()

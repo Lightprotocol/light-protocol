@@ -624,6 +624,11 @@ where
 
             if leaf_i == leaves.len() - 1 {
                 self.roots.push(current_node);
+            } else {
+                // Photon returns only the sequence number and we use it in the
+                // JS client and forester to derive the root index. Therefore,
+                // we need to emit a "zero root" to not break that property.
+                self.roots.push([0u8; 32]);
             }
 
             self.inc_next_index()?;
