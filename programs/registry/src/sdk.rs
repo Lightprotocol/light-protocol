@@ -337,7 +337,7 @@ pub fn create_mint_to_instruction(
         cpi_authority: cpi_authority_pda,
         token_cpi_authority_pda: standard_accounts.token_cpi_authority_pda,
         compressed_token_program: standard_accounts.compressed_token_program,
-        token_pool_pda: standard_accounts.token_pool_pda,
+        compression_token_pool: standard_accounts.token_pool_pda,
         token_program: standard_accounts.token_program,
         light_system_program: standard_accounts.light_system_program,
         registered_program_pda: standard_accounts.registered_program_pda,
@@ -455,17 +455,28 @@ pub fn create_deposit_instruction<const IS_DEPOSIT: bool>(
         &mut remaining_accounts,
         &inputs.cpi_context_account,
     ) as u8;
-    let delegate_account = if let Some(delegate_account) = inputs.delegate_account {
+    let (delegate_account, forester_pda) = if let Some(delegate_account) = inputs.delegate_account {
         let packed_merkle_context =
             pack_merkle_context(&[delegate_account.merkle_context], &mut remaining_accounts);
+        let forester_pda = if let Some(forester_pda) = delegate_account
+            .delegate_account
+            .delegate_forester_delegate_account
+        {
+            Some(forester_pda)
+        } else {
+            None
+        };
 
-        Some(InputDelegateAccountWithPackedContext {
-            delegate_account: delegate_account.delegate_account.into(),
-            merkle_context: packed_merkle_context[0],
-            root_index: inputs.root_indices[inputs.root_indices.len() - 1],
-        })
+        (
+            Some(InputDelegateAccountWithPackedContext {
+                delegate_account: delegate_account.delegate_account.into(),
+                merkle_context: packed_merkle_context[0],
+                root_index: inputs.root_indices[inputs.root_indices.len() - 1],
+            }),
+            forester_pda,
+        )
     } else {
-        None
+        (None, None)
     };
     let instruction_data = if IS_DEPOSIT {
         crate::instruction::Deposit {
@@ -536,7 +547,9 @@ pub fn create_deposit_instruction<const IS_DEPOSIT: bool>(
         escrow_token_authority,
         protocol_config: standard_registry_accounts.protocol_config_pda,
         self_program: standard_registry_accounts.self_program,
+        forester_pda,
     };
+    println!("forester_pda: {:?}", forester_pda);
     let remaining_accounts = to_account_metas(remaining_accounts);
     Instruction {
         program_id: crate::ID,

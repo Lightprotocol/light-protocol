@@ -5,7 +5,7 @@ use crate::assert_epoch::{
 use crate::assert_queue::assert_address_queue_initialized;
 use crate::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, TestForester};
 use crate::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use crate::indexer::{Indexer, TestIndexer, TokenDataWithContext};
+use crate::indexer::{self, Indexer, TestIndexer, TokenDataWithContext};
 use crate::registry::{
     delegate_test, deposit_test, mint_standard_tokens, register_test_forester, DelegateInputs,
     DepositInputs,
@@ -410,23 +410,18 @@ pub async fn initialize_accounts<R: RpcConnection>(
     }
 }
 
-pub async fn set_env_with_delegate_and_forester(
+pub async fn set_env_with_delegate_and_forester_local(
     protocol_config: Option<ProtocolConfig>,
-    keypair_config: Option<KeypairActionConfig>,
-    general_config: Option<GeneralActionConfig>,
-    rounds: u64,
-    seed: Option<u64>,
 ) -> (
-    crate::e2e_test_env::E2ETestEnv<
-        ProgramTestRpcConnection,
-        TestIndexer<ProgramTestRpcConnection>,
-    >,
+    ProgramTestRpcConnection,
+    TestIndexer<ProgramTestRpcConnection>,
     Keypair,
     EnvAccounts,
     Vec<TreeAccounts>,
     Epoch,
 ) {
     let protocol_config = protocol_config.unwrap_or_default();
+
     let (rpc, env) =
         setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, false).await;
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
@@ -436,19 +431,36 @@ pub async fn set_env_with_delegate_and_forester(
         KeypairActionConfig::all_default().non_inclusion(),
     )
     .await;
-    let mut e2e_env =
-        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
-            indexer,
-            &env,
-            keypair_config.unwrap_or(KeypairActionConfig::all_default()),
-            general_config.unwrap_or_default(),
-            rounds,
-            seed,
-        )
-        .await;
+    set_env_with_delegate_and_forester(rpc, indexer, env, protocol_config).await
+}
+
+pub async fn set_env_with_delegate_and_forester<R: RpcConnection, I: Indexer<R>>(
+    mut rpc: R,
+    mut indexer: I,
+    env: EnvAccounts,
+    protocol_config: ProtocolConfig,
+) -> (R, I, Keypair, EnvAccounts, Vec<TreeAccounts>, Epoch) {
+    // let mut e2e_env =
+    //     E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+    //         rpc,
+    //         indexer,
+    //         &env,
+    //         keypair_config.unwrap_or(KeypairActionConfig::all_default()),
+    //         general_config.unwrap_or_default(),
+    //         rounds,
+    //         seed,
+    //     )
+    //     .await;
+    // let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+    //     &env.forester.insecure_clone(),
+    //     &env,
+    //     KeypairActionConfig::all_default().inclusion(),
+    //     KeypairActionConfig::all_default().non_inclusion(),
+    // )
+    // .await;
     let delegate_keypair = create_delegate(
-        &mut e2e_env,
+        &mut rpc,
+        &mut indexer,
         &env,
         1_000_000,
         env.registered_forester_pda,
@@ -472,33 +484,29 @@ pub async fn set_env_with_delegate_and_forester(
         },
     ];
     let slot = protocol_config.genesis_slot + protocol_config.active_phase_length;
-    e2e_env.rpc.warp_to_slot(slot).unwrap();
+    rpc.warp_to_slot(slot).unwrap();
 
     let forester_pda_pubkey = get_forester_pda_address(&env.forester.pubkey()).0;
-    let forester_pda = e2e_env
-        .rpc
+    let forester_pda = rpc
         .get_anchor_account::<ForesterAccount>(&forester_pda_pubkey)
         .await
         .unwrap()
         .unwrap();
     println!("forester_pda: {:?}", forester_pda);
-    let registered_epoch = Epoch::register(&mut e2e_env.rpc, &protocol_config, &env.forester)
+    let registered_epoch = Epoch::register(&mut rpc, &protocol_config, &env.forester)
         .await
         .unwrap();
     assert!(registered_epoch.is_some());
     let mut registered_epoch = registered_epoch.unwrap();
 
     let forester_pda_pubkey = get_forester_pda_address(&env.forester.pubkey()).0;
-    let forester_pda = e2e_env
-        .rpc
+    let forester_pda = rpc
         .get_anchor_account::<ForesterAccount>(&forester_pda_pubkey)
         .await
         .unwrap()
         .unwrap();
-    println!("forester_pda: {:?}", forester_pda);
 
-    let forester_epoch_pda: ForesterEpochPda = e2e_env
-        .rpc
+    let forester_epoch_pda: ForesterEpochPda = rpc
         .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
         .await
         .unwrap()
@@ -512,63 +520,56 @@ pub async fn set_env_with_delegate_and_forester(
     let expected_stake = forester_pda.active_stake_weight;
 
     println!("expected_stake: {}", expected_stake);
-    assert_epoch_pda(&mut e2e_env.rpc, epoch, expected_stake).await;
+    assert_epoch_pda(&mut rpc, epoch, expected_stake).await;
 
     assert_registered_forester_pda(
-        &mut e2e_env.rpc,
+        &mut rpc,
         &registered_epoch.forester_epoch_pda,
         &env.forester.pubkey(),
         epoch,
     )
     .await;
-    let current_slot = e2e_env.rpc.get_slot().await.unwrap();
-    e2e_env
-        .rpc
-        .warp_to_slot(current_slot + protocol_config.active_phase_length)
+    // let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(registered_epoch.phases.active.start)
         .unwrap();
+
     let ix = create_finalize_registration_instruction(&env.forester.pubkey(), epoch);
-    e2e_env
-        .rpc
-        .create_and_send_transaction(&[ix], &env.forester.pubkey(), &[&env.forester])
+    rpc.create_and_send_transaction(&[ix], &env.forester.pubkey(), &[&env.forester])
         .await
         .unwrap();
     let epoch_pda = get_epoch_pda_address(epoch);
-    assert_finalized_epoch_registration(
-        &mut e2e_env.rpc,
-        &registered_epoch.forester_epoch_pda,
-        &epoch_pda,
-    )
-    .await;
+    assert_finalized_epoch_registration(&mut rpc, &registered_epoch.forester_epoch_pda, &epoch_pda)
+        .await;
     // Refetch after finalization
-    let forester_epoch_pda: ForesterEpochPda = e2e_env
-        .rpc
+    let forester_epoch_pda: ForesterEpochPda = rpc
         .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
         .await
         .unwrap()
         .unwrap();
-    let current_solana_slot = e2e_env.rpc.get_slot().await.unwrap();
+    let current_solana_slot = rpc.get_slot().await.unwrap();
     registered_epoch.add_trees_with_schedule(
         &forester_epoch_pda,
         tree_accounts.clone(),
         current_solana_slot,
     );
-    let _forester = Forester {
-        registration: registered_epoch.clone(),
-        active: registered_epoch.clone(),
-        ..Default::default()
-    };
-    // Forester epoch account is assumed to exist (is inited with test program deployment)
-    let forester = TestForester {
-        keypair: env.forester.insecure_clone(),
-        forester: _forester.clone(),
-        is_registered: Some(0),
-    };
-    e2e_env.foresters.push(forester);
-    e2e_env.epoch_config = _forester;
-    e2e_env.epoch = epoch;
+    // let _forester = Forester {
+    //     registration: registered_epoch.clone(),
+    //     active: registered_epoch.clone(),
+    //     ..Default::default()
+    // };
+    // // Forester epoch account is assumed to exist (is inited with test program deployment)
+    // let forester = TestForester {
+    //     keypair: env.forester.insecure_clone(),
+    //     forester: _forester.clone(),
+    //     is_registered: Some(0),
+    // };
+    // e2e_env.foresters.push(forester);
+    // e2e_env.epoch_config = _forester;
+    // e2e_env.epoch = epoch;
 
     (
-        e2e_env,
+        rpc,
+        indexer,
         delegate_keypair,
         env,
         tree_accounts,
@@ -961,11 +962,9 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     Ok(token_program_registered_program_pda)
 }
 
-pub async fn create_delegate(
-    e2e_env: &mut crate::e2e_test_env::E2ETestEnv<
-        ProgramTestRpcConnection,
-        TestIndexer<ProgramTestRpcConnection>,
-    >,
+pub async fn create_delegate<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &mut I,
     env: &EnvAccounts,
     deposit_amount: u64,
     forester_pda: Pubkey,
@@ -975,12 +974,12 @@ pub async fn create_delegate(
     let (delegate_keypair, delegate_account, delegate_escrow) =
         if let Some(delegate_keypair) = delegate_keypair {
             let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-                &mut e2e_env.indexer,
+                indexer,
                 &delegate_keypair.pubkey(),
                 &light_registry::ID,
             );
             println!("delegate_account: {:?}", delegate_account);
-            let escrow_account = e2e_env.indexer.get_compressed_token_accounts_by_owner(
+            let escrow_account = indexer.get_compressed_token_accounts_by_owner(
                 &get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0,
             );
             (
@@ -991,15 +990,13 @@ pub async fn create_delegate(
         } else {
             (Keypair::new(), None, None)
         };
-    e2e_env
-        .rpc
-        .airdrop_lamports(&delegate_keypair.pubkey(), 1_000_000_000)
+    rpc.airdrop_lamports(&delegate_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
 
-    mint_standard_tokens::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>(
-        &mut e2e_env.rpc,
-        &mut e2e_env.indexer,
+    mint_standard_tokens(
+        rpc,
+        indexer,
         &env.governance_authority,
         &delegate_keypair.pubkey(),
         1_000_000_000,
@@ -1009,7 +1006,8 @@ pub async fn create_delegate(
     .unwrap();
 
     deposit_to_delegate_account_helper(
-        e2e_env,
+        rpc,
+        indexer,
         &delegate_keypair,
         deposit_amount,
         env,
@@ -1020,8 +1018,8 @@ pub async fn create_delegate(
     .await;
     // delegate to forester
     {
-        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-            &mut e2e_env.indexer,
+        let delegate_account = get_custom_compressed_account::<_, I, DelegateAccount>(
+            indexer,
             &delegate_keypair.pubkey(),
             &light_registry::ID,
         );
@@ -1033,11 +1031,9 @@ pub async fn create_delegate(
             forester_pda,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
-        delegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
-            .await
-            .unwrap();
-        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-            &mut e2e_env.indexer,
+        delegate_test(rpc, indexer, inputs).await.unwrap();
+        let delegate_account = get_custom_compressed_account::<_, I, DelegateAccount>(
+            indexer,
             &delegate_keypair.pubkey(),
             &light_registry::ID,
         );
@@ -1046,11 +1042,9 @@ pub async fn create_delegate(
     delegate_keypair
 }
 
-pub async fn deposit_to_delegate_account_helper(
-    e2e_env: &mut crate::e2e_test_env::E2ETestEnv<
-        ProgramTestRpcConnection,
-        TestIndexer<ProgramTestRpcConnection>,
-    >,
+pub async fn deposit_to_delegate_account_helper<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &mut I,
     delegate_keypair: &Keypair,
     deposit_amount: u64,
     env: &EnvAccounts,
@@ -1060,14 +1054,12 @@ pub async fn deposit_to_delegate_account_helper(
 ) {
     let escrow_pda_authority = get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0;
 
-    let token_accounts = e2e_env
-        .indexer
-        .get_compressed_token_accounts_by_owner(&delegate_keypair.pubkey());
+    let token_accounts = indexer.get_compressed_token_accounts_by_owner(&delegate_keypair.pubkey());
     // approve amount is expected to equal deposit amount
     approve_test(
         &delegate_keypair,
-        &mut e2e_env.rpc,
-        &mut e2e_env.indexer,
+        rpc,
+        indexer,
         token_accounts,
         deposit_amount,
         None,
@@ -1077,8 +1069,7 @@ pub async fn deposit_to_delegate_account_helper(
         None,
     )
     .await;
-    let token_accounts = e2e_env
-        .indexer
+    let token_accounts = indexer
         .get_compressed_token_accounts_by_owner(&delegate_keypair.pubkey())
         .iter()
         .filter(|a| a.token_data.delegate.is_some())
@@ -1102,7 +1093,5 @@ pub async fn deposit_to_delegate_account_helper(
         epoch,
     };
 
-    deposit_test(&mut e2e_env.rpc, &mut e2e_env.indexer, deposit_inputs)
-        .await
-        .unwrap();
+    deposit_test(rpc, indexer, deposit_inputs).await.unwrap();
 }

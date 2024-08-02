@@ -50,7 +50,7 @@ pub fn process_delegate_or_undelegate<'a, 'b, 'c, 'info: 'b + 'c, const IS_DELEG
 pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
     authority: &Pubkey,
     protocol_config: &ProtocolConfig,
-    delegate_account: DelegateAccountWithPackedContext,
+    mut delegate_account: DelegateAccountWithPackedContext,
     forester_pda_pubkey: &Pubkey,
     forester_pda: &mut ForesterAccount,
     delegate_amount: u64,
@@ -64,6 +64,25 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
     if *authority != delegate_account.delegate_account.owner {
         return err!(RegistryError::InvalidAuthority);
     }
+
+    /**
+     * Scenario 1: Delegate to inactive forester which never does anything after delegation
+     * - it takes one epoch for stake to become active
+     * - after one epoch it should be possible to undelegate
+     *
+     * Scenario 2: Delegate to somehwat active forester
+     * - it takes one epoch for stake to become active
+     * - after one epoch it should be possible to undelegate
+     * - forester was active in the last epoch but doesn't claim
+     * - last_registered_epoch = epoch or epoch - n
+     * - last claimed epoch = epoch - n
+     * last claimed epoch is the epoch to which the delegate account needs to be synced
+     */
+    // The account needs to be synced to a certain degree so that the sync delegate function works.
+    // Edge cases:
+    // - Forester never registered and claimed after delegation
+    //   - (add option for last_claimed_epoch sync is not checked if last claimed is not set) this doesn't work if the forester has registered and claims later
+    // - never claims after delegation
     // check that delegate account is synced to last claimed (completed) epoch
     if forester_pda.last_claimed_epoch != delegate_account.delegate_account.last_sync_epoch
         && delegate_account
@@ -87,8 +106,15 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
             return err!(RegistryError::AlreadyDelegated);
         }
     }
-    let epoch = forester_pda.last_registered_epoch;
-
+    let epoch =         // In case of delegating to an inactive forester, the delegate account needs to be synced so that.
+    if forester_pda.last_registered_epoch <= delegate_account.delegate_account.last_sync_epoch
+        || forester_pda.last_claimed_epoch <= delegate_account.delegate_account.last_sync_epoch
+    {
+        forester_pda.current_epoch
+    } else {
+        forester_pda.last_registered_epoch
+    };
+    msg!("epoch: {}", epoch);
     // modify forester pda
     if IS_DELEGATE {
         forester_pda.pending_undelegated_stake_weight = forester_pda
@@ -122,10 +148,20 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
                 .stake_weight
                 .checked_sub(delegate_amount)
                 .ok_or(RegistryError::ComputeEscrowAmountFailed)?;
-            delegate_account.delegate_forester_delegate_account = Some(*forester_pda_pubkey);
-            println!("epoch {}", epoch);
+            if delegate_account
+                .delegate_forester_delegate_account
+                .is_none()
+            {
+                delegate_account.delegate_forester_delegate_account = Some(*forester_pda_pubkey);
+                delegate_account.last_sync_epoch = forester_pda.last_claimed_epoch;
+            }
             delegate_account.pending_epoch = epoch;
         } else {
+            msg!(
+                "delegate account delegated stake weight: {}",
+                delegate_account.delegated_stake_weight
+            );
+            msg!("delegate amount {}", delegate_amount);
             // remove delegated stake weight from delegated_stake_weight
             // add delegated stake weight to pending_undelegated_stake_weight
             delegate_account.delegated_stake_weight = delegate_account
@@ -137,9 +173,6 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
                 .checked_add(delegate_amount)
                 .ok_or(RegistryError::ComputeEscrowAmountFailed)?;
             delegate_account.pending_epoch = epoch;
-            if delegate_account.delegated_stake_weight == 0 {
-                delegate_account.delegate_forester_delegate_account = None;
-            }
         }
         delegate_account
     };
@@ -269,6 +302,7 @@ mod tests {
             current_slot,
         );
 
+        // This test is currently failing because the delegate the syncing I added changes the delegate account in a different way than before.
         let (input_delegate_pda, output_delegate_pda) = result.unwrap();
         assert_eq!(input_delegate_pda.compressed_account.owner, crate::ID);
         assert_eq!(output_delegate_pda.compressed_account.owner, crate::ID);
@@ -276,12 +310,14 @@ mod tests {
         // Delegate should:
         // - sync pending stake weight
         // - output pending
-        let expected_delegate_account = DelegateAccount {
+        let mut expected_delegate_account = DelegateAccount {
             pending_delegated_stake_weight: delegate_amount,
             pending_epoch: forester_pda.last_registered_epoch,
             stake_weight: delegate_account.delegate_account.stake_weight - delegate_amount,
             ..delegate_account.delegate_account
         };
+        println!("epoch {}", expected_forester_pda.current_epoch);
+        expected_delegate_account.sync_pending_stake_weight(expected_forester_pda.current_epoch);
 
         let deserialized_delegate_account = DelegateAccount::deserialize(
             &mut &output_delegate_pda

@@ -452,6 +452,11 @@ pub mod light_registry {
         process_forester_claim_rewards(ctx)
     }
 
+    /// Forester accounts need to be connected, check function with trait
+    /// eligible instructions:
+    /// - sync_delegate
+    /// - claim_forester_rewards
+    /// -
     pub fn sync_delegate<'info>(
         ctx: Context<'_, '_, '_, 'info, SyncDelegateInstruction<'info>>,
         _salt: u64, // TODO: test integration

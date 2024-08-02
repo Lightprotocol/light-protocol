@@ -96,7 +96,7 @@ pub fn cpi_compressed_token_transfer<
     proof: Option<CompressedProof>,
     compression_amount: Option<u64>,
     is_compress: bool,
-    salt: u64,
+    _salt: u64,
     mut cpi_context: CompressedCpiContext,
     mint: &Pubkey,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,

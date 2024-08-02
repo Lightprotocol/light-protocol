@@ -5,7 +5,8 @@ use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairAct
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{
-    set_env_with_delegate_and_forester, setup_test_programs_with_accounts_with_protocol_config,
+    set_env_with_delegate_and_forester, set_env_with_delegate_and_forester_local,
+    setup_test_programs_with_accounts_with_protocol_config,
 };
 
 #[tokio::test]
@@ -28,27 +29,34 @@ async fn test_10_all() {
     //     KeypairActionConfig::all_default().non_inclusion(),
     // )
     // .await;
-    let (mut e2e_env, _delegate_keypair, _env, _tree_accounts, _registered_epoch) =
-        set_env_with_delegate_and_forester(
-            None,
-            Some(KeypairActionConfig::all_default()),
-            Some(GeneralActionConfig::default()),
+    let (rpc, indexer, _delegate_keypair, env_accounts, _tree_accounts, registered_epoch) =
+        set_env_with_delegate_and_forester_local(None).await;
+
+    let mut e2e_env =
+        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+            rpc,
+            indexer,
+            &env_accounts,
+            KeypairActionConfig::all_default(),
+            GeneralActionConfig::default(),
             10,
             None,
         )
         .await;
-
-    // let mut env =
-    //     E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-    //         rpc,
-    //         indexer,
-    //         &env_accounts,
-    //         KeypairActionConfig::all_default(),
-    //         GeneralActionConfig::default(),
-    //         10,
-    //         None,
-    //     )
-    //     .await;
+    // let _forester = Forester {
+    //     registration: registered_epoch.clone(),
+    //     active: registered_epoch.clone(),
+    //     ..Default::default()
+    // };
+    // // Forester epoch account is assumed to exist (is inited with test program deployment)
+    // let forester = TestForester {
+    //     keypair: env_accounts.forester.insecure_clone(),
+    //     forester: _forester.clone(),
+    //     is_registered: Some(0),
+    // };
+    // e2e_env.foresters.push(forester);
+    // e2e_env.epoch_config = _forester;
+    // e2e_env.epoch = registered_epoch.epoch;
     e2e_env.execute_rounds().await;
     println!("stats {:?}", e2e_env.stats);
 }

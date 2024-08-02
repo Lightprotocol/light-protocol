@@ -1,4 +1,4 @@
-use crate::errors::RegistryError;
+use crate::{errors::RegistryError, forester, ForesterAccount};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use light_compressed_token::{
@@ -53,6 +53,11 @@ pub fn process_deposit_or_withdrawal<'a, 'b, 'c, 'info: 'b + 'c, const IS_DEPOSI
         .protocol_config
         .config
         .get_current_registration_epoch(slot);
+    let forester_pda = if let Some(forester_pda) = &ctx.accounts.forester_pda {
+        Some(forester_pda.clone().into_inner())
+    } else {
+        None
+    };
     let compressed_accounts = deposit_or_withdraw::<IS_DEPOSIT>(
         &ctx.accounts.authority.key(),
         &ctx.accounts.escrow_token_authority.key(),
@@ -65,6 +70,7 @@ pub fn process_deposit_or_withdrawal<'a, 'b, 'c, 'info: 'b + 'c, const IS_DEPOSI
         change_compressed_account_merkle_tree_index,
         output_delegate_compressed_account_merkle_tree_index,
         epoch,
+        forester_pda,
     )?;
 
     if let Some(input_escrow_token_account) = input_escrow_token_account {
@@ -136,6 +142,7 @@ pub fn deposit_or_withdraw<const IS_DEPOSIT: bool>(
     change_compressed_account_merkle_tree_index: u8,
     output_delegate_compressed_account_merkle_tree_index: u8,
     epoch: u64,
+    forester_pda: Option<ForesterAccount>,
 ) -> Result<DepositCompressedAccounts> {
     if delegate_account.is_some() && input_escrow_token_account.is_none()
         || delegate_account.is_none() && input_escrow_token_account.is_some()
@@ -147,7 +154,6 @@ pub fn deposit_or_withdraw<const IS_DEPOSIT: bool>(
         msg!("An input compressed escrow token account is required for withdrawal");
         return Err(RegistryError::InputEscrowTokenHashNotProvided.into());
     }
-    let hashed_owner = hash_to_bn254_field_size_be(authority.as_ref()).unwrap().0;
     let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref()).unwrap().0;
     let hashed_escrow_token_authority =
         hash_to_bn254_field_size_be(escrow_token_authority.as_ref())
@@ -231,6 +237,7 @@ pub fn deposit_or_withdraw<const IS_DEPOSIT: bool>(
         deposit_amount,
         output_delegate_compressed_account_merkle_tree_index,
         epoch,
+        forester_pda,
     )?;
     Ok(DepositCompressedAccounts {
         input_delegate_pda,
@@ -288,10 +295,12 @@ fn update_delegate_compressed_account<const IS_DEPOSIT: bool>(
     deposit_amount: u64,
     merkle_tree_index: u8,
     epoch: u64,
+    forester_pda: Option<ForesterAccount>,
 ) -> Result<(
     Option<PackedCompressedAccountWithMerkleContext>,
     OutputCompressedAccountWithPackedContext,
 )> {
+    msg!("epoch {:?}", epoch);
     let (input_account, mut delegate_account) = if let Some(input) = input_delegate_account {
         let input_escrow_token_account_hash =
             if let Some(input_escrow_token_account_hash) = input_escrow_token_account_hash {
@@ -302,6 +311,18 @@ fn update_delegate_compressed_account<const IS_DEPOSIT: bool>(
         let (mut delegate_account, input_account) =
             create_input_delegate_account(authority, input_escrow_token_account_hash, input)?;
         delegate_account.escrow_token_account_hash = output_escrow_token_account_hash;
+        if let Some(forester_pda) = forester_pda {
+            let epoch =         // In case of delegating to an inactive forester, the delegate account needs to be synced so that.
+            if forester_pda.last_registered_epoch <= delegate_account.last_sync_epoch
+            || forester_pda.last_claimed_epoch <= delegate_account.last_sync_epoch
+            {
+                epoch
+            } else {
+                forester_pda.last_registered_epoch
+            };
+            delegate_account.sync_pending_stake_weight(epoch);
+        }
+        msg!("forester_pda {:?}", forester_pda);
         // delegate_account.sync_pending_stake_weight(epoch);
         (Some(input_account), delegate_account)
     } else {
@@ -778,6 +799,7 @@ mod tests {
             deposit_amount,
             merkle_tree_index,
             0,
+            None,
         );
 
         assert!(result.is_ok());
@@ -903,6 +925,7 @@ mod tests {
             change_compressed_account_merkle_tree_index,
             output_delegate_compressed_account_merkle_tree_index,
             0,
+            None,
         );
 
         assert!(result.is_ok());
@@ -944,6 +967,7 @@ mod tests {
             change_compressed_account_merkle_tree_index,
             output_delegate_compressed_account_merkle_tree_index,
             0,
+            None,
         );
 
         assert!(result.is_ok());
@@ -987,6 +1011,7 @@ mod tests {
                 change_compressed_account_merkle_tree_index,
                 output_delegate_compressed_account_merkle_tree_index,
                 0,
+                None,
             );
 
             assert!(result.is_ok());
@@ -1031,6 +1056,7 @@ mod tests {
                 change_compressed_account_merkle_tree_index,
                 output_delegate_compressed_account_merkle_tree_index,
                 0,
+                None,
             );
 
             assert!(result.is_ok());
@@ -1073,6 +1099,7 @@ mod tests {
             change_compressed_account_merkle_tree_index,
             output_delegate_compressed_account_merkle_tree_index,
             0,
+            None,
         );
 
         assert!(matches!(

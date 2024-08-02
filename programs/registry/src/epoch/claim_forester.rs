@@ -231,10 +231,7 @@ pub fn forester_claim_rewards(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        protocol_config::{self, state::ProtocolConfig},
-        ForesterConfig,
-    };
+    use crate::{protocol_config::state::ProtocolConfig, ForesterConfig};
 
     use super::*;
     use anchor_lang::solana_program::pubkey::Pubkey;

@@ -390,6 +390,7 @@ pub struct WithdrawInputs<'a> {
     pub amount: u64,
     pub delegate_account: FetchedAccount<DelegateAccount>,
     pub input_escrow_token_account: TokenDataWithContext,
+    pub epoch: u64,
 }
 
 pub async fn deposit_test<'a, R: RpcConnection, I: Indexer<R>>(
@@ -411,10 +412,11 @@ pub async fn withdraw_test<'a, R: RpcConnection, I: Indexer<R>>(
         delegate_account: Some(inputs.delegate_account),
         input_token_data: Vec::new(),
         input_escrow_token_account: Some(inputs.input_escrow_token_account),
-        epoch: 0,
+        epoch: inputs.epoch,
     };
     deposit_or_withdraw_test::<R, I, false>(rpc, indexer, inputs).await
 }
+
 pub async fn deposit_or_withdraw_test<
     'a,
     R: RpcConnection,
@@ -573,6 +575,8 @@ pub fn assert_deposit_or_withdrawal<const IS_DEPOSIT: bool>(
     assert_eq!(output_escrow_token_data, expected_escrow_token_data);
 
     let expected_delegate_account = if let Some(mut input_pda) = inputs.delegate_account.clone() {
+        input_pda.delegate_account.sync_pending_stake_weight(epoch);
+        println!("input pda {:?}", input_pda.delegate_account);
         input_pda.delegate_account.escrow_token_account_hash =
             output_escrow_token_data.hash::<Poseidon>().unwrap();
         if IS_DEPOSIT {
@@ -760,8 +764,15 @@ pub async fn assert_delegate_or_undelegate<const IS_DEPOSIT: bool, R: RpcConnect
         };
         assert_eq!(forester_pda, expected_forester_pda);
     }
-    let current_epoch = forester_pda.last_registered_epoch;
-
+    // let current_epoch = forester_pda.last_registered_epoch;
+    let current_epoch =         // In case of delegating to an inactive forester, the delegate account needs to be synced so that.
+    if forester_pda.last_registered_epoch <= inputs.delegate_account.delegate_account.last_sync_epoch
+        || forester_pda.last_claimed_epoch <= inputs.delegate_account.delegate_account.last_sync_epoch
+    {
+        forester_pda.current_epoch
+    } else {
+        forester_pda.last_registered_epoch
+    };
     let expected_delegate_account = {
         let mut input_pda = inputs.delegate_account.clone();
         if current_epoch > input_pda.delegate_account.pending_epoch {
@@ -774,6 +785,14 @@ pub async fn assert_delegate_or_undelegate<const IS_DEPOSIT: bool, R: RpcConnect
                 input_pda.delegate_account.pending_delegated_stake_weight;
             input_pda.delegate_account.pending_delegated_stake_weight = 0;
             // self.pending_epoch = 0;
+        }
+        println!("input pda {:?}", input_pda.delegate_account);
+        if input_pda
+            .delegate_account
+            .delegate_forester_delegate_account
+            .is_none()
+        {
+            input_pda.delegate_account.last_sync_epoch = pre_forester_pda.last_claimed_epoch;
         }
         input_pda.delegate_account.pending_epoch = current_epoch;
         // input_pda.delegate_account.last_sync_epoch = current_epoch;
@@ -790,11 +809,12 @@ pub async fn assert_delegate_or_undelegate<const IS_DEPOSIT: bool, R: RpcConnect
             input_pda
                 .delegate_account
                 .delegate_forester_delegate_account = Some(inputs.forester_pda);
-        } else {
-            input_pda
-                .delegate_account
-                .delegate_forester_delegate_account = None;
         }
+        // else {
+        // input_pda
+        // .delegate_account
+        // .delegate_forester_delegate_account = None;
+        // }
         input_pda.delegate_account
     };
     let output_delegate_account = DelegateAccount::deserialize_reader(

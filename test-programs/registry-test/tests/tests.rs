@@ -8,6 +8,7 @@ use light_registry::account_compression_cpi::sdk::{
 use light_registry::delegate::delegate_account::DelegateAccount;
 use light_registry::delegate::get_escrow_token_authority;
 use light_registry::epoch::claim_forester::CompressedForesterEpochAccount;
+use light_registry::epoch::register_epoch;
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::{
@@ -15,15 +16,16 @@ use light_registry::sdk::{
 };
 use light_registry::utils::{
     get_forester_epoch_pda_address, get_forester_pda_address, get_forester_token_pool_pda,
-    get_protocol_config_pda_address,
 };
 use light_registry::{ForesterAccount, ForesterConfig, ForesterEpochPda, MINT};
 use light_test_utils::assert_epoch::{
     assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
     assert_report_work, fetch_epoch_and_forester_pdas,
 };
-use light_test_utils::e2e_test_env::{init_program_test_env, TestForester};
-use light_test_utils::forester_epoch::{get_epoch_phases, Epoch, Forester, TreeAccounts, TreeType};
+use light_test_utils::e2e_test_env::{
+    init_program_test_env, E2ETestEnv, GeneralActionConfig, KeypairActionConfig,
+};
+use light_test_utils::forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeType};
 use light_test_utils::indexer::{Indexer, TestIndexer};
 
 use light_test_utils::registry::{
@@ -35,7 +37,8 @@ use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{
     create_delegate, deposit_to_delegate_account_helper, set_env_with_delegate_and_forester,
-    setup_accounts_devnet, setup_test_programs_with_accounts_with_protocol_config, EnvAccounts,
+    set_env_with_delegate_and_forester_local, setup_accounts_devnet,
+    setup_test_programs_with_accounts_with_protocol_config, EnvAccounts,
     STANDARD_TOKEN_MINT_KEYPAIR,
 };
 use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
@@ -46,10 +49,7 @@ use light_test_utils::{
         create_rollover_state_merkle_tree_instructions, register_test_forester,
     },
     rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection, SolanaRpcConnection},
-    test_env::{
-        get_test_env_accounts, register_program_with_registry_program,
-        setup_test_programs_with_accounts,
-    },
+    test_env::{get_test_env_accounts, register_program_with_registry_program},
 };
 use rand::Rng;
 use solana_sdk::program_pack::Pack;
@@ -63,7 +63,8 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_register_program() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    // let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let (mut rpc, _, _, env, _, _) = set_env_with_delegate_and_forester_local(None).await;
     let random_program_keypair = Keypair::new();
     register_program_with_registry_program(
         &mut rpc,
@@ -199,6 +200,12 @@ async fn test_deposit() {
             .await
             .unwrap();
     }
+    let slot = e2e_env.rpc.get_slot().await.unwrap();
+    // advance to next active phase
+    e2e_env
+        .rpc
+        .warp_to_slot(slot + e2e_env.protocol_config.active_phase_length)
+        .unwrap();
     // 3. Functional withdrawal
     {
         println!("\n\n fetching accounts for withdrawal \n\n");
@@ -218,6 +225,7 @@ async fn test_deposit() {
             amount: 99999,
             delegate_account: delegate_account[0].as_ref().unwrap().clone(),
             input_escrow_token_account: escrow_token_accounts[0].clone(),
+            epoch: 0,
         };
         withdraw_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
             .await
@@ -225,26 +233,26 @@ async fn test_deposit() {
     }
 }
 
+/// Functional tests to delegate, undelegate and withdraw if the forester is not active
 #[tokio::test]
-async fn test_delegate() {
-    let token_mint_keypair = Keypair::from_bytes(STANDARD_TOKEN_MINT_KEYPAIR.as_slice()).unwrap();
-
-    let protocol_config = ProtocolConfig {
-        mint: token_mint_keypair.pubkey(),
-        ..Default::default()
-    };
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, true).await;
+async fn test_sequence_deposit_delegate_undelegate_withdraw() {
+    // let protocol_config = ProtocolConfig {
+    //     min_stake: 0,
+    //     ..Default::default()
+    // };
+    // let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let (mut rpc, mut indexer, _, env, _, _) = set_env_with_delegate_and_forester_local(None).await;
+    let protocol_config = ProtocolConfig::default();
     let delegate_keypair = Keypair::new();
     rpc.airdrop_lamports(&delegate_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
 
-    let mut e2e_env = init_program_test_env(rpc, &env).await;
+    // let mut e2e_env = init_program_test_env(e2e_env.rpc, &env).await;
 
     mint_standard_tokens::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>(
-        &mut e2e_env.rpc,
-        &mut e2e_env.indexer,
+        &mut rpc,
+        &mut indexer,
         &env.governance_authority,
         &delegate_keypair.pubkey(),
         1_000_000_000,
@@ -255,19 +263,21 @@ async fn test_delegate() {
     let forester_pda = env.registered_forester_pda;
     let deposit_amount = 1_000_000;
     deposit_to_delegate_account_helper(
-        &mut e2e_env,
+        &mut rpc,
+        &mut indexer,
         &delegate_keypair,
         deposit_amount,
         &env,
-        0,
+        2,
         None,
         None,
     )
     .await;
+    println!("created delegate account and deposited");
     // delegate to forester
     {
         let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-            &mut e2e_env.indexer,
+            &mut indexer,
             &delegate_keypair.pubkey(),
             &light_registry::ID,
         );
@@ -278,22 +288,22 @@ async fn test_delegate() {
             forester_pda,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
-        delegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
-            .await
-            .unwrap();
+        delegate_test(&mut rpc, &mut indexer, inputs).await.unwrap();
+        println!("created delegated");
     }
-    let current_slot = e2e_env.rpc.get_slot().await.unwrap();
-    e2e_env
-        .rpc
-        .warp_to_slot(current_slot + protocol_config.active_phase_length)
-        .unwrap();
-    // undelegate from forester
+    // let current_slot = e2e_env.rpc.get_slot().await.unwrap();
+    // e2e_env
+    //     .rpc
+    //     .warp_to_slot(current_slot + protocol_config.active_phase_length)
+    //     .unwrap();
+    // fail undelegate more than delegated (delegated amount is not active yet -> cannot be undelegated until next epoch)
     {
         let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-            &mut e2e_env.indexer,
+            &mut indexer,
             &delegate_keypair.pubkey(),
             &light_registry::ID,
         );
+        println!("delegate_account: {:?}", delegate_account);
         let inputs = UndelegateInputs {
             sender: &delegate_keypair,
             amount: deposit_amount - 1,
@@ -301,14 +311,38 @@ async fn test_delegate() {
             forester_pda,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
-        undelegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
-            .await
-            .unwrap();
+        let result = undelegate_test(&mut rpc, &mut indexer, inputs).await;
+        assert_rpc_error(result, 0, RegistryError::ComputeEscrowAmountFailed.into()).unwrap();
+        println!("created undelegated");
     }
-    // undelegate from forester
+    let slot = rpc.get_slot().await.unwrap();
+    // advance to next active phase
+    rpc.warp_to_slot(slot + protocol_config.active_phase_length)
+        .unwrap();
+    // undelegate from forester (amount - 1)
     {
         let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
-            &mut e2e_env.indexer,
+            &mut indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        println!("delegate_account: {:?}", delegate_account);
+        let inputs = UndelegateInputs {
+            sender: &delegate_keypair,
+            amount: deposit_amount - 1,
+            delegate_account: delegate_account[0].as_ref().unwrap().clone(),
+            forester_pda,
+            output_merkle_tree: env.merkle_tree_pubkey,
+        };
+        undelegate_test(&mut rpc, &mut indexer, inputs)
+            .await
+            .unwrap();
+        println!("created undelegated");
+    }
+    // undelegate from forester (remaining 1)
+    {
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut indexer,
             &delegate_keypair.pubkey(),
             &light_registry::ID,
         );
@@ -319,9 +353,77 @@ async fn test_delegate() {
             forester_pda,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
-        undelegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
+        undelegate_test(&mut rpc, &mut indexer, inputs)
             .await
             .unwrap();
+        println!("created undelegated");
+    }
+    // withdraw 1
+    {
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        let escrow_authority = get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0;
+        let escrow = indexer.get_compressed_token_accounts_by_owner(&escrow_authority);
+        let withdraw_inputs = WithdrawInputs {
+            sender: &delegate_keypair,
+            amount: 1,
+            delegate_account: delegate_account[0].as_ref().unwrap().clone(),
+            input_escrow_token_account: escrow[0].clone(),
+            epoch: 3,
+        };
+        let result = withdraw_test(&mut rpc, &mut indexer, withdraw_inputs).await;
+        assert_rpc_error(result, 0, RegistryError::ComputeEscrowAmountFailed.into()).unwrap();
+        println!("failed withdraw");
+    }
+    let slot = rpc.get_slot().await.unwrap();
+    // advance to next active phase
+    rpc.warp_to_slot(slot + protocol_config.active_phase_length)
+        .unwrap();
+    // withdraw 1
+    {
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        println!("delegate_account: {:?}", delegate_account);
+        let escrow_authority = get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0;
+        let escrow = indexer.get_compressed_token_accounts_by_owner(&escrow_authority);
+        let withdraw_inputs = WithdrawInputs {
+            sender: &delegate_keypair,
+            amount: 1,
+            delegate_account: delegate_account[0].as_ref().unwrap().clone(),
+            input_escrow_token_account: escrow[0].clone(),
+            epoch: 4,
+        };
+        withdraw_test(&mut rpc, &mut indexer, withdraw_inputs)
+            .await
+            .unwrap();
+        println!("created withdraw");
+    }
+    // withdraw remaining
+    {
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        let escrow_authority = get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0;
+        let escrow = indexer.get_compressed_token_accounts_by_owner(&escrow_authority);
+        let withdraw_inputs = WithdrawInputs {
+            sender: &delegate_keypair,
+            amount: deposit_amount - 1,
+            delegate_account: delegate_account[0].as_ref().unwrap().clone(),
+            input_escrow_token_account: escrow[0].clone(),
+            epoch: 4,
+        };
+        withdraw_test(&mut rpc, &mut indexer, withdraw_inputs)
+            .await
+            .unwrap();
+        println!("created withdraw");
     }
 }
 
@@ -339,12 +441,23 @@ use rand::SeedableRng;
 // TODO: add a test where the stake percentage of one delegate stays constant while others change so that we can assert the rewards
 #[tokio::test]
 async fn test_e2e() {
-    let (mut e2e_env, delegate_keypair, env, tree_accounts, registered_epoch) =
-        set_env_with_delegate_and_forester(None, None, None, 0, None).await;
+    let (mut rpc, mut indexer, delegate_keypair, env, tree_accounts, registered_epoch) =
+        set_env_with_delegate_and_forester_local(None).await;
+    let mut e2e_env =
+        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+            rpc,
+            indexer,
+            &env,
+            KeypairActionConfig::all_default(),
+            GeneralActionConfig::default(),
+            10,
+            None,
+        )
+        .await;
     let mut previous_hash = [0u8; 32];
     // let current_epoch = registered_epoch.clone();
     let mut phases = registered_epoch.phases.clone();
-    let num_epochs = 40;
+    let num_epochs = 10;
     let mut completed_epochs = 0;
     let add_delegates = true;
     let pre_mint_account = e2e_env.rpc.get_account(MINT).await.unwrap().unwrap();
@@ -365,37 +478,6 @@ async fn test_e2e() {
         vec![(forester_keypair, delegates, Some(registered_epoch), None)];
     // adding a second forester with stake it will not be registered until next epoch
     // env fails with account not found when registering the second forester
-    // {
-    //     println!("adding second forester");
-    //     println!("epoch {}", epoch);
-    //     let forester = TestForester {
-    //         keypair: Keypair::new(),
-    //         forester: Forester::default(),
-    //         is_registered: None,
-    //     };
-    //     let forester_config = ForesterConfig {
-    //         fee: rng_from_seed.gen_range(0..=100),
-    //         fee_recipient: forester.keypair.pubkey(),
-    //     };
-    //     register_test_forester(
-    //         &mut e2e_env.rpc,
-    //         &env.governance_authority,
-    //         &forester.keypair,
-    //         forester_config,
-    //     )
-    //     .await
-    //     .unwrap();
-
-    //     let forester_pda = get_forester_pda_address(&forester.keypair.pubkey()).0;
-    //     // TODO: investigate why + 1
-    //     let delgate_keypair =
-    //         create_delegate(&mut e2e_env, &env, 1_000_000, forester_pda, epoch + 1, None).await;
-    //     foresters.push((forester.keypair, vec![(delgate_keypair, 0)], None, None));
-    // }
-
-    // let pre_forester_two_balance = e2e_env
-    //     .indexer
-    //     .get_compressed_token_balance(&foresters[1].0.pubkey(), &MINT);
     let mut num_mint_tos = 0;
     for i in 1..=num_epochs {
         // Prints
@@ -531,8 +613,6 @@ async fn test_e2e() {
                 *next_epoch = None;
             }
         }
-        // // // check that we can still forest the last epoch
-        // perform_work(&mut e2e_env, &forester_keypair, &env, current_epoch.epoch).await;
 
         e2e_env.rpc.warp_to_slot(phases.report_work.start).unwrap();
         // report work
@@ -708,10 +788,11 @@ async fn test_e2e() {
                         index, amount
                     );
                 }
-                // // delegate
+                // delegate
                 {
                     create_delegate(
-                        &mut e2e_env,
+                        &mut e2e_env.rpc,
+                        &mut e2e_env.indexer,
                         &env,
                         1_000_000,
                         env.registered_forester_pda,
@@ -733,7 +814,8 @@ async fn test_e2e() {
         for _ in 0..num_add_delegates {
             let deposit_amount = rng_from_seed.gen_range(1_000_000..1_000_000_000);
             let delegate_keypair = create_delegate(
-                &mut e2e_env,
+                &mut e2e_env.rpc,
+                &mut e2e_env.indexer,
                 &env,
                 deposit_amount,
                 env.registered_forester_pda,
@@ -795,12 +877,6 @@ async fn test_e2e() {
                 println!("forester_pda: {:?}", forester_pda);
             }
         }
-        // // current_epoch = next_registered_epoch;
-        // for forester in foresters.iter_mut() {
-        //     if let Some(next_registered_epoch) = &forester.3 {
-        //         phases = next_registered_epoch.phases.clone();
-        //     }
-        // }
         phases = get_epoch_phases(&protocol_config, epoch);
     }
     let post_mint_account = e2e_env.rpc.get_account(MINT).await.unwrap().unwrap();
@@ -1147,15 +1223,68 @@ async fn test_register_and_update_forester_pda() {
 /// 6. FAIL: Rollover state tree with invalid authority
 #[tokio::test]
 async fn failing_test_forester() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    // let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
+    //     None,
+    //     ProtocolConfig::default(),
+    //     false,
+    // )
+    // .await;
+    let (mut rpc, mut indexer, _, env, _, registered_epoch) =
+        set_env_with_delegate_and_forester_local(None).await;
+    let protocol_config = ProtocolConfig::default();
+    let invalid_forester = Keypair::new();
+    let invalid_forester_pda = get_forester_pda_address(&invalid_forester.pubkey()).0;
+    rpc.airdrop_lamports(&invalid_forester.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    // register second forester and advance to next epoch
+    let (next_epoch_invalid, next_registered_epoch) = {
+        register_test_forester(
+            &mut rpc,
+            &env.governance_authority,
+            &invalid_forester,
+            ForesterConfig::default(),
+        )
+        .await
+        .unwrap();
+
+        create_delegate(
+            &mut rpc,
+            &mut indexer,
+            &env,
+            1000,
+            invalid_forester_pda,
+            registered_epoch.epoch,
+            None,
+        )
+        .await;
+
+        // skip to next registration phase
+        let next_registry_epoch = registered_epoch.phases.active.end - 1;
+        rpc.warp_to_slot(next_registry_epoch).unwrap();
+
+        let next_epoch_invalid = Epoch::register(&mut rpc, &protocol_config, &invalid_forester)
+            .await
+            .unwrap()
+            .unwrap();
+        let next_registered_epoch = Epoch::register(&mut rpc, &protocol_config, &env.forester)
+            .await
+            .unwrap()
+            .unwrap();
+
+        // skip to next active phase
+        rpc.warp_to_slot(next_registry_epoch + 1).unwrap();
+        (next_epoch_invalid, next_registered_epoch)
+    };
+
     let payer = rpc.get_payer().insecure_clone();
     // 1. FAIL: Register a forester with invalid authority
     {
         let result =
             register_test_forester(&mut rpc, &payer, &Keypair::new(), ForesterConfig::default())
                 .await;
-        let expected_error_code = anchor_lang::error::ErrorCode::ConstraintAddress as u32;
-        assert_rpc_error(result, 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, RegistryError::InvalidAuthority.into()).unwrap();
     }
     // // 2. FAIL: Update forester authority with invalid authority
     // {
@@ -1194,9 +1323,8 @@ async fn failing_test_forester() {
             derivation: payer.pubkey(),
         };
         let mut ix = create_nullify_instruction(inputs, 0);
-        let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
         // Swap the derived forester pda with an initialized but invalid one.
-        ix.accounts[0].pubkey = get_forester_epoch_pda_address(&forester_pda, 0).0;
+        ix.accounts[0].pubkey = next_epoch_invalid.forester_epoch_pda;
         let result = rpc
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
@@ -1225,7 +1353,7 @@ async fn failing_test_forester() {
         );
         let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
         // Swap the derived forester pda with an initialized but invalid one.
-        instruction.accounts[0].pubkey = get_forester_epoch_pda_address(&forester_pda, 0).0;
+        instruction.accounts[0].pubkey = next_epoch_invalid.forester_epoch_pda;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -1250,7 +1378,7 @@ async fn failing_test_forester() {
         .await;
         let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
         // Swap the derived forester pda with an initialized but invalid one.
-        instructions[2].accounts[0].pubkey = get_forester_epoch_pda_address(&forester_pda, 0).0;
+        instructions[2].accounts[0].pubkey = next_epoch_invalid.forester_epoch_pda; //get_forester_epoch_pda_address(&forester_pda, 0).0;
 
         let result = rpc
             .create_and_send_transaction(
@@ -1279,9 +1407,8 @@ async fn failing_test_forester() {
             0, // TODO: adapt epoch
         )
         .await;
-        let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
         // Swap the derived forester pda with an initialized but invalid one.
-        instructions[2].accounts[0].pubkey = get_forester_epoch_pda_address(&forester_pda, 0).0;
+        instructions[2].accounts[0].pubkey = next_epoch_invalid.forester_epoch_pda;
 
         let result = rpc
             .create_and_send_transaction(

@@ -44,12 +44,12 @@ pub struct ClaimForesterInstruction<'info> {
     pub compressed_token_program: Program<'info, LightCompressedToken>,
     pub spl_token_program: Program<'info, Token>,
     // END LIGHT ACCOUNTS
+    #[account(mut, has_one = authority)]
+    pub forester_pda: Account<'info, ForesterAccount>,
     /// CHECK: (seed constraint).
     /// Pool account for epoch rewards excluding forester fee.
     #[account(mut, seeds = [FORESTER_TOKEN_POOL_SEED, forester_pda.key().as_ref()],bump,)]
     pub forester_token_pool: Account<'info, TokenAccount>,
-    #[account(mut, has_one = authority)]
-    pub forester_pda: Account<'info, ForesterAccount>,
     /// CHECK: (seed constraint) derived from epoch_pda.epoch and forester_pda.
     #[account(mut, seeds=[FORESTER_EPOCH_SEED, forester_pda.key().as_ref(), epoch_pda.epoch.to_le_bytes().as_ref()], bump ,close=fee_payer)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
@@ -57,11 +57,11 @@ pub struct ClaimForesterInstruction<'info> {
     pub epoch_pda: Account<'info, EpochPda>,
     #[account(mut, constraint= epoch_pda.protocol_config.mint == mint.key() @RegistryError::InvalidMint)]
     pub mint: Account<'info, Mint>,
+    #[account(mut, seeds= [POOL_SEED, mint.key().as_ref()], bump, seeds::program= compressed_token_program)]
+    pub compression_token_pool: Account<'info, TokenAccount>,
     /// CHECK: (checked in different program)
     #[account(mut)]
     pub output_merkle_tree: AccountInfo<'info>,
-    #[account(mut, seeds= [POOL_SEED, mint.key().as_ref()], bump, seeds::program= compressed_token_program)]
-    pub compression_token_pool: Account<'info, TokenAccount>,
 }
 
 impl<'info> SystemProgramAccounts<'info> for ClaimForesterInstruction<'info> {

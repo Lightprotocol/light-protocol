@@ -1,7 +1,7 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint as SplMint, Token, TokenAccount};
-use light_compressed_token::program::LightCompressedToken;
+use light_compressed_token::{program::LightCompressedToken, POOL_SEED};
 use light_macros::pubkey;
 use light_system_program::program::LightSystemProgram;
 
@@ -34,8 +34,8 @@ pub struct Mint<'info> {
     pub token_cpi_authority_pda: AccountInfo<'info>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
     /// CHECK: (compressed token program).
-    #[account(mut)]
-    pub token_pool_pda: Account<'info, TokenAccount>,
+    #[account(mut, seeds= [POOL_SEED, mint.key().as_ref()], bump, seeds::program= compressed_token_program)]
+    pub compression_token_pool: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).
@@ -110,7 +110,7 @@ impl<'info> CompressedTokenProgramAccounts<'info> for Mint<'info> {
         self.token_program.to_account_info()
     }
     fn get_token_pool_pda(&self) -> AccountInfo<'info> {
-        self.token_pool_pda.to_account_info()
+        self.compression_token_pool.to_account_info()
     }
     fn get_compress_or_decompress_token_account(&self) -> Option<AccountInfo<'info>> {
         None

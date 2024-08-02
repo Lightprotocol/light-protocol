@@ -129,6 +129,9 @@ impl DelegateAccount {
                 .checked_add(self.pending_delegated_stake_weight)
                 .unwrap();
             self.pending_delegated_stake_weight = 0;
+            if self.delegated_stake_weight == 0 {
+                self.delegate_forester_delegate_account = None;
+            }
         }
     }
 }

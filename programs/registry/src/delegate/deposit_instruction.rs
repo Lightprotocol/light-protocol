@@ -1,4 +1,4 @@
-use crate::protocol_config::state::ProtocolConfigPda;
+use crate::{protocol_config::state::ProtocolConfigPda, ForesterAccount};
 
 use super::{
     traits::{
@@ -51,6 +51,7 @@ pub struct DepositOrWithdrawInstruction<'info> {
     pub token_cpi_authority_pda: AccountInfo<'info>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
+    pub forester_pda: Option<Account<'info, ForesterAccount>>,
 }
 
 impl<'info> SystemProgramAccounts<'info> for DepositOrWithdrawInstruction<'info> {
