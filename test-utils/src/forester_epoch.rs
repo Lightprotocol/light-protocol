@@ -261,7 +261,7 @@ impl Epoch {
         );
         println!("protocol_config {:?}", protocol_config.active_phase_length);
 
-        let mut epoch = protocol_config.get_current_epoch(current_solana_slot);
+        let mut epoch = protocol_config.get_current_registration_epoch(current_solana_slot);
         let registration_start_slot =
             protocol_config.genesis_slot + epoch * protocol_config.active_phase_length;
         println!("registration_start_slot {:?}", registration_start_slot);

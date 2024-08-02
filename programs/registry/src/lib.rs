@@ -23,12 +23,14 @@ pub mod forester;
 pub mod protocol_config;
 pub mod utils;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use delegate::deposit::{process_deposit_or_withdrawal, InputDelegateAccountWithPackedContext};
 use delegate::process_delegate::process_delegate_or_undelegate;
+use delegate::process_deposit::{
+    process_deposit_or_withdrawal, InputDelegateAccountWithPackedContext,
+};
 pub use delegate::{delegate_instruction::*, deposit_instruction::*};
 use delegate::{
-    deposit::DelegateAccountWithPackedContext,
     process_cpi::{cpi_compressed_token_mint_to, get_cpi_signer_seeds},
+    process_deposit::DelegateAccountWithPackedContext,
 };
 use epoch::claim_forester::process_forester_claim_rewards;
 use epoch::{
@@ -263,7 +265,7 @@ pub mod light_registry {
         let protocol_config = ctx.accounts.protocol_config.config;
         let current_solana_slot = anchor_lang::solana_program::clock::Clock::get()?.slot;
         // Init epoch account if not initialized
-        let current_epoch = protocol_config.get_current_epoch(current_solana_slot);
+        let current_epoch = protocol_config.get_current_registration_epoch(current_solana_slot);
         // TODO: check that epoch is in registration phase
         if current_epoch != epoch {
             return err!(errors::RegistryError::InvalidEpoch);
@@ -432,7 +434,7 @@ pub mod light_registry {
         delegate_account: DelegateAccountWithPackedContext,
         delegate_amount: u64,
     ) -> Result<()> {
-        process_delegate_or_undelegate::<true>(ctx, proof, delegate_account, delegate_amount, false)
+        process_delegate_or_undelegate::<true>(ctx, proof, delegate_account, delegate_amount)
     }
 
     pub fn undelegate<'info>(
@@ -441,13 +443,7 @@ pub mod light_registry {
         delegate_account: DelegateAccountWithPackedContext,
         delegate_amount: u64,
     ) -> Result<()> {
-        process_delegate_or_undelegate::<false>(
-            ctx,
-            proof,
-            delegate_account,
-            delegate_amount,
-            false,
-        )
+        process_delegate_or_undelegate::<false>(ctx, proof, delegate_account, delegate_amount)
     }
 
     pub fn claim_forester_rewards<'info>(

@@ -1,9 +1,9 @@
 use crate::{
     delegate::{
+        delegate_account::CompressedAccountTrait,
         process_cpi::{
             cpi_compressed_token_mint_to, cpi_light_system_program, mint_spl_to_pool_pda,
         },
-        state::CompressedAccountTrait,
         FORESTER_EPOCH_RESULT_ACCOUNT_DISCRIMINATOR,
     },
     errors::RegistryError,
@@ -24,6 +24,8 @@ use super::{
     claim_forester_instruction::ClaimForesterInstruction,
     register_epoch::{EpochPda, ForesterEpochPda},
 };
+
+// TODO: make sure that performance based rewards can only be claimed if work has been reported
 // TODO: add reimbursement for opening the epoch account (close an one epoch account to open a new one of X epochs ago)
 /// Forester claim rewards:
 /// 1. Transfer forester fees to foresters compressed token account
@@ -169,6 +171,7 @@ pub fn forester_claim_rewards(
     forester_pda_pubkey: &Pubkey,
     merkle_tree_index: u8,
 ) -> Result<(OutputCompressedAccountWithPackedContext, u64, u64)> {
+    forester_pda.sync(current_slot, &epoch_pda.protocol_config)?;
     epoch_pda
         .protocol_config
         .is_post_epoch(current_slot, forester_epoch_pda.epoch)?;
@@ -228,7 +231,10 @@ pub fn forester_claim_rewards(
 
 #[cfg(test)]
 mod tests {
-    use crate::{protocol_config::state::ProtocolConfig, ForesterConfig};
+    use crate::{
+        protocol_config::{self, state::ProtocolConfig},
+        ForesterConfig,
+    };
 
     use super::*;
     use anchor_lang::solana_program::pubkey::Pubkey;
@@ -301,13 +307,6 @@ mod tests {
             ..Default::default()
         };
 
-        let forester_epoch_pda = ForesterEpochPda {
-            epoch: 1,
-            stake_weight: active_stake,
-            work_counter: 100,
-            ..Default::default()
-        };
-
         let epoch_pda = EpochPda {
             registered_stake: active_stake,
             total_work: 100,
@@ -322,6 +321,13 @@ mod tests {
                 ..Default::default()
             },
             epoch: 1,
+            ..Default::default()
+        };
+        let forester_epoch_pda = ForesterEpochPda {
+            epoch: 1,
+            stake_weight: active_stake,
+            work_counter: 100,
+            protocol_config: epoch_pda.protocol_config,
             ..Default::default()
         };
 
@@ -424,6 +430,10 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .data_hash;
+        pre_forester_pda.last_claimed_epoch = forester_epoch_pda.epoch;
+        pre_forester_pda.current_epoch = epoch_pda
+            .protocol_config
+            .get_current_registration_epoch(current_slot);
 
         assert_eq!(fee, 5); // 100 * 0.05
         assert_eq!(net_reward, 95); // 100 - 5

@@ -16,9 +16,9 @@ use light_hasher::{DataHasher, Poseidon};
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
 };
-use light_registry::delegate::deposit::DelegateAccountWithContext;
+use light_registry::delegate::delegate_account::DelegateAccount;
 use light_registry::delegate::get_escrow_token_authority;
-use light_registry::delegate::state::DelegateAccount;
+use light_registry::delegate::process_deposit::DelegateAccountWithContext;
 use light_registry::epoch::claim_forester::{
     CompressedForesterEpochAccount, CompressedForesterEpochAccountInput,
 };
@@ -33,7 +33,7 @@ use light_registry::utils::{
     get_forester_epoch_pda_address, get_forester_pda_address, get_forester_token_pool_pda,
     get_protocol_config_pda_address,
 };
-use light_registry::{ForesterAccount, ForesterConfig, ForesterEpochPda};
+use light_registry::{protocol_config, ForesterAccount, ForesterConfig, ForesterEpochPda};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use solana_sdk::account::Account;
@@ -449,6 +449,7 @@ pub async fn deposit_or_withdraw_test<
 
     if let Some(delegate_account) = inputs.delegate_account.as_ref() {
         input_compressed_accounts.push(delegate_account.comporessed_account.clone());
+        println!("delegate_account: {:?}", delegate_account);
     };
 
     let cpi_context_account = indexer.get_state_merkle_tree_accounts(&[first_mt])[0].cpi_context;
@@ -457,6 +458,7 @@ pub async fn deposit_or_withdraw_test<
         .iter()
         .map(|a| a.hash().unwrap())
         .collect::<Vec<_>>();
+    println!("input_hashes: {:?}", input_hashes);
     let proof_rpc_result = indexer
         .create_proof_for_compressed_accounts(
             Some(&input_hashes),
@@ -837,7 +839,7 @@ pub async fn forester_claim_test<'a, R: RpcConnection, I: Indexer<R>>(
         .unwrap()
         .unwrap();
 
-    let token_pool = get_forester_token_pool_pda(&forester.pubkey());
+    let token_pool = get_forester_token_pool_pda(&forester_pda);
     let pre_token_pool_account = rpc.get_account(token_pool).await.unwrap().unwrap();
     let (event, signature, _) = rpc
         .create_and_send_transaction_with_events::<PublicTransactionEvent>(
@@ -912,7 +914,7 @@ pub async fn assert_forester_claim<R: RpcConnection>(
         let pre_amount = spl_token::state::Account::unpack(&pre_token_pool_account.data)
             .unwrap()
             .amount;
-        let token_pool_pda_pubkey = get_forester_token_pool_pda(&forester.pubkey());
+        let token_pool_pda_pubkey = get_forester_token_pool_pda(&forester_pda_pubkey);
         let post_account = rpc
             .get_account(token_pool_pda_pubkey)
             .await
@@ -929,9 +931,19 @@ pub async fn assert_forester_claim<R: RpcConnection>(
         .unwrap()
         .unwrap();
     {
+        let current_epoch = get_current_epoch(rpc).await.unwrap();
         let expected_forester_pda = {
             let mut input_pda = pre_forester_pda.clone();
-
+            let protocol_config_pda = get_protocol_config_pda_address().0;
+            let protocol_config: ProtocolConfigPda = rpc
+                .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda)
+                .await
+                .unwrap()
+                .unwrap();
+            let current_slot = rpc.get_slot().await.unwrap();
+            input_pda
+                .sync(current_slot, &protocol_config.config)
+                .unwrap();
             input_pda.last_compressed_forester_epoch_pda_hash = created_output_accounts[0]
                 .compressed_account
                 .data
@@ -940,6 +952,7 @@ pub async fn assert_forester_claim<R: RpcConnection>(
                 .data_hash;
             input_pda.active_stake_weight += rewards;
             input_pda.last_claimed_epoch = epoch;
+            input_pda.current_epoch = current_epoch;
             input_pda
         };
         assert_eq!(forester_pda, expected_forester_pda);
@@ -967,6 +980,20 @@ pub async fn assert_forester_claim<R: RpcConnection>(
         };
         assert_eq!(token_data, expected_token_data);
     }
+}
+
+pub async fn get_current_epoch<R: RpcConnection>(rpc: &mut R) -> Result<u64, RpcError> {
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let protocol_config: ProtocolConfigPda = rpc
+        .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config
+        .config
+        .get_current_registration_epoch(current_slot);
+    Ok(current_epoch)
 }
 
 pub struct SyncDelegateInputs<'a> {
@@ -1094,8 +1121,9 @@ pub async fn sync_delegate_test<'a, R: RpcConnection, I: Indexer<R>>(
     };
     let ix = create_sync_delegate_instruction(create_instruction_inputs.clone());
     println!("delegate_account {:?}", delegate_account);
+    let forester_pda_pubkey = get_forester_pda_address(&inputs.forester).0;
 
-    let token_pool = get_forester_token_pool_pda(&inputs.forester);
+    let token_pool = get_forester_token_pool_pda(&forester_pda_pubkey);
     let pre_token_pool_account = rpc.get_account(token_pool).await.unwrap().unwrap();
     let (event, signature, _) = rpc
         .create_and_send_transaction_with_events::<PublicTransactionEvent>(
@@ -1178,7 +1206,8 @@ pub async fn assert_sync_delegate<R: RpcConnection>(
         let pre_amount = spl_token::state::Account::unpack(&pre_token_pool_account.data)
             .unwrap()
             .amount;
-        let token_pool_pda_pubkey = get_forester_token_pool_pda(&inputs.forester_pubkey);
+        let forester_pda_pubkey = get_forester_pda_address(&inputs.forester_pubkey).0;
+        let token_pool_pda_pubkey = get_forester_token_pool_pda(&forester_pda_pubkey);
         let post_account = rpc
             .get_account(token_pool_pda_pubkey)
             .await
@@ -1200,7 +1229,12 @@ pub async fn assert_sync_delegate<R: RpcConnection>(
     .unwrap();
     let epoch = input_compressed_epochs.last().unwrap().epoch;
     println!("\n\n epoch {:?} \n\n", epoch);
+    println!(
+        "input compressed token accounts: {:?}",
+        input_compressed_epochs
+    );
     let expected_delegate_account = if let Some(rewards) = rewards {
+        println!("if");
         let expected_delegate_account = {
             let mut input_pda = inputs.delegate_account.delegate_account.clone();
             if epoch > input_pda.pending_epoch {
@@ -1216,14 +1250,21 @@ pub async fn assert_sync_delegate<R: RpcConnection>(
             // syncing delegated
             // input_pda.pending_epoch = 0;
             // input_pda.pending_epoch = epoch;
+            input_pda.sync_pending_stake_weight(epoch);
+
             input_pda.last_sync_epoch = epoch;
             input_pda.pending_synced_stake_weight =
                 deserialized_delegate_account.pending_synced_stake_weight;
+            input_pda.escrow_token_account_hash = created_output_token_account[0]
+                .token_data
+                .hash::<Poseidon>()
+                .unwrap();
 
             input_pda
         };
         expected_delegate_account
     } else {
+        println!("else");
         let expected_delegate_account = {
             let mut input_pda = inputs.delegate_account.delegate_account.clone();
             input_pda.stake_weight += input_pda.pending_undelegated_stake_weight;
@@ -1237,15 +1278,19 @@ pub async fn assert_sync_delegate<R: RpcConnection>(
             input_pda.pending_delegated_stake_weight = 0;
             input_pda.pending_token_amount += sum_rewards;
             // input_pda.pending_epoch = epoch;
+            input_pda.sync_pending_stake_weight(epoch);
+
             input_pda.last_sync_epoch = epoch;
             input_pda.pending_synced_stake_weight =
                 deserialized_delegate_account.pending_synced_stake_weight;
-            // input_compressed_epochs
-            //     .iter()
-            //     .last()
-            //     .unwrap()
-            //     .rewards_earned;
-
+            println!(
+                "token_data {:?}",
+                created_output_token_account[0].token_data
+            );
+            input_pda.escrow_token_account_hash = created_output_token_account[0]
+                .token_data
+                .hash::<Poseidon>()
+                .unwrap();
             input_pda
         };
         expected_delegate_account

@@ -9,11 +9,11 @@ use crate::{errors::RegistryError, protocol_config::state::ProtocolConfig, Fores
 
 use super::{
     delegate_instruction::DelegatetOrUndelegateInstruction,
-    deposit::{
+    process_cpi::cpi_light_system_program,
+    process_deposit::{
         create_compressed_delegate_account, create_delegate_compressed_account,
         DelegateAccountWithPackedContext,
     },
-    process_cpi::cpi_light_system_program,
 };
 
 // TODO: double check that we provide the possibility to pass a different output tree in all instructions
@@ -22,7 +22,6 @@ pub fn process_delegate_or_undelegate<'a, 'b, 'c, 'info: 'b + 'c, const IS_DELEG
     proof: CompressedProof,
     delegate_account: DelegateAccountWithPackedContext,
     delegate_amount: u64,
-    no_sync: bool,
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
     let (input_delegate_pda, output_delegate_pda) = delegate_or_undelegate::<IS_DELEGATE>(
@@ -33,7 +32,6 @@ pub fn process_delegate_or_undelegate<'a, 'b, 'c, 'info: 'b + 'c, const IS_DELEG
         &mut ctx.accounts.forester_pda,
         delegate_amount,
         slot,
-        no_sync,
     )?;
 
     cpi_light_system_program(
@@ -46,6 +44,9 @@ pub fn process_delegate_or_undelegate<'a, 'b, 'c, 'info: 'b + 'c, const IS_DELEG
     )
 }
 
+/// Delegate account has to be synced (sync_delegate instruction) to the last
+/// claimed epoch of the forester to delegate or undelegate.
+/// (Un)Delegation of newly (un)delegated funds should come into effect in the next epoch (registration phase).
 pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
     authority: &Pubkey,
     protocol_config: &ProtocolConfig,
@@ -54,14 +55,12 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
     forester_pda: &mut ForesterAccount,
     delegate_amount: u64,
     current_slot: u64,
-    no_sync: bool,
 ) -> Result<(
     PackedCompressedAccountWithMerkleContext,
     OutputCompressedAccountWithPackedContext,
 )> {
-    if !no_sync {
-        forester_pda.sync(current_slot, protocol_config)?;
-    }
+    forester_pda.sync(current_slot, protocol_config)?;
+
     if *authority != delegate_account.delegate_account.owner {
         return err!(RegistryError::InvalidAuthority);
     }
@@ -84,25 +83,12 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
         .delegate_forester_delegate_account
     {
         if forester_pubkey != *forester_pda_pubkey {
-            return err!(RegistryError::InvalidForester);
+            msg!("The delegate account is delegated to a different forester. The provided forester pda is not the same as the one in the delegate account.");
+            return err!(RegistryError::AlreadyDelegated);
         }
     }
-    let epoch = forester_pda.last_registered_epoch; // protocol_config.get_current_epoch(current_slot);
+    let epoch = forester_pda.last_registered_epoch;
 
-    // check that is not delegated to a different forester
-    if delegate_account.delegate_account.delegated_stake_weight > 0
-        && delegate_account
-            .delegate_account
-            .delegate_forester_delegate_account
-            .is_some()
-        && *forester_pda_pubkey
-            != delegate_account
-                .delegate_account
-                .delegate_forester_delegate_account
-                .unwrap()
-    {
-        return err!(RegistryError::AlreadyDelegated);
-    }
     // modify forester pda
     if IS_DELEGATE {
         forester_pda.pending_undelegated_stake_weight = forester_pda
@@ -137,6 +123,7 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
                 .checked_sub(delegate_amount)
                 .ok_or(RegistryError::ComputeEscrowAmountFailed)?;
             delegate_account.delegate_forester_delegate_account = Some(*forester_pda_pubkey);
+            println!("epoch {}", epoch);
             delegate_account.pending_epoch = epoch;
         } else {
             // remove delegated stake weight from delegated_stake_weight
@@ -167,13 +154,6 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
         compressed_account: output_account,
         merkle_tree_index: delegate_account.output_merkle_tree_index,
     };
-    // let output_delegate_compressed_account = update_delegate_compressed_account::<IS_DELEGATE>(
-    //     *delegate_account,
-    //     delegate_amount,
-    //     delegate_account.output_merkle_tree_index,
-    //     epoch,
-    //     forester_pda_pubkey,
-    // )?;
 
     Ok((
         input_delegate_compressed_account,
@@ -181,39 +161,44 @@ pub fn delegate_or_undelegate<const IS_DELEGATE: bool>(
     ))
 }
 
-/// Creates an updated delegate account.
-/// Delegate(IS_DELEGATE):
-/// - increase delegated_stake_weight
-/// - decrease stake_weight
-/// Undelegate(Not(IS_DELEGATE)):
-/// - decrease delegated_stake_weight
-/// - increase pending_undelegated_stake_weight
-fn update_delegate_compressed_account<const IS_DELEGATE: bool>(
-    input_delegate_account: DelegateAccountWithPackedContext,
-    delegate_amount: u64,
-    merkle_tree_index: u8,
-    epoch: u64,
-    forester_pda_pubkey: &Pubkey,
-) -> Result<OutputCompressedAccountWithPackedContext> {
-    let output_account: CompressedAccount =
-        create_delegate_compressed_account::<false>(&input_delegate_account.delegate_account)?;
-    let output_account_with_merkle_context = OutputCompressedAccountWithPackedContext {
-        compressed_account: output_account,
-        merkle_tree_index,
-    };
-    Ok(output_account_with_merkle_context)
-}
+// /// Creates an updated delegate account.
+// /// Delegate(IS_DELEGATE):
+// /// - increase delegated_stake_weight
+// /// - decrease stake_weight
+// /// Undelegate(Not(IS_DELEGATE)):
+// /// - decrease delegated_stake_weight
+// /// - increase pending_undelegated_stake_weight
+// fn update_delegate_compressed_account<const IS_DELEGATE: bool>(
+//     input_delegate_account: DelegateAccountWithPackedContext,
+//     delegate_amount: u64,
+//     merkle_tree_index: u8,
+//     epoch: u64,
+//     forester_pda_pubkey: &Pubkey,
+// ) -> Result<OutputCompressedAccountWithPackedContext> {
+//     let output_account: CompressedAccount =
+//         create_delegate_compressed_account::<false>(&input_delegate_account.delegate_account)?;
+//     let output_account_with_merkle_context = OutputCompressedAccountWithPackedContext {
+//         compressed_account: output_account,
+//         merkle_tree_index,
+//     };
+//     Ok(output_account_with_merkle_context)
+// }
 
 #[cfg(test)]
 mod tests {
-    use crate::delegate::state::DelegateAccount;
+    use crate::delegate::delegate_account::DelegateAccount;
 
     use super::*;
     use anchor_lang::solana_program::pubkey::Pubkey;
-    use light_hasher::{DataHasher, Poseidon};
+    // use light_hasher::{DataHasher, Poseidon};
     use light_system_program::sdk::compressed_account::PackedMerkleContext;
 
-    fn get_test_delegate_account_with_context() -> DelegateAccountWithPackedContext {
+    fn get_test_delegate_account_with_context(
+        protocol_config: &ProtocolConfig,
+        current_slot: u64,
+    ) -> DelegateAccountWithPackedContext {
+        let current_epoch = protocol_config.get_current_registration_epoch(current_slot);
+
         DelegateAccountWithPackedContext {
             root_index: 4,
             merkle_context: PackedMerkleContext {
@@ -230,7 +215,7 @@ mod tests {
                 pending_delegated_stake_weight: 0,
                 pending_undelegated_stake_weight: 50,
                 pending_epoch: 1,
-                last_sync_epoch: 11,
+                last_sync_epoch: current_epoch - 1,
                 pending_token_amount: 25,
                 escrow_token_account_hash: [1u8; 32],
                 pending_synced_stake_weight: 0,
@@ -239,152 +224,40 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_update_delegate_compressed_account_delegate_pass() {
-        let input_delegate_account = get_test_delegate_account_with_context();
-        let delegate_amount = 50;
-        let merkle_tree_index = 1;
-        let epoch = 10;
-        let forester_pda_pubkey = Pubkey::new_unique();
-
-        let result = update_delegate_compressed_account::<true>(
-            input_delegate_account.clone(),
-            delegate_amount,
-            merkle_tree_index,
-            epoch,
-            &forester_pda_pubkey,
-        );
-
-        assert!(result.is_ok());
-
-        let expected_delegate_account = DelegateAccount {
-            delegated_stake_weight: input_delegate_account
-                .delegate_account
-                .delegated_stake_weight
-                + delegate_amount,
-            delegate_forester_delegate_account: Some(forester_pda_pubkey),
-            stake_weight: input_delegate_account.delegate_account.stake_weight - delegate_amount,
-            ..input_delegate_account.delegate_account
-        };
-
-        let output = result.unwrap();
-        assert_eq!(output.merkle_tree_index, merkle_tree_index);
-        let deserialized_delegate_account = DelegateAccount::deserialize(
-            &mut &output.compressed_account.data.as_ref().unwrap().data[..],
-        )
-        .unwrap();
-        assert_eq!(deserialized_delegate_account, expected_delegate_account);
-        assert_eq!(
-            output.compressed_account.data.unwrap().data_hash,
-            expected_delegate_account.hash::<Poseidon>().unwrap()
-        );
-    }
-
-    #[test]
-    fn test_update_delegate_compressed_account_delegate_fail() {
-        let input_delegate_account = get_test_delegate_account_with_context();
-        let delegate_amount = u64::MAX;
-        let merkle_tree_index = 1;
-        let epoch = 10;
-        let forester_pda_pubkey = Pubkey::new_unique();
-
-        let result = update_delegate_compressed_account::<true>(
-            input_delegate_account.clone(),
-            delegate_amount,
-            merkle_tree_index,
-            epoch,
-            &forester_pda_pubkey,
-        );
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_update_delegate_compressed_account_undelegate_pass() {
-        let input_delegate_account = get_test_delegate_account_with_context();
-        let delegate_amount = 50;
-        let merkle_tree_index = 1;
-        let epoch = 10;
-        let forester_pda_pubkey = Pubkey::new_unique();
-
-        let result = update_delegate_compressed_account::<false>(
-            input_delegate_account.clone(),
-            delegate_amount,
-            merkle_tree_index,
-            epoch,
-            &forester_pda_pubkey,
-        );
-
-        assert!(result.is_ok());
-
-        let expected_delegate_account = DelegateAccount {
-            delegated_stake_weight: input_delegate_account
-                .delegate_account
-                .delegated_stake_weight
-                - delegate_amount,
-            pending_undelegated_stake_weight: input_delegate_account
-                .delegate_account
-                .pending_undelegated_stake_weight
-                + delegate_amount,
-            pending_epoch: epoch,
-            ..input_delegate_account.delegate_account
-        };
-
-        let output = result.unwrap();
-        assert_eq!(output.merkle_tree_index, merkle_tree_index);
-        let deserialized_delegate_account = DelegateAccount::deserialize(
-            &mut &output.compressed_account.data.as_ref().unwrap().data[..],
-        )
-        .unwrap();
-        assert_eq!(deserialized_delegate_account, expected_delegate_account);
-        assert_eq!(
-            output.compressed_account.data.unwrap().data_hash,
-            expected_delegate_account.hash::<Poseidon>().unwrap()
-        );
-    }
-
-    #[test]
-    fn test_update_delegate_compressed_account_undelegate_fail() {
-        let input_delegate_account = get_test_delegate_account_with_context();
-        let delegate_amount = u64::MAX;
-        let merkle_tree_index = 1;
-        let epoch = 10;
-        let forester_pda_pubkey = Pubkey::new_unique();
-
-        let result = update_delegate_compressed_account::<false>(
-            input_delegate_account.clone(),
-            delegate_amount,
-            merkle_tree_index,
-            epoch,
-            &forester_pda_pubkey,
-        );
-
-        assert!(result.is_err());
-    }
-
-    fn get_test_forester_account() -> ForesterAccount {
+    fn get_test_forester_account(
+        protocol_config: &ProtocolConfig,
+        current_slot: u64,
+    ) -> ForesterAccount {
+        let current_epoch = protocol_config.get_current_registration_epoch(current_slot);
         ForesterAccount {
             active_stake_weight: 200,
             pending_undelegated_stake_weight: 50,
+            current_epoch: current_epoch - 1,
+            last_claimed_epoch: current_epoch - 1,
+            last_registered_epoch: current_epoch - 1,
             ..Default::default()
         }
     }
 
+    /// Failing tests:
+    /// 1. Invalid authority
+    /// 2. Delegate account not synced
+    /// 3. Invalid forester
+    /// 4. Already delegated
+    /// Functional tests:
+    /// 1. Outputs are created as expected (rnd test for this)
     #[test]
-    fn test_delegate_or_undelegate_delegate_pass() {
-        let protocol_config = ProtocolConfig {
-            ..Default::default()
-        };
-        let mut forester_pda = get_test_forester_account();
-        let delegate_account = get_test_delegate_account_with_context();
-        let authority = delegate_account.delegate_account.owner;
-        let forester_pda_pubkey = delegate_account
-            .delegate_account
-            .delegate_forester_delegate_account
-            .unwrap();
+    fn test_functional_delegate() {
+        let (
+            protocol_config,
+            current_slot,
+            mut forester_pda,
+            mut expected_forester_pda,
+            delegate_account,
+            authority,
+            forester_pda_pubkey,
+        ) = test_setup();
         let delegate_amount = 50;
-        let current_slot = 10;
-        let no_sync = true;
 
         let result = delegate_or_undelegate::<true>(
             &authority,
@@ -394,16 +267,18 @@ mod tests {
             &mut forester_pda,
             delegate_amount,
             current_slot,
-            no_sync,
         );
 
         let (input_delegate_pda, output_delegate_pda) = result.unwrap();
         assert_eq!(input_delegate_pda.compressed_account.owner, crate::ID);
         assert_eq!(output_delegate_pda.compressed_account.owner, crate::ID);
-
+        // TODO: test sync pending stake weight
+        // Delegate should:
+        // - sync pending stake weight
+        // - output pending
         let expected_delegate_account = DelegateAccount {
-            delegated_stake_weight: delegate_account.delegate_account.delegated_stake_weight
-                + delegate_amount,
+            pending_delegated_stake_weight: delegate_amount,
+            pending_epoch: forester_pda.last_registered_epoch,
             stake_weight: delegate_account.delegate_account.stake_weight - delegate_amount,
             ..delegate_account.delegate_account
         };
@@ -418,25 +293,68 @@ mod tests {
         )
         .unwrap();
         assert_eq!(deserialized_delegate_account, expected_delegate_account);
+        expected_forester_pda
+            .sync(current_slot, &protocol_config)
+            .unwrap();
+        assert_eq!(forester_pda, expected_forester_pda);
     }
 
-    #[test]
-    fn test_delegate_or_undelegate_undelegate_pass() {
+    fn test_setup() -> (
+        ProtocolConfig,
+        u64,
+        ForesterAccount,
+        ForesterAccount,
+        DelegateAccountWithPackedContext,
+        Pubkey,
+        Pubkey,
+    ) {
         let protocol_config = ProtocolConfig {
             ..Default::default()
         };
-
-        let mut forester_pda = get_test_forester_account();
-        let delegate_account = get_test_delegate_account_with_context();
+        // slot in active phase of epoch 2
+        let current_slot = protocol_config.genesis_slot
+            + protocol_config.registration_phase_length
+            + protocol_config.active_phase_length * 2
+            + 1;
+        let forester_pda = get_test_forester_account(&protocol_config, current_slot);
+        // setting current epoch to -1 to test that it is synced
+        assert_eq!(forester_pda.current_epoch, 1);
+        let mut expected_forester_pda = forester_pda.clone();
+        expected_forester_pda.current_epoch = 2;
+        expected_forester_pda.active_stake_weight +=
+            expected_forester_pda.pending_undelegated_stake_weight;
+        let delegate_account =
+            get_test_delegate_account_with_context(&protocol_config, current_slot);
         let authority = delegate_account.delegate_account.owner;
         let forester_pda_pubkey = delegate_account
             .delegate_account
             .delegate_forester_delegate_account
             .unwrap();
-        let delegate_amount = 50;
-        let current_slot = 10;
-        let no_sync = true;
+        (
+            protocol_config,
+            current_slot,
+            forester_pda,
+            expected_forester_pda,
+            delegate_account,
+            authority,
+            forester_pda_pubkey,
+        )
+    }
 
+    #[test]
+    fn test_functional_undelegate() {
+        let (
+            protocol_config,
+            current_slot,
+            mut forester_pda,
+            mut expected_forester_pda,
+            delegate_account,
+            authority,
+            forester_pda_pubkey,
+        ) = test_setup();
+        let delegate_amount = 50;
+        // let current_slot = 10;
+        println!("pre forester_pda {:?}", forester_pda);
         let result = delegate_or_undelegate::<false>(
             &authority,
             &protocol_config,
@@ -445,7 +363,6 @@ mod tests {
             &mut forester_pda,
             delegate_amount,
             current_slot,
-            no_sync,
         )
         .unwrap();
 
@@ -460,7 +377,7 @@ mod tests {
                 .delegate_account
                 .pending_undelegated_stake_weight
                 + delegate_amount,
-            pending_epoch: protocol_config.get_current_epoch(current_slot),
+            pending_epoch: forester_pda.last_registered_epoch,
             ..delegate_account.delegate_account
         };
 
@@ -474,20 +391,30 @@ mod tests {
         )
         .unwrap();
         assert_eq!(deserialized_delegate_account, expected_delegate_account);
+        expected_forester_pda
+            .sync(current_slot, &protocol_config)
+            .unwrap();
+        expected_forester_pda.pending_undelegated_stake_weight -= delegate_amount;
+        expected_forester_pda.active_stake_weight -= delegate_amount;
+
+        assert_eq!(forester_pda, expected_forester_pda);
     }
 
     #[test]
     fn test_delegate_or_undelegate_undelegate_fail() {
+        let (
+            protocol_config,
+            current_slot,
+            mut forester_pda,
+            mut expected_forester_pda,
+            delegate_account,
+            authority,
+            forester_pda_pubkey,
+        ) = test_setup();
         let authority = Pubkey::new_unique();
-        let protocol_config = ProtocolConfig {
-            ..Default::default()
-        };
         let forester_pda_pubkey = Pubkey::new_unique();
-        let mut forester_pda = get_test_forester_account();
-        let delegate_account = get_test_delegate_account_with_context();
         let delegate_amount = u64::MAX;
         let current_slot = 10;
-        let no_sync = true;
 
         let result = delegate_or_undelegate::<false>(
             &authority,
@@ -497,7 +424,6 @@ mod tests {
             &mut forester_pda,
             delegate_amount,
             current_slot,
-            no_sync,
         );
 
         assert!(matches!(result, Err(error) if error == RegistryError::InvalidAuthority.into()));
@@ -505,16 +431,19 @@ mod tests {
 
     #[test]
     fn test_delegate_or_undelegate_delegate_fail() {
-        let protocol_config = ProtocolConfig {
-            ..Default::default()
-        };
+        let (
+            protocol_config,
+            current_slot,
+            mut forester_pda,
+            mut expected_forester_pda,
+            delegate_account,
+            authority,
+            forester_pda_pubkey,
+        ) = test_setup();
         let forester_pda_pubkey = Pubkey::new_unique();
-        let mut forester_pda = get_test_forester_account();
-        let delegate_account = get_test_delegate_account_with_context();
-        let authority = delegate_account.delegate_account.owner;
+        // let authority = delegate_account.delegate_account.owner;
         let delegate_amount = u64::MAX;
         let current_slot = 10;
-        let no_sync = true;
 
         let result = delegate_or_undelegate::<true>(
             &authority,
@@ -524,9 +453,8 @@ mod tests {
             &mut forester_pda,
             delegate_amount,
             current_slot,
-            no_sync,
         );
-
+        println!("{:?}", result);
         assert!(matches!(result, Err(error) if error == RegistryError::AlreadyDelegated.into()));
     }
 }

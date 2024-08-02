@@ -94,7 +94,13 @@ impl TokenData {
         if FROZEN_INPUTS {
             hash_inputs.push(&state_bytes[..]);
         }
-        H::hashv(hash_inputs.as_slice())
+        #[cfg(target_os = "solana")]
+        anchor_lang::solana_program::msg!("hash_inputs: {:?}", hash_inputs);
+        #[cfg(not(target_os = "solana"))]
+        println!("hash_inputs: {:?}", hash_inputs);
+        let hash = H::hashv(hash_inputs.as_slice());
+        println!("hash: {:?}", hash);
+        hash
     }
 }
 

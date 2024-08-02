@@ -1,10 +1,6 @@
-use super::{
-    get_escrow_token_authority,
-    traits::{
-        CompressedCpiContextTrait, CompressedTokenProgramAccounts, MintToAccounts, SignerAccounts,
-        SystemProgramAccounts,
-    },
-    ESCROW_TOKEN_ACCOUNT_SEED,
+use super::traits::{
+    CompressedCpiContextTrait, CompressedTokenProgramAccounts, MintToAccounts, SignerAccounts,
+    SystemProgramAccounts,
 };
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, Bumps};

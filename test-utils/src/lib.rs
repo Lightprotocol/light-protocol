@@ -6,7 +6,7 @@ use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
-use light_registry::delegate::state::CompressedAccountTrait;
+use light_registry::delegate::delegate_account::CompressedAccountTrait;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::{

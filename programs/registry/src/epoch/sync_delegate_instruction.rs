@@ -1,5 +1,5 @@
 use crate::constants::FORESTER_TOKEN_POOL_SEED;
-use crate::delegate::deposit::DelegateAccountWithPackedContext;
+use crate::delegate::process_deposit::DelegateAccountWithPackedContext;
 use crate::delegate::traits::{CompressedCpiContextTrait, CompressedTokenProgramAccounts};
 use crate::delegate::{
     traits::{SignerAccounts, SystemProgramAccounts},

@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 use crate::{
     delegate::{
-        deposit::{
+        get_escrow_token_authority,
+        process_deposit::{
             DelegateAccountWithContext, DelegateAccountWithPackedContext,
             InputDelegateAccountWithPackedContext,
         },
-        get_escrow_token_authority,
     },
     epoch::{
         claim_forester::CompressedForesterEpochAccountInput,
@@ -15,8 +15,9 @@ use crate::{
     },
     protocol_config::state::ProtocolConfig,
     utils::{
-        get_cpi_authority_pda, get_epoch_pda_address, get_forester_epoch_pda_address,
-        get_forester_pda_address, get_forester_token_pool_pda, get_protocol_config_pda_address,
+        get_cpi_authority_pda, get_epoch_pda_address, get_forester_accounts,
+        get_forester_accounts_epoch, get_forester_epoch_pda_address, get_forester_pda_address,
+        get_forester_token_pool_pda, get_protocol_config_pda_address,
     },
     ForesterConfig, MINT,
 };
@@ -80,14 +81,16 @@ pub fn create_update_authority_instruction(
         new_authority,
         new_config: new_protocol_config,
     };
+    let accounts = crate::accounts::UpdateProtocolConfig {
+        authority: signer_pubkey,
+        protocol_config_pda: protocol_config_pda.0,
+        new_authority,
+    };
 
     // update with new authority
     Instruction {
         program_id: crate::ID,
-        accounts: vec![
-            AccountMeta::new(signer_pubkey, true),
-            AccountMeta::new(protocol_config_pda.0, false),
-        ],
+        accounts: accounts.to_account_metas(Some(true)),
         data: update_authority_ix.data(),
     }
 }
@@ -125,7 +128,8 @@ pub fn create_register_program_instruction(
 }
 
 pub fn create_initialize_governance_authority_instruction(
-    signer_pubkey: Pubkey,
+    fee_payer: Pubkey,
+    authority: Pubkey,
     protocol_config: ProtocolConfig,
 ) -> Instruction {
     let protocol_config_pda = get_protocol_config_pda_address();
@@ -137,7 +141,8 @@ pub fn create_initialize_governance_authority_instruction(
 
     let accounts = crate::accounts::InitializeProtocolConfig {
         protocol_config_pda: protocol_config_pda.0,
-        authority: signer_pubkey,
+        fee_payer,
+        authority,
         system_program: system_program::ID,
         mint: protocol_config.mint,
         cpi_authority: cpi_authority_pda,
@@ -158,7 +163,7 @@ pub fn create_register_forester_instruction(
     let (forester_pda, _bump) = get_forester_pda_address(forester_authority);
     let instruction_data = crate::instruction::RegisterForester { _bump: 0, config };
     let (protocol_config_pda, _) = get_protocol_config_pda_address();
-    let token_pool_pda = get_forester_token_pool_pda(forester_authority);
+    let token_pool_pda = get_forester_token_pool_pda(&forester_pda);
     let accounts = crate::accounts::RegisterForester {
         forester_pda,
         fee_payer: *fee_payer,
@@ -183,7 +188,7 @@ pub fn create_update_forester_epoch_pda_instruction(
 ) -> Instruction {
     let (forester_epoch_pda, _bump) = get_forester_pda_address(forester_authority);
     let instruction_data = crate::instruction::UpdateForesterEpochPda {
-        authority: *new_authority,
+        _authority: *new_authority,
     };
     let accounts = crate::accounts::UpdateForesterEpochPda {
         forester_epoch_pda,
@@ -626,9 +631,7 @@ pub fn create_forester_claim_instruction(
     let (cpi_authority_pda, _) = get_cpi_authority_pda();
     let standard_registry_accounts = get_standard_registry_accounts();
 
-    let forester_pda = get_forester_pda_address(&forester_pubkey).0;
-    let forester_epoch_pda = get_forester_epoch_pda_address(&forester_pda, epoch).0;
-    let forester_token_pool = get_forester_token_pool_pda(&forester_pubkey);
+    let forester_accounts = get_forester_accounts_epoch(&forester_pubkey, epoch);
     let epoch_pda = get_epoch_pda_address(epoch);
     let accounts = crate::accounts::ClaimForesterInstruction {
         fee_payer: forester_pubkey,
@@ -644,9 +647,9 @@ pub fn create_forester_claim_instruction(
         system_program: standard_accounts.system_program,
         invoking_program: standard_registry_accounts.self_program,
         self_program: standard_registry_accounts.self_program,
-        forester_token_pool,
-        forester_epoch_pda,
-        forester_pda,
+        forester_token_pool: forester_accounts.forester_token_pool,
+        forester_epoch_pda: forester_accounts.forester_epoch_pda,
+        forester_pda: forester_accounts.forester_pda,
         spl_token_program: anchor_spl::token::ID,
         epoch_pda,
         mint: MINT,
@@ -745,11 +748,12 @@ pub fn create_sync_delegate_instruction(
             &inputs.output_token_account_merkle_tree,
         ) as u8;
         let standard_accounts = get_standard_compressed_token_program_accounts(MINT);
+        let forester_accounts = get_forester_accounts(&inputs.forester_pubkey);
         (
             Some(get_escrow_token_authority(&inputs.sender, inputs.salt).0),
             Some(inputs.cpi_context_account),
             Some(standard_accounts.compressed_token_program),
-            Some(get_forester_token_pool_pda(&inputs.forester_pubkey)),
+            Some(forester_accounts.forester_token_pool),
             Some(standard_accounts.token_cpi_authority_pda),
             Some(sync_delegate_token_account),
             Some(input_token_data_with_context[0].clone()),

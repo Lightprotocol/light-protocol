@@ -61,7 +61,7 @@ impl<'info> SystemProgramAccounts<'info> for DelegatetOrUndelegateInstruction<'i
         self.light_system_program.to_account_info()
     }
     fn get_self_program(&self) -> AccountInfo<'info> {
-        unimplemented!()
+        self.self_program.to_account_info()
     }
 }
 

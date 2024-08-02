@@ -580,8 +580,9 @@ where
 
             let current_solana_slot = self.rpc.get_slot().await.unwrap();
             // need to detect whether new registration phase started
-            let current_registration_epoch =
-                self.protocol_config.get_current_epoch(current_solana_slot);
+            let current_registration_epoch = self
+                .protocol_config
+                .get_current_registration_epoch(current_solana_slot);
             // If reached new registration phase register all foresters
             if current_registration_epoch != self.registration_epoch {
                 println!("\n --------------------------------------------------\n\t\t Register Foresters for new Epoch \n --------------------------------------------------");

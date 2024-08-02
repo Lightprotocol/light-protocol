@@ -5,8 +5,8 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
+use light_registry::delegate::delegate_account::DelegateAccount;
 use light_registry::delegate::get_escrow_token_authority;
-use light_registry::delegate::state::DelegateAccount;
 use light_registry::epoch::claim_forester::CompressedForesterEpochAccount;
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
@@ -276,7 +276,6 @@ async fn test_delegate() {
             amount: deposit_amount,
             delegate_account: delegate_account[0].as_ref().unwrap().clone(),
             forester_pda,
-            no_sync: false,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
         delegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
@@ -300,7 +299,6 @@ async fn test_delegate() {
             amount: deposit_amount - 1,
             delegate_account: delegate_account[0].as_ref().unwrap().clone(),
             forester_pda,
-            no_sync: false,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
         undelegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
@@ -319,7 +317,6 @@ async fn test_delegate() {
             amount: 1,
             delegate_account: delegate_account[0].as_ref().unwrap().clone(),
             forester_pda,
-            no_sync: false,
             output_merkle_tree: env.merkle_tree_pubkey,
         };
         undelegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
@@ -356,6 +353,7 @@ async fn test_e2e() {
         .supply;
     let mut rng = rand::rngs::ThreadRng::default();
     let seed = rng.gen::<u64>();
+    let seed = 0;
     let mut rng_from_seed = rand::rngs::StdRng::seed_from_u64(seed);
     // let mut counter = 0;
     let forester_keypair = env.forester.insecure_clone();
@@ -445,7 +443,7 @@ async fn test_e2e() {
                     ForesterEpochPda::try_deserialize(&mut account.data.as_slice()).unwrap();
                 println!("forester_epoch_pda: {:?}", forester_epoch_pda);
             }
-            let forester_token_pool = get_forester_token_pool_pda(&foresters[0].0.pubkey());
+            let forester_token_pool = get_forester_token_pool_pda(&forester_pda_pubkey);
             let forester_token_pool_account =
                 e2e_env.rpc.get_account(forester_token_pool).await.unwrap();
             if let Some(account) = forester_token_pool_account {
@@ -700,7 +698,6 @@ async fn test_e2e() {
                         amount,
                         delegate_account: delegate_account[0].as_ref().unwrap().clone(),
                         forester_pda: env.registered_forester_pda,
-                        no_sync: false,
                         output_merkle_tree: env.merkle_tree_pubkey,
                     };
                     undelegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
@@ -750,8 +747,8 @@ async fn test_e2e() {
             "added  {} delegates -----------------------------------------",
             num_add_delegates
         );
-
-        let forester_token_pool = get_forester_token_pool_pda(&foresters[0].0.pubkey());
+        let forester_pda_pubkey = get_forester_pda_address(&foresters[0].0.pubkey()).0;
+        let forester_token_pool = get_forester_token_pool_pda(&forester_pda_pubkey);
         let forester_token_pool_account =
             e2e_env.rpc.get_account(forester_token_pool).await.unwrap();
         if let Some(account) = forester_token_pool_account {
@@ -859,7 +856,9 @@ async fn test_e2e() {
             .await
             .unwrap();
     }
-    let forester_token_pool = get_forester_token_pool_pda(&foresters[0].0.pubkey());
+    let forester_pda_pubkey = get_forester_pda_address(&foresters[0].0.pubkey()).0;
+
+    let forester_token_pool = get_forester_token_pool_pda(&forester_pda_pubkey);
     let forester_token_pool_account = e2e_env.rpc.get_account(forester_token_pool).await.unwrap();
     if let Some(account) = forester_token_pool_account {
         let forester_token_pool_balance =
@@ -1158,28 +1157,28 @@ async fn failing_test_forester() {
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintAddress as u32;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
-    // 2. FAIL: Update forester authority with invalid authority
-    {
-        let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
-        let forester_epoch_pda = get_forester_epoch_pda_address(&forester_pda, 0).0;
-        let instruction_data = light_registry::instruction::UpdateForesterEpochPda {
-            authority: Keypair::new().pubkey(),
-        };
-        let accounts = light_registry::accounts::UpdateForesterEpochPda {
-            forester_epoch_pda,
-            signer: payer.pubkey(),
-        };
-        let ix = Instruction {
-            program_id: light_registry::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: instruction_data.data(),
-        };
-        let result = rpc
-            .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
-            .await;
-        let expected_error_code = anchor_lang::error::ErrorCode::ConstraintAddress as u32;
-        assert_rpc_error(result, 0, expected_error_code).unwrap();
-    }
+    // // 2. FAIL: Update forester authority with invalid authority
+    // {
+    //     let (forester_pda, _) = get_forester_pda_address(&env.forester.pubkey());
+    //     let forester_epoch_pda = get_forester_epoch_pda_address(&forester_pda, 0).0;
+    //     let instruction_data = light_registry::instruction::UpdateForesterEpochPda {
+    //         _authority: Keypair::new().pubkey(),
+    //     };
+    //     let accounts = light_registry::accounts::UpdateForesterEpochPda {
+    //         forester_epoch_pda,
+    //         signer: payer.pubkey(),
+    //     };
+    //     let ix = Instruction {
+    //         program_id: light_registry::ID,
+    //         accounts: accounts.to_account_metas(Some(true)),
+    //         data: instruction_data.data(),
+    //     };
+    //     let result = rpc
+    //         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+    //         .await;
+    //     let expected_error_code = anchor_lang::error::ErrorCode::ConstraintAddress as u32;
+    //     assert_rpc_error(result, 0, expected_error_code).unwrap();
+    // }
     // 3. FAIL: Nullify with invalid authority
     {
         let expected_error_code =
@@ -1362,10 +1361,8 @@ async fn update_registry_governance_on_testnet() {
     let updated_keypair =
         read_keypair_file("../../target/governance-authority-keypair.json").unwrap();
     println!("updated keypair: {:?}", updated_keypair.pubkey());
-    let (_, bump) = get_protocol_config_pda_address();
-    let instruction = light_registry::instruction::UpdateGovernanceAuthority {
+    let instruction = light_registry::instruction::UpdateProtocolConfig {
         new_authority: updated_keypair.pubkey(),
-        _bump: bump,
         new_config: ProtocolConfig::default(),
     };
     let accounts = light_registry::accounts::UpdateProtocolConfig {

@@ -52,7 +52,7 @@ impl Default for ProtocolConfig {
             genesis_slot: 0,
             epoch_reward: 1_000_000,
             base_reward: 500_000,
-            min_stake: 0,
+            min_stake: 1,
             slot_length: 10,
             registration_phase_length: 100,
             active_phase_length: 1000,
@@ -76,7 +76,7 @@ pub enum EpochState {
 impl ProtocolConfig {
     /// Current epoch including registration phase Only use to get registration
     /// phase.
-    pub fn get_current_epoch(&self, slot: u64) -> u64 {
+    pub fn get_current_registration_epoch(&self, slot: u64) -> u64 {
         (slot.saturating_sub(self.genesis_slot)) / self.active_phase_length
     }
     pub fn get_current_active_epoch(&self, slot: u64) -> Result<u64> {
@@ -87,7 +87,7 @@ impl ProtocolConfig {
         Ok(slot / self.active_phase_length)
     }
 
-    pub fn get_current_epoch_progress(&self, slot: u64) -> u64 {
+    pub fn get_current_registration_epoch_progress(&self, slot: u64) -> u64 {
         (slot.saturating_sub(self.genesis_slot)) % self.active_phase_length
     }
 
@@ -97,35 +97,38 @@ impl ProtocolConfig {
     }
 
     /// In the last part of the active phase the registration phase starts.
-    pub fn is_registration_phase(&self, slot: u64) -> Result<u64> {
-        let current_epoch = self.get_current_epoch(slot);
-        let current_epoch_progress = self.get_current_epoch_progress(slot);
+    pub fn is_registration_phase(&self, solana_slot: u64, expected_epoch: u64) -> Result<u64> {
+        let current_epoch = self.get_current_registration_epoch(solana_slot);
+        let current_epoch_progress = self.get_current_registration_epoch_progress(solana_slot);
         if current_epoch_progress >= self.registration_phase_length {
             return err!(RegistryError::NotInRegistrationPeriod);
+        }
+        if current_epoch != expected_epoch {
+            return err!(RegistryError::InvalidEpoch);
         }
         Ok((current_epoch) * self.active_phase_length
             + self.genesis_slot
             + self.registration_phase_length)
     }
 
-    pub fn is_active_phase(&self, slot: u64, epoch: u64) -> Result<()> {
-        if self.get_current_active_epoch(slot)? != epoch {
+    pub fn is_active_phase(&self, solana_slot: u64, epoch: u64) -> Result<()> {
+        if self.get_current_active_epoch(solana_slot)? != epoch {
             return err!(RegistryError::NotInActivePhase);
         }
         Ok(())
     }
 
-    pub fn is_report_work_phase(&self, slot: u64, epoch: u64) -> Result<()> {
-        self.is_active_phase(slot, epoch + 1)?;
-        let current_epoch_progress = self.get_current_active_epoch_progress(slot);
+    pub fn is_report_work_phase(&self, solana_slot: u64, epoch: u64) -> Result<()> {
+        self.is_active_phase(solana_slot, epoch + 1)?;
+        let current_epoch_progress = self.get_current_active_epoch_progress(solana_slot);
         if current_epoch_progress >= self.report_work_phase_length {
             return err!(RegistryError::NotInReportWorkPhase);
         }
         Ok(())
     }
 
-    pub fn is_post_epoch(&self, slot: u64, epoch: u64) -> Result<()> {
-        if self.get_current_active_epoch(slot)? == epoch {
+    pub fn is_post_epoch(&self, solana_slot: u64, epoch: u64) -> Result<()> {
+        if self.get_current_active_epoch(solana_slot)? <= epoch {
             return err!(RegistryError::InvalidEpoch);
         }
         Ok(())

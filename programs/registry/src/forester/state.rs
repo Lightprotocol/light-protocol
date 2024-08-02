@@ -35,18 +35,16 @@ pub struct ForesterConfig {
 }
 
 impl ForesterAccount {
-    /// If current epoch changed, move pending stake to active stake and update
-    /// current epoch field
+    ///  Sync should be called in any instruction which uses the forester
+    /// account before any action. Delegating to a forester new stakeweight is
+    /// added to the pending stake. If current epoch changed, move pending stake
+    /// to active stake and update current epoch field. This method is called in
+    /// delegate stake so that it is impossible to delegate and not sync before.
     pub fn sync(&mut self, current_slot: u64, protocol_config: &ProtocolConfig) -> Result<()> {
         // get last registration epoch, stake sync treats the registration phase
         // of an epoch like the next active epoch
-        let current_epoch = protocol_config.get_current_epoch(
-            current_slot.saturating_sub(protocol_config.registration_phase_length),
-        );
-        // If the current epoch is greater than the last registered epoch, or next epoch is in registration phase
-        if current_epoch > self.current_epoch
-            || protocol_config.is_registration_phase(current_slot).is_ok()
-        {
+        let current_epoch = protocol_config.get_current_registration_epoch(current_slot);
+        if current_epoch > self.current_epoch {
             self.current_epoch = current_epoch;
             self.active_stake_weight += self.pending_undelegated_stake_weight;
             self.pending_undelegated_stake_weight = 0;

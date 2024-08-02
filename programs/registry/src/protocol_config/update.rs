@@ -7,7 +7,7 @@ use super::state::ProtocolConfigPda;
 #[derive(Accounts)]
 pub struct UpdateProtocolConfig<'info> {
     /// CHECK: authority is protocol config authority.
-    #[account(mut, constraint = authority.key() == protocol_config_pda.authority)]
+    #[account(constraint = authority.key() == protocol_config_pda.authority)]
     pub authority: Signer<'info>,
     /// CHECK: (seed constraints).
     #[account(mut, seeds = [PROTOCOL_CONFIG_PDA_SEED], bump)]

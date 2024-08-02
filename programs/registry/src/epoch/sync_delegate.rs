@@ -1,16 +1,18 @@
-use crate::delegate::deposit::{
-    create_compressed_delegate_account, create_delegate_compressed_account,
-    update_escrow_compressed_token_account, DelegateAccountWithPackedContext,
-};
 use crate::delegate::process_cpi::{
     approve_spl_token, cpi_compressed_token_transfer, get_cpi_signer_seeds,
 };
+use crate::delegate::process_deposit::{
+    create_compressed_delegate_account, create_delegate_compressed_account,
+    hash_input_token_data_with_context, update_escrow_compressed_token_account,
+    DelegateAccountWithPackedContext,
+};
+use crate::delegate::{delegate_account::DelegateAccount, process_cpi::cpi_light_system_program};
 use crate::delegate::{
     get_escrow_token_authority, ESCROW_TOKEN_ACCOUNT_SEED,
     FORESTER_EPOCH_RESULT_ACCOUNT_DISCRIMINATOR,
 };
-use crate::delegate::{process_cpi::cpi_light_system_program, state::DelegateAccount};
 use crate::errors::RegistryError;
+use crate::MINT;
 use anchor_lang::prelude::*;
 use light_compressed_token::process_transfer::{
     InputTokenDataWithContext, PackedTokenTransferOutputData,
@@ -23,6 +25,7 @@ use light_system_program::sdk::compressed_account::{
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::OutputCompressedAccountWithPackedContext;
 use light_utils::hash_to_bn254_field_size_be;
+use num_traits::ToBytes;
 
 use super::claim_forester::CompressedForesterEpochAccountInput;
 use super::sync_delegate_instruction::SyncDelegateInstruction;
@@ -56,7 +59,11 @@ pub fn process_sync_delegate_account<'info>(
         .as_ref()
         .map(|authority| authority.key());
     let slot = Clock::get()?.slot;
-    let epoch = ctx.accounts.protocol_config.config.get_current_epoch(slot);
+    let epoch = ctx
+        .accounts
+        .protocol_config
+        .config
+        .get_current_registration_epoch(slot);
     let (
         input_delegate_compressed_account,
         // TODO: we need readonly accounts just add a bool to input accounts context and don't nullify, skip in sum checks
@@ -201,7 +208,6 @@ fn sync_delegate_account_and_create_compressed_accounts(
         delegate_account.merkle_context,
         delegate_account.root_index,
     )?;
-    let epoch = compressed_forester_epoch_pdas.last().unwrap().epoch;
 
     let last_forester_pda_hash = sync_delegate_account(
         &mut delegate_account.delegate_account,
@@ -209,10 +215,6 @@ fn sync_delegate_account_and_create_compressed_accounts(
         previous_hash,
         forester_pda_pubkey,
     )?;
-    // could also take epoch from last compressed forester epoch pda
-    delegate_account
-        .delegate_account
-        .sync_pending_stake_weight(epoch);
     let input_readonly_compressed_forester_epoch_account = create_compressed_forester_epoch_account(
         last_forester_pda_hash,
         last_account_merkle_context,
@@ -221,18 +223,37 @@ fn sync_delegate_account_and_create_compressed_accounts(
 
     let output_escrow_account = if input_escrow_token_account.is_some() {
         let amount = delegate_account.delegate_account.pending_token_amount;
-        msg!("pending token amount: {:?}", amount);
-        delegate_account.delegate_account.pending_token_amount = 0;
-        Some(update_escrow_compressed_token_account::<true>(
+        let output_escrow_account = update_escrow_compressed_token_account::<true>(
             &escrow_token_authority.unwrap(),
             input_escrow_token_account,
             amount,
             merkle_tree_index,
-        )?)
+        )?;
+        delegate_account.delegate_account.pending_token_amount = 0;
+        let hashed_owner = hash_to_bn254_field_size_be(escrow_token_authority.unwrap().as_ref())
+            .unwrap()
+            .0;
+        let hashed_mint = hash_to_bn254_field_size_be(MINT.to_bytes().as_ref())
+            .unwrap()
+            .0;
+        msg!("output_escrow_account: {:?}", output_escrow_account);
+        let output_escrow_hash = hash_input_token_data_with_context(
+            &hashed_mint,
+            &hashed_owner,
+            output_escrow_account.amount,
+        );
+        msg!("output_escrow_hash: {:?}", output_escrow_hash);
+        delegate_account.delegate_account.escrow_token_account_hash = output_escrow_hash.unwrap();
+
+        Some(output_escrow_account)
     } else {
+        msg!("no escrow account");
         None
     };
-
+    println!(
+        "delegate_account.delegate_account {:?}",
+        delegate_account.delegate_account
+    );
     let output_account: CompressedAccount =
         create_delegate_compressed_account::<false>(&delegate_account.delegate_account)?;
     let output_account_with_merkle_context = OutputCompressedAccountWithPackedContext {
@@ -302,7 +323,7 @@ fn create_compressed_forester_epoch_account(
  * - switch to contention and make that prod ready first
  *
  */
-
+// TODO: check whether we can simplify this logic
 /// Sync Delegate Account:
 /// - syncs the virtual balance of accumulated stake rewards to the stake
 ///   account
@@ -319,55 +340,60 @@ fn create_compressed_forester_epoch_account(
 /// 5. prove inclusion of last hash in State merkle tree (outside of this function)
 pub fn sync_delegate_account(
     delegate_account: &mut DelegateAccount,
-    // pending_synced_stake_weight: &mut u64,
-    // mut pending_synced_stake_weight: Vec<(u64, u64)>, // (stake_weight, epoch)
     compressed_forester_epoch_pdas: Vec<CompressedForesterEpochAccountInput>,
-    // epoch_synced: Vec<u64>,
     // add last synced epoch to compressed_forester_epoch_pdas (probably need to add this to forester epoch pdas too)
     // keep rewards of none synced epochs in a vector, its active stake but not synced yet,
-    // TODO: ensure that this pending stake can also be undelegated
+    // TODO: ensure that this pending stake can also be undelegated (there could be a case)
     mut previous_hash: [u8; 32],
     forester_pubkey: Pubkey,
 ) -> Result<[u8; 32]> {
     let last_sync_epoch = delegate_account.last_sync_epoch;
-    if compressed_forester_epoch_pdas[0].epoch <= last_sync_epoch && last_sync_epoch != 0 {
+    if !compressed_forester_epoch_pdas.is_empty()
+        && compressed_forester_epoch_pdas[0].epoch <= last_sync_epoch
+        && last_sync_epoch != 0
+    {
         return err!(RegistryError::StakeAccountAlreadySynced);
     }
     let hashed_forester_pubkey = hash_to_bn254_field_size_be(forester_pubkey.as_ref())
         .ok_or(RegistryError::HashToFieldError)?
         .0;
-    // let mut epoch_rewards = vec![];
-    // let mut last_stake_weight = delegate_account.delegated_stake_weight;
     let mut last_epoch = delegate_account.last_sync_epoch;
     for (i, compressed_forester_epoch_pda) in compressed_forester_epoch_pdas.iter().enumerate() {
         delegate_account.sync_pending_stake_weight(compressed_forester_epoch_pda.epoch);
 
-        // Forester pubkey is not hashed thus we use a random value and hash offchain
         let compressed_forester_epoch_pda = compressed_forester_epoch_pda
             .into_compressed_forester_epoch_pda(previous_hash, crate::ID);
         previous_hash = compressed_forester_epoch_pda.hash(hashed_forester_pubkey)?;
-        msg!(
-            "delegate_account.delegated_stake_weight: {:?}",
-            delegate_account.delegated_stake_weight
-        );
-        msg!(
-            "delegate_account.pending_undelegated_stake_weight {:?}",
-            delegate_account.pending_undelegated_stake_weight
-        );
-        msg!(
-            "stake from last epoch {:?}",
-            delegate_account.delegated_stake_weight
-                + delegate_account.pending_undelegated_stake_weight
-                - delegate_account.pending_synced_stake_weight,
-        );
         let pending_synced_stake_weight = if compressed_forester_epoch_pda.epoch - last_epoch == 1 {
             delegate_account.pending_synced_stake_weight
         } else {
             0
         };
-        msg!(
+        println!(
             "pending_synced_stake_weight: {:?}",
             pending_synced_stake_weight
+        );
+        println!(
+            "pending_undelegated_stake_weight: {:?}",
+            delegate_account.pending_undelegated_stake_weight
+        );
+        println!(
+            "delegated_stake_weight: {:?}",
+            delegate_account.delegated_stake_weight
+        );
+        println!(
+            "total stake: {:?}",
+            compressed_forester_epoch_pda.stake_weight
+        );
+        println!(
+            "compressed_forester_epoch_pda.rewards_earned {:?}",
+            compressed_forester_epoch_pda.rewards_earned
+        );
+        println!(
+            "usable stake {:?}",
+            delegate_account.delegated_stake_weight
+                + delegate_account.pending_undelegated_stake_weight
+                - pending_synced_stake_weight
         );
         // TODO: double check that this doesn't become an issue when undelegating
         let get_delegate_epoch_reward = compressed_forester_epoch_pda.get_reward(
@@ -375,11 +401,7 @@ pub fn sync_delegate_account(
                 + delegate_account.pending_undelegated_stake_weight
                 - pending_synced_stake_weight,
         )?;
-        msg!(
-            "compressed_forester_epoch_pda: {:?}",
-            compressed_forester_epoch_pda
-        );
-        msg!("epoch reward: {:?}", get_delegate_epoch_reward);
+        println!("get_delegate_epoch_reward: {:?}", get_delegate_epoch_reward);
         delegate_account.delegated_stake_weight = delegate_account
             .delegated_stake_weight
             .checked_add(get_delegate_epoch_reward)
@@ -400,10 +422,6 @@ pub fn sync_delegate_account(
         if i == compressed_forester_epoch_pdas.len() - 1 {
             let last_delegate_account = compressed_forester_epoch_pda;
             delegate_account.last_sync_epoch = last_delegate_account.epoch;
-            println!(
-                "final pending_synced_stake_weight: {:?}",
-                delegate_account.pending_synced_stake_weight
-            );
             return Ok(previous_hash);
         }
     }
@@ -413,7 +431,8 @@ pub fn sync_delegate_account(
 
 #[cfg(test)]
 mod tests {
-    use core::num;
+
+    use std::f32::MIN;
 
     use crate::{
         delegate::DELEGATE_ACCOUNT_DISCRIMINATOR,
@@ -802,10 +821,10 @@ mod tests {
     fn test_sync_delegate_account_undelegate_passing() {
         let (
             mut delegate_account,
-            compressed_forester_epoch_pdas,
+            mut compressed_forester_epoch_pdas,
             previous_hash,
             forester_pda_pubkey,
-            expected_delegate_account,
+            mut expected_delegate_account,
         ) = get_test_data_sync_inconcistent();
         // undelegate 50% in epoch 1 -> for the last epoch reward should only be 50%
         let undelegate = delegate_account.delegated_stake_weight / 2;
@@ -813,25 +832,39 @@ mod tests {
         delegate_account.pending_undelegated_stake_weight += undelegate;
         delegate_account.delegated_stake_weight -= undelegate;
         delegate_account.pending_epoch = 0;
-        // delegate_account.delegated_stake_weight -= undelegate;
 
-        // expected_delegate_account.delegated_stake_weight -= undelegate;
-        // expected_delegate_account.pending_token_amount -= undelegate;
-        // expected_delegate_account.pending_synced_stake_weight = undelegate;
+        // third parties delegate additional stake in epoch 1 so that the delegates stake remains 50% even with rewards
+        compressed_forester_epoch_pdas[2].stake_weight += 990000;
+
+        expected_delegate_account.stake_weight += undelegate;
+        expected_delegate_account.delegated_stake_weight -=
+            undelegate + compressed_forester_epoch_pdas[0].rewards_earned;
+        expected_delegate_account.pending_token_amount -=
+            compressed_forester_epoch_pdas[0].rewards_earned;
+        expected_delegate_account.pending_synced_stake_weight =
+            compressed_forester_epoch_pdas[0].rewards_earned / 2;
+        println!(
+            "compressed_forester_epoch_pdas[0..2].to_vec() {:?}",
+            compressed_forester_epoch_pdas[0..3].to_vec()
+        );
+
+        println!("pre delegate account {:?}", delegate_account);
 
         let result = sync_delegate_account(
             &mut delegate_account,
-            compressed_forester_epoch_pdas.clone(),
+            compressed_forester_epoch_pdas[0..3].to_vec(),
             previous_hash,
             forester_pda_pubkey,
         );
+        println!("undelegated undelegate : {:?}", undelegate);
+        println!("post delegate account {:?}", delegate_account);
 
         assert!(result.is_ok());
-        println!(
-            "{:?}",
-            3 * compressed_forester_epoch_pdas[0].rewards_earned
-                - delegate_account.delegated_stake_weight
-        );
+        // println!(
+        //     "{:?}",
+        //     compressed_forester_epoch_pdas[0].rewards_earned
+        //         - delegate_account.delegated_stake_weight
+        // );
         assert_eq!(delegate_account, expected_delegate_account);
     }
 
@@ -1108,14 +1141,35 @@ mod tests {
             .unwrap()
             .rewards_earned;
         output_delegate_account.pending_token_amount = 0;
+        let hashed_escrow_owner = hash_to_bn254_field_size_be(escrow_token_authority.as_ref())
+            .unwrap()
+            .0;
+        let hashed_bytes = hash_to_bn254_field_size_be(MINT.to_bytes().as_ref())
+            .unwrap()
+            .0;
+        output_delegate_account.escrow_token_account_hash = hash_input_token_data_with_context(
+            &hashed_bytes,
+            &hashed_escrow_owner,
+            output_escrow_account.unwrap().amount,
+        )
+        .unwrap();
         let mut data = Vec::new();
         output_delegate_account.serialize(&mut data).unwrap();
-
         let data = CompressedAccountData {
             discriminator: DELEGATE_ACCOUNT_DISCRIMINATOR,
             data_hash: output_delegate_account.hash::<Poseidon>().unwrap(),
             data,
         };
+        let reader = DelegateAccount::deserialize_reader(
+            &mut &output_account_with_merkle_context
+                .compressed_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data[..],
+        )
+        .unwrap();
+        println!("reader {:?}", reader);
         assert_eq!(
             output_account_with_merkle_context
                 .compressed_account

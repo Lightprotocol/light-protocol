@@ -1,9 +1,9 @@
+pub mod delegate_account;
 pub mod delegate_instruction;
-pub mod deposit;
 pub mod deposit_instruction;
 pub mod process_cpi;
 pub mod process_delegate;
-pub mod state;
+pub mod process_deposit;
 // TODO: move into cpi dir
 pub mod traits;
 use anchor_lang::solana_program::pubkey::Pubkey;

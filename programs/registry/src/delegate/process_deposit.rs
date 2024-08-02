@@ -20,10 +20,10 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use super::{
+    delegate_account::{DelegateAccount, InputDelegateAccount},
     deposit_instruction::DepositOrWithdrawInstruction,
     get_escrow_token_authority,
     process_cpi::{cpi_compressed_token_transfer, cpi_light_system_program},
-    state::{DelegateAccount, InputDelegateAccount},
     DELEGATE_ACCOUNT_DISCRIMINATOR, ESCROW_TOKEN_ACCOUNT_SEED,
 };
 
@@ -48,7 +48,11 @@ pub fn process_deposit_or_withdrawal<'a, 'b, 'c, 'info: 'b + 'c, const IS_DEPOSI
 ) -> Result<()> {
     let mint = &ctx.accounts.protocol_config.config.mint;
     let slot = Clock::get()?.slot;
-    let epoch = ctx.accounts.protocol_config.config.get_current_epoch(slot);
+    let epoch = ctx
+        .accounts
+        .protocol_config
+        .config
+        .get_current_registration_epoch(slot);
     let compressed_accounts = deposit_or_withdraw::<IS_DEPOSIT>(
         &ctx.accounts.authority.key(),
         &ctx.accounts.escrow_token_authority.key(),
@@ -174,12 +178,21 @@ pub fn deposit_or_withdraw<const IS_DEPOSIT: bool>(
         deposit_amount,
         escrow_token_account_merkle_tree_index,
     )?;
+
     let input_escrow_token_account_hash =
         if let Some(input_escrow_token_account) = input_escrow_token_account.as_ref() {
+            // msg!(
+            //     "input_escrow_token_account {:?}",
+            //     input_escrow_token_account
+            // );
+            // let hashed_owner = hash_to_bn254_field_size_be(escrow_token_authority.as_ref())
+            //     .unwrap()
+            //     .0;
+
             Some(
                 hash_input_token_data_with_context(
                     &hashed_mint,
-                    &hashed_owner,
+                    &hashed_escrow_token_authority,
                     input_escrow_token_account.amount,
                 )
                 .map_err(ProgramError::from)?,
@@ -209,7 +222,7 @@ pub fn deposit_or_withdraw<const IS_DEPOSIT: bool>(
             )?;
         output_token_accounts.push(change_compressed_token_account);
     }
-    // TODO: create a close account instruction
+
     let (input_delegate_pda, output_delegate_pda) = update_delegate_compressed_account::<IS_DEPOSIT>(
         delegate_account,
         authority,
@@ -259,6 +272,10 @@ pub fn hash_input_token_data_with_context(
     hashed_owner: &[u8; 32],
     amount: u64,
 ) -> std::result::Result<[u8; 32], HasherError> {
+    println!("mint {:?}", mint);
+    println!("hashed_owner {:?}", hashed_owner);
+    println!("amount {:?}", amount);
+
     let amount_bytes = amount.to_le_bytes();
     TokenData::hash_with_hashed_values::<Poseidon>(mint, hashed_owner, &amount_bytes, &None)
 }
@@ -285,6 +302,7 @@ fn update_delegate_compressed_account<const IS_DEPOSIT: bool>(
         let (mut delegate_account, input_account) =
             create_input_delegate_account(authority, input_escrow_token_account_hash, input)?;
         delegate_account.escrow_token_account_hash = output_escrow_token_account_hash;
+        // delegate_account.sync_pending_stake_weight(epoch);
         (Some(input_account), delegate_account)
     } else {
         (
@@ -297,6 +315,10 @@ fn update_delegate_compressed_account<const IS_DEPOSIT: bool>(
             },
         )
     };
+    msg!(
+        "update_delegate_compressed_account: delegate_account {:?}",
+        delegate_account
+    );
     if IS_DEPOSIT {
         delegate_account.stake_weight = delegate_account
             .stake_weight

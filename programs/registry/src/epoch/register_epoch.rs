@@ -29,8 +29,7 @@ pub struct ForesterEpochPda {
     pub stake_weight: u64,
     pub work_counter: u64,
     /// Work can be reported in an extra round to earn extra performance based
-    /// rewards. // TODO: make sure that performance based rewards can only be
-    /// claimed if work has been reported
+    /// rewards.
     pub has_reported_work: bool,
     /// Start index of the range that determines when the forester is eligible to perform work.
     /// End index is forester_start_index + stake_weight
@@ -67,7 +66,6 @@ impl ForesterEpochPda {
         Ok(epoch_progres / self.protocol_config.slot_length)
     }
 
-    // TODO: add function that returns all light slots with start and end solana slots for a given epoch
     pub fn get_eligible_forester_index(
         current_light_slot: u64,
         pubkey: &Pubkey,
@@ -119,6 +117,7 @@ impl ForesterEpochPda {
         current_solana_slot: u64,
     ) -> Result<()> {
         if forester_epoch_pda.authority != *authority {
+            #[cfg(target_os = "solana")]
             msg!(
                 "Invalid forester: forester_epoch_pda authority {} != provided {}",
                 forester_epoch_pda.authority,
@@ -126,9 +125,7 @@ impl ForesterEpochPda {
             );
             return err!(RegistryError::InvalidForester);
         }
-        // let current_slot = forester_epoch_pda.get_current_slot(current_solana_slot)?;
         forester_epoch_pda.check_eligibility(current_solana_slot, queue_pubkey)?;
-        // TODO: check eligibility
         forester_epoch_pda.work_counter += 1;
         Ok(())
     }
@@ -209,6 +206,12 @@ pub fn register_for_epoch_instruction(
     epoch_pda: &mut EpochPda,
     current_slot: u64,
 ) -> Result<()> {
+    // Check whether we are in a epoch registration phase and which epoch we are in
+    let current_epoch_start_slot = epoch_pda
+        .protocol_config
+        .is_registration_phase(current_slot, epoch_pda.epoch)?;
+    // Sync pending stake to active stake if stake hasn't been synced yet.
+    forester_pda.sync(current_slot, &epoch_pda.protocol_config)?;
     msg!("epoch_pda.protocol config: {:?}", epoch_pda.protocol_config);
     if forester_pda.active_stake_weight < epoch_pda.protocol_config.min_stake {
         return err!(RegistryError::StakeInsuffient);
@@ -224,19 +227,10 @@ pub fn register_for_epoch_instruction(
         return err!(RegistryError::ForesterAlreadyRegistered);
     }
     msg!("epoch_pda.epoch: {}", epoch_pda.epoch);
-    // Check whether we are in a epoch registration phase and which epoch we are in
-    let current_epoch_start_slot = epoch_pda
-        .protocol_config
-        .is_registration_phase(current_slot)?;
-    msg!("current_epoch_start_slot: {}", current_epoch_start_slot);
-    // Sync pending stake to active stake if stake hasn't been synced yet.
-    forester_pda.sync(current_slot, &epoch_pda.protocol_config)?;
+
     forester_pda.last_registered_epoch = epoch_pda.epoch;
-    msg!("synced forester account stake");
-    msg!("register for epoch with forester_pda: {:?}", forester_pda);
-    msg!("stake: {}", forester_pda.active_stake_weight);
     // Add forester active stake to epoch registered stake.
-    // // Initialize forester epoch account.
+    // Initialize forester epoch account.
     let initialized_forester_epoch_pda = ForesterEpochPda {
         authority: *authority,
         config: forester_pda.config,
@@ -350,6 +344,7 @@ mod test {
         assert_eq!(sum, total_slots);
     }
 
+    // TODO: add randomized test
     #[test]
     fn test_onchain_epoch() {
         let registration_phase_length = 1;
@@ -367,142 +362,76 @@ mod test {
             mint: Pubkey::new_unique(),
             forester_registration_guarded: false,
         };
+
         // Diagram of epochs 0 and 1.
         // Registration 0 starts at genesis slot.
         // |---- Registration 0 ----|------------------ Active 0 ------|---- Report Work 0 ----|---- Post 0 ----
         //                                        |-- Registration 1 --|------------------ Active 1 -----------------
 
-        let mut current_slot = protocol_config.genesis_slot;
+        let mut current_solana_slot = protocol_config.genesis_slot;
         for epoch in 0..1000 {
             if epoch == 0 {
                 for _ in 0..protocol_config.registration_phase_length {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_ok());
+                    assert!(protocol_config
+                        .is_registration_phase(current_solana_slot, epoch)
+                        .is_ok());
 
                     assert!(protocol_config
-                        .is_active_phase(current_slot, epoch)
+                        .is_active_phase(current_solana_slot, epoch)
                         .is_err());
-                    assert!(protocol_config.is_post_epoch(current_slot, epoch).is_err());
+                    assert!(protocol_config
+                        .is_post_epoch(current_solana_slot, epoch)
+                        .is_err());
 
                     assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch)
+                        .is_report_work_phase(current_solana_slot, epoch)
                         .is_err());
 
-                    current_slot += 1;
+                    current_solana_slot += 1;
                 }
             }
 
             for i in 0..protocol_config.active_phase_length {
-                assert!(protocol_config.is_active_phase(current_slot, epoch).is_ok());
+                assert!(protocol_config
+                    .is_active_phase(current_solana_slot, epoch)
+                    .is_ok());
                 if protocol_config.active_phase_length.saturating_sub(i)
                     <= protocol_config.registration_phase_length
                 {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_ok());
-                } else {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_err());
-                }
-                if epoch == 0 {
-                    assert!(protocol_config.is_post_epoch(current_slot, epoch).is_err());
+                    assert!(protocol_config
+                        .is_registration_phase(current_solana_slot, epoch + 1)
+                        .is_ok());
                 } else {
                     assert!(protocol_config
-                        .is_post_epoch(current_slot, epoch - 1)
+                        .is_registration_phase(current_solana_slot, epoch)
+                        .is_err());
+                }
+                if epoch == 0 {
+                    assert!(protocol_config
+                        .is_post_epoch(current_solana_slot, epoch)
+                        .is_err());
+                } else {
+                    assert!(protocol_config
+                        .is_post_epoch(current_solana_slot, epoch - 1)
                         .is_ok());
                 }
                 if epoch == 0 {
                     assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch)
+                        .is_report_work_phase(current_solana_slot, epoch)
                         .is_err());
                 } else if i < protocol_config.report_work_phase_length {
                     assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch - 1)
+                        .is_report_work_phase(current_solana_slot, epoch - 1)
                         .is_ok());
                 } else {
                     assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch - 1)
+                        .is_report_work_phase(current_solana_slot, epoch - 1)
                         .is_err());
                 }
                 assert!(protocol_config
-                    .is_report_work_phase(current_slot, epoch)
+                    .is_report_work_phase(current_solana_slot, epoch)
                     .is_err());
-                current_slot += 1;
-            }
-        }
-    }
-
-    // TODO: remove
-    #[test]
-    fn test_offchain_epoch() {
-        let registration_phase_length = 1;
-        let active_phase_length = 7;
-        let report_work_phase_length = 2;
-        let protocol_config = ProtocolConfig {
-            genesis_slot: 20,
-            registration_phase_length,
-            active_phase_length,
-            report_work_phase_length,
-            epoch_reward: 100_000,
-            base_reward: 50_000,
-            min_stake: 0,
-            slot_length: 1,
-            mint: Pubkey::new_unique(),
-            forester_registration_guarded: false,
-        };
-        // Diagram of epochs 0 and 1.
-        // Registration 0 starts at genesis slot.
-        // |---- Registration 0 ----|------------------ Active 0 ------|---- Report Work 0 ----|---- Post 0 ----
-        //                                        |-- Registration 1 --|------------------ Active 1 -----------------
-
-        let mut current_slot = protocol_config.genesis_slot;
-        for epoch in 0..1000 {
-            if epoch == 0 {
-                for _ in 0..protocol_config.registration_phase_length {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_ok());
-
-                    assert!(protocol_config
-                        .is_active_phase(current_slot, epoch)
-                        .is_err());
-                    assert!(protocol_config.is_post_epoch(current_slot, epoch).is_err());
-
-                    assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch)
-                        .is_err());
-
-                    current_slot += 1;
-                }
-            }
-
-            for i in 0..protocol_config.active_phase_length {
-                assert!(protocol_config.is_active_phase(current_slot, epoch).is_ok());
-                if protocol_config.active_phase_length.saturating_sub(i)
-                    <= protocol_config.registration_phase_length
-                {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_ok());
-                } else {
-                    assert!(protocol_config.is_registration_phase(current_slot).is_err());
-                }
-                if epoch == 0 {
-                    assert!(protocol_config.is_post_epoch(current_slot, epoch).is_err());
-                } else {
-                    assert!(protocol_config
-                        .is_post_epoch(current_slot, epoch - 1)
-                        .is_ok());
-                }
-                if epoch == 0 {
-                    assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch)
-                        .is_err());
-                } else if i < protocol_config.report_work_phase_length {
-                    assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch - 1)
-                        .is_ok());
-                } else {
-                    assert!(protocol_config
-                        .is_report_work_phase(current_slot, epoch - 1)
-                        .is_err());
-                }
-                assert!(protocol_config
-                    .is_report_work_phase(current_slot, epoch)
-                    .is_err());
-                current_slot += 1;
+                current_solana_slot += 1;
             }
         }
     }

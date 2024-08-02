@@ -26,12 +26,13 @@ use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_macros::pubkey;
+use light_registry::delegate::delegate_account::DelegateAccount;
 use light_registry::delegate::get_escrow_token_authority;
-use light_registry::delegate::state::DelegateAccount;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
+    create_update_authority_instruction,
 };
 use light_registry::utils::{
     get_cpi_authority_pda, get_epoch_pda_address, get_forester_pda_address, get_group_pda,
@@ -255,11 +256,23 @@ pub async fn initialize_accounts<R: RpcConnection>(
         &Some(cpi_authority_pda.0),
     )
     .await;
-
-    let instruction =
-        create_initialize_governance_authority_instruction(payer.pubkey(), protocol_config);
+    let registry_program_account_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    let instruction = create_initialize_governance_authority_instruction(
+        payer.pubkey(),
+        registry_program_account_keypair.pubkey(),
+        protocol_config,
+    );
+    let update_instruction = create_update_authority_instruction(
+        registry_program_account_keypair.pubkey(),
+        payer.pubkey(),
+        protocol_config,
+    );
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .create_and_send_transaction(
+            &[instruction, update_instruction],
+            &payer.pubkey(),
+            &[payer, &registry_program_account_keypair],
+        )
         .await
         .unwrap();
 
@@ -444,7 +457,6 @@ pub async fn set_env_with_delegate_and_forester(
     )
     .await;
 
-    // TODO: remove
     let tree_accounts = vec![
         TreeAccounts {
             tree_type: TreeType::State,
@@ -462,22 +474,6 @@ pub async fn set_env_with_delegate_and_forester(
     let slot = protocol_config.genesis_slot + protocol_config.active_phase_length;
     e2e_env.rpc.warp_to_slot(slot).unwrap();
 
-    let registered_epoch = Epoch::register(&mut e2e_env.rpc, &protocol_config, &env.forester)
-        .await
-        .unwrap();
-    assert!(registered_epoch.is_some());
-    let mut registered_epoch = registered_epoch.unwrap();
-    let forester_epoch_pda: ForesterEpochPda = e2e_env
-        .rpc
-        .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(forester_epoch_pda.stake_weight, 1_000_000);
-    assert!(forester_epoch_pda.total_epoch_state_weight.is_none());
-    // we advanced to the next epoch so that delegated pending stake becomes active
-    assert_eq!(forester_epoch_pda.epoch, 1);
-    let epoch = forester_epoch_pda.epoch;
     let forester_pda_pubkey = get_forester_pda_address(&env.forester.pubkey()).0;
     let forester_pda = e2e_env
         .rpc
@@ -486,7 +482,35 @@ pub async fn set_env_with_delegate_and_forester(
         .unwrap()
         .unwrap();
     println!("forester_pda: {:?}", forester_pda);
+    let registered_epoch = Epoch::register(&mut e2e_env.rpc, &protocol_config, &env.forester)
+        .await
+        .unwrap();
+    assert!(registered_epoch.is_some());
+    let mut registered_epoch = registered_epoch.unwrap();
+
+    let forester_pda_pubkey = get_forester_pda_address(&env.forester.pubkey()).0;
+    let forester_pda = e2e_env
+        .rpc
+        .get_anchor_account::<ForesterAccount>(&forester_pda_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    println!("forester_pda: {:?}", forester_pda);
+
+    let forester_epoch_pda: ForesterEpochPda = e2e_env
+        .rpc
+        .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    println!("forester_epoch_pdas: {:?}", forester_epoch_pda);
+    assert_eq!(forester_epoch_pda.stake_weight, 1_000_000);
+    assert!(forester_epoch_pda.total_epoch_state_weight.is_none());
+    // we advanced to the next epoch so that delegated pending stake becomes active
+    assert_eq!(forester_epoch_pda.epoch, 1);
+    let epoch = forester_epoch_pda.epoch;
     let expected_stake = forester_pda.active_stake_weight;
+
     println!("expected_stake: {}", expected_stake);
     assert_epoch_pda(&mut e2e_env.rpc, epoch, expected_stake).await;
 
@@ -955,6 +979,7 @@ pub async fn create_delegate(
                 &delegate_keypair.pubkey(),
                 &light_registry::ID,
             );
+            println!("delegate_account: {:?}", delegate_account);
             let escrow_account = e2e_env.indexer.get_compressed_token_accounts_by_owner(
                 &get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0,
             );
@@ -982,7 +1007,7 @@ pub async fn create_delegate(
     )
     .await
     .unwrap();
-    // let forester_pda = env.registered_forester_pda;
+
     deposit_to_delegate_account_helper(
         e2e_env,
         &delegate_keypair,
@@ -1059,7 +1084,15 @@ pub async fn deposit_to_delegate_account_helper(
         .filter(|a| a.token_data.delegate.is_some())
         .cloned()
         .collect::<Vec<_>>();
-
+    println!(
+        "deposit_inputs pre: delegate_account: {:?}",
+        delegate_account
+    );
+    println!("token_accounts: {:?}", token_accounts);
+    println!(
+        "input_escrow_token_account: {:?}",
+        input_escrow_token_account
+    );
     let deposit_inputs = DepositInputs {
         sender: &delegate_keypair,
         amount: deposit_amount,
@@ -1068,6 +1101,7 @@ pub async fn deposit_to_delegate_account_helper(
         input_escrow_token_account,
         epoch,
     };
+
     deposit_test(&mut e2e_env.rpc, &mut e2e_env.indexer, deposit_inputs)
         .await
         .unwrap();
