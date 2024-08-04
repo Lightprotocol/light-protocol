@@ -156,6 +156,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     new_nullifier_queue_pubkey: &Pubkey,
     current_slot: u64,
     additional_rent: u64,
+    num_signatures: u64,
 ) {
     let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)
@@ -270,7 +271,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(
         *fee_payer_prior_balance,
-        fee_payer_post_balance + 20000 + additional_rent
+        fee_payer_post_balance + 5000 * num_signatures + additional_rent
     );
     let old_address_queue =
         unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await };

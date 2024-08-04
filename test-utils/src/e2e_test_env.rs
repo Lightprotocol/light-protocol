@@ -1836,6 +1836,7 @@ where
             &new_nullifier_queue_keypair.pubkey(),
             rollover_signature_and_slot.1,
             additional_rent,
+            4,
         )
         .await;
         self.indexer
