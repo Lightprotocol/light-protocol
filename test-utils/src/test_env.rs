@@ -706,7 +706,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &address_merkle_tree_keypair.pubkey(),
         &address_queue_keypair.pubkey(),
         merkle_tree_config,
-        0,
+        index,
         program_owner,
         test_forester,
         expected_change_log_length,

@@ -13,6 +13,7 @@ use light_hasher::Poseidon;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
 };
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_address, get_protocol_config_pda_address,
 };
@@ -344,7 +345,7 @@ async fn test_invalid_registered_program() {
             old_merkle_tree: invalid_group_state_merkle_tree.pubkey(),
             old_queue: invalid_group_nullifier_queue.pubkey(),
             cpi_context_account: new_cpi_context_keypair.pubkey(),
-            light_system_program: light_registry::ID,
+            light_system_program: light_system_program::ID,
             protocol_config_pda: protocol_config_pda,
         };
         let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
@@ -372,6 +373,16 @@ async fn test_invalid_registered_program() {
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );
+        let size = ProtocolConfig::default().cpi_context_size as usize;
+        let create_cpi_context_account_instruction = create_account_instruction(
+            &payer.pubkey(),
+            size,
+            rpc.get_minimum_balance_for_rent_exemption(size)
+                .await
+                .unwrap(),
+            &light_system_program::ID,
+            Some(&new_cpi_context_keypair),
+        );
         let instruction = Instruction {
             program_id: light_registry::ID,
             accounts: accounts.to_account_metas(Some(true)),
@@ -382,16 +393,22 @@ async fn test_invalid_registered_program() {
                 &[
                     create_nullifier_queue_instruction,
                     create_state_merkle_tree_instruction,
+                    create_cpi_context_account_instruction,
                     instruction,
                 ],
                 &payer.pubkey(),
-                &[&payer, &new_merkle_tree_keypair, &new_queue_keypair],
+                &[
+                    &payer,
+                    &new_merkle_tree_keypair,
+                    &new_queue_keypair,
+                    &new_cpi_context_keypair,
+                ],
             )
             .await;
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        assert_rpc_error(result, 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 3, expected_error_code).unwrap();
     }
     // 6. rollover address Merkle tree with invalid group
     {
