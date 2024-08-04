@@ -279,6 +279,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
             cpi_context_account: None,
+            is_metadata_forester: false,
         },
         0, // TODO: make epoch dynamic
     );
@@ -352,6 +353,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
             cpi_context_account: Some(new_cpi_context_keypair.pubkey()),
+            is_metadata_forester: false,
         },
         0, // TODO: make epoch dynamic
     );

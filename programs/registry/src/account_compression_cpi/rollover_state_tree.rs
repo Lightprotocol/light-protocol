@@ -11,7 +11,7 @@ use crate::{epoch::register_epoch::ForesterEpochPda, protocol_config::state::Pro
 pub struct RolloverStateMerkleTreeAndQueue<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
-    pub registered_forester_pda: Account<'info, ForesterEpochPda>,
+    pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
     /// CHECK:
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -42,7 +42,7 @@ pub struct RolloverStateMerkleTreeAndQueue<'info> {
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
-    pub registered_forester_pda: Account<'info, ForesterEpochPda>,
+    pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
     /// CHECK:
     #[account(mut)]
     pub authority: Signer<'info>,

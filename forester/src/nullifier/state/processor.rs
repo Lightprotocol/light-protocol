@@ -288,6 +288,7 @@ async fn nullify_state<R: RpcConnection>(
             proofs: vec![proof],
             authority: payer.pubkey(),
             derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
+            is_metadata_forester: false,
         },
         0,
     );

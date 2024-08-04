@@ -9,7 +9,7 @@ use crate::epoch::register_epoch::ForesterEpochPda;
 pub struct NullifyLeaves<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
-    pub registered_forester_pda: Account<'info, ForesterEpochPda>,
+    pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
     pub authority: Signer<'info>,
     /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]

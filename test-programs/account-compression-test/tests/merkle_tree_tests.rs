@@ -813,6 +813,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &new_state_merkle_tree_keypair.pubkey(),
         &new_nullifier_queue_keypair.pubkey(),
         rollover_signature_and_slot.1,
+        0,
     )
     .await;
 

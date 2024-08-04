@@ -18,6 +18,7 @@ pub mod epoch;
 pub mod protocol_config;
 pub mod selection;
 pub mod utils;
+use account_compression::MerkleTreeMetadata;
 pub use selection::forester::*;
 
 use anchor_lang::solana_program::pubkey::Pubkey;
@@ -231,6 +232,7 @@ pub mod light_registry {
         ctx: Context<InitializeMerkleTreeAndQueue>,
         bump: u8,
         program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
         merkle_tree_config: AddressMerkleTreeConfig,
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
@@ -249,6 +251,7 @@ pub mod light_registry {
             bump,
             0,
             program_owner,
+            forester,
             merkle_tree_config,
             queue_config,
         )
@@ -258,6 +261,7 @@ pub mod light_registry {
         ctx: Context<InitializeMerkleTreeAndQueue>,
         bump: u8,
         program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
         merkle_tree_config: StateMerkleTreeConfig,
         queue_config: NullifierQueueConfig,
     ) -> Result<()> {
@@ -271,7 +275,7 @@ pub mod light_registry {
         if queue_config.network_fee.is_some() {
             return err!(RegistryError::InvalidNetworkFee);
         }
-        let additional_rent = check_cpi_context(
+        check_cpi_context(
             ctx.accounts
                 .cpi_context_account
                 .as_ref()
@@ -284,9 +288,9 @@ pub mod light_registry {
             bump,
             0,
             program_owner,
+            forester,
             merkle_tree_config,
             queue_config,
-            additional_rent,
         )?;
 
         process_initialize_cpi_context(
@@ -314,27 +318,13 @@ pub mod light_registry {
         indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {
-        // Checks forester:
-        // - signer
-        // - eligibility
-        // - increments work counter
-        ForesterEpochPda::check_forester_in_program(
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.nullifier_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
-            &ctx.accounts.authority.key(),
-            &ctx.accounts.nullifier_queue.key(),
         )?;
-
-        if ctx
-            .accounts
-            .merkle_tree
-            .load()?
-            .metadata
-            .rollover_metadata
-            .network_fee
-            == 0
-        {
-            return Err(RegistryError::InvalidNetworkFee.into());
-        }
 
         process_nullify(
             &ctx,
@@ -359,28 +349,14 @@ pub mod light_registry {
         low_address_next_value: [u8; 32],
         low_address_proof: [[u8; 32]; 16],
     ) -> Result<()> {
-        // Checks forester:
-        // - signer
-        // - eligibility
-        // - increments work counter
-        ForesterEpochPda::check_forester_in_program(
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.queue.key(),
             &mut ctx.accounts.registered_forester_pda,
-            &ctx.accounts.authority.key(),
-            &ctx.accounts.queue.key(),
         )?;
-
-        if ctx
-            .accounts
-            .merkle_tree
-            .load()?
-            .metadata
-            .rollover_metadata
-            .network_fee
-            == 0
-        {
-            return Err(RegistryError::InvalidNetworkFee.into());
-        }
-
         process_update_address_merkle_tree(
             &ctx,
             bump,
@@ -399,27 +375,14 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
         bump: u8,
     ) -> Result<()> {
-        // Checks forester:
-        // - signer
-        // - eligibility
-        // - increments work counter
-        ForesterEpochPda::check_forester_in_program(
+        let metadata = ctx.accounts.old_merkle_tree.load()?.metadata;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.old_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
-            &ctx.accounts.authority.key(),
-            &ctx.accounts.old_queue.key(),
         )?;
 
-        if ctx
-            .accounts
-            .old_merkle_tree
-            .load()?
-            .metadata
-            .rollover_metadata
-            .network_fee
-            == 0
-        {
-            return Err(RegistryError::InvalidNetworkFee.into());
-        }
         process_rollover_address_merkle_tree_and_queue(&ctx, bump)
     }
 
@@ -427,27 +390,14 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverStateMerkleTreeAndQueue<'info>>,
         bump: u8,
     ) -> Result<()> {
-        // Checks forester:
-        // - signer
-        // - eligibility
-        // - increments work counter
-        ForesterEpochPda::check_forester_in_program(
+        let metadata = ctx.accounts.old_merkle_tree.load()?.metadata;
+        check_forester(
+            &metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.old_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
-            &ctx.accounts.authority.key(),
-            &ctx.accounts.old_queue.key(),
         )?;
 
-        if ctx
-            .accounts
-            .old_merkle_tree
-            .load()?
-            .metadata
-            .rollover_metadata
-            .network_fee
-            == 0
-        {
-            return Err(RegistryError::InvalidNetworkFee.into());
-        }
         check_cpi_context(
             ctx.accounts.cpi_context_account.as_ref().to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
@@ -460,5 +410,31 @@ pub mod light_registry {
             ctx.accounts.new_merkle_tree.to_account_info(),
             ctx.accounts.light_system_program.as_ref().to_account_info(),
         )
+    }
+}
+
+/// if registered_forester_pda is not None check forester eligibility and network_fee is not 0
+/// if metadata.forester == authority can forest
+/// else throw error
+pub fn check_forester(
+    metadata: &MerkleTreeMetadata,
+    authority: Pubkey,
+    queue: Pubkey,
+    registered_forester_pda: &mut Option<Account<'_, ForesterEpochPda>>,
+) -> Result<()> {
+    if let Some(forester_pda) = registered_forester_pda.as_mut() {
+        // Checks forester:
+        // - signer
+        // - eligibility
+        // - increments work counter
+        ForesterEpochPda::check_forester_in_program(forester_pda, &authority, &queue)?;
+        if metadata.rollover_metadata.network_fee == 0 {
+            return err!(RegistryError::InvalidNetworkFee);
+        }
+        Ok(())
+    } else if metadata.access_metadata.forester == authority {
+        Ok(())
+    } else {
+        err!(RegistryError::InvalidSigner)
     }
 }

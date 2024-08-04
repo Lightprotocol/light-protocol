@@ -91,6 +91,7 @@ async fn address_queue_and_tree_functional(
         &mut address_merkle_tree_bundle,
         true,
         0,
+        false,
     )
     .await
     .unwrap();
@@ -120,6 +121,7 @@ async fn address_queue_and_tree_functional(
         &mut address_merkle_tree_bundle,
         true,
         0,
+        false,
     )
     .await
     .unwrap();
@@ -564,6 +566,7 @@ async fn update_address_merkle_tree_failing_tests(
         &mut address_merkle_tree_bundle,
         true,
         0,
+        false,
     )
     .await
     .unwrap();
@@ -663,6 +666,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await
     .unwrap_err();
@@ -684,6 +688,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await
     .unwrap_err();
@@ -704,6 +709,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -730,6 +736,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -756,6 +763,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -782,6 +790,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -809,6 +818,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -847,6 +857,7 @@ async fn update_address_merkle_tree_failing_tests(
             None,
             true,
             0,
+            false,
         )
         .await;
         assert_rpc_error(
@@ -873,6 +884,7 @@ async fn update_address_merkle_tree_failing_tests(
             None,
             true,
             0,
+            false,
         )
         .await;
         assert_rpc_error(
@@ -903,6 +915,7 @@ async fn update_address_merkle_tree_failing_tests(
             Some(invalid_indexed_changelog_index_high as u16),
             true,
             0,
+            false,
         )
         .await;
         assert_rpc_error(
@@ -930,6 +943,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -957,6 +971,7 @@ async fn update_address_merkle_tree_failing_tests(
         Some(indexed_changelog_index as u16),
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -999,6 +1014,7 @@ async fn update_address_merkle_tree_failing_tests(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -1070,6 +1086,7 @@ async fn update_address_merkle_tree_wrap_around(
             &mut address_merkle_tree_bundle,
             true,
             0,
+            false,
         )
         .await
         .unwrap();
@@ -1108,6 +1125,7 @@ async fn update_address_merkle_tree_wrap_around(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(
@@ -1502,6 +1520,7 @@ pub async fn test_with_invalid_low_element(
         None,
         true,
         0,
+        false,
     )
     .await;
     assert_rpc_error(error_invalid_low_element, 0, expected_error).unwrap();

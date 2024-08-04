@@ -530,6 +530,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
             merkle_tree_config.clone(),
             queue_config.clone(),
             program_owner,
+            forester,
         );
         Transaction::new_signed_with_payer(
             &[
@@ -558,7 +559,6 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
             program_owner,
             forester,
             index,
-            0,
         );
         Transaction::new_signed_with_payer(
             &[
@@ -623,15 +623,15 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     let (instruction, test_forester) = if registry {
         (
             create_initialize_address_merkle_tree_and_queue_instruction_registry(
-                index,
                 payer.pubkey(),
+                None,
                 program_owner,
                 address_merkle_tree_keypair.pubkey(),
                 address_queue_keypair.pubkey(),
                 merkle_tree_config.clone(),
                 queue_config.clone(),
             ),
-            Some(light_registry::ID),
+            None,
         )
     } else {
         let test_forester = Some(Pubkey::new_unique());

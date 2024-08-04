@@ -23,4 +23,5 @@ pub enum RegistryError {
     RegistrationNotFinalized,
     CpiContextAccountInvalidDataLen,
     InvalidConfigUpdate,
+    InvalidSigner,
 }

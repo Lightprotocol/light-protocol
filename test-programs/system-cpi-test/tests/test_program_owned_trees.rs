@@ -63,6 +63,7 @@ async fn test_program_owned_merkle_tree() {
             &program_owned_nullifier_queue_keypair,
             &cpi_context_keypair,
             Some(light_compressed_token::ID),
+            None,
         )
         .await;
 
@@ -127,6 +128,7 @@ async fn test_program_owned_merkle_tree() {
             &invalid_program_owned_nullifier_queue_keypair,
             &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
+            None,
         )
         .await;
     let recipient_keypair = Keypair::new();
@@ -336,7 +338,7 @@ async fn test_invalid_registered_program() {
             light_registry::instruction::RolloverStateMerkleTreeAndQueue { bump };
         let accounts = light_registry::accounts::RolloverStateMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -422,7 +424,7 @@ async fn test_invalid_registered_program() {
 
         let accounts = light_registry::accounts::RolloverAddressMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -492,6 +494,7 @@ async fn test_invalid_registered_program() {
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
             derivation: env.forester.pubkey(),
+            is_metadata_forester: false,
         };
         let ix = create_nullify_instruction(inputs, 0);
 
@@ -521,7 +524,7 @@ async fn test_invalid_registered_program() {
         };
         let accounts = light_registry::accounts::UpdateAddressMerkleTree {
             authority: payer.pubkey(),
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             registered_program_pda: register_program_pda,
             queue: invalid_group_address_queue.pubkey(),
             merkle_tree: invalid_group_address_merkle_tree.pubkey(),

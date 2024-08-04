@@ -284,6 +284,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             indexed_changelog_index: ((account_data.proof.root_seq - 1)
                 % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
                 as u16,
+            is_metadata_forester: false,
         },
         0, // TODO: add correct epoch
     );

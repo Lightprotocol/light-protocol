@@ -41,7 +41,6 @@ pub fn process_initialize_state_merkle_tree(
     forester: Option<Pubkey>,
     merkle_tree_config: StateMerkleTreeConfig,
     queue_config: NullifierQueueConfig,
-    additional_rent: u64,
 ) -> Result<()> {
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
@@ -65,7 +64,7 @@ pub fn process_initialize_state_merkle_tree(
         forester,
         merkle_tree_config,
         queue_config,
-        additional_rent,
+        0,
     )
 }
 

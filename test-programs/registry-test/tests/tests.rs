@@ -237,6 +237,7 @@ async fn test_initialize_protocol_config() {
             &nullifier_queue_keypair,
             Some(&cpi_context_keypair),
             None,
+            None,
             1,
             &StateMerkleTreeConfig {
                 network_fee: None,
@@ -260,6 +261,7 @@ async fn test_initialize_protocol_config() {
             &nullifier_queue_keypair,
             Some(&cpi_context_keypair),
             None,
+            None,
             1,
             &StateMerkleTreeConfig {
                 network_fee: Some(5000),
@@ -282,6 +284,7 @@ async fn test_initialize_protocol_config() {
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             Some(&cpi_context_keypair),
+            None,
             None,
             1,
             &StateMerkleTreeConfig {
@@ -362,6 +365,83 @@ async fn test_initialize_protocol_config() {
     }
 }
 
+#[tokio::test]
+async fn test_custom_forester() {
+    // TODO: add setup test programs wrapper that allows for non default protocol config
+    let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
+        None,
+        ProtocolConfig::default(),
+        false,
+    )
+    .await;
+    let payer = rpc.get_payer().insecure_clone();
+    {
+        let unregistered_forester_keypair = Keypair::new();
+        rpc.airdrop_lamports(&unregistered_forester_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        // create work 1 item in address and nullifier queue each
+        let (mut state_merkle_tree_bundle, _, mut rpc) = {
+            let mut e2e_env = init_program_test_env(rpc, &env).await;
+            e2e_env.indexer.state_merkle_trees.clear();
+            // add state merkle tree to the indexer
+            e2e_env
+                .indexer
+                .add_state_merkle_tree(
+                    &mut e2e_env.rpc,
+                    &merkle_tree_keypair,
+                    &nullifier_queue_keypair,
+                    &cpi_context_keypair,
+                    None,
+                    Some(unregistered_forester_keypair.pubkey()),
+                )
+                .await;
+
+            // e2e_env.create_address(None).await;
+            e2e_env
+                .compress_sol_deterministic(&unregistered_forester_keypair, 1_000_000, None)
+                .await;
+            e2e_env
+                .transfer_sol_deterministic(
+                    &unregistered_forester_keypair,
+                    &Pubkey::new_unique(),
+                    None,
+                )
+                .await
+                .unwrap();
+
+            (
+                e2e_env.indexer.state_merkle_trees[0].clone(),
+                e2e_env.indexer.address_merkle_trees[0].clone(),
+                e2e_env.rpc,
+            )
+        };
+        {
+            let result = nullify_compressed_accounts(
+                &mut rpc,
+                &payer,
+                &mut state_merkle_tree_bundle,
+                0,
+                true,
+            )
+            .await;
+            assert_rpc_error(result, 0, RegistryError::InvalidSigner.into()).unwrap();
+        }
+        // nullify with tree forester
+        nullify_compressed_accounts(
+            &mut rpc,
+            &unregistered_forester_keypair,
+            &mut state_merkle_tree_bundle,
+            0,
+            true,
+        )
+        .await
+        .unwrap();
+    }
+}
 /// Test:
 /// 1. SUCCESS: Register a forester
 /// 2. SUCCESS: Update forester authority
@@ -559,14 +639,17 @@ async fn test_register_and_update_forester_pda() {
         &forester_keypair,
         &mut state_merkle_tree_bundle,
         epoch,
+        false,
     )
-    .await;
+    .await
+    .unwrap();
     empty_address_queue_test(
         &forester_keypair,
         &mut rpc,
         &mut address_merkle_tree,
         false,
         epoch,
+        false,
     )
     .await
     .unwrap();
@@ -693,6 +776,7 @@ async fn failing_test_forester() {
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
             derivation: payer.pubkey(),
+            is_metadata_forester: false,
         };
         let mut ix = create_nullify_instruction(inputs, 0);
         // Swap the derived forester pda with an initialized but invalid one.
@@ -720,6 +804,7 @@ async fn failing_test_forester() {
                 low_address_next_index: 1,
                 low_address_next_value: [0u8; 32],
                 low_address_proof: [[0u8; 32]; 16],
+                is_metadata_forester: false,
             },
             0,
         );
@@ -746,6 +831,7 @@ async fn failing_test_forester() {
             &env.address_merkle_tree_pubkey,
             &env.address_merkle_tree_queue_pubkey,
             0, // TODO: adapt epoch
+            false,
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
@@ -777,6 +863,7 @@ async fn failing_test_forester() {
             &env.merkle_tree_pubkey,
             &env.nullifier_queue_pubkey,
             0, // TODO: adapt epoch
+            false,
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.

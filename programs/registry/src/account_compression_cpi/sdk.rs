@@ -22,6 +22,7 @@ pub struct CreateNullifyInstructionInputs {
     pub indices: Vec<u64>,
     pub proofs: Vec<Vec<[u8; 32]>>,
     pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
 }
 
 pub fn create_nullify_instruction(
@@ -29,7 +30,11 @@ pub fn create_nullify_instruction(
     epoch: u64,
 ) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.derivation, epoch).0;
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+    };
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
         bump,
@@ -71,6 +76,7 @@ pub struct CreateRolloverMerkleTreeInstructionInputs {
     pub old_queue: Pubkey,
     pub old_merkle_tree: Pubkey,
     pub cpi_context_account: Option<Pubkey>,
+    pub is_metadata_forester: bool,
 }
 
 pub fn create_rollover_address_merkle_tree_instruction(
@@ -82,7 +88,11 @@ pub fn create_rollover_address_merkle_tree_instruction(
     let instruction_data = crate::instruction::RolloverAddressMerkleTreeAndQueue { bump };
     let (cpi_authority, _) = get_cpi_authority_pda();
     let registered_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.authority, epoch).0;
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+    };
 
     let accounts = crate::accounts::RolloverAddressMerkleTreeAndQueue {
         account_compression_program: account_compression::ID,
@@ -112,7 +122,11 @@ pub fn create_rollover_state_merkle_tree_instruction(
     let instruction_data = crate::instruction::RolloverStateMerkleTreeAndQueue { bump };
     let (cpi_authority, _) = get_cpi_authority_pda();
     let registered_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&inputs.authority, epoch).0;
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+    };
     let protocol_config_pda = get_protocol_config_pda_address().0;
 
     let accounts = crate::accounts::RolloverStateMerkleTreeAndQueue {
@@ -149,34 +163,39 @@ pub struct UpdateAddressMerkleTreeInstructionInputs {
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
     pub low_address_proof: [[u8; 32]; 16],
+    pub is_metadata_forester: bool,
 }
 
 pub fn create_update_address_merkle_tree_instruction(
-    instructions: UpdateAddressMerkleTreeInstructionInputs,
+    inputs: UpdateAddressMerkleTreeInstructionInputs,
     epoch: u64,
 ) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
-    let registered_forester_pda = get_forester_epoch_pda_address(&instructions.authority, epoch).0;
+    let registered_forester_pda = if inputs.is_metadata_forester {
+        None
+    } else {
+        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+    };
 
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::UpdateAddressMerkleTree {
         bump,
-        changelog_index: instructions.changelog_index,
-        indexed_changelog_index: instructions.indexed_changelog_index,
-        value: instructions.value,
-        low_address_index: instructions.low_address_index,
-        low_address_value: instructions.low_address_value,
-        low_address_next_index: instructions.low_address_next_index,
-        low_address_next_value: instructions.low_address_next_value,
-        low_address_proof: instructions.low_address_proof,
+        changelog_index: inputs.changelog_index,
+        indexed_changelog_index: inputs.indexed_changelog_index,
+        value: inputs.value,
+        low_address_index: inputs.low_address_index,
+        low_address_value: inputs.low_address_value,
+        low_address_next_index: inputs.low_address_next_index,
+        low_address_next_value: inputs.low_address_next_value,
+        low_address_proof: inputs.low_address_proof,
     };
 
     let accounts = crate::accounts::UpdateAddressMerkleTree {
-        authority: instructions.authority,
+        authority: inputs.authority,
         registered_forester_pda,
         registered_program_pda: register_program_pda,
-        merkle_tree: instructions.address_merkle_tree,
-        queue: instructions.address_queue,
+        merkle_tree: inputs.address_merkle_tree,
+        queue: inputs.address_queue,
         log_wrapper: NOOP_PROGRAM_ID,
         cpi_authority,
         account_compression_program: account_compression::ID,
@@ -190,6 +209,7 @@ pub fn create_update_address_merkle_tree_instruction(
 
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     payer: Pubkey,
+    forester: Option<Pubkey>,
     program_owner: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
@@ -202,6 +222,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     let instruction_data = crate::instruction::InitializeAddressMerkleTree {
         bump,
         program_owner,
+        forester,
         merkle_tree_config: address_merkle_tree_config,
         queue_config: address_queue_config,
     };
@@ -232,6 +253,7 @@ pub fn create_initialize_merkle_tree_instruction(
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
 ) -> Instruction {
     let register_program_pda = get_registered_program_pda(&crate::ID);
     let (cpi_authority, bump) = get_cpi_authority_pda();
@@ -239,6 +261,7 @@ pub fn create_initialize_merkle_tree_instruction(
     let instruction_data = crate::instruction::InitializeStateMerkleTree {
         bump,
         program_owner,
+        forester,
         merkle_tree_config: state_merkle_tree_config,
         queue_config: nullifier_queue_config,
     };

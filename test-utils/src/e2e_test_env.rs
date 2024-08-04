@@ -295,6 +295,7 @@ where
         )
         .await;
         let protocol_config_pda_address = get_protocol_config_pda_address().0;
+        println!("here");
         let protocol_config = rpc
             .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
             .await
@@ -434,8 +435,10 @@ where
                         &payer,
                         state_tree_bundle,
                         self.epoch,
+                        false,
                     )
-                    .await;
+                    .await
+                    .unwrap();
                 } else {
                     println!("No forester found for nullifier queue");
                 };
@@ -465,6 +468,7 @@ where
                         address_merkle_tree_bundle,
                         false,
                         self.epoch,
+                        false,
                     )
                     .await
                     .unwrap();
@@ -1809,10 +1813,19 @@ where
             &bundle.merkle_tree,
             &bundle.nullifier_queue,
             epoch,
+            false,
         )
         .await
         .unwrap();
         info!("Rollover signature: {:?}", rollover_signature_and_slot.0);
+        let additional_rent = self
+            .rpc
+            .get_minimum_balance_for_rent_exemption(
+                ProtocolConfig::default().cpi_context_size as usize,
+            )
+            .await
+            .unwrap();
+        info!("additional_rent: {:?}", additional_rent);
         assert_rolled_over_pair(
             &self.indexer.get_payer().pubkey(),
             &mut self.rpc,
@@ -1822,6 +1835,7 @@ where
             &new_merkle_tree_keypair.pubkey(),
             &new_nullifier_queue_keypair.pubkey(),
             rollover_signature_and_slot.1,
+            additional_rent,
         )
         .await;
         self.indexer
@@ -1865,6 +1879,7 @@ where
             &bundle.merkle_tree,
             &bundle.queue,
             epoch,
+            false,
         )
         .await?;
         assert_rolled_over_address_merkle_tree_and_queue(

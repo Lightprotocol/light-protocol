@@ -177,6 +177,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
@@ -185,6 +186,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_address_bundle_config(
         rpc,
@@ -223,6 +225,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
             cpi_context_account: None,
+            is_metadata_forester,
         },epoch
     );
     vec![
@@ -232,6 +235,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     authority: &Keypair,
@@ -240,6 +244,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Result<(), RpcError> {
     let instructions = create_rollover_address_merkle_tree_instructions(
         rpc,
@@ -249,6 +254,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         epoch,
+        is_metadata_forester,
     )
     .await;
     rpc.create_and_send_transaction(
@@ -273,6 +279,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
         rpc,
@@ -318,6 +325,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
             cpi_context_account: Some(new_cpi_context_keypair.pubkey()),
+            is_metadata_forester,
         },
         epoch,
     );

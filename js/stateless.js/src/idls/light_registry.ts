@@ -437,6 +437,12 @@ export type LightRegistry = {
                     };
                 },
                 {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
                     name: 'merkleTreeConfig';
                     type: {
                         defined: 'AddressMerkleTreeConfig';
@@ -516,6 +522,12 @@ export type LightRegistry = {
                     };
                 },
                 {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
                     name: 'merkleTreeConfig';
                     type: {
                         defined: 'StateMerkleTreeConfig';
@@ -536,6 +548,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -615,6 +628,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -709,6 +723,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -765,6 +780,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -1215,6 +1231,10 @@ export type LightRegistry = {
             code: 6019;
             name: 'InvalidConfigUpdate';
         },
+        {
+            code: 6020;
+            name: 'InvalidSigner';
+        },
     ];
 };
 
@@ -1657,6 +1677,12 @@ export const IDL: LightRegistry = {
                     },
                 },
                 {
+                    name: 'forester',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
                     name: 'merkleTreeConfig',
                     type: {
                         defined: 'AddressMerkleTreeConfig',
@@ -1736,6 +1762,12 @@ export const IDL: LightRegistry = {
                     },
                 },
                 {
+                    name: 'forester',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
                     name: 'merkleTreeConfig',
                     type: {
                         defined: 'StateMerkleTreeConfig',
@@ -1756,6 +1788,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1835,6 +1868,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1929,6 +1963,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1985,6 +2020,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -2434,6 +2470,10 @@ export const IDL: LightRegistry = {
         {
             code: 6019,
             name: 'InvalidConfigUpdate',
+        },
+        {
+            code: 6020,
+            name: 'InvalidSigner',
         },
     ],
 };

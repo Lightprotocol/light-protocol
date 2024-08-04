@@ -780,6 +780,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         nullifier_queue_keypair: &Keypair,
         cpi_context_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
+        forester: Option<Pubkey>,
     ) {
         create_state_merkle_tree_and_queue_account(
             &self.payer,
@@ -789,7 +790,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             nullifier_queue_keypair,
             Some(cpi_context_keypair),
             owning_program_id,
-            None,
+            forester,
             self.state_merkle_trees.len() as u64,
             &StateMerkleTreeConfig::default(),
             &NullifierQueueConfig::default(),
