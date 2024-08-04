@@ -23,11 +23,6 @@ export type LightSystemProgram = {
                     isSigner: false;
                 },
                 {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
                     name: 'associatedMerkleTree';
                     isMut: false;
                     isSigner: false;
@@ -1074,11 +1069,6 @@ export const IDL: LightSystemProgram = {
                 {
                     name: 'cpiContextAccount',
                     isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
                     isSigner: false,
                 },
                 {
