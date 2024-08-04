@@ -978,7 +978,8 @@ async fn update_address_merkle_tree_failing_tests(
         queue_config,
         2,
     )
-    .await;
+    .await
+    .unwrap();
 
     // CHECK: 14 non-associated Merkle tree
     let invalid_merkle_tree = invalid_address_merkle_tree_keypair.pubkey();
@@ -1185,7 +1186,8 @@ async fn address_merkle_tree_and_queue_rollover(
         queue_config,
         2,
     )
-    .await;
+    .await
+    .unwrap();
     let required_next_index = 2u64.pow(26) * merkle_tree_config.rollover_threshold.unwrap() / 100;
     let failing_next_index = required_next_index - 1;
 
@@ -1429,7 +1431,8 @@ pub async fn test_setup_with_address_merkle_tree(
         queue_config,
         1,
     )
-    .await;
+    .await
+    .unwrap();
 
     // Local indexing array and queue. We will use them to get the correct
     // elements and Merkle proofs, which we will modify later, to pass invalid

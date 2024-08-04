@@ -37,30 +37,31 @@ pub fn create_initialize_group_authority_instruction(
     }
 }
 
-pub fn create_update_authority_instruction(
+pub fn create_update_protocol_config_instruction(
     signer_pubkey: Pubkey,
-    new_authority: Pubkey,
+    new_authority: Option<Pubkey>,
+    protocol_config: Option<ProtocolConfig>,
 ) -> Instruction {
-    let authority_pda = get_protocol_config_pda_address();
-    let update_authority_ix = crate::instruction::UpdateGovernanceAuthority {
-        bump: authority_pda.1,
+    let protocol_config_pda = get_protocol_config_pda_address();
+    let update_authority_ix = crate::instruction::UpdateProtocolConfig { protocol_config };
+    let accounts = crate::accounts::UpdateProtocolConfig {
+        protocol_config_pda: protocol_config_pda.0,
+        authority: signer_pubkey,
+        fee_payer: signer_pubkey,
         new_authority,
     };
 
     // update with new authority
     Instruction {
         program_id: crate::ID,
-        accounts: vec![
-            AccountMeta::new(signer_pubkey, true),
-            AccountMeta::new(authority_pda.0, false),
-        ],
+        accounts: accounts.to_account_metas(Some(true)),
         data: update_authority_ix.data(),
     }
 }
 
 pub fn create_register_program_instruction(
     signer_pubkey: Pubkey,
-    authority_pda: (Pubkey, u8),
+    protocol_config_pda: (Pubkey, u8),
     group_account: Pubkey,
     program_id_to_be_registered: Pubkey,
 ) -> (Instruction, Pubkey) {
@@ -71,11 +72,11 @@ pub fn create_register_program_instruction(
     let register_program_ix = crate::instruction::RegisterSystemProgram {
         bump: cpi_authority_pda.1,
     };
-    let register_program_accounts = crate::accounts::RegisteredProgram {
+    let register_program_accounts = crate::accounts::RegisterProgram {
         authority: signer_pubkey,
         program_to_be_registered: program_id_to_be_registered,
         registered_program_pda,
-        authority_pda: authority_pda.0,
+        protocol_config_pda: protocol_config_pda.0,
         group_pda: group_account,
         cpi_authority: cpi_authority_pda.0,
         account_compression_program: ID,
@@ -91,19 +92,22 @@ pub fn create_register_program_instruction(
 }
 
 pub fn create_initialize_governance_authority_instruction(
-    signer_pubkey: Pubkey,
+    fee_payer: Pubkey,
+    authority: Pubkey,
     protocol_config: ProtocolConfig,
 ) -> Instruction {
-    let authority_pda = get_protocol_config_pda_address();
-    let ix = crate::instruction::InitializeGovernanceAuthority {
-        bump: authority_pda.1,
+    let protocol_config_pda = get_protocol_config_pda_address();
+    let ix = crate::instruction::InitializeProtocolConfig {
+        bump: protocol_config_pda.1,
         protocol_config,
     };
 
-    let accounts = crate::accounts::InitializeAuthority {
-        authority_pda: authority_pda.0,
-        authority: signer_pubkey,
+    let accounts = crate::accounts::InitializeProtocolConfig {
+        protocol_config_pda: protocol_config_pda.0,
+        fee_payer,
+        authority,
         system_program: system_program::ID,
+        self_program: crate::ID,
     };
     Instruction {
         program_id: crate::ID,
@@ -113,21 +117,24 @@ pub fn create_initialize_governance_authority_instruction(
 }
 
 pub fn create_register_forester_instruction(
+    fee_payer: &Pubkey,
     governance_authority: &Pubkey,
     forester_authority: &Pubkey,
     config: ForesterConfig,
 ) -> Instruction {
     let (forester_pda, _bump) = get_forester_pda_address(forester_authority);
     let instruction_data = crate::instruction::RegisterForester {
-        _bump: 0,
+        _bump,
         authority: *forester_authority,
         config,
+        weight: Some(1),
     };
-    let (authority_pda, _) = get_protocol_config_pda_address();
+    let (protocol_config_pda, _) = get_protocol_config_pda_address();
     let accounts = crate::accounts::RegisterForester {
         forester_pda,
-        signer: *governance_authority,
-        authority_pda,
+        fee_payer: *fee_payer,
+        authority: *governance_authority,
+        protocol_config_pda,
         system_program: solana_sdk::system_program::id(),
     };
     Instruction {
@@ -137,17 +144,17 @@ pub fn create_register_forester_instruction(
     }
 }
 
-pub fn create_update_forester_epoch_pda_instruction(
+pub fn create_update_forester_weight_pda_instruction(
     forester_authority: &Pubkey,
-    new_authority: &Pubkey,
+    new_weight: u64,
 ) -> Instruction {
-    let (forester_epoch_pda, _bump) = get_forester_pda_address(forester_authority);
-    let instruction_data = crate::instruction::UpdateForesterEpochPda {
-        authority: *new_authority,
-    };
-    let accounts = crate::accounts::UpdateForesterEpochPda {
-        forester_epoch_pda,
-        signer: *forester_authority,
+    let (forester_pda, _bump) = get_forester_pda_address(forester_authority);
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let instruction_data = crate::instruction::UpdateForesterPdaWeight { new_weight };
+    let accounts = crate::accounts::UpdateForesterPdaWeight {
+        forester_pda,
+        authority: *forester_authority,
+        protocol_config_pda,
     };
     Instruction {
         program_id: crate::ID,
@@ -158,12 +165,13 @@ pub fn create_update_forester_epoch_pda_instruction(
 
 pub fn create_update_forester_pda_instruction(
     forester_authority: &Pubkey,
+    derivation_key: &Pubkey,
     new_authority: Option<Pubkey>,
-    config: ForesterConfig,
+    config: Option<ForesterConfig>,
 ) -> Instruction {
-    let (forester_pda, _) = get_forester_pda_address(forester_authority);
-    let instruction_data = crate::instruction::UpdateForester { config };
-    let accounts = crate::accounts::UpdateForester {
+    let (forester_pda, _) = get_forester_pda_address(derivation_key);
+    let instruction_data = crate::instruction::UpdateForesterPda { config };
+    let accounts = crate::accounts::UpdateForesterPda {
         forester_pda,
         authority: *forester_authority,
         new_authority,
@@ -185,6 +193,7 @@ pub fn create_register_forester_epoch_pda_instruction(
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let instruction_data = crate::instruction::RegisterForesterEpoch { epoch };
     let accounts = crate::accounts::RegisterForesterEpoch {
+        fee_payer: *authority,
         forester_epoch_pda,
         forester_pda,
         authority: *authority,

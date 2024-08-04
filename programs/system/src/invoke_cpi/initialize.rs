@@ -10,6 +10,5 @@ pub struct InitializeCpiContextAccount<'info> {
     pub fee_payer: Signer<'info>,
     #[account(zero)]
     pub cpi_context_account: Account<'info, CpiContextAccount>,
-    pub system_program: Program<'info, System>,
     pub associated_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
 }

@@ -132,6 +132,7 @@ async fn test_state_tree_rollover() {
     for i in 0..5 {
         env.compress_sol_deterministic(&payer_keypair, LAMPORTS_PER_SOL, Some(i))
             .await;
+        println!("i = {}", i);
         // rollover address Merkle tree
         env.rollover_state_merkle_tree_and_queue(i, &env_accounts.forester, env.epoch)
             .await

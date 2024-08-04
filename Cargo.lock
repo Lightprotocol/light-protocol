@@ -3111,11 +3111,11 @@ dependencies = [
  "light-macros",
  "light-system-program",
  "light-utils",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "solana-program-test",
  "solana-sdk",
+ "solana-security-txt",
  "tokio",
 ]
 

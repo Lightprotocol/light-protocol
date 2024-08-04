@@ -1,7 +1,7 @@
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use anchor_lang::solana_program::pubkey::Pubkey;
 
-use crate::{AUTHORITY_PDA_SEED, FORESTER_EPOCH_SEED, FORESTER_SEED};
+use crate::constants::{FORESTER_EPOCH_SEED, FORESTER_SEED, PROTOCOL_CONFIG_PDA_SEED};
 
 pub fn get_group_pda(seed: Pubkey) -> Pubkey {
     Pubkey::find_program_address(
@@ -12,7 +12,7 @@ pub fn get_group_pda(seed: Pubkey) -> Pubkey {
 }
 
 pub fn get_protocol_config_pda_address() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[AUTHORITY_PDA_SEED], &crate::ID)
+    Pubkey::find_program_address(&[PROTOCOL_CONFIG_PDA_SEED], &crate::ID)
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
