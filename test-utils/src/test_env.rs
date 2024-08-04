@@ -230,7 +230,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     let instruction = create_initialize_governance_authority_instruction(
         payer.pubkey(),
         registry_keypair.pubkey(),
-        protocol_config.clone(),
+        protocol_config,
     );
     let update_instruction = create_update_protocol_config_instruction(
         registry_keypair.pubkey(),
@@ -324,7 +324,6 @@ pub async fn initialize_accounts<R: RpcConnection>(
     .await
     .unwrap();
 
-    // init_cpi_context_account(context, &merkle_tree_pubkey, &cpi_context_keypair, payer).await;
     let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
     let forester_epoch = if register_forester_and_advance_to_active_phase {
@@ -734,46 +733,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     .await;
     result
 }
-
-// pub async fn init_cpi_context_account<R: RpcConnection>(
-//     rpc: &mut R,
-//     merkle_tree_pubkey: &Pubkey,
-//     cpi_account_keypair: &Keypair,
-//     payer: &Keypair,
-// ) -> Pubkey {
-//     use solana_sdk::instruction::Instruction;
-
-//     use crate::create_account_instruction;
-//     let account_size: usize = 20 * 1024 + 8;
-//     let account_create_ix = create_account_instruction(
-//         &payer.pubkey(),
-//         account_size,
-//         rpc.get_minimum_balance_for_rent_exemption(account_size)
-//             .await
-//             .unwrap(),
-//         &light_system_program::ID,
-//         Some(cpi_account_keypair),
-//     );
-//     let data = light_system_program::instruction::InitCpiContextAccount {};
-//     let accounts = light_system_program::accounts::InitializeCpiContextAccount {
-//         fee_payer: payer.pubkey(),
-//         cpi_context_account: cpi_account_keypair.pubkey(),
-//         associated_merkle_tree: *merkle_tree_pubkey,
-//     };
-//     let instruction = Instruction {
-//         program_id: light_system_program::ID,
-//         accounts: accounts.to_account_metas(Some(true)),
-//         data: data.data(),
-//     };
-//     rpc.create_and_send_transaction(
-//         &[account_create_ix, instruction],
-//         &payer.pubkey(),
-//         &[payer, cpi_account_keypair],
-//     )
-//     .await
-//     .unwrap();
-//     cpi_account_keypair.pubkey()
-// }
 
 pub async fn register_program_with_registry_program<R: RpcConnection>(
     rpc: &mut R,

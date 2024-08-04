@@ -813,13 +813,6 @@ where
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
-        // crate::test_env::init_cpi_context_account(
-        //     &mut self.rpc,
-        //     &merkle_tree_keypair.pubkey(),
-        //     &cpi_context_keypair,
-        //     &self.payer,
-        // )
-        // .await;
         let state_tree_account =
             AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
                 &mut self.rpc,

@@ -795,13 +795,6 @@ impl<R: RpcConnection> TestIndexer<R> {
             &NullifierQueueConfig::default(),
         )
         .await;
-        // crate::test_env::init_cpi_context_account(
-        //     rpc,
-        //     &merkle_tree_keypair.pubkey(),
-        //     cpi_context_keypair,
-        //     &self.payer,
-        // )
-        // .await;
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),

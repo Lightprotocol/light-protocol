@@ -216,7 +216,7 @@ pub fn process_register_for_epoch(
         epoch_active_phase_start_slot: current_epoch_start_slot,
         forester_index: epoch_pda.registered_weight,
         total_epoch_weight: None,
-        protocol_config: epoch_pda.protocol_config.clone(),
+        protocol_config: epoch_pda.protocol_config,
         finalize_counter: 0,
     };
     forester_epoch_pda.clone_from(&initialized_forester_epoch_pda);

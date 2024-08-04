@@ -126,13 +126,6 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     )
     .await?;
     println!("Rollover signature: {:?}", rollover_signature);
-    // init_cpi_context_account(
-    //     rpc,
-    //     &new_merkle_tree_keypair.pubkey(),
-    //     &new_cpi_signature_keypair,
-    //     &config.payer_keypair,
-    // )
-    // .await;
 
     let state_bundle = StateMerkleTreeBundle {
         // TODO: fetch correct fee when this property is used
