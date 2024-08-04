@@ -52,5 +52,5 @@ pub enum AccountCompressionErrorCode {
     UnsupportedCloseThreshold,
     #[msg("InvalidAccountBalance")]
     InvalidAccountBalance,
-    UnsupportedAdditionalRent,
+    UnsupportedAdditionalBytes,
 }

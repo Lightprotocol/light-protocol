@@ -51,7 +51,7 @@ pub struct UpdateForesterPda<'info> {
 #[derive(Accounts)]
 pub struct UpdateForesterPdaWeight<'info> {
     pub authority: Signer<'info>,
-    #[account(has_one =authority)]
+    #[account(has_one = authority)]
     pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
     #[account(mut)]
     pub forester_pda: Account<'info, ForesterPda>,

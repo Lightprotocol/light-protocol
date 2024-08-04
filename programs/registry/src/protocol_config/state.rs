@@ -79,23 +79,31 @@ pub enum EpochState {
     Pre,
 }
 
+/// Light Epoch Example:
+///
 ///  Diagram of epochs 0 and 1.
 /// Registration 0 starts at genesis slot.
 /// |---- Registration 0 ----|------------------ Active 0 ------|---- Report Work 0 ----|---- Post 0 ----
 ///                                        |-- Registration 1 --|------------------ Active 1 -----------------
+/// (Post epoch does not end unlike the other phases.)
+///
 /// let genesis = 0;
 /// let registration_phase_length = 100;
 /// let active_phase_length = 1000;
 /// let report_work_phase_length = 100;
 /// let slot = 10;
+///
 /// To get the latest registry epoch:
 /// - slot = 0;
 /// let current_registry_epoch = (slot - genesis) / active_phase_length;
 /// current_registry_epoch =  (0 - 0) / 1000 = 0;
-/// first active phase starts at genesis + registration_phase_length = 0 + 100 = 100;
+/// first active phase starts at genesis + registration_phase_length
+///     = 0 + 100 = 100;
+///
 /// To get the current active epoch:
 /// - slot = 100;
-/// let current_active_epoch = (slot - genesis - registration_phase_length) / active_phase_length;
+/// let current_active_epoch =
+///     (slot - genesis - registration_phase_length) / active_phase_length;
 /// current_active_epoch = (100 - 0 - 100) / 1000 = 0;
 ///
 /// Epoch 0:
@@ -103,11 +111,13 @@ pub enum EpochState {
 /// - Active 0: 100 - 1100
 /// - Report Work 0: 1100 - 1200
 /// - Post 0: 1200 - inf
+///
 /// Epoch 1:
 /// - Registration 1: 1000 - 1100
 /// - Active 1: 1100 - 2100
 /// - Report Work 1: 2100 - 2200
 /// - Post 1: 2200 - inf
+///
 /// Epoch 2:
 /// - Registration 2: 2000 - 2100
 /// - Active 2: 2100 - 3100
@@ -117,23 +127,24 @@ pub enum EpochState {
 impl ProtocolConfig {
     /// Current epoch including registration phase.
     pub fn get_latest_register_epoch(&self, slot: u64) -> Result<u64> {
-        let slot = match slot.checked_sub(self.genesis_slot) {
-            Some(slot) => slot,
-            None => return err!(RegistryError::EpochEnded),
-        };
+        let slot = slot
+            .checked_sub(self.genesis_slot)
+            .ok_or(RegistryError::GetLatestedRegisterEpochFailed)?;
         Ok(slot / self.active_phase_length)
     }
 
     pub fn get_current_active_epoch(&self, slot: u64) -> Result<u64> {
-        let slot = match slot.checked_sub(self.genesis_slot + self.registration_phase_length) {
-            Some(slot) => slot,
-            None => return err!(RegistryError::EpochEnded),
-        };
+        let slot = slot
+            .checked_sub(self.genesis_slot + self.registration_phase_length)
+            .ok_or(RegistryError::GetLatestActiveEpochFailed)?;
         Ok(slot / self.active_phase_length)
     }
 
-    pub fn get_latest_register_epoch_progress(&self, slot: u64) -> u64 {
-        (slot.checked_sub(self.genesis_slot).unwrap()) % self.active_phase_length
+    pub fn get_latest_register_epoch_progress(&self, slot: u64) -> Result<u64> {
+        Ok(slot
+            .checked_sub(self.genesis_slot)
+            .ok_or(RegistryError::ArithmeticUnderflow)?
+            % self.active_phase_length)
     }
 
     pub fn get_current_active_epoch_progress(&self, slot: u64) -> u64 {
@@ -147,7 +158,7 @@ impl ProtocolConfig {
     /// Returns end slot of the registration phase/start slot of the next active phase.
     pub fn is_registration_phase(&self, slot: u64) -> Result<u64> {
         let latest_register_epoch = self.get_latest_register_epoch(slot)?;
-        let latest_register_epoch_progress = self.get_latest_register_epoch_progress(slot);
+        let latest_register_epoch_progress = self.get_latest_register_epoch_progress(slot)?;
         if latest_register_epoch_progress >= self.registration_phase_length {
             return err!(RegistryError::NotInRegistrationPeriod);
         }

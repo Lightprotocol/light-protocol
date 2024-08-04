@@ -141,11 +141,11 @@ pub mod account_compression {
         nullifier_queue_config: NullifierQueueConfig,
         // additional rent for the cpi context account
         // so that it can be rolled over as well
-        additional_rent: u64,
+        additional_bytes: u64,
     ) -> Result<()> {
-        if additional_rent != 0 {
-            msg!("additional_rent is not supported yet");
-            return err!(AccountCompressionErrorCode::UnsupportedAdditionalRent);
+        if additional_bytes != 0 {
+            msg!("additional_bytes is not supported yet");
+            return err!(AccountCompressionErrorCode::UnsupportedAdditionalBytes);
         }
         process_initialize_state_merkle_tree_and_nullifier_queue(
             ctx,
@@ -154,7 +154,7 @@ pub mod account_compression {
             forester,
             state_merkle_tree_config,
             nullifier_queue_config,
-            additional_rent,
+            additional_bytes,
         )
     }
 

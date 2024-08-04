@@ -30,7 +30,7 @@ pub fn create_initialize_merkle_tree_instruction(
         forester,
         state_merkle_tree_config,
         nullifier_queue_config,
-        additional_rent: 0,
+        additional_bytes: 0,
     };
     let registered_program = match registered_program_pda {
         Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
