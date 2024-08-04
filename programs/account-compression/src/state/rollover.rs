@@ -18,6 +18,8 @@ pub struct RolloverMetadata {
     /// the account is empty it can be closed. No 'close' functionality has been
     /// implemented yet.
     pub close_threshold: u64,
+    /// Placeholder for bytes of additional accounts which are tied to the
+    /// Merkle trees operation and need to be rolled over as well.
     pub additional_bytes: u64,
 }
 

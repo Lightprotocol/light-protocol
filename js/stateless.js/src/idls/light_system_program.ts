@@ -346,6 +346,14 @@ export type LightSystemProgram = {
                     },
                     {
                         name: 'forester';
+                        docs: [
+                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ];
                         type: 'publicKey';
                     },
                 ];
@@ -427,6 +435,10 @@ export type LightSystemProgram = {
                     },
                     {
                         name: 'additionalBytes';
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
+                        ];
                         type: 'u64';
                     },
                 ];
@@ -1408,6 +1420,14 @@ export const IDL: LightSystemProgram = {
                     },
                     {
                         name: 'forester',
+                        docs: [
+                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ],
                         type: 'publicKey',
                     },
                 ],
@@ -1489,6 +1509,10 @@ export const IDL: LightSystemProgram = {
                     },
                     {
                         name: 'additionalBytes',
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
+                        ],
                         type: 'u64',
                     },
                 ],
