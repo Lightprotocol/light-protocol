@@ -12,6 +12,7 @@ pub fn process_initialize_state_merkle_tree(
     index: u64,
     owner: Pubkey,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     height: &u32,
     changelog_size: &u64,
     roots_size: &u64,
@@ -48,13 +49,14 @@ pub fn process_initialize_state_merkle_tree(
         };
 
         merkle_tree.init(
-            AccessMetadata::new(owner, program_owner),
+            AccessMetadata::new(owner, program_owner, forester),
             RolloverMetadata::new(
                 index,
                 rollover_fee,
                 rollover_threshold,
                 network_fee,
                 close_threshold,
+                None,
             ),
             associated_queue,
         );

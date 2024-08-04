@@ -24,6 +24,8 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
+    use errors::AccountCompressionErrorCode;
+
     use self::{
         initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
         insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
@@ -35,6 +37,7 @@ pub mod account_compression {
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
         program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
         address_merkle_tree_config: AddressMerkleTreeConfig,
         address_queue_config: AddressQueueConfig,
     ) -> Result<()> {
@@ -42,6 +45,7 @@ pub mod account_compression {
             ctx,
             index,
             program_owner,
+            forester,
             address_merkle_tree_config,
             address_queue_config,
         )
@@ -132,16 +136,22 @@ pub mod account_compression {
         ctx: Context<'_, '_, '_, 'info, InitializeStateMerkleTreeAndNullifierQueue<'info>>,
         index: u64,
         program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
         state_merkle_tree_config: StateMerkleTreeConfig,
         nullifier_queue_config: NullifierQueueConfig,
         // additional rent for the cpi context account
         // so that it can be rolled over as well
         additional_rent: u64,
     ) -> Result<()> {
+        if additional_rent != 0 {
+            msg!("additional_rent is not supported yet");
+            return err!(AccountCompressionErrorCode::UnsupportedAdditionalRent);
+        }
         process_initialize_state_merkle_tree_and_nullifier_queue(
             ctx,
             index,
             program_owner,
+            forester,
             state_merkle_tree_config,
             nullifier_queue_config,
             additional_rent,

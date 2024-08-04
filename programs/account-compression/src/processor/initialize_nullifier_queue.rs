@@ -9,6 +9,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     index: u64,
     owner: Pubkey,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
     capacity: u16,
     sequence_threshold: u64,
@@ -28,12 +29,14 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
             // rollover that is defined in the Merkle tree is calculated to
             // rollover the tree, queue and cpi context account.
             rollover_fee: 0,
+            additional_bytes: 0,
         };
 
         nullifier_queue.init(
             AccessMetadata {
                 owner,
                 program_owner: program_owner.unwrap_or_default(),
+                forester: forester.unwrap_or_default(),
             },
             rollover_meta_data,
             associated_merkle_tree,

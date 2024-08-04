@@ -290,6 +290,7 @@ pub mod light_registry {
             bump,
             index,
             program_owner,
+            Some(crate::ID), // test value
             merkle_tree_config,
             queue_config,
         )
@@ -310,6 +311,7 @@ pub mod light_registry {
             bump,
             index,
             program_owner,
+            Some(crate::ID), // test value
             merkle_tree_config,
             queue_config,
             additional_rent,

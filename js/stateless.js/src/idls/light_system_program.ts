@@ -344,6 +344,10 @@ export type LightSystemProgram = {
                         ];
                         type: 'publicKey';
                     },
+                    {
+                        name: 'forester';
+                        type: 'publicKey';
+                    },
                 ];
             };
         },
@@ -419,6 +423,10 @@ export type LightSystemProgram = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'additionalBytes';
                         type: 'u64';
                     },
                 ];
@@ -1398,6 +1406,10 @@ export const IDL: LightSystemProgram = {
                         ],
                         type: 'publicKey',
                     },
+                    {
+                        name: 'forester',
+                        type: 'publicKey',
+                    },
                 ],
             },
         },
@@ -1473,6 +1485,10 @@ export const IDL: LightSystemProgram = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'additionalBytes',
                         type: 'u64',
                     },
                 ],

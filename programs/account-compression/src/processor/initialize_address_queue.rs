@@ -12,6 +12,7 @@ pub fn process_initialize_address_queue<'info>(
     index: u64,
     owner: Pubkey,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
     capacity: u16,
     sequence_threshold: u64,
@@ -47,13 +48,14 @@ pub fn process_initialize_address_queue<'info>(
         };
 
         address_queue.init(
-            AccessMetadata::new(owner, program_owner),
+            AccessMetadata::new(owner, program_owner, forester),
             RolloverMetadata::new(
                 index,
                 rollover_fee,
                 rollover_threshold,
                 network_fee,
                 close_threshold,
+                None,
             ),
             associated_merkle_tree,
             QueueType::AddressQueue,

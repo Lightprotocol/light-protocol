@@ -753,6 +753,10 @@ export type LightCompressedToken = {
                         ];
                         type: 'publicKey';
                     },
+                    {
+                        name: 'forester';
+                        type: 'publicKey';
+                    },
                 ];
             };
         },
@@ -1470,6 +1474,10 @@ export type LightCompressedToken = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'additionalBytes';
                         type: 'u64';
                     },
                 ];
@@ -2303,6 +2311,10 @@ export const IDL: LightCompressedToken = {
                         ],
                         type: 'publicKey',
                     },
+                    {
+                        name: 'forester',
+                        type: 'publicKey',
+                    },
                 ],
             },
         },
@@ -3025,6 +3037,10 @@ export const IDL: LightCompressedToken = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'additionalBytes',
                         type: 'u64',
                     },
                 ],

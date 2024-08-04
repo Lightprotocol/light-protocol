@@ -123,6 +123,12 @@ export type AccountCompression = {
                     };
                 },
                 {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
                     name: 'addressMerkleTreeConfig';
                     type: {
                         defined: 'AddressMerkleTreeConfig';
@@ -452,6 +458,12 @@ export type AccountCompression = {
                     };
                 },
                 {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
                     name: 'stateMerkleTreeConfig';
                     type: {
                         defined: 'StateMerkleTreeConfig';
@@ -691,6 +703,10 @@ export type AccountCompression = {
                         ];
                         type: 'publicKey';
                     },
+                    {
+                        name: 'forester';
+                        type: 'publicKey';
+                    },
                 ];
             };
         },
@@ -859,6 +875,10 @@ export type AccountCompression = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'additionalBytes';
                         type: 'u64';
                     },
                 ];
@@ -1121,6 +1141,10 @@ export type AccountCompression = {
             name: 'InvalidAccountBalance';
             msg: 'InvalidAccountBalance';
         },
+        {
+            code: 6024;
+            name: 'UnsupportedAdditionalRent';
+        },
     ];
 };
 
@@ -1244,6 +1268,12 @@ export const IDL: AccountCompression = {
                 },
                 {
                     name: 'programOwner',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'forester',
                     type: {
                         option: 'publicKey',
                     },
@@ -1578,6 +1608,12 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
+                    name: 'forester',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
                     name: 'stateMerkleTreeConfig',
                     type: {
                         defined: 'StateMerkleTreeConfig',
@@ -1817,6 +1853,10 @@ export const IDL: AccountCompression = {
                         ],
                         type: 'publicKey',
                     },
+                    {
+                        name: 'forester',
+                        type: 'publicKey',
+                    },
                 ],
             },
         },
@@ -1985,6 +2025,10 @@ export const IDL: AccountCompression = {
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
                         ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'additionalBytes',
                         type: 'u64',
                     },
                 ],
@@ -2246,6 +2290,10 @@ export const IDL: AccountCompression = {
             code: 6023,
             name: 'InvalidAccountBalance',
             msg: 'InvalidAccountBalance',
+        },
+        {
+            code: 6024,
+            name: 'UnsupportedAdditionalRent',
         },
     ],
 };

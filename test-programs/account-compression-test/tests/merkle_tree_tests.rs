@@ -1436,6 +1436,7 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
     queue_config: &NullifierQueueConfig,
     merkle_tree_size: usize,
     queue_size: usize,
+    forester: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
     let merkle_tree_account_create_ix = create_account_instruction(
         &rpc.get_payer().pubkey(),
@@ -1466,8 +1467,8 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
         merkle_tree_config.clone(),
         queue_config.clone(),
         None,
+        forester,
         1,
-        0,
     );
 
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
@@ -1522,6 +1523,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
                 queue_config,
                 invalid_tree_size,
                 invalid_queue_size,
+                None,
             )
             .await;
             assert_rpc_error(
@@ -1573,6 +1575,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(
@@ -1594,6 +1597,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(
@@ -1615,6 +1619,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(
@@ -1642,6 +1647,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             &queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(result, 2, ConcurrentMerkleTreeError::ChangelogZero.into()).unwrap();
@@ -1664,6 +1670,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             &queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(result, 2, ConcurrentMerkleTreeError::RootsZero.into()).unwrap();
@@ -1680,6 +1687,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(
@@ -1703,6 +1711,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             &queue_config,
             merkle_tree_size,
             queue_size,
+            None,
         )
         .await;
         assert_rpc_error(
@@ -1729,7 +1738,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         merkle_tree_config.canopy_depth as usize,
     );
     let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
-
+    let forester = Pubkey::new_unique();
     initialize_state_merkle_tree_and_nullifier_queue(
         rpc,
         payer_pubkey,
@@ -1739,6 +1748,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         queue_config,
         merkle_tree_size,
         queue_size,
+        Some(forester),
     )
     .await
     .unwrap();
@@ -1770,6 +1780,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         QueueType::NullifierQueue,
         1,
         None,
+        Some(forester),
         payer_pubkey,
     )
     .await;

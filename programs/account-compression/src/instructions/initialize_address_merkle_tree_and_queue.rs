@@ -81,6 +81,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
     index: u64,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
@@ -145,6 +146,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         index,
         owner,
         program_owner,
+        forester,
         ctx.accounts.merkle_tree.key(),
         queue_config.capacity,
         queue_config.sequence_threshold,
@@ -159,6 +161,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         index,
         owner,
         program_owner,
+        forester,
         merkle_tree_config.height,
         merkle_tree_config.changelog_size,
         merkle_tree_config.roots_size,
