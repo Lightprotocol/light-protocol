@@ -484,7 +484,8 @@ async fn failing_queue(
         &AddressQueueConfig::default(),
         1,
     )
-    .await;
+    .await
+    .unwrap();
 
     let queue_tree_pair = (nullifier_queue_pubkey, merkle_tree_pubkey);
     // CHECK 1: no nullifiers as input
