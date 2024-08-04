@@ -147,7 +147,7 @@ pub mod light_registry {
         if ctx.accounts.epoch_pda.registered_weight == 0 {
             (*ctx.accounts.epoch_pda).clone_from(&EpochPda {
                 epoch,
-                protocol_config: ctx.accounts.protocol_config.config.clone(),
+                protocol_config: ctx.accounts.protocol_config.config,
                 total_work: 0,
                 registered_weight: 0,
             });
@@ -306,8 +306,8 @@ pub mod light_registry {
         )
     }
 
-    pub fn nullify<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
+    pub fn nullify<'info>(
+        ctx: Context<'_, '_, '_, 'info, NullifyLeaves<'info>>,
         bump: u8,
         change_log_indices: Vec<u64>,
         leaves_queue_indices: Vec<u16>,
@@ -423,8 +423,8 @@ pub mod light_registry {
         process_rollover_address_merkle_tree_and_queue(&ctx, bump)
     }
 
-    pub fn rollover_state_merkle_tree_and_queue<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndQueue<'info>>,
+    pub fn rollover_state_merkle_tree_and_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverStateMerkleTreeAndQueue<'info>>,
         bump: u8,
     ) -> Result<()> {
         // Checks forester:
