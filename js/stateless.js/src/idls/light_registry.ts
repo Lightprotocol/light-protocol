@@ -3,7 +3,7 @@ export type LightRegistry = {
     name: 'light_registry';
     constants: [
         {
-            name: 'AUTHORITY_PDA_SEED';
+            name: 'PROTOCOL_CONFIG_PDA_SEED';
             type: 'bytes';
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]';
         },
@@ -1045,7 +1045,7 @@ export type LightRegistry = {
         },
         {
             code: 6006;
-            name: 'StakeInsuffient';
+            name: 'WeightInsuffient';
         },
         {
             code: 6007;
@@ -1079,7 +1079,7 @@ export const IDL: LightRegistry = {
     name: 'light_registry',
     constants: [
         {
-            name: 'AUTHORITY_PDA_SEED',
+            name: 'PROTOCOL_CONFIG_PDA_SEED',
             type: 'bytes',
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]',
         },
@@ -2121,7 +2121,7 @@ export const IDL: LightRegistry = {
         },
         {
             code: 6006,
-            name: 'StakeInsuffient',
+            name: 'WeightInsuffient',
         },
         {
             code: 6007,

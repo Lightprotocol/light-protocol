@@ -1,4 +1,6 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::{
+    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, StateMerkleTreeAccount,
+};
 use anchor_lang::prelude::*;
 
 use crate::epoch::register_epoch::ForesterEpochPda;
@@ -8,7 +10,6 @@ pub struct NullifyLeaves<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpochPda>,
-    /// CHECK: TODO: must be authority of ForesterEpochPda.
     pub authority: Signer<'info>,
     /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
@@ -20,14 +21,14 @@ pub struct NullifyLeaves<'info> {
     pub log_wrapper: UncheckedAccount<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     /// CHECK: (account compression program).
     #[account(mut)]
     pub nullifier_queue: AccountInfo<'info>,
 }
 
 pub fn process_nullify(
-    ctx: Context<NullifyLeaves>,
+    ctx: &Context<NullifyLeaves>,
     bump: u8,
     change_log_indices: Vec<u64>,
     leaves_queue_indices: Vec<u16>,
