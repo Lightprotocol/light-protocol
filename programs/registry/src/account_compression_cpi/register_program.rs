@@ -3,20 +3,20 @@ use account_compression::{
 };
 use anchor_lang::prelude::*;
 
-use crate::{protocol_config::state::ProtocolConfigPda, AUTHORITY_PDA_SEED};
+use crate::protocol_config::state::ProtocolConfigPda;
 
 #[derive(Accounts)]
-pub struct RegisteredProgram<'info> {
+pub struct RegisterProgram<'info> {
     /// CHECK: only the protocol authority can register new programs.
-    #[account(mut, constraint = authority.key() == authority_pda.authority)]
+    #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED], bump)]
-    pub authority_pda: Account<'info, ProtocolConfigPda>,
+    #[account(mut, has_one = authority)]
+    pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
     /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(mut, seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority: AccountInfo<'info>,
     /// CHECK: (account compression program).
-    #[account(mut)]
+    #[account(mut ,constraint = group_pda.authority == cpi_authority.key())]
     pub group_pda: Account<'info, GroupAuthority>,
     pub account_compression_program: Program<'info, AccountCompression>,
     pub system_program: Program<'info, System>,
@@ -24,5 +24,6 @@ pub struct RegisteredProgram<'info> {
     #[account(mut)]
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: (account compression program).
+    /// - is signer so that only the program deployer can register a program.
     pub program_to_be_registered: Signer<'info>,
 }

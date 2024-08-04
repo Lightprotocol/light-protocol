@@ -1,11 +1,11 @@
 use std::ops::DerefMut;
 use std::sync::Arc;
 
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
     CreateRolloverMerkleTreeInstructionInputs,
 };
+use light_registry::protocol_config::state::ProtocolConfig;
 use log::info;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;
@@ -122,16 +122,17 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &new_cpi_signature_keypair,
         &tree_data.tree_pubkey,
         &tree_data.queue_pubkey,
+        &Pubkey::default(),
     )
     .await?;
     println!("Rollover signature: {:?}", rollover_signature);
-    init_cpi_context_account(
-        rpc,
-        &new_merkle_tree_keypair.pubkey(),
-        &new_cpi_signature_keypair,
-        &config.payer_keypair,
-    )
-    .await;
+    // init_cpi_context_account(
+    //     rpc,
+    //     &new_merkle_tree_keypair.pubkey(),
+    //     &new_cpi_signature_keypair,
+    //     &config.payer_keypair,
+    // )
+    // .await;
 
     let state_bundle = StateMerkleTreeBundle {
         // TODO: fetch correct fee when this property is used
@@ -150,23 +151,26 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     payer: &Keypair,
     context: Arc<Mutex<R>>,
     new_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
-    cpi_context: &Keypair,
+    new_cpi_context_keypair: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
+    old_cpi_context_pubkey: &Pubkey,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context.clone(),
         &payer.pubkey(),
         new_queue_keypair,
         new_address_merkle_tree_keypair,
+        new_cpi_context_keypair,
         old_merkle_tree_pubkey,
         old_queue_pubkey,
-        &cpi_context.pubkey(),
+        old_cpi_context_pubkey,
     )
     .await;
     let mut context = context.lock().await;
@@ -178,45 +182,6 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
         blockhash,
     );
     context.process_transaction(transaction).await
-}
-
-pub async fn init_cpi_context_account<R: RpcConnection>(
-    rpc: Arc<Mutex<R>>,
-    merkle_tree_pubkey: &Pubkey,
-    cpi_account_keypair: &Keypair,
-    payer: &Keypair,
-) -> Pubkey {
-    let mut rpc = rpc.lock().await;
-    let account_size: usize = 20 * 1024 + 8;
-    let account_create_ix = create_account_instruction(
-        &payer.pubkey(),
-        account_size,
-        rpc.get_minimum_balance_for_rent_exemption(account_size)
-            .await
-            .unwrap(),
-        &light_system_program::ID,
-        Some(cpi_account_keypair),
-    );
-    let data = light_system_program::instruction::InitCpiContextAccount {};
-    let accounts = light_system_program::accounts::InitializeCpiContextAccount {
-        fee_payer: payer.pubkey(),
-        cpi_context_account: cpi_account_keypair.pubkey(),
-        system_program: system_program::ID,
-        associated_merkle_tree: *merkle_tree_pubkey,
-    };
-    let instruction = Instruction {
-        program_id: light_system_program::ID,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: data.data(),
-    };
-    rpc.create_and_send_transaction(
-        &[account_create_ix, instruction],
-        &payer.pubkey(),
-        &[payer, cpi_account_keypair],
-    )
-    .await
-    .unwrap();
-    cpi_account_keypair.pubkey()
 }
 
 pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
@@ -312,6 +277,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
         &account_compression::ID,
         Some(new_address_merkle_tree_keypair),
     );
+
     let instruction = create_rollover_address_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
@@ -319,6 +285,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             new_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
+            cpi_context_account: None,
         },
         0, // TODO: make epoch dynamic
     );
@@ -329,14 +296,16 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
     authority: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
+    new_cpi_context_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
-    cpi_context: &Pubkey,
+    old_cpi_context_pubkey: &Pubkey,
 ) -> Vec<Instruction> {
     let mut rpc = rpc.lock().await;
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
@@ -344,7 +313,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
         StateMerkleTreeAccounts {
             merkle_tree: *merkle_tree_pubkey,
             nullifier_queue: *nullifier_queue_pubkey,
-            cpi_context: *cpi_context,
+            cpi_context: *old_cpi_context_pubkey, // TODO: check if this is correct
         },
     )
     .await;
@@ -369,6 +338,19 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
         &account_compression::ID,
         Some(new_state_merkle_tree_keypair),
     );
+
+    let rent_cpi_config = rpc
+        .get_minimum_balance_for_rent_exemption(ProtocolConfig::default().cpi_context_size as usize)
+        .await
+        .unwrap();
+    let create_cpi_context_instruction = create_account_instruction(
+        authority,
+        ProtocolConfig::default().cpi_context_size as usize,
+        rent_cpi_config,
+        &light_system_program::ID,
+        Some(new_cpi_context_keypair),
+    );
+
     let instruction = create_rollover_state_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
@@ -376,10 +358,12 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
             new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
+            cpi_context_account: Some(new_cpi_context_keypair.pubkey()),
         },
         0, // TODO: make epoch dynamic
     );
     vec![
+        create_cpi_context_instruction,
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
         instruction,

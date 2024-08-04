@@ -579,8 +579,10 @@ where
 
             let current_solana_slot = self.rpc.get_slot().await.unwrap();
             // need to detect whether new registration phase started
-            let current_registration_epoch =
-                self.protocol_config.get_current_epoch(current_solana_slot);
+            let current_registration_epoch = self
+                .protocol_config
+                .get_latest_register_epoch(current_solana_slot)
+                .unwrap();
             // If reached new registration phase register all foresters
             if current_registration_epoch != self.registration_epoch {
                 println!("\n --------------------------------------------------\n\t\t Register Foresters for new Epoch \n --------------------------------------------------");
@@ -798,24 +800,26 @@ where
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
+            Some(&cpi_context_keypair),
             None,
             Some(forester),
             1,
             &merkle_tree_config,
             &queue_config,
         )
-        .await;
+        .await
+        .unwrap();
         let merkle_tree = Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
-        crate::test_env::init_cpi_context_account(
-            &mut self.rpc,
-            &merkle_tree_keypair.pubkey(),
-            &cpi_context_keypair,
-            &self.payer,
-        )
-        .await;
+        // crate::test_env::init_cpi_context_account(
+        //     &mut self.rpc,
+        //     &merkle_tree_keypair.pubkey(),
+        //     &cpi_context_keypair,
+        //     &self.payer,
+        // )
+        // .await;
         let state_tree_account =
             AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
                 &mut self.rpc,
@@ -876,7 +880,6 @@ where
                 AddressQueueConfig::default(),
             )
         };
-        println!("config: {:?}", config);
 
         create_address_merkle_tree_and_queue_account(
             &self.payer,
@@ -887,9 +890,10 @@ where
             None,
             &config,
             &address_config,
-            self.indexer.get_address_merkle_trees().len() as u64,
+            0,
         )
-        .await;
+        .await
+        .unwrap();
         let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
         let mut merkle_tree = Box::new(
             IndexedMerkleTree::<Poseidon, usize>::new(
@@ -1825,13 +1829,6 @@ where
             &new_merkle_tree_keypair.pubkey(),
             &new_nullifier_queue_keypair.pubkey(),
             rollover_signature_and_slot.1,
-        )
-        .await;
-        crate::test_env::init_cpi_context_account(
-            &mut self.rpc,
-            &new_merkle_tree_keypair.pubkey(),
-            &new_cpi_signature_keypair,
-            &self.payer,
         )
         .await;
         self.indexer

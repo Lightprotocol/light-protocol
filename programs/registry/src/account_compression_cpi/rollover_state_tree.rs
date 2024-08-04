@@ -1,14 +1,18 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::{
+    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
+};
 use anchor_lang::prelude::*;
+use light_system_program::program::LightSystemProgram;
 
-use crate::epoch::register_epoch::ForesterEpochPda;
+use crate::{epoch::register_epoch::ForesterEpochPda, protocol_config::state::ProtocolConfigPda};
 
 #[derive(Accounts)]
-pub struct RolloverMerkleTreeAndQueue<'info> {
+pub struct RolloverStateMerkleTreeAndQueue<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Account<'info, ForesterEpochPda>,
-    /// CHECK: TODO: must be authority of ForesterEpochPda.
+    /// CHECK:
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
@@ -24,14 +28,45 @@ pub struct RolloverMerkleTreeAndQueue<'info> {
     pub new_queue: AccountInfo<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
-    pub old_merkle_tree: AccountInfo<'info>,
+    pub old_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
+    /// CHECK: (account compression program).
+    #[account(mut)]
+    pub old_queue: AccountInfo<'info>,
+    /// CHECK: (system program) new cpi context account.
+    pub cpi_context_account: AccountInfo<'info>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
+    pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
+}
+
+#[derive(Accounts)]
+pub struct RolloverAddressMerkleTreeAndQueue<'info> {
+    /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
+    #[account(mut)]
+    pub registered_forester_pda: Account<'info, ForesterEpochPda>,
+    /// CHECK:
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
+    pub cpi_authority: AccountInfo<'info>,
+    /// CHECK: (account compression program) group access control.
+    pub registered_program_pda: AccountInfo<'info>,
+    pub account_compression_program: Program<'info, AccountCompression>,
+    /// CHECK: (account compression program).
+    #[account(zero)]
+    pub new_merkle_tree: AccountInfo<'info>,
+    /// CHECK: (account compression program).
+    #[account(zero)]
+    pub new_queue: AccountInfo<'info>,
+    /// CHECK: (account compression program).
+    #[account(mut)]
+    pub old_merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     /// CHECK: (account compression program).
     #[account(mut)]
     pub old_queue: AccountInfo<'info>,
 }
 
 pub fn process_rollover_address_merkle_tree_and_queue(
-    ctx: Context<RolloverMerkleTreeAndQueue>,
+    ctx: &Context<RolloverAddressMerkleTreeAndQueue>,
     bump: u8,
 ) -> Result<()> {
     let bump = &[bump];
@@ -57,7 +92,7 @@ pub fn process_rollover_address_merkle_tree_and_queue(
     account_compression::cpi::rollover_address_merkle_tree_and_queue(cpi_ctx)
 }
 pub fn process_rollover_state_merkle_tree_and_queue(
-    ctx: Context<RolloverMerkleTreeAndQueue>,
+    ctx: &Context<RolloverStateMerkleTreeAndQueue>,
     bump: u8,
 ) -> Result<()> {
     let bump = &[bump];

@@ -13,7 +13,9 @@ use light_hasher::Poseidon;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
 };
-use light_registry::utils::{get_cpi_authority_pda, get_forester_epoch_pda_address};
+use light_registry::utils::{
+    get_cpi_authority_pda, get_forester_epoch_pda_address, get_protocol_config_pda_address,
+};
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -319,16 +321,19 @@ async fn test_invalid_registered_program() {
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
-
+    // 6. rollover state Merkle tree with invalid group
     {
         let new_merkle_tree_keypair = Keypair::new();
         let new_queue_keypair = Keypair::new();
+        let new_cpi_context_keypair = Keypair::new();
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let protocol_config_pda = get_protocol_config_pda_address().0;
+
         let instruction_data =
             light_registry::instruction::RolloverStateMerkleTreeAndQueue { bump };
-        let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
+        let accounts = light_registry::accounts::RolloverStateMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
             registered_forester_pda,
             cpi_authority,
@@ -338,6 +343,9 @@ async fn test_invalid_registered_program() {
             new_queue: new_queue_keypair.pubkey(),
             old_merkle_tree: invalid_group_state_merkle_tree.pubkey(),
             old_queue: invalid_group_nullifier_queue.pubkey(),
+            cpi_context_account: new_cpi_context_keypair.pubkey(),
+            light_system_program: light_registry::ID,
+            protocol_config_pda: protocol_config_pda,
         };
         let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
         let create_nullifier_queue_instruction = create_account_instruction(
@@ -395,7 +403,7 @@ async fn test_invalid_registered_program() {
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
         let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
 
-        let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
+        let accounts = light_registry::accounts::RolloverAddressMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
             registered_forester_pda,
             cpi_authority,

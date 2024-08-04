@@ -321,9 +321,9 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
         &payer.pubkey(),
         new_queue_keypair,
         new_address_merkle_tree_keypair,
+        cpi_context,
         old_merkle_tree_pubkey,
         old_queue_pubkey,
-        &cpi_context.pubkey(),
         epoch,
     )
     .await;
