@@ -96,6 +96,8 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
     let mut tree = Pubkey::default();
     let mut index = 0;
     let output_lamports = lamports.unwrap_or(vec![None; out_compressed_accounts.len()]);
+    println!("out_compressed_accounts {:?}", out_compressed_accounts);
+
     for (i, out_compressed_account) in out_compressed_accounts.iter().enumerate() {
         if output_merkle_tree_snapshots[i].accounts.merkle_tree != tree {
             tree = output_merkle_tree_snapshots[i].accounts.merkle_tree;
@@ -133,12 +135,17 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
         let transfer_recipient_compressed_account = transfer_recipient_token_compressed_account
             .compressed_account
             .clone();
-        assert_eq!(
-            transfer_recipient_compressed_account
-                .compressed_account
-                .lamports,
-            output_lamports[i].unwrap_or(0)
-        );
+        if i < output_lamports.len() {
+            assert_eq!(
+                transfer_recipient_compressed_account
+                    .compressed_account
+                    .lamports,
+                output_lamports[i].unwrap_or(0)
+            );
+        } else if i != output_lamports.len() {
+            // This check accounts for change accounts which are dynamically created onchain.
+            panic!("lamports not found in output_lamports");
+        }
         assert!(transfer_recipient_compressed_account
             .compressed_account
             .data

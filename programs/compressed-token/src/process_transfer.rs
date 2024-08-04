@@ -85,10 +85,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         let mut vec = vec![false; inputs.output_compressed_accounts.len()];
         if let Some(index) = delegated_transfer.delegate_change_account_index {
             vec[index as usize] = true;
+            (Some(vec), Some(ctx.accounts.authority.key()))
         } else {
-            return err!(crate::ErrorCode::InvalidDelegateIndex);
+            (None, None)
         }
-        (Some(vec), Some(ctx.accounts.authority.key()))
     } else {
         (None, None)
     };
@@ -274,13 +274,13 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
 ) -> Result<()> {
-    let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[0].owner.to_bytes())
-        .unwrap()
-        .0;
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
+        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes())
+            .unwrap()
+            .0;
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
@@ -493,12 +493,15 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     );
     let mut input_token_data_vec: Vec<TokenData> =
         Vec::with_capacity(input_token_data_with_context.len());
-    let owner = if let Some(signer_is_delegate) = signer_is_delegate {
-        signer_is_delegate.owner
-    } else {
-        *signer
-    };
+
     for input_token_data in input_token_data_with_context.iter() {
+        let owner = if input_token_data.delegate_index.is_none() {
+            *signer
+        } else if let Some(signer_is_delegate) = signer_is_delegate {
+            signer_is_delegate.owner
+        } else {
+            *signer
+        };
         // This is a check for convenience to throw a meaningful error.
         // The actual security results from the proof verification.
         if signer_is_delegate.is_some()
@@ -516,10 +519,8 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 input_token_data.delegate_index.unwrap() as usize
             );
             return err!(ErrorCode::DelegateSignerCheckFailed);
-        } else if signer_is_delegate.is_some() && input_token_data.delegate_index.is_none() {
-            msg!("Signer is delegate but token data has no delegate.");
-            return err!(ErrorCode::DelegateSignerCheckFailed);
         }
+
         let compressed_account = CompressedAccount {
             owner: crate::ID,
             lamports: input_token_data.lamports.unwrap_or_default(),
