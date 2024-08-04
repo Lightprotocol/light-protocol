@@ -18,6 +18,9 @@ pub struct RolloverMetadata {
     /// the account is empty it can be closed. No 'close' functionality has been
     /// implemented yet.
     pub close_threshold: u64,
+    /// Placeholder for bytes of additional accounts which are tied to the
+    /// Merkle trees operation and need to be rolled over as well.
+    pub additional_bytes: u64,
 }
 
 impl RolloverMetadata {
@@ -27,6 +30,7 @@ impl RolloverMetadata {
         rollover_threshold: Option<u64>,
         network_fee: u64,
         close_threshold: Option<u64>,
+        additional_bytes: Option<u64>,
     ) -> Self {
         Self {
             index,
@@ -35,6 +39,7 @@ impl RolloverMetadata {
             network_fee,
             rolledover_slot: u64::MAX,
             close_threshold: close_threshold.unwrap_or(u64::MAX),
+            additional_bytes: additional_bytes.unwrap_or_default(),
         }
     }
 
@@ -60,26 +65,28 @@ mod tests {
 
     #[test]
     fn test_rollover_metadata() {
-        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, Some(100));
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, Some(100), Some(1));
         assert_eq!(metadata.rollover_threshold, 95);
         assert_eq!(metadata.close_threshold, 100);
         assert_eq!(metadata.rolledover_slot, u64::MAX);
+        assert_eq!(metadata.additional_bytes, 1);
 
         metadata.rollover().unwrap();
 
-        let mut metadata = RolloverMetadata::new(0, 0, None, 0, None);
+        let mut metadata = RolloverMetadata::new(0, 0, None, 0, None, None);
         assert_eq!(metadata.rollover_threshold, u64::MAX);
         assert_eq!(metadata.close_threshold, u64::MAX);
+        assert_eq!(metadata.additional_bytes, 0);
 
         assert_eq!(
             metadata.rollover(),
             Err(crate::errors::AccountCompressionErrorCode::RolloverNotConfigured.into())
         );
-        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None);
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None, None);
         assert_eq!(metadata.close_threshold, u64::MAX);
 
         metadata.rollover().unwrap();
-        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None);
+        let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None, None);
         metadata.rolledover_slot = 0;
         assert_eq!(metadata.close_threshold, u64::MAX);
 

@@ -12,7 +12,8 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
     associated_tree_config: &account_compression::AddressMerkleTreeConfig,
     expected_queue_type: QueueType,
     expected_index: u64,
-    expected_delegate: Option<Pubkey>,
+    expected_program_owner: Option<Pubkey>,
+    expected_forester: Option<Pubkey>,
     payer_pubkey: &Pubkey,
 ) {
     assert_address_queue(
@@ -23,7 +24,8 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
         associated_tree_config,
         expected_queue_type,
         expected_index,
-        expected_delegate,
+        expected_program_owner,
+        expected_forester,
         None,
         None,
         payer_pubkey,
@@ -40,7 +42,8 @@ pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
     associated_tree_config: &account_compression::StateMerkleTreeConfig,
     expected_queue_type: QueueType,
     expected_index: u64,
-    expected_delegate: Option<Pubkey>,
+    expected_program_owner: Option<Pubkey>,
+    expected_forester: Option<Pubkey>,
     payer_pubkey: &Pubkey,
 ) {
     let associated_tree_config = account_compression::AddressMerkleTreeConfig {
@@ -65,7 +68,8 @@ pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
         expected_rollover_fee,
         expected_queue_type,
         expected_index,
-        expected_delegate,
+        expected_program_owner,
+        expected_forester,
         None,
         None,
         payer_pubkey,
@@ -82,7 +86,8 @@ pub async fn assert_address_queue<R: RpcConnection>(
     associated_tree_config: &account_compression::AddressMerkleTreeConfig,
     expected_queue_type: QueueType,
     expected_index: u64,
-    expected_delegate: Option<Pubkey>,
+    expected_program_owner: Option<Pubkey>,
+    expected_forester: Option<Pubkey>,
     expected_rolledover_slot: Option<u64>,
     expected_next_queue: Option<Pubkey>,
     payer_pubkey: &Pubkey,
@@ -121,7 +126,8 @@ pub async fn assert_address_queue<R: RpcConnection>(
         expected_rollover_fee,
         expected_queue_type,
         expected_index,
-        expected_delegate,
+        expected_program_owner,
+        expected_forester,
         expected_rolledover_slot,
         expected_next_queue,
         payer_pubkey,
@@ -138,7 +144,8 @@ pub async fn assert_queue<R: RpcConnection>(
     expected_rollover_fee: u64,
     expected_queue_type: QueueType,
     expected_index: u64,
-    expected_delegate: Option<Pubkey>,
+    expected_program_owner: Option<Pubkey>,
+    expected_forester: Option<Pubkey>,
     expected_rolledover_slot: Option<u64>,
     expected_next_queue: Option<Pubkey>,
     payer_pubkey: &Pubkey,
@@ -155,10 +162,12 @@ pub async fn assert_queue<R: RpcConnection>(
         network_fee: queue_config.network_fee.unwrap_or_default(),
         rollover_fee: expected_rollover_fee,
         close_threshold: associated_tree_config.close_threshold.unwrap_or(u64::MAX),
+        additional_bytes: 0,
     };
     let expected_access_meta_data = account_compression::AccessMetadata {
         owner: *payer_pubkey,
-        program_owner: expected_delegate.unwrap_or_default(),
+        program_owner: expected_program_owner.unwrap_or_default(),
+        forester: expected_forester.unwrap_or_default(),
     };
     let expected_queue_meta_data = QueueMetadata {
         access_metadata: expected_access_meta_data,

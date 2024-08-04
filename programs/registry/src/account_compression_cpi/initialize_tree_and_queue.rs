@@ -28,6 +28,7 @@ pub fn process_initialize_state_merkle_tree(
     bump: u8,
     index: u64, // TODO: replace with counter from pda
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     merkle_tree_config: StateMerkleTreeConfig, // TODO: check config with protocol config
     queue_config: NullifierQueueConfig,
     additional_rent: u64,
@@ -51,6 +52,7 @@ pub fn process_initialize_state_merkle_tree(
         cpi_ctx,
         index,
         program_owner,
+        forester,
         merkle_tree_config,
         queue_config,
         additional_rent,
@@ -62,6 +64,7 @@ pub fn process_initialize_address_merkle_tree(
     bump: u8,
     index: u64, // TODO: replace with counter from pda
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     merkle_tree_config: AddressMerkleTreeConfig, // TODO: check config with protocol config
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
@@ -84,6 +87,7 @@ pub fn process_initialize_address_merkle_tree(
         cpi_ctx,
         index,
         program_owner,
+        forester,
         merkle_tree_config,
         queue_config,
     )

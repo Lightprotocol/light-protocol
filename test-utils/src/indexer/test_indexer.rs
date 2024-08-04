@@ -788,6 +788,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             merkle_tree_keypair,
             nullifier_queue_keypair,
             owning_program_id,
+            None,
             self.state_merkle_trees.len() as u64,
             &StateMerkleTreeConfig::default(),
             &NullifierQueueConfig::default(),

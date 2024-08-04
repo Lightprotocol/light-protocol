@@ -344,6 +344,18 @@ export type LightSystemProgram = {
                         ];
                         type: 'publicKey';
                     },
+                    {
+                        name: 'forester';
+                        docs: [
+                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ];
+                        type: 'publicKey';
+                    },
                 ];
             };
         },
@@ -418,6 +430,14 @@ export type LightSystemProgram = {
                             'If current slot is greater than rolledover_slot + close_threshold and',
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'additionalBytes';
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
                         ];
                         type: 'u64';
                     },
@@ -1398,6 +1418,18 @@ export const IDL: LightSystemProgram = {
                         ],
                         type: 'publicKey',
                     },
+                    {
+                        name: 'forester',
+                        docs: [
+                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ],
+                        type: 'publicKey',
+                    },
                 ],
             },
         },
@@ -1472,6 +1504,14 @@ export const IDL: LightSystemProgram = {
                             'If current slot is greater than rolledover_slot + close_threshold and',
                             "the account is empty it can be closed. No 'close' functionality has been",
                             'implemented yet.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'additionalBytes',
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
                         ],
                         type: 'u64',
                     },

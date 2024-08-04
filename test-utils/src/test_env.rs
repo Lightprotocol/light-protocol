@@ -281,6 +281,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         None,
+        None,
         1,
         &StateMerkleTreeConfig::default(),
         &NullifierQueueConfig::default(),
@@ -454,6 +455,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     index: u64,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
@@ -508,8 +510,8 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
             merkle_tree_config.clone(),
             queue_config.clone(),
             program_owner,
+            forester,
             index,
-            0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT
         )
     };
 
@@ -571,26 +573,34 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let instruction = if registry {
-        create_initialize_address_merkle_tree_and_queue_instruction_registry(
-            index,
-            payer.pubkey(),
-            program_owner,
-            address_merkle_tree_keypair.pubkey(),
-            address_queue_keypair.pubkey(),
-            merkle_tree_config.clone(),
-            queue_config.clone(),
+    let (instruction, test_forester) = if registry {
+        (
+            create_initialize_address_merkle_tree_and_queue_instruction_registry(
+                index,
+                payer.pubkey(),
+                program_owner,
+                address_merkle_tree_keypair.pubkey(),
+                address_queue_keypair.pubkey(),
+                merkle_tree_config.clone(),
+                queue_config.clone(),
+            ),
+            Some(light_registry::ID),
         )
     } else {
-        create_initialize_address_merkle_tree_and_queue_instruction(
-            index,
-            payer.pubkey(),
-            None,
-            program_owner,
-            address_merkle_tree_keypair.pubkey(),
-            address_queue_keypair.pubkey(),
-            merkle_tree_config.clone(),
-            queue_config.clone(),
+        let test_forester = Some(Pubkey::new_unique());
+        (
+            create_initialize_address_merkle_tree_and_queue_instruction(
+                index,
+                payer.pubkey(),
+                None,
+                program_owner,
+                test_forester,
+                address_merkle_tree_keypair.pubkey(),
+                address_queue_keypair.pubkey(),
+                merkle_tree_config.clone(),
+                queue_config.clone(),
+            ),
+            test_forester,
         )
     };
     let transaction = Transaction::new_signed_with_payer(
@@ -650,6 +660,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         merkle_tree_config,
         index,
         program_owner,
+        test_forester,
         expected_change_log_length,
         expected_roots_length,
         expected_next_index,
@@ -668,6 +679,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         QueueType::AddressQueue,
         index,
         program_owner,
+        test_forester,
         &owner,
     )
     .await;

@@ -84,6 +84,10 @@ pub fn assert_rolledover_merkle_trees_metadata(
         old_merkle_tree_metadata.rollover_metadata.close_threshold,
         new_merkle_tree_metadata.rollover_metadata.close_threshold
     );
+    assert_eq!(
+        old_merkle_tree_metadata.rollover_metadata.additional_bytes,
+        new_merkle_tree_metadata.rollover_metadata.additional_bytes
+    );
 
     assert_eq!(new_merkle_tree_metadata.associated_queue, *new_queue_pubkey);
     assert_eq!(new_merkle_tree_metadata.next_merkle_tree, Pubkey::default());

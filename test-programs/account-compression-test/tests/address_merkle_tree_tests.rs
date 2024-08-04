@@ -205,6 +205,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
             payer.pubkey(),
             None,
             None,
+            Some(Pubkey::new_unique()),
             merkle_tree_keypair.pubkey(),
             queue_keypair.pubkey(),
             merkle_tree_config.clone(),

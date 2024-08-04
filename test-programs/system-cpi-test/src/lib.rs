@@ -171,6 +171,7 @@ pub mod system_cpi_test {
             cpi_ctx,
             index,
             program_owner,
+            None,
             merkle_tree_config,
             queue_config,
         )
@@ -206,6 +207,7 @@ pub mod system_cpi_test {
             cpi_ctx,
             index,
             program_owner,
+            None,
             merkle_tree_config,
             queue_config,
             additional_rent,

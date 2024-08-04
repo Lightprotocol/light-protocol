@@ -790,6 +790,7 @@ where
         } else {
             NullifierQueueConfig::default()
         };
+        let forester = Pubkey::new_unique();
         println!("queue config: {:?}", queue_config);
         create_state_merkle_tree_and_queue_account(
             &self.payer,
@@ -798,6 +799,7 @@ where
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
+            Some(forester),
             1,
             &merkle_tree_config,
             &queue_config,

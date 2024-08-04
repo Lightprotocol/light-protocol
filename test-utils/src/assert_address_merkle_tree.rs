@@ -10,6 +10,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     merkle_tree_config: &account_compression::AddressMerkleTreeConfig,
     index: u64,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     expected_changelog_length: usize,
     expected_roots_length: usize,
     expected_next_index: usize,
@@ -68,6 +69,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     let expected_access_meta_data = account_compression::AccessMetadata {
         owner: *owner_pubkey,
         program_owner: program_owner.unwrap_or_default(),
+        forester: forester.unwrap_or_default(),
     };
     assert_eq!(
         merkle_tree_account.metadata.access_metadata,

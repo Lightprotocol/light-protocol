@@ -21,15 +21,16 @@ pub fn create_initialize_merkle_tree_instruction(
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     index: u64,
-    additional_rent: u64,
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
         program_owner,
+        forester,
         state_merkle_tree_config,
         nullifier_queue_config,
-        additional_rent,
+        additional_rent: 0,
     };
     let registered_program = match registered_program_pda {
         Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
@@ -82,6 +83,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     payer: Pubkey,
     registered_program_pda: Option<Pubkey>,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
     address_merkle_tree_config: AddressMerkleTreeConfig,
@@ -90,6 +92,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     let instruction_data = InitializeAddressMerkleTreeAndQueue {
         index,
         program_owner,
+        forester,
         address_merkle_tree_config,
         address_queue_config,
     };
