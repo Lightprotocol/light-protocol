@@ -1,4 +1,6 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::{
+    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
+};
 use anchor_lang::prelude::*;
 
 use crate::epoch::register_epoch::ForesterEpochPda;
@@ -7,8 +9,8 @@ use crate::epoch::register_epoch::ForesterEpochPda;
 pub struct UpdateAddressMerkleTree<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
-    pub registered_forester_pda: Account<'info, ForesterEpochPda>,
-    /// CHECK: TODO: must be authority of ForesterEpochPda.
+    pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
+    /// CHECK:
     pub authority: Signer<'info>,
     /// CHECK: (seed constraints) used to invoke account compression program via cpi.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
@@ -21,13 +23,13 @@ pub struct UpdateAddressMerkleTree<'info> {
     pub queue: AccountInfo<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
 }
 
 pub fn process_update_address_merkle_tree(
-    ctx: Context<UpdateAddressMerkleTree>,
+    ctx: &Context<UpdateAddressMerkleTree>,
     bump: u8,
     changelog_index: u16,
     indexed_changelog_index: u16,

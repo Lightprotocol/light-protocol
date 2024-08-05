@@ -10,11 +10,12 @@ use account_compression::{
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
 };
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_register_forester_instruction, create_update_forester_pda_instruction,
 };
-use light_registry::utils::get_forester_pda_address;
-use light_registry::{ForesterAccount, ForesterConfig};
+use light_registry::utils::get_forester_pda;
+use light_registry::{ForesterConfig, ForesterPda};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -30,6 +31,7 @@ pub async fn register_test_forester<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let ix = create_register_forester_instruction(
         &governance_authority.pubkey(),
+        &governance_authority.pubkey(),
         forester_authority,
         config,
     );
@@ -42,10 +44,10 @@ pub async fn register_test_forester<R: RpcConnection>(
     assert_registered_forester(
         rpc,
         forester_authority,
-        ForesterAccount {
+        ForesterPda {
             authority: *forester_authority,
             config,
-            active_stake_weight: 1,
+            active_weight: 1,
             ..Default::default()
         },
     )
@@ -55,13 +57,12 @@ pub async fn register_test_forester<R: RpcConnection>(
 pub async fn update_test_forester<R: RpcConnection>(
     rpc: &mut R,
     forester_authority: &Keypair,
+    derivation_key: &Pubkey,
     new_forester_authority: Option<&Keypair>,
     config: ForesterConfig,
 ) -> Result<(), RpcError> {
     let mut pre_account_state = rpc
-        .get_anchor_account::<ForesterAccount>(
-            &get_forester_pda_address(&forester_authority.pubkey()).0,
-        )
+        .get_anchor_account::<ForesterPda>(&get_forester_pda(derivation_key).0)
         .await?
         .unwrap();
     let (signers, new_forester_authority) = if let Some(new_authority) = new_forester_authority {
@@ -76,27 +77,25 @@ pub async fn update_test_forester<R: RpcConnection>(
     };
     let ix = create_update_forester_pda_instruction(
         &forester_authority.pubkey(),
+        derivation_key,
         new_forester_authority,
-        config,
+        Some(config),
     );
 
     rpc.create_and_send_transaction(&[ix], &forester_authority.pubkey(), &signers)
         .await?;
 
     pre_account_state.config = config;
-    assert_registered_forester(rpc, &forester_authority.pubkey(), pre_account_state).await
+    assert_registered_forester(rpc, derivation_key, pre_account_state).await
 }
 
 pub async fn assert_registered_forester<R: RpcConnection>(
     rpc: &mut R,
     forester: &Pubkey,
-    expected_account: ForesterAccount,
+    expected_account: ForesterPda,
 ) -> Result<(), RpcError> {
-    let pda = get_forester_pda_address(forester).0;
-    let account_data = rpc
-        .get_anchor_account::<ForesterAccount>(&pda)
-        .await?
-        .unwrap();
+    let pda = get_forester_pda(forester).0;
+    let account_data = rpc.get_anchor_account::<ForesterPda>(&pda).await?.unwrap();
     if account_data != expected_account {
         return Err(RpcError::AssertRpcError(format!(
             "Expected account data: {:?}, got: {:?}",
@@ -178,6 +177,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
@@ -186,6 +186,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_address_bundle_config(
         rpc,
@@ -223,6 +224,8 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             new_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
+            cpi_context_account: None,
+            is_metadata_forester,
         },epoch
     );
     vec![
@@ -232,6 +235,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     authority: &Keypair,
@@ -240,6 +244,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Result<(), RpcError> {
     let instructions = create_rollover_address_merkle_tree_instructions(
         rpc,
@@ -249,6 +254,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         epoch,
+        is_metadata_forester,
     )
     .await;
     rpc.create_and_send_transaction(
@@ -269,17 +275,18 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     authority: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
+    new_cpi_context_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
-    cpi_context: &Pubkey,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
         rpc,
         StateMerkleTreeAccounts {
             merkle_tree: *merkle_tree_pubkey,
             nullifier_queue: *nullifier_queue_pubkey,
-            cpi_context: *cpi_context,
+            cpi_context: new_cpi_context_keypair.pubkey(),
         },
     )
     .await;
@@ -300,6 +307,16 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
         &account_compression::ID,
         Some(new_state_merkle_tree_keypair),
     );
+    let account_size: usize = ProtocolConfig::default().cpi_context_size as usize;
+    let create_cpi_context_account_instruction = create_account_instruction(
+        authority,
+        account_size,
+        rpc.get_minimum_balance_for_rent_exemption(account_size)
+            .await
+            .unwrap(),
+        &light_system_program::ID,
+        Some(new_cpi_context_keypair),
+    );
     let instruction = create_rollover_state_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
@@ -307,12 +324,15 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
             new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
+            cpi_context_account: Some(new_cpi_context_keypair.pubkey()),
+            is_metadata_forester,
         },
         epoch,
     );
     vec![
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
+        create_cpi_context_account_instruction,
         instruction,
     ]
 }

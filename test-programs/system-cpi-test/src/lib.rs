@@ -185,7 +185,7 @@ pub mod system_cpi_test {
         program_owner: Option<Pubkey>,
         merkle_tree_config: StateMerkleTreeConfig, // TODO: check config with protocol config
         queue_config: NullifierQueueConfig,
-        additional_rent: u64,
+        additional_bytes: u64,
     ) -> Result<()> {
         let bump = &[bump];
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
@@ -210,7 +210,7 @@ pub mod system_cpi_test {
             None,
             merkle_tree_config,
             queue_config,
-            additional_rent,
+            additional_bytes,
         )
     }
 }

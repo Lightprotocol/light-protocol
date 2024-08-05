@@ -476,7 +476,7 @@ export type AccountCompression = {
                     };
                 },
                 {
-                    name: 'additionalRent';
+                    name: 'additionalBytes';
                     type: 'u64';
                 },
             ];
@@ -706,7 +706,7 @@ export type AccountCompression = {
                     {
                         name: 'forester';
                         docs: [
-                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
                             'without a network fee. Merkle trees without network fees are not',
                             'forested by light foresters. The variable is not used in the account',
                             'compression program but the registry program. The registry program',
@@ -1155,7 +1155,7 @@ export type AccountCompression = {
         },
         {
             code: 6024;
-            name: 'UnsupportedAdditionalRent';
+            name: 'UnsupportedAdditionalBytes';
         },
     ];
 };
@@ -1638,7 +1638,7 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
-                    name: 'additionalRent',
+                    name: 'additionalBytes',
                     type: 'u64',
                 },
             ],
@@ -1868,7 +1868,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'forester',
                         docs: [
-                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
                             'without a network fee. Merkle trees without network fees are not',
                             'forested by light foresters. The variable is not used in the account',
                             'compression program but the registry program. The registry program',
@@ -2317,7 +2317,7 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6024,
-            name: 'UnsupportedAdditionalRent',
+            name: 'UnsupportedAdditionalBytes',
         },
     ],
 };

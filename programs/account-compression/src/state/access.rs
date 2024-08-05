@@ -7,7 +7,7 @@ pub struct AccessMetadata {
     pub owner: Pubkey,
     /// Program owner of the Merkle tree. This will be used for program owned Merkle trees.
     pub program_owner: Pubkey,
-    /// Optional priviledged forester pubkey, can be set for custom Merkle trees
+    /// Optional privileged forester pubkey, can be set for custom Merkle trees
     /// without a network fee. Merkle trees without network fees are not
     /// forested by light foresters. The variable is not used in the account
     /// compression program but the registry program. The registry program

@@ -18,7 +18,7 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use light_registry::utils::get_forester_epoch_pda_address;
+use light_registry::utils::get_forester_epoch_pda_from_authority;
 use light_registry::{ForesterEpochPda, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::debug;
@@ -50,18 +50,22 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     forester: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     epoch: u64,
-) {
+    is_metadata_forester: bool,
+) -> Result<(), RpcError> {
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
-    let pre_forester_counter = rpc
-        .get_anchor_account::<ForesterEpochPda>(
-            &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+    let pre_forester_counter = if is_metadata_forester {
+        0
+    } else {
+        rpc.get_anchor_account::<ForesterEpochPda>(
+            &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
         )
         .await
         .unwrap()
         .unwrap()
-        .work_counter;
+        .work_counter
+    };
     let onchain_merkle_tree =
         get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
             rpc,
@@ -125,6 +129,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
                 indices: vec![leaf_index as u64],
                 proofs: vec![proof],
                 derivation: forester.pubkey(),
+                is_metadata_forester,
             },
             epoch,
         );
@@ -137,8 +142,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
                 &[forester],
                 None,
             )
-            .await
-            .unwrap()
+            .await?
             .unwrap();
 
         match event.0 {
@@ -194,19 +198,21 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
     );
-    assert_forester_counter(
-        rpc,
-        &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
-        pre_forester_counter,
-        num_nullified,
-    )
-    .await
-    .unwrap();
-
+    if !is_metadata_forester {
+        assert_forester_counter(
+            rpc,
+            &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
+            pre_forester_counter,
+            num_nullified,
+        )
+        .await
+        .unwrap();
+    }
     // SAFEGUARD: check that the root changed if there was at least one element to nullify
     if first.is_some() {
         assert_ne!(pre_root, onchain_merkle_tree.root());
     }
+    Ok(())
 }
 
 async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
@@ -278,6 +284,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
     address_tree_bundle: &mut AddressMerkleTreeBundle,
     signer_is_owner: bool,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
@@ -298,7 +305,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
     loop {
         let pre_forester_counter = if !signer_is_owner {
             rpc.get_anchor_account::<ForesterEpochPda>(
-                &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+                &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
             )
             .await
             .map_err(|e| RelayerUpdateError::RpcError)?
@@ -354,6 +361,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             Some(indexed_changelog_index),
             signer_is_owner,
             epoch,
+            is_metadata_forester,
         )
         .await
         {
@@ -449,7 +457,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             if !signer_is_owner {
                 assert_forester_counter(
                     rpc,
-                    &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+                    &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
                     pre_forester_counter,
                     1,
                 )
@@ -554,6 +562,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     indexed_changelog_index: Option<u16>,
     signer_is_owner: bool,
     epoch: u64,
+    is_metadata_forester: bool,
 ) -> Result<Option<(MerkleTreeEvent, Signature, u64)>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index,
@@ -595,6 +604,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
                 low_address_next_index,
                 low_address_next_value,
                 low_address_proof,
+                is_metadata_forester,
             },
             epoch,
         )

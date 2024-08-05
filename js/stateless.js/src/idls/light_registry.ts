@@ -3,27 +3,55 @@ export type LightRegistry = {
     name: 'light_registry';
     constants: [
         {
-            name: 'AUTHORITY_PDA_SEED';
+            name: 'FORESTER_SEED';
+            type: 'bytes';
+            value: '[102, 111, 114, 101, 115, 116, 101, 114]';
+        },
+        {
+            name: 'FORESTER_EPOCH_SEED';
+            type: 'bytes';
+            value: '[102, 111, 114, 101, 115, 116, 101, 114, 95, 101, 112, 111, 99, 104]';
+        },
+        {
+            name: 'PROTOCOL_CONFIG_PDA_SEED';
             type: 'bytes';
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]';
         },
     ];
     instructions: [
         {
-            name: 'initializeGovernanceAuthority';
+            name: 'initializeProtocolConfig';
+            docs: [
+                'Initializes the protocol config pda. Can only be called once by the',
+                'program account keypair.',
+            ];
             accounts: [
                 {
-                    name: 'authority';
+                    name: 'feePayer';
                     isMut: true;
                     isSigner: true;
                 },
                 {
-                    name: 'authorityPda';
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                    docs: [
+                        'The authority should be updated to a different keypair after',
+                        'initialization.',
+                    ];
+                },
+                {
+                    name: 'protocolConfigPda';
                     isMut: true;
                     isSigner: false;
                 },
                 {
                     name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
                 },
@@ -42,15 +70,20 @@ export type LightRegistry = {
             ];
         },
         {
-            name: 'updateGovernanceAuthority';
+            name: 'updateProtocolConfig';
             accounts: [
                 {
-                    name: 'authority';
-                    isMut: true;
+                    name: 'feePayer';
+                    isMut: false;
                     isSigner: true;
                 },
                 {
-                    name: 'authorityPda';
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'protocolConfigPda';
                     isMut: true;
                     isSigner: false;
                 },
@@ -58,16 +91,17 @@ export type LightRegistry = {
                     name: 'newAuthority';
                     isMut: false;
                     isSigner: true;
+                    isOptional: true;
                 },
             ];
             args: [
                 {
-                    name: 'bump';
-                    type: 'u8';
-                },
-                {
-                    name: 'newAuthority';
-                    type: 'publicKey';
+                    name: 'protocolConfig';
+                    type: {
+                        option: {
+                            defined: 'ProtocolConfig';
+                        };
+                    };
                 },
             ];
         },
@@ -80,7 +114,7 @@ export type LightRegistry = {
                     isSigner: true;
                 },
                 {
-                    name: 'authorityPda';
+                    name: 'protocolConfigPda';
                     isMut: true;
                     isSigner: false;
                 },
@@ -113,6 +147,9 @@ export type LightRegistry = {
                     name: 'programToBeRegistered';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        '- is signer so that only the program deployer can register a program.',
+                    ];
                 },
             ];
             args: [
@@ -123,12 +160,436 @@ export type LightRegistry = {
             ];
         },
         {
+            name: 'deregisterSystemProgram';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'groupPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
+            name: 'registerForester';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'foresterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'authority';
+                    type: 'publicKey';
+                },
+                {
+                    name: 'config';
+                    type: {
+                        defined: 'ForesterConfig';
+                    };
+                },
+                {
+                    name: 'weight';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'updateForesterPda';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'foresterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newAuthority';
+                    isMut: false;
+                    isSigner: true;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'config';
+                    type: {
+                        option: {
+                            defined: 'ForesterConfig';
+                        };
+                    };
+                },
+            ];
+        },
+        {
+            name: 'updateForesterPdaWeight';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'foresterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'newWeight';
+                    type: 'u64';
+                },
+            ];
+        },
+        {
+            name: 'registerForesterEpoch';
+            docs: [
+                'Registers the forester for the epoch.',
+                '1. Only the forester can register herself for the epoch.',
+                '2. Protocol config is copied.',
+                '3. Epoch account is created if needed.',
+            ];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'foresterPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'foresterEpochPda';
+                    isMut: true;
+                    isSigner: false;
+                    docs: [
+                        'Instruction checks that current_epoch is the the current epoch and that',
+                        'the epoch is in registration phase.',
+                    ];
+                },
+                {
+                    name: 'protocolConfig';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'epochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'epoch';
+                    type: 'u64';
+                },
+            ];
+        },
+        {
+            name: 'finalizeRegistration';
+            docs: [
+                'This transaction can be included as additional instruction in the first',
+                'work instructions during the active phase.',
+                'Registration Period must be over.',
+            ];
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'foresterEpochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'epochPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'reportWork';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'foresterEpochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'epochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'initializeAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ];
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'programOwner';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'merkleTreeConfig';
+                    type: {
+                        defined: 'AddressMerkleTreeConfig';
+                    };
+                },
+                {
+                    name: 'queueConfig';
+                    type: {
+                        defined: 'AddressQueueConfig';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'initializeStateMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ];
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'programOwner';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'forester';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'merkleTreeConfig';
+                    type: {
+                        defined: 'StateMerkleTreeConfig';
+                    };
+                },
+                {
+                    name: 'queueConfig';
+                    type: {
+                        defined: 'NullifierQueueConfig';
+                    };
+                },
+            ];
+        },
+        {
             name: 'nullify';
             accounts: [
                 {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -208,6 +669,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -302,6 +764,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -358,6 +821,7 @@ export type LightRegistry = {
                     name: 'registeredForesterPda';
                     isMut: true;
                     isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'authority';
@@ -399,34 +863,18 @@ export type LightRegistry = {
                     isMut: true;
                     isSigner: false;
                 },
-            ];
-            args: [
                 {
-                    name: 'bump';
-                    type: 'u8';
-                },
-            ];
-        },
-        {
-            name: 'registerForester';
-            accounts: [
-                {
-                    name: 'foresterPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'signer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authorityPda';
+                    name: 'cpiContextAccount';
                     isMut: false;
                     isSigner: false;
                 },
                 {
-                    name: 'systemProgram';
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
                     isMut: false;
                     isSigner: false;
                 },
@@ -435,299 +883,6 @@ export type LightRegistry = {
                 {
                     name: 'bump';
                     type: 'u8';
-                },
-                {
-                    name: 'authority';
-                    type: 'publicKey';
-                },
-                {
-                    name: 'config';
-                    type: {
-                        defined: 'ForesterConfig';
-                    };
-                },
-            ];
-        },
-        {
-            name: 'updateForester';
-            accounts: [
-                {
-                    name: 'foresterPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'newAuthority';
-                    isMut: false;
-                    isSigner: true;
-                    isOptional: true;
-                },
-            ];
-            args: [
-                {
-                    name: 'config';
-                    type: {
-                        defined: 'ForesterConfig';
-                    };
-                },
-            ];
-        },
-        {
-            name: 'registerForesterEpoch';
-            docs: [
-                'Registers the forester for the epoch.',
-                '1. Only the forester can register herself for the epoch.',
-                '2. Protocol config is copied.',
-                '3. Epoch account is created if needed.',
-            ];
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'foresterPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'foresterEpochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'protocolConfig';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'epochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'epoch';
-                    type: 'u64';
-                },
-            ];
-        },
-        {
-            name: 'finalizeRegistration';
-            docs: [
-                'This transaction can be included as additional instruction in the first',
-                'work instructions during the active phase.',
-                'Registration Period must be over.',
-                'TODO: introduce grace period between registration and before',
-                "active phase starts, do I really need it or isn't it clear who gets the",
-                'first slot the first sign up?',
-            ];
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'foresterEpochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'epochPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'updateForesterEpochPda';
-            accounts: [
-                {
-                    name: 'signer';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'foresterEpochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'authority';
-                    type: 'publicKey';
-                },
-            ];
-        },
-        {
-            name: 'reportWork';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'foresterEpochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'epochPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'initializeAddressMerkleTree';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ];
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'queue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiAuthority';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'bump';
-                    type: 'u8';
-                },
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-                {
-                    name: 'programOwner';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'merkleTreeConfig';
-                    type: {
-                        defined: 'AddressMerkleTreeConfig';
-                    };
-                },
-                {
-                    name: 'queueConfig';
-                    type: {
-                        defined: 'AddressQueueConfig';
-                    };
-                },
-            ];
-        },
-        {
-            name: 'initializeStateMerkleTree';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ];
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'queue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiAuthority';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'bump';
-                    type: 'u8';
-                },
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-                {
-                    name: 'programOwner';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'merkleTreeConfig';
-                    type: {
-                        defined: 'StateMerkleTreeConfig';
-                    };
-                },
-                {
-                    name: 'queueConfig';
-                    type: {
-                        defined: 'NullifierQueueConfig';
-                    };
-                },
-                {
-                    name: 'additionalRent';
-                    type: 'u64';
                 },
             ];
         },
@@ -754,7 +909,7 @@ export type LightRegistry = {
                         type: 'u64';
                     },
                     {
-                        name: 'registeredStake';
+                        name: 'registeredWeight';
                         type: 'u64';
                     },
                 ];
@@ -780,7 +935,7 @@ export type LightRegistry = {
                         type: 'u64';
                     },
                     {
-                        name: 'stakeWeight';
+                        name: 'weight';
                         type: 'u64';
                     },
                     {
@@ -791,8 +946,7 @@ export type LightRegistry = {
                         name: 'hasReportedWork';
                         docs: [
                             'Work can be reported in an extra round to earn extra performance based',
-                            'rewards. // TODO: make sure that performance based rewards can only be',
-                            'claimed if work has been reported',
+                            'rewards.',
                         ];
                         type: 'bool';
                     },
@@ -800,7 +954,7 @@ export type LightRegistry = {
                         name: 'foresterIndex';
                         docs: [
                             'Start index of the range that determines when the forester is eligible to perform work.',
-                            'End index is forester_start_index + stake_weight',
+                            'End index is forester_start_index + weight',
                         ];
                         type: 'u64';
                     },
@@ -809,9 +963,9 @@ export type LightRegistry = {
                         type: 'u64';
                     },
                     {
-                        name: 'totalEpochStateWeight';
+                        name: 'totalEpochWeight';
                         docs: [
-                            'Total epoch state weight is registered stake of the epoch account after',
+                            'Total epoch weight is registered weight of the epoch account after',
                             'registration is concluded and active epoch period starts.',
                         ];
                         type: {
@@ -857,7 +1011,7 @@ export type LightRegistry = {
             };
         },
         {
-            name: 'foresterAccount';
+            name: 'foresterPda';
             type: {
                 kind: 'struct';
                 fields: [
@@ -872,13 +1026,13 @@ export type LightRegistry = {
                         };
                     },
                     {
-                        name: 'activeStakeWeight';
+                        name: 'activeWeight';
                         type: 'u64';
                     },
                     {
-                        name: 'pendingStakeWeight';
+                        name: 'pendingWeight';
                         docs: [
-                            'Pending stake which will get active once the next epoch starts.',
+                            'Pending weight which will get active once the next epoch starts.',
                         ];
                         type: 'u64';
                     },
@@ -926,31 +1080,15 @@ export type LightRegistry = {
                         type: 'u64';
                     },
                     {
-                        name: 'epochReward';
-                        docs: ['Total rewards per epoch.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'baseReward';
+                        name: 'minWeight';
                         docs: [
-                            'Base reward for foresters, the difference between epoch reward and base',
-                            'reward distributed based on performance.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'minStake';
-                        docs: [
-                            'Minimum stake required for a forester to register to an epoch.',
+                            'Minimum weight required for a forester to register to an epoch.',
                         ];
                         type: 'u64';
                     },
                     {
                         name: 'slotLength';
-                        docs: [
-                            'Light protocol slot length. (Naming is confusing for Solana slot.)',
-                            'TODO: rename to epoch_length (registration + active phase length)',
-                        ];
+                        docs: ['Light protocol slot length.'];
                         type: 'u64';
                     },
                     {
@@ -968,14 +1106,49 @@ export type LightRegistry = {
                         docs: [
                             'Foresters can report work to receive performance based rewards in this',
                             'phase.',
-                            'TODO: enforce report work == registration phase length so that',
-                            'epoch in report work phase is registration epoch - 1',
                         ];
                         type: 'u64';
                     },
                     {
-                        name: 'mint';
+                        name: 'networkFee';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'cpiContextSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'finalizeCounterLimit';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolder';
+                        docs: ['Placeholder for future protocol updates.'];
                         type: 'publicKey';
+                    },
+                    {
+                        name: 'placeHolderA';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolderB';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolderC';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolderD';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolderE';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'placeHolderF';
+                        type: 'u64';
                     },
                 ];
             };
@@ -1045,7 +1218,7 @@ export type LightRegistry = {
         },
         {
             code: 6006;
-            name: 'StakeInsuffient';
+            name: 'WeightInsuffient';
         },
         {
             code: 6007;
@@ -1071,6 +1244,54 @@ export type LightRegistry = {
             code: 6012;
             name: 'ForesterAlreadyReportedWork';
         },
+        {
+            code: 6013;
+            name: 'InvalidNetworkFee';
+        },
+        {
+            code: 6014;
+            name: 'FinalizeCounterExceeded';
+        },
+        {
+            code: 6015;
+            name: 'CpiContextAccountMissing';
+        },
+        {
+            code: 6016;
+            name: 'ArithmeticUnderflow';
+        },
+        {
+            code: 6017;
+            name: 'RegistrationNotFinalized';
+        },
+        {
+            code: 6018;
+            name: 'CpiContextAccountInvalidDataLen';
+        },
+        {
+            code: 6019;
+            name: 'InvalidConfigUpdate';
+        },
+        {
+            code: 6020;
+            name: 'InvalidSigner';
+        },
+        {
+            code: 6021;
+            name: 'GetLatestedRegisterEpochFailed';
+        },
+        {
+            code: 6022;
+            name: 'GetLatestActiveEpochFailed';
+        },
+        {
+            code: 6023;
+            name: 'ForesterUndefined';
+        },
+        {
+            code: 6024;
+            name: 'ForesterDefined';
+        },
     ];
 };
 
@@ -1079,27 +1300,55 @@ export const IDL: LightRegistry = {
     name: 'light_registry',
     constants: [
         {
-            name: 'AUTHORITY_PDA_SEED',
+            name: 'FORESTER_SEED',
+            type: 'bytes',
+            value: '[102, 111, 114, 101, 115, 116, 101, 114]',
+        },
+        {
+            name: 'FORESTER_EPOCH_SEED',
+            type: 'bytes',
+            value: '[102, 111, 114, 101, 115, 116, 101, 114, 95, 101, 112, 111, 99, 104]',
+        },
+        {
+            name: 'PROTOCOL_CONFIG_PDA_SEED',
             type: 'bytes',
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]',
         },
     ],
     instructions: [
         {
-            name: 'initializeGovernanceAuthority',
+            name: 'initializeProtocolConfig',
+            docs: [
+                'Initializes the protocol config pda. Can only be called once by the',
+                'program account keypair.',
+            ],
             accounts: [
                 {
-                    name: 'authority',
+                    name: 'feePayer',
                     isMut: true,
                     isSigner: true,
                 },
                 {
-                    name: 'authorityPda',
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                    docs: [
+                        'The authority should be updated to a different keypair after',
+                        'initialization.',
+                    ],
+                },
+                {
+                    name: 'protocolConfigPda',
                     isMut: true,
                     isSigner: false,
                 },
                 {
                     name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1118,15 +1367,20 @@ export const IDL: LightRegistry = {
             ],
         },
         {
-            name: 'updateGovernanceAuthority',
+            name: 'updateProtocolConfig',
             accounts: [
                 {
-                    name: 'authority',
-                    isMut: true,
+                    name: 'feePayer',
+                    isMut: false,
                     isSigner: true,
                 },
                 {
-                    name: 'authorityPda',
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'protocolConfigPda',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1134,16 +1388,17 @@ export const IDL: LightRegistry = {
                     name: 'newAuthority',
                     isMut: false,
                     isSigner: true,
+                    isOptional: true,
                 },
             ],
             args: [
                 {
-                    name: 'bump',
-                    type: 'u8',
-                },
-                {
-                    name: 'newAuthority',
-                    type: 'publicKey',
+                    name: 'protocolConfig',
+                    type: {
+                        option: {
+                            defined: 'ProtocolConfig',
+                        },
+                    },
                 },
             ],
         },
@@ -1156,7 +1411,7 @@ export const IDL: LightRegistry = {
                     isSigner: true,
                 },
                 {
-                    name: 'authorityPda',
+                    name: 'protocolConfigPda',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1189,6 +1444,9 @@ export const IDL: LightRegistry = {
                     name: 'programToBeRegistered',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        '- is signer so that only the program deployer can register a program.',
+                    ],
                 },
             ],
             args: [
@@ -1199,12 +1457,436 @@ export const IDL: LightRegistry = {
             ],
         },
         {
+            name: 'deregisterSystemProgram',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'groupPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'registerForester',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'foresterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'authority',
+                    type: 'publicKey',
+                },
+                {
+                    name: 'config',
+                    type: {
+                        defined: 'ForesterConfig',
+                    },
+                },
+                {
+                    name: 'weight',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'updateForesterPda',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'foresterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newAuthority',
+                    isMut: false,
+                    isSigner: true,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'config',
+                    type: {
+                        option: {
+                            defined: 'ForesterConfig',
+                        },
+                    },
+                },
+            ],
+        },
+        {
+            name: 'updateForesterPdaWeight',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'foresterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'newWeight',
+                    type: 'u64',
+                },
+            ],
+        },
+        {
+            name: 'registerForesterEpoch',
+            docs: [
+                'Registers the forester for the epoch.',
+                '1. Only the forester can register herself for the epoch.',
+                '2. Protocol config is copied.',
+                '3. Epoch account is created if needed.',
+            ],
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'foresterPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'foresterEpochPda',
+                    isMut: true,
+                    isSigner: false,
+                    docs: [
+                        'Instruction checks that current_epoch is the the current epoch and that',
+                        'the epoch is in registration phase.',
+                    ],
+                },
+                {
+                    name: 'protocolConfig',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'epochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'epoch',
+                    type: 'u64',
+                },
+            ],
+        },
+        {
+            name: 'finalizeRegistration',
+            docs: [
+                'This transaction can be included as additional instruction in the first',
+                'work instructions during the active phase.',
+                'Registration Period must be over.',
+            ],
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'foresterEpochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'epochPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'reportWork',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'foresterEpochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'epochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'initializeAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ],
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'programOwner',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'forester',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'merkleTreeConfig',
+                    type: {
+                        defined: 'AddressMerkleTreeConfig',
+                    },
+                },
+                {
+                    name: 'queueConfig',
+                    type: {
+                        defined: 'AddressQueueConfig',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'initializeStateMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
+                    ],
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'programOwner',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'forester',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'merkleTreeConfig',
+                    type: {
+                        defined: 'StateMerkleTreeConfig',
+                    },
+                },
+                {
+                    name: 'queueConfig',
+                    type: {
+                        defined: 'NullifierQueueConfig',
+                    },
+                },
+            ],
+        },
+        {
             name: 'nullify',
             accounts: [
                 {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1284,6 +1966,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1378,6 +2061,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1434,6 +2118,7 @@ export const IDL: LightRegistry = {
                     name: 'registeredForesterPda',
                     isMut: true,
                     isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'authority',
@@ -1475,34 +2160,18 @@ export const IDL: LightRegistry = {
                     isMut: true,
                     isSigner: false,
                 },
-            ],
-            args: [
                 {
-                    name: 'bump',
-                    type: 'u8',
-                },
-            ],
-        },
-        {
-            name: 'registerForester',
-            accounts: [
-                {
-                    name: 'foresterPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'signer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authorityPda',
+                    name: 'cpiContextAccount',
                     isMut: false,
                     isSigner: false,
                 },
                 {
-                    name: 'systemProgram',
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1511,299 +2180,6 @@ export const IDL: LightRegistry = {
                 {
                     name: 'bump',
                     type: 'u8',
-                },
-                {
-                    name: 'authority',
-                    type: 'publicKey',
-                },
-                {
-                    name: 'config',
-                    type: {
-                        defined: 'ForesterConfig',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'updateForester',
-            accounts: [
-                {
-                    name: 'foresterPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'newAuthority',
-                    isMut: false,
-                    isSigner: true,
-                    isOptional: true,
-                },
-            ],
-            args: [
-                {
-                    name: 'config',
-                    type: {
-                        defined: 'ForesterConfig',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'registerForesterEpoch',
-            docs: [
-                'Registers the forester for the epoch.',
-                '1. Only the forester can register herself for the epoch.',
-                '2. Protocol config is copied.',
-                '3. Epoch account is created if needed.',
-            ],
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'foresterPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'foresterEpochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'protocolConfig',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'epochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'epoch',
-                    type: 'u64',
-                },
-            ],
-        },
-        {
-            name: 'finalizeRegistration',
-            docs: [
-                'This transaction can be included as additional instruction in the first',
-                'work instructions during the active phase.',
-                'Registration Period must be over.',
-                'TODO: introduce grace period between registration and before',
-                "active phase starts, do I really need it or isn't it clear who gets the",
-                'first slot the first sign up?',
-            ],
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'foresterEpochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'epochPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'updateForesterEpochPda',
-            accounts: [
-                {
-                    name: 'signer',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'foresterEpochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'authority',
-                    type: 'publicKey',
-                },
-            ],
-        },
-        {
-            name: 'reportWork',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'foresterEpochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'epochPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'initializeAddressMerkleTree',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ],
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'queue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthority',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'bump',
-                    type: 'u8',
-                },
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'programOwner',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'merkleTreeConfig',
-                    type: {
-                        defined: 'AddressMerkleTreeConfig',
-                    },
-                },
-                {
-                    name: 'queueConfig',
-                    type: {
-                        defined: 'AddressQueueConfig',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'initializeStateMerkleTree',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ],
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'queue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthority',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'bump',
-                    type: 'u8',
-                },
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'programOwner',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'merkleTreeConfig',
-                    type: {
-                        defined: 'StateMerkleTreeConfig',
-                    },
-                },
-                {
-                    name: 'queueConfig',
-                    type: {
-                        defined: 'NullifierQueueConfig',
-                    },
-                },
-                {
-                    name: 'additionalRent',
-                    type: 'u64',
                 },
             ],
         },
@@ -1830,7 +2206,7 @@ export const IDL: LightRegistry = {
                         type: 'u64',
                     },
                     {
-                        name: 'registeredStake',
+                        name: 'registeredWeight',
                         type: 'u64',
                     },
                 ],
@@ -1856,7 +2232,7 @@ export const IDL: LightRegistry = {
                         type: 'u64',
                     },
                     {
-                        name: 'stakeWeight',
+                        name: 'weight',
                         type: 'u64',
                     },
                     {
@@ -1867,8 +2243,7 @@ export const IDL: LightRegistry = {
                         name: 'hasReportedWork',
                         docs: [
                             'Work can be reported in an extra round to earn extra performance based',
-                            'rewards. // TODO: make sure that performance based rewards can only be',
-                            'claimed if work has been reported',
+                            'rewards.',
                         ],
                         type: 'bool',
                     },
@@ -1876,7 +2251,7 @@ export const IDL: LightRegistry = {
                         name: 'foresterIndex',
                         docs: [
                             'Start index of the range that determines when the forester is eligible to perform work.',
-                            'End index is forester_start_index + stake_weight',
+                            'End index is forester_start_index + weight',
                         ],
                         type: 'u64',
                     },
@@ -1885,9 +2260,9 @@ export const IDL: LightRegistry = {
                         type: 'u64',
                     },
                     {
-                        name: 'totalEpochStateWeight',
+                        name: 'totalEpochWeight',
                         docs: [
-                            'Total epoch state weight is registered stake of the epoch account after',
+                            'Total epoch weight is registered weight of the epoch account after',
                             'registration is concluded and active epoch period starts.',
                         ],
                         type: {
@@ -1933,7 +2308,7 @@ export const IDL: LightRegistry = {
             },
         },
         {
-            name: 'foresterAccount',
+            name: 'foresterPda',
             type: {
                 kind: 'struct',
                 fields: [
@@ -1948,13 +2323,13 @@ export const IDL: LightRegistry = {
                         },
                     },
                     {
-                        name: 'activeStakeWeight',
+                        name: 'activeWeight',
                         type: 'u64',
                     },
                     {
-                        name: 'pendingStakeWeight',
+                        name: 'pendingWeight',
                         docs: [
-                            'Pending stake which will get active once the next epoch starts.',
+                            'Pending weight which will get active once the next epoch starts.',
                         ],
                         type: 'u64',
                     },
@@ -2002,31 +2377,15 @@ export const IDL: LightRegistry = {
                         type: 'u64',
                     },
                     {
-                        name: 'epochReward',
-                        docs: ['Total rewards per epoch.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'baseReward',
+                        name: 'minWeight',
                         docs: [
-                            'Base reward for foresters, the difference between epoch reward and base',
-                            'reward distributed based on performance.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'minStake',
-                        docs: [
-                            'Minimum stake required for a forester to register to an epoch.',
+                            'Minimum weight required for a forester to register to an epoch.',
                         ],
                         type: 'u64',
                     },
                     {
                         name: 'slotLength',
-                        docs: [
-                            'Light protocol slot length. (Naming is confusing for Solana slot.)',
-                            'TODO: rename to epoch_length (registration + active phase length)',
-                        ],
+                        docs: ['Light protocol slot length.'],
                         type: 'u64',
                     },
                     {
@@ -2044,14 +2403,49 @@ export const IDL: LightRegistry = {
                         docs: [
                             'Foresters can report work to receive performance based rewards in this',
                             'phase.',
-                            'TODO: enforce report work == registration phase length so that',
-                            'epoch in report work phase is registration epoch - 1',
                         ],
                         type: 'u64',
                     },
                     {
-                        name: 'mint',
+                        name: 'networkFee',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'cpiContextSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'finalizeCounterLimit',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolder',
+                        docs: ['Placeholder for future protocol updates.'],
                         type: 'publicKey',
+                    },
+                    {
+                        name: 'placeHolderA',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolderB',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolderC',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolderD',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolderE',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'placeHolderF',
+                        type: 'u64',
                     },
                 ],
             },
@@ -2121,7 +2515,7 @@ export const IDL: LightRegistry = {
         },
         {
             code: 6006,
-            name: 'StakeInsuffient',
+            name: 'WeightInsuffient',
         },
         {
             code: 6007,
@@ -2146,6 +2540,54 @@ export const IDL: LightRegistry = {
         {
             code: 6012,
             name: 'ForesterAlreadyReportedWork',
+        },
+        {
+            code: 6013,
+            name: 'InvalidNetworkFee',
+        },
+        {
+            code: 6014,
+            name: 'FinalizeCounterExceeded',
+        },
+        {
+            code: 6015,
+            name: 'CpiContextAccountMissing',
+        },
+        {
+            code: 6016,
+            name: 'ArithmeticUnderflow',
+        },
+        {
+            code: 6017,
+            name: 'RegistrationNotFinalized',
+        },
+        {
+            code: 6018,
+            name: 'CpiContextAccountInvalidDataLen',
+        },
+        {
+            code: 6019,
+            name: 'InvalidConfigUpdate',
+        },
+        {
+            code: 6020,
+            name: 'InvalidSigner',
+        },
+        {
+            code: 6021,
+            name: 'GetLatestedRegisterEpochFailed',
+        },
+        {
+            code: 6022,
+            name: 'GetLatestActiveEpochFailed',
+        },
+        {
+            code: 6023,
+            name: 'ForesterUndefined',
+        },
+        {
+            code: 6024,
+            name: 'ForesterDefined',
         },
     ],
 };

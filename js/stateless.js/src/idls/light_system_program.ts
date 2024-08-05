@@ -23,11 +23,6 @@ export type LightSystemProgram = {
                     isSigner: false;
                 },
                 {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
                     name: 'associatedMerkleTree';
                     isMut: false;
                     isSigner: false;
@@ -347,7 +342,7 @@ export type LightSystemProgram = {
                     {
                         name: 'forester';
                         docs: [
-                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
                             'without a network fee. Merkle trees without network fees are not',
                             'forested by light foresters. The variable is not used in the account',
                             'compression program but the registry program. The registry program',
@@ -1097,11 +1092,6 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                 },
                 {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
                     name: 'associatedMerkleTree',
                     isMut: false,
                     isSigner: false,
@@ -1421,7 +1411,7 @@ export const IDL: LightSystemProgram = {
                     {
                         name: 'forester',
                         docs: [
-                            'Optional priviledged forester pubkey, can be set for custom Merkle trees',
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
                             'without a network fee. Merkle trees without network fees are not',
                             'forested by light foresters. The variable is not used in the account',
                             'compression program but the registry program. The registry program',

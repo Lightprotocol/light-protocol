@@ -88,7 +88,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
     forester: Option<Pubkey>,
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
-    additional_rent: u64,
+    _additional_bytes: u64,
 ) -> Result<()> {
     if state_merkle_tree_config.height as u64 != STATE_MERKLE_TREE_HEIGHT {
         msg!(
@@ -158,7 +158,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
         state_merkle_tree_config.network_fee.unwrap_or(0),
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
-        merkle_tree_rent + additional_rent,
+        merkle_tree_rent,
         queue_rent,
     )?;
     process_initialize_nullifier_queue(

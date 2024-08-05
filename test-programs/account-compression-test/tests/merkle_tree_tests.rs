@@ -480,11 +480,13 @@ async fn failing_queue(
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
+        None,
         &AddressMerkleTreeConfig::default(),
         &AddressQueueConfig::default(),
         1,
     )
-    .await;
+    .await
+    .unwrap();
 
     let queue_tree_pair = (nullifier_queue_pubkey, merkle_tree_pubkey);
     // CHECK 1: no nullifiers as input
@@ -812,6 +814,8 @@ async fn test_init_and_rollover_state_merkle_tree(
         &new_state_merkle_tree_keypair.pubkey(),
         &new_nullifier_queue_keypair.pubkey(),
         rollover_signature_and_slot.1,
+        0,
+        3,
     )
     .await;
 

@@ -1,8 +1,8 @@
 use crate::rpc::rpc_connection::RpcConnection;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
-    utils::{get_epoch_pda_address, get_forester_pda_address, get_protocol_config_pda_address},
-    EpochPda, ForesterAccount, ForesterEpochPda,
+    utils::{get_epoch_pda_address, get_forester_pda, get_protocol_config_pda_address},
+    EpochPda, ForesterEpochPda, ForesterPda,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -16,23 +16,23 @@ pub async fn assert_finalized_epoch_registration<R: RpcConnection>(
         .await
         .unwrap()
         .unwrap();
-    let expected_total_epoch_stake_weight = epoch_pda.registered_stake;
+    let expected_total_epoch_weight = epoch_pda.registered_weight;
     let forester_epoch_pda = rpc
         .get_anchor_account::<ForesterEpochPda>(forester_epoch_pda_pubkey)
         .await
         .unwrap()
         .unwrap();
-    assert!(forester_epoch_pda.total_epoch_state_weight.is_some());
+    assert!(forester_epoch_pda.total_epoch_weight.is_some());
     assert_eq!(
-        forester_epoch_pda.total_epoch_state_weight.unwrap(),
-        expected_total_epoch_stake_weight
+        forester_epoch_pda.total_epoch_weight.unwrap(),
+        expected_total_epoch_weight
     );
 }
 
 pub async fn assert_epoch_pda<R: RpcConnection>(
     rpc: &mut R,
     epoch: u64,
-    expected_registered_stake: u64,
+    expected_registered_weight: u64,
 ) {
     let epoch_pda_pubkey = get_epoch_pda_address(epoch);
     let epoch_pda = rpc
@@ -46,7 +46,7 @@ pub async fn assert_epoch_pda<R: RpcConnection>(
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(epoch_pda.registered_stake, expected_registered_stake);
+    assert_eq!(epoch_pda.registered_weight, expected_registered_weight);
     assert_eq!(epoch_pda.total_work, 0);
     assert_eq!(epoch_pda.protocol_config, protocol_config_pda.config);
     assert_eq!(epoch_pda.epoch, epoch);
@@ -107,7 +107,7 @@ pub async fn assert_registered_forester_pda<R: RpcConnection>(
     forester_derivation_pubkey: &Pubkey,
     epoch: u64,
 ) {
-    let (forester_pda_pubkey, _) = get_forester_pda_address(forester_derivation_pubkey);
+    let (forester_pda_pubkey, _) = get_forester_pda(forester_derivation_pubkey);
 
     let epoch_pda_pubkey = get_epoch_pda_address(epoch);
     let epoch_pda = rpc
@@ -116,7 +116,7 @@ pub async fn assert_registered_forester_pda<R: RpcConnection>(
         .unwrap()
         .unwrap();
     let forester_pda = rpc
-        .get_anchor_account::<ForesterAccount>(&forester_pda_pubkey)
+        .get_anchor_account::<ForesterPda>(&forester_pda_pubkey)
         .await
         .unwrap()
         .unwrap();
@@ -127,11 +127,11 @@ pub async fn assert_registered_forester_pda<R: RpcConnection>(
         authority: forester_pda.authority,
         config: forester_pda.config,
         epoch: epoch_pda.epoch,
-        stake_weight: forester_pda.active_stake_weight,
+        weight: forester_pda.active_weight,
         work_counter: 0,
         has_reported_work: false,
-        forester_index: epoch_pda.registered_stake - forester_pda.active_stake_weight,
-        total_epoch_state_weight: None,
+        forester_index: epoch_pda.registered_weight - forester_pda.active_weight,
+        total_epoch_weight: None,
         epoch_active_phase_start_slot,
         protocol_config: epoch_pda.protocol_config,
         finalize_counter: 0,

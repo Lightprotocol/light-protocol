@@ -13,7 +13,10 @@ use light_hasher::Poseidon;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
 };
-use light_registry::utils::{get_cpi_authority_pda, get_forester_epoch_pda_address};
+use light_registry::protocol_config::state::ProtocolConfig;
+use light_registry::utils::{
+    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
+};
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -60,6 +63,7 @@ async fn test_program_owned_merkle_tree() {
             &program_owned_nullifier_queue_keypair,
             &cpi_context_keypair,
             Some(light_compressed_token::ID),
+            None,
         )
         .await;
 
@@ -124,6 +128,7 @@ async fn test_program_owned_merkle_tree() {
             &invalid_program_owned_nullifier_queue_keypair,
             &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
+            None,
         )
         .await;
     let recipient_keypair = Keypair::new();
@@ -319,18 +324,22 @@ async fn test_invalid_registered_program() {
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
-
+    // 6. rollover state Merkle tree with invalid group
     {
         let new_merkle_tree_keypair = Keypair::new();
         let new_queue_keypair = Keypair::new();
+        let new_cpi_context_keypair = Keypair::new();
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+        let protocol_config_pda = get_protocol_config_pda_address().0;
+
         let instruction_data =
             light_registry::instruction::RolloverStateMerkleTreeAndQueue { bump };
-        let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
+        let accounts = light_registry::accounts::RolloverStateMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -338,6 +347,9 @@ async fn test_invalid_registered_program() {
             new_queue: new_queue_keypair.pubkey(),
             old_merkle_tree: invalid_group_state_merkle_tree.pubkey(),
             old_queue: invalid_group_nullifier_queue.pubkey(),
+            cpi_context_account: new_cpi_context_keypair.pubkey(),
+            light_system_program: light_system_program::ID,
+            protocol_config_pda: protocol_config_pda,
         };
         let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
         let create_nullifier_queue_instruction = create_account_instruction(
@@ -364,6 +376,16 @@ async fn test_invalid_registered_program() {
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );
+        let size = ProtocolConfig::default().cpi_context_size as usize;
+        let create_cpi_context_account_instruction = create_account_instruction(
+            &payer.pubkey(),
+            size,
+            rpc.get_minimum_balance_for_rent_exemption(size)
+                .await
+                .unwrap(),
+            &light_system_program::ID,
+            Some(&new_cpi_context_keypair),
+        );
         let instruction = Instruction {
             program_id: light_registry::ID,
             accounts: accounts.to_account_metas(Some(true)),
@@ -374,16 +396,22 @@ async fn test_invalid_registered_program() {
                 &[
                     create_nullifier_queue_instruction,
                     create_state_merkle_tree_instruction,
+                    create_cpi_context_account_instruction,
                     instruction,
                 ],
                 &payer.pubkey(),
-                &[&payer, &new_merkle_tree_keypair, &new_queue_keypair],
+                &[
+                    &payer,
+                    &new_merkle_tree_keypair,
+                    &new_queue_keypair,
+                    &new_cpi_context_keypair,
+                ],
             )
             .await;
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        assert_rpc_error(result, 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 3, expected_error_code).unwrap();
     }
     // 6. rollover address Merkle tree with invalid group
     {
@@ -393,11 +421,12 @@ async fn test_invalid_registered_program() {
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let instruction_data =
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
-        let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
+        let accounts = light_registry::accounts::RolloverAddressMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -467,6 +496,7 @@ async fn test_invalid_registered_program() {
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
             derivation: env.forester.pubkey(),
+            is_metadata_forester: false,
         };
         let ix = create_nullify_instruction(inputs, 0);
 
@@ -481,7 +511,8 @@ async fn test_invalid_registered_program() {
     // 8. update address with invalid group
     {
         let register_program_pda = get_registered_program_pda(&light_registry::ID);
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
             bump,
@@ -496,7 +527,7 @@ async fn test_invalid_registered_program() {
         };
         let accounts = light_registry::accounts::UpdateAddressMerkleTree {
             authority: payer.pubkey(),
-            registered_forester_pda,
+            registered_forester_pda: Some(registered_forester_pda),
             registered_program_pda: register_program_pda,
             queue: invalid_group_address_queue.pubkey(),
             merkle_tree: invalid_group_address_merkle_tree.pubkey(),

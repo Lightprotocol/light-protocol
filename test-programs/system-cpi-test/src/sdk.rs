@@ -209,7 +209,7 @@ pub fn create_initialize_merkle_tree_instruction(
     nullifier_queue_config: NullifierQueueConfig,
     program_owner: Option<Pubkey>,
     index: u64,
-    additional_rent: u64,
+    additional_bytes: u64,
     invalid_group: bool,
 ) -> Instruction {
     let register_program_pda = if invalid_group {
@@ -225,7 +225,7 @@ pub fn create_initialize_merkle_tree_instruction(
         program_owner,
         merkle_tree_config: state_merkle_tree_config,
         queue_config: nullifier_queue_config,
-        additional_rent,
+        additional_bytes,
     };
     let accounts = crate::accounts::InitializeAddressMerkleTreeAndQueue {
         authority: payer,

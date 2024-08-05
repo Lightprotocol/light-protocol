@@ -765,9 +765,10 @@ impl<R: RpcConnection> TestIndexer<R> {
             merkle_tree_keypair,
             queue_keypair,
             owning_program_id,
+            None,
             &AddressMerkleTreeConfig::default(),
             &AddressQueueConfig::default(),
-            self.address_merkle_trees.len() as u64,
+            0,
         )
         .await;
         self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
@@ -780,6 +781,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         nullifier_queue_keypair: &Keypair,
         cpi_context_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
+        forester: Option<Pubkey>,
     ) {
         create_state_merkle_tree_and_queue_account(
             &self.payer,
@@ -787,18 +789,12 @@ impl<R: RpcConnection> TestIndexer<R> {
             rpc,
             merkle_tree_keypair,
             nullifier_queue_keypair,
+            Some(cpi_context_keypair),
             owning_program_id,
-            None,
+            forester,
             self.state_merkle_trees.len() as u64,
             &StateMerkleTreeConfig::default(),
             &NullifierQueueConfig::default(),
-        )
-        .await;
-        crate::test_env::init_cpi_context_account(
-            rpc,
-            &merkle_tree_keypair.pubkey(),
-            cpi_context_keypair,
-            &self.payer,
         )
         .await;
 

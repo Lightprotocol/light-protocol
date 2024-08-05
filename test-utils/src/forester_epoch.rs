@@ -6,8 +6,8 @@ use anchor_lang::{
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
-    utils::{get_epoch_pda_address, get_forester_epoch_pda_address},
-    EpochPda, ForesterEpochPda, ForesterSlot,
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
+    EpochPda, ForesterEpochPda,
 };
 use solana_sdk::signature::{Keypair, Signature, Signer};
 
@@ -18,6 +18,13 @@ use crate::rpc::{errors::RpcError, rpc_connection::RpcConnection};
 // 1. The current epoch
 // 2. When does the next registration start
 // 3. When is my turn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForesterSlot {
+    pub slot: u64,
+    pub start_solana_slot: u64,
+    pub end_solana_slot: u64,
+    pub forester_index: u64,
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Forester {
@@ -62,7 +69,8 @@ pub fn get_schedule_for_queue(
     mut start_solana_slot: u64,
     queue_pubkey: &Pubkey,
     protocol_config: &ProtocolConfig,
-    total_epoch_state_weight: u64,
+    total_epoch_weight: u64,
+    epoch: u64,
 ) -> Vec<Option<ForesterSlot>> {
     let mut vec = Vec::new();
     let start_slot = 0;
@@ -72,7 +80,8 @@ pub fn get_schedule_for_queue(
         let forester_index = ForesterEpochPda::get_eligible_forester_index(
             start_slot,
             queue_pubkey,
-            total_epoch_state_weight,
+            total_epoch_weight,
+            epoch,
         )
         .unwrap();
         vec.push(Some(ForesterSlot {
@@ -89,14 +98,15 @@ pub fn get_schedule_for_queue(
 pub fn get_schedule_for_forester_in_queue(
     start_solana_slot: u64,
     queue_pubkey: &Pubkey,
-    total_epoch_state_weight: u64,
+    total_epoch_weight: u64,
     forester_epoch_pda: &ForesterEpochPda,
 ) -> Vec<Option<ForesterSlot>> {
     let mut slots = get_schedule_for_queue(
         start_solana_slot,
         queue_pubkey,
         &forester_epoch_pda.protocol_config,
-        total_epoch_state_weight,
+        total_epoch_weight,
+        forester_epoch_pda.epoch,
     );
     slots.iter_mut().for_each(|x| {
         // TODO: remove unwrap
@@ -136,7 +146,7 @@ impl TreeForesterSchedule {
         _self.slots = get_schedule_for_forester_in_queue(
             solana_slot,
             &_self.tree_pubkey.queue,
-            forester_epoch_pda.total_epoch_state_weight.unwrap(),
+            forester_epoch_pda.total_epoch_weight.unwrap(),
             forester_epoch_pda,
         );
         _self
@@ -254,17 +264,13 @@ impl Epoch {
         protocol_config: &ProtocolConfig,
     ) -> Result<EpochRegistration, RpcError> {
         let current_solana_slot = rpc.get_slot().await?;
-        println!("current_solana_slot {:?}", current_solana_slot);
-        println!(
-            "protocol_config {:?}",
-            protocol_config.registration_phase_length
-        );
-        println!("protocol_config {:?}", protocol_config.active_phase_length);
 
-        let mut epoch = protocol_config.get_current_epoch(current_solana_slot);
+        let mut epoch = protocol_config
+            .get_latest_register_epoch(current_solana_slot)
+            .unwrap();
         let registration_start_slot =
             protocol_config.genesis_slot + epoch * protocol_config.active_phase_length;
-        println!("registration_start_slot {:?}", registration_start_slot);
+
         let registration_end_slot =
             registration_start_slot + protocol_config.registration_phase_length;
         if current_solana_slot > registration_end_slot {
@@ -274,15 +280,6 @@ impl Epoch {
             protocol_config.genesis_slot + epoch * protocol_config.active_phase_length;
         let next_registration_end_slot =
             next_registration_start_slot + protocol_config.registration_phase_length;
-        println!(
-            "next_registration_start_slot {:?}",
-            next_registration_start_slot
-        );
-        println!(
-            "next_registration_end_slot {:?}",
-            next_registration_end_slot
-        );
-        println!("curent_solana_slot {:?}", current_solana_slot);
         let slots_until_registration_ends =
             next_registration_end_slot.saturating_sub(current_solana_slot);
         let slots_until_registration_starts =
@@ -322,7 +319,7 @@ impl Epoch {
             .await?
             .unwrap();
         let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_address(&authority.pubkey(), epoch_registration.epoch).0;
+            get_forester_epoch_pda_from_authority(&authority.pubkey(), epoch_registration.epoch).0;
 
         let phases = get_epoch_phases(protocol_config, epoch_pda.epoch);
         Ok(Some(Self {
@@ -364,9 +361,9 @@ impl Epoch {
             .get_anchor_account::<ForesterEpochPda>(&self.forester_epoch_pda)
             .await?
             .unwrap();
-        // IF active phase has started and total_epoch_state_weight is not set, set it now to
-        if forester_epoch_pda.total_epoch_state_weight.is_none() {
-            forester_epoch_pda.total_epoch_state_weight = Some(epoch_pda.registered_stake);
+        // IF active phase has started and total_epoch_weight is not set, set it now to
+        if forester_epoch_pda.total_epoch_weight.is_none() {
+            forester_epoch_pda.total_epoch_weight = Some(epoch_pda.registered_weight);
         }
         self.add_trees_with_schedule(&forester_epoch_pda, trees, current_solana_slot);
         Ok(())
@@ -431,14 +428,13 @@ mod test {
     fn test_epoch_phases() {
         let config = ProtocolConfig {
             genesis_slot: 200,
-            epoch_reward: 0,
-            base_reward: 0,
-            min_stake: 0,
+            min_weight: 0,
             slot_length: 10,
             registration_phase_length: 100,
             active_phase_length: 1000,
             report_work_phase_length: 100,
-            mint: Pubkey::default(),
+            network_fee: 5000,
+            ..Default::default()
         };
 
         let epoch = 1;
@@ -461,25 +457,26 @@ mod test {
     fn test_get_schedule_for_queue() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            epoch_reward: 1000,
-            base_reward: 500,
-            min_stake: 100,
+            min_weight: 100,
             slot_length: 10,
             registration_phase_length: 100,
             active_phase_length: 1000,
             report_work_phase_length: 100,
-            mint: Pubkey::new_unique(),
+            network_fee: 5000,
+            ..Default::default()
         };
 
-        let total_epoch_state_weight = 500;
+        let total_epoch_weight = 500;
         let queue_pubkey = Pubkey::new_unique();
         let start_solana_slot = 0;
+        let epoch = 0;
 
         let schedule = get_schedule_for_queue(
             start_solana_slot,
             &queue_pubkey,
             &protocol_config,
-            total_epoch_state_weight,
+            total_epoch_weight,
+            epoch,
         );
 
         assert_eq!(
@@ -498,7 +495,7 @@ mod test {
                 slot.end_solana_slot,
                 slot.start_solana_slot + protocol_config.slot_length
             );
-            assert!(slot.forester_index < total_epoch_state_weight);
+            assert!(slot.forester_index < total_epoch_weight);
         }
     }
 }
