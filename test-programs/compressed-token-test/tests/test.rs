@@ -1075,27 +1075,32 @@ async fn test_delegation_mixed() {
     {
         let input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-        let input_compressed_accounts = input_compressed_accounts
+        let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithContext>>();
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-        let input_compressed_accounts = input_compressed_accounts
+        let delegate_input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        input_compressed_accounts
+            .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
+        let delegate_lamports = delegate_input_compressed_accounts[0]
+            .compressed_account
+            .compressed_account
+            .lamports;
+        let delegate_input_amount = input_compressed_accounts
             .iter()
-            .filter(|x| x.token_data.delegate.is_some())
-            .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .map(|x| x.token_data.amount)
+            .sum::<u64>();
         compressed_transfer_test(
             &delegate,
             &mut rpc,
             &mut test_indexer,
             &mint,
             &sender,
-            &[recipient, sender.pubkey()],
-            &vec![100, 200],
-            Some(vec![Some(90), Some(10)]),
+            &[recipient, sender.pubkey(), delegate.pubkey()],
+            &vec![100, 200, delegate_input_amount - 300],
+            Some(vec![Some(90), Some(10), Some(delegate_lamports)]),
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 3],
             Some(1),

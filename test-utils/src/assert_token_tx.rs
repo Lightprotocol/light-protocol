@@ -135,6 +135,10 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
         let transfer_recipient_compressed_account = transfer_recipient_token_compressed_account
             .compressed_account
             .clone();
+        println!(
+            "transfer_recipient_compressed_account {:?}",
+            transfer_recipient_compressed_account
+        );
         if i < output_lamports.len() {
             assert_eq!(
                 transfer_recipient_compressed_account
