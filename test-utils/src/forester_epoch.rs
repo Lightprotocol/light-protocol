@@ -6,7 +6,7 @@ use anchor_lang::{
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
-    utils::{get_epoch_pda_address, get_forester_epoch_pda_address},
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
 };
 use solana_sdk::signature::{Keypair, Signature, Signer};
@@ -319,7 +319,7 @@ impl Epoch {
             .await?
             .unwrap();
         let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_address(&authority.pubkey(), epoch_registration.epoch).0;
+            get_forester_epoch_pda_from_authority(&authority.pubkey(), epoch_registration.epoch).0;
 
         let phases = get_epoch_phases(protocol_config, epoch_pda.epoch);
         Ok(Some(Self {

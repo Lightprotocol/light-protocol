@@ -19,12 +19,13 @@ use light_hasher::Poseidon;
 use light_macros::pubkey;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
-    create_finalize_registration_instruction, create_initialize_governance_authority_instruction,
+    create_deregister_program_instruction, create_finalize_registration_instruction,
+    create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
     create_update_protocol_config_instruction,
 };
 use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_pda_address, get_group_pda, get_protocol_config_pda_address,
+    get_cpi_authority_pda, get_forester_pda, get_protocol_config_pda_address,
 };
 use light_registry::ForesterConfig;
 use light_system_program::utils::get_registered_program_pda;
@@ -317,6 +318,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         &address_merkle_tree_keypair,
         &address_merkle_tree_queue_keypair,
         None,
+        None,
         &AddressMerkleTreeConfig::default(),
         &AddressQueueConfig::default(),
         0,
@@ -374,9 +376,16 @@ pub async fn initialize_accounts<R: RpcConnection>(
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
         cpi_context_account_pubkey: cpi_context_keypair.pubkey(),
         registered_registry_program_pda,
-        registered_forester_pda: get_forester_pda_address(&forester.pubkey()).0,
+        registered_forester_pda: get_forester_pda(&forester.pubkey()).0,
         forester_epoch,
     }
+}
+pub fn get_group_pda(seed: Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[GROUP_AUTHORITY_SEED, seed.to_bytes().as_slice()],
+        &account_compression::ID,
+    )
+    .0
 }
 
 pub async fn initialize_new_group<R: RpcConnection>(
@@ -451,7 +460,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         group_pda,
         governance_authority: payer,
         governance_authority_pda: protocol_config_pda.0,
-        registered_forester_pda: get_forester_pda_address(&forester.pubkey()).0,
+        registered_forester_pda: get_forester_pda(&forester.pubkey()).0,
         forester,
         registered_program_pda,
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
@@ -584,6 +593,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     address_merkle_tree_keypair: &Keypair,
     address_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
     merkle_tree_config: &AddressMerkleTreeConfig,
     queue_config: &AddressQueueConfig,
     index: u64,
@@ -620,34 +630,27 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let (instruction, test_forester) = if registry {
-        (
-            create_initialize_address_merkle_tree_and_queue_instruction_registry(
-                payer.pubkey(),
-                None,
-                program_owner,
-                address_merkle_tree_keypair.pubkey(),
-                address_queue_keypair.pubkey(),
-                merkle_tree_config.clone(),
-                queue_config.clone(),
-            ),
-            None,
+    let instruction = if registry {
+        create_initialize_address_merkle_tree_and_queue_instruction_registry(
+            payer.pubkey(),
+            forester,
+            program_owner,
+            address_merkle_tree_keypair.pubkey(),
+            address_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
         )
     } else {
-        let test_forester = Some(Pubkey::new_unique());
-        (
-            create_initialize_address_merkle_tree_and_queue_instruction(
-                index,
-                payer.pubkey(),
-                None,
-                program_owner,
-                test_forester,
-                address_merkle_tree_keypair.pubkey(),
-                address_queue_keypair.pubkey(),
-                merkle_tree_config.clone(),
-                queue_config.clone(),
-            ),
-            test_forester,
+        create_initialize_address_merkle_tree_and_queue_instruction(
+            index,
+            payer.pubkey(),
+            None,
+            program_owner,
+            forester,
+            address_merkle_tree_keypair.pubkey(),
+            address_queue_keypair.pubkey(),
+            merkle_tree_config.clone(),
+            queue_config.clone(),
         )
     };
     let transaction = Transaction::new_signed_with_payer(
@@ -708,7 +711,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         merkle_tree_config,
         index,
         program_owner,
-        test_forester,
+        forester,
         expected_change_log_length,
         expected_roots_length,
         expected_next_index,
@@ -727,7 +730,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         QueueType::AddressQueue,
         index,
         program_owner,
-        test_forester,
+        forester,
         &owner,
     )
     .await;
@@ -747,9 +750,6 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
         *group_pda,
         program_id_keypair.pubkey(),
     );
-    println!("isnt {:?}", instruction.accounts);
-    println!("governance authority {:?}", governance_authority.pubkey());
-    println!("program id {:?}", program_id_keypair.pubkey());
     let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
         &governance_authority.pubkey(),
@@ -763,6 +763,37 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
         &[transfer_instruction, instruction],
         &governance_authority.pubkey(),
         &[governance_authority, program_id_keypair],
+    )
+    .await?;
+    Ok(token_program_registered_program_pda)
+}
+
+pub async fn deregister_program_with_registry_program<R: RpcConnection>(
+    rpc: &mut R,
+    governance_authority: &Keypair,
+    group_pda: &Pubkey,
+    program_id_keypair: &Keypair,
+) -> Result<Pubkey, crate::rpc::errors::RpcError> {
+    let governance_authority_pda = get_protocol_config_pda_address();
+    let (instruction, token_program_registered_program_pda) = create_deregister_program_instruction(
+        governance_authority.pubkey(),
+        governance_authority_pda,
+        *group_pda,
+        program_id_keypair.pubkey(),
+    );
+    let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
+    let transfer_instruction = system_instruction::transfer(
+        &governance_authority.pubkey(),
+        &cpi_authority_pda.0,
+        rpc.get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
+            .await
+            .unwrap(),
+    );
+
+    rpc.create_and_send_transaction(
+        &[transfer_instruction, instruction],
+        &governance_authority.pubkey(),
+        &[governance_authority],
     )
     .await?;
     Ok(token_program_registered_program_pda)

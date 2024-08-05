@@ -15,7 +15,7 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_epoch_pda_address, get_protocol_config_pda_address,
+    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
@@ -331,7 +331,8 @@ async fn test_invalid_registered_program() {
         let new_cpi_context_keypair = Keypair::new();
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
         let protocol_config_pda = get_protocol_config_pda_address().0;
 
         let instruction_data =
@@ -420,7 +421,8 @@ async fn test_invalid_registered_program() {
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let instruction_data =
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
         let accounts = light_registry::accounts::RolloverAddressMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
@@ -509,7 +511,8 @@ async fn test_invalid_registered_program() {
     // 8. update address with invalid group
     {
         let register_program_pda = get_registered_program_pda(&light_registry::ID);
-        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        let registered_forester_pda =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
             bump,

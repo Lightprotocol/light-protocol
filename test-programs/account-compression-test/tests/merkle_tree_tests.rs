@@ -480,6 +480,7 @@ async fn failing_queue(
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
+        None,
         &AddressMerkleTreeConfig::default(),
         &AddressQueueConfig::default(),
         1,

@@ -14,7 +14,7 @@ use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_register_forester_instruction, create_update_forester_pda_instruction,
 };
-use light_registry::utils::get_forester_pda_address;
+use light_registry::utils::get_forester_pda;
 use light_registry::{ForesterConfig, ForesterPda};
 use solana_sdk::{
     instruction::Instruction,
@@ -62,7 +62,7 @@ pub async fn update_test_forester<R: RpcConnection>(
     config: ForesterConfig,
 ) -> Result<(), RpcError> {
     let mut pre_account_state = rpc
-        .get_anchor_account::<ForesterPda>(&get_forester_pda_address(derivation_key).0)
+        .get_anchor_account::<ForesterPda>(&get_forester_pda(derivation_key).0)
         .await?
         .unwrap();
     let (signers, new_forester_authority) = if let Some(new_authority) = new_forester_authority {
@@ -94,7 +94,7 @@ pub async fn assert_registered_forester<R: RpcConnection>(
     forester: &Pubkey,
     expected_account: ForesterPda,
 ) -> Result<(), RpcError> {
-    let pda = get_forester_pda_address(forester).0;
+    let pda = get_forester_pda(forester).0;
     let account_data = rpc.get_anchor_account::<ForesterPda>(&pda).await?.unwrap();
     if account_data != expected_account {
         return Err(RpcError::AssertRpcError(format!(

@@ -1,10 +1,8 @@
 #![cfg(not(target_os = "solana"))]
-use crate::{
-    sdk::NOOP_PROGRAM_ID,
-    utils::{
-        get_cpi_authority_pda, get_forester_epoch_pda_address, get_protocol_config_pda_address,
-    },
+use crate::utils::{
+    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
+use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
@@ -12,7 +10,6 @@ use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
 use light_system_program::program::LightSystemProgram;
 use solana_sdk::instruction::Instruction;
-
 pub struct CreateNullifyInstructionInputs {
     pub authority: Pubkey,
     pub nullifier_queue: Pubkey,
@@ -33,7 +30,7 @@ pub fn create_nullify_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
     };
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
@@ -50,7 +47,7 @@ pub fn create_nullify_instruction(
         registered_program_pda: register_program_pda,
         nullifier_queue: inputs.nullifier_queue,
         merkle_tree: inputs.merkle_tree,
-        log_wrapper: NOOP_PROGRAM_ID,
+        log_wrapper: NOOP_PUBKEY.into(),
         cpi_authority,
         account_compression_program: account_compression::ID,
     };
@@ -91,7 +88,7 @@ pub fn create_rollover_address_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
     };
 
     let accounts = crate::accounts::RolloverAddressMerkleTreeAndQueue {
@@ -125,7 +122,7 @@ pub fn create_rollover_state_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
     };
     let protocol_config_pda = get_protocol_config_pda_address().0;
 
@@ -174,7 +171,7 @@ pub fn create_update_address_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_address(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
     };
 
     let (cpi_authority, bump) = get_cpi_authority_pda();
@@ -196,7 +193,7 @@ pub fn create_update_address_merkle_tree_instruction(
         registered_program_pda: register_program_pda,
         merkle_tree: inputs.address_merkle_tree,
         queue: inputs.address_queue,
-        log_wrapper: NOOP_PROGRAM_ID,
+        log_wrapper: NOOP_PUBKEY.into(),
         cpi_authority,
         account_compression_program: account_compression::ID,
     };

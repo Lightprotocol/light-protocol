@@ -765,6 +765,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             merkle_tree_keypair,
             queue_keypair,
             owning_program_id,
+            None,
             &AddressMerkleTreeConfig::default(),
             &AddressQueueConfig::default(),
             0,

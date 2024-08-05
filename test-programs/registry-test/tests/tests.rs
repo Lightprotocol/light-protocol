@@ -12,9 +12,10 @@ use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
+    create_update_forester_pda_weight_instruction,
 };
 use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_epoch_pda_address, get_forester_pda_address,
+    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_forester_pda,
     get_protocol_config_pda_address,
 };
 use light_registry::{ForesterConfig, ForesterEpochPda, ForesterPda};
@@ -28,9 +29,10 @@ use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    initialize_new_group, register_program_with_registry_program, setup_accounts_devnet,
-    setup_test_programs, setup_test_programs_with_accounts_with_protocol_config,
-    GROUP_PDA_SEED_TEST_KEYPAIR, REGISTRY_ID_TEST_KEYPAIR,
+    deregister_program_with_registry_program, initialize_new_group,
+    register_program_with_registry_program, setup_accounts_devnet, setup_test_programs,
+    setup_test_programs_with_accounts_with_protocol_config, GROUP_PDA_SEED_TEST_KEYPAIR,
+    REGISTRY_ID_TEST_KEYPAIR,
 };
 use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use light_test_utils::{
@@ -211,15 +213,43 @@ async fn test_initialize_protocol_config() {
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
         assert_rpc_error(result, 1, expected_error_code).unwrap();
     }
-    // register program with invalid authority
+    // deregister program functional and with invalid signer
     {
-        let light_registry_program_keypair =
-            Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+        let random_program_keypair = Keypair::new();
         register_program_with_registry_program(
             &mut rpc,
             &updated_keypair,
             &group_pda,
-            &light_registry_program_keypair,
+            &random_program_keypair,
+        )
+        .await
+        .unwrap();
+        let result = deregister_program_with_registry_program(
+            &mut rpc,
+            &payer,
+            &group_pda,
+            &random_program_keypair,
+        )
+        .await;
+        let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
+        assert_rpc_error(result, 1, expected_error_code).unwrap();
+        deregister_program_with_registry_program(
+            &mut rpc,
+            &updated_keypair,
+            &group_pda,
+            &random_program_keypair,
+        )
+        .await
+        .unwrap();
+    }
+    // register program
+    {
+        let program_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+        register_program_with_registry_program(
+            &mut rpc,
+            &updated_keypair,
+            &group_pda,
+            &program_keypair,
         )
         .await
         .unwrap();
@@ -237,7 +267,7 @@ async fn test_initialize_protocol_config() {
             &nullifier_queue_keypair,
             Some(&cpi_context_keypair),
             None,
-            None,
+            Some(Pubkey::new_unique()),
             1,
             &StateMerkleTreeConfig {
                 network_fee: None,
@@ -247,6 +277,30 @@ async fn test_initialize_protocol_config() {
         )
         .await
         .unwrap();
+    }
+    // initialize a Merkle tree with network fee = 0
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        let result = create_state_merkle_tree_and_queue_account(
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &nullifier_queue_keypair,
+            Some(&cpi_context_keypair),
+            None,
+            None,
+            1,
+            &StateMerkleTreeConfig {
+                network_fee: None,
+                ..Default::default()
+            },
+            &NullifierQueueConfig::default(),
+        )
+        .await;
+        assert_rpc_error(result, 3, RegistryError::ForesterUndefined.into()).unwrap();
     }
     // initialize a Merkle tree with network fee = 5000 (default)
     {
@@ -309,6 +363,7 @@ async fn test_initialize_protocol_config() {
             &merkle_tree_keypair,
             &queue_keypair,
             None,
+            Some(Pubkey::new_unique()),
             &AddressMerkleTreeConfig {
                 network_fee: None,
                 ..Default::default()
@@ -329,6 +384,7 @@ async fn test_initialize_protocol_config() {
             &mut rpc,
             &merkle_tree_keypair,
             &queue_keypair,
+            None,
             None,
             &AddressMerkleTreeConfig {
                 network_fee: Some(5000),
@@ -351,6 +407,7 @@ async fn test_initialize_protocol_config() {
             &merkle_tree_keypair,
             &queue_keypair,
             None,
+            None,
             &AddressMerkleTreeConfig {
                 network_fee: Some(5001),
                 ..Default::default()
@@ -367,7 +424,6 @@ async fn test_initialize_protocol_config() {
 
 #[tokio::test]
 async fn test_custom_forester() {
-    // TODO: add setup test programs wrapper that allows for non default protocol config
     let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
         None,
         ProtocolConfig::default(),
@@ -448,7 +504,6 @@ async fn test_custom_forester() {
 /// 3. SUCESS: Register forester for epoch
 #[tokio::test]
 async fn test_register_and_update_forester_pda() {
-    // TODO: add setup test programs wrapper that allows for non default protocol config
     let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
         None,
         ProtocolConfig::default(),
@@ -459,7 +514,6 @@ async fn test_register_and_update_forester_pda() {
     rpc.airdrop_lamports(&forester_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    println!("rpc.air -----------------------------------------");
     let config = ForesterConfig { fee: 1 };
     // 1. SUCCESS: Register a forester
     register_test_forester(
@@ -470,12 +524,9 @@ async fn test_register_and_update_forester_pda() {
     )
     .await
     .unwrap();
-    println!("registered _test_forester -----------------------------------------");
 
     // 2. SUCCESS: Update forester authority
     let new_forester_keypair = Keypair::new();
-    println!("new_forester_keypair {:?}", new_forester_keypair.pubkey());
-    println!("feepayer {:?}", rpc.get_payer().pubkey());
     rpc.airdrop_lamports(&new_forester_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
@@ -509,17 +560,11 @@ async fn test_register_and_update_forester_pda() {
 
     // SUCESS: update forester weight
     {
-        let ix = light_registry::instruction::UpdateForesterPdaWeight { new_weight: 11 };
-        let accounts = light_registry::accounts::UpdateForesterPdaWeight {
-            forester_pda: get_forester_pda_address(&forester_keypair.pubkey()).0,
-            authority: env.governance_authority.pubkey(),
-            protocol_config_pda: env.governance_authority_pda,
-        };
-        let ix = Instruction {
-            program_id: light_registry::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: ix.data(),
-        };
+        let ix = create_update_forester_pda_weight_instruction(
+            &forester_keypair.pubkey(),
+            &env.governance_authority.pubkey(),
+            11,
+        );
         rpc.create_and_send_transaction(
             &[ix],
             &env.governance_authority.pubkey(),
@@ -528,20 +573,17 @@ async fn test_register_and_update_forester_pda() {
         .await
         .unwrap();
         let forester_pda: ForesterPda = rpc
-            .get_anchor_account::<ForesterPda>(
-                &get_forester_pda_address(&forester_keypair.pubkey()).0,
-            )
+            .get_anchor_account::<ForesterPda>(&get_forester_pda(&forester_keypair.pubkey()).0)
             .await
             .unwrap()
             .unwrap();
         assert_eq!(forester_pda.active_weight, 11);
         // change it back because other asserts expect weight 1
-        let ix = light_registry::instruction::UpdateForesterPdaWeight { new_weight: 1 };
-        let ix = Instruction {
-            program_id: light_registry::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: ix.data(),
-        };
+        let ix = create_update_forester_pda_weight_instruction(
+            &forester_keypair.pubkey(),
+            &env.governance_authority.pubkey(),
+            1,
+        );
         rpc.create_and_send_transaction(
             &[ix],
             &env.governance_authority.pubkey(),
@@ -632,7 +674,6 @@ async fn test_register_and_update_forester_pda() {
             e2e_env.rpc,
         )
     };
-    println!("performed transactions -----------------------------------------");
     // perform 1 work
     nullify_compressed_accounts(
         &mut rpc,
@@ -726,7 +767,7 @@ async fn failing_test_forester() {
     }
     // 2. FAIL: Update forester pda with invalid authority
     {
-        let forester_pda = get_forester_pda_address(&env.forester.pubkey()).0;
+        let forester_pda = get_forester_pda(&env.forester.pubkey()).0;
         let instruction_data = light_registry::instruction::UpdateForesterPda { config: None };
         let accounts = light_registry::accounts::UpdateForesterPda {
             forester_pda,
@@ -743,12 +784,13 @@ async fn failing_test_forester() {
             .await;
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
+        println!("here1");
     }
     // 3. FAIL: Update forester pda weight with invalid authority
     {
         let ix = light_registry::instruction::UpdateForesterPdaWeight { new_weight: 11 };
         let accounts = light_registry::accounts::UpdateForesterPdaWeight {
-            forester_pda: get_forester_pda_address(&env.forester.pubkey()).0,
+            forester_pda: get_forester_pda(&env.forester.pubkey()).0,
             authority: payer.pubkey(),
             protocol_config_pda: env.governance_authority_pda,
         };
@@ -762,6 +804,7 @@ async fn failing_test_forester() {
             .await;
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
+        println!("here1");
     }
     // 4. FAIL: Nullify with invalid authority
     {
@@ -780,11 +823,12 @@ async fn failing_test_forester() {
         };
         let mut ix = create_nullify_instruction(inputs, 0);
         // Swap the derived forester pda with an initialized but invalid one.
-        ix.accounts[0].pubkey = get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+        ix.accounts[0].pubkey = get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
         let result = rpc
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
+        println!("here1");
     }
     // 4 FAIL: update address Merkle tree failed
     {
@@ -810,7 +854,8 @@ async fn failing_test_forester() {
         );
         // Swap the derived forester pda with an initialized but invalid one.
         instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+        println!("here1");
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -836,7 +881,7 @@ async fn failing_test_forester() {
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[2].accounts[0].pubkey =
-            get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(
@@ -846,6 +891,7 @@ async fn failing_test_forester() {
             )
             .await;
         assert_rpc_error(result, 2, expected_error_code).unwrap();
+        println!("here1");
     }
     // 6. FAIL: rollover state tree with invalid authority
     {
@@ -868,7 +914,7 @@ async fn failing_test_forester() {
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[3].accounts[0].pubkey =
-            get_forester_epoch_pda_address(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(

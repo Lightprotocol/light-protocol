@@ -99,6 +99,27 @@ pub mod light_registry {
         account_compression::cpi::register_program_to_group(cpi_ctx)
     }
 
+    pub fn deregister_system_program(ctx: Context<DeregisterProgram>, bump: u8) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+
+        let accounts = account_compression::cpi::accounts::DeregisterProgram {
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+            group_authority_pda: ctx.accounts.group_pda.to_account_info(),
+            close_recipient: ctx.accounts.authority.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::deregister_program(cpi_ctx)
+    }
+
     pub fn register_forester(
         ctx: Context<RegisterForester>,
         _bump: u8,
@@ -242,7 +263,16 @@ pub mod light_registry {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
             }
+            if forester.is_some() {
+                msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
+                return err!(RegistryError::ForesterDefined);
+            }
+        } else if forester.is_none() {
+            msg!("Forester pubkey required for trees without a network fee.");
+            msg!("Trees without a network fee will not be serviced by light foresters.");
+            return err!(RegistryError::ForesterUndefined);
         }
+        // Unused parameter
         if queue_config.network_fee.is_some() {
             return err!(RegistryError::InvalidNetworkFee);
         }
@@ -271,7 +301,13 @@ pub mod light_registry {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
             }
+        } else if forester.is_none() {
+            msg!("Forester pubkey required for trees without a network fee.");
+            msg!("Trees without a network fee will not be serviced by light foresters.");
+            return err!(RegistryError::ForesterUndefined);
         }
+
+        // Unused parameter
         if queue_config.network_fee.is_some() {
             return err!(RegistryError::InvalidNetworkFee);
         }

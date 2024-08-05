@@ -160,6 +160,47 @@ export type LightRegistry = {
             ];
         },
         {
+            name: 'deregisterSystemProgram';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'groupPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
             name: 'registerForester';
             accounts: [
                 {
@@ -1235,6 +1276,22 @@ export type LightRegistry = {
             code: 6020;
             name: 'InvalidSigner';
         },
+        {
+            code: 6021;
+            name: 'GetLatestedRegisterEpochFailed';
+        },
+        {
+            code: 6022;
+            name: 'GetLatestActiveEpochFailed';
+        },
+        {
+            code: 6023;
+            name: 'ForesterUndefined';
+        },
+        {
+            code: 6024;
+            name: 'ForesterDefined';
+        },
     ];
 };
 
@@ -1390,6 +1447,47 @@ export const IDL: LightRegistry = {
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ],
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'deregisterSystemProgram',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'groupPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: true,
+                    isSigner: false,
                 },
             ],
             args: [
@@ -2474,6 +2572,22 @@ export const IDL: LightRegistry = {
         {
             code: 6020,
             name: 'InvalidSigner',
+        },
+        {
+            code: 6021,
+            name: 'GetLatestedRegisterEpochFailed',
+        },
+        {
+            code: 6022,
+            name: 'GetLatestActiveEpochFailed',
+        },
+        {
+            code: 6023,
+            name: 'ForesterUndefined',
+        },
+        {
+            code: 6024,
+            name: 'ForesterDefined',
         },
     ],
 };

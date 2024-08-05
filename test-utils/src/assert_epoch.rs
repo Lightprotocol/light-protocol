@@ -1,7 +1,7 @@
 use crate::rpc::rpc_connection::RpcConnection;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
-    utils::{get_epoch_pda_address, get_forester_pda_address, get_protocol_config_pda_address},
+    utils::{get_epoch_pda_address, get_forester_pda, get_protocol_config_pda_address},
     EpochPda, ForesterEpochPda, ForesterPda,
 };
 use solana_sdk::pubkey::Pubkey;
@@ -107,7 +107,7 @@ pub async fn assert_registered_forester_pda<R: RpcConnection>(
     forester_derivation_pubkey: &Pubkey,
     epoch: u64,
 ) {
-    let (forester_pda_pubkey, _) = get_forester_pda_address(forester_derivation_pubkey);
+    let (forester_pda_pubkey, _) = get_forester_pda(forester_derivation_pubkey);
 
     let epoch_pda_pubkey = get_epoch_pda_address(epoch);
     let epoch_pda = rpc

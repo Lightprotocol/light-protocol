@@ -160,7 +160,7 @@ pub struct RegisterForesterEpoch<'info> {
     pub forester_pda: Account<'info, ForesterPda>,
     /// Instruction checks that current_epoch is the the current epoch and that
     /// the epoch is in registration phase.
-    #[account(init, seeds = [FORESTER_EPOCH_SEED, authority.key().to_bytes().as_slice(), current_epoch.to_le_bytes().as_slice()], bump, space =ForesterEpochPda::LEN , payer = fee_payer)]
+    #[account(init, seeds = [FORESTER_EPOCH_SEED, forester_pda.key().to_bytes().as_slice(), current_epoch.to_le_bytes().as_slice()], bump, space =ForesterEpochPda::LEN , payer = fee_payer)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
     pub protocol_config: Account<'info, ProtocolConfigPda>,
     #[account(init_if_needed, seeds = [current_epoch.to_le_bytes().as_slice()], bump, space =EpochPda::LEN, payer = fee_payer)]

@@ -18,7 +18,7 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use light_registry::utils::get_forester_epoch_pda_address;
+use light_registry::utils::get_forester_epoch_pda_from_authority;
 use light_registry::{ForesterEpochPda, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::debug;
@@ -59,7 +59,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         0
     } else {
         rpc.get_anchor_account::<ForesterEpochPda>(
-            &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+            &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
         )
         .await
         .unwrap()
@@ -201,7 +201,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     if !is_metadata_forester {
         assert_forester_counter(
             rpc,
-            &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+            &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
             pre_forester_counter,
             num_nullified,
         )
@@ -305,7 +305,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
     loop {
         let pre_forester_counter = if !signer_is_owner {
             rpc.get_anchor_account::<ForesterEpochPda>(
-                &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+                &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
             )
             .await
             .map_err(|e| RelayerUpdateError::RpcError)?
@@ -457,7 +457,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             if !signer_is_owner {
                 assert_forester_counter(
                     rpc,
-                    &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+                    &get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0,
                     pre_forester_counter,
                     1,
                 )

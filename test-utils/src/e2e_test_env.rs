@@ -885,6 +885,7 @@ where
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
+            None,
             &config,
             &address_config,
             0,
