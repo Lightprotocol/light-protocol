@@ -1164,10 +1164,6 @@ async fn test_delegation_mixed() {
             test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
 
         input_compressed_accounts.extend_from_slice(&delegate_input_compressed_accounts);
-        // let lamports_output_amount = input_compressed_accounts
-        //     .iter()
-        //     .map(|x| x.compressed_account.compressed_account.lamports)
-        //     .sum::<u64>();
         let input_amount = input_compressed_accounts
             .iter()
             .map(|x| x.token_data.amount)
