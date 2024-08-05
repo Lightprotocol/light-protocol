@@ -34,6 +34,17 @@ jobs:
         with:
           go-version-file: "./light-prover/go.mod"
 
+      - name: Install Elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
+          echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> "$GITHUB_ENV"
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: light-prover/formal-verification/lake-packages
+          key: "${{ env.LAKE_VERSION }}"
+
       - name: Download keys
         run: |
           cd light-prover
@@ -53,3 +64,14 @@ jobs:
         run: |
           cd light-prover
           go test -timeout 30m
+
+      - name: Extract circuit to Lean
+        run: |
+          cd light-prover
+          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-depth=26 --compressed-accounts=8
+
+      - name: Build lean project
+        run: |
+          cd light-prover/formal-verification
+          ~/.elan/bin/lake exe cache get
+          ~/.elan/bin/lake build

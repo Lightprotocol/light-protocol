@@ -1,26 +1,24 @@
-import FormalVerification
-import FormalVerification.Common
+import FormalVerification.Circuit
+import FormalVerification.Lemmas
 import Mathlib
-import ProvenZk
+import «ProvenZk»
 
-open SemaphoreMTB (F Order)
+open LightProver (F Order)
 
-instance : Fact (Nat.Prime SemaphoreMTB.Order) := Fact.mk (by apply bn256_Fr_prime)
+def sbox_uniqueAssignment (Inp : F): UniqueAssignment (LightProver.sbox Inp) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.sbox]; tauto
 
-def sbox_uniqueAssignment (Inp : F): UniqueAssignment (SemaphoreMTB.sbox Inp) id := UniqueAssignment.mk _ $ by
-  simp [SemaphoreMTB.sbox]; tauto
+def mds_3_uniqueAssignment (S : Vector F 3): UniqueAssignment (LightProver.mds_3 S) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.mds_3]; tauto
 
-def mds_3_uniqueAssignment (S : Vector F 3): UniqueAssignment (SemaphoreMTB.mds_3 S) id := UniqueAssignment.mk _ $ by
-  simp [SemaphoreMTB.mds_3]; tauto
+def fullRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (LightProver.fullRound_3_3 S C) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.fullRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
 
-def fullRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (SemaphoreMTB.fullRound_3_3 S C) id := UniqueAssignment.mk _ $ by
-  simp [SemaphoreMTB.fullRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
+def halfRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (LightProver.halfRound_3_3 S C) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.halfRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
 
-def halfRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (SemaphoreMTB.halfRound_3_3 S C) id := UniqueAssignment.mk _ $ by
-  simp [SemaphoreMTB.halfRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
-
-def poseidon_3_uniqueAssignment (inp : Vector F 3): UniqueAssignment (SemaphoreMTB.poseidon_3 inp) id := by
-  unfold SemaphoreMTB.poseidon_3
+def poseidon_3_uniqueAssignment (inp : Vector F 3): UniqueAssignment (LightProver.poseidon_3 inp) id := by
+  unfold LightProver.poseidon_3
   repeat (
     apply UniqueAssignment.compose
     . (first | apply fullRound_3_3_uniqueAssignment | apply halfRound_3_3_uniqueAssignment)
@@ -33,8 +31,36 @@ theorem poseidon_3_testVector : (poseidon_3_uniqueAssignment (vec![0,1,2])).val 
 
 def poseidon₂ : Hash F 2 := fun a => (poseidon_3_uniqueAssignment vec![0, a.get 0, a.get 1]).val.get 0
 
-lemma Poseidon2_uncps (a b : F) (k : F -> Prop) : SemaphoreMTB.Poseidon2 a b k ↔ k (poseidon₂ vec![a, b]) := by
-    unfold SemaphoreMTB.Poseidon2 poseidon₂
+@[simp]
+lemma Poseidon2_iff_uniqueAssignment (a b : F) (k : F -> Prop) : LightProver.Poseidon2 a b k ↔ k (poseidon₂ vec![a, b]) := by
+    unfold LightProver.Poseidon2 poseidon₂
     apply Iff.of_eq
     rw [(poseidon_3_uniqueAssignment _).equiv]
+    congr
+
+def mds_4_uniqueAssignment (S : Vector F 4): UniqueAssignment (LightProver.mds_4 S) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.mds_4]; tauto
+
+def fullRound_4_4_uniqueAssignment (S C : Vector F 4): UniqueAssignment (LightProver.fullRound_4_4 S C) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.fullRound_4_4, (sbox_uniqueAssignment _).equiv, (mds_4_uniqueAssignment _).equiv]; tauto
+
+def halfRound_4_4_uniqueAssignment (S C : Vector F 4): UniqueAssignment (LightProver.halfRound_4_4 S C) id := UniqueAssignment.mk _ $ by
+  simp [LightProver.halfRound_4_4, (sbox_uniqueAssignment _).equiv, (mds_4_uniqueAssignment _).equiv]; tauto
+
+def poseidon_4_uniqueAssignment (inp : Vector F 4): UniqueAssignment (LightProver.poseidon_4 inp) id := by
+  unfold LightProver.poseidon_4
+  repeat (
+    apply UniqueAssignment.compose
+    . (first | apply fullRound_4_4_uniqueAssignment | apply halfRound_4_4_uniqueAssignment)
+    intro _
+  )
+  apply UniqueAssignment.constant
+
+def poseidon₃ : Hash F 3 := fun a => (poseidon_4_uniqueAssignment vec![0, a.get 0, a.get 1, a.get 2]).val.get 0
+
+@[simp]
+lemma Poseidon3_iff_uniqueAssignment (a b c : F) (k : F -> Prop) : LightProver.Poseidon3 a b c k ↔ k (poseidon₃ vec![a, b, c]) := by
+    unfold LightProver.Poseidon3 poseidon₃
+    apply Iff.of_eq
+    rw [(poseidon_4_uniqueAssignment _).equiv]
     congr

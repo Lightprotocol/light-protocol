@@ -125,11 +125,10 @@ type LeafHashGadget struct {
 // Limit the number of bits to 248 + 1,
 // since we truncate address values to 31 bytes.
 func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
-	api.AssertIsDifferent(gadget.LeafLowerRangeValue, gadget.Value)
 	// Lower bound is less than value
-	AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248}.DefineGadget(api)
+	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
-	AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248}.DefineGadget(api)
+	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
 	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.NextIndex, In3: gadget.LeafHigherRangeValue})
 }
 
@@ -145,10 +144,9 @@ type AssertIsLess struct {
 func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 	// Add 2^N to B to ensure a positive number
 	oneShifted := new(big.Int).Lsh(big.NewInt(1), uint(gadget.N))
-	num := api.Add(gadget.A, api.Sub(oneShifted, gadget.B))
-	bin := api.ToBinary(num, gadget.N+1)
-	api.AssertIsEqual(0, bin[gadget.N])
-	return nil
+	num := api.Add(gadget.A, api.Sub(*oneShifted, gadget.B))
+	api.ToBinary(num, gadget.N)
+	return []frontend.Variable{}
 }
 
 type MerkleRootGadget struct {
