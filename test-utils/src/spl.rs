@@ -281,13 +281,17 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     from: &Keypair,
     recipients: &[Pubkey],
     amounts: &[u64],
-    lamports: Option<Vec<Option<u64>>>,
+    mut lamports: Option<Vec<Option<u64>>>,
     input_compressed_accounts: &[TokenDataWithContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
+    delegate_is_signer: bool,
     transaction_params: Option<TransactionParams>,
 ) {
     if recipients.len() != amounts.len() && amounts.len() != output_merkle_tree_pubkeys.len() {
+        println!("{:?}", recipients);
+        println!("{:?}", amounts);
+        println!("{:?}", output_merkle_tree_pubkeys);
         panic!("recipients, amounts, and output_merkle_tree_pubkeys must have the same length");
     }
     let mut input_merkle_tree_context = Vec::new();
@@ -351,7 +355,11 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .map(|x| x.merkle_tree_pubkey)
         .collect();
-
+    println!("{:?}", input_compressed_accounts);
+    println!(
+        "input_compressed_account_hashes: {:?}",
+        input_compressed_account_hashes
+    );
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
@@ -363,14 +371,15 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         .await;
     output_compressed_accounts.sort_by(|a, b| a.merkle_tree.cmp(&b.merkle_tree));
 
-    let delegate_pubkey = if delegate_change_account_index.is_some() {
+    let delegate_pubkey = if delegate_is_signer {
         Some(payer.pubkey())
     } else {
         None
     };
+    let authority_signer = if delegate_is_signer { payer } else { from };
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
-        &from.pubkey(), // authority
+        &authority_signer.pubkey(), // authority
         &input_merkle_tree_context,
         &output_compressed_accounts,
         &proof_rpc_result.root_indices,
@@ -400,9 +409,22 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .map(|x| x.lamports.unwrap_or(0))
         .sum::<u64>();
-    let output_merkle_tree_pubkeys = if sum_input_lamports > sum_output_lamports {
+    let sum_output_amounts = output_compressed_accounts
+        .iter()
+        .map(|x| x.amount)
+        .sum::<u64>();
+    let output_merkle_tree_pubkeys = if sum_input_lamports > sum_output_lamports
+        || sum_input_amounts > sum_output_amounts && delegate_is_signer
+    {
         let mut output_merkle_tree_pubkeys = output_merkle_tree_pubkeys.to_vec();
         output_merkle_tree_pubkeys.push(*output_merkle_tree_pubkeys.last().unwrap());
+        if let Some(lamports) = &mut lamports {
+            if sum_input_lamports != sum_output_lamports {
+                lamports.push(Some(sum_input_lamports - sum_output_lamports));
+            } else {
+                lamports.push(None);
+            }
+        }
         output_merkle_tree_pubkeys
     } else {
         output_merkle_tree_pubkeys.to_vec()
@@ -416,11 +438,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
     let input_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
-    let authority_signer = if delegate_change_account_index.is_some() {
-        payer
-    } else {
-        from
-    };
+
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],

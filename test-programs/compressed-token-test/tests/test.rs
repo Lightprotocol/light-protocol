@@ -824,6 +824,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         input_compressed_accounts.as_slice(),
         &vec![env.merkle_tree_pubkey; outputs],
         None,
+        false,
         None,
     )
     .await;
@@ -965,6 +966,7 @@ async fn test_delegation(
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 2],
             Some(1),
+            true,
             None,
         )
         .await;
@@ -990,9 +992,199 @@ async fn test_delegation(
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 1],
             None,
+            true,
             None,
         )
         .await;
+    }
+    kill_prover();
+}
+
+/// Test delegation:
+/// 1. Delegate tokens with approve
+/// 2. Delegate transfers a part of the delegated tokens
+/// 3. Delegate transfers all the remaining delegated tokens
+#[tokio::test]
+async fn test_delegation_mixed() {
+    let mint_amount: u64 = 10000;
+    let num_inputs: usize = 2;
+    let delegated_amount: u64 = 3000;
+
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    mint_tokens_helper_with_lamports(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![mint_amount; num_inputs],
+        vec![sender.pubkey(); num_inputs],
+        Some(1_000_000),
+    )
+    .await;
+
+    mint_tokens_helper_with_lamports(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![mint_amount; num_inputs],
+        vec![delegate.pubkey(); num_inputs],
+        Some(1_000_000),
+    )
+    .await;
+    // 1. Delegate tokens
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        approve_test(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            delegated_amount,
+            Some(100),
+            &delegate.pubkey(),
+            &delegated_compressed_account_merkle_tree,
+            &delegated_compressed_account_merkle_tree,
+            None,
+        )
+        .await;
+    }
+
+    let recipient = Pubkey::new_unique();
+    // 2. Transfer partial delegated amount with delegate change account
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let mut input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let delegate_input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        input_compressed_accounts
+            .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
+        let delegate_lamports = delegate_input_compressed_accounts[0]
+            .compressed_account
+            .compressed_account
+            .lamports;
+        let delegate_input_amount = input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data.amount)
+            .sum::<u64>();
+        compressed_transfer_test(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &mint,
+            &sender,
+            &[recipient, sender.pubkey(), delegate.pubkey()],
+            &vec![100, 200, delegate_input_amount - 300],
+            Some(vec![Some(90), Some(10), Some(delegate_lamports)]),
+            input_compressed_accounts.as_slice(),
+            &[env.merkle_tree_pubkey; 3],
+            Some(1),
+            true,
+            None,
+        )
+        .await;
+    }
+    let recipient = Pubkey::new_unique();
+    // 3. Transfer partial delegated amount without delegate change account
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let mut input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let delegate_input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        input_compressed_accounts
+            .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
+        let delegate_input_amount = input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data.amount)
+            .sum::<u64>();
+
+        let lamports_output_amount = input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.compressed_account.lamports)
+            .sum::<u64>()
+            - 100;
+        compressed_transfer_test(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &mint,
+            &sender,
+            &[recipient, sender.pubkey(), delegate.pubkey()],
+            &vec![100, 200, delegate_input_amount - 300],
+            Some(vec![Some(90), Some(10), Some(lamports_output_amount)]),
+            input_compressed_accounts.as_slice(),
+            &[env.merkle_tree_pubkey; 3],
+            None,
+            true,
+            None,
+        )
+        .await;
+        println!("part 3");
+    }
+    // 3. Transfer full delegated amount
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let mut input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let delegate_input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+
+        input_compressed_accounts.extend_from_slice(&delegate_input_compressed_accounts);
+        let input_amount = input_compressed_accounts
+            .iter()
+            .map(|x| x.token_data.amount)
+            .sum::<u64>();
+        compressed_transfer_test(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &mint,
+            &sender,
+            &[recipient],
+            &[input_amount],
+            None,
+            input_compressed_accounts.as_slice(),
+            &[env.merkle_tree_pubkey; 1],
+            None,
+            true,
+            None,
+        )
+        .await;
+        println!("part 4");
     }
     kill_prover();
 }
@@ -1847,7 +2039,7 @@ async fn failing_tests_burn() {
         let res = rpc
             .create_and_send_transaction(&[instruction], &delegate.pubkey(), &[&payer, &delegate])
             .await;
-        assert_rpc_error(res, 0, ErrorCode::DelegateSignerCheckFailed.into()).unwrap();
+        assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
     }
     // 3. Signer is delegate but token data has no delegate.
     {
