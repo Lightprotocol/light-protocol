@@ -1,17 +1,17 @@
 [package]
-name = "light-macros"
-version = "0.5.0"
+name = "light-trait-macro"
+version = "0.1.0"
 description = "Macros used in Light Protocol on-chain programs"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-bs58 = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 anchor-lang = "0.29"
+
 
 [dev-dependencies]
 anchor-spl = "0.29"

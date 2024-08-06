@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, FieldsNamed, Ident, Result};
 
-pub(crate) fn process_light_traits(input: DeriveInput) -> Result<TokenStream> {
+pub(crate) fn process_light_compressed_accounts(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
 
     let trait_impls = match input.data {
