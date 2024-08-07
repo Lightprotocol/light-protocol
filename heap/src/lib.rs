@@ -1,4 +1,4 @@
-use std::{alloc::Layout, mem::size_of, ptr::null_mut};
+use std::{alloc::Layout, cell::UnsafeCell, mem::size_of, ptr::null_mut};
 pub mod bench;
 
 #[cfg(target_os = "solana")]
@@ -10,10 +10,13 @@ use anchor_lang::{
 #[cfg(target_os = "solana")]
 #[global_allocator]
 pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
-    start: HEAP_START_ADDRESS as usize,
+    start: UnsafeCell::new(HEAP_START_ADDRESS as usize),
     len: HEAP_LENGTH,
 };
-
+// Implement Sync for BumpAllocator since Solana is single-threaded
+unsafe impl Sync for BumpAllocator {
+    // unimplemented!("Sync is not implemented for BumpAllocator");
+}
 #[cfg(target_os = "solana")]
 #[error_code]
 pub enum HeapError {
@@ -21,7 +24,7 @@ pub enum HeapError {
     InvalidHeapPos,
 }
 pub struct BumpAllocator {
-    pub start: usize,
+    pub start: UnsafeCell<usize>,
     pub len: usize,
 }
 
@@ -31,7 +34,7 @@ impl BumpAllocator {
     #[cfg(target_os = "solana")]
     pub fn new() -> Self {
         Self {
-            start: HEAP_START_ADDRESS as usize,
+            start: UnsafeCell::new(HEAP_START_ADDRESS as usize),
             len: HEAP_LENGTH,
         }
     }
@@ -42,7 +45,7 @@ impl BumpAllocator {
     ///
     /// This function is unsafe because it returns a raw pointer.
     pub unsafe fn pos(&self) -> usize {
-        let pos_ptr = self.start as *mut usize;
+        let pos_ptr = self.start.get();
         *pos_ptr
     }
 
@@ -52,7 +55,7 @@ impl BumpAllocator {
     ///
     /// Do not use this function if you initialized heap memory after pos which you still need.
     pub unsafe fn move_cursor(&self, pos: usize) {
-        let pos_ptr = self.start as *mut usize;
+        let pos_ptr = self.start.get();
         *pos_ptr = pos;
     }
 
@@ -74,11 +77,15 @@ impl BumpAllocator {
 
     #[cfg(target_os = "solana")]
     pub fn free_heap(&self, pos: usize) -> Result<()> {
-        if pos < self.start + BumpAllocator::RESERVED_MEM || pos > self.start + self.len {
-            return err!(HeapError::InvalidHeapPos);
-        }
+        unsafe {
+            if pos < *self.start.get() + BumpAllocator::RESERVED_MEM
+                || pos > *self.start.get() + self.len
+            {
+                return err!(HeapError::InvalidHeapPos);
+            }
 
-        unsafe { self.move_cursor(pos) };
+            self.move_cursor(pos)
+        }
         Ok(())
     }
 }
@@ -86,16 +93,16 @@ impl BumpAllocator {
 unsafe impl std::alloc::GlobalAlloc for BumpAllocator {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let pos_ptr = self.start as *mut usize;
+        let pos_ptr = self.start.get();
 
         let mut pos = *pos_ptr;
         if pos == 0 {
             // First time, set starting position
-            pos = self.start + self.len;
+            pos = *self.start.get() + self.len;
         }
         pos = pos.saturating_sub(layout.size());
         pos &= !(layout.align().wrapping_sub(1));
-        if pos < self.start + BumpAllocator::RESERVED_MEM {
+        if pos < *self.start.get() + BumpAllocator::RESERVED_MEM {
             return null_mut();
         }
         *pos_ptr = pos;
@@ -124,7 +131,7 @@ mod test {
         {
             let heap = [0u8; 128];
             let allocator = BumpAllocator {
-                start: heap.as_ptr() as *const _ as usize,
+                start: (heap.as_ptr() as *const _ as usize).into(),
                 len: heap.len(),
             };
             let pos = unsafe { allocator.pos() };
@@ -175,7 +182,7 @@ mod test {
         {
             let heap = [0u8; 128];
             let allocator = BumpAllocator {
-                start: heap.as_ptr() as *const _ as usize,
+                start: (heap.as_ptr() as *const _ as usize).into(),
                 len: heap.len(),
             };
             for i in 0..128 - size_of::<*mut u8>() {
@@ -195,7 +202,7 @@ mod test {
         {
             let heap = [0u8; 128];
             let allocator = BumpAllocator {
-                start: heap.as_ptr() as *const _ as usize,
+                start: (heap.as_ptr() as *const _ as usize).into(),
                 len: heap.len(),
             };
             let ptr =
@@ -220,7 +227,7 @@ mod test {
         {
             let heap = [0u8; 128];
             let allocator = BumpAllocator {
-                start: heap.as_ptr() as *const _ as usize,
+                start: (heap.as_ptr() as *const _ as usize).into(),
                 len: heap.len(),
             };
             let ptr =
