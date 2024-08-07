@@ -13,7 +13,7 @@ solana = [
 ]
 
 [dependencies]
-borsh = { version = "0.10" }
+borsh = { version = "1.4" }
 light-bounded-vec = { path = "../bounded-vec", version = "0.3.0" }
 light-hasher = { path = "../hasher", version = "0.3.0" }
 light-concurrent-merkle-tree = { path = "../concurrent", version = "0.3.0" }

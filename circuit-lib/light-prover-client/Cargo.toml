@@ -47,6 +47,6 @@ num-traits = "0.2.19"
 tokio = { workspace = true, optional = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"], optional = true  }
 sysinfo = "0.31"
-borsh = ">=0.9, <0.11"
+borsh = ">=0.9, <1.5"
 [dev-dependencies]
 duct = "0.13.7"

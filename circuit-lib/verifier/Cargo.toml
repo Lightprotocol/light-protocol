@@ -12,7 +12,7 @@ solana = ["solana-program"]
 [dependencies]
 groth16-solana = "0.0.3"
 thiserror = "1.0"
-borsh = "0.10"
+borsh = "1.4"
 solana-program = { workspace = true, optional = true }
 
 [dev-dependencies]
