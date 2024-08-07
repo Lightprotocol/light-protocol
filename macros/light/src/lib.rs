@@ -2,9 +2,11 @@ extern crate proc_macro;
 use accounts::process_light_accounts;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn};
+use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn, ItemStruct};
 use traits::process_light_traits;
+
 mod accounts;
+mod discriminator;
 mod pubkey;
 mod traits;
 
@@ -423,3 +425,11 @@ pub fn light_traits_derive(input: TokenStream) -> TokenStream {
 
 //     TokenStream::from(expanded)
 // }
+
+#[proc_macro_derive(LightDiscriminator)]
+pub fn light_discriminator(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    discriminator::discriminator(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}

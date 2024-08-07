@@ -26,3 +26,10 @@ pub trait Hasher {
 pub trait DataHasher {
     fn hash<H: crate::Hasher>(&self) -> Result<[u8; 32], HasherError>;
 }
+
+pub trait Discriminator {
+    const DISCRIMINATOR: [u8; 8];
+    fn discriminator() -> [u8; 8] {
+        Self::DISCRIMINATOR
+    }
+}
