@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "chai": "^5.1.1",
-    "mocha": "^10.6.0",
+    "mocha": "^10.7.0",
     "ts-mocha": "^10.0.0",
     "@types/bn.js": "^5.1.5",
     "@types/chai": "^4.3.16",
