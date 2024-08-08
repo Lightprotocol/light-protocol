@@ -290,7 +290,7 @@ where
             .elements
             .get(usize::from(element.next_index))
             .ok_or(IndexedMerkleTreeError::IndexHigherThanMax)?;
-        Ok(element.hash::<H>(&next_element.value)?)
+        element.hash::<H>(&next_element.value)
     }
 
     /// Returns an updated low element and a new element, created based on the
