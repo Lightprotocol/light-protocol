@@ -553,18 +553,16 @@ where
             ));
         }
 
-        let first_leaf_index = self.next_index();
         let first_changelog_index = (self.changelog.last_index() + 1) % self.changelog.capacity();
         let first_sequence_number = self.sequence_number() + 1;
 
         for (leaf_i, leaf) in leaves.iter().enumerate() {
+            let mut current_index = self.next_index();
+
             self.changelog
-                .push(ChangelogEntry::<HEIGHT>::default_with_index(
-                    first_leaf_index + leaf_i,
-                ));
+                .push(ChangelogEntry::<HEIGHT>::default_with_index(current_index));
             let changelog_index = self.changelog_index();
 
-            let mut current_index = self.next_index();
             let mut current_node = **leaf;
 
             self.changelog[changelog_index].path[0] = **leaf;

@@ -16,7 +16,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
+use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
 pub mod changelog;
@@ -154,10 +154,8 @@ where
     /// However, it comes with a tradeoff - the space available in the tree
     /// becomes lower by 1.
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
-        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
-
         let mut indexed_array = IndexedArray::<H, I>::default();
-        let element_bundle = indexed_array.append(&init_value)?;
+        let element_bundle = indexed_array.init()?;
         let new_low_leaf = element_bundle
             .new_low_element
             .hash::<H>(&element_bundle.new_element.value)?;

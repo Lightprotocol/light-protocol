@@ -347,7 +347,7 @@ impl HashSet {
         value: &BigUint,
         current_sequence_number: Option<usize>,
     ) -> Result<Option<usize>, HashSetError> {
-        for i in 0..self.capacity {
+        for i in 0..20 {
             let probe_index = self.probe_index(value, i);
             // PANICS: `probe_index()` ensures the bounds.
             let bucket = self.get_bucket(probe_index).unwrap();
@@ -428,7 +428,7 @@ impl HashSet {
         num_iterations: usize,
     ) -> Result<Option<(usize, bool)>, HashSetError> {
         let mut first_free_element: Option<(usize, bool)> = None;
-        for i in start_iter..num_iterations {
+        for i in start_iter..start_iter + num_iterations {
             let probe_index = self.probe_index(value, i);
             let bucket = self.get_bucket(probe_index).unwrap();
 

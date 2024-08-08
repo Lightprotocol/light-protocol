@@ -290,12 +290,7 @@ where
             .elements
             .get(usize::from(element.next_index))
             .ok_or(IndexedMerkleTreeError::IndexHigherThanMax)?;
-        let hash = H::hashv(&[
-            bigint_to_be_bytes_array::<32>(&element.value)?.as_ref(),
-            element.next_index.to_be_bytes().as_ref(),
-            bigint_to_be_bytes_array::<32>(&next_element.value)?.as_ref(),
-        ])?;
-        Ok(hash)
+        Ok(element.hash::<H>(&next_element.value)?)
     }
 
     /// Returns an updated low element and a new element, created based on the
