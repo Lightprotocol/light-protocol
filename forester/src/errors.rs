@@ -50,6 +50,41 @@ pub enum ForesterError {
     #[error("unknown error")]
     Unknown,
 }
+
+impl Clone for ForesterError {
+    fn clone(&self) -> Self {
+        match self {
+            ForesterError::RpcError(_) => ForesterError::Custom("RPC Error".to_string()),
+            ForesterError::DeserializeError(e) => ForesterError::DeserializeError(e.clone()),
+            ForesterError::CopyMerkleTreeError(_) => {
+                ForesterError::Custom("Copy Merkle Tree Error".to_string())
+            }
+            ForesterError::AccountCompressionError(_) => {
+                ForesterError::Custom("Account Compression Error".to_string())
+            }
+            ForesterError::HashSetError(_) => ForesterError::Custom("HashSet Error".to_string()),
+            ForesterError::PhotonApiError(_) => {
+                ForesterError::Custom("Photon API Error".to_string())
+            }
+            ForesterError::BincodeError(_) => ForesterError::Custom("Bincode Error".to_string()),
+            ForesterError::NoProofsFound => ForesterError::NoProofsFound,
+            ForesterError::MaxRetriesReached => ForesterError::MaxRetriesReached,
+            ForesterError::SendError(s) => ForesterError::SendError(s.clone()),
+            ForesterError::IndexerError(s) => ForesterError::IndexerError(s.clone()),
+            ForesterError::RecvError(e) => ForesterError::RecvError(e.clone()),
+            ForesterError::JoinError(s) => ForesterError::JoinError(s.clone()),
+            ForesterError::PubsubClientError(_) => {
+                ForesterError::Custom("PubsubClient Error".to_string())
+            }
+            ForesterError::ChannelDisconnected => ForesterError::ChannelDisconnected,
+            ForesterError::SubscriptionTimeout => ForesterError::SubscriptionTimeout,
+            ForesterError::UnexpectedMessage(s) => ForesterError::UnexpectedMessage(s.clone()),
+            ForesterError::Custom(s) => ForesterError::Custom(s.clone()),
+            ForesterError::Unknown => ForesterError::Unknown,
+        }
+    }
+}
+
 impl ForesterError {
     pub fn to_owned(&self) -> Self {
         match self {

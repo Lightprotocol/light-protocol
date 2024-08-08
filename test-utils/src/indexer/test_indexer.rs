@@ -147,7 +147,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
-        debug!("Getting proofs for {:?}", hashes);
+        info!("Getting proofs for {:?}", hashes);
         let mut proofs: Vec<MerkleProof> = Vec::new();
         hashes.iter().for_each(|hash| {
             let hash_array: [u8; 32] = bs58::decode(hash)
@@ -584,27 +584,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         panic!("Failed to get proof from server");
     }
 
-    /// returns compressed_accounts with the owner pubkey
-    /// does not return token accounts.
-    fn get_compressed_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.compressed_accounts
-            .iter()
-            .filter(|x| x.compressed_account.owner == *owner)
-            .cloned()
-            .collect()
-    }
-
-    fn get_compressed_token_accounts_by_owner(&self, owner: &Pubkey) -> Vec<TokenDataWithContext> {
-        self.token_compressed_accounts
-            .iter()
-            .filter(|x| x.token_data.owner == *owner)
-            .cloned()
-            .collect()
-    }
-
     fn add_address_merkle_tree_accounts(
         &mut self,
         merkle_tree_keypair: &Keypair,
@@ -625,6 +604,27 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             self.address_merkle_trees.len()
         );
         address_merkle_tree_accounts
+    }
+
+    /// returns compressed_accounts with the owner pubkey
+    /// does not return token accounts.
+    fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        self.compressed_accounts
+            .iter()
+            .filter(|x| x.compressed_account.owner == *owner)
+            .cloned()
+            .collect()
+    }
+
+    fn get_compressed_token_accounts_by_owner(&self, owner: &Pubkey) -> Vec<TokenDataWithContext> {
+        self.token_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.owner == *owner)
+            .cloned()
+            .collect()
     }
 
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
@@ -850,12 +850,12 @@ impl<R: RpcConnection> TestIndexer<R> {
             for i in 0..fetched_merkle_tree.roots.len() {
                 info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
             }
-            debug!(
+            info!(
                 "sequence number {:?}",
                 fetched_merkle_tree.sequence_number()
             );
-            debug!("root index {:?}", fetched_merkle_tree.root_index());
-            debug!("local sequence number {:?}", merkle_tree.sequence_number);
+            info!("root index {:?}", fetched_merkle_tree.root_index());
+            info!("local sequence number {:?}", merkle_tree.sequence_number);
 
             assert_eq!(
                 merkle_tree.root(),
