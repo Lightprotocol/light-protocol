@@ -10,7 +10,6 @@ use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
     PackedMerkleContext,
 };
-use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
 use light_test_utils::indexer::{test_indexer::TestIndexer, Indexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -67,7 +66,7 @@ async fn test_name_service() {
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
-    let mut record = &compressed_account
+    let record = &compressed_account
         .compressed_account
         .data
         .as_ref()
@@ -95,7 +94,7 @@ async fn test_name_service() {
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
-    let mut record = &compressed_account
+    let record = &compressed_account
         .compressed_account
         .data
         .as_ref()
