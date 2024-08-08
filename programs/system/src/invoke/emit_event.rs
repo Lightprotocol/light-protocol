@@ -1,9 +1,5 @@
-use account_compression::utils::constants::NOOP_PUBKEY;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-    Bumps,
-};
+use account_compression::emit_indexer_event;
+use anchor_lang::{prelude::*, Bumps};
 
 use crate::{
     errors::SystemProgramError,
@@ -36,12 +32,6 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         is_compress: inputs.is_compress,
     };
 
-    if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY)
-        || !ctx.accounts.get_noop_program().executable
-    {
-        return err!(SystemProgramError::InvalidNoopPubkey);
-    }
-
     // 10240 = 10 * 1024 the max instruction data of a cpi.
     let data_capacity = 10240;
     let mut data = Vec::with_capacity(data_capacity);
@@ -55,14 +45,6 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         );
         return err!(SystemProgramError::InvalidCapacity);
     }
-    let instruction = Instruction {
-        program_id: ctx.accounts.get_noop_program().key(),
-        accounts: vec![],
-        data,
-    };
-    invoke(
-        &instruction,
-        &[ctx.accounts.get_noop_program().to_account_info()],
-    )?;
-    Ok(())
+
+    emit_indexer_event(data, ctx.accounts.get_noop_program())
 }
