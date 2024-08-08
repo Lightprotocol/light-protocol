@@ -197,6 +197,7 @@ mod tests {
                         queue_index: None,
                     },
                     root_index: iter.into(),
+                    read_only: false,
                 },
             ],
             output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {

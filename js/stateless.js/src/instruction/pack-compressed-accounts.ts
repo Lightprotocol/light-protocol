@@ -138,6 +138,7 @@ export function packCompressedAccounts(
                 queueIndex: null,
             },
             rootIndex: inputStateRootIndices[index],
+            readOnly: false,
         });
     });
 

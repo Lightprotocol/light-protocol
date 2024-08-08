@@ -1276,6 +1276,13 @@ export type LightCompressedToken = {
                         ];
                         type: 'u16';
                     },
+                    {
+                        name: 'readOnly';
+                        docs: [
+                            'Placeholder to mark accounts read-only unimplemented set to false.',
+                        ];
+                        type: 'bool';
+                    },
                 ];
             };
         },
@@ -2849,6 +2856,13 @@ export const IDL: LightCompressedToken = {
                             'Index of root used in inclusion validity proof.',
                         ],
                         type: 'u16',
+                    },
+                    {
+                        name: 'readOnly',
+                        docs: [
+                            'Placeholder to mark accounts read-only unimplemented set to false.',
+                        ],
+                        type: 'bool',
                     },
                 ],
             },

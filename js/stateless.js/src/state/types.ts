@@ -7,6 +7,7 @@ export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
+    readOnly: boolean;
 }
 
 export interface PackedMerkleContext {

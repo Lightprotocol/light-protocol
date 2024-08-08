@@ -123,6 +123,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                 leaf_index: context.leaf_index,
                 queue_index: None,
             },
+            read_only: false,
             root_index: input_root_indices[i],
         });
     }

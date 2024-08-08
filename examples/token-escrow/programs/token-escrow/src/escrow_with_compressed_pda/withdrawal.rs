@@ -98,6 +98,7 @@ fn create_compressed_pda_data_based_on_diff(
         compressed_account: old_compressed_account.compressed_account,
         merkle_context: input_compressed_pda.merkle_context,
         root_index: input_compressed_pda.root_index,
+        read_only: false,
     };
     let new_timelock_compressed_pda = EscrowTimeLock {
         slot: current_slot

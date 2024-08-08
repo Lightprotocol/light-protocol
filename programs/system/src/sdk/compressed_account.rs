@@ -10,6 +10,8 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub merkle_context: PackedMerkleContext,
     /// Index of root used in inclusion validity proof.
     pub root_index: u16,
+    /// Placeholder to mark accounts read-only unimplemented set to false.
+    pub read_only: bool,
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

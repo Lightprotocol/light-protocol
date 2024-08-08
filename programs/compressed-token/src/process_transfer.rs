@@ -552,6 +552,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 compressed_account,
                 merkle_context: input_token_data.merkle_context,
                 root_index: input_token_data.root_index,
+                read_only: false,
             },
         );
     }

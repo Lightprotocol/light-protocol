@@ -9,7 +9,9 @@ import { BN254, bn } from './BN254';
 import { Buffer } from 'buffer';
 
 export type CompressedAccountWithMerkleContext = CompressedAccount &
-    MerkleContext;
+    MerkleContext & {
+        readOnly: boolean;
+    };
 
 /**
  * Context for compressed account inserted into a state Merkle tree
@@ -55,6 +57,7 @@ export const createCompressedAccountWithMerkleContext = (
 ): CompressedAccountWithMerkleContext => ({
     ...createCompressedAccount(owner, lamports, data, address),
     ...merkleContext,
+    readOnly: false,
 });
 
 export const createMerkleContext = (
@@ -134,6 +137,7 @@ if (import.meta.vitest) {
                 nullifierQueue,
                 hash,
                 leafIndex,
+                readOnly: false,
             });
         });
     });

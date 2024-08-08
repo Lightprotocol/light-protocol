@@ -17,6 +17,9 @@ pub fn sum_check(
 ) -> Result<()> {
     let mut sum: u64 = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
+        if compressed_account_with_context.read_only {
+            unimplemented!("read_only accounts are not supported. Set read_only to false.");
+        }
         sum = sum
             .checked_add(compressed_account_with_context.compressed_account.lamports)
             .ok_or(ProgramError::ArithmeticOverflow)
@@ -139,6 +142,7 @@ mod test {
                     queue_index: None,
                 },
                 root_index: 1,
+                read_only: false,
             });
         }
         let mut outputs = Vec::new();
