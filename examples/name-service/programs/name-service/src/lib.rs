@@ -72,6 +72,8 @@ pub mod name_service {
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
+        signer_check(&ctx, &compressed_account)?;
+
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
             name,
@@ -111,6 +113,8 @@ pub mod name_service {
         proof: CompressedProof,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
+        signer_check(&ctx, &compressed_account)?;
+
         let signer_seed = b"cpi_signer".as_slice();
         // let signer_seed = b"name_service".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -158,6 +162,8 @@ pub struct NameRecord {
 pub enum CustomError {
     #[msg("No authority to perform this action")]
     Unauthorized,
+    #[msg("Record account has no data")]
+    NoData,
 }
 
 #[light_accounts]
@@ -179,6 +185,26 @@ impl light_hasher::DataHasher for NameRecord {
             .unwrap()
             .0;
         H::hashv(&[&owner, self.name.as_bytes()])
+    }
+}
+
+fn signer_check(
+    ctx: &Context<'_, '_, '_, '_, NameService<'_>>,
+    compressed_account: &PackedCompressedAccountWithMerkleContext,
+) -> Result<()> {
+    let record = NameRecord::deserialize(
+        &mut compressed_account
+            .compressed_account
+            .data
+            .as_ref()
+            .ok_or(CustomError::NoData)?
+            .data
+            .as_slice(),
+    )?;
+    if ctx.accounts.signer.key() == record.owner {
+        Ok(())
+    } else {
+        err!(CustomError::Unauthorized)
     }
 }
 
