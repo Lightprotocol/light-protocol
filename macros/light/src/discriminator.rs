@@ -40,5 +40,6 @@ mod tests {
         let output = output.to_string();
 
         assert!(output.contains("impl light_hasher :: Discriminator for MyAccount"));
+        assert!(output.contains("[181 , 255 , 112 , 42 , 17 , 188 , 66 , 199]"));
     }
 }
