@@ -12,5 +12,7 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 
+light-hasher = { path = "../../merkle-tree/hasher", version = "0.3.0" }
+
 [lib]
 proc-macro = true
