@@ -157,11 +157,6 @@ async fn create_record<R: RpcConnection>(
         new_address_params,
         name: "example.io".to_string(),
         rdata: rdata.clone(),
-        // cpi_context: Some(CompressedCpiContext {
-        //     cpi_context_account_index: 2,
-        //     set_context: true,
-        //     first_set_context: true,
-        // }),
         cpi_context: None,
     };
 
@@ -233,11 +228,6 @@ async fn update_record<R: RpcConnection>(
         address: *address,
         name: "example.io".to_string(),
         rdata: rdata.clone(),
-        // cpi_context: Some(CompressedCpiContext {
-        //     cpi_context_account_index: 2,
-        //     set_context: true,
-        //     first_set_context: true,
-        // }),
         cpi_context: None,
     };
 
@@ -304,11 +294,6 @@ async fn delete_record<R: RpcConnection>(
             root_index: rpc_result.root_indices[0],
         },
         proof: rpc_result.proof,
-        // cpi_context: Some(CompressedCpiContext {
-        //     cpi_context_account_index: 2,
-        //     set_context: true,
-        //     first_set_context: true,
-        // }),
         cpi_context: None,
     };
 
