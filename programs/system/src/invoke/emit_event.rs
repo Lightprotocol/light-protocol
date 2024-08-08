@@ -37,7 +37,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     };
 
     if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY)
-        && !ctx.accounts.get_noop_program().executable
+        || !ctx.accounts.get_noop_program().executable
     {
         return err!(SystemProgramError::InvalidNoopPubkey);
     }
