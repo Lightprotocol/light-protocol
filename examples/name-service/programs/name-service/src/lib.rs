@@ -42,13 +42,8 @@ pub mod name_service {
         let compressed_account = create_compressed_account(&ctx, &record, &new_address_params)?;
 
         let signer_seed = b"cpi_signer".as_slice();
-        // let signer_seed = b"name_service".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
-        let signer_seeds = [
-            signer_seed,
-            // &ctx.accounts.signer.key.to_bytes()[..],
-            &[bump],
-        ];
+        let signer_seeds = [signer_seed, &[bump]];
 
         let inputs = create_cpi_inputs_for_new_address(
             proof,
@@ -82,13 +77,8 @@ pub mod name_service {
         let new_compressed_account = compressed_account_with_address(&record, address)?;
 
         let signer_seed = b"cpi_signer".as_slice();
-        // let signer_seed = b"name_service".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
-        let signer_seeds = [
-            signer_seed,
-            // &ctx.accounts.signer.key.to_bytes()[..],
-            &[bump],
-        ];
+        let signer_seeds = [signer_seed, &[bump]];
 
         let inputs = InstructionDataInvokeCpi {
             proof: Some(proof),
@@ -116,13 +106,8 @@ pub mod name_service {
         signer_check(&ctx, &compressed_account)?;
 
         let signer_seed = b"cpi_signer".as_slice();
-        // let signer_seed = b"name_service".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
-        let signer_seeds = [
-            signer_seed,
-            // &ctx.accounts.signer.key.to_bytes()[..],
-            &[bump],
-        ];
+        let signer_seeds = [signer_seed, &[bump]];
 
         let inputs = InstructionDataInvokeCpi {
             proof: Some(proof),
