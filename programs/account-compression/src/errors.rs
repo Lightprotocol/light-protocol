@@ -53,4 +53,5 @@ pub enum AccountCompressionErrorCode {
     #[msg("InvalidAccountBalance")]
     InvalidAccountBalance,
     UnsupportedAdditionalBytes,
+    InvalidGroup,
 }

@@ -11,6 +11,7 @@ pub struct DeregisterProgram<'info> {
         mut, close=close_recipient
     )]
     pub registered_program_pda: Account<'info, RegisteredProgram>,
+    #[account( constraint= group_authority_pda.key() == registered_program_pda.group_authority_pda @AccountCompressionErrorCode::InvalidGroup)]
     pub group_authority_pda: Account<'info, GroupAuthority>,
     /// CHECK: recipient is not checked.
     #[account(mut)]

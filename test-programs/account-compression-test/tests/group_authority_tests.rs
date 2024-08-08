@@ -8,6 +8,7 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::test_env::get_group_pda;
 use light_test_utils::{airdrop_lamports, test_env::SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
@@ -221,7 +222,7 @@ async fn test_create_and_update_group() {
         let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
         let accounts = account_compression::accounts::DeregisterProgram {
             authority: context.get_payer().pubkey(),
-            registered_program_pda: registered_program_pda,
+            registered_program_pda,
             group_authority_pda: group_accounts.0,
             close_recipient,
         };
@@ -240,6 +241,59 @@ async fn test_create_and_update_group() {
             AccountCompressionErrorCode::InvalidAuthority.into(),
         )
         .unwrap();
+    }
+    // deregister program with invalid group
+    {
+        let invalid_group_authority = Keypair::new();
+        context
+            .airdrop_lamports(&invalid_group_authority.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+        let invalid_group = get_group_pda(invalid_group_authority.pubkey());
+
+        let instruction_data = account_compression::instruction::InitializeGroupAuthority {
+            authority: invalid_group_authority.pubkey(),
+        };
+
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: vec![
+                AccountMeta::new(invalid_group_authority.pubkey(), true),
+                AccountMeta::new(invalid_group_authority.pubkey(), true),
+                AccountMeta::new(invalid_group, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+            data: instruction_data.data(),
+        };
+        context
+            .create_and_send_transaction(
+                &[instruction],
+                &invalid_group_authority.pubkey(),
+                &[&invalid_group_authority],
+            )
+            .await
+            .unwrap();
+        let close_recipient = Pubkey::new_unique();
+        let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
+        let accounts = account_compression::accounts::DeregisterProgram {
+            authority: invalid_group_authority.pubkey(),
+            registered_program_pda,
+            group_authority_pda: invalid_group,
+            close_recipient,
+        };
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: deregister_program_ix.data(),
+        };
+        let result = context
+            .create_and_send_transaction(
+                &[instruction],
+                &invalid_group_authority.pubkey(),
+                &[&invalid_group_authority],
+            )
+            .await;
+        assert_rpc_error(result, 0, AccountCompressionErrorCode::InvalidGroup.into()).unwrap();
     }
     // successfully deregister program
     {
