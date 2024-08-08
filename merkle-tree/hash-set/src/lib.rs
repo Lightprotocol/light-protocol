@@ -12,6 +12,8 @@ use thiserror::Error;
 
 pub mod zero_copy;
 
+pub const ITERATIONS: usize = 20;
+
 #[derive(Debug, Error, PartialEq)]
 pub enum HashSetError {
     #[error("The hash set is full, cannot add any new elements")]
@@ -309,7 +311,7 @@ impl HashSet {
         value: &BigUint,
         current_sequence_number: usize,
     ) -> Result<usize, HashSetError> {
-        let index_bucket = self.find_element_iter(value, current_sequence_number, 0, 20)?;
+        let index_bucket = self.find_element_iter(value, current_sequence_number, 0, ITERATIONS)?;
         let (index, is_new) = match index_bucket {
             Some(index) => index,
             None => {
@@ -347,7 +349,7 @@ impl HashSet {
         value: &BigUint,
         current_sequence_number: Option<usize>,
     ) -> Result<Option<usize>, HashSetError> {
-        for i in 0..20 {
+        for i in 0..ITERATIONS {
             let probe_index = self.probe_index(value, i);
             // PANICS: `probe_index()` ensures the bounds.
             let bucket = self.get_bucket(probe_index).unwrap();
