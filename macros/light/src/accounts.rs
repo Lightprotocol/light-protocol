@@ -8,17 +8,20 @@ pub(crate) fn process_light_accounts(input: DeriveInput) -> Result<TokenStream> 
     if let Data::Struct(ref mut data_struct) = output.data {
         if let Fields::Named(ref mut fields) = data_struct.fields {
             let fields_to_add = [
-                ("light_system_program", "Program<'info, LightSystemProgram>"),
+                (
+                    "light_system_program",
+                    "Program<'info, ::light_system_program::program::LightSystemProgram>",
+                ),
                 ("system_program", "Program<'info, System>"),
                 (
                     "account_compression_program",
-                    "Program<'info, AccountCompression>",
+                    "Program<'info, ::account_compression::program::AccountCompression>",
                 ),
             ];
             let fields_to_add_check = [
                 (
                     "registered_program_pda",
-                    "Account<'info, RegisteredProgram>",
+                    "Account<'info, ::account_compression::RegisteredProgram>",
                 ),
                 ("noop_program", "AccountInfo<'info>"),
                 ("account_compression_authority", "AccountInfo<'info>"),
