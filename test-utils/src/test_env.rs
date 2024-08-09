@@ -352,7 +352,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         ];
 
         registered_epoch
-            .fetch_account_and_add_trees_with_schedule(context, tree_accounts.clone())
+            .fetch_account_and_add_trees_with_schedule(context, &tree_accounts)
             .await
             .unwrap();
         let ix = create_finalize_registration_instruction(&forester.pubkey(), 0);

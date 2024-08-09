@@ -726,10 +726,7 @@ where
                     forester
                         .forester
                         .active
-                        .fetch_account_and_add_trees_with_schedule(
-                            &mut self.rpc,
-                            tree_accounts.clone(),
-                        )
+                        .fetch_account_and_add_trees_with_schedule(&mut self.rpc, &tree_accounts)
                         .await
                         .unwrap();
                     let ix = create_finalize_registration_instruction(

@@ -23,6 +23,7 @@ impl<R: RpcConnection> RpcPool<R> {
 
     pub async fn new(config: Arc<ForesterConfig>) -> RpcPool<R> {
         let mut connections: Vec<Arc<Mutex<R>>> = Vec::new();
+        // TODO: extract it to config file
         for _ in 0..20 {
             let rpc = R::new(
                 &config.external_services.rpc_url,
