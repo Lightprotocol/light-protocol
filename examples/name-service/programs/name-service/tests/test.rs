@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use anchor_lang::solana_program::hash;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_system_program::sdk::address::{derive_address, pack_new_address_params};
@@ -37,8 +38,10 @@ async fn test_name_service() {
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
         TestIndexer::init_from_env(&payer, &env, true, true).await;
 
-    let seed = [1u8; 32];
-    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
+    let name = "example.io";
+
+    let address_seed = hash::hash(name.as_bytes()).to_bytes();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
 
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
@@ -56,7 +59,6 @@ async fn test_name_service() {
         &env,
         &rdata_1,
         &payer,
-        &seed,
         &address,
         &account_compression_authority,
         &registered_program_pda,
@@ -122,7 +124,6 @@ async fn create_record<R: RpcConnection>(
     env: &EnvAccounts,
     rdata: &RData,
     payer: &Keypair,
-    seed: &[u8; 32],
     address: &[u8; 32],
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
@@ -137,24 +138,18 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
-    let new_address_params = NewAddressParams {
-        seed: *seed,
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
-    };
-
     let mut remaining_accounts = HashMap::new();
     remaining_accounts.insert(env.merkle_tree_pubkey, 0);
     remaining_accounts.insert(env.nullifier_queue_pubkey, 1);
-    remaining_accounts.insert(env.cpi_context_account_pubkey, 2);
-
-    let new_address_params =
-        pack_new_address_params(&[new_address_params], &mut remaining_accounts)[0];
+    remaining_accounts.insert(env.address_merkle_tree_pubkey, 2);
+    remaining_accounts.insert(env.address_merkle_tree_queue_pubkey, 3);
+    remaining_accounts.insert(env.cpi_context_account_pubkey, 4);
 
     let instruction_data = name_service::instruction::CreateRecord {
         proof: rpc_result.proof,
-        new_address_params,
+        address_merkle_tree_account_index: 2,
+        address_queue_account_index: 3,
+        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
         name: "example.io".to_string(),
         rdata: rdata.clone(),
         cpi_context: None,

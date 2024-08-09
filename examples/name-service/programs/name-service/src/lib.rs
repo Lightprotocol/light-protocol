@@ -22,6 +22,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 #[program]
 pub mod name_service {
 
+    use anchor_lang::solana_program::hash;
     use light_sdk::utils::create_cpi_inputs_for_new_address;
 
     use super::*;
@@ -29,11 +30,21 @@ pub mod name_service {
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
         proof: CompressedProof,
-        new_address_params: NewAddressParamsPacked,
+        address_merkle_tree_account_index: u8,
+        address_queue_account_index: u8,
+        address_merkle_tree_root_index: u16,
         name: String,
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
+        let address_seed = hash::hash(name.as_bytes()).to_bytes();
+        let new_address_params = NewAddressParamsPacked {
+            seed: address_seed,
+            address_queue_account_index,
+            address_merkle_tree_account_index,
+            address_merkle_tree_root_index,
+        };
+
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
             name,
