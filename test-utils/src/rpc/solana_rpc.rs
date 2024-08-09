@@ -137,6 +137,15 @@ impl RpcConnection for SolanaRpcConnection {
         Self { client, payer }
     }
 
+    fn get_program_accounts(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
+        self.client
+            .get_program_accounts(program_id)
+            .map_err(RpcError::from)
+    }
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,

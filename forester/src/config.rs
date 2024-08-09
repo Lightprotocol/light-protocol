@@ -15,7 +15,7 @@ impl ForesterEpochInfo {
     /// 1. calculate epoch phases
     /// 2. set current epoch state
     /// 3. derive tree schedule for all input trees
-    pub fn add_trees_with_schedule(&mut self, trees: Vec<TreeAccounts>, current_solana_slot: u64) {
+    pub fn add_trees_with_schedule(&mut self, trees: &[TreeAccounts], current_solana_slot: u64) {
         // let state = self.phases.get_current_epoch_state(current_solana_slot);
         // TODO: add epoch state to sync schedule
         for tree in trees {

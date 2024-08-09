@@ -16,6 +16,9 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
         unimplemented!()
     }
 
+    fn get_program_accounts(&self, program_id: &Pubkey)
+        -> Result<Vec<(Pubkey, Account)>, RpcError>;
+
     fn process_transaction(
         &mut self,
         transaction: Transaction,

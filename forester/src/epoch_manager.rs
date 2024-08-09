@@ -112,6 +112,7 @@ struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     indexer: Arc<Mutex<I>>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
+    trees: Vec<TreeAccounts>,
 }
 
 #[derive(Debug, Clone)]
@@ -134,6 +135,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         rpc_pool: Arc<RpcPool<R>>,
         indexer: Arc<Mutex<I>>,
         work_report_sender: mpsc::Sender<WorkReport>,
+        trees: Vec<TreeAccounts>,
     ) -> Result<Self> {
         Ok(Self {
             config,
@@ -142,6 +144,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             indexer,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
+            trees,
         })
     }
 
@@ -169,9 +172,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     async fn monitor_epochs(&self, tx: mpsc::Sender<u64>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
         debug!("Starting epoch monitor");
-
-        let phases = get_epoch_phases(&self.protocol_config, 0);
-        debug!("Phases: {:?}", phases);
 
         loop {
             let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
@@ -399,6 +399,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             );
         }
 
+        // TODO: we can put this ix into every tx of the first batch of the current active phase
         let ix = create_finalize_registration_instruction(
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
@@ -417,13 +418,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .await?
             .ok_or_else(|| ForesterError::Custom("Failed to get ForesterEpochPda".to_string()))?;
 
-        let trees = fetch_trees(&self.config.external_services.rpc_url).await;
-        debug!(
-            "Fetched trees for epoch {}: {:?}",
-            epoch_info.epoch.epoch, trees
-        );
-        epoch_info.add_trees_with_schedule(trees, slot);
-        info!("epoch_info: {:?}", epoch_info);
+        epoch_info.add_trees_with_schedule(&self.trees, slot);
         Ok(epoch_info)
     }
 
@@ -512,7 +507,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                             last_processed_slot = update.slot;
                         }
                         else {
-                             info!("Active phase has ended, stopping queue processing");
+                            debug!("Active phase has ended, stopping queue processing");
                             break;
                         }
                     }
@@ -639,7 +634,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                             idx, completed_chunks, signature
                         );
                     }
-                    info!(
+                    debug!(
                         "Chunk {} TPS: {:.2}, Average TPS: {:.2}",
                         completed_chunks, chunk_tps, avg_tps
                     );
@@ -653,7 +648,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         if total_duration.as_secs_f64() > 0.0 {
             let overall_avg_tps = total_transactions as f64 / total_duration.as_secs_f64();
-            info!("Overall average TPS: {:.2}", overall_avg_tps);
+            debug!("Overall average TPS: {:.2}", overall_avg_tps);
         }
 
         Ok(())
@@ -843,12 +838,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 ForesterError::Custom("No tree schedule found for the current tree".to_string())
             })?;
 
-        info!("tree_schedule: {:?}", tree_schedule);
-        info!(
+        debug!("tree_schedule: {:?}", tree_schedule);
+        debug!(
             "Checking eligibility for tree {:?} at light slot {} / solana slot {}",
             tree_account.merkle_tree, light_slot, current_slot
         );
-        info!(
+        debug!(
             "tree_schedule.slots[{}] = {:?}",
             light_slot, tree_schedule.slots[light_slot as usize]
         );
@@ -867,7 +862,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             return Err(ForesterError::Custom("Empty indexer chunk".to_string()));
         }
         let work_item = first_work_item.unwrap();
-        info!(
+        debug!(
             "Processing work item {:?} with {} instructions",
             work_item.queue_item_data.hash,
             transaction_chunk.len()
@@ -930,7 +925,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         proofs: &[Proof],
         work_items: &[WorkItem],
     ) -> Result<Signature> {
-        info!(
+        debug!(
             "Processing transaction batch with {} instructions",
             instructions.len()
         );
@@ -953,6 +948,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         transaction.sign(&[&self.config.payer_keypair], recent_blockhash);
 
         let mut rpc_guard = rpc.lock().await;
+
+        // TODO: replace it with send, do not wait for confirmation and wait for confirmation on another thread
+        // we need to introduce retry on timeout when confirmation is not received
         let signature = rpc_guard.process_transaction(transaction).await?;
         drop(rpc_guard);
 
@@ -1171,14 +1169,19 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
     let mut retry_delay = INITIAL_RETRY_DELAY;
     let start_time = Instant::now();
 
+    let rpc = rpc_pool.get_connection().await.lock().await.clone();
+    let trees = fetch_trees(&rpc).await;
+    drop(rpc);
+
     while retry_count < config.max_retries {
-        info!("Creating EpochManager (attempt {})", retry_count + 1);
+        debug!("Creating EpochManager (attempt {})", retry_count + 1);
         match EpochManager::new(
             config.clone(),
             protocol_config.clone(),
             rpc_pool.clone(),
             indexer.clone(),
             work_report_sender.clone(),
+            trees.clone(),
         )
         .await
         {

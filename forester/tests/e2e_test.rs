@@ -309,6 +309,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut forester1_reported_work_for_epoch1 = false;
     let mut forester2_reported_work_for_epoch1 = false;
 
+    // TODO: add timeout
     loop {
         select! {
             Some(report) = work_report_receiver1.recv(), if !forester1_reported_work_for_epoch1 => {
