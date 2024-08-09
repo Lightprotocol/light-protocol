@@ -38,10 +38,6 @@ pub struct TokenData {
 /// delegated_amount together. If is native hash is_native else is omitted.
 /// If frozen hash AccountState::Frozen else is omitted.
 ///
-/// Security: to prevent the possibility that different fields with the same
-/// value to result in the same hash we add a prefix to the delegated amount, is
-/// native and state fields. This way we can have a dynamic hashing schema and
-/// hash only used values.
 impl TokenData {
     /// Only the spl representation of native tokens (wrapped SOL) is
     /// compressed.
