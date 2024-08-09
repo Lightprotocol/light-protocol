@@ -1,4 +1,4 @@
-use crate::external_services_config::ExternalServicesConfig;
+use crate::config::ExternalServicesConfig;
 use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use config::Config;
@@ -15,7 +15,8 @@ pub enum SettingsKey {
     WsRpcUrl,
     IndexerUrl,
     ProverUrl,
-    BatchSize,
+    IndexerBatchSize,
+    TransactionBatchSize,
     MaxRetries,
     ConcurrencyLimit,
     CULimit,
@@ -36,7 +37,8 @@ impl Display for SettingsKey {
                 SettingsKey::ProverUrl => "PROVER_URL",
                 SettingsKey::PhotonApiKey => "PHOTON_API_KEY",
                 SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
-                SettingsKey::BatchSize => "PHOTON_BATCH_SIZE",
+                SettingsKey::IndexerBatchSize => "INDEXER_BATCH_SIZE",
+                SettingsKey::TransactionBatchSize => "TRANSACTION_BATCH_SIZE",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
@@ -98,9 +100,12 @@ pub fn init_config() -> ForesterConfig {
     let concurrency_limit = settings
         .get_int(&SettingsKey::ConcurrencyLimit.to_string())
         .expect("CONCURRENCY_LIMIT not found in config file or environment variables");
-    let batch_size = settings
-        .get_int(&SettingsKey::BatchSize.to_string())
-        .expect("PHOTON_BATCH_SIZE not found in config file or environment variables");
+    let indexer_batch_size = settings
+        .get_int(&SettingsKey::IndexerBatchSize.to_string())
+        .expect("INDEXER_BATCH_SIZE not found in config file or environment variables");
+    let transaction_batch_size = settings
+        .get_int(&SettingsKey::TransactionBatchSize.to_string())
+        .expect("TRANSACTION_BATCH_SIZE not found in config file or environment variables");
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
         .expect("MAX_RETRIES not found in config file or environment variables");
@@ -117,8 +122,10 @@ pub fn init_config() -> ForesterConfig {
         },
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: payer,
+        num_workers: 1, // TODO: make this configurable
         concurrency_limit: concurrency_limit as usize,
-        batch_size: batch_size as usize,
+        indexer_batch_size: indexer_batch_size as usize,
+        transaction_batch_size: transaction_batch_size as usize,
         max_retries: max_retries as usize,
         cu_limit: cu_limit as u32,
         rpc_pool_size: rpc_pool_size as usize,

@@ -14,6 +14,8 @@ use solana_sdk::signer::Signer;
 use solana_sdk::transaction::Transaction;
 use tokio::sync::Mutex;
 
+use crate::errors::ForesterError;
+use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
@@ -26,6 +28,7 @@ use light_merkle_tree_reference::MerkleTree;
 use light_test_utils::address_merkle_tree_config::{
     get_address_bundle_config, get_state_bundle_config,
 };
+use light_test_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_test_utils::indexer::{
     AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
 };
@@ -36,12 +39,8 @@ use light_test_utils::{
     create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
 };
 
-use crate::errors::ForesterError;
-use crate::tree_sync::TreeData;
-use crate::{ForesterConfig, RpcPool, TreeType};
-
 pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
-    rpc: &Arc<Mutex<R>>,
+    rpc: Arc<Mutex<R>>,
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
@@ -104,10 +103,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
 
 #[allow(dead_code)]
 pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
-    config: &Arc<ForesterConfig>,
-    rpc_pool: &RpcPool<R>,
-    indexer: &Arc<Mutex<I>>,
-    tree_data: &TreeData,
+    config: Arc<ForesterConfig>,
+    rpc_pool: Arc<RpcPool<R>>,
+    indexer: Arc<Mutex<I>>,
+    tree_accounts: &TreeAccounts,
 ) -> Result<(), ForesterError> {
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
@@ -120,8 +119,8 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &new_nullifier_queue_keypair,
         &new_merkle_tree_keypair,
         &new_cpi_signature_keypair,
-        &tree_data.tree_pubkey,
-        &tree_data.queue_pubkey,
+        &tree_accounts.merkle_tree,
+        &tree_accounts.queue,
         &Pubkey::default(),
     )
     .await?;
@@ -178,11 +177,11 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
 }
 
 pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
-    config: &Arc<ForesterConfig>,
-    rpc_pool: &RpcPool<R>,
-    indexer: &Arc<Mutex<I>>,
-    tree_data: &TreeData,
-) -> Result<(), RpcError> {
+    config: Arc<ForesterConfig>,
+    rpc_pool: Arc<RpcPool<R>>,
+    indexer: Arc<Mutex<I>>,
+    tree_data: &TreeAccounts,
+) -> Result<(), ForesterError> {
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
     let rpc = rpc_pool.get_connection().await;
@@ -191,8 +190,8 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         rpc.clone(),
         &new_nullifier_queue_keypair,
         &new_merkle_tree_keypair,
-        &tree_data.tree_pubkey,
-        &tree_data.queue_pubkey,
+        &tree_data.merkle_tree,
+        &tree_data.queue,
     )
     .await?;
 

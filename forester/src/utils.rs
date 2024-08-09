@@ -1,6 +1,11 @@
-use log::debug;
+use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
+use light_registry::utils::get_protocol_config_pda_address;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use log::{debug, info};
 use std::process::Command;
+use std::sync::Arc;
 use sysinfo::{Signal, System};
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct LightValidatorConfig {
@@ -37,6 +42,8 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         path.push_str(" --skip-forester");
     }
 
+    debug!("Starting validator with command: {}", path);
+
     Command::new("sh")
         .arg("-c")
         .arg(path)
@@ -62,4 +69,29 @@ pub fn kill_photon() {
             process.kill_with(Signal::Term);
         }
     }
+}
+pub fn decode_hash(account: &str) -> [u8; 32] {
+    let bytes = bs58::decode(account).into_vec().unwrap();
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&bytes);
+    arr
+}
+
+pub fn u8_arr_to_hex_string(arr: &[u8]) -> String {
+    arr.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+pub async fn get_protocol_config<R: RpcConnection>(rpc: Arc<Mutex<R>>) -> ProtocolConfig {
+    let mut arc_rpc = rpc.lock().await;
+    let authority_pda = get_protocol_config_pda_address();
+    let protocol_config_account = arc_rpc
+        .get_anchor_account::<ProtocolConfigPda>(&authority_pda.0)
+        .await
+        .unwrap()
+        .unwrap();
+    info!("Protocol config account: {:?}", protocol_config_account);
+    protocol_config_account.config
 }

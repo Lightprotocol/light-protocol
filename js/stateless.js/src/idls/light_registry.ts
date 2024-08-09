@@ -1210,7 +1210,7 @@ export type LightRegistry = {
         },
         {
             code: 6004;
-            name: 'ForresterNotEligible';
+            name: 'ForesterNotEligible';
         },
         {
             code: 6005;
@@ -2507,7 +2507,7 @@ export const IDL: LightRegistry = {
         },
         {
             code: 6004,
-            name: 'ForresterNotEligible',
+            name: 'ForesterNotEligible',
         },
         {
             code: 6005,

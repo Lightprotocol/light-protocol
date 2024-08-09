@@ -165,7 +165,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         .unwrap();
                     proofs.push(MerkleProof {
                         hash: hash.clone(),
-                        leaf_index: leaf_index as u32,
+                        leaf_index: leaf_index as u64,
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
                         root_seq: tree.merkle_tree.sequence_number as u64,
@@ -276,14 +276,14 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
     fn address_tree_updated(
         &mut self,
-        merkle_tree_pubkey: [u8; 32],
+        merkle_tree_pubkey: Pubkey,
         context: &NewAddressProofWithContext,
     ) {
-        let pubkey = Pubkey::from(merkle_tree_pubkey);
+        info!("Updating address tree...");
         let mut address_tree_bundle: &mut AddressMerkleTreeBundle = self
             .address_merkle_trees
             .iter_mut()
-            .find(|x| x.accounts.merkle_tree == pubkey)
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
         let new_low_element = context.new_low_element.clone().unwrap();
@@ -297,6 +297,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .indexed_array
             .append_with_low_element_index(new_low_element.index, &new_element.value)
             .unwrap();
+        info!("Address tree updated");
     }
 
     fn get_state_merkle_tree_accounts(&self, pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts> {

@@ -50,7 +50,7 @@ impl Forester {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TreeAccounts {
     pub merkle_tree: Pubkey,
     pub queue: Pubkey,
@@ -59,7 +59,23 @@ pub struct TreeAccounts {
     pub tree_type: TreeType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl TreeAccounts {
+    pub fn new(
+        merkle_tree: Pubkey,
+        queue: Pubkey,
+        tree_type: TreeType,
+        is_rolledover: bool,
+    ) -> Self {
+        Self {
+            merkle_tree,
+            queue,
+            tree_type,
+            is_rolledover,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum TreeType {
     Address,
     State,
@@ -120,32 +136,32 @@ pub fn get_schedule_for_forester_in_queue(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TreeForesterSchedule {
-    pub tree_pubkey: TreeAccounts,
+    pub tree_accounts: TreeAccounts,
     /// Vec with the slots that the forester is eligible to perform work.
     /// Non eligible slots are None.
     pub slots: Vec<Option<ForesterSlot>>,
 }
 
 impl TreeForesterSchedule {
-    pub fn new(tree_pubkey: TreeAccounts) -> Self {
+    pub fn new(tree_accounts: TreeAccounts) -> Self {
         Self {
-            tree_pubkey,
+            tree_accounts,
             slots: Vec::new(),
         }
     }
 
     pub fn new_with_schedule(
-        tree_pubkey: TreeAccounts,
+        tree_accounts: TreeAccounts,
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
     ) -> Self {
         let mut _self = Self {
-            tree_pubkey,
+            tree_accounts,
             slots: Vec::new(),
         };
         _self.slots = get_schedule_for_forester_in_queue(
             solana_slot,
-            &_self.tree_pubkey.queue,
+            &_self.tree_accounts.queue,
             forester_epoch_pda.total_epoch_weight.unwrap(),
             forester_epoch_pda,
         );

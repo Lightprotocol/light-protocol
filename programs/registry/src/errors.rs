@@ -7,7 +7,7 @@ pub enum RegistryError {
     NotInReportWorkPhase,
     StakeAccountAlreadySynced,
     EpochEnded,
-    ForresterNotEligible,
+    ForesterNotEligible,
     NotInRegistrationPeriod,
     WeightInsuffient,
     ForesterAlreadyRegistered,

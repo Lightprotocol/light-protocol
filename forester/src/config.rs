@@ -1,7 +1,30 @@
-use crate::external_services_config::ExternalServicesConfig;
-use crate::tree_sync::TreeData;
+use light_registry::ForesterEpochPda;
+use light_test_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
+
+#[derive(Debug, Clone)]
+pub struct ForesterEpochInfo {
+    pub epoch: Epoch,
+    pub epoch_pda: ForesterEpochPda,
+    pub trees: Vec<TreeForesterSchedule>,
+}
+
+impl ForesterEpochInfo {
+    /// Internal function to init Epoch struct with registered account
+    /// 1. calculate epoch phases
+    /// 2. set current epoch state
+    /// 3. derive tree schedule for all input trees
+    pub fn add_trees_with_schedule(&mut self, trees: Vec<TreeAccounts>, current_solana_slot: u64) {
+        // let state = self.phases.get_current_epoch_state(current_solana_slot);
+        // TODO: add epoch state to sync schedule
+        for tree in trees {
+            let tree_schedule =
+                TreeForesterSchedule::new_with_schedule(tree, current_solana_slot, &self.epoch_pda);
+            self.trees.push(tree_schedule);
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ForesterConfig {
@@ -9,13 +32,16 @@ pub struct ForesterConfig {
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
     pub cu_limit: u32,
+    pub num_workers: usize,
     pub concurrency_limit: usize,
-    pub batch_size: usize,
+    pub indexer_batch_size: usize,
+    pub transaction_batch_size: usize,
     pub max_retries: usize,
     pub rpc_pool_size: usize,
-    pub address_tree_data: Vec<TreeData>,
-    pub state_tree_data: Vec<TreeData>,
+    pub address_tree_data: Vec<TreeAccounts>,
+    pub state_tree_data: Vec<TreeAccounts>,
 }
+
 impl Clone for ForesterConfig {
     fn clone(&self) -> Self {
         Self {
@@ -23,12 +49,24 @@ impl Clone for ForesterConfig {
             registry_pubkey: self.registry_pubkey,
             payer_keypair: Keypair::from_bytes(&self.payer_keypair.to_bytes()).unwrap(),
             cu_limit: self.cu_limit,
+            num_workers: self.num_workers,
             concurrency_limit: self.concurrency_limit,
-            batch_size: self.batch_size,
+            indexer_batch_size: self.indexer_batch_size,
+            transaction_batch_size: self.transaction_batch_size,
             max_retries: self.max_retries,
             rpc_pool_size: self.rpc_pool_size,
             state_tree_data: self.state_tree_data.clone(),
             address_tree_data: self.address_tree_data.clone(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalServicesConfig {
+    pub rpc_url: String,
+    pub ws_rpc_url: String,
+    pub indexer_url: String,
+    pub prover_url: String,
+    pub photon_api_key: Option<String>,
+    pub derivation: String,
 }

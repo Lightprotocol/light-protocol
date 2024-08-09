@@ -6,14 +6,9 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
+
 #[derive(Subcommand)]
 pub enum Commands {
-    StateQueueInfo,
-    AddressQueueInfo,
-    Airdrop,
-    NullifyState,
-    NullifyAddresses,
-    Nullify,
-    Subscribe,
-    TreeSync,
+    Start,
+    Status,
 }

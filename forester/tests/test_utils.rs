@@ -1,13 +1,16 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use forester::indexer::PhotonIndexer;
+use env_logger::Env;
+use forester::config::ExternalServicesConfig;
+use forester::photon_indexer::PhotonIndexer;
 use forester::utils::{spawn_validator, LightValidatorConfig};
-use forester::{external_services_config::ExternalServicesConfig, ForesterConfig};
+use forester::ForesterConfig;
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext, TestIndexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
-use log::{info, LevelFilter};
+use log::{debug, info};
+use once_cell::sync::OnceCell;
 use solana_sdk::signature::{Keypair, Signer};
 
 #[allow(dead_code)]
@@ -16,13 +19,14 @@ pub async fn init(config: Option<LightValidatorConfig>) {
     spawn_test_validator(config).await;
 }
 
+static LOGGER: OnceCell<()> = OnceCell::new();
+
 #[allow(dead_code)]
 pub fn setup_logger() {
-    let _ = env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string()),
-    )
-    .is_test(true)
-    .try_init();
+    LOGGER.get_or_init(|| {
+        let env = Env::new().filter_or("RUST_LOG", "info,forester=debug");
+        env_logger::Builder::from_env(env).is_test(true).init();
+    });
 }
 
 #[allow(dead_code)]
@@ -31,7 +35,9 @@ pub async fn spawn_test_validator(config: Option<LightValidatorConfig>) {
         spawn_validator(config).await;
     } else {
         let config = LightValidatorConfig {
-            enable_indexer: true,
+            enable_indexer: false,
+            enable_prover: false,
+            enable_forester: false,
             ..LightValidatorConfig::default()
         };
         spawn_validator(config).await;
@@ -75,7 +81,9 @@ pub fn general_action_config() -> GeneralActionConfig {
 
 #[allow(dead_code)]
 pub fn forester_config() -> ForesterConfig {
-    let env_accounts = get_test_env_accounts();
+    let mut env_accounts = get_test_env_accounts();
+    env_accounts.forester = Keypair::new();
+
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
     ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -89,12 +97,14 @@ pub fn forester_config() -> ForesterConfig {
         registry_pubkey: registry_keypair.pubkey(),
         payer_keypair: env_accounts.forester.insecure_clone(),
         concurrency_limit: 1,
-        batch_size: 1,
+        indexer_batch_size: 50,
+        transaction_batch_size: 1,
         max_retries: 5,
         cu_limit: 1_000_000,
         rpc_pool_size: 20,
         address_tree_data: vec![],
         state_tree_data: vec![],
+        num_workers: 1,
     }
 }
 
@@ -193,7 +203,7 @@ pub async fn assert_accounts_by_owner<R: RpcConnection>(
         .unwrap();
     test_accs.sort();
 
-    info!(
+    debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
         user.keypair.pubkey().to_string(),
         test_accs.len(),
@@ -201,8 +211,8 @@ pub async fn assert_accounts_by_owner<R: RpcConnection>(
     );
     assert_eq!(test_accs.len(), photon_accs.len());
 
-    info!("test_accs: {:?}", test_accs);
-    info!("photon_accs: {:?}", photon_accs);
+    debug!("test_accs: {:?}", test_accs);
+    debug!("photon_accs: {:?}", photon_accs);
 
     for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
         assert_eq!(test_acc, indexer_acc);
@@ -236,7 +246,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection>
 
         let photon_result = photon_result.unwrap();
         let test_indexer_result = test_indexer_result.unwrap();
-        info!(
+        debug!(
             "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
             account_hash, photon_result, test_indexer_result
         );
