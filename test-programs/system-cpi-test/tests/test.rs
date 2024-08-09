@@ -908,6 +908,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                 queue_index: None,
             },
             root_index: rpc_result.root_indices[0],
+            read_only: false,
         },
         token_transfer_data,
         invalid_fee_payer: &invalid_fee_payer.pubkey(),

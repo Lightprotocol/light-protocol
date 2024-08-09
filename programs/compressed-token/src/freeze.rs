@@ -563,6 +563,7 @@ pub mod test_freeze {
                     },
                     root_index: x.root_index,
                     merkle_context: x.merkle_context,
+                    read_only: false,
                 }
             })
             .collect()
