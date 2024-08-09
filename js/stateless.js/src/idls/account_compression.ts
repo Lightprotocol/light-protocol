@@ -1157,6 +1157,10 @@ export type AccountCompression = {
             code: 6024;
             name: 'UnsupportedAdditionalBytes';
         },
+        {
+            code: 6025;
+            name: 'InvalidGroup';
+        },
     ];
 };
 
@@ -2318,6 +2322,10 @@ export const IDL: AccountCompression = {
         {
             code: 6024,
             name: 'UnsupportedAdditionalBytes',
+        },
+        {
+            code: 6025,
+            name: 'InvalidGroup',
         },
     ],
 };
