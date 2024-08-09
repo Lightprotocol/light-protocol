@@ -603,7 +603,7 @@ async fn test_mint_to_failing() {
         assert_rpc_error(
             result,
             0,
-            light_system_program::errors::SystemProgramError::InvalidNoopPubkey.into(),
+            account_compression::errors::AccountCompressionErrorCode::InvalidNoopPubkey.into(),
         )
         .unwrap();
     }

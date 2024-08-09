@@ -14,8 +14,6 @@ pub enum SystemProgramError {
     ComputeOutputSumFailed,
     #[msg("Computing rpc sum failed.")]
     ComputeRpcSumFailed,
-    #[msg("InvalidNoopPubkey")]
-    InvalidNoopPubkey,
     #[msg("InvalidAddress")]
     InvalidAddress,
     #[msg("DeriveAddressError")]
