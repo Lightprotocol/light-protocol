@@ -1169,9 +1169,11 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
     let mut retry_delay = INITIAL_RETRY_DELAY;
     let start_time = Instant::now();
 
-    let rpc = rpc_pool.get_connection().await.lock().await.clone();
-    let trees = fetch_trees(&rpc).await;
-    drop(rpc);
+    let trees = {
+        let rpc = rpc_pool.get_connection().await;
+        let rpc = rpc.lock().await;
+        fetch_trees(&*rpc).await
+    };
 
     while retry_count < config.max_retries {
         debug!("Creating EpochManager (attempt {})", retry_count + 1);
