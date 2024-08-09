@@ -96,15 +96,15 @@ pub fn forester_config() -> ForesterConfig {
         },
         registry_pubkey: registry_keypair.pubkey(),
         payer_keypair: env_accounts.forester.insecure_clone(),
-        concurrency_limit: 1,
         indexer_batch_size: 50,
+        indexer_max_concurrent_batches: 5,
         transaction_batch_size: 1,
+        transaction_max_concurrent_batches: 10,
         max_retries: 5,
         cu_limit: 1_000_000,
         rpc_pool_size: 20,
         address_tree_data: vec![],
         state_tree_data: vec![],
-        num_workers: 1,
     }
 }
 
