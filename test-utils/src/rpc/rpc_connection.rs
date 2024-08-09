@@ -3,7 +3,6 @@ use crate::transaction_params::TransactionParams;
 use account_compression::initialize_address_merkle_tree::{AnchorDeserialize, Pubkey};
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::instruction::Instruction;
-use log::info;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::epoch_info::EpochInfo;
@@ -16,6 +15,9 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
     fn new<U: ToString>(_url: U, _commitment_config: Option<CommitmentConfig>) -> Self {
         unimplemented!()
     }
+
+    fn get_program_accounts(&self, program_id: &Pubkey)
+        -> Result<Vec<(Pubkey, Account)>, RpcError>;
 
     fn process_transaction(
         &mut self,
@@ -85,7 +87,6 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
         pubkey: &'a Pubkey,
     ) -> impl std::future::Future<Output = Result<Option<T>, RpcError>> + Send + 'a {
         async move {
-            info!("Getting account for pubkey: {}", pubkey);
             match self.get_account(*pubkey).await? {
                 Some(account) => {
                     let data = T::deserialize(&mut &account.data[8..]).map_err(RpcError::from)?;
