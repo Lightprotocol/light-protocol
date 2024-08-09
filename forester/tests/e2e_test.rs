@@ -1,4 +1,4 @@
-use forester::epoch_manager::fetch_queue_data;
+use forester::epoch_manager::fetch_queue_item_data;
 use forester::utils::LightValidatorConfig;
 use forester::{run_pipeline, RpcPool};
 use light_test_utils::e2e_test_env::E2ETestEnv;
@@ -8,11 +8,11 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
-use log::debug;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use std::sync::Arc;
+use tokio::select;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::sleep;
 
@@ -91,14 +91,12 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     let iterations = 10;
 
     for i in 0..iterations {
-        debug!("Round {} of {}", i, iterations);
+        println!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;
         sleep(std::time::Duration::from_millis(100)).await;
-    }
-
-    for _ in 0..iterations {
         env.create_address(None).await;
     }
+
     let state_trees: Vec<StateMerkleTreeAccounts> = env
         .indexer
         .state_merkle_trees
@@ -107,10 +105,12 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .collect();
 
     for tree in state_trees.iter() {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.nullifier_queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length =
+            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
+                .await
+                .unwrap()
+                .len();
+        println!("State tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
 
@@ -121,10 +121,11 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .map(|x| x.accounts)
         .collect();
     for tree in address_trees.iter() {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.queue)
+        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
             .await
             .unwrap()
             .len();
+        println!("Address tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
 
@@ -139,23 +140,29 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     ));
 
     let mut total_processed = 0;
-    if let Some(report) = work_report_receiver.recv().await {
+    while let Some(report) = work_report_receiver.recv().await {
         total_processed += report.processed_items;
+        if report.epoch == 1 {
+            break;
+        }
     }
 
     for tree in state_trees {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.nullifier_queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length =
+            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
+                .await
+                .unwrap()
+                .len();
+        println!("State tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 
     for tree in address_trees {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.queue)
+        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
             .await
             .unwrap()
             .len();
+        println!("Address tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 
@@ -168,7 +175,6 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore]
 async fn test_epoch_monitor_with_2_foresters() {
     init(None).await;
     let forester_keypair1 = Keypair::new();
@@ -241,9 +247,10 @@ async fn test_epoch_monitor_with_2_foresters() {
     env.compress_sol(user_index, balance).await;
     let iterations = 10;
     for i in 0..iterations {
-        debug!("Round {} of {}", i, iterations);
+        println!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;
         sleep(std::time::Duration::from_millis(100)).await;
+        env.create_address(None).await;
     }
 
     let state_trees: Vec<StateMerkleTreeAccounts> = env
@@ -254,10 +261,12 @@ async fn test_epoch_monitor_with_2_foresters() {
         .collect();
 
     for tree in state_trees.iter() {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.nullifier_queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length =
+            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
+                .await
+                .unwrap()
+                .len();
+        println!("State tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
 
@@ -268,10 +277,11 @@ async fn test_epoch_monitor_with_2_foresters() {
         .map(|x| x.accounts)
         .collect();
     for tree in address_trees.iter() {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.queue)
+        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
             .await
             .unwrap()
             .len();
+        println!("Address tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
 
@@ -296,28 +306,49 @@ async fn test_epoch_monitor_with_2_foresters() {
     ));
 
     let mut total_processed = 0;
-    for _ in 0..2 {
-        if let Some(report) = work_report_receiver1.recv().await {
-            total_processed += report.processed_items;
+    let mut forester1_reported_work_for_epoch1 = false;
+    let mut forester2_reported_work_for_epoch1 = false;
+
+    loop {
+        select! {
+            Some(report) = work_report_receiver1.recv(), if !forester1_reported_work_for_epoch1 => {
+                total_processed += report.processed_items;
+                if report.epoch == 1 {
+                    forester1_reported_work_for_epoch1 = true;
+                }
+            }
+            Some(report) = work_report_receiver2.recv(), if !forester2_reported_work_for_epoch1 => {
+                total_processed += report.processed_items;
+                if report.epoch == 1 {
+                    forester2_reported_work_for_epoch1 = true;
+                }
+            }
+            else => break,
         }
-        if let Some(report) = work_report_receiver2.recv().await {
-            total_processed += report.processed_items;
+
+        if forester1_reported_work_for_epoch1 && forester2_reported_work_for_epoch1 {
+            break;
         }
     }
 
+    assert!(total_processed > 0, "No items were processed");
+
     for tree in state_trees {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.nullifier_queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length =
+            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
+                .await
+                .unwrap()
+                .len();
+        println!("State tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 
     for tree in address_trees {
-        let queue_length = fetch_queue_data(pool.get_connection().await, &tree.queue)
+        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
             .await
             .unwrap()
             .len();
+        println!("Address tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 

@@ -5,7 +5,7 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
-use log::debug;
+use log::{debug, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_program_test::BanksClientError;
@@ -19,6 +19,7 @@ use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
 use std::fmt::{Debug, Display, Formatter};
+use std::time::Duration;
 
 pub enum SolanaRpcUrl {
     Testnet,
@@ -288,23 +289,32 @@ impl RpcConnection for SolanaRpcConnection {
         to: &Pubkey,
         lamports: u64,
     ) -> Result<Signature, RpcError> {
+        const MAX_RETRIES: u32 = 3;
+
         let signature = self
             .client
             .request_airdrop(to, lamports)
             .map_err(RpcError::from)?;
-        // TODO: Find a different way this can result in an infinite loop
+
         println!("Airdrop signature: {:?}", signature);
-        loop {
+
+        let mut attempts = 0;
+        while attempts < MAX_RETRIES {
             let confirmed = self
                 .client
-                .confirm_transaction_with_commitment(&signature, self.client.commitment())?
-                .value;
-            if confirmed {
-                break;
+                .confirm_transaction_with_commitment(&signature, self.client.commitment())?;
+            if confirmed.value {
+                return Ok(signature);
+            } else {
+                warn!("Airdrop not confirmed, retrying...");
+                attempts += 1;
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
 
-        Ok(signature)
+        Err(RpcError::CustomError(
+            "Max retries reached for airdrop confirmation".into(),
+        ))
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {

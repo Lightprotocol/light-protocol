@@ -9,6 +9,7 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG,
 };
 use account_compression::QueueAccount;
+use futures::future::join_all;
 use futures::StreamExt;
 use light_hash_set::HashSet;
 use light_registry::account_compression_cpi::sdk::{
@@ -26,6 +27,7 @@ use light_test_utils::forester_epoch::{
 use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, error, info, warn};
+use rand::Rng;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
@@ -36,25 +38,28 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Signature, Signer};
 use solana_sdk::transaction::Transaction;
 use std::collections::HashMap;
+use std::iter::Zip;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{mem, thread};
 use tokio::runtime::Builder;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 use tokio::time::sleep;
 
+type Result<T> = std::result::Result<T, ForesterError>;
+
 #[derive(Debug, Clone)]
-pub struct QueueData {
+pub struct QueueItemData {
     pub hash: [u8; 32],
     pub index: usize,
 }
 
-pub async fn fetch_queue_data<R: RpcConnection>(
+pub async fn fetch_queue_item_data<R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
     queue_pubkey: &Pubkey,
-) -> Result<Vec<QueueData>, ForesterError> {
+) -> Result<Vec<QueueItemData>> {
     debug!("Fetching queue data for {:?}", queue_pubkey);
 
     let mut rpc = rpc.lock().await;
@@ -62,27 +67,28 @@ pub async fn fetch_queue_data<R: RpcConnection>(
     let nullifier_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
-    let mut queue_data_list = Vec::new();
+    let mut queue_item_data_list = Vec::new();
 
     for i in 0..nullifier_queue.capacity {
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                queue_data_list.push(QueueData {
+                queue_item_data_list.push(QueueItemData {
                     hash: bucket.value_bytes(),
                     index: i,
                 });
             }
         }
     }
-    Ok(queue_data_list)
+
+    Ok(queue_item_data_list)
 }
 
 pub async fn get_queue_length<R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
     queue_pubkey: &Pubkey,
 ) -> usize {
-    let queue = fetch_queue_data(rpc, queue_pubkey).await.unwrap();
+    let queue = fetch_queue_item_data(rpc, queue_pubkey).await.unwrap();
     queue.len()
 }
 
@@ -98,19 +104,20 @@ pub struct WorkReport {
     pub processed_items: usize,
 }
 
+#[derive(Clone, Debug)]
 struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<RpcPool<R>>,
     indexer: Arc<Mutex<I>>,
     work_report_sender: mpsc::Sender<WorkReport>,
-    processed_items_count: Mutex<HashMap<u64, AtomicUsize>>,
+    processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct WorkItem {
     tree_account: TreeAccounts,
-    queue_data: QueueData,
+    queue_item_data: QueueItemData,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -127,27 +134,27 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         rpc_pool: Arc<RpcPool<R>>,
         indexer: Arc<Mutex<I>>,
         work_report_sender: mpsc::Sender<WorkReport>,
-    ) -> Result<Self, ForesterError> {
+    ) -> Result<Self> {
         Ok(Self {
             config,
             protocol_config,
             rpc_pool,
             indexer,
             work_report_sender,
-            processed_items_count: Mutex::new(HashMap::new()),
+            processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
-    pub async fn run(self: Arc<Self>) -> Result<(), ForesterError> {
+    pub async fn run(self: Arc<Self>) -> Result<()> {
         let (tx, mut rx) = mpsc::channel(100);
 
-        let monitor_handle = {
-            let self_clone: Arc<EpochManager<R, I>> = Arc::clone(&self);
-            tokio::spawn(async move { self_clone.monitor_epochs(tx).await })
-        };
+        let monitor_handle = tokio::spawn({
+            let self_clone = Arc::clone(&self);
+            async move { self_clone.monitor_epochs(tx).await }
+        });
 
         while let Some(epoch) = rx.recv().await {
-            let self_clone: Arc<EpochManager<R, I>> = Arc::clone(&self);
+            let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
                     error!("Error processing epoch {}: {:?}", epoch, e);
@@ -159,9 +166,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(())
     }
 
-    async fn monitor_epochs(&self, tx: mpsc::Sender<u64>) -> Result<(), ForesterError> {
+    async fn monitor_epochs(&self, tx: mpsc::Sender<u64>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
         debug!("Starting epoch monitor");
+
         let phases = get_epoch_phases(&self.protocol_config, 0);
         debug!("Phases: {:?}", phases);
 
@@ -206,21 +214,21 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     }
 
     async fn get_processed_items_count(&self, epoch: u64) -> usize {
-        let counts = self.processed_items_count.lock().await;
+        let counts = self.processed_items_per_epoch_count.lock().await;
         counts
             .get(&epoch)
             .map_or(0, |count| count.load(Ordering::Relaxed))
     }
 
     async fn increment_processed_items_count(&self, epoch: u64) {
-        let mut counts = self.processed_items_count.lock().await;
+        let mut counts = self.processed_items_per_epoch_count.lock().await;
         counts
             .entry(epoch)
             .or_insert_with(|| AtomicUsize::new(0))
             .fetch_add(1, Ordering::Relaxed);
     }
 
-    async fn process_epoch(&self, epoch: u64) -> Result<(), ForesterError> {
+    async fn process_epoch(&self, epoch: u64) -> Result<()> {
         debug!("Processing epoch: {}", epoch);
 
         // Registration
@@ -245,14 +253,14 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(())
     }
 
-    async fn get_current_slot_and_epoch(&self) -> Result<(u64, u64), ForesterError> {
+    async fn get_current_slot_and_epoch(&self) -> Result<(u64, u64)> {
         let rpc = self.rpc_pool.get_connection().await;
         let mut rpc_guard = rpc.lock().await;
         let slot = rpc_guard.get_slot().await?;
         Ok((slot, self.protocol_config.get_current_epoch(slot)))
     }
 
-    async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo, ForesterError> {
+    async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         debug!("Registering for epoch: {}", epoch);
         let rpc = self.rpc_pool.get_connection().await;
         let mut rpc_guard = rpc.lock().await;
@@ -350,7 +358,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         _epoch: u64,
         _existing_pda: ForesterEpochPda,
-    ) -> Result<ForesterEpochInfo, ForesterError> {
+    ) -> Result<ForesterEpochInfo> {
         unimplemented!()
         // let rpc = self.rpc_pool.get_connection().await;
         //
@@ -365,7 +373,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     async fn wait_for_active_phase(
         &self,
         epoch_info: &ForesterEpochInfo,
-    ) -> Result<ForesterEpochInfo, ForesterError> {
+    ) -> Result<ForesterEpochInfo> {
         debug!(
             "Waiting for active phase of epoch: {}",
             epoch_info.epoch.epoch
@@ -415,14 +423,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             epoch_info.epoch.epoch, trees
         );
         epoch_info.add_trees_with_schedule(trees, slot);
-
+        info!("epoch_info: {:?}", epoch_info);
         Ok(epoch_info)
     }
 
-    async fn perform_active_work(
-        &self,
-        epoch_info: &ForesterEpochInfo,
-    ) -> Result<(), ForesterError> {
+    async fn perform_active_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         debug!("Performing work for epoch: {}", epoch_info.epoch.epoch);
 
         let rpc = self.rpc_pool.get_connection().await;
@@ -489,7 +494,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         });
 
         // Perform initial fetch and processing
-        if self.is_in_active_phase(slot, epoch_info).await? {
+        if self.is_in_active_phase(slot, epoch_info)? {
             self.process_queues(epoch_info).await?;
         } else {
             debug!("Not in active phase, skipping initial queue processing");
@@ -498,11 +503,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let mut last_processed_slot = slot;
 
-        while self.is_in_active_phase(slot, epoch_info).await? {
+        while self.is_in_active_phase(slot, epoch_info)? {
             tokio::select! {
                 Some(update) = update_rx.recv() => {
                     if update.slot > last_processed_slot {
-                        if self.is_in_active_phase(update.slot, epoch_info).await? {
+                        if self.is_in_active_phase(update.slot, epoch_info)? {
                             self.process_queue(epoch_info, update.pubkey).await?;
                             last_processed_slot = update.slot;
                         }
@@ -541,11 +546,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(())
     }
 
-    async fn is_in_active_phase(
-        &self,
-        slot: u64,
-        epoch_info: &ForesterEpochInfo,
-    ) -> Result<bool, ForesterError> {
+    fn is_in_active_phase(&self, slot: u64, epoch_info: &ForesterEpochInfo) -> Result<bool> {
         let current_epoch = self.protocol_config.get_current_active_epoch(slot)?;
         if current_epoch != epoch_info.epoch.epoch {
             return Ok(false);
@@ -557,7 +558,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .is_ok())
     }
 
-    async fn process_queues(&self, epoch_info: &ForesterEpochInfo) -> Result<(), ForesterError> {
+    async fn process_queues(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         for tree in &epoch_info.trees {
             self.process_queue(epoch_info, tree.tree_accounts.queue)
                 .await?;
@@ -569,10 +570,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
         queue_pubkey: Pubkey,
-    ) -> Result<(), ForesterError> {
+    ) -> Result<()> {
         let rpc = self.rpc_pool.get_connection().await;
         let current_slot = rpc.lock().await.get_slot().await?;
-        if !self.is_in_active_phase(current_slot, epoch_info).await? {
+        if !self.is_in_active_phase(current_slot, epoch_info)? {
             debug!("Not in active phase, skipping queue processing");
             return Ok(());
         }
@@ -593,15 +594,66 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             tree.tree_accounts.queue
         );
 
-        match self.process_work_items(epoch_info, &work_items).await {
-            Ok(results) => {
-                for (idx, res) in results.iter().enumerate() {
-                    debug!("Transaction {}: {:?}", idx, res);
+        let semaphore = Arc::new(Semaphore::new(self.config.indexer_max_concurrent_batches));
+        let (tx, mut rx) = mpsc::channel(self.config.indexer_max_concurrent_batches);
+
+        for chunk in work_items.chunks(self.config.indexer_batch_size) {
+            let semaphore_clone = semaphore.clone();
+            let tx_clone = tx.clone();
+            let epoch_info_clone = epoch_info.clone();
+            let self_clone = self.clone();
+            let chunk = chunk.to_vec();
+
+            tokio::spawn(async move {
+                let _permit = semaphore_clone.acquire().await.unwrap();
+                let start_time = Instant::now();
+                let result = self_clone
+                    .process_work_items(&epoch_info_clone, &chunk)
+                    .await;
+                let duration = start_time.elapsed();
+                tx_clone.send((result, duration)).await.unwrap();
+            });
+        }
+
+        drop(tx);
+
+        let mut completed_chunks = 0;
+        let total_chunks = (work_items.len() + self.config.indexer_batch_size - 1)
+            / self.config.indexer_batch_size;
+        let mut total_transactions = 0;
+        let mut total_duration = Duration::new(0, 0);
+
+        while let Some((result, duration)) = rx.recv().await {
+            completed_chunks += 1;
+            match result {
+                Ok(signatures) => {
+                    let num_transactions = signatures.len();
+                    total_transactions += num_transactions;
+                    total_duration += duration;
+                    let chunk_tps = num_transactions as f64 / duration.as_secs_f64();
+                    let avg_tps = total_transactions as f64 / total_duration.as_secs_f64();
+
+                    for (idx, signature) in signatures.iter().enumerate() {
+                        debug!(
+                            "Transaction {} in chunk {} processed: {:?}",
+                            idx, completed_chunks, signature
+                        );
+                    }
+                    info!(
+                        "Chunk {} TPS: {:.2}, Average TPS: {:.2}",
+                        completed_chunks, chunk_tps, avg_tps
+                    );
+                }
+                Err(e) => {
+                    error!("Error processing work item chunk: {:?}", e);
                 }
             }
-            Err(e) => {
-                error!("Error processing work items: {:?}", e);
-            }
+            debug!("Completed {}/{} chunks", completed_chunks, total_chunks);
+        }
+
+        if total_duration.as_secs_f64() > 0.0 {
+            let overall_avg_tps = total_transactions as f64 / total_duration.as_secs_f64();
+            info!("Overall average TPS: {:.2}", overall_avg_tps);
         }
 
         Ok(())
@@ -611,15 +663,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         rpc: Arc<Mutex<R>>,
         trees: &[TreeForesterSchedule],
-    ) -> Result<Vec<WorkItem>, ForesterError> {
+    ) -> Result<Vec<WorkItem>> {
         let mut work_items = Vec::new();
 
         for tree in trees {
-            let queue_data = fetch_queue_data(rpc.clone(), &tree.tree_accounts.queue).await?;
-            for data in queue_data {
+            let queue_item_data =
+                fetch_queue_item_data(rpc.clone(), &tree.tree_accounts.queue).await?;
+            for data in queue_item_data {
                 work_items.push(WorkItem {
                     tree_account: tree.tree_accounts,
-                    queue_data: data,
+                    queue_item_data: data,
                 });
             }
         }
@@ -631,96 +684,132 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
         work_items: &[WorkItem],
-    ) -> Result<Vec<Signature>, ForesterError> {
+    ) -> Result<Vec<Signature>> {
         let mut results = Vec::new();
+        let semaphore = Arc::new(Semaphore::new(
+            self.config.transaction_max_concurrent_batches,
+        ));
 
-        for indexer_chunk in work_items.chunks(self.config.indexer_batch_size) {
-            debug!("Processing indexer chunk of size: {}", indexer_chunk.len());
+        let total_start_time = Instant::now();
+        let mut total_transactions = 0;
+        let mut total_processing_time = Duration::new(0, 0);
+
+        for (chunk_index, indexer_chunk) in work_items
+            .chunks(self.config.transaction_batch_size)
+            .enumerate()
+        {
+            let chunk_start_time = Instant::now();
+            debug!(
+                "Processing chunk {} of size: {}",
+                chunk_index,
+                indexer_chunk.len()
+            );
             let rpc = self.rpc_pool.get_connection().await;
             let current_slot = rpc.lock().await.get_slot().await?;
-            if !self.is_in_active_phase(current_slot, epoch_info).await? {
+            if !self.is_in_active_phase(current_slot, epoch_info)? {
                 debug!("Not in active phase, skipping process_work_items");
                 return Err(ForesterError::Custom("Not in active phase".to_string()));
             }
 
-            const MAX_RETRIES: u32 = 3;
-            const RETRY_DELAY: Duration = Duration::from_millis(200);
+            let (proofs, all_instructions) = self
+                .fetch_proofs_and_create_instructions(epoch_info, indexer_chunk)
+                .await?;
 
-            let mut retry_count = 0;
-            let mut proofs = Vec::new();
-            let mut all_instructions = Vec::new();
+            let (tx, mut rx) = mpsc::channel(self.config.transaction_max_concurrent_batches);
 
-            while retry_count < MAX_RETRIES {
-                match self
-                    .fetch_proofs_and_create_instructions(epoch_info, indexer_chunk)
-                    .await
-                {
-                    Ok((fetched_proofs, fetched_instructions)) => {
-                        proofs = fetched_proofs;
-                        all_instructions = fetched_instructions;
-                        break;
-                    }
-                    Err(e) => {
-                        if retry_count == MAX_RETRIES - 1 {
-                            error!(
-                                "Failed to fetch proofs after {} attempts: {:?}",
-                                MAX_RETRIES, e
-                            );
-                            return Err(e);
-                        }
-                        warn!(
-                            "Error fetching proofs (attempt {}): {:?}. Retrying in {:?}...",
-                            retry_count + 1,
-                            e,
-                            RETRY_DELAY
-                        );
-                        sleep(RETRY_DELAY).await;
-                        retry_count += 1;
-                    }
-                }
-            }
+            let batch_futures: Vec<_> = Zip::enumerate(
+                all_instructions
+                    .chunks(self.config.transaction_batch_size)
+                    .zip(proofs.chunks(self.config.transaction_batch_size)),
+            )
+            .map(|(_, (transaction_chunk, proof_chunk))| {
+                let epoch_info = epoch_info.clone();
+                let self_clone = self.clone();
+                let transaction_chunk = transaction_chunk.to_vec();
+                let proof_chunk = proof_chunk.to_vec();
+                let indexer_chunk = indexer_chunk.to_vec();
+                let semaphore_clone = semaphore.clone();
+                let tx_clone = tx.clone();
 
-            for (batch_index, (transaction_chunk, proof_chunk)) in all_instructions
-                .chunks(self.config.transaction_batch_size)
-                .zip(proofs.chunks(self.config.transaction_batch_size))
-                .enumerate()
-            {
-                let work_item = &indexer_chunk[batch_index * self.config.transaction_batch_size];
+                tokio::spawn(async move {
+                    let _permit = semaphore_clone.acquire().await.unwrap();
+                    let start_time = Instant::now();
 
-                if !self
-                    .check_eligibility(epoch_info, &work_item.tree_account)
-                    .await?
-                {
-                    debug!("Forester not eligible for this slot, skipping batch");
-                    continue;
-                }
+                    let result = self_clone
+                        .process_transaction_batch_with_retry(
+                            &epoch_info,
+                            &transaction_chunk,
+                            &proof_chunk,
+                            &indexer_chunk,
+                        )
+                        .await;
 
-                match self
-                    .process_transaction_batch(
-                        epoch_info,
-                        transaction_chunk,
-                        proof_chunk,
-                        indexer_chunk,
-                    )
-                    .await
-                {
+                    let duration = start_time.elapsed();
+                    tx_clone.send((result.clone(), duration)).await.unwrap();
+
+                    result
+                })
+            })
+            .collect();
+
+            drop(tx);
+
+            let mut chunk_transactions = 0;
+            let mut chunk_processing_time = Duration::new(0, 0);
+
+            while let Some((result, duration)) = rx.recv().await {
+                match result {
                     Ok(signature) => {
-                        debug!(
-                            "Work item {:?} processed successfully. Signature: {:?}",
-                            work_item.queue_data.hash, signature
-                        );
                         results.push(signature);
-                        self.increment_processed_items_count(epoch_info.epoch.epoch)
-                            .await;
+                        chunk_transactions += 1;
+                        chunk_processing_time += duration;
+                        let batch_tps = 1.0 / duration.as_secs_f64();
+                        debug!("Batch processed successfully. TPS: {:.2}", batch_tps);
                     }
                     Err(e) => {
-                        error!("Error processing transaction batch: {:?}", e);
-                        // Continue processing other batches
+                        error!("Error processing batch: {:?}", e);
                     }
                 }
             }
+
+            join_all(batch_futures).await;
+
+            total_transactions += chunk_transactions;
+            total_processing_time += chunk_processing_time;
+
+            let chunk_duration = chunk_start_time.elapsed();
+            let chunk_tps = chunk_transactions as f64 / chunk_duration.as_secs_f64();
+            let chunk_processing_tps =
+                chunk_transactions as f64 / chunk_processing_time.as_secs_f64();
+            let total_tps = total_transactions as f64 / total_start_time.elapsed().as_secs_f64();
+            let total_processing_tps =
+                total_transactions as f64 / total_processing_time.as_secs_f64();
+
+            info!(
+                "Chunk {} completed: {} transactions in {:.2?}",
+                chunk_index, chunk_transactions, chunk_duration
+            );
+            info!(
+                "Chunk {} TPS: {:.2} (overall: {:.2}), Processing TPS: {:.2} (overall: {:.2})",
+                chunk_index, chunk_tps, total_tps, chunk_processing_tps, total_processing_tps
+            );
         }
 
+        let total_duration = total_start_time.elapsed();
+        let overall_tps = total_transactions as f64 / total_duration.as_secs_f64();
+        let overall_processing_tps =
+            total_transactions as f64 / total_processing_time.as_secs_f64();
+
+        info!(
+            "Overall: {} transactions in {:.2?}",
+            total_transactions, total_duration
+        );
+        info!(
+            "Overall TPS: {:.2}, Processing TPS: {:.2}",
+            overall_tps, overall_processing_tps
+        );
+
+        let results = results.into_iter().flatten().collect();
         Ok(results)
     }
 
@@ -728,7 +817,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         registration_info: &ForesterEpochInfo,
         tree_account: &TreeAccounts,
-    ) -> Result<bool, ForesterError> {
+    ) -> Result<bool> {
         let rpc = self.rpc_pool.get_connection().await;
         let mut rpc_guard = rpc.lock().await;
         let current_slot = rpc_guard.get_slot().await?;
@@ -754,7 +843,84 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 ForesterError::Custom("No tree schedule found for the current tree".to_string())
             })?;
 
+        info!("tree_schedule: {:?}", tree_schedule);
+        info!(
+            "Checking eligibility for tree {:?} at light slot {} / solana slot {}",
+            tree_account.merkle_tree, light_slot, current_slot
+        );
+        info!(
+            "tree_schedule.slots[{}] = {:?}",
+            light_slot, tree_schedule.slots[light_slot as usize]
+        );
         Ok(tree_schedule.is_eligible(light_slot))
+    }
+
+    async fn process_transaction_batch_with_retry(
+        &self,
+        epoch_info: &ForesterEpochInfo,
+        transaction_chunk: &[Instruction],
+        proof_chunk: &[Proof],
+        indexer_chunk: &[WorkItem],
+    ) -> Result<Option<Signature>> {
+        let first_work_item = indexer_chunk.first();
+        if first_work_item.is_none() {
+            return Err(ForesterError::Custom("Empty indexer chunk".to_string()));
+        }
+        let work_item = first_work_item.unwrap();
+        info!(
+            "Processing work item {:?} with {} instructions",
+            work_item.queue_item_data.hash,
+            transaction_chunk.len()
+        );
+        const BASE_RETRY_DELAY: Duration = Duration::from_millis(100);
+
+        let mut retries = 0;
+        loop {
+            if !self
+                .check_eligibility(epoch_info, &work_item.tree_account)
+                .await?
+            {
+                debug!("Forester not eligible for this slot, skipping batch");
+                return Ok(None);
+            }
+
+            match self
+                .process_transaction_batch(
+                    epoch_info,
+                    transaction_chunk,
+                    proof_chunk,
+                    indexer_chunk,
+                )
+                .await
+            {
+                Ok(signature) => {
+                    debug!(
+                        "Work item {:?} processed successfully. Signature: {:?}",
+                        work_item.queue_item_data.hash, signature
+                    );
+                    self.increment_processed_items_count(epoch_info.epoch.epoch)
+                        .await;
+                    return Ok(Some(signature));
+                }
+                Err(e) => {
+                    if retries >= self.config.max_retries {
+                        error!(
+                            "Max retries reached for work item {:?}. Error: {:?}",
+                            work_item.queue_item_data.hash, e
+                        );
+                        return Err(e);
+                    }
+                    let delay = BASE_RETRY_DELAY * 2u32.pow(retries as u32);
+                    let jitter = rand::thread_rng().gen_range(0..=50);
+                    sleep(delay + Duration::from_millis(jitter)).await;
+                    retries += 1;
+                    warn!(
+                        "Retrying work item {:?}. Attempt {}/{}",
+                        work_item.queue_item_data.hash, retries, self.config.max_retries
+                    );
+                }
+            }
+        }
     }
 
     async fn process_transaction_batch(
@@ -763,16 +929,20 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         instructions: &[Instruction],
         proofs: &[Proof],
         work_items: &[WorkItem],
-    ) -> Result<Signature, ForesterError> {
+    ) -> Result<Signature> {
+        info!(
+            "Processing transaction batch with {} instructions",
+            instructions.len()
+        );
         let rpc = self.rpc_pool.get_connection().await;
         let current_slot = rpc.lock().await.get_slot().await?;
-        if !self.is_in_active_phase(current_slot, epoch_info).await? {
+        if !self.is_in_active_phase(current_slot, epoch_info)? {
             debug!("Not in active phase, skipping queue processing");
             return Err(ForesterError::Custom("Not in active phase".to_string()));
         }
         let mut rpc_guard = rpc.lock().await;
         let recent_blockhash = rpc_guard.get_latest_blockhash().await?;
-        drop(rpc_guard); // Release the lock before the potentially long-running operation
+        drop(rpc_guard);
 
         let mut ixs = vec![ComputeBudgetInstruction::set_compute_unit_limit(
             self.config.cu_limit,
@@ -806,10 +976,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
     }
 
-    async fn wait_for_report_work_phase(
-        &self,
-        epoch_info: &ForesterEpochInfo,
-    ) -> Result<(), ForesterError> {
+    async fn wait_for_report_work_phase(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         let rpc = self.rpc_pool.get_connection().await;
         let mut rpc_guard = rpc.lock().await;
 
@@ -839,7 +1006,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(())
     }
 
-    async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<(), ForesterError> {
+    async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         let rpc = self.rpc_pool.get_connection().await;
         let mut rpc_guard = rpc.lock().await;
 
@@ -872,7 +1039,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         registration_info: &ForesterEpochInfo,
         work_items: &[WorkItem],
-    ) -> Result<(Vec<Proof>, Vec<Instruction>), ForesterError> {
+    ) -> Result<(Vec<Proof>, Vec<Instruction>)> {
         let mut proofs = Vec::new();
         let mut instructions = vec![];
 
@@ -885,7 +1052,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let merkle_tree = address_items[0].tree_account.merkle_tree.to_bytes();
             let addresses: Vec<[u8; 32]> = address_items
                 .iter()
-                .map(|item| item.queue_data.hash)
+                .map(|item| item.queue_item_data.hash)
                 .collect();
             let indexer = self.indexer.lock().await;
             let address_proofs = indexer
@@ -899,7 +1066,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         authority: self.config.payer_keypair.pubkey(),
                         address_merkle_tree: item.tree_account.merkle_tree,
                         address_queue: item.tree_account.queue,
-                        value: item.queue_data.index as u16,
+                        value: item.queue_item_data.index as u16,
                         low_address_index: proof.low_address_index,
                         low_address_value: proof.low_address_value,
                         low_address_next_index: proof.low_address_next_index,
@@ -921,7 +1088,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         if !state_items.is_empty() {
             let states: Vec<String> = state_items
                 .iter()
-                .map(|item| bs58::encode(&item.queue_data.hash).into_string())
+                .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
                 .collect();
             let indexer = self.indexer.lock().await;
             let state_proofs = indexer
@@ -935,7 +1102,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         nullifier_queue: item.tree_account.queue,
                         merkle_tree: item.tree_account.merkle_tree,
                         change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
-                        leaves_queue_indices: vec![item.queue_data.index as u16],
+                        leaves_queue_indices: vec![item.queue_item_data.index as u16],
                         indices: vec![proof.leaf_index],
                         proofs: vec![proof.proof.clone()],
                         authority: self.config.payer_keypair.pubkey(),
@@ -951,7 +1118,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok((proofs, instructions))
     }
 
-    async fn perform_rollover(&self, tree_account: &TreeAccounts) -> Result<(), ForesterError> {
+    async fn perform_rollover(&self, tree_account: &TreeAccounts) -> Result<()> {
         let result = match tree_account.tree_type {
             TreeType::Address => {
                 rollover_address_merkle_tree(
@@ -996,8 +1163,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
-) -> Result<(), ForesterError> {
-    const MAX_RETRIES: u32 = 5;
+) -> Result<()> {
     const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
     const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
 
@@ -1005,7 +1171,8 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
     let mut retry_delay = INITIAL_RETRY_DELAY;
     let start_time = Instant::now();
 
-    while retry_count < MAX_RETRIES {
+    while retry_count < config.max_retries {
+        info!("Creating EpochManager (attempt {})", retry_count + 1);
         match EpochManager::new(
             config.clone(),
             protocol_config.clone(),
@@ -1037,19 +1204,19 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                     e
                 );
                 retry_count += 1;
-                if retry_count < MAX_RETRIES {
+                if retry_count < config.max_retries {
                     info!("Retrying in {:?}", retry_delay);
                     sleep(retry_delay).await;
                     retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                 } else {
                     error!(
                         "Failed to start forester after {} attempts over {:?}",
-                        MAX_RETRIES,
+                        config.max_retries,
                         start_time.elapsed()
                     );
                     return Err(ForesterError::Custom(format!(
                         "Failed to start forester after {} attempts: {:?}",
-                        MAX_RETRIES, e
+                        config.max_retries, e
                     )));
                 }
             }

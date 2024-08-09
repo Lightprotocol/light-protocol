@@ -15,13 +15,14 @@ pub enum SettingsKey {
     WsRpcUrl,
     IndexerUrl,
     ProverUrl,
+    PhotonApiKey,
     IndexerBatchSize,
+    IndexerMaxConcurrentBatches,
     TransactionBatchSize,
+    TransactionMaxConcurrentBatches,
     MaxRetries,
-    ConcurrencyLimit,
     CULimit,
     RpcPoolSize,
-    PhotonApiKey,
 }
 
 impl Display for SettingsKey {
@@ -36,9 +37,11 @@ impl Display for SettingsKey {
                 SettingsKey::IndexerUrl => "INDEXER_URL",
                 SettingsKey::ProverUrl => "PROVER_URL",
                 SettingsKey::PhotonApiKey => "PHOTON_API_KEY",
-                SettingsKey::ConcurrencyLimit => "CONCURRENCY_LIMIT",
                 SettingsKey::IndexerBatchSize => "INDEXER_BATCH_SIZE",
+                SettingsKey::IndexerMaxConcurrentBatches => "INDEXER_MAX_CONCURRENT_BATCHES",
                 SettingsKey::TransactionBatchSize => "TRANSACTION_BATCH_SIZE",
+                SettingsKey::TransactionMaxConcurrentBatches =>
+                    "TRANSACTION_MAX_CONCURRENT_BATCHES",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
@@ -97,15 +100,23 @@ pub fn init_config() -> ForesterConfig {
     let photon_api_key = settings
         .get_string(&SettingsKey::PhotonApiKey.to_string())
         .ok();
-    let concurrency_limit = settings
-        .get_int(&SettingsKey::ConcurrencyLimit.to_string())
-        .expect("CONCURRENCY_LIMIT not found in config file or environment variables");
+
     let indexer_batch_size = settings
         .get_int(&SettingsKey::IndexerBatchSize.to_string())
         .expect("INDEXER_BATCH_SIZE not found in config file or environment variables");
+    let indexer_max_concurrent_batches = settings
+        .get_int(&SettingsKey::IndexerMaxConcurrentBatches.to_string())
+        .expect("INDEXER_MAX_CONCURRENT_BATCHES not found in config file or environment variables");
+
     let transaction_batch_size = settings
         .get_int(&SettingsKey::TransactionBatchSize.to_string())
         .expect("TRANSACTION_BATCH_SIZE not found in config file or environment variables");
+    let transaction_max_concurrent_batches = settings
+        .get_int(&SettingsKey::TransactionMaxConcurrentBatches.to_string())
+        .expect(
+            "TRANSACTION_MAX_CONCURRENT_BATCHES not found in config file or environment variables",
+        );
+
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
         .expect("MAX_RETRIES not found in config file or environment variables");
@@ -122,10 +133,10 @@ pub fn init_config() -> ForesterConfig {
         },
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: payer,
-        num_workers: 1, // TODO: make this configurable
-        concurrency_limit: concurrency_limit as usize,
         indexer_batch_size: indexer_batch_size as usize,
+        indexer_max_concurrent_batches: indexer_max_concurrent_batches as usize,
         transaction_batch_size: transaction_batch_size as usize,
+        transaction_max_concurrent_batches: transaction_max_concurrent_batches as usize,
         max_retries: max_retries as usize,
         cu_limit: cu_limit as u32,
         rpc_pool_size: rpc_pool_size as usize,

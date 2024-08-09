@@ -11,8 +11,6 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use log::debug;
 use solana_sdk::pubkey::Pubkey;
 
-const INVALID_MT_PUBKEY: &str = "11111111111111111111111111111111";
-
 pub async fn fetch_trees(server_url: &str) -> Vec<TreeAccounts> {
     let program_id = account_compression::id();
     let rpc = SolanaRpcConnection::new(server_url, None);
@@ -106,7 +104,7 @@ async fn sync_single_tree<R: RpcConnection>(
         ));
 
         match next_merkle_tree_pubkey(&current_pubkey, rpc).await {
-            Ok(next_pubkey) if next_pubkey.to_string() != INVALID_MT_PUBKEY => {
+            Ok(next_pubkey) if next_pubkey != Pubkey::default() => {
                 current_pubkey = next_pubkey;
             }
             _ => break,

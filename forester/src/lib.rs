@@ -9,7 +9,7 @@ pub mod settings;
 pub mod tree_data_sync;
 pub mod utils;
 
-use crate::epoch_manager::{fetch_queue_data, run_service, WorkReport};
+use crate::epoch_manager::{fetch_queue_item_data, run_service, WorkReport};
 use crate::errors::ForesterError;
 use crate::utils::get_protocol_config;
 pub use config::{ForesterConfig, ForesterEpochInfo};
@@ -45,7 +45,7 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in state_trees {
-        let queue_length = fetch_queue_data(rpc.clone(), &tree_data.queue)
+        let queue_length = fetch_queue_item_data(rpc.clone(), &tree_data.queue)
             .await
             .unwrap()
             .len();
@@ -77,6 +77,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
         Arc::new(get_protocol_config(rpc.clone()).await)
     };
 
+    info!("Starting Forester pipeline");
     run_service(
         config,
         protocol_config,

@@ -14,10 +14,10 @@ dotenv.config();
 const RPC_API_KEY = process.env.RPC_API_KEY;
 console.log("RPC_API_KEY: ", RPC_API_KEY);
 
-const LAMPORTS = 0.9 * LAMPORTS_PER_SOL;
-const COMPRESS_AMOUNT = 0.1 * LAMPORTS_PER_SOL;
-const TOTAL_TX = 10;
-const CONCURRENT_TX = 1;
+const LAMPORTS = 1.1 * LAMPORTS_PER_SOL;
+const COMPRESS_AMOUNT = 1 * LAMPORTS_PER_SOL;
+const TOTAL_TX = 1000;
+const CONCURRENT_TX = 20;
 const TRANSFER_AMOUNT = 10;
 
 const aliceKeypair = [
@@ -118,7 +118,7 @@ async function prefillNullifierQueue() {
         })
     );
 
-    const isTransferNeeded = true;
+    const isTransferNeeded = false;
     if (isTransferNeeded) {
         for (let i = 0; i < TOTAL_TX; i += CONCURRENT_TX) {
             const promises = [];
