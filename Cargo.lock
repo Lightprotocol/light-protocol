@@ -8039,4 +8039,4 @@ dependencies = [
 [[patch.unused]]
 name = "solana-rpc"
 version = "1.18.17"
-source = "git+https://github.com/sergeytimoshin/agave?branch=v1.18.17-enforce-cpi-tracking#0263904bacd75b6e9d012346bf0f75fa8be8aaad"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.17-enforce-cpi-tracking#0263904bacd75b6e9d012346bf0f75fa8be8aaad"

@@ -930,145 +930,140 @@ export type LightSystemProgram = {
         },
         {
             code: 6006;
-            name: 'InvalidNoopPubkey';
-            msg: 'InvalidNoopPubkey';
-        },
-        {
-            code: 6007;
             name: 'InvalidAddress';
             msg: 'InvalidAddress';
         },
         {
-            code: 6008;
+            code: 6007;
             name: 'DeriveAddressError';
             msg: 'DeriveAddressError';
         },
         {
-            code: 6009;
+            code: 6008;
             name: 'CompressedSolPdaUndefinedForCompressSol';
             msg: 'CompressedSolPdaUndefinedForCompressSol';
         },
         {
-            code: 6010;
+            code: 6009;
             name: 'DeCompressLamportsUndefinedForCompressSol';
             msg: 'DeCompressLamportsUndefinedForCompressSol';
         },
         {
-            code: 6011;
+            code: 6010;
             name: 'CompressedSolPdaUndefinedForDecompressSol';
             msg: 'CompressedSolPdaUndefinedForDecompressSol';
         },
         {
-            code: 6012;
+            code: 6011;
             name: 'DeCompressLamportsUndefinedForDecompressSol';
             msg: 'DeCompressLamportsUndefinedForDecompressSol';
         },
         {
-            code: 6013;
+            code: 6012;
             name: 'DecompressRecipientUndefinedForDecompressSol';
             msg: 'DecompressRecipientUndefinedForDecompressSol';
         },
         {
-            code: 6014;
+            code: 6013;
             name: 'WriteAccessCheckFailed';
             msg: 'WriteAccessCheckFailed';
         },
         {
-            code: 6015;
+            code: 6014;
             name: 'InvokingProgramNotProvided';
             msg: 'InvokingProgramNotProvided';
         },
         {
-            code: 6016;
+            code: 6015;
             name: 'InvalidCapacity';
             msg: 'InvalidCapacity';
         },
         {
-            code: 6017;
+            code: 6016;
             name: 'InvalidMerkleTreeOwner';
             msg: 'InvalidMerkleTreeOwner';
         },
         {
-            code: 6018;
+            code: 6017;
             name: 'ProofIsNone';
             msg: 'ProofIsNone';
         },
         {
-            code: 6019;
+            code: 6018;
             name: 'ProofIsSome';
             msg: 'Proof is some but no input compressed accounts or new addresses provided.';
         },
         {
-            code: 6020;
+            code: 6019;
             name: 'EmptyInputs';
             msg: 'EmptyInputs';
         },
         {
-            code: 6021;
+            code: 6020;
             name: 'CpiContextAccountUndefined';
             msg: 'CpiContextAccountUndefined';
         },
         {
-            code: 6022;
+            code: 6021;
             name: 'CpiContextEmpty';
             msg: 'CpiContextEmpty';
         },
         {
-            code: 6023;
+            code: 6022;
             name: 'CpiContextMissing';
             msg: 'CpiContextMissing';
         },
         {
-            code: 6024;
+            code: 6023;
             name: 'DecompressionRecipientDefined';
             msg: 'DecompressionRecipientDefined';
         },
         {
-            code: 6025;
+            code: 6024;
             name: 'SolPoolPdaDefined';
             msg: 'SolPoolPdaDefined';
         },
         {
-            code: 6026;
+            code: 6025;
             name: 'AppendStateFailed';
             msg: 'AppendStateFailed';
         },
         {
-            code: 6027;
+            code: 6026;
             name: 'InstructionNotCallable';
             msg: 'The instruction is not callable';
         },
         {
-            code: 6028;
+            code: 6027;
             name: 'CpiContextFeePayerMismatch';
             msg: 'CpiContextFeePayerMismatch';
         },
         {
-            code: 6029;
+            code: 6028;
             name: 'CpiContextAssociatedMerkleTreeMismatch';
             msg: 'CpiContextAssociatedMerkleTreeMismatch';
         },
         {
-            code: 6030;
+            code: 6029;
             name: 'NoInputs';
             msg: 'NoInputs';
         },
         {
-            code: 6031;
+            code: 6030;
             name: 'InputMerkleTreeIndicesNotInOrder';
             msg: 'Input merkle tree indices are not in ascending order.';
         },
         {
-            code: 6032;
+            code: 6031;
             name: 'OutputMerkleTreeIndicesNotInOrder';
             msg: 'Output merkle tree indices are not in ascending order.';
         },
         {
-            code: 6033;
+            code: 6032;
             name: 'OutputMerkleTreeNotUnique';
         },
         {
-            code: 6034;
+            code: 6033;
             name: 'DataFieldUndefined';
         },
     ];
@@ -2011,145 +2006,140 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6006,
-            name: 'InvalidNoopPubkey',
-            msg: 'InvalidNoopPubkey',
-        },
-        {
-            code: 6007,
             name: 'InvalidAddress',
             msg: 'InvalidAddress',
         },
         {
-            code: 6008,
+            code: 6007,
             name: 'DeriveAddressError',
             msg: 'DeriveAddressError',
         },
         {
-            code: 6009,
+            code: 6008,
             name: 'CompressedSolPdaUndefinedForCompressSol',
             msg: 'CompressedSolPdaUndefinedForCompressSol',
         },
         {
-            code: 6010,
+            code: 6009,
             name: 'DeCompressLamportsUndefinedForCompressSol',
             msg: 'DeCompressLamportsUndefinedForCompressSol',
         },
         {
-            code: 6011,
+            code: 6010,
             name: 'CompressedSolPdaUndefinedForDecompressSol',
             msg: 'CompressedSolPdaUndefinedForDecompressSol',
         },
         {
-            code: 6012,
+            code: 6011,
             name: 'DeCompressLamportsUndefinedForDecompressSol',
             msg: 'DeCompressLamportsUndefinedForDecompressSol',
         },
         {
-            code: 6013,
+            code: 6012,
             name: 'DecompressRecipientUndefinedForDecompressSol',
             msg: 'DecompressRecipientUndefinedForDecompressSol',
         },
         {
-            code: 6014,
+            code: 6013,
             name: 'WriteAccessCheckFailed',
             msg: 'WriteAccessCheckFailed',
         },
         {
-            code: 6015,
+            code: 6014,
             name: 'InvokingProgramNotProvided',
             msg: 'InvokingProgramNotProvided',
         },
         {
-            code: 6016,
+            code: 6015,
             name: 'InvalidCapacity',
             msg: 'InvalidCapacity',
         },
         {
-            code: 6017,
+            code: 6016,
             name: 'InvalidMerkleTreeOwner',
             msg: 'InvalidMerkleTreeOwner',
         },
         {
-            code: 6018,
+            code: 6017,
             name: 'ProofIsNone',
             msg: 'ProofIsNone',
         },
         {
-            code: 6019,
+            code: 6018,
             name: 'ProofIsSome',
             msg: 'Proof is some but no input compressed accounts or new addresses provided.',
         },
         {
-            code: 6020,
+            code: 6019,
             name: 'EmptyInputs',
             msg: 'EmptyInputs',
         },
         {
-            code: 6021,
+            code: 6020,
             name: 'CpiContextAccountUndefined',
             msg: 'CpiContextAccountUndefined',
         },
         {
-            code: 6022,
+            code: 6021,
             name: 'CpiContextEmpty',
             msg: 'CpiContextEmpty',
         },
         {
-            code: 6023,
+            code: 6022,
             name: 'CpiContextMissing',
             msg: 'CpiContextMissing',
         },
         {
-            code: 6024,
+            code: 6023,
             name: 'DecompressionRecipientDefined',
             msg: 'DecompressionRecipientDefined',
         },
         {
-            code: 6025,
+            code: 6024,
             name: 'SolPoolPdaDefined',
             msg: 'SolPoolPdaDefined',
         },
         {
-            code: 6026,
+            code: 6025,
             name: 'AppendStateFailed',
             msg: 'AppendStateFailed',
         },
         {
-            code: 6027,
+            code: 6026,
             name: 'InstructionNotCallable',
             msg: 'The instruction is not callable',
         },
         {
-            code: 6028,
+            code: 6027,
             name: 'CpiContextFeePayerMismatch',
             msg: 'CpiContextFeePayerMismatch',
         },
         {
-            code: 6029,
+            code: 6028,
             name: 'CpiContextAssociatedMerkleTreeMismatch',
             msg: 'CpiContextAssociatedMerkleTreeMismatch',
         },
         {
-            code: 6030,
+            code: 6029,
             name: 'NoInputs',
             msg: 'NoInputs',
         },
         {
-            code: 6031,
+            code: 6030,
             name: 'InputMerkleTreeIndicesNotInOrder',
             msg: 'Input merkle tree indices are not in ascending order.',
         },
         {
-            code: 6032,
+            code: 6031,
             name: 'OutputMerkleTreeIndicesNotInOrder',
             msg: 'Output merkle tree indices are not in ascending order.',
         },
         {
-            code: 6033,
+            code: 6032,
             name: 'OutputMerkleTreeNotUnique',
         },
         {
-            code: 6034,
+            code: 6033,
             name: 'DataFieldUndefined',
         },
     ],
