@@ -20,7 +20,7 @@ hex = { version = "0.4.3", features = [] }
 blake2b_simd = "1"
 num-bigint = "0.4.6"
 console_error_panic_hook = "0.1.7"
-thiserror = "1.0.56"
+thiserror = "1.0.63"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
