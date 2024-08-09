@@ -62,7 +62,7 @@ async fn test_initialize_protocol_config() {
     let protocol_config = ProtocolConfig::default();
     let (protocol_config_pda, bump) = get_protocol_config_pda_address();
     let ix_data = light_registry::instruction::InitializeProtocolConfig {
-        protocol_config: protocol_config.clone(),
+        protocol_config,
         bump,
     };
 
@@ -132,7 +132,7 @@ async fn test_initialize_protocol_config() {
         .await
         .unwrap();
 
-    // fail to update protoco config with invalid authority
+    // fail to update protocol config with invalid authority
     {
         let instruction = light_registry::instruction::UpdateProtocolConfig {
             protocol_config: None,
@@ -166,7 +166,7 @@ async fn test_initialize_protocol_config() {
         };
 
         let instruction = light_registry::instruction::UpdateProtocolConfig {
-            protocol_config: Some(updated_protocol_config.clone()),
+            protocol_config: Some(updated_protocol_config),
         };
         let accounts = light_registry::accounts::UpdateProtocolConfig {
             protocol_config_pda,
@@ -348,8 +348,7 @@ async fn test_initialize_protocol_config() {
             &NullifierQueueConfig::default(),
         )
         .await;
-        let expected_error_code =
-            light_registry::errors::RegistryError::InvalidNetworkFee as u32 + 6000;
+        let expected_error_code = RegistryError::InvalidNetworkFee as u32 + 6000;
         assert_rpc_error(result, 3, expected_error_code).unwrap();
     }
     // initialize a Merkle tree with network fee = 0
@@ -416,8 +415,7 @@ async fn test_initialize_protocol_config() {
             0,
         )
         .await;
-        let expected_error_code =
-            light_registry::errors::RegistryError::InvalidNetworkFee as u32 + 6000;
+        let expected_error_code = RegistryError::InvalidNetworkFee as u32 + 6000;
         assert_rpc_error(result, 2, expected_error_code).unwrap();
     }
 }
@@ -501,7 +499,7 @@ async fn test_custom_forester() {
 /// Test:
 /// 1. SUCCESS: Register a forester
 /// 2. SUCCESS: Update forester authority
-/// 3. SUCESS: Register forester for epoch
+/// 3. SUCCESS: Register forester for epoch
 #[tokio::test]
 async fn test_register_and_update_forester_pda() {
     let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
@@ -558,7 +556,7 @@ async fn test_register_and_update_forester_pda() {
         .unwrap()
         .config;
 
-    // SUCESS: update forester weight
+    // SUCCESS: update forester weight
     {
         let ix = create_update_forester_pda_weight_instruction(
             &forester_keypair.pubkey(),
@@ -638,7 +636,7 @@ async fn test_register_and_update_forester_pda() {
     // finalize registration
     {
         registered_epoch
-            .fetch_account_and_add_trees_with_schedule(&mut rpc, tree_accounts)
+            .fetch_account_and_add_trees_with_schedule(&mut rpc, &tree_accounts)
             .await
             .unwrap();
         let ix = create_finalize_registration_instruction(
@@ -808,8 +806,7 @@ async fn failing_test_forester() {
     }
     // 4. FAIL: Nullify with invalid authority
     {
-        let expected_error_code =
-            light_registry::errors::RegistryError::InvalidForester as u32 + 6000;
+        let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let inputs = CreateNullifyInstructionInputs {
             authority: payer.pubkey(),
             nullifier_queue: env.nullifier_queue_pubkey,
@@ -832,8 +829,7 @@ async fn failing_test_forester() {
     }
     // 4 FAIL: update address Merkle tree failed
     {
-        let expected_error_code =
-            light_registry::errors::RegistryError::InvalidForester as u32 + 6000;
+        let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let authority = rpc.get_payer().insecure_clone();
         let mut instruction = create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {

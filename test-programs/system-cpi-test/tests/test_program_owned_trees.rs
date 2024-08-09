@@ -349,7 +349,7 @@ async fn test_invalid_registered_program() {
             old_queue: invalid_group_nullifier_queue.pubkey(),
             cpi_context_account: new_cpi_context_keypair.pubkey(),
             light_system_program: light_system_program::ID,
-            protocol_config_pda: protocol_config_pda,
+            protocol_config_pda,
         };
         let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
         let create_nullifier_queue_instruction = create_account_instruction(
@@ -700,7 +700,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     queue_config: &NullifierQueueConfig,
     invalid_group: bool,
 ) -> Result<Signature, RpcError> {
-    let size = account_compression::state::StateMerkleTreeAccount::size(
+    let size = StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,
@@ -716,9 +716,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
-    let size =
-        account_compression::state::queue::QueueAccount::size(queue_config.capacity as usize)
-            .unwrap();
+    let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
@@ -767,8 +765,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     index: u64,
     invalid_group: bool,
 ) -> Result<Signature, RpcError> {
-    let size =
-        account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
+    let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
