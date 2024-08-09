@@ -6,12 +6,11 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use anchor_lang::solana_program::hash;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_system_program::sdk::address::{derive_address, pack_new_address_params};
+use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
     PackedMerkleContext,
 };
-use light_system_program::NewAddressParams;
 use light_test_utils::indexer::{test_indexer::TestIndexer, Indexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::ProgramTestRpcConnection;
