@@ -34,7 +34,7 @@ light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "
 light-utils = { version = "0.3.0", path = "../utils" }
 groth16-solana = "0.0.3"
 light-verifier = { path = "../circuit-lib/verifier", version = "0.3.0", features = ["solana"] }
-borsh = "0.10.0"
+borsh = "1.4.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
