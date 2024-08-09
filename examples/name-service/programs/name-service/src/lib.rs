@@ -78,7 +78,7 @@ pub mod name_service {
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        signer_check(&ctx, &compressed_account)?;
+        signer_and_hash_check(&ctx, &compressed_account)?;
 
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
@@ -114,7 +114,7 @@ pub mod name_service {
         proof: CompressedProof,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        signer_check(&ctx, &compressed_account)?;
+        signer_and_hash_check(&ctx, &compressed_account)?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -160,6 +160,8 @@ pub enum CustomError {
     Unauthorized,
     #[msg("Record account has no data")]
     NoData,
+    #[msg("Provided data hash does not match the computed hash")]
+    InvalidDataHash,
 }
 
 #[light_accounts]
@@ -184,10 +186,16 @@ impl light_hasher::DataHasher for NameRecord {
     }
 }
 
-fn signer_check(
+fn signer_and_hash_check(
     ctx: &Context<'_, '_, '_, '_, NameService<'_>>,
     compressed_account: &PackedCompressedAccountWithMerkleContext,
 ) -> Result<()> {
+    let compressed_account_data = compressed_account
+        .compressed_account
+        .data
+        .as_ref()
+        .ok_or(CustomError::Unauthorized)?;
+
     let record = NameRecord::deserialize(
         &mut compressed_account
             .compressed_account
@@ -197,11 +205,16 @@ fn signer_check(
             .data
             .as_slice(),
     )?;
-    if ctx.accounts.signer.key() == record.owner {
-        Ok(())
-    } else {
-        err!(CustomError::Unauthorized)
+    if ctx.accounts.signer.key() != record.owner {
+        return err!(CustomError::Unauthorized);
     }
+
+    let hash = record.hash::<Poseidon>().map_err(ProgramError::from)?;
+    if compressed_account_data.data_hash != hash {
+        return err!(CustomError::InvalidDataHash);
+    }
+
+    Ok(())
 }
 
 fn create_compressed_account(
