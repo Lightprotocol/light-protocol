@@ -1,14 +1,77 @@
+use std::ops::{Deref, DerefMut};
+
 use light_bounded_vec::BoundedVec;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct ChangelogPath<const HEIGHT: usize>(pub [Option<[u8; 32]>; HEIGHT]);
+
+impl<const HEIGHT: usize> ChangelogPath<HEIGHT> {
+    pub fn from_fn<F>(cb: F) -> Self
+    where
+        F: FnMut(usize) -> Option<[u8; 32]>,
+    {
+        Self(std::array::from_fn(cb))
+    }
+
+    /// Checks whether the path is equal to the provided [`BoundedVec`].
+    ///
+    /// [`ChangelogPath`] might contain `None` nodes at the end, which
+    /// mean that it does not define them, but the following changelog
+    /// paths are expected to overwrite them.
+    ///
+    /// Therefore, the comparison ends on the first encountered first
+    /// `None`. If all `Some` nodes are equal to the corresponding ones
+    /// in the provided vector, the result is `true`.
+    pub fn eq_to(&self, other: BoundedVec<[u8; 32]>) -> bool {
+        if other.len() != HEIGHT {
+            return false;
+        }
+
+        for i in 0..HEIGHT {
+            let changelog_node = self.0[i];
+            let path_node = other[i];
+            match changelog_node {
+                Some(changelog_node) => {
+                    if changelog_node != path_node {
+                        return false;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        true
+    }
+}
+
+impl<const HEIGHT: usize> Default for ChangelogPath<HEIGHT> {
+    fn default() -> Self {
+        Self([None; HEIGHT])
+    }
+}
+
+impl<const HEIGHT: usize> Deref for ChangelogPath<HEIGHT> {
+    type Target = [Option<[u8; 32]>; HEIGHT];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<const HEIGHT: usize> DerefMut for ChangelogPath<HEIGHT> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct ChangelogEntry<const HEIGHT: usize> {
-    /// Root.
-    pub root: [u8; 32],
     // Path of the changelog.
-    pub path: [[u8; 32]; HEIGHT],
+    pub path: ChangelogPath<HEIGHT>,
     // Index of the affected leaf.
     pub index: u64,
 }
@@ -19,15 +82,14 @@ pub type ChangelogEntry32 = ChangelogEntry<32>;
 pub type ChangelogEntry40 = ChangelogEntry<40>;
 
 impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
-    pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize) -> Self {
+    pub fn new(path: ChangelogPath<HEIGHT>, index: usize) -> Self {
         let index = index as u64;
-        Self { root, path, index }
+        Self { path, index }
     }
 
     pub fn default_with_index(index: usize) -> Self {
         Self {
-            root: [0u8; 32],
-            path: [[0u8; 32]; HEIGHT],
+            path: ChangelogPath::default(),
             index: index as u64,
         }
     }
@@ -62,7 +124,9 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
-            proof[intersection_index] = self.path[intersection_index];
+            if let Some(node) = self.path[intersection_index] {
+                proof[intersection_index] = node;
+            }
         } else {
             // This case means that the leaf we are trying to update was
             // already updated. Therefore, the right thing to do is to notify
@@ -73,10 +137,4 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
 
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn test_get_rightmost_proof() {}
 }

@@ -5,7 +5,9 @@ use crate::test_env::NOOP_PROGRAM_ID;
 use crate::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
-use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
+use account_compression::utils::constants::{
+    ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS,
+};
 use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
 use account_compression::{AddressMerkleTreeAccount, SAFETY_MARGIN};
 use anchor_lang::system_program;
@@ -518,7 +520,11 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             let path = relayer_merkle_tree
                 .get_path_of_leaf(merkle_tree.current_index(), true)
                 .unwrap();
-            assert_eq!(changelog_entry.path.as_slice(), path.as_slice());
+            for i in 0..ADDRESS_MERKLE_TREE_HEIGHT as usize {
+                let changelog_node = changelog_entry.path[i].unwrap();
+                let path_node = path[i];
+                assert_eq!(changelog_node, path_node);
+            }
 
             let indexed_changelog_entry = merkle_tree
                 .indexed_changelog
