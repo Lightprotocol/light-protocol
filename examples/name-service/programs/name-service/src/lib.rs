@@ -74,7 +74,7 @@ pub mod name_service {
             name,
             rdata,
         };
-        let new_compressed_account = compressed_account_with_address(&record, address)?;
+        let new_compressed_account = compressed_output_account_with_address(&record, address)?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -224,7 +224,7 @@ fn create_compressed_account(
     })
 }
 
-fn compressed_account_with_address(
+fn compressed_output_account_with_address(
     record: &NameRecord,
     address: [u8; 32],
 ) -> Result<OutputCompressedAccountWithPackedContext> {
