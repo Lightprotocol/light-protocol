@@ -880,8 +880,54 @@ export class Rpc extends Connection implements CompressionApiInterface {
             openedAccounts.push(buildCompressedAccountWithMaybeTokenData(item));
         });
 
+        const calculateTokenBalances = (
+            accounts: Array<{
+                account: CompressedAccountWithMerkleContext;
+                maybeTokenData: TokenData | null;
+            }>,
+        ):
+            | Array<{
+                  owner: PublicKey;
+                  mint: PublicKey;
+                  amount: BN;
+              }>
+            | undefined => {
+            const balances = Object.values(
+                accounts.reduce(
+                    (acc, { maybeTokenData }) => {
+                        if (maybeTokenData) {
+                            const { owner, mint, amount } = maybeTokenData;
+                            const key = `${owner.toBase58()}_${mint.toBase58()}`;
+                            if (key in acc) {
+                                acc[key].amount = acc[key].amount.add(amount);
+                            } else {
+                                acc[key] = { owner, mint, amount };
+                            }
+                        }
+                        return acc;
+                    },
+                    {} as {
+                        [key: string]: {
+                            owner: PublicKey;
+                            mint: PublicKey;
+                            amount: BN;
+                        };
+                    },
+                ),
+            );
+            return balances.length > 0 ? balances : undefined;
+        };
+
+        let preTokenBalances = calculateTokenBalances(closedAccounts);
+        let postTokenBalances = calculateTokenBalances(openedAccounts);
+
         return {
-            compressionInfo: { closedAccounts, openedAccounts },
+            compressionInfo: {
+                closedAccounts,
+                openedAccounts,
+                preTokenBalances,
+                postTokenBalances,
+            },
             transaction: res.result.transaction,
         };
     }

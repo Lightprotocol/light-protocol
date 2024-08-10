@@ -65,6 +65,16 @@ export interface CompressedTransaction {
             account: CompressedAccountWithMerkleContext;
             maybeTokenData: TokenData | null;
         }[];
+        preTokenBalances?: {
+            owner: PublicKey;
+            mint: PublicKey;
+            amount: BN;
+        }[];
+        postTokenBalances?: {
+            owner: PublicKey;
+            mint: PublicKey;
+            amount: BN;
+        }[];
     };
     transaction: any;
 }
