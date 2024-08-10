@@ -81,6 +81,12 @@ If you still want to setup dependencies manually, these are the requirements:
 - [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
 - [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
 
+If you are using Ubuntu and encounter errors during the build process, you may need to install additional dependencies. Use the following command:
+
+```
+sudo apt-get install build-essential autoconf automake libtool zlib1g-dev
+```
+
 ## Building
 
 To build the project, use the following commands:
