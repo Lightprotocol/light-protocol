@@ -5,7 +5,7 @@ use std::{
     mem,
 };
 
-use event::{ChangelogEvent, MerkleTreeEvent};
+use changelog::ChangelogPath;
 use light_bounded_vec::{
     BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecIterator,
     CyclicBoundedVecMetadata,
@@ -23,7 +23,6 @@ pub mod zero_copy;
 use crate::{
     changelog::ChangelogEntry,
     errors::ConcurrentMerkleTreeError,
-    event::PathNode,
     hash::{compute_parent_node, compute_root},
 };
 
@@ -211,12 +210,8 @@ where
         self.roots.push(root);
 
         // Initialize changelog.
-        let path = std::array::from_fn(|i| H::zero_bytes()[i]);
-        let changelog_entry = ChangelogEntry {
-            root,
-            path,
-            index: 0,
-        };
+        let path = ChangelogPath::from_fn(|i| Some(H::zero_bytes()[i]));
+        let changelog_entry = ChangelogEntry { path, index: 0 };
         self.changelog.push(changelog_entry);
 
         // Initialize filled subtrees.
@@ -417,16 +412,14 @@ where
         leaf_index: usize,
         proof: &BoundedVec<[u8; 32]>,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        let mut changelog_entry = ChangelogEntry::default_with_index(leaf_index);
         let mut current_node = *new_leaf;
-        let mut changelog_path = [[0u8; 32]; HEIGHT];
         for (level, sibling) in proof.iter().enumerate() {
-            changelog_path[level] = current_node;
+            changelog_entry.path[level] = Some(current_node);
             current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, level)?;
         }
 
         self.inc_sequence_number()?;
-
-        let changelog_entry = ChangelogEntry::new(current_node, changelog_path, leaf_index);
 
         self.roots.push(current_node);
 
@@ -565,7 +558,7 @@ where
 
             let mut current_node = **leaf;
 
-            self.changelog[changelog_index].path[0] = **leaf;
+            self.changelog[changelog_index].path[0] = Some(**leaf);
 
             for i in 0..self.height {
                 let is_left = current_index % 2 == 0;
@@ -621,23 +614,20 @@ where
                 }
 
                 if i < self.height - 1 {
-                    self.changelog[changelog_index].path[i + 1] = current_node;
-
-                    for leaf_j in 0..leaf_i {
-                        let changelog_index =
-                            (first_changelog_index + leaf_j) % self.changelog.capacity();
-                        if self.changelog[changelog_index].path[i + 1] == [0u8; 32] {
-                            self.changelog[changelog_index].path[i + 1] = current_node;
-                        }
-                    }
+                    self.changelog[changelog_index].path[i + 1] = Some(current_node);
                 }
 
                 current_index /= 2;
             }
 
-            self.changelog[changelog_index].root = current_node;
-
-            self.roots.push(current_node);
+            if leaf_i == leaves.len() - 1 {
+                self.roots.push(current_node);
+            } else {
+                // Photon returns only the sequence number and we use it in the
+                // JS client and forester to derive the root index. Therefore,
+                // we need to emit a "zero root" to not break that property.
+                self.roots.push([0u8; 32]);
+            }
 
             self.inc_next_index()?;
             self.inc_sequence_number()?;
@@ -662,59 +652,15 @@ where
                 .take(self.canopy_depth)
                 .enumerate()
             {
-                let level = self.height - i - 1;
-                let index =
-                    (1 << (self.height - level)) + (self.changelog[changelog_index].index >> level);
-                // `index - 2` maps to the canopy index.
-                self.canopy[(index - 2) as usize] = *path_node;
+                if let Some(path_node) = path_node {
+                    let level = self.height - i - 1;
+                    let index = (1 << (self.height - level))
+                        + (self.changelog[changelog_index].index >> level);
+                    // `index - 2` maps to the canopy index.
+                    self.canopy[(index - 2) as usize] = *path_node;
+                }
             }
         }
-    }
-
-    #[inline(never)]
-    pub fn get_changelog_event(
-        &self,
-        merkle_tree_account_pubkey: [u8; 32],
-        first_changelog_index: usize,
-        first_sequence_number: usize,
-        num_changelog_entries: usize,
-    ) -> Result<MerkleTreeEvent, ConcurrentMerkleTreeError> {
-        let mut paths = Vec::with_capacity(num_changelog_entries);
-        for i in 0..num_changelog_entries {
-            let changelog_index = (first_changelog_index + i) % self.changelog.capacity();
-            let mut path = Vec::with_capacity(self.height + 1);
-
-            // Add all nodes from the changelog path.
-            for (level, node) in self.changelog[changelog_index].path.iter().enumerate() {
-                let level =
-                    u32::try_from(level).map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
-                let index = (1 << (self.height as u32 - level))
-                    + (self.changelog[changelog_index].index as u32 >> level);
-                path.push(PathNode {
-                    node: node.to_owned(),
-                    index,
-                });
-            }
-
-            // Add root.
-            path.push(PathNode {
-                node: self.changelog[changelog_index].root,
-                index: 1,
-            });
-
-            paths.push(path);
-        }
-
-        let index: u32 = self.changelog[first_changelog_index]
-            .index
-            .try_into()
-            .map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
-        Ok(MerkleTreeEvent::V1(ChangelogEvent {
-            id: merkle_tree_account_pubkey,
-            paths,
-            seq: first_sequence_number as u64,
-            index,
-        }))
     }
 }
 

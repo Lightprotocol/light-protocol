@@ -1905,7 +1905,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
         let path = reference_merkle_tree
             .get_path_of_leaf(merkle_tree.current_index(), true)
             .unwrap();
-        assert_eq!(changelog_entry.path.as_slice(), path.as_slice());
+        assert!(changelog_entry.path.eq_to(path));
     }
 }
 
