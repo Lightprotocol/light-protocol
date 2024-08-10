@@ -918,8 +918,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return balances.length > 0 ? balances : undefined;
         };
 
-        let preTokenBalances = calculateTokenBalances(closedAccounts);
-        let postTokenBalances = calculateTokenBalances(openedAccounts);
+        const preTokenBalances = calculateTokenBalances(closedAccounts);
+        const postTokenBalances = calculateTokenBalances(openedAccounts);
 
         return {
             compressionInfo: {
