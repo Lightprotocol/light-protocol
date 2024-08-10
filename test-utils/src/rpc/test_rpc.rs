@@ -33,6 +33,13 @@ impl Clone for ProgramTestRpcConnection {
 }
 
 impl RpcConnection for ProgramTestRpcConnection {
+    fn get_program_accounts(
+        &self,
+        _program_id: &Pubkey,
+    ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
+        unimplemented!("get_program_accounts")
+    }
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,

@@ -375,12 +375,7 @@ async fn test_mint_to_failing() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
             .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
     }
     // 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
     //    authority.
@@ -397,12 +392,7 @@ async fn test_mint_to_failing() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
             .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
     }
     // 3. Try to mint token to random token account.
     {
@@ -414,7 +404,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_1.pubkey(),
             authority: payer_1.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: mint_1.clone(),
+            mint: mint_1,
             token_pool_pda: token_account_keypair.pubkey(),
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -454,7 +444,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_2.pubkey(),
             authority: payer_2.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: mint_2.clone(),
+            mint: mint_2,
             token_pool_pda: mint_pool_1,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -495,7 +485,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_2.pubkey(),
             authority: payer_2.pubkey(),
             cpi_authority_pda: invalid_cpi_authority_pda.pubkey(),
-            mint: mint_1.clone(),
+            mint: mint_1,
             token_pool_pda: mint_pool_1,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -536,7 +526,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_1.pubkey(),
             authority: payer_1.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: mint_1.clone(),
+            mint: mint_1,
             token_pool_pda: mint_pool_1,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -575,7 +565,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_1.pubkey(),
             authority: payer_1.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: mint_1.clone(),
+            mint: mint_1,
             token_pool_pda: mint_pool_1,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -614,7 +604,7 @@ async fn test_mint_to_failing() {
             fee_payer: payer_1.pubkey(),
             authority: payer_1.pubkey(),
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: mint_1.clone(),
+            mint: mint_1,
             token_pool_pda: mint_pool_1,
             token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
@@ -684,12 +674,7 @@ async fn test_mint_to_failing() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
             .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_compressed_token::ErrorCode::MintTooLarge.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::MintTooLarge.into()).unwrap();
     }
     // 11. Multiple mints which overflow the token supply over `u64::MAX`.
     {
@@ -1099,7 +1084,7 @@ async fn test_delegation_mixed() {
             &mint,
             &sender,
             &[recipient, sender.pubkey(), delegate.pubkey()],
-            &vec![100, 200, delegate_input_amount - 300],
+            &[100, 200, delegate_input_amount - 300],
             Some(vec![Some(90), Some(10), Some(delegate_lamports)]),
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 3],
@@ -1140,7 +1125,7 @@ async fn test_delegation_mixed() {
             &mint,
             &sender,
             &[recipient, sender.pubkey(), delegate.pubkey()],
-            &vec![100, 200, delegate_input_amount - 300],
+            &[100, 200, delegate_input_amount - 300],
             Some(vec![Some(90), Some(10), Some(lamports_output_amount)]),
             input_compressed_accounts.as_slice(),
             &[env.merkle_tree_pubkey; 3],
@@ -2400,12 +2385,7 @@ async fn test_failing_freeze() {
                 &[&context_payer, &invalid_authority],
             )
             .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_compressed_token::ErrorCode::InvalidFreezeAuthority.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::InvalidFreezeAuthority.into()).unwrap();
     }
     // 2. Invalid Merkle tree.
     {
@@ -2662,12 +2642,7 @@ async fn test_failing_thaw() {
                 &[&context_payer, &invalid_authority],
             )
             .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_compressed_token::ErrorCode::InvalidFreezeAuthority.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::InvalidFreezeAuthority.into()).unwrap();
     }
     // 2. Invalid Merkle tree.
     {
@@ -2974,7 +2949,7 @@ async fn test_failing_decompression() {
             &get_token_pool_pda(&mint),
             Some(get_token_pool_pda(&mint)),
             &mint,
-            light_compressed_token::ErrorCode::IsTokenPoolPda.into(),
+            ErrorCode::IsTokenPoolPda.into(),
         )
         .await
         .unwrap();

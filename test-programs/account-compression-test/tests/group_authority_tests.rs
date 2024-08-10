@@ -301,7 +301,7 @@ async fn test_create_and_update_group() {
         let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
         let accounts = account_compression::accounts::DeregisterProgram {
             authority: updated_keypair.pubkey(),
-            registered_program_pda: registered_program_pda,
+            registered_program_pda,
             group_authority_pda: group_accounts.0,
             close_recipient,
         };
@@ -321,11 +321,11 @@ async fn test_create_and_update_group() {
         let closed_registered_program_account =
             context.get_account(registered_program_pda).await.unwrap();
         assert!(closed_registered_program_account.is_none());
-        let recpient_balance = context.get_balance(&close_recipient).await.unwrap();
+        let recipient_balance = context.get_balance(&close_recipient).await.unwrap();
         let rent_exemption = context
             .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
             .await
             .unwrap();
-        assert_eq!(recpient_balance, rent_exemption);
+        assert_eq!(recipient_balance, rent_exemption);
     }
 }

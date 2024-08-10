@@ -48,7 +48,8 @@ async fn main() -> Result<(), ForesterError> {
         }
         Some(Commands::Status) => {
             info!("Fetching trees...");
-            let trees = fetch_trees(&config.external_services.rpc_url).await;
+            let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None);
+            let trees = fetch_trees(&rpc).await;
             if trees.is_empty() {
                 warn!("No trees found. Exiting.");
             }

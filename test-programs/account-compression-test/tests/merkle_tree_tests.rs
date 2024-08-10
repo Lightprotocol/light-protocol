@@ -390,7 +390,7 @@ async fn test_full_nullifier_queue(
     let element: [u8; 32] =
         bigint_to_be_bytes_array(&replacement_value.to_biguint().unwrap()).unwrap();
     insert_into_single_nullifier_queue(
-        &vec![element],
+        &[element],
         &payer,
         &payer,
         &nullifier_queue_pubkey,
@@ -1072,7 +1072,10 @@ async fn test_nullify_leaves(
     .await;
 
     insert_into_single_nullifier_queue(
-        &elements.iter().map(|element| element.1).collect(),
+        &elements
+            .iter()
+            .map(|element| element.1)
+            .collect::<Vec<[u8; 32]>>(),
         &payer,
         &payer,
         &nullifier_queue_pubkey,
@@ -1350,7 +1353,7 @@ async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
 }
 
 async fn insert_into_single_nullifier_queue<R: RpcConnection>(
-    elements: &Vec<[u8; 32]>,
+    elements: &[[u8; 32]],
     fee_payer: &Keypair,
     payer: &Keypair,
     nullifier_queue_pubkey: &Pubkey,
@@ -1648,7 +1651,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             merkle_tree_keypair,
             queue_keypair,
             &merkle_tree_config,
-            &queue_config,
+            queue_config,
             merkle_tree_size,
             queue_size,
             None,
@@ -1671,7 +1674,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
             merkle_tree_keypair,
             queue_keypair,
             &merkle_tree_config,
-            &queue_config,
+            queue_config,
             merkle_tree_size,
             queue_size,
             None,

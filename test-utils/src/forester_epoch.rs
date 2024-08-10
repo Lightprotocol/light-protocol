@@ -151,12 +151,12 @@ impl TreeForesterSchedule {
     }
 
     pub fn new_with_schedule(
-        tree_accounts: TreeAccounts,
+        tree_accounts: &TreeAccounts,
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
     ) -> Self {
         let mut _self = Self {
-            tree_accounts,
+            tree_accounts: *tree_accounts,
             slots: Vec::new(),
         };
         _self.slots = get_schedule_for_forester_in_queue(
@@ -356,7 +356,7 @@ impl Epoch {
     pub async fn fetch_account_and_add_trees_with_schedule<R: RpcConnection>(
         &mut self,
         rpc: &mut R,
-        trees: Vec<TreeAccounts>,
+        trees: &[TreeAccounts],
     ) -> Result<(), RpcError> {
         let current_solana_slot = rpc.get_slot().await?;
 
@@ -391,7 +391,7 @@ impl Epoch {
     pub fn add_trees_with_schedule(
         &mut self,
         forester_epoch_pda: &ForesterEpochPda,
-        trees: Vec<TreeAccounts>,
+        trees: &[TreeAccounts],
         current_solana_slot: u64,
     ) {
         // let state = self.phases.get_current_epoch_state(current_solana_slot);

@@ -87,7 +87,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::InvalidSignerSeeds,
-        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+        SystemProgramError::CpiSignerCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -102,7 +102,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::InvalidInvokingProgram,
-        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+        SystemProgramError::CpiSignerCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -117,7 +117,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::WriteToAccountNotOwned,
-        light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
+        SystemProgramError::WriteAccessCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -164,7 +164,7 @@ async fn only_test_create_pda() {
         None,
         &compressed_account,
         None,
-        light_system_program::errors::SystemProgramError::SignerCheckFailed.into(),
+        SystemProgramError::SignerCheckFailed.into(),
         WithInputAccountsMode::NotOwnedCompressedAccount,
     )
     .await
@@ -179,7 +179,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::CpiContextMissing.into(),
+            SystemProgramError::CpiContextMissing.into(),
             WithInputAccountsMode::CpiContextMissing,
         )
         .await
@@ -192,7 +192,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::CpiContextAccountUndefined.into(),
+            SystemProgramError::CpiContextAccountUndefined.into(),
             WithInputAccountsMode::CpiContextAccountMissing,
         )
         .await
@@ -205,7 +205,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::CpiContextEmpty.into(),
+            SystemProgramError::CpiContextEmpty.into(),
             WithInputAccountsMode::CpiContextEmpty,
         )
         .await
@@ -218,7 +218,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+            SystemProgramError::CpiSignerCheckFailed.into(),
             WithInputAccountsMode::CpiContextInvalidInvokingProgram,
         )
         .await
@@ -231,7 +231,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+            SystemProgramError::CpiSignerCheckFailed.into(),
             WithInputAccountsMode::CpiContextInvalidSignerSeeds,
         )
         .await
@@ -246,7 +246,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             Some(compressed_token_account_data),
-            light_system_program::errors::SystemProgramError::CpiContextFeePayerMismatch.into(),
+            SystemProgramError::CpiContextFeePayerMismatch.into(),
             WithInputAccountsMode::CpiContextFeePayerMismatch,
         )
         .await
@@ -259,7 +259,7 @@ async fn only_test_create_pda() {
             None,
             &compressed_account,
             None,
-            light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
+            SystemProgramError::WriteAccessCheckFailed.into(),
             WithInputAccountsMode::CpiContextWriteToNotOwnedAccount,
         )
         .await
@@ -297,14 +297,14 @@ async fn only_test_create_pda() {
             &data,
             &ID,
             CreatePdaMode::NoData,
-            light_system_program::errors::SystemProgramError::DataFieldUndefined.into(),
+            SystemProgramError::DataFieldUndefined.into(),
         )
         .await
         .unwrap();
     }
 }
 
-// TODO: add tranfer and burn with delegate
+// TODO: add transfer and burn with delegate
 // TODO: create a cleaner function than perform_with_input_accounts which was
 // build for failing tests to execute the instructions
 /// Functional Tests:
@@ -354,8 +354,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
     // 1. Approve functional with cpi context
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -382,8 +381,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 2. Revoke functional with cpi context
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey())
             .iter()
@@ -409,8 +407,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 3. Freeze functional with cpi context
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -433,8 +430,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 4. Thaw functional with cpi context
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -456,8 +452,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 5. Burn functional with cpi context
     {
-        let compressed_account =
-            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -527,7 +522,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
-        light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
+        SystemProgramError::InvalidMerkleTreeOwner.into(),
     )
     .await
     .unwrap();
@@ -571,7 +566,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
-        light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
+        SystemProgramError::InvalidMerkleTreeOwner.into(),
     )
     .await
     .unwrap();
@@ -795,6 +790,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_with_input_accounts<R: RpcConnection>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
@@ -919,7 +915,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer_pubkey,
-            &[payer, &invalid_fee_payer],
+            &[payer, invalid_fee_payer],
             None,
         )
         .await;
