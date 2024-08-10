@@ -3,26 +3,21 @@
     "version": "0.4.1",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
-    "type": "module",
     "main": "dist/cjs/node/index.cjs",
-    "module": "dist/es/node/index.js",
-    "browser": {
-        "./dist/cjs/node/index.cjs": "./dist/cjs/browser/index.cjs",
-        "./dist/es/node/index.js": "./dist/es/browser/index.js"
-    },
-    "types": "dist/types/index.d.ts",
+    "type": "module",
     "exports": {
         ".": {
-            "import": "./dist/es/node/index.js",
             "require": "./dist/cjs/node/index.cjs",
-            "browser": {
-                "import": "./dist/es/browser/index.js",
-                "require": "./dist/cjs/browser/index.cjs"
-            },
             "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/node/index.cjs"
+        },
+        "./browser": {
+            "import": "./dist/es/browser/index.js",
+            "require": "./dist/cjs/browser/index.cjs",
+            "types": "./dist/types/index.d.ts"
         }
     },
+    "types": "./dist/types/index.d.ts",
     "files": [
         "dist"
     ],
