@@ -36,7 +36,7 @@ export async function decompress(
     /// TODO: use dynamic state tree and nullifier queue
 
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
-        await rpc.getCompressedAccountsByOwner(payer.publicKey);
+        (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
 
     lamports = bn(lamports);
 

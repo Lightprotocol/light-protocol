@@ -126,7 +126,7 @@ export async function createAccountWithLamports(
     );
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
-        compressedAccounts,
+        compressedAccounts.items,
         lamports,
     );
 

@@ -58,8 +58,8 @@ describe('test-rpc', () => {
             payer.publicKey,
         );
 
-        compressedTestAccount = compressedAccounts[0];
-        assert.equal(compressedAccounts.length, 1);
+        compressedTestAccount = compressedAccounts.items[0];
+        assert.equal(compressedAccounts.items.length, 1);
         assert.equal(
             Number(compressedTestAccount.lamports),
             compressLamportsAmount,
@@ -84,7 +84,7 @@ describe('test-rpc', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const refHash = compressedAccounts[0].hash;
+        const refHash = compressedAccounts.items[0].hash;
         const compressedAccountProof = await rpc.getCompressedAccountProof(
             bn(refHash),
         );
@@ -93,7 +93,7 @@ describe('test-rpc', () => {
         expect(proof.length).toStrictEqual(26);
         expect(compressedAccountProof.hash).toStrictEqual(refHash);
         expect(compressedAccountProof.leafIndex).toStrictEqual(
-            compressedAccounts[0].leafIndex,
+            compressedAccounts.items[0].leafIndex,
         );
         expect(compressedAccountProof.rootIndex).toStrictEqual(2);
         preCompressBalance = await rpc.getBalance(payer.publicKey);
@@ -109,7 +109,7 @@ describe('test-rpc', () => {
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        expect(compressedAccounts1?.length).toStrictEqual(1);
+        expect(compressedAccounts1.items.length).toStrictEqual(1);
         postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
@@ -123,7 +123,7 @@ describe('test-rpc', () => {
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        expect(compressedAccounts2?.length).toStrictEqual(2);
+        expect(compressedAccounts2.items.length).toStrictEqual(2);
     });
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {
@@ -148,7 +148,7 @@ describe('test-rpc', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const refHash = compressedAccounts[0].hash;
+        const refHash = compressedAccounts.items[0].hash;
         /// getCompressedAccount
         const compressedAccount = await rpc.getCompressedAccount(
             undefined,
@@ -166,7 +166,7 @@ describe('test-rpc', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             refPayer.publicKey,
         );
-        const refHash = compressedAccounts[0].hash;
+        const refHash = compressedAccounts.items[0].hash;
         /// getCompressedBalance
         await expect(rpc.getCompressedBalance(bn(refHash))).rejects.toThrow(
             'address is not supported in test-rpc',

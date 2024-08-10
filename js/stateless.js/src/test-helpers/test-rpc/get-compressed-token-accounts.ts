@@ -5,7 +5,7 @@ import { BN, BorshCoder } from '@coral-xyz/anchor';
 import { IDL } from '../../idls/light_compressed_token';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
-import { ParsedTokenAccount } from '../../rpc-interface';
+import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
     PublicTransactionEvent,
@@ -153,7 +153,7 @@ export async function getCompressedTokenAccountsByOwnerTest(
     rpc: Rpc,
     owner: PublicKey,
     mint: PublicKey,
-): Promise<ParsedTokenAccount[]> {
+): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
@@ -161,25 +161,31 @@ export async function getCompressedTokenAccountsByOwnerTest(
     const accounts = compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
-    return accounts.sort(
-        (a, b) => b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
-    );
+    return {
+        items: accounts.sort(
+            (a, b) =>
+                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+        ),
+        cursor: null,
+    };
 }
 
 export async function getCompressedTokenAccountsByDelegateTest(
     rpc: Rpc,
     delegate: PublicKey,
     mint: PublicKey,
-): Promise<ParsedTokenAccount[]> {
+): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
-
-    return compressedTokenAccounts.filter(
-        acc =>
-            acc.parsed.delegate?.equals(delegate) &&
-            acc.parsed.mint.equals(mint),
-    );
+    return {
+        items: compressedTokenAccounts.filter(
+            acc =>
+                acc.parsed.delegate?.equals(delegate) &&
+                acc.parsed.mint.equals(mint),
+        ),
+        cursor: null,
+    };
 }
 
 export async function getCompressedTokenAccountByHashTest(

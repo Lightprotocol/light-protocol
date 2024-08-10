@@ -48,8 +48,8 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
-        const hash = bn(senderAccounts[0].hash);
-        const hashTest = bn(senderAccountsTest[0].hash);
+        const hash = bn(senderAccounts.items[0].hash);
+        const hashTest = bn(senderAccountsTest.items[0].hash);
 
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
@@ -158,8 +158,8 @@ describe('rpc-interop', () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const hashTest = bn(senderAccountsTest[0].hash);
-        const hash = bn(senderAccounts[0].hash);
+        const hashTest = bn(senderAccountsTest.items[0].hash);
+        const hash = bn(senderAccounts.items[0].hash);
 
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
@@ -336,7 +336,7 @@ describe('rpc-interop', () => {
             const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
             );
-            const preSenderBalance = prePayerAccounts.reduce(
+            const preSenderBalance = prePayerAccounts.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );
@@ -344,19 +344,19 @@ describe('rpc-interop', () => {
             const preReceiverAccounts = await rpc.getCompressedAccountsByOwner(
                 bob.publicKey,
             );
-            const preReceiverBalance = preReceiverAccounts.reduce(
+            const preReceiverBalance = preReceiverAccounts.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );
 
             /// get reference proofs for sender
             const testProofs = await testRpc.getMultipleCompressedAccountProofs(
-                prePayerAccounts.map(account => bn(account.hash)),
+                prePayerAccounts.items.map(account => bn(account.hash)),
             );
 
             /// get photon proofs for sender
             const proofs = await rpc.getMultipleCompressedAccountProofs(
-                prePayerAccounts.map(account => bn(account.hash)),
+                prePayerAccounts.items.map(account => bn(account.hash)),
             );
 
             /// compare each proof by node and root
@@ -382,11 +382,11 @@ describe('rpc-interop', () => {
                 bob.publicKey,
             );
 
-            const postSenderBalance = postSenderAccs.reduce(
+            const postSenderBalance = postSenderAccs.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );
-            const postReceiverBalance = postReceiverAccs.reduce(
+            const postReceiverBalance = postReceiverAccs.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );
@@ -413,15 +413,18 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
-        assert.equal(senderAccounts.length, senderAccountsTest.length);
+        assert.equal(
+            senderAccounts.items.length,
+            senderAccountsTest.items.length,
+        );
 
-        senderAccounts.forEach((account, index) => {
+        senderAccounts.items.forEach((account, index) => {
             assert.equal(
                 account.owner.toBase58(),
-                senderAccountsTest[index].owner.toBase58(),
+                senderAccountsTest.items[index].owner.toBase58(),
             );
             assert.isTrue(
-                account.lamports.eq(senderAccountsTest[index].lamports),
+                account.lamports.eq(senderAccountsTest.items[index].lamports),
             );
         });
 
@@ -432,20 +435,25 @@ describe('rpc-interop', () => {
             bob.publicKey,
         );
 
-        assert.equal(receiverAccounts.length, receiverAccountsTest.length);
+        assert.equal(
+            receiverAccounts.items.length,
+            receiverAccountsTest.items.length,
+        );
 
-        receiverAccounts.sort((a, b) => a.lamports.sub(b.lamports).toNumber());
-        receiverAccountsTest.sort((a, b) =>
+        receiverAccounts.items.sort((a, b) =>
+            a.lamports.sub(b.lamports).toNumber(),
+        );
+        receiverAccountsTest.items.sort((a, b) =>
             a.lamports.sub(b.lamports).toNumber(),
         );
 
-        receiverAccounts.forEach((account, index) => {
+        receiverAccounts.items.forEach((account, index) => {
             assert.equal(
                 account.owner.toBase58(),
-                receiverAccountsTest[index].owner.toBase58(),
+                receiverAccountsTest.items[index].owner.toBase58(),
             );
             assert.isTrue(
-                account.lamports.eq(receiverAccountsTest[index].lamports),
+                account.lamports.eq(receiverAccountsTest.items[index].lamports),
             );
         });
     });
@@ -457,11 +465,11 @@ describe('rpc-interop', () => {
 
         const compressedAccount = await rpc.getCompressedAccount(
             undefined,
-            bn(senderAccounts[0].hash),
+            bn(senderAccounts.items[0].hash),
         );
         const compressedAccountTest = await testRpc.getCompressedAccount(
             undefined,
-            bn(senderAccounts[0].hash),
+            bn(senderAccounts.items[0].hash),
         );
 
         assert.isTrue(
@@ -483,11 +491,11 @@ describe('rpc-interop', () => {
         );
 
         const compressedAccounts = await rpc.getMultipleCompressedAccounts(
-            senderAccounts.map(account => bn(account.hash)),
+            senderAccounts.items.map(account => bn(account.hash)),
         );
         const compressedAccountsTest =
             await testRpc.getMultipleCompressedAccounts(
-                senderAccounts.map(account => bn(account.hash)),
+                senderAccounts.items.map(account => bn(account.hash)),
             );
 
         assert.equal(compressedAccounts.length, compressedAccountsTest.length);
@@ -510,14 +518,14 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
         const signaturesUnspent = await rpc.getCompressionSignaturesForAccount(
-            bn(senderAccounts[0].hash),
+            bn(senderAccounts.items[0].hash),
         );
 
         /// most recent therefore unspent account
         assert.equal(signaturesUnspent.length, 1);
 
         /// Note: assumes largest-first selection mechanism
-        const largestAccount = senderAccounts.reduce((acc, account) =>
+        const largestAccount = senderAccounts.items.reduce((acc, account) =>
             account.lamports.gt(acc.lamports) ? account : acc,
         );
 
@@ -536,7 +544,7 @@ describe('rpc-interop', () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,
         );
-        assert.equal(signatures.length, executedTxs);
+        assert.equal(signatures.items.length, executedTxs);
     });
 
     it('[test-rpc missing] getLatestNonVotingSignatures should match', async () => {
@@ -579,7 +587,7 @@ describe('rpc-interop', () => {
         );
 
         const compressedTx = await rpc.getTransactionWithCompressionInfo(
-            signatures[0].signature,
+            signatures.items[0].signature,
         );
 
         /// is transfer
@@ -598,7 +606,7 @@ describe('rpc-interop', () => {
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const latestAccount = accounts[0];
+        const latestAccount = accounts.items[0];
 
         // assert the address was indexed
         assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
@@ -608,7 +616,7 @@ describe('rpc-interop', () => {
         );
 
         /// most recent therefore unspent account
-        assert.equal(signaturesUnspent.length, 1);
+        assert.equal(signaturesUnspent.items.length, 1);
     });
 
     it('getCompressedAccount with address param should work ', async () => {
@@ -622,7 +630,7 @@ describe('rpc-interop', () => {
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const latestAccount = accounts[0];
+        const latestAccount = accounts.items[0];
 
         assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
 

@@ -34,7 +34,7 @@ async function assertCompress(
             mint: refMint,
         });
 
-    const recipientSumPost = recipientCompressedTokenBalanceAfter.reduce(
+    const recipientSumPost = recipientCompressedTokenBalanceAfter.items.reduce(
         (acc, curr) => bn(acc).add(curr.parsed.amount),
         bn(0),
     );
@@ -121,7 +121,7 @@ describe('compress', () => {
             mint,
             bn(700),
             charlie.publicKey,
-            recipientCompressedTokenBalanceBefore,
+            recipientCompressedTokenBalanceBefore.items,
         );
     });
 });

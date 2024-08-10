@@ -110,7 +110,7 @@ async function assertApproveAndMintTo(
         },
     );
 
-    const compressedTokenAccount = compressedTokenAccounts[0];
+    const compressedTokenAccount = compressedTokenAccounts.items[0];
     expect(compressedTokenAccount.parsed.mint.toBase58()).toBe(
         refMint.toBase58(),
     );

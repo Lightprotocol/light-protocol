@@ -35,6 +35,7 @@ import {
     LatestNonVotingSignaturesResultPaginated,
     LatestNonVotingSignaturesPaginated,
     WithContext,
+    WithCursor,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -81,7 +82,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     ownerOrDelegate: PublicKey,
     options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     filterByDelegate: boolean = false,
-): Promise<ParsedTokenAccount[]> {
+): Promise<WithCursor<ParsedTokenAccount[]>> {
     const endpoint = filterByDelegate
         ? 'getCompressedTokenAccountsByDelegate'
         : 'getCompressedTokenAccountsByOwner';
@@ -152,9 +153,13 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         });
     });
     /// TODO: consider custom or different sort. Most recent here.
-    return accounts.sort(
-        (a, b) => b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
-    );
+    return {
+        items: accounts.sort(
+            (a, b) =>
+                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+        ),
+        cursor: res.result.value.cursor,
+    };
 }
 
 /** @internal */
@@ -659,7 +664,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[]> {
+    ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
@@ -677,7 +682,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            return [];
+            return {
+                items: [],
+                cursor: null,
+            };
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
 
@@ -698,7 +706,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             accounts.push(account);
         });
 
-        return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
+        return {
+            items: accounts.sort((a, b) => b.leafIndex - a.leafIndex),
+            cursor: res.result.value.cursor,
+        };
     }
 
     /**
@@ -708,7 +719,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
+    ): Promise<WithCursor<ParsedTokenAccount[]>> {
         if (!options) options = {};
 
         return await getCompressedTokenAccountsByOwnerOrDelegate(
@@ -725,7 +736,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
+    ): Promise<WithCursor<ParsedTokenAccount[]>> {
         if (!options) options = {};
 
         return getCompressedTokenAccountsByOwnerOrDelegate(
@@ -770,7 +781,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<{ balance: BN; mint: PublicKey }[]> {
+    ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>> {
         if (!options) options = {};
 
         const unsafeRes = await rpcRequest(
@@ -807,7 +818,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
               )
             : res.result.value.tokenBalances;
 
-        return maybeFiltered;
+        return {
+            items: maybeFiltered,
+            cursor: res.result.value.cursor,
+        };
     }
 
     /**
@@ -940,7 +954,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         address: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForAddress',
@@ -963,7 +977,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        return res.result.value.items;
+        return res.result.value;
     }
 
     /**
@@ -975,7 +989,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForOwner',
@@ -998,7 +1012,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        return res.result.value.items;
+        return res.result.value;
     }
 
     /// TODO(photon): needs mint
@@ -1009,7 +1023,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForTokenOwner',
@@ -1032,7 +1046,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        return res.result.value.items;
+        return res.result.value;
     }
 
     /**
