@@ -37,12 +37,12 @@ class BalanceCommand extends Command {
 
       loader.stop(false);
 
-      if (tokenAccounts.length === 0) {
+      if (tokenAccounts.items.length === 0) {
         console.log("No token accounts found");
         return;
       }
 
-      const compressedTokenAccount = tokenAccounts.find((acc) =>
+      const compressedTokenAccount = tokenAccounts.items.find((acc) =>
         acc.parsed.mint.equals(refMint),
       );
       if (compressedTokenAccount === undefined) {
