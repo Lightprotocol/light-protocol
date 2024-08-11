@@ -104,7 +104,7 @@ pub struct WorkReport {
     pub processed_items: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
@@ -113,6 +113,20 @@ struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
     trees: Vec<TreeAccounts>,
+}
+
+impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            protocol_config: self.protocol_config.clone(),
+            rpc_pool: self.rpc_pool.clone(),
+            indexer: self.indexer.clone(),
+            work_report_sender: self.work_report_sender.clone(),
+            processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
+            trees: self.trees.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

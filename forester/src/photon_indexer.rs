@@ -10,6 +10,7 @@ use std::fmt::Debug;
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
+    #[allow(dead_code)]
     rpc: R,
 }
 
@@ -33,15 +34,6 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
         f.debug_struct("PhotonIndexer")
             .field("configuration", &self.configuration)
             .finish()
-    }
-}
-
-impl<R: RpcConnection> Clone for PhotonIndexer<R> {
-    fn clone(&self) -> Self {
-        PhotonIndexer {
-            configuration: self.configuration.clone(),
-            rpc: self.rpc.clone(),
-        }
     }
 }
 

@@ -13,7 +13,6 @@ pub use test_indexer::TokenDataWithContext;
 
 use crate::indexer::test_indexer::ProofRpcResult;
 use crate::rpc::rpc_connection::RpcConnection;
-use crate::spl::create_mint_helper;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
@@ -24,7 +23,7 @@ use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
-pub trait Indexer<R: RpcConnection>: Sync + Send + Clone + Debug + 'static {
+pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
