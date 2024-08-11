@@ -3,9 +3,7 @@ use light_registry::utils::get_protocol_config_pda_address;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
 use std::process::Command;
-use std::sync::Arc;
 use sysinfo::{Signal, System};
-use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct LightValidatorConfig {
@@ -84,10 +82,9 @@ pub fn u8_arr_to_hex_string(arr: &[u8]) -> String {
         .join("")
 }
 
-pub async fn get_protocol_config<R: RpcConnection>(rpc: Arc<Mutex<R>>) -> ProtocolConfig {
-    let mut arc_rpc = rpc.lock().await;
+pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfig {
     let authority_pda = get_protocol_config_pda_address();
-    let protocol_config_account = arc_rpc
+    let protocol_config_account = rpc
         .get_anchor_account::<ProtocolConfigPda>(&authority_pda.0)
         .await
         .unwrap()

@@ -43,6 +43,8 @@ dotenvy = "0.15.7"
 crossbeam-channel = "0.5.12"
 tokio-stream = "0.1.14"
 base64 = "0.12.3"
+async-trait = "0.1.81"
+bb8 = "0.8.5"
 
 [dev-dependencies]
 function_name = "0.3.0"

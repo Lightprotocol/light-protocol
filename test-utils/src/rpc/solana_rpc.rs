@@ -134,6 +134,14 @@ impl RpcConnection for SolanaRpcConnection {
         Self { client, payer }
     }
 
+    fn health(&self) -> Result<(), RpcError> {
+        let result = self.client.get_health();
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(RpcError::ClientError(e)),
+        }
+    }
+
     fn get_program_accounts(
         &self,
         program_id: &Pubkey,

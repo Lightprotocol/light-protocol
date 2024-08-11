@@ -96,7 +96,7 @@ async fn invoke_failing_test() {
 
     let mut test_indexer =
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
-    // cicuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
+    // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
     for mut num_addresses in 0..=2 {

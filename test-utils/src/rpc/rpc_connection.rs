@@ -19,6 +19,10 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         unimplemented!()
     }
 
+    fn health(&self) -> Result<(), RpcError> {
+        unimplemented!()
+    }
+
     fn get_program_accounts(&self, program_id: &Pubkey)
         -> Result<Vec<(Pubkey, Account)>, RpcError>;
 
