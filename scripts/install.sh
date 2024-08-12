@@ -1,274 +1,205 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-set -eu
+set -euo pipefail
 
 PREFIX="${PWD}/.local"
-OS=`uname`
-ARCH=`uname -m`
+INSTALL_LOG="${PREFIX}/.install_log"
 
-MAX_RETRIES=10
+# Versions
+VERSIONS=(
+    "go:1.21.7"
+    "node:20.9.0"
+    "pnpm:9.5.0"
+    "solana:1.18.17"
+    "anchor:anchor-v0.29.0"
+    "jq:jq-1.7.1"
+    "photon:0.38.0"
+)
 
-# Checks the latest release of the given GitHub repository.
-latest_release() {
-    OWNER="${1}"
-    REPO="${2}"
-    GITHUB="https://api.github.com"
+# Architecture-specific suffixes
+SUFFIXES=(
+    "go_Darwin_x86_64:darwin-amd64"
+    "go_Darwin_arm64:darwin-arm64"
+    "go_Linux_x86_64:linux-amd64"
+    "go_Linux_aarch64:linux-arm64"
+    "node_Darwin_x86_64:darwin-x64"
+    "node_Darwin_arm64:darwin-arm64"
+    "node_Linux_x86_64:linux-x64"
+    "node_Linux_aarch64:linux-arm64"
+    "pnpm_Darwin_x86_64:macos-x64"
+    "pnpm_Darwin_arm64:macos-arm64"
+    "pnpm_Linux_x86_64:linuxstatic-x64"
+    "pnpm_Linux_aarch64:linuxstatic-arm64"
+    "solana_Darwin_x86_64:x86_64-apple-darwin"
+    "solana_Darwin_arm64:aarch64-apple-darwin"
+    "solana_Linux_x86_64:x86_64-unknown-linux-gnu"
+    "solana_Linux_aarch64:aarch64-unknown-linux-gnu"
+    "anchor_Darwin_x86_64:macos-amd64"
+    "anchor_Darwin_arm64:macos-arm64"
+    "anchor_Linux_x86_64:linux-amd64"
+    "anchor_Linux_aarch64:linux-arm64"
+    "jq_Darwin_x86_64:jq-osx-amd64"
+    "jq_Darwin_arm64:jq-macos-arm64"
+    "jq_Linux_x86_64:jq-linux-amd64"
+    "jq_Linux_aarch64:jq-linux-arm64"
+)
 
-    LATEST_RELEASE=$(curl --retry 5 --retry-delay 10 -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest")
+OS=$(uname)
+ARCH=$(uname -m)
 
-    # Extract the tag name
-    TAG_NAME=$(echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1)
+log() { echo "$1" >> "$INSTALL_LOG"; }
+is_installed() { grep -q "^$1$" "$INSTALL_LOG" 2>/dev/null; }
 
-    echo "$TAG_NAME"
-}
-
-# Downloads a file from the given URL and places it in the given destination.
-download_file() {
-    url="${1}"
-    dest_name="${2}"
-    dest="${3}"
-
-    echo "📥 Downloading ${dest_name}"
-
-    for i in {0..$MAX_RETRIES}; do
-        curl --fail --retry "${MAX_RETRIES}" --retry-delay 10 -L -o "${dest}/${dest_name}" "${url}"
-        # Check if the file exists
-        if [ -f "${dest}/${dest_name}" ]; then
-            chmod +x "${dest}/${dest_name}"
-            break
-        else
-            echo "Failed to download ${dest_name}. Retrying ($i of $MAX_RETRIES)..."
-            if [ "$i" -eq $MAX_RETRIES ]; then
-                echo "Failed to download ${dest_name} after $MAX_RETRIES attempts."
-                exit 1
-            fi
-        fi
-    done
-}
-
-# Downloads a tarball from the given URL and extracts it to the given
-# destination.
-download_and_extract() {
-    archive_name="${1}"
-    url="${2}"
-    archive_type="${3}"
-    dest="${4}"
-    strip_components="${5:-0}"
-
-    echo "📥 Downloading ${archive_name}"
-    curl --retry 5 --retry-delay 10 -L "${url}" | tar "-x${archive_type}f" - --strip-components "${strip_components}" -C "${dest}"
-}
-
-# Downloads a file from the given GitHub repository and places it in the given
-# destination.
-download_file_github () {
-    git_org="${1}"
-    git_repo="${2}"
-    git_release="${3}"
-    src_name="${4}"
-    dest_name="${5}"
-    dest="${6}"
-
-    download_file \
-        "https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${src_name}" \
-        "${dest_name}" \
-        "${dest}"
-}
-
-# Downloads a tarball from the given GitHub repository and extracts it to the
-# given destination.
-download_and_extract_github () {
-    git_org="${1}"
-    git_repo="${2}"
-    git_release="${3}"
-    archive_name="${4}"
-    archive_type="${5}"
-    dest="${6}"
-    strip_components="${7:-0}"
-
-    download_and_extract \
-        "${archive_name}" \
-        "https://github.com/${git_org}/${git_repo}/releases/download/${git_release}/${archive_name}" \
-        "${archive_type}" \
-        "${dest}" \
-        "${strip_components}"
-}
-
-# Check command line arguments for a specific flag
-check_flag() {
-    flag=$1
-    shift  # This will shift the parameters, so $@ will hold the actual arguments
-    for arg in "$@"
-    do
-        if [ "$arg" = "$flag" ]; then
-            echo true
+get_version() {
+    local key=$1
+    for item in "${VERSIONS[@]}"; do
+        IFS=':' read -r k v <<< "$item"
+        if [ "$k" = "$key" ]; then
+            echo "$v"
             return
         fi
     done
-    echo false
+    echo "unknown"
 }
 
-GO_VERSION="1.21.7"
-NODE_VERSION="20.9.0"
-PNPM_VERSION="9.5.0"
-SOLANA_VERSION="1.18.11"
-ANCHOR_VERSION="anchor-v0.29.0"
-JQ_VERSION="jq-1.7.1"
-PHOTON_VERSION="0.38.0"
-PHOTON_BRANCH=""
+get_suffix() {
+    local key="${1}_${OS}_${ARCH}"
+    for item in "${SUFFIXES[@]}"; do
+        IFS=':' read -r k v <<< "$item"
+        if [ "$k" = "$key" ]; then
+            echo "$v"
+            return
+        fi
+    done
+    echo "unknown"
+}
 
-case "${OS}" in
-    "Darwin")
-        case "${ARCH}" in
-            "x86_64")
-                ARCH_SUFFIX_GO="darwin-amd64"
-                ARCH_SUFFIX_SOLANA="x86_64-apple-darwin"
-                ARCH_SUFFIX_LP="macos-amd64"
-                ARCH_SUFFIX_NODE="darwin-x64"
-                ARCH_SUFFIX_PNPM="macos-x64"
-                ARCH_SUFFIX_JQ="jq-osx-amd64"
-                ;;
-            "aarch64"|"arm64")
-                ARCH_SUFFIX_GO="darwin-arm64"
-                ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
-                ARCH_SUFFIX_LP="macos-arm64"
-                ARCH_SUFFIX_NODE="darwin-arm64"
-                ARCH_SUFFIX_PNPM="macos-arm64"
-                ARCH_SUFFIX_JQ="jq-macos-arm64"
-                ;;
-            "*")
-                echo "Architecture ${ARCH} on operating system ${OS} is not supported."
-                exit 1
-                ;;
-        esac
-        ;;
-    "Linux")
-        case "${ARCH}" in
-            "x86_64")
-                ARCH_SUFFIX_GO="linux-amd64"
-                ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
-                ARCH_SUFFIX_LP="linux-amd64"
-                ARCH_SUFFIX_NODE="linux-x64"
-                ARCH_SUFFIX_PNPM="linuxstatic-x64"
-                ARCH_SUFFIX_JQ="jq-linux-amd64"
-                ;;
-            "aarch64"|"arch64"|"arm64")
-                ARCH_SUFFIX_GO="linux-arm64"
-                ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
-                ARCH_SUFFIX_LP="linux-arm64"
-                ARCH_SUFFIX_NODE="linux-arm64"
-                ARCH_SUFFIX_PNPM="linuxstatic-arm64"
-                ARCH_SUFFIX_JQ="jq-linux-arm64"
-                ;;
-            "*")
-                echo "Architecture ${ARCH} on operating system ${OS} is not supported."
-                exit 1
-                ;;
-        esac
-        ;;
-    "*")
-        echo "Operating system ${OS} is not supported."
-        exit 1
-        ;;
-esac
+download() {
+    curl -sSL --retry 5 --retry-delay 10 -o "$2" "$1"
+    chmod +x "$2"
+}
 
-echo "🔍 Detected system ${ARCH_SUFFIX_LP}"
+install_go() {
+    if ! is_installed "go"; then
+        echo "Installing Go..."
+        local version=$(get_version "go")
+        local suffix=$(get_suffix "go")
+        local url="https://go.dev/dl/go${version}.${suffix}.tar.gz"
+        download "$url" "${PREFIX}/go.tar.gz"
+        tar -xzf "${PREFIX}/go.tar.gz" -C "${PREFIX}"
+        rm "${PREFIX}/go.tar.gz"
+        log "go"
+    fi
+}
 
-echo "📁 Creating directory ${PREFIX}"
-mkdir -p $PREFIX/bin/deps
+install_rust() {
+    if ! is_installed "rust"; then
+        echo "Installing Rust..."
+        curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+        RUSTUP_HOME="${PREFIX}/rustup"
+        CARGO_HOME="${PREFIX}/cargo"
+        PATH="${PREFIX}/cargo/bin:${PATH}"
+        rustup component add clippy rustfmt
+        cargo install cargo-expand wasm-pack
+        cargo install photon-indexer --version $(get_version "photon") --locked
+        log "rust"
+    fi
+}
 
-echo "📥 Installing Go"
-curl --fail --retry "${MAX_RETRIES}" --retry-delay 10 -L -o \
-    /tmp/go.tar.gz \
-    "https://go.dev/dl/go${GO_VERSION}.${ARCH_SUFFIX_GO}.tar.gz"
-tar xpf /tmp/go.tar.gz -C "${PREFIX}"
-rm -f /tmp/go.tar.gz
-export PATH="${PREFIX}/go/bin:${PATH}"
+install_node() {
+    if ! is_installed "node"; then
+        echo "Installing Node.js..."
+        local version=$(get_version "node")
+        local suffix=$(get_suffix "node")
+        local url="https://nodejs.org/dist/v${version}/node-v${version}-${suffix}.tar.gz"
+        download "$url" "${PREFIX}/node.tar.gz"
+        tar -xzf "${PREFIX}/node.tar.gz" -C "${PREFIX}" --strip-components 1
+        rm "${PREFIX}/node.tar.gz"
+        log "node"
+    fi
+}
 
-echo "Downloading gnark keys"
-# run the light-prover/scripts/download_keys.sh script
-# this script will download the keys from IPFS and place them in the light-prover/proving-keys directory
-ROOT_DIR="$(git rev-parse --show-toplevel)"
-"$ROOT_DIR"/light-prover/scripts/download_keys.sh
+install_pnpm() {
+    if ! is_installed "pnpm"; then
+        echo "Installing pnpm..."
+        local version=$(get_version "pnpm")
+        local suffix=$(get_suffix "pnpm")
+        local url="https://github.com/pnpm/pnpm/releases/download/v${version}/pnpm-${suffix}"
+        download "$url" "${PREFIX}/bin/pnpm"
+        chmod +x "${PREFIX}/bin/pnpm"
+        log "pnpm"
+    fi
+}
 
-echo "🦀 Installing Rust"
-export RUSTUP_HOME="${PREFIX}/rustup"
-export CARGO_HOME="${PREFIX}/cargo"
-curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    --no-modify-path # We want to control the PATH ourselves.
-export PATH="${PREFIX}/cargo/bin:${PATH}"
+install_solana() {
+    if ! is_installed "solana"; then
+        echo "Installing Solana..."
+        local version=$(get_version "solana")
+        local suffix=$(get_suffix "solana")
+        local url="https://github.com/anza-xyz/agave/releases/download/v${version}/solana-release-${suffix}.tar.bz2"
+        download "$url" "${PREFIX}/solana-release.tar.bz2"
+        tar -xjf "${PREFIX}/solana-release.tar.bz2" -C "${PREFIX}/bin" --strip-components 2
+        rm "${PREFIX}/solana-release.tar.bz2"
+        log "solana"
+    fi
+}
 
-rustup component add clippy
-rustup component add rustfmt
+install_anchor() {
+    if ! is_installed "anchor"; then
+        echo "Installing Anchor..."
+        local version=$(get_version "anchor")
+        local suffix=$(get_suffix "anchor")
+        local url="https://github.com/Lightprotocol/binaries/releases/download/${version}/anchor-${suffix}"        
+        download "$url" "${PREFIX}/bin/anchor"
+        log "anchor"
+    fi
+}
 
-cargo install cargo-expand wasm-pack
+install_jq() {
+    if ! is_installed "jq"; then
+        echo "Installing jq..."
+        local version=$(get_version "jq")
+        local suffix=$(get_suffix "jq")
+        local url="https://github.com/jqlang/jq/releases/download/${version}/${suffix}"
+        download "$url" "${PREFIX}/bin/jq"
+        log "jq"
+    fi
+}
 
-# check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
-if [ -n "$PHOTON_BRANCH" ]; then
-    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH --locked
-else
-  cargo install photon-indexer --version ${PHOTON_VERSION} --locked
-fi
+download_gnark_keys() {
+    if ! is_installed "gnark_keys"; then
+        echo "Downloading gnark keys..."
+        ROOT_DIR="$(git rev-parse --show-toplevel)"
+        "${ROOT_DIR}/light-prover/scripts/download_keys.sh"
+        log "gnark_keys"
+    fi
+}
 
-echo "📥 Downloading Node.js"
-download_and_extract \
-    "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
-    "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \
-    z \
-    "${PREFIX}" \
-    1
+install_dependencies() {
+    if ! is_installed "dependencies"; then
+        echo "Installing dependencies..."
+        export PATH="${PREFIX}/bin:${PATH}"
+        pnpm install
+        log "dependencies"
+    fi
+}
 
-NPM_DIR="${PREFIX}/npm-global"
-mkdir -p "${NPM_DIR}"
-export PATH="${PREFIX}/bin:${NPM_DIR}/bin:${PATH}"
-export NPM_CONFIG_PREFIX="${NPM_DIR}"
+main() {
+    mkdir -p "${PREFIX}/bin"
 
-echo "📥 Downloading pnpm"
-download_file_github \
-    pnpm \
-    pnpm \
-    "v${PNPM_VERSION}" \
-    "pnpm-${ARCH_SUFFIX_PNPM}" \
-    pnpm \
-    "${PREFIX}/bin"
+    install_go
+    install_rust
+    install_node
+    install_pnpm
+    install_solana
+    install_anchor
+    install_jq
+    download_gnark_keys
+    install_dependencies
 
-chmod +x "${PREFIX}/bin/pnpm"
-export PATH="${PREFIX}/bin:${PATH}"
+    rm -f "$INSTALL_LOG"
 
-echo "📥 Downloading Solana toolchain"
-if download_and_extract_github \
-    solana-labs \
-    solana \
-    "v${SOLANA_VERSION}" \
-    "solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2" \
-    j \
-    "${PREFIX}/bin" \
-    2 > /dev/null 2>&1; then
-    echo "✅ Solana toolchain downloaded and installed successfully"
-else
-    echo "⚠️ Solana toolchain is not available for this architecture. Skipping Solana installation."
-fi
+    echo "✨ Light Protocol development dependencies installed"
+}
 
-echo "📥 Downloading Anchor"
-download_file_github \
-    Lightprotocol \
-    binaries \
-    "${ANCHOR_VERSION}" \
-    "anchor-${ARCH_SUFFIX_LP}" \
-    anchor \
-    "${PREFIX}/bin"
-
-echo "📥 Downloading Jq"
-download_file_github \
-    jqlang \
-    jq \
-    "${JQ_VERSION}" \
-    "${ARCH_SUFFIX_JQ}" \
-    jq \
-    "${PREFIX}/bin"
-
-echo "📦 Installing pnpm dependencies"
-pnpm install
-
-echo "✨ Light Protocol development dependencies installed"
-
+main
