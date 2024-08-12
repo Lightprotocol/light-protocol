@@ -84,6 +84,7 @@ pub fn process_mint_to<'info>(
         // + 26                         seeds
         // + 1                          Option<CpiContextAccount>
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
+        let original_ptr = inputs.as_ptr();
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
@@ -125,11 +126,17 @@ pub fn process_mint_to<'info>(
 
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // This error should never be triggered.
-        if inputs.len() != inputs_len {
+        if inputs.len() != inputs_len
+            || inputs.capacity() != inputs_len
+            || inputs.as_ptr() != original_ptr
+        {
             msg!(
-                "Used memory {} is unequal allocated {} memory",
+                "Vector has been reallocated or modified unexpectedly. Length: {}, Capacity: {}, Expected Capacity: {}, Original Pointer: {:?}, Current Pointer: {:?}",
                 inputs.len(),
-                inputs_len
+                inputs.capacity(),
+                inputs_len,
+                original_ptr,
+                inputs.as_ptr()
             );
             return err!(crate::ErrorCode::HeapMemoryCheckFailed);
         }
