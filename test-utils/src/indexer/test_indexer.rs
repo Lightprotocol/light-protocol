@@ -1,3 +1,4 @@
+use account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -386,6 +387,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                                         .compressed_account
                                         .clone(),
                                     merkle_context: MerkleContext {
+                                        root_index: (event.sequence_numbers[i].seq
+                                            % STATE_MERKLE_TREE_ROOTS)
+                                            as u16,
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey: event.pubkey_array[event
                                             .output_compressed_accounts[i]
@@ -403,6 +407,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         let compressed_account = CompressedAccountWithMerkleContext {
                             compressed_account: compressed_account.compressed_account.clone(),
                             merkle_context: MerkleContext {
+                                root_index: (event.sequence_numbers[i].seq
+                                    % STATE_MERKLE_TREE_ROOTS)
+                                    as u16,
                                 leaf_index: event.output_leaf_indices[i],
                                 merkle_tree_pubkey: event.pubkey_array[event
                                     .output_compressed_accounts[i]
@@ -420,6 +427,8 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                     let compressed_account = CompressedAccountWithMerkleContext {
                         compressed_account: compressed_account.compressed_account.clone(),
                         merkle_context: MerkleContext {
+                            root_index: (event.sequence_numbers[i].seq % STATE_MERKLE_TREE_ROOTS)
+                                as u16,
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey: event.pubkey_array
                                 [event.output_compressed_accounts[i].merkle_tree_index as usize],

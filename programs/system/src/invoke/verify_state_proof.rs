@@ -46,7 +46,9 @@ pub fn fetch_input_compressed_account_roots<
         .map_err(ProgramError::from)?;
         let fetched_roots = &merkle_tree.roots;
 
-        roots[i] = fetched_roots[input_compressed_account_with_context.root_index as usize];
+        roots[i] = fetched_roots[input_compressed_account_with_context
+            .merkle_context
+            .root_index as usize];
     }
     Ok(())
 }
@@ -65,8 +67,10 @@ pub fn fetch_roots_address_merkle_tree<
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
     for (i, new_address_param) in new_address_params.iter().enumerate() {
-        let merkle_tree = ctx.remaining_accounts
-            [new_address_param.address_merkle_tree_account_index as usize]
+        let merkle_tree = ctx.remaining_accounts[new_address_param
+            .address_merkle_context
+            .address_merkle_tree_pubkey_index
+            as usize]
             .to_account_info();
         let merkle_tree = merkle_tree.try_borrow_data()?;
         check_discriminator::<AddressMerkleTreeAccount>(&merkle_tree)?;
@@ -77,7 +81,7 @@ pub fn fetch_roots_address_merkle_tree<
             .map_err(ProgramError::from)?;
         let fetched_roots = &merkle_tree.roots;
 
-        roots[i] = fetched_roots[new_address_param.address_merkle_tree_root_index as usize];
+        roots[i] = fetched_roots[new_address_param.address_merkle_context.root_index as usize];
     }
     Ok(())
 }

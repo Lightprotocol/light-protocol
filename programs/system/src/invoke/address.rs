@@ -23,7 +23,9 @@ pub fn derive_new_addresses(
         .enumerate()
         .try_for_each(|(i, new_address_params)| {
             let address = derive_address(
-                &remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+                &remaining_accounts[new_address_params
+                    .address_merkle_context
+                    .address_merkle_tree_pubkey_index as usize]
                     .key(),
                 &new_address_params.seed,
             )
@@ -52,11 +54,17 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
     let mut network_fee_bundle = None;
 
     new_address_params.iter().try_for_each(|params| {
-        remaining_accounts
-            .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
+        remaining_accounts.push(
+            ctx.remaining_accounts
+                [params.address_merkle_context.address_queue_pubkey_index as usize]
+                .clone(),
+        );
 
         remaining_accounts.push(
-            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone(),
+            ctx.remaining_accounts[params
+                .address_merkle_context
+                .address_merkle_tree_pubkey_index as usize]
+                .clone(),
         );
         // If at least one new address is created an address network fee is
         // paid.The network fee is paid once per transaction, defined in the
@@ -64,13 +72,18 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
         // nullifier queue is mutable. The network fee field in the queue is not
         // used.
         let network_fee = check_program_owner_address_merkle_tree(
-            &ctx.remaining_accounts[params.address_merkle_tree_account_index as usize],
+            &ctx.remaining_accounts[params
+                .address_merkle_context
+                .address_merkle_tree_pubkey_index as usize],
             invoking_program,
         )?;
         // We select the first network fee we find. All Merkle trees are
         // initialized with the same network fee.
         if network_fee_bundle.is_none() && network_fee.is_some() {
-            network_fee_bundle = Some((params.address_queue_account_index, network_fee.unwrap()));
+            network_fee_bundle = Some((
+                params.address_merkle_context.address_queue_pubkey_index,
+                network_fee.unwrap(),
+            ));
         }
         anchor_lang::Result::Ok(())
     })?;

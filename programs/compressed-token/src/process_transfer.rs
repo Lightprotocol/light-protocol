@@ -438,7 +438,6 @@ pub struct InputTokenDataWithContext {
     pub amount: u64,
     pub delegate_index: Option<u8>,
     pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
     pub lamports: Option<u64>,
     /// Placeholder for TokenExtension tlv data (unimplemented)
     pub tlv: Option<Vec<u8>>,
@@ -551,7 +550,6 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             PackedCompressedAccountWithMerkleContext {
                 compressed_account,
                 merkle_context: input_token_data.merkle_context,
-                root_index: input_token_data.root_index,
             },
         );
     }
@@ -880,10 +878,10 @@ pub mod transfer_sdk {
                         .get(&input_merkle_context[i].merkle_tree_pubkey)
                         .unwrap() as u8,
                     nullifier_queue_pubkey_index: 0,
+                    root_index: root_indices[i],
                     leaf_index: input_merkle_context[i].leaf_index,
                     queue_index: None,
                 },
-                root_index: root_indices[i],
                 lamports,
                 tlv: None,
             };

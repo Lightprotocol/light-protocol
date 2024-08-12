@@ -1,3 +1,4 @@
+use light_system_program::sdk::compressed_account::AddressMerkleContext;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     pubkey::Pubkey,
@@ -51,10 +52,12 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
 
     for (i, seed) in address_seeds.iter().enumerate() {
         let new_address_params = NewAddressParams {
-            address_queue_pubkey: address_merkle_tree_queue_pubkeys[i],
-            address_merkle_tree_pubkey: address_merkle_tree_pubkeys[i],
             seed: *seed,
-            address_merkle_tree_root_index: 0,
+            address_merkle_context: AddressMerkleContext {
+                address_queue_pubkey: address_merkle_tree_queue_pubkeys[i],
+                address_merkle_tree_pubkey: address_merkle_tree_pubkeys[i],
+                root_index: 0,
+            },
         };
         address_params.push(new_address_params);
     }
@@ -336,7 +339,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
                 inputs
                     .new_address_params
                     .iter()
-                    .map(|x| x.address_merkle_tree_pubkey)
+                    .map(|x| x.address_merkle_context.address_merkle_tree_pubkey)
                     .collect::<Vec<_>>(),
             )
         };
@@ -361,7 +364,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         if !inputs.new_address_params.is_empty() {
             for (i, input_address_params) in inputs.new_address_params.iter().enumerate() {
                 address_params.push(input_address_params.clone());
-                address_params[i].address_merkle_tree_root_index =
+                address_params[i].address_merkle_context.root_index =
                     proof_rpc_res.address_root_indices[i];
             }
         }
@@ -452,7 +455,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         address_queue_pubkeys: &inputs
             .new_address_params
             .iter()
-            .map(|x| x.address_queue_pubkey)
+            .map(|x| x.address_merkle_context.address_queue_pubkey)
             .collect::<Vec<Pubkey>>(),
     };
     assert_compressed_transaction(input).await;

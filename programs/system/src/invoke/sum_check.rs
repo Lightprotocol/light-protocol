@@ -135,10 +135,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
+                    root_index: 1,
                     leaf_index: 0,
                     queue_index: None,
                 },
-                root_index: 1,
             });
         }
         let mut outputs = Vec::new();

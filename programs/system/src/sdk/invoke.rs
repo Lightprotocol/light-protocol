@@ -8,7 +8,8 @@ use solana_sdk::{
 };
 
 use super::compressed_account::{
-    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+    CompressedAccount, MerkleContext, PackedAddressMerkleContext,
+    PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
@@ -100,9 +101,11 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         .iter()
         .map(|x| NewAddressParamsPacked {
             seed: x.seed,
-            address_merkle_tree_root_index: x.address_merkle_tree_root_index,
-            address_merkle_tree_account_index: 0, // will be assigned later
-            address_queue_account_index: 0,       // will be assigned later
+            address_merkle_context: PackedAddressMerkleContext {
+                address_merkle_tree_pubkey_index: 0, // will be assigned later
+                address_queue_pubkey_index: 0,       // will be assigned later
+                root_index: x.address_merkle_context.root_index,
+            },
         })
         .collect::<Vec<NewAddressParamsPacked>>();
     for (i, context) in merkle_context.iter().enumerate() {
@@ -120,10 +123,11 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                     .get(&context.merkle_tree_pubkey)
                     .unwrap() as u8,
                 nullifier_queue_pubkey_index: 0,
+
+                root_index: input_root_indices[i],
                 leaf_index: context.leaf_index,
                 queue_index: None,
             },
-            root_index: input_root_indices[i],
         });
     }
 
@@ -164,29 +168,36 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
+        match remaining_accounts.get(&params.address_merkle_context.address_merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_merkle_tree_pubkey, index);
+                remaining_accounts.insert(
+                    params.address_merkle_context.address_merkle_tree_pubkey,
+                    index,
+                );
                 index += 1;
             }
         };
-        new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
-            .get(&params.address_merkle_tree_pubkey)
-            .unwrap()
-            as u8;
+        new_address_params_packed[i]
+            .address_merkle_context
+            .address_merkle_tree_pubkey_index = *remaining_accounts
+            .get(&params.address_merkle_context.address_merkle_tree_pubkey)
+            .unwrap() as u8;
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_queue_pubkey) {
+        match remaining_accounts.get(&params.address_merkle_context.address_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_queue_pubkey, index);
+                remaining_accounts
+                    .insert(params.address_merkle_context.address_queue_pubkey, index);
                 index += 1;
             }
         };
-        new_address_params_packed[i].address_queue_account_index = *remaining_accounts
-            .get(&params.address_queue_pubkey)
+        new_address_params_packed[i]
+            .address_merkle_context
+            .address_queue_pubkey_index = *remaining_accounts
+            .get(&params.address_merkle_context.address_queue_pubkey)
             .unwrap() as u8;
     }
     let mut remaining_accounts = remaining_accounts
@@ -260,12 +271,14 @@ mod test {
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
+                root_index: 0,
                 leaf_index: 0,
                 queue_index: None,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
+                root_index: 0,
                 leaf_index: 1,
                 queue_index: None,
             },

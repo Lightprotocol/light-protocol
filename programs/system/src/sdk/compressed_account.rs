@@ -8,8 +8,6 @@ use light_utils::hash_to_bn254_field_size_be;
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
-    /// Index of root used in inclusion validity proof.
-    pub root_index: u16,
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -30,6 +28,9 @@ impl CompressedAccountWithMerkleContext {
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
+    /// Leaf representing the compressed account.
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
@@ -40,10 +41,29 @@ pub struct MerkleContext {
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
+    /// Leaf representing the compressed account.
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
     pub queue_index: Option<QueueIndex>,
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct AddressMerkleContext {
+    pub address_merkle_tree_pubkey: Pubkey,
+    pub address_queue_pubkey: Pubkey,
+    /// Index of root used in proof.
+    pub root_index: u16,
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct PackedAddressMerkleContext {
+    pub address_merkle_tree_pubkey_index: u8,
+    pub address_queue_pubkey_index: u8,
+    /// Index of root used in proof.
+    pub root_index: u16,
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
@@ -54,45 +74,73 @@ pub struct QueueIndex {
     pub index: u16,
 }
 
+pub fn pack_account(pubkey: Pubkey, remaining_accounts: &mut HashMap<Pubkey, usize>) -> u8 {
+    let next_index = remaining_accounts.len();
+    *remaining_accounts.entry(pubkey).or_insert(next_index) as u8
+}
+
 pub fn pack_merkle_context(
     merkle_context: &[MerkleContext],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
 ) -> Vec<PackedMerkleContext> {
-    let mut merkle_context_packed = merkle_context
+    let mut next_index = remaining_accounts.len();
+    merkle_context
         .iter()
-        .map(|x| PackedMerkleContext {
-            leaf_index: x.leaf_index,
-            merkle_tree_pubkey_index: 0,     // will be assigned later
-            nullifier_queue_pubkey_index: 0, // will be assigned later
-            queue_index: None,
+        .map(|x| {
+            let merkle_tree_pubkey_index = *remaining_accounts
+                .entry(x.merkle_tree_pubkey)
+                .or_insert_with(|| {
+                    let index = next_index;
+                    next_index += 1;
+                    index
+                }) as u8;
+            let nullifier_queue_pubkey_index = *remaining_accounts
+                .entry(x.nullifier_queue_pubkey)
+                .or_insert_with(|| {
+                    let index = next_index;
+                    next_index += 1;
+                    index
+                }) as u8;
+            PackedMerkleContext {
+                merkle_tree_pubkey_index,
+                nullifier_queue_pubkey_index,
+                root_index: x.root_index,
+                leaf_index: x.leaf_index,
+                queue_index: None,
+            }
         })
-        .collect::<Vec<PackedMerkleContext>>();
-    let mut index: usize = remaining_accounts.len();
-    for (i, params) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&params.merkle_tree_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.merkle_tree_pubkey, index);
-                index += 1;
-            }
-        };
-        merkle_context_packed[i].merkle_tree_pubkey_index =
-            *remaining_accounts.get(&params.merkle_tree_pubkey).unwrap() as u8;
-    }
+        .collect::<Vec<PackedMerkleContext>>()
+}
 
-    for (i, params) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&params.nullifier_queue_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.nullifier_queue_pubkey, index);
-                index += 1;
+pub fn pack_address_merkle_context(
+    address_merkle_context: &[AddressMerkleContext],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedAddressMerkleContext> {
+    let mut next_index = remaining_accounts.len();
+    address_merkle_context
+        .iter()
+        .map(|x| {
+            let address_merkle_tree_pubkey_index = *remaining_accounts
+                .entry(x.address_merkle_tree_pubkey)
+                .or_insert_with(|| {
+                    let index = next_index;
+                    next_index += 1;
+                    index
+                }) as u8;
+            let address_queue_pubkey_index = *remaining_accounts
+                .entry(x.address_queue_pubkey)
+                .or_insert_with(|| {
+                    let index = next_index;
+                    next_index += 1;
+                    index
+                }) as u8;
+            PackedAddressMerkleContext {
+                address_merkle_tree_pubkey_index,
+                address_queue_pubkey_index,
+                root_index: x.root_index,
             }
-        };
-        merkle_context_packed[i].nullifier_queue_pubkey_index = *remaining_accounts
-            .get(&params.nullifier_queue_pubkey)
-            .unwrap() as u8;
-    }
-    merkle_context_packed
+        })
+        .collect::<Vec<PackedAddressMerkleContext>>()
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

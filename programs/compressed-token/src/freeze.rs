@@ -357,10 +357,10 @@ pub mod test_freeze {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 1,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: None,
                 lamports: None,
                 tlv: None,
@@ -371,10 +371,10 @@ pub mod test_freeze {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 2,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(2),
                 lamports: None,
                 tlv: None,
@@ -513,10 +513,10 @@ pub mod test_freeze {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: rng.gen_range(0..=65_535),
                     leaf_index: rng.gen_range(0..1_000_000_000),
                     queue_index: None,
                 },
-                root_index: rng.gen_range(0..=65_535),
                 delegate_index,
                 lamports: None,
                 tlv: None,
@@ -561,7 +561,6 @@ pub mod test_freeze {
                             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                         }),
                     },
-                    root_index: x.root_index,
                     merkle_context: x.merkle_context,
                 }
             })

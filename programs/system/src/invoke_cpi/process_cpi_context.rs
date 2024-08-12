@@ -151,7 +151,8 @@ mod tests {
     use crate::{
         sdk::{
             compressed_account::{
-                CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+                CompressedAccount, PackedAddressMerkleContext,
+                PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
             },
             CompressedCpiContext,
         },
@@ -178,9 +179,11 @@ mod tests {
             proof: None,
             new_address_params: vec![NewAddressParamsPacked {
                 seed: vec![iter; 32].try_into().unwrap(),
-                address_merkle_tree_account_index: iter,
-                address_merkle_tree_root_index: iter.into(),
-                address_queue_account_index: iter,
+                address_merkle_context: PackedAddressMerkleContext {
+                    address_merkle_tree_pubkey_index: iter,
+                    address_queue_pubkey_index: iter,
+                    root_index: iter.into(),
+                },
             }],
             input_compressed_accounts_with_merkle_context: vec![
                 PackedCompressedAccountWithMerkleContext {
@@ -193,10 +196,10 @@ mod tests {
                     merkle_context: PackedMerkleContext {
                         merkle_tree_pubkey_index: 0,
                         nullifier_queue_pubkey_index: iter,
+                        root_index: iter.into(),
                         leaf_index: 0,
                         queue_index: None,
                     },
-                    root_index: iter.into(),
                 },
             ],
             output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {

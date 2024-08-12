@@ -299,6 +299,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     let mut input_compressed_account_hashes = Vec::new();
     let mut sum_input_amounts = 0;
     for account in input_compressed_accounts {
+        let root_index = account.compressed_account.merkle_context.root_index;
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
         input_compressed_account_token_data.push(account.token_data.clone());
         input_compressed_account_hashes.push(
@@ -318,6 +319,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
                 .compressed_account
                 .merkle_context
                 .nullifier_queue_pubkey,
+            root_index,
             leaf_index,
             queue_index: None,
         });

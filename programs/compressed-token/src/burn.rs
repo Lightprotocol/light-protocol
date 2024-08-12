@@ -338,10 +338,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 1,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
                 tlv: None,
@@ -519,10 +519,10 @@ mod test {
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
+                root_index: 0,
                 leaf_index: 1,
                 queue_index: None,
             },
-            root_index: 0,
             delegate_index: Some(1),
             lamports: None,
             tlv: None,

@@ -478,10 +478,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 1,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1),
                 lamports: None,
                 tlv: None,
@@ -492,10 +492,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 2,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: None,
                 lamports: None,
                 tlv: None,
@@ -584,10 +584,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 1,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
                 tlv: None,
@@ -598,10 +598,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 2,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: None,
                 tlv: None,
@@ -643,10 +643,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 1,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: Some(lamports_amount / 2),
                 tlv: None,
@@ -657,10 +657,10 @@ mod test {
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                    root_index: 0,
                     leaf_index: 2,
                     queue_index: None,
                 },
-                root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
                 lamports: Some(lamports_amount / 2),
                 tlv: None,
