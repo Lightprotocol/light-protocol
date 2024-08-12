@@ -62,8 +62,6 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<(), ForesterError> {
-    // let rpc_pool_size = Arc::new(RpcPool::<R>::new(config.clone()).await);
-
     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
