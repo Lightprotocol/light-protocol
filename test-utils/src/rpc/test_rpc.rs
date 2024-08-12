@@ -26,12 +26,6 @@ impl Debug for ProgramTestRpcConnection {
     }
 }
 
-impl Clone for ProgramTestRpcConnection {
-    fn clone(&self) -> Self {
-        unimplemented!()
-    }
-}
-
 impl RpcConnection for ProgramTestRpcConnection {
     fn get_program_accounts(
         &self,

@@ -118,24 +118,6 @@ pub struct TestIndexer<R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
-impl<R: RpcConnection> Clone for TestIndexer<R> {
-    fn clone(&self) -> Self {
-        Self {
-            state_merkle_trees: self.state_merkle_trees.clone(),
-            address_merkle_trees: self.address_merkle_trees.clone(),
-            payer: self.payer.insecure_clone(),
-            group_pda: self.group_pda,
-            compressed_accounts: self.compressed_accounts.clone(),
-            nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
-            token_compressed_accounts: self.token_compressed_accounts.clone(),
-            token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
-            events: self.events.clone(),
-            proof_types: self.proof_types.clone(),
-            phantom: Default::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
     pub token_data: TokenData,
@@ -771,7 +753,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             &AddressQueueConfig::default(),
             0,
         )
-        .await;
+        .await
+        .unwrap();
         self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
     }
 
@@ -797,7 +780,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             &StateMerkleTreeConfig::default(),
             &NullifierQueueConfig::default(),
         )
-        .await;
+        .await
+        .unwrap();
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),

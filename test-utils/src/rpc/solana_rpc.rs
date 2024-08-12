@@ -123,14 +123,11 @@ impl SolanaRpcConnection {
     }
 }
 
-impl Clone for SolanaRpcConnection {
-    fn clone(&self) -> Self {
-        unimplemented!()
-    }
-}
-
 impl RpcConnection for SolanaRpcConnection {
-    fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
+    fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self
+    where
+        Self: Sized,
+    {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);

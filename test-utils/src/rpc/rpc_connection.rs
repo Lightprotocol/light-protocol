@@ -11,8 +11,11 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;
 
-pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
-    fn new<U: ToString>(_url: U, _commitment_config: Option<CommitmentConfig>) -> Self {
+pub trait RpcConnection: Send + Sync + Debug + 'static {
+    fn new<U: ToString>(_url: U, _commitment_config: Option<CommitmentConfig>) -> Self
+    where
+        Self: Sized,
+    {
         unimplemented!()
     }
 
