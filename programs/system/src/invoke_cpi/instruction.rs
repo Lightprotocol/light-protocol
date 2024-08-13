@@ -39,9 +39,9 @@ pub struct InvokeCpiInstruction<'info> {
         mut,
         seeds = [SOL_POOL_PDA_SEED], bump
     )]
-    pub sol_pool_pda: Option<UncheckedAccount<'info>>,
+    pub sol_pool_pda: Option<AccountInfo<'info>>,
     #[account(mut)]
-    pub decompression_recipient: Option<UncheckedAccount<'info>>,
+    pub decompression_recipient: Option<AccountInfo<'info>>,
     pub system_program: Program<'info, System>,
     #[account(mut)]
     pub cpi_context_account: Option<Account<'info, CpiContextAccount>>,
@@ -74,11 +74,11 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.account_compression_program
     }
 
-    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_sol_pool_pda(&self) -> Option<&AccountInfo<'info>> {
         self.sol_pool_pda.as_ref()
     }
 
-    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_decompression_recipient(&self) -> Option<&AccountInfo<'info>> {
         self.decompression_recipient.as_ref()
     }
 

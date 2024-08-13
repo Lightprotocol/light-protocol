@@ -51,11 +51,11 @@ impl<'info> InvokeAccounts<'info> for GenericInstruction<'info> {
         &self.system_program
     }
 
-    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_sol_pool_pda(&self) -> Option<&AccountInfo<'info>> {
         None
     }
 
-    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_decompression_recipient(&self) -> Option<&AccountInfo<'info>> {
         None
     }
 }

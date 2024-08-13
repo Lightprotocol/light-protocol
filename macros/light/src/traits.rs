@@ -243,10 +243,10 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 fn get_system_program(&self) -> &::anchor_lang::prelude::Program<'info, System> {
                     &self.#system_program_field
                 }
-                fn get_compressed_sol_pda(&self) -> Option<&::anchor_lang::prelude::UncheckedAccount<'info>> {
+                fn get_compressed_sol_pda(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compressed_sol_pda_field
                 }
-                fn get_compression_recipient(&self) -> Option<&::anchor_lang::prelude::UncheckedAccount<'info>> {
+                fn get_compression_recipient(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compression_recipient_field
                 }
             }
