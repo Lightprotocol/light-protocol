@@ -198,46 +198,55 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
         }
     } else {
         let base_impls = quote! {
-            impl<'info> InvokeCpiAccounts<'info> for #name<'info> {
+            impl<'info> ::light_sdk::traits::InvokeCpiAccounts<'info> for #name<'info> {
                 fn get_invoking_program(&self) -> &AccountInfo<'info> {
                     &self.#self_program_field
                 }
             }
-            impl<'info> SignerAccounts<'info> for #name<'info> {
-                fn get_fee_payer(&self) -> &Signer<'info> {
+            impl<'info> ::light_sdk::traits::SignerAccounts<'info> for #name<'info> {
+                fn get_fee_payer(&self) -> &::anchor_lang::prelude::Signer<'info> {
                     &self.#fee_payer_field
                 }
-                fn get_authority(&self) -> &AccountInfo<'info> {
+                fn get_authority(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#authority_field
                 }
             }
-            impl<'info> LightSystemAccount<'info> for #name<'info> {
-                fn get_light_system_program(&self) -> &Program<'info, LightSystemProgram> {
+            impl<'info> ::light_sdk::traits::LightSystemAccount<'info> for #name<'info> {
+                fn get_light_system_program(&self) -> &::anchor_lang::prelude::Program<
+                    'info,
+                    ::light_system_program::program::LightSystemProgram
+                > {
                     &self.#light_system_program_field
                 }
             }
         };
         let invoke_accounts_impl = quote! {
-            impl<'info> InvokeAccounts<'info> for #name<'info> {
-                fn get_registered_program_pda(&self) -> &Account<'info, RegisteredProgram> {
+            impl<'info> ::light_sdk::traits::InvokeAccounts<'info> for #name<'info> {
+                fn get_registered_program_pda(&self) -> &::anchor_lang::prelude::Account<
+                    'info,
+                    ::account_compression::RegisteredProgram
+                > {
                     &self.#registered_program_pda_field
                 }
-                fn get_noop_program(&self) -> &AccountInfo<'info> {
+                fn get_noop_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#noop_program_field
                 }
-                fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
+                fn get_account_compression_authority(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#account_compression_authority_field
                 }
-                fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
+                fn get_account_compression_program(&self) -> &::anchor_lang::prelude::Program<
+                    'info,
+                    ::account_compression::program::AccountCompression
+                > {
                     &self.#account_compression_program_field
                 }
-                fn get_system_program(&self) -> &Program<'info, System> {
+                fn get_system_program(&self) -> &::anchor_lang::prelude::Program<'info, System> {
                     &self.#system_program_field
                 }
-                fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_compressed_sol_pda(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compressed_sol_pda_field
                 }
-                fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+                fn get_compression_recipient(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compression_recipient_field
                 }
             }
@@ -246,8 +255,13 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
             quote! {
                 #base_impls
                 #invoke_accounts_impl
-                impl<'info> InvokeCpiContextAccount<'info> for #name<'info> {
-                    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+                impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
+                    fn get_cpi_context_account(&self) -> Option<
+                        &::anchor_lang::prelude::Account<
+                            'info,
+                            ::light_system_program::invoke_cpi::account::CpiContextAccount
+                        >
+                    > {
                         None
                     }
                 }
@@ -256,8 +270,13 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
             quote! {
                 #base_impls
                 #invoke_accounts_impl
-                impl<'info> InvokeCpiContextAccount<'info> for #name<'info> {
-                    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+                impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
+                    fn get_cpi_context_account(&self) -> Option<
+                        &::anchor_lang::prelude::Account<
+                            'info,
+                            ::light_system_program::invoke_cpi::account::CpiContextAccount
+                        >
+                    > {
                         Some(&self.#cpi_context_account_field)
                     }
                 }

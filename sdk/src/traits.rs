@@ -11,8 +11,8 @@ pub trait InvokeAccounts<'info> {
     fn get_account_compression_authority(&self) -> &AccountInfo<'info>;
     fn get_account_compression_program(&self) -> &Program<'info, AccountCompression>;
     fn get_system_program(&self) -> &Program<'info, System>;
-    fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>>;
-    fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>>;
+    fn get_compressed_sol_pda(&self) -> Option<&AccountInfo<'info>>;
+    fn get_compression_recipient(&self) -> Option<&AccountInfo<'info>>;
 }
 
 pub trait LightSystemAccount<'info> {

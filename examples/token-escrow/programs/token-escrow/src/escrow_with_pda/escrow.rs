@@ -1,5 +1,4 @@
 use crate::create_change_output_compressed_token_account;
-use account_compression::{program::AccountCompression, RegisteredProgram};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     process_transfer::{
@@ -8,13 +7,10 @@ use light_compressed_token::{
     },
     program::LightCompressedToken,
 };
-use light_sdk::traits::*;
-use light_sdk::LightTraits;
-use light_system_program::{
-    invoke::processor::CompressedProof, invoke_cpi::account::CpiContextAccount,
-    program::LightSystemProgram,
-};
+use light_sdk::{light_accounts, LightTraits};
+use light_system_program::invoke::processor::CompressedProof;
 
+#[light_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct EscrowCompressedTokensWithPda<'info> {
     #[account(mut)]
@@ -26,19 +22,10 @@ pub struct EscrowCompressedTokensWithPda<'info> {
     pub token_owner_pda: AccountInfo<'info>,
     #[self_program]
     pub compressed_token_program: Program<'info, LightCompressedToken>,
-    pub light_system_program: Program<'info, LightSystemProgram>,
-    pub account_compression_program: Program<'info, AccountCompression>,
-    /// CHECK:
-    pub account_compression_authority: AccountInfo<'info>,
     /// CHECK:
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
-    /// CHECK:
-    pub registered_program_pda: Account<'info, RegisteredProgram>,
-    /// CHECK:
-    pub noop_program: AccountInfo<'info>,
     #[account(init_if_needed, seeds = [b"timelock".as_slice(), signer.key.to_bytes().as_slice()],bump, payer = signer, space = 8 + 8)]
     pub timelock_pda: Account<'info, EscrowTimeLock>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Debug)]

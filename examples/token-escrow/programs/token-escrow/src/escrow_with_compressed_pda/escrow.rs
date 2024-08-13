@@ -1,5 +1,4 @@
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
-use account_compression::{program::AccountCompression, RegisteredProgram};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     process_transfer::{
@@ -15,7 +14,6 @@ use light_sdk::{
 use light_system_program::{
     invoke::processor::CompressedProof,
     invoke_cpi::account::CpiContextAccount,
-    program::LightSystemProgram,
     sdk::{
         address::derive_address,
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
@@ -23,8 +21,6 @@ use light_system_program::{
     },
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-
-use light_sdk::traits::*;
 
 #[light_accounts]
 #[derive(Accounts, LightTraits)]
