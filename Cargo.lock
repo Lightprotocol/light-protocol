@@ -3488,6 +3488,7 @@ version = "0.3.0"
 dependencies = [
  "ark-bn254",
  "light-poseidon",
+ "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
@@ -3526,6 +3527,7 @@ version = "0.5.0"
 dependencies = [
  "bs58 0.4.0",
  "light-hasher",
+ "light-utils",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
