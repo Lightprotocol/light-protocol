@@ -7,6 +7,7 @@ use traits::process_light_traits;
 
 mod accounts;
 mod discriminator;
+mod hasher;
 mod pubkey;
 mod traits;
 
@@ -430,6 +431,14 @@ pub fn light_traits_derive(input: TokenStream) -> TokenStream {
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     discriminator::discriminator(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_derive(LightHasher, attributes(skip, truncate))]
+pub fn light_hasher(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    hasher::hasher(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
