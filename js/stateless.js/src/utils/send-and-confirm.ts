@@ -16,10 +16,10 @@ import { Rpc } from '../rpc';
 /**
  * Builds a versioned Transaction from instructions.
  *
- * @param instructions        instructions to include
- * @param payerPublicKey      fee payer public key
- * @param blockhash          blockhash to use
- * @param lookupTableAccounts  lookup table accounts to include
+ * @param instructions          instructions to include
+ * @param payerPublicKey        fee payer public key
+ * @param blockhash             blockhash to use
+ * @param lookupTableAccounts   lookup table accounts to include
  *
  * @return VersionedTransaction
  */
@@ -107,11 +107,13 @@ export async function confirmTx(
 /**
  * Builds a versioned Transaction from instructions and signs it.
  *
- * @param instructions        instructions to include in the transaction
- * @param payer               payer of the transaction
- * @param blockhash           recent blockhash to use in the transaction
- * @param additionalSigners   non-feepayer signers to include in the transaction
- * @param lookupTableAccounts  lookup table accounts to include in the transaction
+ * @param instructions          instructions to include in the transaction
+ * @param payer                 payer of the transaction
+ * @param blockhash             recent blockhash to use in the transaction
+ * @param additionalSigners     non-feepayer signers to include in the
+ *                              transaction
+ * @param lookupTableAccounts   lookup table accounts to include in the
+ *                              transaction
  */
 export function buildAndSignTx(
     instructions: TransactionInstruction[],

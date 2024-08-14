@@ -65,7 +65,6 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        // const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
@@ -158,11 +157,9 @@ describe('mintTo', () => {
     });
 
     it(`should mint to ${recipients.length} recipients optimized with LUT`, async () => {
-        /// Fetch state of LUT
         const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
             .value!;
 
-        /// Mint to 15 recipients with LUT
         const ix = await CompressedTokenProgram.mintTo({
             feePayer: payer.publicKey,
             mint,
@@ -182,8 +179,6 @@ describe('mintTo', () => {
             additionalSigners,
             [lookupTableAccount],
         );
-        const txId = await sendAndConfirmTx(rpc, tx);
-
-        return txId;
+        return await sendAndConfirmTx(rpc, tx);
     });
 });
