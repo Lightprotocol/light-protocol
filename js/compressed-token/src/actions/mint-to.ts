@@ -20,9 +20,11 @@ import { CompressedTokenProgram } from '../program';
  * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint for the account
- * @param destination    Address of the account to mint to
+ * @param destination    Address of the account to mint to. Can be an array of
+ *                       addresses if the amount is an array of amounts.
  * @param authority      Minting authority
- * @param amount         Amount to mint
+ * @param amount         Amount to mint. Can be an array of amounts if the
+ *                       destination is an array of addresses.
  * @param merkleTree     State tree account that the compressed tokens should be
  *                       part of. Defaults to the default state tree account.
  * @param confirmOptions Options for confirming the transaction
@@ -33,9 +35,9 @@ export async function mintTo(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    destination: PublicKey,
+    destination: PublicKey | PublicKey[],
     authority: Signer,
-    amount: number | BN,
+    amount: number | BN | number[] | BN[],
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
