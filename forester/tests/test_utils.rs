@@ -1,7 +1,8 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use env_logger::Env;
 use forester::config::ExternalServicesConfig;
+use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
+use forester::telemetry::setup_telemetry;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::ForesterConfig;
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
@@ -10,23 +11,13 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
 use log::{debug, info};
-use once_cell::sync::OnceCell;
 use solana_sdk::signature::{Keypair, Signer};
 
 #[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {
-    setup_logger();
+    setup_telemetry();
+    register_metrics();
     spawn_test_validator(config).await;
-}
-
-static LOGGER: OnceCell<()> = OnceCell::new();
-
-#[allow(dead_code)]
-pub fn setup_logger() {
-    LOGGER.get_or_init(|| {
-        let env = Env::new().filter_or("RUST_LOG", "info,forester=debug");
-        env_logger::Builder::from_env(env).is_test(true).init();
-    });
 }
 
 #[allow(dead_code)]
@@ -92,6 +83,7 @@ pub fn forester_config() -> ForesterConfig {
             prover_url: "http://localhost:3001".to_string(),
             photon_api_key: None,
             derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+            pushgateway_url: "http://localhost:9092/metrics/job/forester".to_string(),
         },
         registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),

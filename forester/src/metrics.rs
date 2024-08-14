@@ -1,0 +1,163 @@
+use crate::Result;
+use lazy_static::lazy_static;
+use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
+use reqwest::Client;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
+use tracing::{error, info};
+
+lazy_static! {
+    pub static ref REGISTRY: Registry = Registry::new();
+    pub static ref QUEUE_LENGTH: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!("queue_length", "Length of the queue"),
+        &["tree_type", "tree_pubkey"]
+    )
+    .expect("metric can be created");
+    pub static ref LAST_RUN_TIMESTAMP: IntGauge = IntGauge::new(
+        "forester_last_run_timestamp",
+        "Timestamp of the last Forester run"
+    )
+    .expect("metric can be created");
+    pub static ref TRANSACTIONS_PROCESSED: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_transactions_processed_total",
+            "Total number of transactions processed"
+        ),
+        &["epoch"]
+    )
+    .expect("metric can be created");
+    pub static ref TRANSACTION_TIMESTAMP: GaugeVec = GaugeVec::new(
+        prometheus::opts!(
+            "forester_transaction_timestamp",
+            "Timestamp of the last processed transaction"
+        ),
+        &["epoch"]
+    )
+    .expect("metric can be created");
+    pub static ref TRANSACTION_RATE: GaugeVec = GaugeVec::new(
+        prometheus::opts!(
+            "forester_transaction_rate",
+            "Rate of transactions processed per second"
+        ),
+        &["epoch"]
+    )
+    .expect("metric can be created");
+    static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
+        Mutex::new(Vec::new());
+}
+
+pub fn register_metrics() {
+    REGISTRY
+        .register(Box::new(QUEUE_LENGTH.clone()))
+        .expect("collector can be registered");
+    REGISTRY
+        .register(Box::new(LAST_RUN_TIMESTAMP.clone()))
+        .expect("collector can be registered");
+    REGISTRY
+        .register(Box::new(TRANSACTIONS_PROCESSED.clone()))
+        .expect("collector can be registered");
+    REGISTRY
+        .register(Box::new(TRANSACTION_TIMESTAMP.clone()))
+        .expect("collector can be registered");
+    REGISTRY
+        .register(Box::new(TRANSACTION_RATE.clone()))
+        .expect("collector can be registered");
+}
+
+pub fn update_last_run_timestamp() {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs() as i64;
+    LAST_RUN_TIMESTAMP.set(now);
+}
+
+pub fn update_transactions_processed(epoch: u64, count: usize, duration: std::time::Duration) {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs_f64();
+
+    TRANSACTIONS_PROCESSED
+        .with_label_values(&[&epoch.to_string()])
+        .inc_by(count as u64);
+    TRANSACTION_TIMESTAMP
+        .with_label_values(&[&epoch.to_string()])
+        .set(now);
+
+    let rate = count as f64 / duration.as_secs_f64();
+    TRANSACTION_RATE
+        .with_label_values(&[&epoch.to_string()])
+        .set(rate);
+
+    info!(
+        "Updated metrics for epoch {}: processed = {}, rate = {} tx/s",
+        epoch, count, rate
+    );
+}
+
+pub async fn queue_metric_update(epoch: u64, count: usize, duration: std::time::Duration) {
+    let mut updates = METRIC_UPDATES.lock().await;
+    updates.push((epoch, count, duration));
+}
+
+pub async fn process_queued_metrics() {
+    let mut updates = METRIC_UPDATES.lock().await;
+    for (epoch, count, duration) in updates.drain(..) {
+        update_transactions_processed(epoch, count, duration);
+    }
+}
+
+pub async fn push_metrics(url: &str) -> Result<()> {
+    update_last_run_timestamp();
+
+    let encoder = TextEncoder::new();
+    let metric_families = REGISTRY.gather();
+    let mut buffer = Vec::new();
+    encoder.encode(&metric_families, &mut buffer)?;
+
+    info!("Pushing metrics to Pushgateway");
+
+    let client = Client::new();
+    let res = client.post(url).body(buffer).send().await?;
+
+    if res.status().is_success() {
+        println!("Successfully pushed metrics to Pushgateway");
+        Ok(())
+    } else {
+        let error_message = format!(
+            "Failed to push metrics. Status: {}, Body: {}",
+            res.status(),
+            res.text().await?
+        );
+        Err(error_message.into())
+    }
+}
+
+pub async fn metrics_handler() -> Result<impl warp::Reply> {
+    use prometheus::Encoder;
+    let encoder = TextEncoder::new();
+
+    let mut buffer = Vec::new();
+    if let Err(e) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
+        error!("could not encode custom metrics: {}", e);
+    };
+    let mut res = String::from_utf8(buffer.clone()).unwrap_or_else(|e| {
+        error!("custom metrics could not be from_utf8'd: {}", e);
+        String::new()
+    });
+    buffer.clear();
+
+    let mut buffer = Vec::new();
+    if let Err(e) = encoder.encode(&prometheus::gather(), &mut buffer) {
+        error!("could not encode prometheus metrics: {}", e);
+    };
+    let res_prometheus = String::from_utf8(buffer.clone()).unwrap_or_else(|e| {
+        error!("prometheus metrics could not be from_utf8'd: {}", e);
+        String::new()
+    });
+    buffer.clear();
+
+    res.push_str(&res_prometheus);
+    Ok(res)
+}

@@ -75,4 +75,5 @@ pub struct ExternalServicesConfig {
     pub prover_url: String,
     pub photon_api_key: Option<String>,
     pub derivation: String,
+    pub pushgateway_url: String,
 }

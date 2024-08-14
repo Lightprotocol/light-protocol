@@ -4,7 +4,7 @@ use crate::ForesterConfig;
 use crate::Result;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use futures::StreamExt;
-use log::{debug, error};
+use log::{debug, error, info};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
@@ -18,6 +18,10 @@ pub async fn setup_pubsub_client(
     config: &ForesterConfig,
     queue_pubkeys: std::collections::HashSet<Pubkey>,
 ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
+    info!(
+        "Setting up pubsub client for {} queues",
+        queue_pubkeys.len()
+    );
     let (update_tx, update_rx) = mpsc::channel(100);
     let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
 
@@ -33,6 +37,8 @@ pub async fn setup_pubsub_client(
             Ok(result) => {
                 if let Err(e) = result {
                     error!("PubSub client error: {:?}", e);
+                } else {
+                    info!("PubSub client thread completed successfully");
                 }
             }
             Err(e) => error!("Failed to join PubSub client thread: {:?}", e),
@@ -55,9 +61,12 @@ fn spawn_pubsub_client(
             .map_err(|e| ForesterError::Custom(format!("Failed to build runtime: {}", e)))?;
 
         rt.block_on(async {
+            info!("Connecting to PubSub at {}", ws_url);
             let pubsub_client = PubsubClient::new(&ws_url).await.map_err(|e| {
                 ForesterError::Custom(format!("Failed to create PubsubClient: {}", e))
             })?;
+
+            info!("PubSub connection established");
 
             let (mut subscription, _) = pubsub_client
                 .program_subscribe(
@@ -82,12 +91,15 @@ fn spawn_pubsub_client(
                 tokio::select! {
                     Some(update) = subscription.next() => {
                         if let Ok(pubkey) = Pubkey::from_str(&update.value.pubkey) {
-                            if queue_pubkeys.contains(&pubkey) && update_tx.send(QueueUpdate {
-                                    pubkey,
-                                    slot: update.context.slot,
-                                }).await.is_err() {
-                                debug!("Failed to send update, receiver might have been dropped");
-                                break;
+                            if queue_pubkeys.contains(&pubkey) {
+                                debug!("Received update for queue {}", pubkey);
+                                 if update_tx.send(QueueUpdate {
+                                        pubkey,
+                                        slot: update.context.slot,
+                                    }).await.is_err() {
+                                    debug!("Failed to send update, receiver might have been dropped");
+                                    break;
+                                }
                             }
                         }
                     }
@@ -97,6 +109,7 @@ fn spawn_pubsub_client(
                     }
                 }
             }
+            info!("PubSub client loop ended");
             Ok(())
         })
     })

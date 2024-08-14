@@ -1,0 +1,16 @@
+alerts:
+  - rule: DEPLOYMENT_FAILED
+name: forester
+region: fra
+services:
+  - name: forester
+    dockerfile_path: Dockerfile
+    source_dir: .
+    github:
+      repo: lightprotocol/light-protocol
+      branch: main
+      deploy_on_push: true
+  instance_count: 2
+  instance_size_slug: basic-xxs
+routes:
+  - path: /

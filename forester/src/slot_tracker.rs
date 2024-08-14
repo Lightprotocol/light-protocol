@@ -34,8 +34,13 @@ impl SlotTracker {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
+        let old_slot = self.last_known_slot.load(Ordering::Acquire);
         self.last_known_slot.store(new_slot, Ordering::Release);
         self.last_update_time.store(now, Ordering::Release);
+        debug!(
+            "SlotTracker updated: old_slot={}, new_slot={}",
+            old_slot, new_slot
+        );
     }
 
     pub fn estimated_current_slot(&self) -> u64 {
@@ -46,8 +51,13 @@ impl SlotTracker {
             .unwrap()
             .as_millis() as u64;
         let elapsed = Duration::from_millis(now - last_update);
-        let estimated_slots = elapsed.as_secs_f64() / slot_duration().as_secs_f64();
-        last_slot + estimated_slots as u64
+        let estimated_slot =
+            last_slot + (elapsed.as_secs_f64() / slot_duration().as_secs_f64()) as u64;
+        debug!(
+            "Estimated current slot: {} (last known: {}, elapsed: {:?})",
+            estimated_slot, last_slot, elapsed
+        );
+        estimated_slot
     }
 
     pub async fn run<R: RpcConnection + Send + 'static>(self: Arc<Self>, rpc: &mut R) {
@@ -55,7 +65,7 @@ impl SlotTracker {
             match rpc.get_slot().await {
                 Ok(slot) => {
                     self.update(slot);
-                    debug!("Updated slot to {}", slot);
+                    debug!("SlotTracker run: Updated slot to {}", slot);
                 }
                 Err(e) => error!("Failed to get slot: {:?}", e),
             }

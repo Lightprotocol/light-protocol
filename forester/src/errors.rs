@@ -1,9 +1,12 @@
 use crate::rpc_pool::PoolError;
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
+use config::ConfigError;
 use light_hash_set::HashSetError;
 use light_test_utils::indexer::IndexerError;
 use light_test_utils::rpc::errors::RpcError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
+use prometheus::Error as PrometheusError;
+use reqwest::Error as ReqwestError;
 use solana_client::pubsub_client::PubsubClientError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
@@ -48,87 +51,16 @@ pub enum ForesterError {
     SubscriptionTimeout,
     #[error("Unexpected message: {0}")]
     UnexpectedMessage(String),
+    #[error("Config error: {0:?}")]
+    ConfigError(String),
+    #[error("error: {0:?}")]
+    PrometheusError(PrometheusError),
+    #[error("error: {0:?}")]
+    ReqwestError(ReqwestError),
     #[error("error: {0:?}")]
     Custom(String),
     #[error("unknown error")]
     Unknown,
-}
-
-impl Clone for ForesterError {
-    fn clone(&self) -> Self {
-        match self {
-            ForesterError::NotEligible => ForesterError::NotEligible,
-            ForesterError::RpcError(_) => ForesterError::Custom("RPC Error".to_string()),
-            ForesterError::DeserializeError(e) => ForesterError::DeserializeError(e.clone()),
-            ForesterError::CopyMerkleTreeError(_) => {
-                ForesterError::Custom("Copy Merkle Tree Error".to_string())
-            }
-            ForesterError::AccountCompressionError(_) => {
-                ForesterError::Custom("Account Compression Error".to_string())
-            }
-            ForesterError::HashSetError(_) => ForesterError::Custom("HashSet Error".to_string()),
-            ForesterError::PhotonApiError(_) => {
-                ForesterError::Custom("Photon API Error".to_string())
-            }
-            ForesterError::BincodeError(_) => ForesterError::Custom("Bincode Error".to_string()),
-            ForesterError::NoProofsFound => ForesterError::NoProofsFound,
-            ForesterError::MaxRetriesReached => ForesterError::MaxRetriesReached,
-            ForesterError::SendError(s) => ForesterError::SendError(s.clone()),
-            ForesterError::IndexerError(s) => ForesterError::IndexerError(s.clone()),
-            ForesterError::RecvError(e) => ForesterError::RecvError(e.clone()),
-            ForesterError::JoinError(s) => ForesterError::JoinError(s.clone()),
-            ForesterError::PubsubClientError(_) => {
-                ForesterError::Custom("PubsubClient Error".to_string())
-            }
-            ForesterError::ChannelDisconnected => ForesterError::ChannelDisconnected,
-            ForesterError::SubscriptionTimeout => ForesterError::SubscriptionTimeout,
-            ForesterError::UnexpectedMessage(s) => ForesterError::UnexpectedMessage(s.clone()),
-            ForesterError::Custom(s) => ForesterError::Custom(s.clone()),
-            ForesterError::Unknown => ForesterError::Unknown,
-        }
-    }
-}
-
-impl ForesterError {
-    pub fn to_owned(&self) -> Self {
-        match self {
-            ForesterError::NotEligible => ForesterError::NotEligible,
-            ForesterError::RpcError(e) => ForesterError::Custom(format!("RPC Error: {:?}", e)),
-            ForesterError::DeserializeError(e) => {
-                ForesterError::Custom(format!("Deserialize Error: {:?}", e))
-            }
-            ForesterError::CopyMerkleTreeError(e) => {
-                ForesterError::Custom(format!("Copy Merkle Tree Error: {:?}", e))
-            }
-            ForesterError::AccountCompressionError(e) => {
-                ForesterError::Custom(format!("Account Compression Error: {:?}", e))
-            }
-            ForesterError::HashSetError(e) => {
-                ForesterError::Custom(format!("HashSet Error: {:?}", e))
-            }
-            ForesterError::PhotonApiError(e) => {
-                ForesterError::Custom(format!("Photon API Error: {:?}", e))
-            }
-            ForesterError::BincodeError(e) => {
-                ForesterError::Custom(format!("Bincode Error: {:?}", e))
-            }
-            ForesterError::SendError(e) => ForesterError::SendError(e.clone()),
-            ForesterError::IndexerError(e) => ForesterError::IndexerError(e.clone()),
-            ForesterError::RecvError(e) => ForesterError::RecvError(e.clone()),
-            ForesterError::JoinError(e) => ForesterError::IndexerError(e.clone()),
-            ForesterError::NoProofsFound => ForesterError::NoProofsFound,
-            ForesterError::MaxRetriesReached => ForesterError::MaxRetriesReached,
-
-            ForesterError::Custom(s) => ForesterError::Custom(s.clone()),
-            ForesterError::Unknown => ForesterError::Unknown,
-            ForesterError::PubsubClientError(e) => {
-                ForesterError::Custom(format!("PubsubClientError: {:?}", e))
-            }
-            ForesterError::ChannelDisconnected => ForesterError::ChannelDisconnected,
-            ForesterError::SubscriptionTimeout => ForesterError::SubscriptionTimeout,
-            ForesterError::UnexpectedMessage(e) => ForesterError::UnexpectedMessage(e.clone()),
-        }
-    }
 }
 
 #[derive(Error, Debug)]
@@ -166,5 +98,29 @@ impl From<JoinError> for ForesterError {
 impl From<PoolError> for ForesterError {
     fn from(err: PoolError) -> Self {
         ForesterError::Custom(err.to_string())
+    }
+}
+
+impl From<ConfigError> for ForesterError {
+    fn from(err: ConfigError) -> Self {
+        ForesterError::Custom(err.to_string())
+    }
+}
+
+impl From<PrometheusError> for ForesterError {
+    fn from(err: PrometheusError) -> ForesterError {
+        ForesterError::PrometheusError(err)
+    }
+}
+
+impl From<ReqwestError> for ForesterError {
+    fn from(err: ReqwestError) -> ForesterError {
+        ForesterError::ReqwestError(err)
+    }
+}
+
+impl From<String> for ForesterError {
+    fn from(err: String) -> ForesterError {
+        ForesterError::Custom(err)
     }
 }

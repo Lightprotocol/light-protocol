@@ -1,9 +1,11 @@
 use clap::Parser;
 use forester::cli::{Cli, Commands};
 use forester::errors::ForesterError;
+use forester::metrics::{push_metrics, register_metrics};
 use forester::photon_indexer::PhotonIndexer;
+use forester::telemetry::setup_telemetry;
 use forester::tree_data_sync::fetch_trees;
-use forester::{init_config, run_pipeline, run_queue_info, setup_logger, ForesterConfig};
+use forester::{init_config, run_pipeline, run_queue_info};
 use light_test_utils::forester_epoch::TreeType;
 pub use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -14,8 +16,16 @@ use tokio::sync::{mpsc, oneshot};
 
 #[tokio::main]
 async fn main() -> Result<(), ForesterError> {
-    setup_logger();
-    let config: Arc<ForesterConfig> = Arc::new(init_config());
+    setup_telemetry();
+    register_metrics();
+
+    let config = match init_config() {
+        Ok(config) => Arc::new(config),
+        Err(e) => {
+            panic!("Failed to initialize config: {}", e);
+        }
+    };
+
     let cli = Cli::parse();
 
     match &cli.command {
@@ -47,6 +57,7 @@ async fn main() -> Result<(), ForesterError> {
         }
         Some(Commands::Status) => {
             info!("Fetching trees...");
+            info!("RPC URL: {}", config.external_services.rpc_url);
             let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None);
             let trees = fetch_trees(&rpc).await;
             if trees.is_empty() {
@@ -54,6 +65,10 @@ async fn main() -> Result<(), ForesterError> {
             }
             run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
             run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
+
+            if let Err(e) = push_metrics(&config.external_services.pushgateway_url).await {
+                warn!("Failed to push metrics: {:?}", e);
+            }
         }
         None => {}
     }

@@ -5,7 +5,7 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_program_test::BanksClientError;
@@ -151,6 +151,11 @@ impl RpcConnection for SolanaRpcConnection {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
+        info!(
+            "Fetching accounts for program: {}, client url: {}",
+            program_id,
+            self.client.url()
+        );
         self.client
             .get_program_accounts(program_id)
             .map_err(RpcError::from)
@@ -308,31 +313,42 @@ impl RpcConnection for SolanaRpcConnection {
         to: &Pubkey,
         lamports: u64,
     ) -> Result<Signature, RpcError> {
-        const MAX_RETRIES: u32 = 3;
+        const MAX_RETRIES: u32 = 10;
 
-        let signature = self
-            .client
-            .request_airdrop(to, lamports)
-            .map_err(RpcError::from)?;
+        for attempt in 0..MAX_RETRIES {
+            match self.client.request_airdrop(to, lamports) {
+                Ok(signature) => {
+                    println!("Airdrop signature: {:?}", signature);
 
-        println!("Airdrop signature: {:?}", signature);
+                    // Try to confirm the transaction
+                    for confirm_attempt in 0..MAX_RETRIES {
+                        if self
+                            .client
+                            .confirm_transaction_with_commitment(
+                                &signature,
+                                self.client.commitment(),
+                            )?
+                            .value
+                        {
+                            return Ok(signature);
+                        } else {
+                            warn!("Airdrop not confirmed, retrying confirmation...");
+                            tokio::time::sleep(Duration::from_secs(confirm_attempt as u64)).await;
+                        }
+                    }
 
-        let mut attempts = 0;
-        while attempts < MAX_RETRIES {
-            let confirmed = self
-                .client
-                .confirm_transaction_with_commitment(&signature, self.client.commitment())?;
-            if confirmed.value {
-                return Ok(signature);
-            } else {
-                warn!("Airdrop not confirmed, retrying...");
-                attempts += 1;
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                    return Err(RpcError::CustomError(
+                        "Max retries reached for airdrop confirmation".into(),
+                    ));
+                }
+                Err(err) => {
+                    warn!("Airdrop request failed with error: {:?}", err);
+                }
             }
+            tokio::time::sleep(Duration::from_secs(attempt as u64)).await;
         }
-
         Err(RpcError::CustomError(
-            "Max retries reached for airdrop confirmation".into(),
+            "Max retries reached for airdrop request".into(),
         ))
     }
 
@@ -345,6 +361,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
+        println!("Calling get_slot");
         self.client.get_slot().map_err(RpcError::from)
     }
 

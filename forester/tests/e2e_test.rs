@@ -18,9 +18,9 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use std::sync::Arc;
-use tokio::select;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 mod test_utils;
 use test_utils::*;
@@ -178,7 +178,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .await;
 
         assert_eq!(
-            total_processed, total_expected_work as u64,
+            total_processed, total_expected_work,
             "Not all items were processed."
         );
     }
@@ -325,7 +325,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         for i in 0..iterations {
             println!("Round {} of {}", i, iterations);
             env.transfer_sol(user_index).await;
-            sleep(std::time::Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(100)).await;
             env.create_address(None).await;
         }
         assert_queue_len(
@@ -363,23 +363,42 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut forester2_reported_work_for_epoch1 = false;
 
     // Wait for both foresters to report work for epoch 1
-    loop {
-        select! {
+    const TIMEOUT_DURATION: Duration = Duration::from_secs(360);
+    let mut total_processed = 0;
+    let result = timeout(TIMEOUT_DURATION, async {
+        loop {
+            tokio::select! {
             Some(report) = work_report_receiver1.recv(), if !forester1_reported_work_for_epoch1 => {
+                    total_processed += report.processed_items;
                 if report.epoch == 1 {
                     forester1_reported_work_for_epoch1 = true;
                 }
             }
             Some(report) = work_report_receiver2.recv(), if !forester2_reported_work_for_epoch1 => {
+                    total_processed += report.processed_items;
                 if report.epoch == 1 {
                     forester2_reported_work_for_epoch1 = true;
                 }
             }
             else => break,
         }
+            if forester1_reported_work_for_epoch1 && forester2_reported_work_for_epoch1 {
+                break;
+            }
+        }
+        total_processed
+    }).await;
 
-        if forester1_reported_work_for_epoch1 && forester2_reported_work_for_epoch1 {
-            break;
+    match result {
+        Ok(total_processed) => {
+            assert!(total_processed > 0, "No items were processed");
+            println!(
+                "Both foresters reported work for epoch 1. Total processed: {}",
+                total_processed
+            );
+        }
+        Err(_) => {
+            panic!("Test timed out after {:?}", TIMEOUT_DURATION);
         }
     }
 

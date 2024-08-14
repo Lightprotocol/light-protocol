@@ -1,13 +1,15 @@
 use crate::config::ExternalServicesConfig;
+use crate::errors::ForesterError;
 use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use config::Config;
+use anchor_lang::Id;
+use config::{Config, Environment};
+use log::info;
 use solana_sdk::signature::{Keypair, Signer};
 use std::fmt::{Display, Formatter};
+use std::path::Path;
 use std::str::FromStr;
 use std::{env, fmt};
-
-const REGISTRY_PUBKEY: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
 
 pub enum SettingsKey {
     Payer,
@@ -15,6 +17,7 @@ pub enum SettingsKey {
     WsRpcUrl,
     IndexerUrl,
     ProverUrl,
+    PushGatewayUrl,
     PhotonApiKey,
     IndexerBatchSize,
     IndexerMaxConcurrentBatches,
@@ -37,6 +40,7 @@ impl Display for SettingsKey {
                 SettingsKey::WsRpcUrl => "WS_RPC_URL",
                 SettingsKey::IndexerUrl => "INDEXER_URL",
                 SettingsKey::ProverUrl => "PROVER_URL",
+                SettingsKey::PushGatewayUrl => "PUSH_GATEWAY_URL",
                 SettingsKey::PhotonApiKey => "PHOTON_API_KEY",
                 SettingsKey::IndexerBatchSize => "INDEXER_BATCH_SIZE",
                 SettingsKey::IndexerMaxConcurrentBatches => "INDEXER_MAX_CONCURRENT_BATCHES",
@@ -52,108 +56,91 @@ impl Display for SettingsKey {
     }
 }
 
-fn locate_config_file() -> String {
+fn locate_config_file() -> Option<String> {
     let file_name = "forester.toml";
 
-    let exe_path = env::current_exe().unwrap();
-    let exe_dir = exe_path.parent().unwrap();
-    let config_path = exe_dir.join(file_name);
-    if config_path.exists() {
-        return config_path.to_str().unwrap().to_string();
-    }
+    let config_paths = vec![
+        env::current_dir().ok()?.join(file_name),
+        env::current_exe().ok()?.parent()?.join(file_name),
+        Path::new("/app/config").join(file_name),
+        Path::new("/app").join(file_name),
+    ];
 
-    file_name.to_string()
+    config_paths.into_iter().find_map(|path| {
+        if path.exists() {
+            path.to_str().map(String::from)
+        } else {
+            None
+        }
+    })
 }
 
-fn convert(json: &str) -> serde_json::Result<Vec<u8>> {
+fn convert_json_to_bytes(json: &str) -> serde_json::Result<Vec<u8>> {
     serde_json::from_str(json)
 }
 
-pub fn init_config() -> ForesterConfig {
+fn build_config() -> Result<Config, ForesterError> {
     let _ = dotenvy::dotenv();
-    let config_path = locate_config_file();
+    let config_path = locate_config_file().unwrap_or_else(|| "forester.toml".to_string());
 
-    let settings = Config::builder()
+    Config::builder()
         .add_source(config::File::with_name(&config_path))
-        .add_source(config::Environment::with_prefix("FORESTER"))
+        .add_source(Environment::with_prefix("FORESTER"))
         .build()
-        .unwrap();
+        .map_err(|e| ForesterError::ConfigError(e.to_string()))
+}
 
-    let registry_pubkey = REGISTRY_PUBKEY.to_string();
+pub fn init_config() -> Result<ForesterConfig, ForesterError> {
+    let settings = build_config()?;
+    let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
-    let payer = settings
-        .get_string(&SettingsKey::Payer.to_string())
-        .unwrap();
-    let payer: Vec<u8> = convert(&payer).unwrap();
-    let payer = Keypair::from_bytes(&payer).unwrap();
+    let payer = settings.get_string(&SettingsKey::Payer.to_string())?;
+    let payer: Vec<u8> =
+        convert_json_to_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
+    let payer =
+        Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
 
-    let rpc_url = settings
-        .get_string(&SettingsKey::RpcUrl.to_string())
-        .expect("RPC_URL not found in config file or environment variables");
-    let ws_rpc_url = settings
-        .get_string(&SettingsKey::WsRpcUrl.to_string())
-        .expect("WS_RPC_URL not found in config file or environment variables");
-    let indexer_url = settings
-        .get_string(&SettingsKey::IndexerUrl.to_string())
-        .expect("INDEXER_URL not found in config file or environment variables");
-    let prover_url = settings
-        .get_string(&SettingsKey::ProverUrl.to_string())
-        .expect("PROVER_URL not found in config file or environment variables");
-    let photon_api_key = settings
-        .get_string(&SettingsKey::PhotonApiKey.to_string())
-        .ok();
-
-    let indexer_batch_size = settings
-        .get_int(&SettingsKey::IndexerBatchSize.to_string())
-        .expect("INDEXER_BATCH_SIZE not found in config file or environment variables");
-    let indexer_max_concurrent_batches = settings
-        .get_int(&SettingsKey::IndexerMaxConcurrentBatches.to_string())
-        .expect("INDEXER_MAX_CONCURRENT_BATCHES not found in config file or environment variables");
-
-    let transaction_batch_size = settings
-        .get_int(&SettingsKey::TransactionBatchSize.to_string())
-        .expect("TRANSACTION_BATCH_SIZE not found in config file or environment variables");
-    let transaction_max_concurrent_batches = settings
-        .get_int(&SettingsKey::TransactionMaxConcurrentBatches.to_string())
-        .expect(
-            "TRANSACTION_MAX_CONCURRENT_BATCHES not found in config file or environment variables",
-        );
-
-    let max_retries = settings
-        .get_int(&SettingsKey::MaxRetries.to_string())
-        .expect("MAX_RETRIES not found in config file or environment variables");
-
-    let cu_limit = settings
-        .get_int(&SettingsKey::CULimit.to_string())
-        .expect("CU_LIMIT not found in config file or environment variables");
-    let rpc_pool_size = settings
-        .get_int(&SettingsKey::CULimit.to_string())
-        .expect("RPC_POOL_SIZE not found in config file or environment variables");
-
-    let slot_update_interval_seconds = settings
-        .get_int(&SettingsKey::SlotUpdateIntervalSeconds.to_string())
-        .expect("SLOT_UPDATE_INTERVAL_SECONDS not found in config file or environment variables");
-
-    ForesterConfig {
+    let config = ForesterConfig {
         external_services: ExternalServicesConfig {
-            rpc_url,
-            ws_rpc_url,
-            indexer_url,
-            prover_url,
-            photon_api_key,
+            rpc_url: strip_quotes(settings.get_string(&SettingsKey::RpcUrl.to_string())?),
+            ws_rpc_url: strip_quotes(settings.get_string(&SettingsKey::WsRpcUrl.to_string())?),
+            indexer_url: strip_quotes(settings.get_string(&SettingsKey::IndexerUrl.to_string())?),
+            prover_url: strip_quotes(settings.get_string(&SettingsKey::ProverUrl.to_string())?),
+            photon_api_key: settings
+                .get_string(&SettingsKey::PhotonApiKey.to_string())
+                .ok()
+                .map(strip_quotes),
             derivation: payer.pubkey().to_string(),
+            pushgateway_url: strip_quotes(
+                settings.get_string(&SettingsKey::PushGatewayUrl.to_string())?,
+            ),
         },
-        registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
+        registry_pubkey: Pubkey::from_str(&registry_pubkey)
+            .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
         payer_keypair: payer,
-        indexer_batch_size: indexer_batch_size as usize,
-        indexer_max_concurrent_batches: indexer_max_concurrent_batches as usize,
-        transaction_batch_size: transaction_batch_size as usize,
-        transaction_max_concurrent_batches: transaction_max_concurrent_batches as usize,
-        max_retries: max_retries as usize,
-        cu_limit: cu_limit as u32,
-        rpc_pool_size: rpc_pool_size as usize,
-        slot_update_interval_seconds: slot_update_interval_seconds as u64,
+        indexer_batch_size: settings.get_int(&SettingsKey::IndexerBatchSize.to_string())? as usize,
+        indexer_max_concurrent_batches: settings
+            .get_int(&SettingsKey::IndexerMaxConcurrentBatches.to_string())?
+            as usize,
+        transaction_batch_size: settings.get_int(&SettingsKey::TransactionBatchSize.to_string())?
+            as usize,
+        transaction_max_concurrent_batches: settings
+            .get_int(&SettingsKey::TransactionMaxConcurrentBatches.to_string())?
+            as usize,
+        max_retries: settings.get_int(&SettingsKey::MaxRetries.to_string())? as usize,
+        cu_limit: settings.get_int(&SettingsKey::CULimit.to_string())? as u32,
+        rpc_pool_size: settings.get_int(&SettingsKey::RpcPoolSize.to_string())? as usize,
+        slot_update_interval_seconds: settings
+            .get_int(&SettingsKey::SlotUpdateIntervalSeconds.to_string())?
+            as u64,
         address_tree_data: vec![],
         state_tree_data: vec![],
-    }
+    };
+
+    info!("Config: {:?}", config);
+    Ok(config)
+}
+
+fn strip_quotes(s: String) -> String {
+    s.trim_matches('"').to_string()
 }
