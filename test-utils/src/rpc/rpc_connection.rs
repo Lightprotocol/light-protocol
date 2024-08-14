@@ -23,6 +23,10 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         unimplemented!()
     }
 
+    fn get_block_time(&self, _slot: u64) -> Result<i64, RpcError> {
+        unimplemented!()
+    }
+
     fn get_program_accounts(&self, program_id: &Pubkey)
         -> Result<Vec<(Pubkey, Account)>, RpcError>;
 

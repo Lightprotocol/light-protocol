@@ -12,6 +12,7 @@ solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-rpc = { workspace = true }
+solana-program = { workspace = true }
 tiny-bip39 = "0.8.2"
 chrono = "0.4.37"
 time = "0.3.34"

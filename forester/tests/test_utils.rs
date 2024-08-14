@@ -103,6 +103,7 @@ pub fn forester_config() -> ForesterConfig {
         max_retries: 5,
         cu_limit: 1_000_000,
         rpc_pool_size: 20,
+        slot_update_interval_seconds: 10,
         address_tree_data: vec![],
         state_tree_data: vec![],
     }

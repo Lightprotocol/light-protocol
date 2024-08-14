@@ -23,6 +23,7 @@ pub enum SettingsKey {
     MaxRetries,
     CULimit,
     RpcPoolSize,
+    SlotUpdateIntervalSeconds,
 }
 
 impl Display for SettingsKey {
@@ -45,6 +46,7 @@ impl Display for SettingsKey {
                 SettingsKey::MaxRetries => "MAX_RETRIES",
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
+                SettingsKey::SlotUpdateIntervalSeconds => "SLOT_UPDATE_INTERVAL_SECONDS",
             }
         )
     }
@@ -120,8 +122,18 @@ pub fn init_config() -> ForesterConfig {
     let max_retries = settings
         .get_int(&SettingsKey::MaxRetries.to_string())
         .expect("MAX_RETRIES not found in config file or environment variables");
-    let cu_limit = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
-    let rpc_pool_size = settings.get_int(&SettingsKey::CULimit.to_string()).unwrap();
+
+    let cu_limit = settings
+        .get_int(&SettingsKey::CULimit.to_string())
+        .expect("CU_LIMIT not found in config file or environment variables");
+    let rpc_pool_size = settings
+        .get_int(&SettingsKey::CULimit.to_string())
+        .expect("RPC_POOL_SIZE not found in config file or environment variables");
+
+    let slot_update_interval_seconds = settings
+        .get_int(&SettingsKey::SlotUpdateIntervalSeconds.to_string())
+        .expect("SLOT_UPDATE_INTERVAL_SECONDS not found in config file or environment variables");
+
     ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url,
@@ -140,6 +152,7 @@ pub fn init_config() -> ForesterConfig {
         max_retries: max_retries as usize,
         cu_limit: cu_limit as u32,
         rpc_pool_size: rpc_pool_size as usize,
+        slot_update_interval_seconds: slot_update_interval_seconds as u64,
         address_tree_data: vec![],
         state_tree_data: vec![],
     }

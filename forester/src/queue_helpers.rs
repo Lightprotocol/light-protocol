@@ -26,20 +26,17 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
 
-    Ok((0..nullifier_queue.capacity)
-        .filter_map(|i| {
-            nullifier_queue.get_bucket(i).and_then(|opt_cell| {
-                opt_cell.as_ref().and_then(|cell| {
-                    if cell.sequence_number.is_none() {
-                        Some(QueueItemData {
-                            hash: cell.value_bytes(),
-                            index: i,
-                        })
-                    } else {
-                        None
-                    }
+    Ok(nullifier_queue
+        .iter()
+        .filter_map(|(index, cell)| {
+            if cell.sequence_number.is_none() {
+                Some(QueueItemData {
+                    hash: cell.value_bytes(),
+                    index,
                 })
-            })
+            } else {
+                None
+            }
         })
         .collect())
 }
