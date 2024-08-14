@@ -58,7 +58,7 @@ export async function decompress(
 
     /// TODO: consider using a different selection algorithm
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
-        compressedTokenAccounts,
+        compressedTokenAccounts.items,
         amount,
     );
 

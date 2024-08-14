@@ -150,13 +150,13 @@ describe('compress', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        assert.equal(compressedAccounts.length, 1);
+        assert.equal(compressedAccounts.items.length, 1);
         assert.equal(
-            Number(compressedAccounts[0].lamports),
+            Number(compressedAccounts.items[0].lamports),
             compressLamportsAmount,
         );
 
-        assert.equal(compressedAccounts[0].data, null);
+        assert.equal(compressedAccounts.items[0].data, null);
         const postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
@@ -201,13 +201,13 @@ describe('compress', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        assert.equal(compressedAccounts.length, 1);
+        assert.equal(compressedAccounts.items.length, 1);
         assert.equal(
-            Number(compressedAccounts[0].lamports),
+            Number(compressedAccounts.items[0].lamports),
             compressLamportsAmount,
         );
 
-        assert.equal(compressedAccounts[0].data, null);
+        assert.equal(compressedAccounts.items[0].data, null);
         const postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
@@ -230,9 +230,9 @@ describe('compress', () => {
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        assert.equal(compressedAccounts2.length, 1);
+        assert.equal(compressedAccounts2.items.length, 1);
         assert.equal(
-            Number(compressedAccounts2[0].lamports),
+            Number(compressedAccounts2.items[0].lamports),
             compressLamportsAmount - decompressLamportsAmount,
         );
         await decompress(rpc, payer, 1, decompressRecipient, merkleTree);

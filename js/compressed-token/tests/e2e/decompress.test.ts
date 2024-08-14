@@ -29,10 +29,11 @@ async function assertDecompress(
     const refRecipientAtaBalanceAfter =
         await rpc.getTokenAccountBalance(refRecipientAta);
 
-    const senderCompressedTokenBalanceAfter =
+    const senderCompressedTokenBalanceAfter = (
         await rpc.getCompressedTokenAccountsByOwner(refSender, {
             mint: refMint,
-        });
+        })
+    ).items;
 
     const senderSumPost = senderCompressedTokenBalanceAfter.reduce(
         (acc, curr) => bn(acc).add(curr.parsed.amount),
@@ -126,7 +127,7 @@ describe('decompress', () => {
                 mint,
                 bn(5),
                 bob.publicKey,
-                senderCompressedTokenBalanceBefore,
+                senderCompressedTokenBalanceBefore.items,
             );
         }
     });
