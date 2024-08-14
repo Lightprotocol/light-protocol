@@ -47,7 +47,7 @@ export async function transfer(
     );
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
-        compressedAccounts,
+        compressedAccounts.items,
         lamports,
     );
 

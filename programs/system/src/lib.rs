@@ -1,5 +1,5 @@
+#![allow(unexpected_cfgs)]
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-
 pub mod invoke;
 pub use invoke::instruction::*;
 pub mod invoke_cpi;
@@ -8,9 +8,8 @@ pub mod constants;
 pub mod errors;
 pub mod sdk;
 pub mod utils;
-use errors::SystemProgramError;
+use crate::errors::SystemProgramError;
 use sdk::event::PublicTransactionEvent;
-
 declare_id!("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -71,7 +70,6 @@ pub mod light_system_program {
     /// This function is a stub to allow Anchor to include the input types in
     /// the IDL. It should not be included in production builds nor be called in
     /// practice.
-    #[cfg(feature = "idl-build")]
     pub fn stub_idl_build<'info>(
         _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
         _inputs1: InstructionDataInvoke,

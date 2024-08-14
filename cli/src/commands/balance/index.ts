@@ -1,8 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { CustomLoader, getSolanaRpcUrl, rpc } from "../../utils/utils";
+import { CustomLoader, rpc } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class BalanceCommand extends Command {
   static summary = "Get balance";
@@ -37,12 +35,12 @@ class BalanceCommand extends Command {
 
       loader.stop(false);
 
-      if (tokenAccounts.length === 0) {
+      if (tokenAccounts.items.length === 0) {
         console.log("No token accounts found");
         return;
       }
 
-      const compressedTokenAccount = tokenAccounts.find((acc) =>
+      const compressedTokenAccount = tokenAccounts.items.find((acc) =>
         acc.parsed.mint.equals(refMint),
       );
       if (compressedTokenAccount === undefined) {

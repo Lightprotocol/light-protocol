@@ -65,6 +65,16 @@ export interface CompressedTransaction {
             account: CompressedAccountWithMerkleContext;
             maybeTokenData: TokenData | null;
         }[];
+        preTokenBalances?: {
+            owner: PublicKey;
+            mint: PublicKey;
+            amount: BN;
+        }[];
+        postTokenBalances?: {
+            owner: PublicKey;
+            mint: PublicKey;
+            amount: BN;
+        }[];
     };
     transaction: any;
 }
@@ -120,6 +130,12 @@ export type WithContext<T> = {
     };
     /** response value */
     value: T;
+};
+export type WithCursor<T> = {
+    /** context */
+    cursor: string | null;
+    /** response value */
+    items: T;
 };
 
 /**
@@ -269,7 +285,7 @@ export const MultipleCompressedAccountsResult = pick({
  */
 export const CompressedAccountsByOwnerResult = pick({
     items: array(CompressedAccountResult),
-    cursor: nullable(PublicKeyFromString),
+    cursor: nullable(string()),
 });
 
 /**
@@ -277,7 +293,7 @@ export const CompressedAccountsByOwnerResult = pick({
  */
 export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
     items: array(CompressedTokenAccountResult),
-    cursor: nullable(PublicKeyFromString),
+    cursor: nullable(string()),
 });
 
 /**
@@ -389,7 +405,7 @@ export const TokenBalanceResult = pick({
 
 export const TokenBalanceListResult = pick({
     tokenBalances: array(TokenBalanceResult),
-    cursor: nullable(PublicKeyFromString),
+    cursor: nullable(string()),
 });
 
 export const AccountProofResult = pick({
@@ -420,7 +436,7 @@ export const SignatureListWithCursorResult = pick({
             slot: number(),
         }),
     ),
-    cursor: nullable(PublicKeyFromString),
+    cursor: nullable(string()),
 });
 
 export const CompressedTransactionResult = pick({
@@ -477,24 +493,24 @@ export interface CompressionApiInterface {
 
     getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[]>;
+    ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>>;
 
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]>;
+    ): Promise<WithCursor<ParsedTokenAccount[]>>;
 
     getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]>;
+    ): Promise<WithCursor<ParsedTokenAccount[]>>;
 
     getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
 
     getCompressedTokenBalancesByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<{ balance: BN; mint: PublicKey }[]>;
+    ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>>;
 
     getTransactionWithCompressionInfo(
         signature: string,
@@ -506,15 +522,15 @@ export interface CompressionApiInterface {
 
     getCompressionSignaturesForAddress(
         address: PublicKey,
-    ): Promise<SignatureWithMetadata[]>;
+    ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getCompressionSignaturesForOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]>;
+    ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]>;
+    ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getLatestNonVotingSignatures(
         limit?: number,

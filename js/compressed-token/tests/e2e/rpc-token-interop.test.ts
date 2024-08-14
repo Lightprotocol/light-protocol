@@ -4,17 +4,12 @@ import {
     Rpc,
     newAccountWithLamports,
     bn,
-    defaultTestStateTreeAccounts,
     createRpc,
     getTestRpc,
     TestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
-import {
-    PublicTransactionEvent,
-    getParsedEvents,
-} from '../../../stateless.js/src';
 
 const TEST_TOKEN_DECIMALS = 2;
 
@@ -55,15 +50,15 @@ describe('rpc-interop token', () => {
     });
 
     it('getCompressedTokenAccountsByOwner should match', async () => {
-        const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
-            bob.publicKey,
-            { mint },
-        );
+        const senderAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, { mint })
+        ).items;
 
-        const senderAccountsTest =
+        const senderAccountsTest = (
             await testRpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
-            });
+            })
+        ).items;
 
         assert.equal(senderAccounts.length, senderAccountsTest.length);
 
@@ -79,15 +74,17 @@ describe('rpc-interop token', () => {
             );
         });
 
-        const receiverAccounts = await rpc.getCompressedTokenAccountsByOwner(
-            charlie.publicKey,
-            { mint },
-        );
+        const receiverAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                mint,
+            })
+        ).items;
 
-        const receiverAccountsTest =
+        const receiverAccountsTest = (
             await testRpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
-            });
+            })
+        ).items;
 
         assert.equal(receiverAccounts.length, receiverAccountsTest.length);
         receiverAccounts.forEach((account, index) => {
@@ -110,10 +107,10 @@ describe('rpc-interop token', () => {
         );
 
         const balance = await rpc.getCompressedTokenAccountBalance(
-            bn(senderAccounts[0].compressedAccount.hash),
+            bn(senderAccounts.items[0].compressedAccount.hash),
         );
         const balanceTest = await testRpc.getCompressedTokenAccountBalance(
-            bn(senderAccounts[0].compressedAccount.hash),
+            bn(senderAccounts.items[0].compressedAccount.hash),
         );
         assert.isTrue(balance.amount.eq(balanceTest.amount));
         assert.isNotNull(balance.amount);
@@ -121,14 +118,14 @@ describe('rpc-interop token', () => {
     });
 
     it('getCompressedTokenBalancesByOwner should match', async () => {
-        const balances = await rpc.getCompressedTokenBalancesByOwner(
-            bob.publicKey,
-            { mint },
-        );
-        const balancesTest = await testRpc.getCompressedTokenBalancesByOwner(
-            bob.publicKey,
-            { mint },
-        );
+        const balances = (
+            await rpc.getCompressedTokenBalancesByOwner(bob.publicKey, { mint })
+        ).items;
+        const balancesTest = (
+            await testRpc.getCompressedTokenBalancesByOwner(bob.publicKey, {
+                mint,
+            })
+        ).items;
 
         assert.equal(balances.length, balancesTest.length);
 
@@ -136,14 +133,16 @@ describe('rpc-interop token', () => {
             assert.isTrue(balance.balance.eq(balancesTest[index].balance));
         });
 
-        const balancesReceiver = await rpc.getCompressedTokenBalancesByOwner(
-            charlie.publicKey,
-            { mint },
-        );
-        const balancesReceiverTest =
+        const balancesReceiver = (
+            await rpc.getCompressedTokenBalancesByOwner(charlie.publicKey, {
+                mint,
+            })
+        ).items;
+        const balancesReceiverTest = (
             await testRpc.getCompressedTokenBalancesByOwner(charlie.publicKey, {
                 mint,
-            });
+            })
+        ).items;
 
         assert.equal(balancesReceiver.length, balancesReceiverTest.length);
         balancesReceiver.forEach((balance, index) => {
@@ -154,16 +153,35 @@ describe('rpc-interop token', () => {
     });
 
     it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
-        const signatures = await rpc.getCompressionSignaturesForTokenOwner(
-            bob.publicKey,
-        );
+        const signatures = (
+            await rpc.getCompressionSignaturesForTokenOwner(bob.publicKey)
+        ).items;
 
         assert.equal(signatures.length, 2);
 
-        const signaturesReceiver =
-            await rpc.getCompressionSignaturesForTokenOwner(charlie.publicKey);
-
+        const signaturesReceiver = (
+            await rpc.getCompressionSignaturesForTokenOwner(charlie.publicKey)
+        ).items;
         assert.equal(signaturesReceiver.length, 1);
+    });
+
+    it('[test-rpc missing] getTransactionWithCompressionInfo should return correct token pre and post balances', async () => {
+        const signatures = (
+            await rpc.getCompressionSignaturesForTokenOwner(bob.publicKey)
+        ).items;
+
+        const tx = await rpc.getTransactionWithCompressionInfo(
+            // most recent
+            signatures[0].signature,
+        );
+        assert.isTrue(
+            tx!.compressionInfo.preTokenBalances![0].amount.eq(bn(1000)),
+        );
+        assert.isTrue(
+            tx!.compressionInfo.postTokenBalances![0].amount.eq(bn(300)),
+        );
+        assert.isTrue(tx!.compressionInfo.postTokenBalances!.length === 2);
+        assert.isTrue(tx!.compressionInfo.preTokenBalances!.length === 1);
     });
 
     it('[delegate unused] getCompressedTokenAccountsByDelegate should match', async () => {
@@ -172,7 +190,7 @@ describe('rpc-interop token', () => {
             { mint },
         );
 
-        assert.equal(accs.length, 0);
+        assert.equal(accs.items.length, 0);
     });
 
     it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints', async () => {
@@ -194,12 +212,12 @@ describe('rpc-interop token', () => {
 
         // check that mint and mint2 exist in list of senderaccounts at least once
         assert.isTrue(
-            senderAccounts.some(
+            senderAccounts.items.some(
                 account => account.parsed.mint.toBase58() === mint.toBase58(),
             ),
         );
         assert.isTrue(
-            senderAccounts.some(
+            senderAccounts.items.some(
                 account => account.parsed.mint.toBase58() === mint2.toBase58(),
             ),
         );

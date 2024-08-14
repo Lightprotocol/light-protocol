@@ -20,6 +20,7 @@ import {
     LatestNonVotingSignaturesPaginated,
     SignatureWithMetadata,
     WithContext,
+    WithCursor,
 } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
@@ -229,7 +230,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedBalanceByOwner(owner: PublicKey): Promise<BN> {
         const accounts = await this.getCompressedAccountsByOwner(owner);
-        return accounts.reduce(
+        return accounts.items.reduce(
             (acc, account) => acc.add(account.lamports),
             bn(0),
         );
@@ -333,9 +334,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[]> {
+    ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const accounts = await getCompressedAccountsByOwnerTest(this, owner);
-        return accounts;
+        return {
+            items: accounts,
+            cursor: null,
+        };
     }
 
     /**
@@ -368,7 +372,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
+    ): Promise<WithCursor<ParsedTokenAccount[]>> {
         return await getCompressedTokenAccountsByOwnerTest(
             this,
             owner,
@@ -382,7 +386,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
+    ): Promise<WithCursor<ParsedTokenAccount[]>> {
         return await getCompressedTokenAccountsByDelegateTest(
             this,
             delegate,
@@ -407,16 +411,19 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenBalancesByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<{ balance: BN; mint: PublicKey }[]> {
+    ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>> {
         const accounts = await getCompressedTokenAccountsByOwnerTest(
             this,
             publicKey,
             options.mint!,
         );
-        return accounts.map(account => ({
-            balance: bn(account.parsed.amount),
-            mint: account.parsed.mint,
-        }));
+        return {
+            items: accounts.items.map(account => ({
+                balance: bn(account.parsed.amount),
+                mint: account.parsed.mint,
+            })),
+            cursor: null,
+        };
     }
 
     /**
@@ -453,7 +460,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         _address: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }
 
@@ -466,7 +473,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForOwner not implemented');
     }
 
@@ -477,7 +484,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
-    ): Promise<SignatureWithMetadata[]> {
+    ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForTokenOwner not implemented');
     }
 

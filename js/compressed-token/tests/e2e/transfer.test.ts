@@ -28,10 +28,11 @@ async function assertTransfer(
     expectedAccountCountRecipientPost?: number,
 ) {
     /// Transfer can merge input compressed accounts therefore we need to pass all as ref
-    const senderPostCompressedTokenAccounts =
+    const senderPostCompressedTokenAccounts = (
         await rpc.getCompressedTokenAccountsByOwner(refSender, {
             mint: refMint,
-        });
+        })
+    ).items;
     /// pre = post-amount
     const sumPre = senderPreCompressedTokenAccounts.reduce(
         (acc, curr) => bn(acc).add(curr.parsed.amount),
@@ -50,10 +51,11 @@ async function assertTransfer(
 
     expect(sumPre.sub(refAmount).eq(sumPost)).toBe(true);
 
-    const recipientCompressedTokenAccounts =
+    const recipientCompressedTokenAccounts = (
         await rpc.getCompressedTokenAccountsByOwner(refRecipient, {
             mint: refMint,
-        });
+        })
+    ).items;
 
     if (expectedAccountCountRecipientPost) {
         expect(recipientCompressedTokenAccounts.length).toBe(
@@ -108,10 +110,11 @@ describe('transfer', () => {
     it('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
-        const bobPreCompressedTokenAccounts =
+        const bobPreCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
-            });
+            })
+        ).items;
 
         await transfer(
             rpc,
@@ -152,7 +155,7 @@ describe('transfer', () => {
 
         await assertTransfer(
             rpc,
-            bobPreCompressedTokenAccounts2,
+            bobPreCompressedTokenAccounts2.items,
             mint,
             bn(200),
             bob.publicKey,
@@ -180,7 +183,7 @@ describe('transfer', () => {
 
         await assertTransfer(
             rpc,
-            charliePreCompressedTokenAccounts3,
+            charliePreCompressedTokenAccounts3.items,
             mint,
             bn(5),
             charlie.publicKey,
@@ -199,7 +202,7 @@ describe('transfer', () => {
 
         await assertTransfer(
             rpc,
-            charliePreCompressedTokenAccounts4,
+            charliePreCompressedTokenAccounts4.items,
             mint,
             bn(700),
             charlie.publicKey,

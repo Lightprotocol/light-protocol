@@ -88,7 +88,8 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+// #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[account]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,
     pub input_compressed_accounts_with_merkle_context:

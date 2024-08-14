@@ -2,10 +2,10 @@ import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import { BN, BorshCoder } from '@coral-xyz/anchor';
 
-import { IDL } from '../../idls/light_compressed_token';
+import { LightCompressedToken } from '../../idls/light_compressed_token';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
-import { ParsedTokenAccount } from '../../rpc-interface';
+import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
     PublicTransactionEvent,
@@ -13,6 +13,7 @@ import {
     createCompressedAccountWithMerkleContext,
     bn,
 } from '../../state';
+import LightCompressedTokenIDL from '../../idls/light_compressed_token.json';
 
 const tokenProgramId: PublicKey = new PublicKey(
     // TODO: can add check to ensure its consistent with the idl
@@ -47,10 +48,9 @@ function parseTokenLayoutWithIdl(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    const decodedLayout = new BorshCoder(IDL).types.decode(
-        'TokenData',
-        Buffer.from(data),
-    );
+    const decodedLayout = new BorshCoder(
+        LightCompressedTokenIDL as unknown as LightCompressedToken,
+    ).types.decode('TokenData', Buffer.from(data));
 
     return decodedLayout;
 }
@@ -153,7 +153,7 @@ export async function getCompressedTokenAccountsByOwnerTest(
     rpc: Rpc,
     owner: PublicKey,
     mint: PublicKey,
-): Promise<ParsedTokenAccount[]> {
+): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
@@ -161,25 +161,31 @@ export async function getCompressedTokenAccountsByOwnerTest(
     const accounts = compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
-    return accounts.sort(
-        (a, b) => b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
-    );
+    return {
+        items: accounts.sort(
+            (a, b) =>
+                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+        ),
+        cursor: null,
+    };
 }
 
 export async function getCompressedTokenAccountsByDelegateTest(
     rpc: Rpc,
     delegate: PublicKey,
     mint: PublicKey,
-): Promise<ParsedTokenAccount[]> {
+): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
-
-    return compressedTokenAccounts.filter(
-        acc =>
-            acc.parsed.delegate?.equals(delegate) &&
-            acc.parsed.mint.equals(mint),
-    );
+    return {
+        items: compressedTokenAccounts.filter(
+            acc =>
+                acc.parsed.delegate?.equals(delegate) &&
+                acc.parsed.mint.equals(mint),
+        ),
+        cursor: null,
+    };
 }
 
 export async function getCompressedTokenAccountByHashTest(

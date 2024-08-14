@@ -6,7 +6,6 @@ import {
     ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
-    bn,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
@@ -39,15 +38,13 @@ export async function compress(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    amount: number | BN,
+    amount: number | BN | number[] | BN[],
     owner: Signer,
     sourceTokenAccount: PublicKey,
-    toAddress: PublicKey,
+    toAddress: PublicKey | Array<PublicKey>,
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    amount = bn(amount);
-
     const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
         owner: owner.publicKey,

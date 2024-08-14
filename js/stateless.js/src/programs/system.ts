@@ -7,11 +7,7 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-
-import {
-    IDL,
-    LightSystemProgram as LightSystemProgramIDL,
-} from '../idls/light_system_program';
+import { LightSystem } from '../idls';
 import { useWallet } from '../wallet';
 import {
     CompressedAccount,
@@ -22,10 +18,7 @@ import {
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import {
-    defaultStaticAccountsStruct,
-    defaultTestStateTreeAccounts,
-} from '../constants';
+import { defaultStaticAccountsStruct } from '../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,
@@ -190,7 +183,7 @@ type DecompressParams = {
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
-
+import LightSystemIDL from '../idls/light_system_program.json';
 export class LightSystemProgram {
     /**
      * @internal
@@ -205,9 +198,9 @@ export class LightSystemProgram {
         'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN',
     );
 
-    private static _program: Program<LightSystemProgramIDL> | null = null;
+    private static _program: Program<LightSystem> | null = null;
 
-    static get program(): Program<LightSystemProgramIDL> {
+    static get program(): Program<LightSystem> {
         if (!this._program) {
             this.initializeProgram();
         }
@@ -247,7 +240,10 @@ export class LightSystemProgram {
                 },
             );
             setProvider(mockProvider);
-            this._program = new Program(IDL, this.programId, mockProvider);
+            this._program = new Program(
+                LightSystemIDL as unknown as LightSystem,
+                mockProvider,
+            );
         }
     }
 
@@ -386,15 +382,15 @@ export class LightSystemProgram {
         };
 
         /// Encode instruction data
-        const ixData = this.program.coder.types.encode(
-            'InstructionDataInvoke',
+        const ixData = await this.program.coder.types.encode(
+            'instructionDataInvoke',
             rawData,
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(ixData)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -439,22 +435,25 @@ export class LightSystemProgram {
             outputStateTrees,
         );
         /// Encode instruction data
-        const data = this.program.coder.types.encode('InstructionDataInvoke', {
-            proof: recentValidityProof,
-            inputCompressedAccountsWithMerkleContext:
-                packedInputCompressedAccounts,
-            outputCompressedAccounts: packedOutputCompressedAccounts,
-            relayFee: null,
-            /// TODO: here and on-chain: option<newAddressInputs> or similar.
-            newAddressParams: [],
-            compressOrDecompressLamports: null,
-            isCompress: false,
-        });
+        const data = await this.program.coder.types.encode(
+            'instructionDataInvoke',
+            {
+                proof: recentValidityProof,
+                inputCompressedAccountsWithMerkleContext:
+                    packedInputCompressedAccounts,
+                outputCompressedAccounts: packedOutputCompressedAccounts,
+                relayFee: null,
+                /// TODO: here and on-chain: option<newAddressInputs> or similar.
+                newAddressParams: [],
+                compressOrDecompressLamports: null,
+                isCompress: false,
+            },
+        );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -513,14 +512,14 @@ export class LightSystemProgram {
         };
 
         const data = this.program.coder.types.encode(
-            'InstructionDataInvoke',
+            'instructionDataInvoke',
             rawInputs,
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
@@ -567,22 +566,25 @@ export class LightSystemProgram {
             outputStateTree,
         );
         /// Encode instruction data
-        const data = this.program.coder.types.encode('InstructionDataInvoke', {
-            proof: recentValidityProof,
-            inputCompressedAccountsWithMerkleContext:
-                packedInputCompressedAccounts,
-            outputCompressedAccounts: packedOutputCompressedAccounts,
-            relayFee: null,
-            /// TODO: here and on-chain: option<newAddressInputs> or similar.
-            newAddressParams: [],
-            compressOrDecompressLamports: lamports,
-            isCompress: false,
-        });
+        const data = await this.program.coder.types.encode(
+            'instructionDataInvoke',
+            {
+                proof: recentValidityProof,
+                inputCompressedAccountsWithMerkleContext:
+                    packedInputCompressedAccounts,
+                outputCompressedAccounts: packedOutputCompressedAccounts,
+                relayFee: null,
+                /// TODO: here and on-chain: option<newAddressInputs> or similar.
+                newAddressParams: [],
+                compressOrDecompressLamports: lamports,
+                isCompress: false,
+            },
+        );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
-            .accounts({
+            .accountsPartial({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,

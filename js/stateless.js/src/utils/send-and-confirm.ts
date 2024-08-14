@@ -9,15 +9,17 @@ import {
     ConfirmOptions,
     TransactionSignature,
     PublicKey,
+    AddressLookupTableAccount,
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
 
 /**
  * Builds a versioned Transaction from instructions.
  *
- * @param instructions        instructions to include
- * @param payerPublicKey      fee payer public key
- * @param blockhash          blockhash to use
+ * @param instructions          instructions to include
+ * @param payerPublicKey        fee payer public key
+ * @param blockhash             blockhash to use
+ * @param lookupTableAccounts   lookup table accounts to include
  *
  * @return VersionedTransaction
  */
@@ -25,12 +27,13 @@ export function buildTx(
     instructions: TransactionInstruction[],
     payerPublicKey: PublicKey,
     blockhash: string,
+    lookupTableAccounts?: AddressLookupTableAccount[],
 ): VersionedTransaction {
     const messageV0 = new TransactionMessage({
         payerKey: payerPublicKey,
         recentBlockhash: blockhash,
         instructions,
-    }).compileToV0Message();
+    }).compileToV0Message(lookupTableAccounts);
 
     return new VersionedTransaction(messageV0);
 }
@@ -104,22 +107,31 @@ export async function confirmTx(
 /**
  * Builds a versioned Transaction from instructions and signs it.
  *
- * @param instructions        instructions to include in the transaction
- * @param payer               payer of the transaction
- * @param blockhash           recent blockhash to use in the transaction
- * @param additionalSigners   non-feepayer signers to include in the transaction
+ * @param instructions          instructions to include in the transaction
+ * @param payer                 payer of the transaction
+ * @param blockhash             recent blockhash to use in the transaction
+ * @param additionalSigners     non-feepayer signers to include in the
+ *                              transaction
+ * @param lookupTableAccounts   lookup table accounts to include in the
+ *                              transaction
  */
 export function buildAndSignTx(
     instructions: TransactionInstruction[],
     payer: Signer,
     blockhash: string,
     additionalSigners: Signer[] = [],
+    lookupTableAccounts?: AddressLookupTableAccount[],
 ): VersionedTransaction {
     if (additionalSigners.includes(payer))
         throw new Error('payer must not be in additionalSigners');
     const allSigners = [payer, ...additionalSigners];
 
-    const tx = buildTx(instructions, payer.publicKey, blockhash);
+    const tx = buildTx(
+        instructions,
+        payer.publicKey,
+        blockhash,
+        lookupTableAccounts,
+    );
 
     tx.sign(allSigners);
 

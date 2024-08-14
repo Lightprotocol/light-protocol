@@ -29,11 +29,11 @@ describe('testnet transfer', () => {
         for (let i = 0; i < numberOfTransfers; i++) {
             const preSenderBalance = (
                 await rpc.getCompressedAccountsByOwner(payer.publicKey)
-            ).reduce((acc, account) => acc.add(account.lamports), bn(0));
+            ).items.reduce((acc, account) => acc.add(account.lamports), bn(0));
 
             const preReceiverBalance = (
                 await rpc.getCompressedAccountsByOwner(bob.publicKey)
-            ).reduce((acc, account) => acc.add(account.lamports), bn(0));
+            ).items.reduce((acc, account) => acc.add(account.lamports), bn(0));
 
             await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
 
@@ -44,11 +44,11 @@ describe('testnet transfer', () => {
                 bob.publicKey,
             );
 
-            const postSenderBalance = postSenderAccs.reduce(
+            const postSenderBalance = postSenderAccs.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );
-            const postReceiverBalance = postReceiverAccs.reduce(
+            const postReceiverBalance = postReceiverAccs.items.reduce(
                 (acc, account) => acc.add(account.lamports),
                 bn(0),
             );

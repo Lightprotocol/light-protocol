@@ -55,7 +55,7 @@ export async function transfer(
     );
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
-        compressedTokenAccounts,
+        compressedTokenAccounts.items,
         amount,
     );
 

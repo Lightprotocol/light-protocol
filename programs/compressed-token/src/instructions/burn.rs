@@ -1,7 +1,11 @@
+use crate::program::LightCompressedToken;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use light_system_program::{
+    program::LightSystemProgram,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+};
 
 use crate::POOL_SEED;
 
@@ -25,7 +29,7 @@ pub struct BurnInstruction<'info> {
     #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: (system program) when emitting event.
@@ -33,9 +37,8 @@ pub struct BurnInstruction<'info> {
     /// CHECK: (system program) to cpi account compression program.
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub account_compression_program: Program<'info, AccountCompression>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
 }
 
