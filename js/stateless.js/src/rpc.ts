@@ -51,7 +51,6 @@ import {
 import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
-
 import { toCamelCase, toHex } from './utils/conversion';
 
 import {

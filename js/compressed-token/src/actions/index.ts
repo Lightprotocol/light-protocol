@@ -5,3 +5,4 @@ export * from './create-mint';
 export * from './mint-to';
 export * from './register-mint';
 export * from './transfer';
+export * from './create-token-program-lookup-table';
