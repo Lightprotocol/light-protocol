@@ -1,3 +1,4 @@
+use crate::rpc_pool::PoolError;
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
 use light_hash_set::HashSetError;
 use light_test_utils::indexer::IndexerError;
@@ -155,5 +156,11 @@ impl<T> From<SendError<T>> for ForesterError {
 impl From<JoinError> for ForesterError {
     fn from(err: JoinError) -> Self {
         ForesterError::JoinError(err.to_string())
+    }
+}
+
+impl From<PoolError> for ForesterError {
+    fn from(err: PoolError) -> Self {
+        ForesterError::Custom(err.to_string())
     }
 }

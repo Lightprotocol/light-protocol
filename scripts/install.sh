@@ -96,9 +96,9 @@ install_rust() {
     if ! is_installed "rust"; then
         echo "Installing Rust..."
         curl -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-        RUSTUP_HOME="${PREFIX}/rustup"
-        CARGO_HOME="${PREFIX}/cargo"
-        PATH="${PREFIX}/cargo/bin:${PATH}"
+        export RUSTUP_HOME="${PREFIX}/rustup"
+        export CARGO_HOME="${PREFIX}/cargo"
+        export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
         cargo install cargo-expand wasm-pack
         cargo install photon-indexer --version $(get_version "photon") --locked

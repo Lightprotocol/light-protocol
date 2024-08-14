@@ -1,6 +1,7 @@
 use forester::epoch_manager::fetch_queue_item_data;
+use forester::rpc_pool::SolanaRpcPool;
+use forester::run_pipeline;
 use forester::utils::LightValidatorConfig;
-use forester::{run_pipeline, RpcPool};
 use light_test_utils::e2e_test_env::E2ETestEnv;
 use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
 use light_test_utils::registry::register_test_forester;
@@ -8,6 +9,7 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
@@ -37,7 +39,13 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     config.payer_keypair = forester_keypair.insecure_clone();
 
     let config = Arc::new(config);
-    let pool = RpcPool::<SolanaRpcConnection>::new(config.clone()).await;
+    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
+        config.external_services.rpc_url.to_string(),
+        CommitmentConfig::confirmed(),
+        config.rpc_pool_size as u32,
+    )
+    .await
+    .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.payer = forester_keypair.insecure_clone();
@@ -105,11 +113,11 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .collect();
 
     for tree in state_trees.iter() {
-        let queue_length =
-            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
-                .await
-                .unwrap()
-                .len();
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.nullifier_queue)
+            .await
+            .unwrap()
+            .len();
         println!("State tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
@@ -121,7 +129,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .map(|x| x.accounts)
         .collect();
     for tree in address_trees.iter() {
-        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.queue)
             .await
             .unwrap()
             .len();
@@ -148,17 +157,18 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     }
 
     for tree in state_trees {
-        let queue_length =
-            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
-                .await
-                .unwrap()
-                .len();
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.nullifier_queue)
+            .await
+            .unwrap()
+            .len();
         println!("State tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 
     for tree in address_trees {
-        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.queue)
             .await
             .unwrap()
             .len();
@@ -191,7 +201,13 @@ async fn test_epoch_monitor_with_2_foresters() {
     config2.payer_keypair = forester_keypair2.insecure_clone();
     let config2 = Arc::new(config2);
 
-    let pool = RpcPool::<SolanaRpcConnection>::new(config1.clone()).await;
+    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
+        config1.external_services.rpc_url.to_string(),
+        CommitmentConfig::confirmed(),
+        config1.rpc_pool_size as u32,
+    )
+    .await
+    .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.payer = forester_keypair1.insecure_clone();
@@ -261,11 +277,11 @@ async fn test_epoch_monitor_with_2_foresters() {
         .collect();
 
     for tree in state_trees.iter() {
-        let queue_length =
-            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
-                .await
-                .unwrap()
-                .len();
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.nullifier_queue)
+            .await
+            .unwrap()
+            .len();
         println!("State tree queue length: {}", queue_length);
         assert_ne!(queue_length, 0);
     }
@@ -277,7 +293,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         .map(|x| x.accounts)
         .collect();
     for tree in address_trees.iter() {
-        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.queue)
             .await
             .unwrap()
             .len();
@@ -335,17 +352,18 @@ async fn test_epoch_monitor_with_2_foresters() {
     assert!(total_processed > 0, "No items were processed");
 
     for tree in state_trees {
-        let queue_length =
-            fetch_queue_item_data(pool.get_connection().await, &tree.nullifier_queue)
-                .await
-                .unwrap()
-                .len();
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.nullifier_queue)
+            .await
+            .unwrap()
+            .len();
         println!("State tree queue length: {}", queue_length);
         assert_eq!(queue_length, 0);
     }
 
     for tree in address_trees {
-        let queue_length = fetch_queue_item_data(pool.get_connection().await, &tree.queue)
+        let mut rpc = pool.get_connection().await.unwrap();
+        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.queue)
             .await
             .unwrap()
             .len();

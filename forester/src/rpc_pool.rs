@@ -1,37 +1,103 @@
-use std::sync::Arc;
-
-use rand::seq::SliceRandom;
+use crate::RpcConnection;
+use bb8::{Pool, PooledConnection};
+use light_test_utils::rpc::errors::RpcError;
 use solana_sdk::commitment_config::CommitmentConfig;
-use tokio::sync::Mutex;
+use std::time::Duration;
+use thiserror::Error;
+use tokio::time::sleep;
 
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-
-use crate::ForesterConfig;
-
-#[derive(Debug, Clone)]
-pub struct RpcPool<R: RpcConnection> {
-    connections: Vec<Arc<Mutex<R>>>,
+#[derive(Error, Debug)]
+pub enum PoolError {
+    #[error("Failed to create RPC client: {0}")]
+    ClientCreation(String),
+    #[error("RPC request failed: {0}")]
+    RpcRequest(#[from] RpcError),
+    #[error("Pool error: {0}")]
+    Pool(String),
 }
 
-impl<R: RpcConnection> RpcPool<R> {
-    pub async fn get_connection(&self) -> Arc<Mutex<R>> {
-        self.connections
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .clone()
+pub struct SolanaConnectionManager<R: RpcConnection> {
+    url: String,
+    commitment: CommitmentConfig,
+    _phantom: std::marker::PhantomData<R>,
+}
+
+impl<R: RpcConnection> SolanaConnectionManager<R> {
+    pub fn new(url: String, commitment: CommitmentConfig) -> Self {
+        Self {
+            url,
+            commitment,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<R: RpcConnection> bb8::ManageConnection for SolanaConnectionManager<R> {
+    type Connection = R;
+    type Error = PoolError;
+
+    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        Ok(R::new(&self.url, Some(self.commitment)))
     }
 
-    pub async fn new(config: Arc<ForesterConfig>) -> RpcPool<R> {
-        let mut connections: Vec<Arc<Mutex<R>>> = Vec::new();
-        // TODO: extract it to config file
-        for _ in 0..20 {
-            let rpc = R::new(
-                &config.external_services.rpc_url,
-                Some(CommitmentConfig::confirmed()),
-            );
-            let rpc = Arc::new(Mutex::new(rpc));
-            connections.push(rpc);
+    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
+        conn.health().map_err(PoolError::RpcRequest)
+    }
+
+    fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
+        false
+    }
+}
+
+#[derive(Debug)]
+pub struct SolanaRpcPool<R: RpcConnection> {
+    pool: Pool<SolanaConnectionManager<R>>,
+}
+
+impl<R: RpcConnection> SolanaRpcPool<R> {
+    pub async fn new(
+        url: String,
+        commitment: CommitmentConfig,
+        max_size: u32,
+    ) -> Result<Self, PoolError> {
+        let manager = SolanaConnectionManager::new(url, commitment);
+        let pool = Pool::builder()
+            .max_size(max_size)
+            .connection_timeout(Duration::from_secs(15))
+            .idle_timeout(Some(Duration::from_secs(60 * 5)))
+            .build(manager)
+            .await
+            .map_err(|e| PoolError::Pool(e.to_string()))?;
+
+        Ok(Self { pool })
+    }
+
+    pub async fn get_connection(
+        &self,
+    ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
+        self.pool
+            .get()
+            .await
+            .map_err(|e| PoolError::Pool(e.to_string()))
+    }
+
+    pub async fn get_connection_with_retry(
+        &self,
+        max_retries: u32,
+        delay: Duration,
+    ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
+        let mut retries = 0;
+        loop {
+            match self.pool.get().await {
+                Ok(conn) => return Ok(conn),
+                Err(e) if retries < max_retries => {
+                    retries += 1;
+                    eprintln!("Failed to get connection (attempt {}): {:?}", retries, e);
+                    sleep(delay).await;
+                }
+                Err(e) => return Err(PoolError::Pool(e.to_string())),
+            }
         }
-        Self { connections }
     }
 }
