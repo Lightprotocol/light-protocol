@@ -1,9 +1,15 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::hash};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{errors::HasherError, DataHasher, Discriminator, Hasher, Poseidon};
-use light_sdk::{light_accounts, verify::verify, LightDiscriminator, LightTraits};
+use light_sdk::{
+    light_accounts,
+    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
+    utils::create_cpi_inputs_for_new_address,
+    verify::verify,
+    LightDiscriminator, LightTraits,
+};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
@@ -21,36 +27,33 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
-
-    use anchor_lang::solana_program::hash;
-    use light_sdk::utils::create_cpi_inputs_for_new_address;
-
     use super::*;
 
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
         proof: CompressedProof,
-        address_merkle_tree_account_index: u8,
-        address_queue_account_index: u8,
+        merkle_output_context: PackedMerkleOutputContext,
+        address_merkle_context: PackedAddressMerkleContext,
         address_merkle_tree_root_index: u16,
         name: String,
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
         let address_seed = hash::hash(name.as_bytes()).to_bytes();
-        let new_address_params = NewAddressParamsPacked {
-            seed: address_seed,
-            address_queue_account_index,
-            address_merkle_tree_account_index,
-            address_merkle_tree_root_index,
-        };
 
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
             name,
             rdata,
         };
-        let compressed_account = create_compressed_account(&ctx, &record, &new_address_params)?;
+        let (compressed_account, new_address_params) = create_compressed_account(
+            &ctx,
+            &record,
+            address_seed,
+            &merkle_output_context,
+            &address_merkle_context,
+            address_merkle_tree_root_index,
+        )?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -71,21 +74,38 @@ pub mod name_service {
 
     pub fn update_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
-        compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: CompressedProof,
+        merkle_context: PackedMerkleContext,
+        merkle_tree_root_index: u16,
         address: [u8; 32],
         name: String,
-        rdata: RData,
+        old_rdata: RData,
+        new_rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        signer_and_hash_check(&ctx, &compressed_account)?;
+        let owner = ctx.accounts.signer.key();
 
-        let record = NameRecord {
-            owner: ctx.accounts.signer.key(),
-            name,
-            rdata,
+        // Re-create the old compressed account. It's needed as an input for
+        // validation and nullification.
+        let old_record = NameRecord {
+            owner,
+            name: name.clone(),
+            rdata: old_rdata,
         };
-        let new_compressed_account = compressed_output_account_with_address(&record, address)?;
+        let old_compressed_account = compressed_input_account_with_address(
+            old_record,
+            address,
+            &merkle_context,
+            merkle_tree_root_index,
+        )?;
+
+        let new_record = NameRecord {
+            owner,
+            name,
+            rdata: new_rdata,
+        };
+        let new_compressed_account =
+            compressed_output_account_with_address(&new_record, address, &merkle_context)?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -94,7 +114,7 @@ pub mod name_service {
         let inputs = InstructionDataInvokeCpi {
             proof: Some(proof),
             new_address_params: vec![],
-            input_compressed_accounts_with_merkle_context: vec![compressed_account],
+            input_compressed_accounts_with_merkle_context: vec![old_compressed_account],
             output_compressed_accounts: vec![new_compressed_account],
             relay_fee: None,
             compress_or_decompress_lamports: None,
@@ -110,11 +130,25 @@ pub mod name_service {
 
     pub fn delete_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
-        compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: CompressedProof,
+        merkle_context: PackedMerkleContext,
+        merkle_tree_root_index: u16,
+        address: [u8; 32],
+        name: String,
+        rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        signer_and_hash_check(&ctx, &compressed_account)?;
+        let record = NameRecord {
+            owner: ctx.accounts.signer.key(),
+            name,
+            rdata,
+        };
+        let compressed_account = compressed_input_account_with_address(
+            record,
+            address,
+            &merkle_context,
+            merkle_tree_root_index,
+        )?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
@@ -186,42 +220,17 @@ impl light_hasher::DataHasher for NameRecord {
     }
 }
 
-fn signer_and_hash_check(
-    ctx: &Context<'_, '_, '_, '_, NameService<'_>>,
-    compressed_account: &PackedCompressedAccountWithMerkleContext,
-) -> Result<()> {
-    let compressed_account_data = compressed_account
-        .compressed_account
-        .data
-        .as_ref()
-        .ok_or(CustomError::Unauthorized)?;
-
-    let record = NameRecord::deserialize(
-        &mut compressed_account
-            .compressed_account
-            .data
-            .as_ref()
-            .ok_or(CustomError::NoData)?
-            .data
-            .as_slice(),
-    )?;
-    if ctx.accounts.signer.key() != record.owner {
-        return err!(CustomError::Unauthorized);
-    }
-
-    let hash = record.hash::<Poseidon>().map_err(ProgramError::from)?;
-    if compressed_account_data.data_hash != hash {
-        return err!(CustomError::InvalidDataHash);
-    }
-
-    Ok(())
-}
-
 fn create_compressed_account(
     ctx: &Context<'_, '_, '_, '_, NameService<'_>>,
     record: &NameRecord,
-    new_address_params: &NewAddressParamsPacked,
-) -> Result<OutputCompressedAccountWithPackedContext> {
+    address_seed: [u8; 32],
+    merkle_output_context: &PackedMerkleOutputContext,
+    address_merkle_context: &PackedAddressMerkleContext,
+    address_merkle_tree_root_index: u16,
+) -> Result<(
+    OutputCompressedAccountWithPackedContext,
+    NewAddressParamsPacked,
+)> {
     let data = record.try_to_vec()?;
     let data_hash = record.hash::<Poseidon>().map_err(ProgramError::from)?;
     let compressed_account_data = CompressedAccountData {
@@ -230,9 +239,9 @@ fn create_compressed_account(
         data_hash,
     };
     let address = derive_address(
-        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+        &ctx.remaining_accounts[address_merkle_context.address_merkle_tree_pubkey_index as usize]
             .key(),
-        &new_address_params.seed,
+        &address_seed,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
     let compressed_account = CompressedAccount {
@@ -241,16 +250,53 @@ fn create_compressed_account(
         address: Some(address),
         data: Some(compressed_account_data),
     };
-
-    Ok(OutputCompressedAccountWithPackedContext {
+    let compressed_account = OutputCompressedAccountWithPackedContext {
         compressed_account,
-        merkle_tree_index: 0,
+        merkle_tree_index: merkle_output_context.merkle_tree_pubkey_index,
+    };
+
+    let new_address_params = NewAddressParamsPacked {
+        seed: address_seed,
+        address_merkle_tree_account_index: address_merkle_context.address_merkle_tree_pubkey_index,
+        address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+        address_merkle_tree_root_index,
+    };
+
+    Ok((compressed_account, new_address_params))
+}
+
+fn compressed_input_account_with_address(
+    record: NameRecord,
+    address: [u8; 32],
+    merkle_context: &PackedMerkleContext,
+    merkle_tree_root_index: u16,
+) -> Result<PackedCompressedAccountWithMerkleContext> {
+    let data = record.try_to_vec()?;
+    let data_hash = record.hash::<Poseidon>().map_err(ProgramError::from)?;
+    let compressed_account_data = CompressedAccountData {
+        discriminator: NameRecord::discriminator(),
+        data,
+        data_hash,
+    };
+    let compressed_account = CompressedAccount {
+        owner: crate::ID,
+        lamports: 0,
+        address: Some(address),
+        data: Some(compressed_account_data),
+    };
+
+    Ok(PackedCompressedAccountWithMerkleContext {
+        compressed_account,
+        merkle_context: *merkle_context,
+        root_index: merkle_tree_root_index,
+        read_only: false,
     })
 }
 
 fn compressed_output_account_with_address(
     record: &NameRecord,
     address: [u8; 32],
+    merkle_context: &PackedMerkleContext,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
     let data = record.try_to_vec()?;
     let data_hash = record.hash::<Poseidon>().map_err(ProgramError::from)?;
@@ -268,6 +314,6 @@ fn compressed_output_account_with_address(
 
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account,
-        merkle_tree_index: 0,
+        merkle_tree_index: merkle_context.merkle_tree_pubkey_index,
     })
 }
