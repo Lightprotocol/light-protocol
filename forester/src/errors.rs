@@ -12,6 +12,8 @@ use tokio::task::JoinError;
 
 #[derive(Error, Debug)]
 pub enum ForesterError {
+    #[error("Element is not eligible for foresting")]
+    NotEligible,
     #[error("RPC Error: {0}")]
     RpcError(#[from] RpcError),
     #[error("failed to deserialize account data")]
@@ -55,6 +57,7 @@ pub enum ForesterError {
 impl Clone for ForesterError {
     fn clone(&self) -> Self {
         match self {
+            ForesterError::NotEligible => ForesterError::NotEligible,
             ForesterError::RpcError(_) => ForesterError::Custom("RPC Error".to_string()),
             ForesterError::DeserializeError(e) => ForesterError::DeserializeError(e.clone()),
             ForesterError::CopyMerkleTreeError(_) => {
@@ -89,6 +92,7 @@ impl Clone for ForesterError {
 impl ForesterError {
     pub fn to_owned(&self) -> Self {
         match self {
+            ForesterError::NotEligible => ForesterError::NotEligible,
             ForesterError::RpcError(e) => ForesterError::Custom(format!("RPC Error: {:?}", e)),
             ForesterError::DeserializeError(e) => {
                 ForesterError::Custom(format!("Deserialize Error: {:?}", e))
