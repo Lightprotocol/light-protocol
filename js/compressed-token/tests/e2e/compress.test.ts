@@ -12,13 +12,11 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
     createRpc,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     compress,
     createMint,

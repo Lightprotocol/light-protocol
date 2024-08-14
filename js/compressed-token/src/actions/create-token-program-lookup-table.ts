@@ -1,10 +1,4 @@
-import {
-    ConfirmOptions,
-    PublicKey,
-    Signer,
-    TransactionSignature,
-    ComputeBudgetProgram,
-} from '@solana/web3.js';
+import { PublicKey, Signer, TransactionSignature } from '@solana/web3.js';
 import {
     sendAndConfirmTx,
     buildAndSignTx,
@@ -13,6 +7,7 @@ import {
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../program';
+
 /**
  * Create a lookup table for the token program's default accounts
  *

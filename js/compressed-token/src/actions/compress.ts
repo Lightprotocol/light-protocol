@@ -6,7 +6,6 @@ import {
     ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
-    bn,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,

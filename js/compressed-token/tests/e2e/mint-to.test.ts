@@ -11,19 +11,19 @@ import {
     createTokenProgramLookupTable,
     mintTo,
 } from '../../src/actions';
+
 import {
     getTestKeypair,
     newAccountWithLamports,
     bn,
     defaultTestStateTreeAccounts,
     Rpc,
-    getTestRpc,
     sendAndConfirmTx,
     buildAndSignTx,
     dedupeSigner,
     createRpc,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+
 import { CompressedTokenProgram } from '../../src/program';
 
 /**
@@ -114,11 +114,12 @@ describe('mintTo', () => {
         );
     });
 
+    const maxRecipients = 18;
     const recipients = Array.from(
-        { length: 18 },
+        { length: maxRecipients },
         () => Keypair.generate().publicKey,
     );
-    const amounts = Array.from({ length: 18 }, (_, i) => bn(i + 1));
+    const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
 
     it('should mint to multiple recipients', async () => {
         /// mint to three recipients
@@ -156,7 +157,7 @@ describe('mintTo', () => {
         );
     });
 
-    it('should mint to multiple recipients optimized with LUT', async () => {
+    it(`should mint to ${recipients.length} recipients optimized with LUT`, async () => {
         /// Fetch state of LUT
         const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
             .value!;

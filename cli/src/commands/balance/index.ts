@@ -1,8 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { CustomLoader, getSolanaRpcUrl, rpc } from "../../utils/utils";
+import { CustomLoader, rpc } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class BalanceCommand extends Command {
   static summary = "Get balance";
