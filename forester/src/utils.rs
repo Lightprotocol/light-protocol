@@ -3,7 +3,9 @@ use light_registry::utils::get_protocol_config_pda_address;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
 use std::process::Command;
+use std::time::Duration;
 use sysinfo::{Signal, System};
+use tokio::time::sleep;
 
 #[derive(Debug)]
 pub struct LightValidatorConfig {
@@ -91,4 +93,38 @@ pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfi
         .unwrap();
     info!("Protocol config account: {:?}", protocol_config_account);
     protocol_config_account.config
+}
+
+pub async fn wait_for_slot(target_slot: u64, current_slot: u64, slot_time_ms: u64) {
+    if current_slot < target_slot {
+        let slots_to_wait = target_slot - current_slot;
+        let sleep_ms = slot_time_ms * slots_to_wait;
+        debug!("Sleeping for {} ms", sleep_ms);
+        sleep(Duration::from_millis(sleep_ms)).await;
+    }
+}
+
+pub async fn wait_until_slot_reached<R: RpcConnection>(
+    rpc: &mut R,
+    target_slot: u64,
+    slot_time_ms: u64,
+) -> crate::Result<()> {
+    let mut current_slot = rpc.get_slot().await?;
+    debug!(
+        "Current slot: {}, Target slot: {}",
+        current_slot, target_slot
+    );
+
+    wait_for_slot(target_slot, current_slot, slot_time_ms).await;
+
+    while current_slot < target_slot {
+        sleep(Duration::from_millis(slot_time_ms)).await;
+        current_slot = rpc.get_slot().await?;
+        debug!(
+            "Current slot: {}, Target slot: {}",
+            current_slot, target_slot
+        );
+    }
+
+    Ok(())
 }

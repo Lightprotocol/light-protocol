@@ -1,16 +1,21 @@
+pub type Result<T> = std::result::Result<T, ForesterError>;
+
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
 pub mod errors;
 pub mod photon_indexer;
+pub mod pubsub_client;
+pub mod queue_helpers;
 pub mod rollover;
 pub mod rpc_pool;
 pub mod settings;
 pub mod tree_data_sync;
 pub mod utils;
 
-use crate::epoch_manager::{fetch_queue_item_data, run_service, WorkReport};
+use crate::epoch_manager::{run_service, WorkReport};
 use crate::errors::ForesterError;
+use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
 use crate::utils::get_protocol_config;
 pub use config::{ForesterConfig, ForesterEpochInfo};
@@ -61,7 +66,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
-) -> Result<(), ForesterError> {
+) -> Result<()> {
     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
@@ -73,8 +78,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     {
         let mut rpc = rpc_pool.get_connection().await?;
         rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
-            .await
-            .unwrap();
+            .await?;
     }
 
     let protocol_config = {
