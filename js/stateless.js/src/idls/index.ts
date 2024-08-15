@@ -5,9 +5,4 @@ import { LightSystemProgram as LightSystem } from './light_system_program';
 
 import { LightCompressedToken } from './light_compressed_token';
 
-export {
-    AccountCompression,
-    LightRegistry,
-    LightSystem,
-    LightCompressedToken,
-};
+export { AccountCompression, LightRegistry, LightSystem, LightCompressedToken };

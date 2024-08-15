@@ -18,9 +18,7 @@ import {
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import {
-    defaultStaticAccountsStruct,
-} from '../constants';
+import { defaultStaticAccountsStruct } from '../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,

@@ -13,6 +13,6 @@ if [ ! -f target/deploy/spl_noop.so ]; then
     mkdir -p target/deploy && cp third-party/solana-program-library/spl_noop.so target/deploy
 fi
 
-npx nx run-many --target=build --all --verbose
+npx nx run-many --target=build --all
 
 echo "Build process completed successfully."
