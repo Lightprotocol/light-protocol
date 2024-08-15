@@ -10,12 +10,12 @@ pub(crate) fn process_light_accounts(input: DeriveInput) -> Result<TokenStream> 
             let fields_to_add = [
                 (
                     "light_system_program",
-                    "Program<'info, ::light_system_program::program::LightSystemProgram>",
+                    "Program<'info, ::LightSystemProgram>",
                 ),
                 ("system_program", "Program<'info, System>"),
                 (
                     "account_compression_program",
-                    "Program<'info, ::account_compression::program::AccountCompression>",
+                    "Program<'info, ::AccountCompression>",
                 ),
             ];
             let fields_to_add_check = [
