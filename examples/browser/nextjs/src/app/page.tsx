@@ -92,7 +92,7 @@ const SendButton: FC = () => {
 
         console.log('accounts', accounts);
         const [selectedAccounts, _] = selectMinCompressedSolAccountsForTransfer(
-            accounts,
+            accounts.items,
             1e7,
         );
 
