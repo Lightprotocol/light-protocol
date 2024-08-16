@@ -417,6 +417,7 @@ impl Epoch {
     /// execute active phase test:
     /// (multi thread)
     /// - iterate over all trees, check whether eligible and empty queues
+    ///
     /// forester:
     /// - start a new thread per tree
     /// - this thread will sleep when it is not elibile and wake up with

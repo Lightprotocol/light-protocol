@@ -257,8 +257,7 @@ pub struct InitializeStateMerkleTreeAndQueue<'info> {
 pub struct AppendLeavesAccountCompressionProgram<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    pub account_compression_program:
-        Program<'info, AccountCompression>,
+    pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK:
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK:
