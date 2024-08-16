@@ -785,43 +785,43 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .await
             {
                 Ok(_) => {
-            match self
-                .process_transaction_batch(
-                    epoch_info,
-                    transaction_chunk,
-                    proof_chunk,
-                    indexer_chunk,
-                )
-                .await
-            {
-                Ok(signature) => {
-                    debug!(
-                        "Work item {:?} processed successfully. Signature: {:?}",
+                    match self
+                        .process_transaction_batch(
+                            epoch_info,
+                            transaction_chunk,
+                            proof_chunk,
+                            indexer_chunk,
+                        )
+                        .await
+                    {
+                        Ok(signature) => {
+                            debug!(
+                                "Work item {:?} processed successfully. Signature: {:?}",
                                 work_item.queue_item_data.hash, signature
-                    );
-                    self.increment_processed_items_count(epoch_info.epoch.epoch)
-                        .await;
-                    return Ok(Some(signature));
-                }
-                Err(e) => {
-                    if retries >= self.config.max_retries {
-                        error!(
-                            "Max retries reached for work item {:?}. Error: {:?}",
+                            );
+                            self.increment_processed_items_count(epoch_info.epoch.epoch)
+                                .await;
+                            return Ok(Some(signature));
+                        }
+                        Err(e) => {
+                            if retries >= self.config.max_retries {
+                                error!(
+                                    "Max retries reached for work item {:?}. Error: {:?}",
                                     work_item.queue_item_data.hash, e
-                        );
-                        return Err(e);
-                    }
-                    let delay = BASE_RETRY_DELAY * 2u32.pow(retries as u32);
-                    let jitter = rand::thread_rng().gen_range(0..=50);
-                    sleep(delay + Duration::from_millis(jitter)).await;
-                    retries += 1;
-                    warn!(
-                        "Retrying work item {:?}. Attempt {}/{}",
+                                );
+                                return Err(e);
+                            }
+                            let delay = BASE_RETRY_DELAY * 2u32.pow(retries as u32);
+                            let jitter = rand::thread_rng().gen_range(0..=50);
+                            sleep(delay + Duration::from_millis(jitter)).await;
+                            retries += 1;
+                            warn!(
+                                "Retrying work item {:?}. Attempt {}/{}",
                                 work_item.queue_item_data.hash, retries, self.config.max_retries
-                    );
+                            );
+                        }
+                    }
                 }
-            }
-        }
                 Err(ForesterError::NotEligible) => {
                     debug!("Forester not eligible for this slot, skipping batch");
                     return Ok(None);
