@@ -1,4 +1,4 @@
-use forester::epoch_manager::fetch_queue_item_data;
+use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
 use forester::run_pipeline;
 use forester::utils::LightValidatorConfig;

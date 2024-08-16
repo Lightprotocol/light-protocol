@@ -1,18 +1,19 @@
 use crate::errors::ForesterError;
+use crate::pubsub_client::setup_pubsub_client;
+use crate::queue_helpers::{fetch_queue_item_data, QueueItemData, QueueUpdate};
 use crate::rollover::{
     is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
 };
 use crate::rpc_pool::SolanaRpcPool;
 use crate::tree_data_sync::fetch_trees;
+use crate::utils::wait_until_slot_reached;
+use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
     STATE_MERKLE_TREE_CHANGELOG,
 };
-use account_compression::QueueAccount;
 use futures::future::join_all;
-use futures::StreamExt;
-use light_hash_set::HashSet;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -29,10 +30,6 @@ use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, error, info, warn};
 use rand::Rng;
-use solana_account_decoder::UiAccountEncoding;
-use solana_client::nonblocking::pubsub_client::PubsubClient;
-use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
-use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;
@@ -40,64 +37,29 @@ use solana_sdk::signature::{Signature, Signer};
 use solana_sdk::transaction::Transaction;
 use std::collections::HashMap;
 use std::iter::Zip;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::{mem, thread};
-use tokio::runtime::Builder;
 use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 use tokio::time::sleep;
-
-type Result<T> = std::result::Result<T, ForesterError>;
-
-#[derive(Debug, Clone)]
-pub struct QueueItemData {
-    pub hash: [u8; 32],
-    pub index: usize,
-}
-
-pub async fn fetch_queue_item_data<R: RpcConnection>(
-    rpc: &mut R,
-    queue_pubkey: &Pubkey,
-) -> Result<Vec<QueueItemData>> {
-    debug!("Fetching queue data for {:?}", queue_pubkey);
-    let mut account = rpc.get_account(*queue_pubkey).await?.unwrap();
-    let nullifier_queue: HashSet = unsafe {
-        HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
-    };
-    let mut queue_item_data_list = Vec::new();
-
-    for i in 0..nullifier_queue.capacity {
-        let bucket = nullifier_queue.get_bucket(i).unwrap();
-        if let Some(bucket) = bucket {
-            if bucket.sequence_number.is_none() {
-                queue_item_data_list.push(QueueItemData {
-                    hash: bucket.value_bytes(),
-                    index: i,
-                });
-            }
-        }
-    }
-
-    Ok(queue_item_data_list)
-}
-
-pub async fn get_queue_length<R: RpcConnection>(rpc: &mut R, queue_pubkey: &Pubkey) -> usize {
-    let queue = fetch_queue_item_data(rpc, queue_pubkey).await.unwrap();
-    queue.len()
-}
-
-#[derive(Debug)]
-struct QueueUpdate {
-    pubkey: Pubkey,
-    slot: u64,
-}
 
 #[derive(Clone, Debug)]
 pub struct WorkReport {
     pub epoch: u64,
     pub processed_items: usize,
+}
+
+#[derive(Debug, Clone)]
+struct WorkItem {
+    tree_account: TreeAccounts,
+    queue_item_data: QueueItemData,
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+enum Proof {
+    AddressProof(NewAddressProofWithContext),
+    StateProof(MerkleProof),
 }
 
 #[derive(Debug)]
@@ -123,19 +85,6 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
             trees: self.trees.clone(),
         }
     }
-}
-
-#[derive(Debug, Clone)]
-struct WorkItem {
-    tree_account: TreeAccounts,
-    queue_item_data: QueueItemData,
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone)]
-enum Proof {
-    AddressProof(NewAddressProofWithContext),
-    StateProof(MerkleProof),
 }
 
 impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
@@ -189,7 +138,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
                 last_epoch, current_epoch, slot
             );
-            if last_epoch.is_none() || current_epoch > last_epoch.unwrap() {
+            if last_epoch.map_or(true, |last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
@@ -203,22 +152,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let next_epoch = current_epoch + 1;
             let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
             let mut rpc = self.rpc_pool.get_connection().await?;
-            let mut slot = rpc.get_slot().await?;
             let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
             info!(
                 "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
                 next_epoch, slot, next_phases.registration.start, slots_to_wait
             );
-            let sleep_duration = Duration::from_millis(400 * slots_to_wait);
-            debug!("Sleeping for {} ms", sleep_duration.as_millis());
-            tokio::time::sleep(sleep_duration).await;
-            while slot < next_phases.registration.start {
-                tokio::time::sleep(Duration::from_millis(400)).await;
-                slot = rpc.get_slot().await?;
-                debug!(
-                    "Current slot: {}, Registration phase start slot: {}",
-                    slot, next_phases.registration.start
-                );
+            if let Err(e) =
+                wait_until_slot_reached(&mut *rpc, next_phases.registration.start, 400).await
+            {
+                error!("Error waiting for next registration phase: {:?}", e);
+                continue;
             }
         }
     }
@@ -386,24 +329,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             epoch_info.epoch.epoch
         );
         let mut rpc = self.rpc_pool.get_connection().await?;
-        let mut slot = rpc.get_slot().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
-
-        if slot < active_phase_start_slot {
-            let sleep_ms = 400 * (active_phase_start_slot - slot);
-            debug!("Sleeping for {} ms", sleep_ms);
-            tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
-            slot = rpc.get_slot().await?;
-        }
-
-        while slot < active_phase_start_slot {
-            tokio::time::sleep(Duration::from_millis(400)).await;
-            slot = rpc.get_slot().await?;
-            debug!(
-                "Current slot: {}, Active phase start slot: {}",
-                slot, active_phase_start_slot
-            );
-        }
+        wait_until_slot_reached(&mut *rpc, active_phase_start_slot, 400).await?;
 
         // TODO: we can put this ix into every tx of the first batch of the current active phase
         let ix = create_finalize_registration_instruction(
@@ -423,8 +350,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .await?
             .ok_or_else(|| ForesterError::Custom("Failed to get ForesterEpochPda".to_string()))?;
 
+        let slot = rpc.get_slot().await?;
         epoch_info.add_trees_with_schedule(&self.trees, slot);
         Ok(epoch_info)
+    }
+
+    async fn setup_pubsub_client(
+        &self,
+        queue_pubkeys: &std::collections::HashSet<Pubkey>,
+    ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
+        setup_pubsub_client(&self.config, queue_pubkeys.clone()).await
     }
 
     async fn perform_active_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
@@ -440,57 +375,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .map(|tree| tree.tree_accounts.queue)
             .collect();
 
-        // Create a channel for receiving queue updates
-        let (update_tx, mut update_rx) = mpsc::channel(100);
-        let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
-
-        // Spawn PubsubClient task
-        let ws_url = self.config.external_services.ws_rpc_url.clone();
-
-        thread::spawn(move || {
-            let rt = Builder::new_current_thread().enable_all().build().unwrap();
-
-            rt.block_on(async {
-                let pubsub_client = PubsubClient::new(&ws_url).await.unwrap();
-
-                // Subscribe to all accounts
-                let (mut subscription, _) = pubsub_client
-                    .program_subscribe(
-                        &account_compression::id(),
-                        Some(RpcProgramAccountsConfig {
-                            filters: None,
-                            account_config: RpcAccountInfoConfig {
-                                encoding: Some(UiAccountEncoding::Base64),
-                                commitment: Some(CommitmentConfig::confirmed()),
-                                data_slice: None,
-                                min_context_slot: None,
-                            },
-                            with_context: Some(true),
-                        }),
-                    )
-                    .await
-                    .unwrap();
-
-                loop {
-                    tokio::select! {
-                        Some(update) = subscription.next() => {
-                            if let Ok(pubkey) = Pubkey::from_str(&update.value.pubkey) {
-                                if queue_pubkeys.contains(&pubkey) && update_tx.send(QueueUpdate {
-                                        pubkey,
-                                        slot: update.context.slot,
-                                    }).await.is_err() {
-                                        break;
-                                }
-
-                            }
-                        }
-                        _ = shutdown_rx.recv() => {
-                            break;
-                        }
-                    }
-                }
-            });
-        });
+        // Setup PubSub client
+        let (mut update_rx, shutdown_tx) = self.setup_pubsub_client(&queue_pubkeys).await?;
 
         // Perform initial fetch and processing
         if self.is_in_active_phase(slot, epoch_info)? {
@@ -524,7 +410,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
 
         // Cleanup
-        let _ = shutdown_tx.send(()).await;
+        if let Err(e) = shutdown_tx.send(()).await {
+            error!("Failed to send shutdown signal: {:?}", e);
+        }
 
         for tree in &epoch_info.trees {
             if is_tree_ready_for_rollover(
@@ -604,13 +492,22 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let chunk = chunk.to_vec();
 
             tokio::spawn(async move {
-                let _permit = semaphore_clone.acquire().await.unwrap();
+                let permit = match semaphore_clone.acquire().await {
+                    Ok(permit) => permit,
+                    Err(e) => {
+                        error!("Failed to acquire semaphore: {:?}", e);
+                        return;
+                    }
+                };
                 let start_time = Instant::now();
                 let result = self_clone
                     .process_work_items(&epoch_info_clone, &chunk)
                     .await;
                 let duration = start_time.elapsed();
-                tx_clone.send((result, duration)).await.unwrap();
+                if let Err(e) = tx_clone.send((result, duration)).await {
+                    error!("Failed to send result through channel: {:?}", e);
+                }
+                drop(permit);
             });
         }
 
@@ -730,7 +627,14 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let tx_clone = tx.clone();
 
                 tokio::spawn(async move {
-                    let _permit = semaphore_clone.acquire().await.unwrap();
+                    let permit = match semaphore_clone.acquire().await {
+                        Ok(permit) => permit,
+                        Err(e) => {
+                            error!("Failed to acquire semaphore: {:?}", e);
+                            return;
+                        }
+                    };
+
                     let start_time = Instant::now();
 
                     let result = self_clone
@@ -743,9 +647,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         .await;
 
                     let duration = start_time.elapsed();
-                    tx_clone.send((result.clone(), duration)).await.unwrap();
-
-                    result
+                    if let Err(e) = tx_clone.send((result, duration)).await {
+                        error!("Failed to send result through channel: {:?}", e);
+                    }
+                    drop(permit);
                 })
             })
             .collect();
@@ -859,14 +764,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         proof_chunk: &[Proof],
         indexer_chunk: &[WorkItem],
     ) -> Result<Option<Signature>> {
-        let first_work_item = indexer_chunk.first();
-        if first_work_item.is_none() {
-            return Err(ForesterError::Custom("Empty indexer chunk".to_string()));
-        }
-        let work_item = first_work_item.unwrap();
+        let first_work_item = indexer_chunk
+            .first()
+            .ok_or_else(|| ForesterError::Custom("Empty indexer chunk".to_string()))?;
         debug!(
             "Processing work item {:?} with {} instructions",
-            work_item.queue_item_data.hash,
+            first_work_item.queue_item_data.hash,
             transaction_chunk.len()
         );
         const BASE_RETRY_DELAY: Duration = Duration::from_millis(100);
@@ -874,7 +777,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let mut retries = 0;
         loop {
             if !self
-                .check_eligibility(epoch_info, &work_item.tree_account)
+                .check_eligibility(epoch_info, &first_work_item.tree_account)
                 .await?
             {
                 debug!("Forester not eligible for this slot, skipping batch");
@@ -893,7 +796,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 Ok(signature) => {
                     debug!(
                         "Work item {:?} processed successfully. Signature: {:?}",
-                        work_item.queue_item_data.hash, signature
+                        first_work_item.queue_item_data.hash, signature
                     );
                     self.increment_processed_items_count(epoch_info.epoch.epoch)
                         .await;
@@ -903,7 +806,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     if retries >= self.config.max_retries {
                         error!(
                             "Max retries reached for work item {:?}. Error: {:?}",
-                            work_item.queue_item_data.hash, e
+                            first_work_item.queue_item_data.hash, e
                         );
                         return Err(e);
                     }
@@ -913,7 +816,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     retries += 1;
                     warn!(
                         "Retrying work item {:?}. Attempt {}/{}",
-                        work_item.queue_item_data.hash, retries, self.config.max_retries
+                        first_work_item.queue_item_data.hash, retries, self.config.max_retries
                     );
                 }
             }
@@ -974,30 +877,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
     async fn wait_for_report_work_phase(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         let mut rpc = self.rpc_pool.get_connection().await?;
-
         let report_work_start_slot = epoch_info.epoch.phases.report_work.start;
-        let mut slot = rpc.get_slot().await?;
-        debug!(
-            "Current slot: {}, Report work start slot: {}",
-            slot, report_work_start_slot
-        );
-
-        if slot < report_work_start_slot {
-            let sleep_ms = 400 * (report_work_start_slot - slot);
-            debug!("Sleeping for {} ms", sleep_ms);
-            tokio::time::sleep(Duration::from_millis(sleep_ms)).await;
-            slot = rpc.get_slot().await?;
-        }
-
-        while slot < report_work_start_slot {
-            tokio::time::sleep(Duration::from_millis(400)).await;
-            slot = rpc.get_slot().await?;
-            debug!(
-                "Current slot: {}, Report work start slot: {}",
-                slot, report_work_start_slot
-            );
-        }
-
+        wait_until_slot_reached(&mut *rpc, report_work_start_slot, 400).await?;
         Ok(())
     }
 
@@ -1042,7 +923,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         // Fetch address proofs in batch
         if !address_items.is_empty() {
-            let merkle_tree = address_items[0].tree_account.merkle_tree.to_bytes();
+            let merkle_tree = address_items
+                .first()
+                .ok_or_else(|| ForesterError::Custom("No address items found".to_string()))?
+                .tree_account
+                .merkle_tree
+                .to_bytes();
             let addresses: Vec<[u8; 32]> = address_items
                 .iter()
                 .map(|item| item.queue_item_data.hash)
