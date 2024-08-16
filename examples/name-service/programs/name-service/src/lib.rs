@@ -2,11 +2,14 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{prelude::*, solana_program::hash};
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{bytes::AsByteVec, errors::HasherError, DataHasher, Discriminator, Poseidon};
+use light_hasher::{bytes::AsByteVec, DataHasher, Discriminator, Poseidon};
 use light_sdk::{
     light_accounts,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
-    utils::create_cpi_inputs_for_new_address,
+    utils::{
+        create_cpi_inputs_for_account_deletion, create_cpi_inputs_for_new_account,
+        input_compressed_account,
+    },
     verify::verify,
     LightDiscriminator, LightHasher, LightTraits,
 };
@@ -58,7 +61,7 @@ pub mod name_service {
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
-        let inputs = create_cpi_inputs_for_new_address(
+        let inputs = create_cpi_inputs_for_new_account(
             proof,
             new_address_params,
             compressed_account,
@@ -132,38 +135,38 @@ pub mod name_service {
         proof: CompressedProof,
         merkle_context: PackedMerkleContext,
         merkle_tree_root_index: u16,
-        address: [u8; 32],
+        address_merkle_context: PackedAddressMerkleContext,
         name: String,
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
+        let address_seed = hash::hash(name.as_bytes()).to_bytes();
+
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
             name,
             rdata,
         };
-        let compressed_account = compressed_input_account_with_address(
+        let compressed_account = input_compressed_account(
             record,
-            address,
+            &[&address_seed],
+            &crate::ID,
             &merkle_context,
             merkle_tree_root_index,
+            &address_merkle_context,
+            ctx.remaining_accounts,
         )?;
 
         let signer_seed = b"cpi_signer".as_slice();
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
-        let inputs = InstructionDataInvokeCpi {
-            proof: Some(proof),
-            new_address_params: vec![],
-            input_compressed_accounts_with_merkle_context: vec![compressed_account],
-            output_compressed_accounts: vec![],
-            relay_fee: None,
-            compress_or_decompress_lamports: None,
-            is_compress: false,
-            signer_seeds: signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
+        let inputs = create_cpi_inputs_for_account_deletion(
+            proof,
+            compressed_account,
+            &signer_seeds,
             cpi_context,
-        };
+        );
 
         verify(ctx, &inputs, &[&signer_seeds])?;
 
