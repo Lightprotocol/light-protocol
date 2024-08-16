@@ -811,7 +811,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                                 );
                                 return Err(e);
                             }
-                            let delay = BASE_RETRY_DELAY * 2u32.pow(retries as u32);
+                            let delay = BASE_RETRY_DELAY.saturating_mul(2u32.saturating_pow(retries as u32));
                             let jitter = rand::thread_rng().gen_range(0..=50);
                             sleep(delay + Duration::from_millis(jitter)).await;
                             retries += 1;
