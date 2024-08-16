@@ -1,21 +1,15 @@
 #![cfg(feature = "test-sbf")]
 
-use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::solana_program::hash;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_sdk::compressed_account::pack_compressed_account;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, pack_merkle_output_context,
-    AddressMerkleContext, MerkleContext, MerkleOutputContext, RemainingAccounts,
+    AddressMerkleContext, MerkleOutputContext, RemainingAccounts,
 };
 use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
-    PackedMerkleContext,
-};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_test_utils::indexer::{test_indexer::TestIndexer, Indexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::ProgramTestRpcConnection;
@@ -87,7 +81,6 @@ async fn test_name_service() {
     update_record(
         &mut rpc,
         &mut test_indexer,
-        &env,
         &rdata_1,
         &rdata_2,
         &payer,
@@ -114,7 +107,6 @@ async fn test_name_service() {
     delete_record(
         &mut rpc,
         &mut test_indexer,
-        &env,
         &rdata_2,
         &payer,
         compressed_account,
@@ -197,7 +189,6 @@ async fn create_record<R: RpcConnection>(
 async fn update_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    env: &EnvAccounts,
     old_rdata: &RData,
     new_rdata: &RData,
     payer: &Keypair,
@@ -262,7 +253,6 @@ async fn update_record<R: RpcConnection>(
 async fn delete_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    env: &EnvAccounts,
     rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,

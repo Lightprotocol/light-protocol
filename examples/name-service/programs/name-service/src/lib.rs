@@ -2,13 +2,13 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{prelude::*, solana_program::hash};
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{errors::HasherError, DataHasher, Discriminator, Hasher, Poseidon};
+use light_hasher::{bytes::AsByteVec, errors::HasherError, DataHasher, Discriminator, Poseidon};
 use light_sdk::{
     light_accounts,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
     utils::create_cpi_inputs_for_new_address,
     verify::verify,
-    LightDiscriminator, LightTraits,
+    LightDiscriminator, LightHasher, LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -21,7 +21,6 @@ use light_system_program::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
@@ -181,9 +180,21 @@ pub enum RData {
 
 impl anchor_lang::IdlBuild for RData {}
 
-#[derive(Debug, BorshDeserialize, BorshSerialize, LightDiscriminator)]
+impl AsByteVec for RData {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        match self {
+            Self::A(ipv4_addr) => vec![ipv4_addr.octets().to_vec()],
+            Self::AAAA(ipv6_addr) => vec![ipv6_addr.octets().to_vec()],
+            Self::CName(cname) => cname.as_byte_vec(),
+        }
+    }
+}
+
+#[derive(Debug, BorshDeserialize, BorshSerialize, LightDiscriminator, LightHasher)]
 pub struct NameRecord {
+    #[truncate]
     pub owner: Pubkey,
+    #[truncate]
     pub name: String,
     pub rdata: RData,
 }
@@ -209,15 +220,6 @@ pub struct NameService<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-}
-
-impl light_hasher::DataHasher for NameRecord {
-    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())
-            .unwrap()
-            .0;
-        H::hashv(&[&owner, self.name.as_bytes()])
-    }
 }
 
 fn create_compressed_account(
