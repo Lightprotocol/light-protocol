@@ -95,7 +95,7 @@ pub fn input_compressed_accounts_signer_check(
 /// Write access check for output compressed accounts.
 /// - Only program-owned output accounts can hold data.
 /// - Every output account that holds data has to be owned by the
-/// invoking_program.
+///     invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
 pub fn output_compressed_accounts_write_access_check(

@@ -45,6 +45,7 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 /// 2. Merkle tree and nullifier queue are associated
 /// 3. Merkle tree is not already rolled over
 /// 4. Rollover threshold is configured, if not tree cannot be rolled over
+///
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters

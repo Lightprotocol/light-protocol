@@ -1,8 +1,10 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
-use light_system_program::OutputCompressedAccountWithPackedContext;
+use crate::program::LightCompressedToken;
+use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
+
 #[cfg(target_os = "solana")]
 use {
     crate::process_transfer::create_output_compressed_accounts,
@@ -362,7 +364,7 @@ pub struct MintToInstruction<'info> {
     #[account(mut, seeds = [POOL_SEED, &mint.key().to_bytes()],bump)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: (different program) checked in system and account compression
@@ -372,13 +374,12 @@ pub struct MintToInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
+    pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: (different program) will be checked by the system program
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
     /// CHECK: (different program) will be checked by the system program
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
     /// CHECK: (different program) will be checked by the system program
     #[account(mut)]

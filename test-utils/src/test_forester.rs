@@ -42,11 +42,12 @@ use thiserror::Error;
 
 /// Check compressed_accounts in the queue array which are not nullified yet
 /// Iterate over these compressed_accounts and nullify them
+///
 /// Checks:
 /// 1. Value in hashset is marked
 /// 2. State tree root is updated
 /// 3. TODO: add event is emitted (after rebase)
-/// optional: assert that the Merkle tree doesn't change except the updated leaf
+///     optional: assert that the Merkle tree doesn't change except the updated leaf
 pub async fn nullify_compressed_accounts<R: RpcConnection>(
     rpc: &mut R,
     forester: &Keypair,
@@ -276,9 +277,11 @@ pub enum RelayerUpdateError {
 }
 /// Mocks the address insert logic of a forester.
 /// Gets addresses from the AddressQueue and inserts them into the AddressMerkleTree.
+///
 /// Checks:
 /// 1. Element has been marked correctly
 /// 2. Merkle tree has been updated correctly
+///
 /// TODO: Event has been emitted, event doesn't exist yet
 pub async fn empty_address_queue_test<R: RpcConnection>(
     forester: &Keypair,

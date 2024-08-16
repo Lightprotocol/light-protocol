@@ -12,4 +12,6 @@ cargo clippy \
       -- -A clippy::result_large_err \
          -A clippy::empty-docs \
          -A clippy::to-string-trait-impl \
+         -A unexpected-cfgs \
+         -A clippy::doc_lazy_continuation \
       -D warnings
