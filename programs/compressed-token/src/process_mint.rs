@@ -66,6 +66,9 @@ pub fn process_mint_to<'info>(
             amounts.len()
         );
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
+    } else if recipient_pubkeys.is_empty() {
+        msg!("recipient_pubkeys is empty");
+        return err!(crate::ErrorCode::NoInputsProvided);
     }
 
     #[cfg(target_os = "solana")]

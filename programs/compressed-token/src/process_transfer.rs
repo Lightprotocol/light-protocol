@@ -42,6 +42,11 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
     bench_sbf_end!("t_deserialize");
     bench_sbf_start!("t_context_and_check_sig");
+    if inputs.input_token_data_with_context.is_empty()
+        && inputs.compress_or_decompress_amount.is_none()
+    {
+        return err!(crate::ErrorCode::NoInputTokenAccountsProvided);
+    }
     let (mut compressed_input_accounts, input_token_data, input_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             &ctx.accounts.authority.key(),

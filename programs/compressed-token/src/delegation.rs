@@ -74,6 +74,9 @@ pub fn create_input_and_output_accounts_approve(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
+    if inputs.input_token_data_with_context.is_empty() {
+        return err!(ErrorCode::NoInputTokenAccountsProvided);
+    }
     let (mut compressed_input_accounts, input_token_data, sum_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
@@ -201,6 +204,9 @@ pub fn create_input_and_output_accounts_revoke(
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
+    if inputs.input_token_data_with_context.is_empty() {
+        return err!(ErrorCode::NoInputTokenAccountsProvided);
+    }
     let (mut compressed_input_accounts, input_token_data, sum_lamports) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<NOT_FROZEN>(
             authority,
