@@ -720,7 +720,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         registration_info: &ForesterEpochInfo,
         tree_account: &TreeAccounts,
-    ) -> Result<bool> {
+    ) -> Result<()> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let current_slot = rpc.get_slot().await?;
         let forester_epoch_pda = rpc
@@ -754,7 +754,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             "tree_schedule.slots[{}] = {:?}",
             light_slot, tree_schedule.slots[light_slot as usize]
         );
-        Ok(tree_schedule.is_eligible(light_slot))
+        if tree_schedule.is_eligible(light_slot) {
+            Ok(())
+        } else {
+            Err(ForesterError::NotEligible)
+        }
     }
 
     async fn process_transaction_batch_with_retry(
@@ -764,60 +768,68 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         proof_chunk: &[Proof],
         indexer_chunk: &[WorkItem],
     ) -> Result<Option<Signature>> {
-        let first_work_item = indexer_chunk
+        let work_item = indexer_chunk
             .first()
             .ok_or_else(|| ForesterError::Custom("Empty indexer chunk".to_string()))?;
         debug!(
             "Processing work item {:?} with {} instructions",
-            first_work_item.queue_item_data.hash,
+            work_item.queue_item_data.hash,
             transaction_chunk.len()
         );
         const BASE_RETRY_DELAY: Duration = Duration::from_millis(100);
 
         let mut retries = 0;
         loop {
-            if !self
-                .check_eligibility(epoch_info, &first_work_item.tree_account)
-                .await?
-            {
-                debug!("Forester not eligible for this slot, skipping batch");
-                return Ok(None);
-            }
-
             match self
-                .process_transaction_batch(
-                    epoch_info,
-                    transaction_chunk,
-                    proof_chunk,
-                    indexer_chunk,
-                )
+                .check_eligibility(epoch_info, &work_item.tree_account)
                 .await
             {
-                Ok(signature) => {
-                    debug!(
-                        "Work item {:?} processed successfully. Signature: {:?}",
-                        first_work_item.queue_item_data.hash, signature
-                    );
-                    self.increment_processed_items_count(epoch_info.epoch.epoch)
-                        .await;
-                    return Ok(Some(signature));
+                Ok(_) => {
+                    match self
+                        .process_transaction_batch(
+                            epoch_info,
+                            transaction_chunk,
+                            proof_chunk,
+                            indexer_chunk,
+                        )
+                        .await
+                    {
+                        Ok(signature) => {
+                            debug!(
+                                "Work item {:?} processed successfully. Signature: {:?}",
+                                work_item.queue_item_data.hash, signature
+                            );
+                            self.increment_processed_items_count(epoch_info.epoch.epoch)
+                                .await;
+                            return Ok(Some(signature));
+                        }
+                        Err(e) => {
+                            if retries >= self.config.max_retries {
+                                error!(
+                                    "Max retries reached for work item {:?}. Error: {:?}",
+                                    work_item.queue_item_data.hash, e
+                                );
+                                return Err(e);
+                            }
+                            let delay = BASE_RETRY_DELAY
+                                .saturating_mul(2u32.saturating_pow(retries as u32));
+                            let jitter = rand::thread_rng().gen_range(0..=50);
+                            sleep(delay + Duration::from_millis(jitter)).await;
+                            retries += 1;
+                            warn!(
+                                "Retrying work item {:?}. Attempt {}/{}",
+                                work_item.queue_item_data.hash, retries, self.config.max_retries
+                            );
+                        }
+                    }
+                }
+                Err(ForesterError::NotEligible) => {
+                    debug!("Forester not eligible for this slot, skipping batch");
+                    return Ok(None);
                 }
                 Err(e) => {
-                    if retries >= self.config.max_retries {
-                        error!(
-                            "Max retries reached for work item {:?}. Error: {:?}",
-                            first_work_item.queue_item_data.hash, e
-                        );
-                        return Err(e);
-                    }
-                    let delay = BASE_RETRY_DELAY * 2u32.pow(retries as u32);
-                    let jitter = rand::thread_rng().gen_range(0..=50);
-                    sleep(delay + Duration::from_millis(jitter)).await;
-                    retries += 1;
-                    warn!(
-                        "Retrying work item {:?}. Attempt {}/{}",
-                        first_work_item.queue_item_data.hash, retries, self.config.max_retries
-                    );
+                    error!("Error checking eligibility: {:?}", e);
+                    return Err(e);
                 }
             }
         }
