@@ -6,19 +6,13 @@ use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubk
 pub use light_system_program::sdk::compressed_account::{MerkleContext, PackedMerkleContext};
 
 /// Collection of remaining accounts which are sent to the program.
+#[derive(Default)]
 pub struct RemainingAccounts {
     next_index: u8,
     map: HashMap<Pubkey, u8>,
 }
 
 impl RemainingAccounts {
-    pub fn new() -> Self {
-        Self {
-            next_index: 0,
-            map: HashMap::new(),
-        }
-    }
-
     /// Returns the index of the provided `pubkey` in the collection.
     ///
     /// If the provided `pubkey` is not a part of the collection, it gets

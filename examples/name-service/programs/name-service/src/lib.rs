@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{prelude::*, solana_program::hash};
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{bytes::AsByteVec, errors::HasherError, DataHasher, Discriminator, Poseidon};
+use light_hasher::{bytes::AsByteVec, DataHasher, Discriminator, Poseidon};
 use light_sdk::{
     light_accounts,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
@@ -28,6 +28,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 pub mod name_service {
     use super::*;
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
         proof: CompressedProof,
@@ -71,6 +72,7 @@ pub mod name_service {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
         proof: CompressedProof,
@@ -127,6 +129,7 @@ pub mod name_service {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn delete_record<'info>(
         ctx: Context<'_, '_, '_, 'info, NameService<'info>>,
         proof: CompressedProof,
