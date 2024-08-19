@@ -8,7 +8,7 @@ use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, U
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext, TestIndexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
-use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
+use light_test_utils::test_env::{get_test_env_accounts, OLD_REGISTRY_ID_TEST_KEYPAIR};
 use log::{debug, info};
 use once_cell::sync::OnceCell;
 use solana_sdk::signature::{Keypair, Signer};
@@ -84,7 +84,7 @@ pub fn forester_config() -> ForesterConfig {
     let mut env_accounts = get_test_env_accounts();
     env_accounts.forester = Keypair::new();
 
-    let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    let registry_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
     ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: "http://localhost:8899".to_string(),

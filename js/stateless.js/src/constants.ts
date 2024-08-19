@@ -11,12 +11,12 @@ export const HIGHEST_ADDRESS_PLUS_ONE = new BN(
 
 // TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
-export const lightProgram = 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
 export const accountCompressionProgram = // also: merkletree program
-    'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+    'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('ApB3ASTFzS1RrccrB1cnNDPAAWrm1X4KSeNh2G3qSaxx'); // TODO: better labelling. gov authority pda
+    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
@@ -56,11 +56,11 @@ export const defaultTestStateTreeAccounts = () => {
 };
 
 export const nullifierQueuePubkey =
-    '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ';
+    'nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148';
 
-export const merkletreePubkey = '5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W';
-export const addressTree = 'C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn';
-export const addressQueue = 'HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz';
+export const merkletreePubkey = 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT';
+export const addressTree = 'amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2';
+export const addressQueue = 'aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F';
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

@@ -14,9 +14,11 @@ use light_system_program::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams,
 };
-use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
-use light_test_utils::rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection};
-use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
+use light_test_utils::{
+    airdrop_lamports,
+    rpc::test_rpc::ProgramTestRpcConnection,
+    test_env::{initialize_accounts, setup_test_programs, EnvAccountKeypairs},
+};
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error,
@@ -27,6 +29,14 @@ use light_test_utils::{
     test_env::setup_test_programs_with_accounts,
 };
 use light_test_utils::{rpc::errors::RpcError, test_env::EnvAccounts};
+use light_test_utils::{
+    rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection},
+    test_env::PAYER_KEYPAIR,
+};
+use light_test_utils::{
+    test_env::FORESTER_TEST_KEYPAIR,
+    transaction_params::{FeeConfig, TransactionParams},
+};
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
 use solana_cli_output::CliAccount;
@@ -823,7 +833,6 @@ pub async fn perform_tx_with_output_compressed_accounts(
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::indexer::Indexer;
-use light_test_utils::test_env::setup_test_programs_with_accounts_with_protocol_config;
 
 pub async fn create_instruction_and_failing_transaction(
     context: &mut ProgramTestRpcConnection,
@@ -1499,8 +1508,24 @@ async fn regenerate_accounts() {
         report_work_phase_length: 100,
         ..ProtocolConfig::default()
     };
-    let (mut context, env) =
-        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, true).await;
+
+    let context = setup_test_programs(None).await;
+    let mut context = ProgramTestRpcConnection { context };
+    let mut keypairs = EnvAccountKeypairs::from_target_folder();
+    keypairs.governance_authority = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+    keypairs.forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+    airdrop_lamports(
+        &mut context,
+        &keypairs.governance_authority.pubkey(),
+        100_000_000_000,
+    )
+    .await
+    .unwrap();
+    // let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    let env = initialize_accounts(&mut context, keypairs, protocol_config, true).await;
 
     // let (mut context, env) = setup_test_programs_with_accounts(None).await;
 

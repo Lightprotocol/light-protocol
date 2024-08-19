@@ -9,6 +9,7 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
+use light_test_utils::test_env::EnvAccounts;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
@@ -34,7 +35,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
 
     let forester_keypair = Keypair::new();
 
-    let mut env_accounts = get_test_env_accounts();
+    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
     env_accounts.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
@@ -192,7 +193,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     let forester_keypair1 = Keypair::new();
     let forester_keypair2 = Keypair::new();
 
-    let mut env_accounts = get_test_env_accounts();
+    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
     env_accounts.forester = forester_keypair1.insecure_clone();
 
     let mut config1 = forester_config();

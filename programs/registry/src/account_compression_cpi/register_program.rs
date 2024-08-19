@@ -23,9 +23,9 @@ pub struct RegisterProgram<'info> {
     /// CHECK: (account compression program).
     #[account(mut)]
     pub registered_program_pda: AccountInfo<'info>,
-    /// CHECK: (account compression program).
+    /// CHECK: (account compression program). TODO: check that a signer is the upgrade authority.
     /// - is signer so that only the program deployer can register a program.
-    pub program_to_be_registered: Signer<'info>,
+    pub program_to_be_registered: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
