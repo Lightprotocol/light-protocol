@@ -210,7 +210,79 @@ mod test {
     }
 
     #[test]
+    fn test_as_byte_vec_option() {
+        // Very important property - `None` and `Some(0)` always have to be
+        // different and should produce different hashes!
+        let u8_none: Option<u8> = None;
+        let u8_none: &dyn AsByteVec = &u8_none;
+        assert_eq!(u8_none.as_byte_vec(), &[&[0]]);
+
+        let u8_some_zero: Option<u8> = Some(0);
+        let u8_some_zero: &dyn AsByteVec = &u8_some_zero;
+        assert_eq!(u8_some_zero.as_byte_vec(), &[&[1], &[0]]);
+
+        let u16_none: Option<u16> = None;
+        let u16_none: &dyn AsByteVec = &u16_none;
+        assert_eq!(u16_none.as_byte_vec(), &[&[0]]);
+
+        let u16_some_zero: Option<u16> = Some(0);
+        let u16_some_zero: &dyn AsByteVec = &u16_some_zero;
+        assert_eq!(u16_some_zero.as_byte_vec(), &[&[1][..], &[0, 0][..]]);
+
+        let u32_none: Option<u32> = None;
+        let u32_none: &dyn AsByteVec = &u32_none;
+        assert_eq!(u32_none.as_byte_vec(), &[&[0]]);
+
+        let u32_some_zero: Option<u32> = Some(0);
+        let u32_some_zero: &dyn AsByteVec = &u32_some_zero;
+        assert_eq!(u32_some_zero.as_byte_vec(), &[&[1][..], &[0, 0, 0, 0][..]]);
+
+        let u64_none: Option<u64> = None;
+        let u64_none: &dyn AsByteVec = &u64_none;
+        assert_eq!(u64_none.as_byte_vec(), &[&[0]]);
+
+        let u64_some_zero: Option<u64> = Some(0);
+        let u64_some_zero: &dyn AsByteVec = &u64_some_zero;
+        assert_eq!(
+            u64_some_zero.as_byte_vec(),
+            &[&[1][..], &[0, 0, 0, 0, 0, 0, 0, 0][..]]
+        );
+
+        let u128_none: Option<u128> = None;
+        let u128_none: &dyn AsByteVec = &u128_none;
+        assert_eq!(u128_none.as_byte_vec(), &[&[0]]);
+
+        let u128_some_zero: Option<u128> = Some(0);
+        let u128_some_zero: &dyn AsByteVec = &u128_some_zero;
+        assert_eq!(
+            u128_some_zero.as_byte_vec(),
+            &[
+                &[1][..],
+                &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0][..]
+            ]
+        );
+    }
+
+    #[test]
+    fn test_as_byte_vec_array() {
+        let arr: [u8; 0] = [];
+        let arr: &dyn AsByteVec = &arr;
+        assert_eq!(arr.as_byte_vec(), &[&[]]);
+
+        let arr: [u8; 1] = [255];
+        let arr: &dyn AsByteVec = &arr;
+        assert_eq!(arr.as_byte_vec(), &[&[255]]);
+
+        let arr: [u8; 4] = [255, 255, 255, 255];
+        let arr: &dyn AsByteVec = &arr;
+        assert_eq!(arr.as_byte_vec(), &[&[255, 255, 255, 255]]);
+    }
+
+    #[test]
     fn test_as_byte_vec_string() {
+        let s: &dyn AsByteVec = &"".to_string();
+        assert_eq!(s.as_byte_vec(), &[b""]);
+
         let s: &dyn AsByteVec = &"foobar".to_string();
         assert_eq!(s.as_byte_vec(), &[b"foobar"]);
     }
