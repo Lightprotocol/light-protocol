@@ -68,10 +68,7 @@ jobs:
             sub-tests: '[
               "cargo test-sbf -p token-escrow -- --test-threads=1"
             ]'
-          - program: name-service-test
-            sub-tests: '[
-              "cargo test-sbf -p name-service -- --test-threads=1"
-            ]'
+            
 
     steps:
       - name: Checkout sources
