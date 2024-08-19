@@ -137,7 +137,7 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
-    let mut remaining_accounts = RemainingAccounts::new();
+    let mut remaining_accounts = RemainingAccounts::default();
 
     let merkle_output_context = MerkleOutputContext {
         merkle_tree_pubkey: env.merkle_tree_pubkey,
@@ -210,7 +210,7 @@ async fn update_record<R: RpcConnection>(
         )
         .await;
 
-    let mut remaining_accounts = RemainingAccounts::new();
+    let mut remaining_accounts = RemainingAccounts::default();
 
     let merkle_context =
         pack_merkle_context(compressed_account.merkle_context, &mut remaining_accounts);
@@ -273,7 +273,7 @@ async fn delete_record<R: RpcConnection>(
         )
         .await;
 
-    let mut remaining_accounts = RemainingAccounts::new();
+    let mut remaining_accounts = RemainingAccounts::default();
 
     let merkle_context =
         pack_merkle_context(compressed_account.merkle_context, &mut remaining_accounts);
