@@ -40,7 +40,7 @@ jobs:
           echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> "$GITHUB_ENV"
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: light-prover/formal-verification/lake-packages
           key: "${{ env.LAKE_VERSION }}"
