@@ -76,6 +76,9 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     Vec<PackedCompressedAccountWithMerkleContext>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
+    if inputs.input_token_data_with_context.is_empty() {
+        return err!(crate::ErrorCode::NoInputTokenAccountsProvided);
+    }
     let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
             &inputs.owner,
