@@ -14,5 +14,8 @@ syn = { version = "1.0", features = ["full"] }
 
 light-hasher = { path = "../../merkle-tree/hasher", version = "0.3.0" }
 
+[dev-dependencies]
+light-utils = { path = "../../utils", version = "0.3.0" }
+
 [lib]
 proc-macro = true
