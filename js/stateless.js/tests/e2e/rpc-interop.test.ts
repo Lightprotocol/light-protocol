@@ -56,7 +56,7 @@ describe('rpc-interop', () => {
         accs = await rpc.getCompressedAccountsByOwner(payer.publicKey, {
             dataSlice: { offset: 1, length: 2 },
         });
-        /// TODO: DataSlice filter does not work in photon. Adapt once photon is fixed.
+
         assert.equal(accs.items.length, 1);
     });
     it('getValidityProof [noforester] (inclusion) should match', async () => {
