@@ -5,6 +5,7 @@ use quote::quote;
 use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn, ItemStruct};
 use traits::process_light_traits;
 
+mod account;
 mod accounts;
 mod discriminator;
 mod hasher;
@@ -275,6 +276,14 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     hasher::hasher(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    account::account(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
