@@ -4,11 +4,11 @@ use anchor_lang::{prelude::*, solana_program::hash};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{bytes::AsByteVec, DataHasher, Discriminator, Poseidon};
 use light_sdk::{
-    light_accounts,
+    light_account, light_accounts,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
     utils::create_cpi_inputs_for_new_address,
     verify::verify,
-    LightDiscriminator, LightHasher, LightTraits,
+    LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -193,7 +193,8 @@ impl AsByteVec for RData {
     }
 }
 
-#[derive(Debug, BorshDeserialize, BorshSerialize, LightDiscriminator, LightHasher)]
+#[light_account]
+#[derive(Debug)]
 pub struct NameRecord {
     #[truncate]
     pub owner: Pubkey,
