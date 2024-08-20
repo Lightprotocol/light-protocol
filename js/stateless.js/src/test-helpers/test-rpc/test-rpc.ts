@@ -16,6 +16,7 @@ import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import {
     CompressedTransaction,
+    GetCompressedAccountsByOwnerConfig,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
     SignatureWithMetadata,
@@ -334,7 +335,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
+        _config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
+        if (_config) {
+            throw new Error(
+                'dataSlice or filters are not supported in test-rpc. Please use rpc.ts instead.',
+            );
+        }
+
         const accounts = await getCompressedAccountsByOwnerTest(this, owner);
         return {
             items: accounts,
