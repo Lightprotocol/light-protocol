@@ -84,7 +84,7 @@ If you still want to setup dependencies manually, these are the requirements:
 If you are using Ubuntu and encounter errors during the build process, you may need to install additional dependencies. Use the following command:
 
 ```
-sudo apt-get install build-essential autoconf automake libtool zlib1g-dev
+sudo apt install build-essential autoconf automake libtool zlib1g-dev pkg-config libssl-dev
 ```
 
 ## Building
