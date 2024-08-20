@@ -81,11 +81,11 @@ async fn test_name_service() {
     update_record(
         &mut rpc,
         &mut test_indexer,
+        &env,
         &rdata_1,
         &rdata_2,
         &payer,
         compressed_account,
-        &address,
         &account_compression_authority,
         &registered_program_pda,
     )
@@ -107,10 +107,10 @@ async fn test_name_service() {
     delete_record(
         &mut rpc,
         &mut test_indexer,
+        &env,
         &rdata_2,
         &payer,
         compressed_account,
-        &address,
         &account_compression_authority,
         &registered_program_pda,
     )
@@ -189,11 +189,11 @@ async fn create_record<R: RpcConnection>(
 async fn update_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
+    env: &EnvAccounts,
     old_rdata: &RData,
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address: &[u8; 32],
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
 ) {
@@ -215,11 +215,18 @@ async fn update_record<R: RpcConnection>(
     let merkle_context =
         pack_merkle_context(compressed_account.merkle_context, &mut remaining_accounts);
 
+    let address_merkle_context = AddressMerkleContext {
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+    };
+    let address_merkle_context =
+        pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
+
     let instruction_data = name_service::instruction::UpdateRecord {
         proof: rpc_result.proof,
         merkle_context,
         merkle_tree_root_index: rpc_result.root_indices[0],
-        address: *address,
+        address_merkle_context,
         name: "example.io".to_string(),
         old_rdata: old_rdata.clone(),
         new_rdata: new_rdata.clone(),
@@ -253,10 +260,10 @@ async fn update_record<R: RpcConnection>(
 async fn delete_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
+    env: &EnvAccounts,
     rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address: &[u8; 32],
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
 ) {
@@ -278,11 +285,18 @@ async fn delete_record<R: RpcConnection>(
     let merkle_context =
         pack_merkle_context(compressed_account.merkle_context, &mut remaining_accounts);
 
+    let address_merkle_context = AddressMerkleContext {
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+    };
+    let address_merkle_context =
+        pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
+
     let instruction_data = name_service::instruction::DeleteRecord {
         proof: rpc_result.proof,
         merkle_context,
         merkle_tree_root_index: rpc_result.root_indices[0],
-        address: *address,
+        address_merkle_context,
         name: "example.io".to_string(),
         rdata: rdata.clone(),
         cpi_context: None,

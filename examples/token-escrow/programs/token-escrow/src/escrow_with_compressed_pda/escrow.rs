@@ -9,7 +9,7 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    light_accounts, utils::create_cpi_inputs_for_new_address, verify::verify, LightTraits,
+    light_accounts, utils::create_cpi_inputs_for_new_account, verify::verify, LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -117,7 +117,7 @@ fn cpi_compressed_pda_transfer<'info>(
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
     cpi_context.first_set_context = false;
     // Create inputs struct
-    let inputs_struct = create_cpi_inputs_for_new_address(
+    let inputs_struct = create_cpi_inputs_for_new_account(
         proof,
         new_address_params,
         compressed_pda,
