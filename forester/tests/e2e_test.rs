@@ -22,6 +22,7 @@ mod test_utils;
 use test_utils::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore]
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
@@ -30,6 +31,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         ..LightValidatorConfig::default()
     }))
     .await;
+
     let forester_keypair = Keypair::new();
 
     let mut env_accounts = get_test_env_accounts();

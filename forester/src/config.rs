@@ -38,6 +38,7 @@ pub struct ForesterConfig {
     pub transaction_max_concurrent_batches: usize,
     pub max_retries: usize,
     pub rpc_pool_size: usize,
+    pub slot_update_interval_seconds: u64,
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
 }
@@ -57,6 +58,7 @@ impl Clone for ForesterConfig {
             rpc_pool_size: self.rpc_pool_size,
             state_tree_data: self.state_tree_data.clone(),
             address_tree_data: self.address_tree_data.clone(),
+            slot_update_interval_seconds: self.slot_update_interval_seconds,
         }
     }
 }

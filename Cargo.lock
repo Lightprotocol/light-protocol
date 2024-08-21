@@ -2306,6 +2306,7 @@ dependencies = [
  "serial_test",
  "solana-account-decoder",
  "solana-client",
+ "solana-program",
  "solana-rpc",
  "solana-sdk",
  "solana-transaction-status",

@@ -10,6 +10,7 @@ pub mod queue_helpers;
 pub mod rollover;
 pub mod rpc_pool;
 pub mod settings;
+mod slot_tracker;
 pub mod tree_data_sync;
 pub mod utils;
 
@@ -17,6 +18,7 @@ use crate::epoch_manager::{run_service, WorkReport};
 use crate::errors::ForesterError;
 use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
+use crate::slot_tracker::SlotTracker;
 use crate::utils::get_protocol_config;
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use env_logger::Env;
@@ -30,6 +32,7 @@ use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Signer;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 pub fn setup_logger() {
@@ -86,14 +89,36 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
         get_protocol_config(&mut *rpc).await
     };
 
+    let arc_pool = Arc::new(rpc_pool);
+    let arc_pool_clone = Arc::clone(&arc_pool);
+
+    let slot = {
+        let mut rpc = arc_pool.get_connection().await?;
+        rpc.get_slot().await?
+    };
+    let slot_tracker = SlotTracker::new(
+        slot,
+        Duration::from_secs(config.slot_update_interval_seconds),
+    );
+    let arc_slot_tracker = Arc::new(slot_tracker);
+    let arc_slot_tracker_clone = arc_slot_tracker.clone();
+    tokio::spawn(async move {
+        let mut rpc = arc_pool_clone
+            .get_connection()
+            .await
+            .expect("Failed to get RPC connection");
+        SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
+    });
+
     info!("Starting Forester pipeline");
     run_service(
         config,
         Arc::new(protocol_config),
-        Arc::new(rpc_pool),
+        arc_pool,
         indexer,
         shutdown,
         work_report_sender,
+        arc_slot_tracker,
     )
     .await?;
     Ok(())

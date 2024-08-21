@@ -11,6 +11,7 @@ use solana_client::rpc_config::RpcTransactionConfig;
 use solana_program_test::BanksClientError;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
+use solana_sdk::clock::UnixTimestamp;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::epoch_info::EpochInfo;
 use solana_sdk::instruction::{Instruction, InstructionError};
@@ -140,6 +141,10 @@ impl RpcConnection for SolanaRpcConnection {
             Ok(_) => Ok(()),
             Err(e) => Err(RpcError::ClientError(e)),
         }
+    }
+
+    fn get_block_time(&self, slot: u64) -> Result<UnixTimestamp, RpcError> {
+        self.client.get_block_time(slot).map_err(RpcError::from)
     }
 
     fn get_program_accounts(
