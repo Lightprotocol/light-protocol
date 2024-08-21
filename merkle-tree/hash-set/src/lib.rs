@@ -133,11 +133,7 @@ impl HashSet {
     /// Size which needs to be allocated on Solana account to fit the hash set.
     pub fn size_in_account(capacity_values: usize) -> usize {
         let dyn_fields_size = Self::non_dyn_fields_size();
-
-        let buckets_size_unaligned = mem::size_of::<Option<HashSetCell>>() * capacity_values;
-        // Make sure that alignment of `values` matches the alignment of `usize`.
-        let buckets_size = buckets_size_unaligned + mem::align_of::<usize>()
-            - (buckets_size_unaligned % mem::align_of::<usize>());
+        let buckets_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
 
         dyn_fields_size + buckets_size
     }
@@ -204,7 +200,7 @@ impl HashSet {
             std::ptr::write(buckets_dst_ptr.add(i), None);
         }
 
-        let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
+        let offset = Self::non_dyn_fields_size();
         let buckets_src_ptr = bytes.as_ptr().add(offset) as *const Option<HashSetCell>;
         std::ptr::copy(buckets_src_ptr, buckets_dst_ptr, capacity);
 
@@ -582,6 +578,12 @@ mod test {
     use crate::zero_copy::HashSetZeroCopy;
 
     use super::*;
+
+    #[test]
+    fn size_in_account() {
+        assert_eq!(HashSet::size_in_account(10), 496);
+        assert_eq!(HashSet::size_in_account(100), 4816);
+    }
 
     #[test]
     fn test_is_valid() {
