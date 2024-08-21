@@ -66,6 +66,7 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
         // consuming it.
         let mut attrs = Vec::with_capacity(field.attrs.len());
 
+        let mut include_type_size = true;
         // Iterate over attributes.
         for attr in field.attrs.iter() {
             // Check the type of attribute. We look for meta name attribute
@@ -77,6 +78,7 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
                     if name_value.path.is_ident("size") {
                         let value = name_value.value;
                         field_size_getters.push(quote! { #value });
+                        include_type_size = false;
 
                         // Go to the next attribute. Do not include this one.
                         continue;
@@ -89,8 +91,10 @@ pub(crate) fn aligned_sized(args: AlignedSizedArgs, strct: ItemStruct) -> Result
             }
         }
 
-        let ty = field.clone().ty;
-        field_size_getters.push(quote! { ::core::mem::size_of::<#ty>() });
+        if include_type_size {
+            let ty = field.clone().ty;
+            field_size_getters.push(quote! { ::core::mem::size_of::<#ty>() });
+        }
 
         let field = Field {
             attrs,
