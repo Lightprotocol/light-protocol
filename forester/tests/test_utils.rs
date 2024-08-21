@@ -8,7 +8,7 @@ use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, U
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext, TestIndexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
-use light_test_utils::test_env::{get_test_env_accounts, OLD_REGISTRY_ID_TEST_KEYPAIR};
+use light_test_utils::test_env::get_test_env_accounts;
 use log::{debug, info};
 use once_cell::sync::OnceCell;
 use solana_sdk::signature::{Keypair, Signer};
@@ -84,7 +84,6 @@ pub fn forester_config() -> ForesterConfig {
     let mut env_accounts = get_test_env_accounts();
     env_accounts.forester = Keypair::new();
 
-    let registry_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
     ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: "http://localhost:8899".to_string(),
@@ -94,7 +93,7 @@ pub fn forester_config() -> ForesterConfig {
             photon_api_key: None,
             derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
         },
-        registry_pubkey: registry_keypair.pubkey(),
+        registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),
         indexer_batch_size: 50,
         indexer_max_concurrent_batches: 10,
