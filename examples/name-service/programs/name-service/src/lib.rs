@@ -1,6 +1,6 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use anchor_lang::{prelude::*, solana_program::hash};
+use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
@@ -17,9 +17,11 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 #[program]
 pub mod name_service {
     use light_sdk::{
+        address::derive_address_seed,
         compressed_account::{
             input_compressed_account, new_compressed_account, output_compressed_account,
         },
+        merkle_context::unpack_address_merkle_context,
         utils::create_cpi_inputs_for_account_update,
     };
 
@@ -36,7 +38,16 @@ pub mod name_service {
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        let address_seed = hash::hash(name.as_bytes()).to_bytes();
+        let unpacked_address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let address_seed = derive_address_seed(
+            &[
+                ctx.accounts.signer.key.to_bytes().as_slice(),
+                name.as_bytes(),
+            ],
+            &crate::ID,
+            &unpacked_address_merkle_context,
+        );
 
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
@@ -82,7 +93,17 @@ pub mod name_service {
         new_rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        let address_seed = hash::hash(name.as_bytes()).to_bytes();
+        let unpacked_address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let address_seed = derive_address_seed(
+            &[
+                ctx.accounts.signer.key.to_bytes().as_slice(),
+                name.as_bytes(),
+            ],
+            &crate::ID,
+            &unpacked_address_merkle_context,
+        );
+
         let owner = ctx.accounts.signer.key();
 
         // Re-create the old compressed account. It's needed as an input for
@@ -144,7 +165,16 @@ pub mod name_service {
         rdata: RData,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        let address_seed = hash::hash(name.as_bytes()).to_bytes();
+        let unpacked_address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let address_seed = derive_address_seed(
+            &[
+                ctx.accounts.signer.key.to_bytes().as_slice(),
+                name.as_bytes(),
+            ],
+            &crate::ID,
+            &unpacked_address_merkle_context,
+        );
 
         let record = NameRecord {
             owner: ctx.accounts.signer.key(),
