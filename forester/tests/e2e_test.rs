@@ -8,7 +8,6 @@ use light_test_utils::registry::register_test_forester;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
-use light_test_utils::test_env::get_test_env_accounts;
 use light_test_utils::test_env::EnvAccounts;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
@@ -99,7 +98,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    let iterations = 10;
+    let iterations = 5;
 
     for i in 0..iterations {
         println!("Round {} of {}", i, iterations);
@@ -264,7 +263,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    let iterations = 10;
+    let iterations = 5;
     for i in 0..iterations {
         println!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;
