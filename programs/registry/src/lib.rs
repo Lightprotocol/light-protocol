@@ -37,7 +37,7 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
 
-declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
+declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 
 #[program]
 pub mod light_registry {

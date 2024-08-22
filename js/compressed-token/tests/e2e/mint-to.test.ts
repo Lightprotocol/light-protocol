@@ -21,10 +21,11 @@ import {
     sendAndConfirmTx,
     buildAndSignTx,
     dedupeSigner,
-    createRpc,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../../src/program';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -65,7 +66,8 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();
@@ -92,7 +94,14 @@ describe('mintTo', () => {
 
     it('should mint to bob', async () => {
         const amount = bn(1000);
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, amount);
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            amount,
+        );
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
 

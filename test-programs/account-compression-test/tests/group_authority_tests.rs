@@ -9,7 +9,7 @@ use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::get_group_pda;
-use light_test_utils::{airdrop_lamports, test_env::SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
+use light_test_utils::{airdrop_lamports, test_env::OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -30,7 +30,7 @@ async fn test_create_and_update_group() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     let system_program_id =
-        Pubkey::from_str("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN").unwrap();
+        Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
     program_test.add_program("light_system_program", system_program_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
@@ -136,7 +136,8 @@ async fn test_create_and_update_group() {
     airdrop_lamports(&mut context, &updated_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let system_program_id_keypair = Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
+    let system_program_id_keypair =
+        Keypair::from_bytes(&OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
     // add new program to group
     let registered_program_pda = Pubkey::find_program_address(
         &[system_program_id_keypair.pubkey().to_bytes().as_slice()],

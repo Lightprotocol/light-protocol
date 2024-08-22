@@ -202,7 +202,7 @@ export class LightSystemProgram {
      */
     static programId: PublicKey = new PublicKey(
         // TODO: can add check to ensure its consistent with the idl
-        'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN',
+        'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
     );
 
     private static _program: Program<LightSystemProgramIDL> | null = null;

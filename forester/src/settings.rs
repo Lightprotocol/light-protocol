@@ -7,7 +7,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::{env, fmt};
 
-const REGISTRY_PUBKEY: &str = "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1";
+const REGISTRY_PUBKEY: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
 
 pub enum SettingsKey {
     Payer,

@@ -288,7 +288,7 @@ async fn test_invalid_registered_program() {
         &mut rpc,
         &env.governance_authority,
         &env.group_pda,
-        &other_program_id_keypair,
+        &other_program_id_keypair.pubkey(),
     )
     .await
     .unwrap();
@@ -678,12 +678,8 @@ pub async fn register_program(
         data: account_compression::instruction::RegisterProgramToGroup {}.data(),
     };
 
-    rpc.create_and_send_transaction(
-        &[instruction],
-        &authority.pubkey(),
-        &[authority, program_id_keypair],
-    )
-    .await?;
+    rpc.create_and_send_transaction(&[instruction], &authority.pubkey(), &[authority])
+        .await?;
 
     Ok(registered_program_pda)
 }

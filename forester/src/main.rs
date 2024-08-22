@@ -35,7 +35,6 @@ async fn main() -> Result<(), ForesterError> {
                     debug!("Work Report: {:?}", report);
                 }
             });
-
             let indexer_rpc =
                 SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None);
             let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(

@@ -15,7 +15,7 @@ import {
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
-    createRpc,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -26,6 +26,7 @@ import {
 } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -92,7 +93,8 @@ describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
 
         mintAuthority = Keypair.generate();

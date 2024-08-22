@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(unexpected_cfgs)]
 pub mod errors;
 pub mod instructions;
 pub use instructions::*;
@@ -10,7 +11,7 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
-declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
+declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

@@ -146,7 +146,7 @@ export type LightRegistry = {
                 {
                     name: 'programToBeRegistered';
                     isMut: false;
-                    isSigner: true;
+                    isSigner: false;
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ];
@@ -1443,7 +1443,7 @@ export const IDL: LightRegistry = {
                 {
                     name: 'programToBeRegistered',
                     isMut: false,
-                    isSigner: true,
+                    isSigner: false,
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ],

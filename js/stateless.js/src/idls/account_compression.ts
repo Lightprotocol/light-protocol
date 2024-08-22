@@ -371,7 +371,7 @@ export type AccountCompression = {
                 {
                     name: 'programToBeRegistered';
                     isMut: false;
-                    isSigner: true;
+                    isSigner: false;
                 },
                 {
                     name: 'registeredProgramPda';
@@ -1537,7 +1537,7 @@ export const IDL: AccountCompression = {
                 {
                     name: 'programToBeRegistered',
                     isMut: false,
-                    isSigner: true,
+                    isSigner: false,
                 },
                 {
                     name: 'registeredProgramPda',
