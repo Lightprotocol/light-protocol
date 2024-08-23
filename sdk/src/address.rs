@@ -32,6 +32,6 @@ pub fn derive_address_seed(
 
     inputs.extend(seeds);
 
-    let (address, _) = hashv_to_bn254_field_size_be(inputs.as_slice());
+    let address = hashv_to_bn254_field_size_be(inputs.as_slice());
     address
 }

@@ -85,50 +85,12 @@ pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
 ///
 /// hashv_to_bn254_field_size_be(&[b"foo", b"bar"]);
 /// ```
-pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> ([u8; 32], u8) {
-    // Loops with decreasing bump seed to find a valid hash which is less than
-    // bn254 Fr modulo field size.
-    for bump_seed in (0..=u8::MAX).rev() {
-        // NOTE(vadorovsky): This is, to my current knowledge, the least bad
-        // solution for the problem of "adding one element to a slice".
-        //
-        // The `bytes` slice contains another slices/references to the actual
-        // bytes. Therefore, adding these slices to the new vector doesn't
-        // create a copy of the underlying bytes. What's more, adding the
-        // slices to the `inputs` vector bints it to the lifefime of `bytes`.
-        //
-        // However, even though copies of the underlying bytes are not being
-        // made, the copies of slices, as "fat pointers", are. Each slice takes
-        // 16 bytes. Therefore, each iteration allocate aproximately
-        // 16 * (n + 1) bytes. In the most cases, this loop should not iterate
-        // more than once, so it's safe to assume that this function will
-        // allocate 16 * (n + 1) all together, or twice this value in the worst
-        // case. Due to the nature of Solana bump allocator, that memory is not
-        // going to be freed after going out of this function's scope, if the
-        // function is used on-chain. If that's problematic, the
-        // `#[heap_neutral]` macro can be used as a workaround.
-        let mut inputs = Vec::with_capacity(bytes.len() + 1);
-        inputs.extend(bytes);
-        let bump_seed = [bump_seed];
-        inputs.push(bump_seed.as_slice());
-        {
-            let mut hashed_value: [u8; 32] = hashv(inputs.as_slice()).to_bytes();
-            // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-            // field size.
-            hashed_value[0] = 0;
-            if is_smaller_than_bn254_field_size_be(&hashed_value) {
-                return (hashed_value, bump_seed[0]);
-            }
-        }
-        inputs.pop();
-    }
-
-    // PANICS: The probability of not finding any suitable bump seed in the
-    // range 0-255 is extremely low, practically impossible to happen.
-    // For the sake of not bloating this function with an annoying `Result` or
-    // `Option` and being able to build macros which are using it, we are fine
-    // with panicking here.
-    unreachable!("Could not find the bump seed for provided inputs");
+pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
+    let mut hashed_value: [u8; 32] = hashv(bytes).to_bytes();
+    // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+    // field size.
+    hashed_value[0] = 0;
+    hashed_value
 }
 
 /// Applies `rustfmt` on the given string containing Rust code. The purpose of
@@ -214,18 +176,16 @@ mod tests {
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
-            let (hashed_value, bump) = hashv_to_bn254_field_size_be(input_bytes.as_slice());
-            assert_eq!(bump, 255, "Bump seed should be 0");
+            let hashed_value = hashv_to_bn254_field_size_be(input_bytes.as_slice());
             assert!(
                 is_smaller_than_bn254_field_size_be(&hashed_value),
                 "Hashed value should be within BN254 field size"
             );
         }
 
-        let max_input = [u8::MAX; 32];
-        let (hashed_value, bump) = hash_to_bn254_field_size_be(max_input.as_slice())
-            .expect("Failed to find a hash within BN254 field size");
-        assert_eq!(bump, 255, "Bump seed should be 255");
+        let max_input = [[u8::MAX; 32]; 16];
+        let max_input = max_input.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
+        let hashed_value = hashv_to_bn254_field_size_be(max_input.as_slice());
         assert!(
             is_smaller_than_bn254_field_size_be(&hashed_value),
             "Hashed value should be within BN254 field size"
