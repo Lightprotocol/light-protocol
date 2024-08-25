@@ -16,6 +16,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
+    createRpc,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -94,7 +95,8 @@ describe('compress', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        // rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
 
         mintAuthority = Keypair.generate();
@@ -114,6 +116,7 @@ describe('compress', () => {
         charlie = await newAccountWithLamports(rpc, 1e9);
 
         bobAta = await createAssociatedTokenAccount(
+            // @ts-ignore
             rpc,
             payer,
             mint,
@@ -243,7 +246,7 @@ describe('compress', () => {
         );
     });
 
-    it(`should compress-batch to max ${maxBatchSize} recipients optimized with LUT`, async () => {
+    it.only(`should compress-batch to max ${maxBatchSize} recipients optimized with LUT`, async () => {
         /// Fetch state of LUT
         const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
             .value!;

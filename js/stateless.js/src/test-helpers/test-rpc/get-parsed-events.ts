@@ -23,7 +23,7 @@ export async function getParsedEvents(
 
     /// Get raw transactions
     const signatures = (
-        await rpc.getConfirmedSignaturesForAddress2(
+        await rpc.getSignaturesForAddress(
             accountCompressionProgram,
             undefined,
             'confirmed',

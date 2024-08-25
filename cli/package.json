@@ -33,7 +33,7 @@
     "@oclif/plugin-not-found": "^3.1.2",
     "@oclif/plugin-plugins": "^5.0.7",
     "@solana-developers/helpers": "^1.5.1",
-    "@solana/web3.js": "^1.95.0",
+    "@solana/web3.js": "^1.95.3",
     "axios": "^1.6.8",
     "case-anything": "^2.1.13",
     "cli-progress": "^3.12.0",
@@ -51,7 +51,7 @@
   "devDependencies": {
     "@lightprotocol/programs": "workspace:*",
     "@oclif/test": "2.3.9",
-    "@solana/spl-token": "^0.3.11",
+    "@solana/spl-token": "^0.4.8",
     "@types/bn.js": "^5.1.5",
     "@types/chai": "^4.3.16",
     "@types/cli-progress": "^3.11.5",

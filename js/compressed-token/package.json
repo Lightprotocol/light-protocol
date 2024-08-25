@@ -57,12 +57,12 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
-        "@solana/web3.js": "^1.95.0",
+        "@solana/web3.js": "^1.95.3",
         "@lightprotocol/stateless.js": "workspace:*"
     },
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
-        "@solana/spl-token": "^0.3.11",
+        "@solana/spl-token": "^0.4.8",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"
     },

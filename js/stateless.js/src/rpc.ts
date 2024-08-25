@@ -95,6 +95,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         cursor: options.cursor,
     });
 
+    const testRes = await rpc.getLatestBlockhashAndContext();
+    console.log("getCompressedTokenAccountsByOwnerOrDelegate testRes: ",JSON.stringify(testRes));
+
     const res = create(
         unsafeRes,
         jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),
