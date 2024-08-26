@@ -7,10 +7,10 @@ use light_compressed_token::{
     },
     program::LightCompressedToken,
 };
-use light_sdk::{light_accounts, LightTraits};
+use light_sdk::{light_system_accounts, LightTraits};
 use light_system_program::invoke::processor::CompressedProof;
 
-#[light_accounts]
+#[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct EscrowCompressedTokensWithPda<'info> {
     #[account(mut)]
