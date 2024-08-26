@@ -1,0 +1,347 @@
+use crate::epoch_manager::{MerkleProofType, WorkItem};
+use crate::errors::ForesterError;
+use crate::rpc_pool::{SolanaConnectionManager, SolanaRpcPool};
+use crate::ForesterEpochInfo;
+use crate::Result;
+use account_compression::utils::constants::{
+    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+    STATE_MERKLE_TREE_CHANGELOG,
+};
+use bb8::PooledConnection;
+use futures::{future::join_all, pin_mut};
+use light_registry::account_compression_cpi::sdk::{
+    create_nullify_instruction, create_update_address_merkle_tree_instruction,
+    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+};
+use light_test_utils::forester_epoch::TreeType;
+use light_test_utils::indexer::Indexer;
+use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::{rpc_connection::RpcConnection, SolanaRpcConnection};
+use log::info;
+use solana_sdk::compute_budget::ComputeBudgetInstruction;
+use solana_sdk::instruction::Instruction;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::transaction::Transaction;
+use solana_sdk::{
+    hash::Hash,
+    signature::{Keypair, Signature, Signer},
+};
+use std::sync::Arc;
+use std::{time::Duration, vec};
+use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
+use tokio::time::sleep;
+
+// TODO: should be a trait for a method of a struct, the struct contains account so that it doesn't need to be refeched
+pub trait TransactionBuilder {
+    async fn build_signed_transaction_batch(
+        &self,
+        payer: &Keypair,
+        recent_blockhash: &Hash,
+        domain: u64,
+        config: BuildTransactionBatchConfig,
+    ) -> Vec<Transaction>;
+}
+
+/// Setting:
+/// 1. We have 10 seconds and a lot of elements in the queue
+/// 2. we want to send as many elements from the queue as possible
+/// 3. 50tps -> 500 transactions
+/// Multiple ideas:
+/// 1. Don't wait for the transaction to finish just build the instructions and send them asap
+/// 2.
+///
+/// Questions:
+/// - How do we make sure that we have send all the transactions?
+/// - How can we montinor how many tx have been dropped?
+///
+/// TODO:
+/// - return number of sent transactions
+/// - add timeout for any action of this function or subfunctions, timeout is end of slot
+/// - consider dynamic batch size based on the number of transactions in the queue
+pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
+    payer: &Keypair,
+    pool: Arc<SolanaRpcPool<R>>,
+    config: SendBatchedTransactionsConfig,
+    domain: u64, // TODO: remove domain it's just for testing
+    transaction_builder: &T,
+) -> Result<u64> {
+    let batch_time = Duration::from_secs(config.batch_time);
+    let mut num_sent_transactions = 0;
+    for i in 0..config.num_batches {
+        let mut rpc = pool
+            .get_connection()
+            .await
+            .map_err(|e| RpcError::CustomError(e.to_string()))?;
+        let url = (*rpc).get_url().to_string();
+        // A recent blockhash is valid for 2 mins we only need one per batch. We
+        // use a new one per batch in case that we want to retry these same
+        // transactions and identical transactions might be dropped.
+        let recent_blockhash = (*rpc)
+            .get_latest_blockhash()
+            .await
+            .map_err(RpcError::from)?;
+
+        // Minimum time to wait for the next batch of transactions.
+        // Can be used to aviod rate limits.
+        let batch_min_time = async {
+            // Simulate another async operation
+            tokio::time::sleep(batch_time)
+        };
+        pin_mut!(batch_min_time);
+        let start_time = tokio::time::Instant::now();
+        let transactions: Vec<Transaction> = transaction_builder
+            .build_signed_transaction_batch(
+                payer,
+                &recent_blockhash,
+                domain + (i * 100),
+                config.build_transaction_batch_config,
+            )
+            .await;
+        num_sent_transactions += transactions.len() as u64;
+
+        info!("build transaction time {:?}", start_time.elapsed());
+        let start_time_get_connections = tokio::time::Instant::now();
+        info!(
+            "get get connections txs time {:?}",
+            start_time_get_connections.elapsed()
+        );
+
+        tokio::spawn(async move {
+            // let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
+            //     url.clone(),
+            //     CommitmentConfig::confirmed(),
+            //     1,
+            // )
+            // .await
+            // .unwrap();
+            // let rpc = pool.get_connection().await.unwrap();
+            // let rpc = (*rpc).client.clone();
+            let mut rpc = SolanaRpcConnection::new(url, None);
+            let mut results = vec![];
+            for transaction in transactions.iter() {
+                let res = send_signed_transaction(&transaction, &rpc, config.retry_config);
+                results.push(res);
+            }
+            let all_results = join_all(results);
+            all_results.await;
+        });
+
+        info!(
+            "get send txs time {:?}",
+            start_time_get_connections.elapsed()
+        );
+        let _ = batch_min_time.await;
+    }
+    Ok(num_sent_transactions)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SendBatchedTransactionsConfig {
+    pub num_batches: u64,
+    pub batch_time: u64,
+    pub build_transaction_batch_config: BuildTransactionBatchConfig,
+    pub retry_config: RetryConfig,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BuildTransactionBatchConfig {
+    pub batch_size: u64,
+    pub compute_unit_price: Option<u64>,
+    pub compute_unit_limit: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RetryConfig {
+    pub max_retries: u8,
+    pub retry_wait_time_ms: u64,
+}
+
+// TODO: add shutdown signal or time
+pub async fn send_signed_transaction(
+    transaction: &Transaction,
+    connection: &SolanaRpcConnection,
+    config: RetryConfig,
+) -> Result<Signature> {
+    let mut retries = 0;
+    // let (shutdown_sender, mut shutdown_receiver) = channel(1);
+
+    // let shutdown_sender = Arc::new(Mutex::new(shutdown_sender));
+    let retry_wait_time = Duration::from_millis(config.retry_wait_time_ms);
+    let txid = transaction.signatures[0];
+    // async move {
+    while retries < config.max_retries {
+        match connection.send_transaction(transaction).await {
+            Ok(_signature) => {
+                // info!("Transaction sent: {}", signature);
+            }
+            Err(e) => {
+                info!("Error sending transaction: {:?}", e);
+                return Err(e).map_err(RpcError::from)?;
+            }
+        }
+        retries += 1;
+        if retries < config.max_retries {
+            sleep(retry_wait_time).await;
+            let response = connection.confirm_transaction(txid).await?;
+            if response {
+                return Ok(txid);
+            }
+        }
+    }
+    Ok(txid)
+}
+
+pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
+    pub indexer: Arc<Mutex<I>>,
+    pub epoch: u64,
+    pub work_items: Vec<WorkItem>,
+    pub phantom: std::marker::PhantomData<R>,
+}
+
+impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransactions<R, I> {
+    async fn build_signed_transaction_batch(
+        &self,
+        payer: &Keypair,
+        recent_blockhash: &Hash,
+        _domain: u64,
+        config: BuildTransactionBatchConfig,
+    ) -> Vec<Transaction> {
+        let mut transactions = vec![];
+        let (_, all_instructions) = fetch_proofs_and_create_instructions(
+            payer.pubkey(),
+            payer.pubkey(),
+            self.indexer.clone(),
+            self.epoch,
+            self.work_items.as_slice(),
+        )
+        .await
+        .unwrap();
+        for instruction in all_instructions {
+            let transaction = build_signed_transaction(
+                payer,
+                recent_blockhash,
+                config.compute_unit_price,
+                config.compute_unit_limit,
+                instruction,
+            )
+            .await;
+            transactions.push(transaction);
+        }
+
+        transactions
+    }
+}
+
+async fn build_signed_transaction(
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    comput_unit_price: Option<u64>,
+    compute_unit_limit: Option<u32>,
+    instruction: Instruction,
+) -> Transaction {
+    let mut instructions: Vec<Instruction> = if let Some(price) = comput_unit_price {
+        vec![ComputeBudgetInstruction::set_compute_unit_price(price)]
+    } else {
+        vec![]
+    };
+    if let Some(limit) = compute_unit_limit {
+        instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
+    }
+    instructions.push(instruction);
+
+    let mut transaction =
+        Transaction::new_with_payer(&instructions.as_slice(), Some(&payer.pubkey()));
+    transaction.sign(&[payer], *recent_blockhash);
+    transaction
+}
+
+/// Work items should be of only one type and tree
+pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R>>(
+    authority: Pubkey,
+    derivation: Pubkey,
+    indexer: Arc<Mutex<I>>,
+    epoch: u64,
+    work_items: &[WorkItem],
+) -> Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
+    let mut proofs = Vec::new();
+    let mut instructions = vec![];
+
+    let (address_items, state_items): (Vec<_>, Vec<_>) = work_items
+        .iter()
+        .partition(|item| matches!(item.tree_account.tree_type, TreeType::Address));
+
+    // Fetch address proofs in batch
+    if !address_items.is_empty() {
+        let merkle_tree = address_items
+            .first()
+            .ok_or_else(|| ForesterError::Custom("No address items found".to_string()))?
+            .tree_account
+            .merkle_tree
+            .to_bytes();
+        let addresses: Vec<[u8; 32]> = address_items
+            .iter()
+            .map(|item| item.queue_item_data.hash)
+            .collect();
+        let indexer = indexer.lock().await;
+        let address_proofs = indexer
+            .get_multiple_new_address_proofs(merkle_tree, addresses)
+            .await?;
+        drop(indexer);
+        for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
+            proofs.push(MerkleProofType::AddressProof(proof.clone()));
+            let instruction = create_update_address_merkle_tree_instruction(
+                UpdateAddressMerkleTreeInstructionInputs {
+                    authority,
+                    address_merkle_tree: item.tree_account.merkle_tree,
+                    address_queue: item.tree_account.queue,
+                    value: item.queue_item_data.index as u16,
+                    low_address_index: proof.low_address_index,
+                    low_address_value: proof.low_address_value,
+                    low_address_next_index: proof.low_address_next_index,
+                    low_address_next_value: proof.low_address_next_value,
+                    low_address_proof: proof.low_address_proof,
+                    changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+                    indexed_changelog_index: (proof.root_seq
+                        % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
+                        as u16,
+                    is_metadata_forester: false,
+                },
+                epoch,
+            );
+            instructions.push(instruction);
+        }
+    }
+
+    // Fetch state proofs in batch
+    if !state_items.is_empty() {
+        let states: Vec<String> = state_items
+            .iter()
+            .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
+            .collect();
+        let indexer = indexer.lock().await;
+        let state_proofs = indexer
+            .get_multiple_compressed_account_proofs(states)
+            .await?;
+        drop(indexer);
+        for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
+            proofs.push(MerkleProofType::StateProof(proof.clone()));
+            let instruction = create_nullify_instruction(
+                CreateNullifyInstructionInputs {
+                    nullifier_queue: item.tree_account.queue,
+                    merkle_tree: item.tree_account.merkle_tree,
+                    change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
+                    leaves_queue_indices: vec![item.queue_item_data.index as u16],
+                    indices: vec![proof.leaf_index],
+                    proofs: vec![proof.proof.clone()],
+                    authority,
+                    derivation,
+                    is_metadata_forester: false,
+                },
+                epoch,
+            );
+            instructions.push(instruction);
+        }
+    }
+
+    Ok((proofs, instructions))
+}

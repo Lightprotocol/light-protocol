@@ -9,6 +9,7 @@ pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
 pub mod rpc_pool;
+pub mod send_transaction;
 pub mod settings;
 mod slot_tracker;
 pub mod tree_data_sync;

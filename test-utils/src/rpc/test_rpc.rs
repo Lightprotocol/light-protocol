@@ -183,7 +183,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(result)
     }
 
-    async fn confirm_transaction(&mut self, _transaction: Signature) -> Result<bool, RpcError> {
+    async fn confirm_transaction(&self, _transaction: Signature) -> Result<bool, RpcError> {
         Ok(true)
     }
 
@@ -269,5 +269,16 @@ impl RpcConnection for ProgramTestRpcConnection {
 
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
         self.context.warp_to_slot(slot).map_err(RpcError::from)
+    }
+
+    fn send_transaction(
+        &self,
+        _transaction: &Transaction,
+    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send {
+        async { Err(RpcError::CustomError(String::from("unimplemented"))) }
+    }
+
+    fn get_url(&self) -> String {
+        unimplemented!("get_url doesn't make sense for ProgramTestRpcConnection")
     }
 }
