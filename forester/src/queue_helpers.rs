@@ -1,4 +1,4 @@
-use crate::errors::ForesterError;
+use crate::{errors::ForesterError, Result};
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::QueueAccount;
 use light_hash_set::HashSet;
@@ -15,18 +15,16 @@ pub struct QueueItemData {
 pub async fn fetch_queue_item_data<R: RpcConnection>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
-) -> crate::Result<Vec<QueueItemData>> {
+) -> Result<Vec<QueueItemData>> {
     debug!("Fetching queue data for {:?}", queue_pubkey);
     let mut account = rpc
         .get_account(*queue_pubkey)
         .await?
         .ok_or_else(|| ForesterError::Custom("Queue account not found".to_string()))?;
-
-    let nullifier_queue: HashSet = unsafe {
+    let queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
-
-    Ok(nullifier_queue
+    let filtered_queue = queue
         .iter()
         .filter_map(|(index, cell)| {
             if cell.sequence_number.is_none() {
@@ -38,11 +36,13 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
                 None
             }
         })
-        .collect())
+        .collect();
+    log::info!("Queue data fetched: {:?}", filtered_queue);
+    Ok(filtered_queue)
 }
 
 #[derive(Debug)]
 pub struct QueueUpdate {
-    pub(crate) pubkey: Pubkey,
-    pub(crate) slot: u64,
+    pub pubkey: Pubkey,
+    pub slot: u64,
 }

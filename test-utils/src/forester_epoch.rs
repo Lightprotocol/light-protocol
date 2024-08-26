@@ -92,16 +92,17 @@ pub fn get_schedule_for_queue(
     let start_slot = 0;
     // TODO: enforce that active_phase_length is a multiple of slot_length
     let end_slot = start_slot + (protocol_config.active_phase_length / protocol_config.slot_length);
-    for i in start_slot..end_slot {
+
+    for light_slot in start_slot..end_slot {
         let forester_index = ForesterEpochPda::get_eligible_forester_index(
-            start_slot,
+            light_slot,
             queue_pubkey,
             total_epoch_weight,
             epoch,
         )
         .unwrap();
         vec.push(Some(ForesterSlot {
-            slot: i,
+            slot: light_slot,
             start_solana_slot,
             end_solana_slot: start_solana_slot + protocol_config.slot_length,
             forester_index,

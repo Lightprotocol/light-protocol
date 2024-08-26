@@ -1,6 +1,5 @@
 use crate::errors::ForesterError;
-use crate::pubsub_client::setup_pubsub_client;
-use crate::queue_helpers::{fetch_queue_item_data, QueueItemData, QueueUpdate};
+use crate::queue_helpers::QueueItemData;
 use crate::rollover::{
     is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
 };
@@ -11,17 +10,10 @@ use crate::send_transaction::{
 };
 use crate::slot_tracker::{wait_until_slot_reached, SlotTracker};
 use crate::tree_data_sync::fetch_trees;
+use crate::utils::get_current_system_time_ms;
 use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
-use account_compression::utils::constants::{
-    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-    STATE_MERKLE_TREE_CHANGELOG,
-};
-use futures::future::join_all;
-use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
-};
+
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
@@ -33,19 +25,12 @@ use light_test_utils::forester_epoch::{
 use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, error, info, warn};
-use rand::Rng;
-use solana_sdk::compute_budget::ComputeBudgetInstruction;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signature, Signer};
-use solana_sdk::transaction::Transaction;
+use solana_sdk::signature::Signer;
 use std::collections::HashMap;
-use std::iter::Zip;
-use std::num;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, Instant};
 
 #[derive(Clone, Debug)]
@@ -194,14 +179,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         counts
             .get(&epoch)
             .map_or(0, |count| count.load(Ordering::Relaxed))
-    }
-
-    async fn increment_processed_items_count(&self, epoch: u64) {
-        let mut counts = self.processed_items_per_epoch_count.lock().await;
-        counts
-            .entry(epoch)
-            .or_insert_with(|| AtomicUsize::new(0))
-            .fetch_add(1, Ordering::Relaxed);
     }
 
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
@@ -377,13 +354,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(epoch_info)
     }
 
-    async fn setup_pubsub_client(
-        &self,
-        queue_pubkeys: &std::collections::HashSet<Pubkey>,
-    ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
-        setup_pubsub_client(&self.config, queue_pubkeys.clone()).await
-    }
-
     // TODO: add receiver for new tree discoverd -> spawn new task to process this tree derive schedule etc.
     // TODO: optimize active phase startup time
     async fn perform_active_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
@@ -392,11 +362,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch
         );
-        let queue_pubkeys: std::collections::HashSet<Pubkey> = epoch_info
-            .trees
-            .iter()
-            .map(|tree| tree.tree_accounts.queue)
-            .collect();
 
         let current_slot = self.slot_tracker.estimated_current_slot();
         let active_phase_end = epoch_info.epoch.phases.active.end;
@@ -412,9 +377,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 "Forester {}. In active phase, processing initial queues",
                 self.config.payer_keypair.pubkey()
             );
-            // if let Err(e) = self.process_queues(epoch_info).await {
-            //     error!("Error processing initial queues: {:?}", e);
-            // }
         } else {
             debug!(
                 "Forester {}. Not in active phase, skipping initial queue processing",
@@ -423,27 +385,26 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             return Ok(());
         }
 
-        let (mut update_rx, shutdown_tx) = self.setup_pubsub_client(&queue_pubkeys).await?;
-
         debug!(
             "Forester {}. Processing updates",
             self.config.payer_keypair.pubkey()
         );
         let forester_pubkey = self.config.payer_keypair.pubkey();
-        // loop {
-        //     tokio::select! {
-        //         Some(update) = update_rx.recv() => {
-        // debug!(
-        //     "Forester {}. Received update for queue: {:?}",
-        //     forester_pubkey, update.pubkey
-        // );
-        // if update.slot >= active_phase_end {
-        //     break;
-        // }
+
+        // Sync estimated slot before creating threads
+        // Threads rely on the estimated slot.
+        {
+            let mut rpc = self.rpc_pool.get_connection().await?;
+            let current_slot = rpc.get_slot().await?;
+            self.slot_tracker.update(current_slot);
+        }
         for tree in epoch_info.trees.iter() {
+            info!("Creating thread for queue {}", tree.tree_accounts.queue);
+            // TODO: inefficient try to only clone necessary fields
             let epoch_info_clone = epoch_info.clone();
             let self_clone = self.clone();
             let tree = tree.clone();
+            // TODO: pass global shutdown signal
             tokio::spawn(async move {
                 if let Err(e) = self_clone
                     .process_queue(
@@ -460,6 +421,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 }
             });
         }
+        info!("Created threads waiting for active phase to end");
         // }
         //     else => {
         //         debug!("Forester {}. No more updates", forester_pubkey);
@@ -481,25 +443,27 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         // }
         // }
 
-        shutdown_tx.send(()).await.ok();
+        // shutdown_tx.send(()).await.ok();
         info!(
             "Forester {}. Checking for rollover eligibility...",
             self.config.payer_keypair.pubkey()
         );
-        // TODO: move logic into build transaction, since we fetch the account
-        // there we know if it's ready for rollover
-        // for tree in &epoch_info.trees {
-        //     let mut rpc = self.rpc_pool.get_connection().await?;
-        //     if is_tree_ready_for_rollover(
-        //         &mut *rpc,
-        //         tree.tree_accounts.merkle_tree,
-        //         tree.tree_accounts.tree_type,
-        //     )
-        //     .await?
-        //     {
-        //         self.perform_rollover(&tree.tree_accounts).await?;
-        //     }
-        // }
+        // Should be called every multiple times per epoch for every tree. It is
+        // tricky because we need to fetch both the Merkle tree and the queue
+        // (by default we just fetch the queue account).
+        //
+        for tree in &epoch_info.trees {
+            let mut rpc = self.rpc_pool.get_connection().await?;
+            if is_tree_ready_for_rollover(
+                &mut *rpc,
+                tree.tree_accounts.merkle_tree,
+                tree.tree_accounts.tree_type,
+            )
+            .await?
+            {
+                self.perform_rollover(&tree.tree_accounts).await?;
+            }
+        }
 
         info!(
             "Forester {}. Completed active work for epoch: {}",
@@ -513,56 +477,79 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         &self,
         epoch_info: Epoch,
         epoch_pda: ForesterEpochPda,
-        tree: TreeForesterSchedule,
+        mut tree: TreeForesterSchedule,
     ) -> Result<()> {
+        info!(
+            "Processing queue: {:?} for epoch: {}",
+            tree.tree_accounts.queue, epoch_info.epoch
+        );
+        info!(
+            "Processing queue: {:?}. Tree schedule slots: {:?}",
+            tree.tree_accounts.queue, tree.slots
+        );
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
-        // TODO: don't rely on the assumption that the slot is zero at startup, calculate the slot from protocol config
-        let current_light_slot = 0;
-        while estimated_slot < epoch_info.phases.active.end {
-            // search for next eligible slot
-            let slot = tree.slots[current_light_slot..]
-                .iter()
-                .find(|slot| slot.is_some());
 
-            if let Some(slot) = slot {
-                // TODO: get end of slot and transfer this info to send_batched_transactions
-                let slot = slot.as_ref().unwrap();
+        while estimated_slot < epoch_info.phases.active.end {
+            info!("Processing queue: {:?}", tree.tree_accounts.queue,);
+            // let mut slot_index = None;
+            // search for next eligible slot
+            let index_and_forester_slot = tree
+                .slots
+                .iter()
+                .enumerate()
+                .find(|(_, slot)| slot.is_some());
+
+            info!(
+                "Processing queue: {:?} result: {:?}",
+                tree.tree_accounts.queue, index_and_forester_slot
+            );
+            if let Some((index, forester_slot)) = index_and_forester_slot {
+                let forester_slot = forester_slot.as_ref().unwrap().clone();
+                tree.slots.remove(index);
+
                 let mut rpc = self.rpc_pool.get_connection().await?;
-                let queue_item_data =
-                    fetch_queue_item_data(&mut *rpc, &tree.tree_accounts.queue).await?;
-                let mut work_items = Vec::new();
-                for data in queue_item_data {
-                    work_items.push(WorkItem {
-                        tree_account: tree.tree_accounts,
-                        queue_item_data: data,
-                    });
-                }
-                let transaction_builder = EpochManagerTransactions {
-                    indexer: self.indexer.clone(),
-                    epoch: epoch_info.epoch,
-                    work_items,
-                    phantom: std::marker::PhantomData::<R>,
-                };
+                // Wait until next eligible light slot is reached (until the start solana slot is reached)
+                wait_until_slot_reached(
+                    &mut *rpc,
+                    &self.slot_tracker,
+                    forester_slot.start_solana_slot,
+                )
+                .await?;
+
+                // TODO: measure accuracy
+                // Optional replace with shutdown signal for all child processes
+                let solana_slot_len = 500;
+                let global_timeout = get_current_system_time_ms()
+                    + epoch_pda.protocol_config.slot_length as u128 * solana_slot_len;
                 let config = SendBatchedTransactionsConfig {
-                    num_batches: 1,
-                    batch_time: 1,
+                    num_batches: 10,
+                    batch_time_ms: 1000, // TODO: make batch size configurable and or dynamic based on queue usage
                     build_transaction_batch_config: BuildTransactionBatchConfig {
-                        batch_size: 50,
-                        compute_unit_price: None,
+                        batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
+                        compute_unit_price: None, // Make dynamic based on queue usage
                         compute_unit_limit: None,
                     },
                     retry_config: RetryConfig {
-                        max_retries: 10,
-                        retry_wait_time_ms: 1000,
+                        max_retries: 10,          // TODO: make configurable
+                        retry_wait_time_ms: 1000, // TODO: make configurable
+                        global_timeout,
                     },
                 };
+
+                let transaction_builder = EpochManagerTransactions {
+                    indexer: self.indexer.clone(), // TODO: remove clone
+                    epoch: epoch_info.epoch,
+                    phantom: std::marker::PhantomData::<R>,
+                };
+
                 send_batched_transactions(
                     &self.config.payer_keypair,
                     self.rpc_pool.clone(),
                     config, // TODO: define config in epoch manager
-                    0,      // TODO: remove domain it's just for testing
+                    tree.tree_accounts,
                     &transaction_builder,
+                    epoch_pda.epoch,
                 )
                 .await?;
             } else {
@@ -585,502 +572,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .protocol_config
             .is_active_phase(slot, epoch_info.epoch.epoch)
             .is_ok())
-    }
-
-    // async fn process_queues(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-    //     for tree in &epoch_info.trees {
-    //         self.process_queue(epoch_info, tree.tree_accounts.queue)
-    //             .await?;
-    //     }
-    //     Ok(())
-    // }
-
-    // async fn process_queue(
-    //     &self,
-    //     epoch_info: &ForesterEpochInfo,
-    //     queue_pubkey: Pubkey,
-    // ) -> Result<()> {
-    //     let mut rpc = self.rpc_pool.get_connection().await?;
-    //     let current_slot = rpc.get_slot().await?;
-    //     if !self.is_in_active_phase(current_slot, epoch_info)? {
-    //         debug!("Not in active phase, skipping queue processing");
-    //         return Ok(());
-    //     }
-    //     let tree = epoch_info
-    //         .trees
-    //         .iter()
-    //         .find(|t| t.tree_accounts.queue == queue_pubkey)
-    //         .ok_or_else(|| ForesterError::Custom("Tree not found for queue".to_string()))?;
-
-    //     // let work_items = self.fetch_work_items(&mut *rpc, &[tree.clone()]).await?;
-    //     if work_items.is_empty() {
-    //         debug!("Queue {:?} is empty, skipping processing", queue_pubkey);
-    //         return Ok(());
-    //     }
-
-    //     debug!(
-    //         "Forester {}. Processing {} work items for queue {:?}",
-    //         self.config.payer_keypair.pubkey(),
-    //         work_items.len(),
-    //         tree.tree_accounts.queue
-    //     );
-
-    //     let semaphore = Arc::new(Semaphore::new(self.config.indexer_max_concurrent_batches));
-    //     let (tx, mut rx) = mpsc::channel(self.config.indexer_max_concurrent_batches);
-
-    //     for chunk in work_items.chunks(self.config.indexer_batch_size) {
-    //         debug!(
-    //             "Forester {}. Processing chunk of size: {}",
-    //             self.config.payer_keypair.pubkey(),
-    //             chunk.len()
-    //         );
-    //         let semaphore_clone = semaphore.clone();
-    //         let tx_clone = tx.clone();
-    //         let epoch_info_clone = epoch_info.clone();
-    //         let self_clone = self.clone();
-    //         let chunk = chunk.to_vec();
-
-    //         debug!(
-    //             "Forester {}. Spawning task for chunk of size: {}",
-    //             self.config.payer_keypair.pubkey(),
-    //             chunk.len()
-    //         );
-    //         let forester_pubkey = self.config.payer_keypair.pubkey();
-    //         tokio::spawn(async move {
-    //             let permit = match semaphore_clone.acquire().await {
-    //                 Ok(permit) => {
-    //                     debug!("Forester {}. Acquired semaphore", forester_pubkey);
-    //                     permit
-    //                 }
-    //                 Err(e) => {
-    //                     error!(
-    //                         "Forester {}. Failed to acquire semaphore: {:?}",
-    //                         forester_pubkey, e
-    //                     );
-    //                     return;
-    //                 }
-    //             };
-    //             let start_time = Instant::now();
-    //             debug!("Forester {}. Processing work items", forester_pubkey);
-    //             let result = self_clone
-    //                 .process_work_items(&epoch_info_clone, &chunk)
-    //                 .await;
-    //             debug!("Forester {}. Work items processed", forester_pubkey);
-    //             let duration = start_time.elapsed();
-    //             if let Err(e) = tx_clone.send((result, duration)).await {
-    //                 error!(
-    //                     "Forester {}. Failed to send result through channel: {:?}",
-    //                     forester_pubkey, e
-    //                 );
-    //             }
-    //             drop(permit);
-    //             debug!("Forester {}. Dropped permit", forester_pubkey);
-    //         });
-    //     }
-
-    //     drop(tx);
-
-    //     info!("Waiting for work items to be processed...");
-    //     let mut completed_chunks = 0;
-    //     let total_chunks = (work_items.len() + self.config.indexer_batch_size - 1)
-    //         / self.config.indexer_batch_size;
-    //     let mut total_transactions = 0;
-    //     let mut total_duration = Duration::new(0, 0);
-
-    //     while let Some((result, duration)) = rx.recv().await {
-    //         debug!("Work item chunk processed");
-    //         completed_chunks += 1;
-    //         debug!("Completed {}/{} chunks", completed_chunks, total_chunks);
-    //         match result {
-    //             Ok(num_transactions) => {
-    //                 // let num_transactions = signatures.len();
-    //                 total_transactions += num_transactions;
-    //                 total_duration += duration;
-    //                 let chunk_tps = num_transactions as f64 / duration.as_secs_f64();
-    //                 let avg_tps = total_transactions as f64 / total_duration.as_secs_f64();
-
-    //                 // for (idx, signature) in signatures.iter().enumerate() {
-    //                 //     debug!(
-    //                 //         "Transaction {} in chunk {} processed: {:?}",
-    //                 //         idx, completed_chunks, signature
-    //                 //     );
-    //                 // }
-    //                 debug!(
-    //                     "Chunk {} TPS: {:.2}, Average TPS: {:.2}",
-    //                     completed_chunks, chunk_tps, avg_tps
-    //                 );
-    //             }
-    //             Err(e) => {
-    //                 error!("Error processing work item chunk: {:?}", e);
-    //             }
-    //         }
-    //         debug!("Completed {}/{} chunks", completed_chunks, total_chunks);
-    //     }
-
-    //     if total_duration.as_secs_f64() > 0.0 {
-    //         let overall_avg_tps = total_transactions as f64 / total_duration.as_secs_f64();
-    //         debug!("Overall average TPS: {:.2}", overall_avg_tps);
-    //     }
-
-    //     Ok(())
-    // }
-
-    // async fn fetch_work_items(
-    //     &self,
-    //     rpc: &mut R,
-    //     trees: &[TreeForesterSchedule],
-    // ) -> Result<Vec<WorkItem>> {
-    //     let mut work_items = Vec::new();
-
-    //     for tree in trees {
-    //         let queue_item_data = fetch_queue_item_data(rpc, &tree.tree_accounts.queue).await?;
-    //         for data in queue_item_data {
-    //             work_items.push(WorkItem {
-    //                 tree_account: tree.tree_accounts,
-    //                 queue_item_data: data,
-    //             });
-    //         }
-    //     }
-
-    //     Ok(work_items)
-    // }
-
-    /// Every WorkItem is a separate tree -> create a new thread for each tree.
-    // async fn process_work_items(
-    //     &self,
-    //     epoch_info: &ForesterEpochInfo,
-    //     work_items: &[WorkItem],
-    // ) -> Result<u64> {
-    //     // let mut results = Vec::new();
-    //     let semaphore = Arc::new(Semaphore::new(
-    //         self.config.transaction_max_concurrent_batches,
-    //     ));
-
-    //     let total_start_time = Instant::now();
-    //     let mut total_transactions = 0;
-    //     let mut total_processing_time = Duration::new(0, 0);
-
-    //     for (chunk_index, indexer_chunk) in work_items
-    //         .chunks(self.config.transaction_batch_size)
-    //         .enumerate()
-    //     {
-    //         let chunk_start_time = Instant::now();
-    //         debug!(
-    //             "Processing chunk {} of size: {}",
-    //             chunk_index,
-    //             indexer_chunk.len()
-    //         );
-    //         let mut rpc = self.rpc_pool.get_connection().await?;
-    //         let current_slot = rpc.get_slot().await?;
-    //         if !self.is_in_active_phase(current_slot, epoch_info)? {
-    //             debug!("Not in active phase, skipping process_work_items");
-    //             return Err(ForesterError::Custom("Not in active phase".to_string()));
-    //         }
-
-    //         // let (proofs, all_instructions) = self
-    //         //     .fetch_proofs_and_create_instructions(epoch_info, indexer_chunk)
-    //         //     .await?;
-
-    //         // let (tx, mut rx) = mpsc::channel(self.config.transaction_max_concurrent_batches);
-
-    //         // send_batched_transactions::<TestTransactionBuilder>(
-    //         //     &payer,
-    //         //     &pool,
-    //         //     SendBatchedTransactionsConfig {
-    //         //         num_batches,
-    //         //         batch_time: 1,
-    //         //         build_transaction_batch_config: BuildTransactionBatchConfig {
-    //         //             batch_size,
-    //         //             compute_unit_price: priority_fee,
-    //         //             compute_unit_limit,
-    //         //         },
-    //         //         retry_config: RetryConfig {
-    //         //             max_retries: 10,
-    //         //             retry_wait_time_ms: 1000,
-    //         //         },
-    //         //     },
-    //         //     0,
-    //         // )
-    //         // .await;
-
-    //         // let batch_futures: Vec<_> = Zip::enumerate(
-    //         //     all_instructions
-    //         //         .chunks(self.config.transaction_batch_size)
-    //         //         .zip(proofs.chunks(self.config.transaction_batch_size)),
-    //         // )
-    //         // .map(|(_, (transaction_chunk, proof_chunk))| {
-    //         //     let epoch_info = epoch_info.clone();
-    //         //     let self_clone = self.clone();
-    //         //     let transaction_chunk = transaction_chunk.to_vec();
-    //         //     let proof_chunk = proof_chunk.to_vec();
-    //         //     let indexer_chunk = indexer_chunk.to_vec();
-    //         //     let semaphore_clone = semaphore.clone();
-    //         //     let tx_clone = tx.clone();
-
-    //         //     tokio::spawn(async move {
-    //         //         let permit = match semaphore_clone.acquire().await {
-    //         //             Ok(permit) => permit,
-    //         //             Err(e) => {
-    //         //                 error!("Failed to acquire semaphore: {:?}", e);
-    //         //                 return;
-    //         //             }
-    //         //         };
-
-    //         //         let start_time = Instant::now();
-
-    //         //         // TODO: replace with new function
-    //         //         let result = self_clone
-    //         //             .process_transaction_batch_with_retry(
-    //         //                 &epoch_info,
-    //         //                 &transaction_chunk,
-    //         //                 &proof_chunk,
-    //         //                 &indexer_chunk,
-    //         //             )
-    //         //             .await;
-
-    //         //         let duration = start_time.elapsed();
-    //         //         if let Err(e) = tx_clone.send((result, duration)).await {
-    //         //             error!("Failed to send result through channel: {:?}", e);
-    //         //         }
-    //         //         drop(permit);
-    //         //     })
-    //         // })
-    //         // .collect();
-
-    //         // drop(tx);
-
-    //         let mut chunk_transactions = 0;
-    //         let mut chunk_processing_time = Duration::new(0, 0);
-
-    //         // while let Some((result, duration)) = rx.recv().await {
-    //         //     match result {
-    //         //         Ok(signature) => {
-    //         //             results.push(signature);
-    //         //             chunk_transactions += 1;
-    //         //             chunk_processing_time += duration;
-    //         //             let batch_tps = 1.0 / duration.as_secs_f64();
-    //         //             debug!("Batch processed successfully. TPS: {:.2}", batch_tps);
-    //         //         }
-    //         //         Err(e) => {
-    //         //             error!("Error processing batch: {:?}", e);
-    //         //         }
-    //         //     }
-    //         // }
-
-    //         // join_all(batch_futures).await;
-
-    //         total_transactions += chunk_transactions;
-    //         total_processing_time += chunk_processing_time;
-
-    //         let chunk_duration = chunk_start_time.elapsed();
-    //         let chunk_tps = chunk_transactions as f64 / chunk_duration.as_secs_f64();
-    //         let chunk_processing_tps =
-    //             chunk_transactions as f64 / chunk_processing_time.as_secs_f64();
-    //         let total_tps = total_transactions as f64 / total_start_time.elapsed().as_secs_f64();
-    //         let total_processing_tps =
-    //             total_transactions as f64 / total_processing_time.as_secs_f64();
-
-    //         debug!(
-    //             "Chunk {} completed: {} transactions in {:.2?}",
-    //             chunk_index, chunk_transactions, chunk_duration
-    //         );
-    //         debug!(
-    //             "Chunk {} TPS: {:.2} (overall: {:.2}), Processing TPS: {:.2} (overall: {:.2})",
-    //             chunk_index, chunk_tps, total_tps, chunk_processing_tps, total_processing_tps
-    //         );
-    //     }
-
-    //     let total_duration = total_start_time.elapsed();
-    //     let overall_tps = total_transactions as f64 / total_duration.as_secs_f64();
-    //     let overall_processing_tps =
-    //         total_transactions as f64 / total_processing_time.as_secs_f64();
-
-    //     debug!(
-    //         "Overall: {} transactions in {:.2?}",
-    //         total_transactions, total_duration
-    //     );
-    //     debug!(
-    //         "Overall TPS: {:.2}, Processing TPS: {:.2}",
-    //         overall_tps, overall_processing_tps
-    //     );
-    //     // TODO: set correctly
-    //     let num_transactions = total_transactions;
-    //     // let results = results.into_iter().flatten().collect();
-    //     Ok(num_transactions)
-    // }
-
-    async fn check_eligibility(
-        &self,
-        registration_info: &ForesterEpochInfo,
-        tree_account: &TreeAccounts,
-    ) -> Result<()> {
-        let mut rpc = self.rpc_pool.get_connection().await?;
-        let current_slot = rpc.get_slot().await?;
-        let forester_epoch_pda = rpc
-            .get_anchor_account::<ForesterEpochPda>(&registration_info.epoch.forester_epoch_pda)
-            .await?
-            .ok_or_else(|| {
-                ForesterError::Custom("Forester epoch PDA fetching error".to_string())
-            })?;
-        drop(rpc);
-
-        let light_slot = forester_epoch_pda
-            .get_current_light_slot(current_slot)
-            .map_err(|e| {
-                ForesterError::Custom(format!("Failed to get current light slot: {}", e))
-            })?;
-
-        let tree_schedule = registration_info
-            .trees
-            .iter()
-            .find(|ts| ts.tree_accounts == *tree_account)
-            .ok_or_else(|| {
-                ForesterError::Custom("No tree schedule found for the current tree".to_string())
-            })?;
-
-        debug!("tree_schedule: {:?}", tree_schedule);
-        debug!(
-            "Checking eligibility for tree {:?} at light slot {} / solana slot {}",
-            tree_account.merkle_tree, light_slot, current_slot
-        );
-        debug!(
-            "tree_schedule.slots[{}] = {:?}",
-            light_slot, tree_schedule.slots[light_slot as usize]
-        );
-        if tree_schedule.is_eligible(light_slot) {
-            Ok(())
-        } else {
-            Err(ForesterError::NotEligible)
-        }
-    }
-
-    async fn process_transaction_batch_with_retry(
-        &self,
-        epoch_info: &ForesterEpochInfo,
-        transaction_chunk: &[Instruction],
-        proof_chunk: &[MerkleProofType],
-        indexer_chunk: &[WorkItem],
-    ) -> Result<Option<Signature>> {
-        let work_item = indexer_chunk
-            .first()
-            .ok_or_else(|| ForesterError::Custom("Empty indexer chunk".to_string()))?;
-        debug!(
-            "Processing work item {:?} with {} instructions",
-            work_item.queue_item_data.hash,
-            transaction_chunk.len()
-        );
-        const BASE_RETRY_DELAY: Duration = Duration::from_millis(100);
-
-        let mut retries = 0;
-        loop {
-            match self
-                .check_eligibility(epoch_info, &work_item.tree_account)
-                .await
-            {
-                Ok(_) => {
-                    match self
-                        .process_transaction_batch(
-                            epoch_info,
-                            transaction_chunk,
-                            proof_chunk,
-                            indexer_chunk,
-                        )
-                        .await
-                    {
-                        Ok(signature) => {
-                            debug!(
-                                "Work item {:?} processed successfully. Signature: {:?}",
-                                work_item.queue_item_data.hash, signature
-                            );
-                            self.increment_processed_items_count(epoch_info.epoch.epoch)
-                                .await;
-                            return Ok(Some(signature));
-                        }
-                        Err(e) => {
-                            if retries >= self.config.max_retries {
-                                error!(
-                                    "Max retries reached for work item {:?}. Error: {:?}",
-                                    work_item.queue_item_data.hash, e
-                                );
-                                return Err(e);
-                            }
-                            let delay = BASE_RETRY_DELAY
-                                .saturating_mul(2u32.saturating_pow(retries as u32));
-                            let jitter = rand::thread_rng().gen_range(0..=50);
-                            sleep(delay + Duration::from_millis(jitter)).await;
-                            retries += 1;
-                            warn!(
-                                "Retrying work item {:?}. Attempt {}/{}",
-                                work_item.queue_item_data.hash, retries, self.config.max_retries
-                            );
-                        }
-                    }
-                }
-                Err(ForesterError::NotEligible) => {
-                    debug!("Forester not eligible for this slot, skipping batch");
-                    return Ok(None);
-                }
-                Err(e) => {
-                    error!("Error checking eligibility: {:?}", e);
-                    return Err(e);
-                }
-            }
-        }
-    }
-
-    async fn process_transaction_batch(
-        &self,
-        epoch_info: &ForesterEpochInfo,
-        instructions: &[Instruction],
-        proofs: &[MerkleProofType],
-        work_items: &[WorkItem],
-    ) -> Result<Signature> {
-        debug!(
-            "Processing transaction batch with {} instructions",
-            instructions.len()
-        );
-        let mut rpc = self.rpc_pool.get_connection().await?;
-        let current_slot = rpc.get_slot().await?;
-        if !self.is_in_active_phase(current_slot, epoch_info)? {
-            debug!("Not in active phase, skipping queue processing");
-            return Err(ForesterError::Custom("Not in active phase".to_string()));
-        }
-        let recent_blockhash = rpc.get_latest_blockhash().await?;
-
-        let mut ixs = vec![ComputeBudgetInstruction::set_compute_unit_limit(
-            self.config.cu_limit,
-        )];
-        ixs.extend_from_slice(instructions);
-        let mut transaction =
-            Transaction::new_with_payer(&ixs, Some(&self.config.payer_keypair.pubkey()));
-        transaction.sign(&[&self.config.payer_keypair], recent_blockhash);
-
-        // TODO: replace it with send, do not wait for confirmation and wait for confirmation on another thread
-        // we need to introduce retry on timeout when confirmation is not received
-        let signature = rpc.process_transaction(transaction).await?;
-        drop(rpc);
-
-        self.update_indexer(work_items, proofs).await;
-
-        Ok(signature)
-    }
-
-    async fn update_indexer(&self, work_items: &[WorkItem], proofs: &[MerkleProofType]) {
-        for (work_item, proof) in work_items.iter().zip(proofs.iter()) {
-            match proof {
-                MerkleProofType::AddressProof(address_proof) => {
-                    let mut indexer = self.indexer.lock().await;
-                    indexer.address_tree_updated(work_item.tree_account.merkle_tree, address_proof);
-                    drop(indexer);
-                }
-                MerkleProofType::StateProof(state_proof) => {
-                    let mut indexer = self.indexer.lock().await;
-                    indexer
-                        .account_nullified(work_item.tree_account.merkle_tree, &state_proof.hash);
-                    drop(indexer);
-                }
-            }
-        }
     }
 
     async fn wait_for_report_work_phase(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
