@@ -128,7 +128,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 let rpc = SolanaRpcConnection::new(url, None);
                 let mut results = vec![];
                 for transaction in transactions.iter() {
-                    let res = send_signed_transaction(&transaction, &rpc, config.retry_config);
+                    let res = send_signed_transaction(transaction, &rpc, config.retry_config);
                     results.push(res);
                 }
                 let all_results = join_all(results);
@@ -190,7 +190,7 @@ pub async fn send_signed_transaction(
             }
             Err(e) => {
                 info!("Error sending transaction: {:?}", e);
-                return Err(e).map_err(RpcError::from)?;
+                return Err(ForesterError::from(e));
             }
         }
         sleep(retry_wait_time).await;
@@ -278,7 +278,7 @@ async fn build_signed_transaction(
     instructions.push(instruction);
 
     let mut transaction =
-        Transaction::new_with_payer(&instructions.as_slice(), Some(&payer.pubkey()));
+        Transaction::new_with_payer(instructions.as_slice(), Some(&payer.pubkey()));
     transaction.sign(&[payer], *recent_blockhash);
     transaction
 }

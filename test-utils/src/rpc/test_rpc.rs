@@ -271,11 +271,12 @@ impl RpcConnection for ProgramTestRpcConnection {
         self.context.warp_to_slot(slot).map_err(RpcError::from)
     }
 
+    #[allow(clippy::manual_async_fn)]
     fn send_transaction(
         &self,
         _transaction: &Transaction,
     ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send {
-        async { Err(RpcError::CustomError(String::from("unimplemented"))) }
+        async { unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection") }
     }
 
     fn get_url(&self) -> String {
