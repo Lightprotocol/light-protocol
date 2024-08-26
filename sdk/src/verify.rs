@@ -105,7 +105,7 @@ pub fn invoke_cpi<'info, 'a, 'b, 'c>(
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
 pub fn verify<'info, 'a, 'b, 'c>(
-    ctx: Context<
+    ctx: &Context<
         '_,
         '_,
         '_,

@@ -162,6 +162,15 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
+    use anchor_lang::AnchorSerialize;
+    let record = NameRecord {
+        owner: payer.pubkey(),
+        name: "example.io".to_string(),
+        rdata: rdata.clone(),
+    };
+    let record = record.try_to_vec().unwrap();
+    println!("RECORD: {:?}", record,);
+
     let merkle_output_context = MerkleOutputContext {
         merkle_tree_pubkey: env.merkle_tree_pubkey,
     };
