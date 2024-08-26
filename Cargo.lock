@@ -7931,28 +7931,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
-name = "test-batch-transactions"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anyhow",
- "bb8",
- "forester",
- "futures 0.3.30",
- "light-test-utils",
- "reqwest 0.11.26",
- "solana-account-decoder",
- "solana-banks-interface",
- "solana-cli-output",
- "solana-client",
- "solana-program",
- "solana-rpc",
- "solana-sdk",
- "solana-transaction-status",
- "tokio",
-]
-
-[[package]]
 name = "test-case"
 version = "3.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
