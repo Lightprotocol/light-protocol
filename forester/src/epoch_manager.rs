@@ -404,7 +404,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let epoch_info_clone = epoch_info.clone();
             let self_clone = self.clone();
             let tree = tree.clone();
-            // TODO: pass global shutdown signal
+            // TODO: consider passing global shutdown signal (might be overkill since we have timeouts)
             tokio::spawn(async move {
                 if let Err(e) = self_clone
                     .process_queue(
@@ -422,12 +422,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             });
         }
         info!("Created threads waiting for active phase to end");
-        // }
-        //     else => {
-        //         debug!("Forester {}. No more updates", forester_pubkey);
-        //         break
-        //     },
-        // }
 
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_end).await?;
@@ -438,20 +432,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             estimated_slot,
             active_phase_end
         );
-        // if estimated_slot >= active_phase_end {
-        //     break;
-        // }
-        // }
 
-        // shutdown_tx.send(()).await.ok();
         info!(
             "Forester {}. Checking for rollover eligibility...",
             self.config.payer_keypair.pubkey()
         );
+
+        // TODO: move (Jorrit low prio)
         // Should be called every multiple times per epoch for every tree. It is
         // tricky because we need to fetch both the Merkle tree and the queue
         // (by default we just fetch the queue account).
-        //
         for tree in &epoch_info.trees {
             let mut rpc = self.rpc_pool.get_connection().await?;
             if is_tree_ready_for_rollover(
@@ -492,7 +482,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         while estimated_slot < epoch_info.phases.active.end {
             info!("Processing queue: {:?}", tree.tree_accounts.queue,);
-            // let mut slot_index = None;
             // search for next eligible slot
             let index_and_forester_slot = tree
                 .slots

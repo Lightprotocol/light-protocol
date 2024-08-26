@@ -535,8 +535,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
         let mut retries = 3;
         while retries > 0 {
-            println!("SERVER_ADDRESS: {}", SERVER_ADDRESS);
-            println!("PROVE_PATH: {}", PROVE_PATH);
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")

@@ -76,7 +76,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     )
     .await
     .unwrap();
-    println!("Registered forester, starting testindexer");
+
     let indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, false, false).await;
 
@@ -154,7 +154,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .unwrap()
         .unwrap();
     let total_processed = epoch_pda.total_work;
-    println!("Epoch pda: {:?}", epoch_pda);
+
     let forester_epoch_pda_address =
         get_forester_epoch_pda_from_authority(&config.payer_keypair.pubkey(), 0).0;
     let forester_epoch_pda = (*rpc)
@@ -162,7 +162,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .await
         .unwrap()
         .unwrap();
-    println!("Forester epoch pda: {:?}", forester_epoch_pda);
+
     assert_eq!(forester_epoch_pda.work_counter, total_processed);
 
     // assert that all (2) queues have been emptied
@@ -202,7 +202,6 @@ pub async fn assert_queue_len(
             .await
             .unwrap()
             .len();
-        println!("State tree queue length: {}", queue_length);
         if not_empty {
             assert_ne!(queue_length, 0);
         } else {
@@ -217,7 +216,6 @@ pub async fn assert_queue_len(
             .await
             .unwrap()
             .len();
-        println!("Address tree queue length: {}", queue_length);
         if not_empty {
             assert_ne!(queue_length, 0);
         } else {
