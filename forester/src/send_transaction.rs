@@ -42,12 +42,19 @@ pub trait TransactionBuilder {
 }
 
 /// Setting:
-/// 1. We have 10 seconds and a lot of elements in the queue
+/// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
 /// 2. we want to send as many elements from the queue as possible
-/// 3. 50tps -> 500 transactions
-/// Multiple ideas:
-/// 1. Don't wait for the transaction to finish just build the instructions and send them asap
-/// 2.
+///
+/// Strategy:
+/// 1. Execute transaction batches until max number of batches is
+/// reached or light slot ended (global timeout).
+/// 2. Fetch queue items.
+/// 3. Fetch recent blockhash.
+/// 4. Iterate over work items in chunks of batch size.
+/// 5. Check if we have reached the max number of batches or the global timeout.
+/// 6. Spawn new thread to build and send transactions.
+/// 7. Await minimum batch time.
+/// 8. If work items is empty, await minimum batch time.
 ///
 /// Questions:
 /// - How do we make sure that we have send all the transactions?
@@ -55,8 +62,10 @@ pub trait TransactionBuilder {
 ///
 /// TODO:
 /// - return number of sent transactions
-/// - test timeout for any action of this function or subfunctions, timeout is end of slot
-/// - consider dynamic batch size based on the number of transactions in the queue
+/// - test timeout for any action of this function or subfunctions, timeout is
+///   end of slot
+/// - consider dynamic batch size based on the number of transactions in the
+///   queue
 pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     payer: &Keypair,
     pool: Arc<SolanaRpcPool<R>>,
@@ -68,9 +77,12 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     let mut rpc = pool.get_connection().await?;
     let mut num_batches = 0;
     let mut num_sent_transactions = 0;
+    // 1. Execute batches until max number of batches is reached or light slot
+    //    ended (global timeout)
     while num_batches < config.num_batches
         && get_current_system_time_ms() < config.retry_config.global_timeout
     {
+        // 2. Fetch queue items.
         let queue_item_data = fetch_queue_item_data(&mut *rpc, &tree_accounts.queue).await?;
         let mut work_items = Vec::new();
         for data in queue_item_data {
@@ -80,28 +92,25 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             });
         }
         let batch_time = Duration::from_millis(config.batch_time_ms);
-
+        // 3. Fetch recent blockhash.
+        // A recent blockhash is valid for 2 mins we only need one per batch. We
+        // use a new one per batch in case that we want to retry these same
+        // transactions and identical transactions might be dropped.
+        let recent_blockhash = (*rpc)
+            .get_latest_blockhash()
+            .await
+            .map_err(RpcError::from)?;
+        // 4. Iterate over work items in chunks of batch size.
         for work_items in
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
         {
+            // 5. Check if we have reached the max number of batches or the global timeout.
             if num_batches > config.num_batches
                 || get_current_system_time_ms() >= config.retry_config.global_timeout
             {
                 break;
             }
             num_batches += 1;
-            let mut rpc = pool
-                .get_connection()
-                .await
-                .map_err(|e| RpcError::CustomError(e.to_string()))?;
-            let url = (*rpc).get_url().to_string();
-            // A recent blockhash is valid for 2 mins we only need one per batch. We
-            // use a new one per batch in case that we want to retry these same
-            // transactions and identical transactions might be dropped.
-            let recent_blockhash = (*rpc)
-                .get_latest_blockhash()
-                .await
-                .map_err(RpcError::from)?;
 
             // Minimum time to wait for the next batch of transactions.
             // Can be used to aviod rate limits.
@@ -123,7 +132,9 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 "get get connections txs time {:?}",
                 start_time_get_connections.elapsed()
             );
-
+            let url = (*rpc).get_url().to_string();
+            // 6. Spawn new thread to build and send transactions.
+            // Will time out with retry_config.max_retries or retry_config.global_timeout.
             tokio::spawn(async move {
                 let rpc = SolanaRpcConnection::new(url, None);
                 let mut results = vec![];
@@ -139,9 +150,11 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 "get send txs time {:?}",
                 start_time_get_connections.elapsed()
             );
+            // 7. Await minimum batch time.
             batch_min_time.await;
         }
 
+        // 8. If work items is empty, await minimum batch time.
         // If this is triggered we could switch to subscribing to the queue
         if work_items.is_empty() {
             info!("Work items empty, waiting for next batch epoch {:?}", epoch);
