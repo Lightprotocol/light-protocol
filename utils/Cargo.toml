@@ -17,5 +17,5 @@ ark-bn254 = "0.4.0"
 rand = "0.8"
 
 [dev-dependencies]
-bytemuck = "1.16"
+bytemuck = "1.17"
 memoffset = "0.9"
