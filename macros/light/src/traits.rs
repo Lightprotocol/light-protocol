@@ -70,16 +70,16 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
 
     for f in fields.named.iter() {
         for attr in &f.attrs {
-            if attr.path.is_ident("self_program") {
+            if attr.path().is_ident("self_program") {
                 self_program_field = Some(f.ident.as_ref().unwrap());
             }
-            if attr.path.is_ident("fee_payer") {
+            if attr.path().is_ident("fee_payer") {
                 fee_payer_field = Some(f.ident.as_ref().unwrap());
             }
-            if attr.path.is_ident("authority") {
+            if attr.path().is_ident("authority") {
                 authority_field = Some(f.ident.as_ref().unwrap());
             }
-            if attr.path.is_ident("cpi_context") {
+            if attr.path().is_ident("cpi_context") {
                 cpi_context_account_field = Some(f.ident.as_ref().unwrap());
             }
         }

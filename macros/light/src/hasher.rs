@@ -22,7 +22,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         .iter()
         .filter(|field| {
             !field.attrs.iter().any(|attr| {
-                if let Some(attr_ident) = attr.path.get_ident() {
+                if let Some(attr_ident) = attr.path().get_ident() {
                     attr_ident == "skip"
                 } else {
                     false
@@ -32,7 +32,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         .map(|field| {
             let field_name = &field.ident;
             let truncate = field.attrs.iter().any(|attr| {
-                if let Some(attr_ident) = attr.path.get_ident() {
+                if let Some(attr_ident) = attr.path().get_ident() {
                     attr_ident == "truncate"
                 } else {
                     false

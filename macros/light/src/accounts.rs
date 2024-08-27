@@ -44,9 +44,10 @@ pub(crate) fn process_light_accounts(input: DeriveInput) -> Result<TokenStream> 
 
                 let new_field = syn::Field {
                     attrs: vec![],
-                    vis: syn::Visibility::Public(syn::VisPublic {
-                        pub_token: Default::default(),
+                    vis: syn::Visibility::Public(syn::token::Pub {
+                        span: proc_macro2::Span::call_site(),
                     }),
+                    mutability: syn::FieldMutability::None,
                     ident: Some(syn::Ident::new(field_name, proc_macro2::Span::call_site())),
                     colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
                     ty: syn::parse_str(field_type)?,
