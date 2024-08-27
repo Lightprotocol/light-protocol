@@ -46,6 +46,10 @@ anchor-spl = "=0.29.0"
 
 spl-token = "=4.0.0"
 
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+
 tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
 
 [patch.crates-io]
