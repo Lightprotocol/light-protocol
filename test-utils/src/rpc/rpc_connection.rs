@@ -71,7 +71,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     }
 
     fn confirm_transaction(
-        &mut self,
+        &self,
         transaction: Signature,
     ) -> impl std::future::Future<Output = Result<bool, RpcError>> + Send;
 
@@ -126,4 +126,11 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
         unimplemented!()
     }
+
+    fn send_transaction(
+        &self,
+        transaction: &Transaction,
+    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
+
+    fn get_url(&self) -> String;
 }

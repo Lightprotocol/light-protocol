@@ -3,6 +3,7 @@ use light_registry::utils::get_protocol_config_pda_address;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{Signal, System};
 
 #[derive(Debug)]
@@ -91,4 +92,11 @@ pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfi
         .unwrap();
     info!("Protocol config account: {:?}", protocol_config_account);
     protocol_config_account.config
+}
+
+pub fn get_current_system_time_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis()
 }

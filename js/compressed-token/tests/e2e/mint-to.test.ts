@@ -94,14 +94,7 @@ describe('mintTo', () => {
 
     it('should mint to bob', async () => {
         const amount = bn(1000);
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            amount,
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, amount);
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
 

@@ -7,7 +7,7 @@ use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
 use log::{debug, warn};
 use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_config::RpcTransactionConfig;
+use solana_client::rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_program_test::BanksClientError;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
@@ -271,7 +271,7 @@ impl RpcConnection for SolanaRpcConnection {
         Ok(result)
     }
 
-    async fn confirm_transaction(&mut self, transaction: Signature) -> Result<bool, RpcError> {
+    async fn confirm_transaction(&self, transaction: Signature) -> Result<bool, RpcError> {
         self.client
             .confirm_transaction(&transaction)
             .map_err(RpcError::from)
@@ -350,5 +350,22 @@ impl RpcConnection for SolanaRpcConnection {
 
     fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
         self.client.get_epoch_info().map_err(RpcError::from)
+    }
+
+    async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
+        self.client
+            .send_transaction_with_config(
+                transaction,
+                RpcSendTransactionConfig {
+                    skip_preflight: true,
+                    max_retries: Some(3),
+                    ..Default::default()
+                },
+            )
+            .map_err(RpcError::from)
+    }
+
+    fn get_url(&self) -> String {
+        self.client.url()
     }
 }
