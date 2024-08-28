@@ -36,10 +36,10 @@ jobs:
           npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
 
       # Commented for breaking changes to Photon
-      #- name: Run CLI tests
-      #  run: |
-      #    source ./scripts/devenv.sh
-      #    npx nx test @lightprotocol/zk-compression-cli
+      - name: Run CLI tests
+       run: |
+         source ./scripts/devenv.sh
+         npx nx test @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests
         run: |
