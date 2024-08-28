@@ -31,15 +31,15 @@ overflow-checks = true
 opt-level = 2
 
 [workspace.dependencies]
-solana-banks-interface = "=1.18.17"
-solana-program = "=1.18.17"
-solana-sdk = "=1.18.17"
-solana-program-test = "=1.18.17"
-solana-client = "=1.18.17"
-solana-cli-output = "=1.18.17"
-solana-transaction-status = "=1.18.17"
-solana-account-decoder = "=1.18.17"
-solana-rpc = "=1.18.17"
+solana-banks-interface = "=1.18.22"
+solana-program = "=1.18.22"
+solana-sdk = "=1.18.22"
+solana-program-test = "=1.18.22"
+solana-client = "=1.18.22"
+solana-cli-output = "=1.18.22"
+solana-transaction-status = "=1.18.22"
+solana-account-decoder = "=1.18.22"
+solana-rpc = "=1.18.22"
 
 anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
@@ -51,25 +51,3 @@ quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
 
 tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
-
-[patch.crates-io]
-"solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-accounts-db" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-banks-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-banks-interface" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-banks-server" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-program" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-cli-output" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-program-test" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-program-runtime" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-rpc" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-rpc-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-rpc-client-api" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-runtime" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-sdk" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-sdk-macro" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-zk-token-sdk" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-frozen-abi" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-frozen-abi-macro" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
-"solana-transaction-status" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
