@@ -38,5 +38,5 @@ solana-sdk = "1.18.11"
 
 [dev-dependencies]
 light-test-utils = { path = "../../../../test-utils", version = "0.4.0" }
-solana-program-test = "1.18.11"
+solana-program-test = "1.18.18"
 tokio = "1.36.0"
