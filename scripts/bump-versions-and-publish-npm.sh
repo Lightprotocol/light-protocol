@@ -7,17 +7,21 @@ if ! command -v pnpm &> /dev/null; then
     exit 1
 fi
 
-declare -A package_dirs
-package_dirs["@lightprotocol/hasher.rs"]="hasher.rs"
-package_dirs["@lightprotocol/stateless.js"]="js/stateless.js"
-package_dirs["@lightprotocol/compressed-token"]="js/compressed-token"
-package_dirs["@lightprotocol/zk-compression-cli"]="cli"
+get_package_dir() {
+    case "$1" in
+        "@lightprotocol/hasher.rs") echo "hasher.rs" ;;
+        "@lightprotocol/stateless.js") echo "js/stateless.js" ;;
+        "@lightprotocol/compressed-token") echo "js/compressed-token" ;;
+        "@lightprotocol/zk-compression-cli") echo "cli" ;;
+        *) echo "" ;;
+    esac
+}
 
 # Bump version and publish
 publish_package() {
     local package_name=$1
     local version_type=$2
-    local package_dir=${package_dirs[$package_name]}
+    local package_dir=$(get_package_dir "$package_name")
 
     if [ -z "$package_dir" ]; then
         echo "No directory mapping found for package $package_name."
