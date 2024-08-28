@@ -13,7 +13,7 @@ VERSIONS=(
     "solana:1.18.17"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.7.1"
-    "photon:0.42.0"
+    "photon:0.44.0"
 )
 
 # Architecture-specific suffixes
