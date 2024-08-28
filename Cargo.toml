@@ -73,3 +73,4 @@ tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
 "solana-frozen-abi" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
 "solana-frozen-abi-macro" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
 "solana-transaction-status" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.17-enforce-cpi-tracking" }
+"solana_rbpf" = { version = "=0.8.3" }
