@@ -1,6 +1,6 @@
 [package]
 name = "system-cpi-test"
-version = "0.4.0"
+version = "0.4.1"
 description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,22 +22,22 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-light-compressed-token = { path = "../../programs/compressed-token", version = "0.6.0", features = ["cpi"]}
-light-system-program = { path = "../../programs/system", version = "0.6.0", features = ["cpi"]}
-light-registry = { path = "../../programs/registry", version = "0.6.0", features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression", version = "0.6.0", features = ["cpi"] }
-light-hasher = { path = "../../merkle-tree/hasher", version = "0.4.0" }
-light-utils = { path = "../../utils", version = "0.4.0" }
+light-compressed-token = { path = "../../programs/compressed-token", version = "0.6.1", features = ["cpi"]}
+light-system-program = { path = "../../programs/system", version = "0.6.1", features = ["cpi"]}
+light-registry = { path = "../../programs/registry", version = "0.6.1", features = ["cpi"]}
+account-compression = { path = "../../programs/account-compression", version = "0.6.1", features = ["cpi"] }
+light-hasher = { path = "../../merkle-tree/hasher", version = "0.4.1" }
+light-utils = { path = "../../utils", version = "0.4.1" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
 solana-program-test = { workspace = true }
-light-test-utils = { version = "0.4.0", path = "../../test-utils" }
+light-test-utils = { version = "0.4.1", path = "../../test-utils" }
 reqwest = "0.11.26"
 tokio = { workspace = true }
-light-prover-client = { path = "../../circuit-lib/light-prover-client", version = "0.4.0" }
+light-prover-client = { path = "../../circuit-lib/light-prover-client", version = "0.4.1" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 spl-token = { workspace = true }
