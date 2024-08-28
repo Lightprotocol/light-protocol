@@ -13,7 +13,7 @@ echo "Logging in to crates.io..."
 cargo login "${CRATES_IO_TOKEN}"
 # TODO: allow dynamic releases, and add gh release workflow
 # PACKAGES=("aligned-sized" "light-heap" "light-bounded-vec" "light-utils" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "photon-api""light-test-utils" "light-sdk")
-PACKAGES=("light-system-program" "light-registry" "light-compressed-token" "photon-api""light-test-utils" "light-sdk")
+PACKAGES=("light-registry" "light-compressed-token" "photon-api" "light-test-utils" "light-sdk")
 
 # PACKAGES=("photon-api" "light-test-utils" "light-sdk")
 for PACKAGE in "${PACKAGES[@]}"; do

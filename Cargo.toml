@@ -34,7 +34,7 @@ opt-level = 2
 solana-banks-interface = "=1.18.17"
 solana-program = "=1.18.17"
 solana-sdk = "=1.18.17"
-solana-program-test = "=1.18.17"
+solana-program-test = "=1.18.18"
 solana-client = "=1.18.17"
 solana-cli-output = "=1.18.17"
 solana-transaction-status = "=1.18.17"
