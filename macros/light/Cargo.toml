@@ -1,6 +1,6 @@
 [package]
 name = "light-macros"
-version = "0.6.1"
+version = "0.6.2"
 description = "Macros used in Light Protocol on-chain programs"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -12,10 +12,10 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
 
-light-hasher = { path = "../../merkle-tree/hasher", version = "0.4.1" }
+light-hasher = { path = "../../merkle-tree/hasher", version = "0.4.2" }
 
 [dev-dependencies]
-light-utils = { path = "../../utils", version = "0.4.1" }
+light-utils = { path = "../../utils", version = "0.4.2" }
 
 [lib]
 proc-macro = true

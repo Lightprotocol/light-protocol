@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-token"
-version = "0.6.1"
+version = "0.6.2"
 description = "Generalized token compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -28,13 +28,13 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"]}
-aligned-sized = { version = "0.4.1", path = "../../macros/aligned-sized" }
-account-compression = { version = "0.6.1", path = "../account-compression", features = ["cpi", "no-idl"] }
-light-system-program = { version = "0.6.1", path = "../system", features = ["cpi"] }
+aligned-sized = { version = "0.4.2", path = "../../macros/aligned-sized" }
+account-compression = { version = "0.6.2", path = "../account-compression", features = ["cpi", "no-idl"] }
+light-system-program = { version = "0.6.2", path = "../system", features = ["cpi"] }
 solana-security-txt = "1.1.0"
-light-hasher = { version = "0.4.1", path = "../../merkle-tree/hasher" }
-light-heap = { version = "0.4.1", path = "../../heap", optional = true }
-light-utils = { version = "0.4.1", path = "../../utils" }
+light-hasher = { version = "0.4.2", path = "../../merkle-tree/hasher" }
+light-heap = { version = "0.4.2", path = "../../heap", optional = true }
+light-utils = { version = "0.4.2", path = "../../utils" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

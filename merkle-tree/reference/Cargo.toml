@@ -1,13 +1,13 @@
 [package]
 name = "light-merkle-tree-reference"
-version = "0.4.1"
+version = "0.4.2"
 description = "Non-sparse reference Merkle tree implementation"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-light-bounded-vec = { path = "../bounded-vec", version = "0.4.1" }
-light-hasher = { path = "../hasher", version = "0.4.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.4.2" }
+light-hasher = { path = "../hasher", version = "0.4.2" }
 thiserror = "1.0"
 log = "0.4.20"
