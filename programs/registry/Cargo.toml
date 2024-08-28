@@ -1,6 +1,6 @@
 [package]
 name = "light-registry"
-version = "0.6.1"
+version = "0.6.2"
 description = "Light core protocol logic"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -23,16 +23,16 @@ bench-sbf = []
 sdk = []
 
 [dependencies]
-aligned-sized = { version = "0.4.1", path = "../../macros/aligned-sized" }
-light-macros= { version = "0.6.1", path = "../../macros/light" }
+aligned-sized = { version = "0.4.2", path = "../../macros/aligned-sized" }
+light-macros= { version = "0.6.2", path = "../../macros/light" }
 anchor-lang = { workspace = true , features = ["init-if-needed"]}
 anchor-spl = { workspace = true }
 bytemuck = "1.17"
-light-hasher = { version = "0.4.1", path = "../../merkle-tree/hasher" }
-light-heap = { version = "0.4.1", path = "../../heap", optional = true }
-account-compression = { version = "0.6.1", path = "../account-compression", features = ["cpi"]  }
-light-system-program = { version = "0.6.1", path = "../system", features = ["cpi"]  }
-light-utils = { version = "0.4.1", path = "../../utils" }
+light-hasher = { version = "0.4.2", path = "../../merkle-tree/hasher" }
+light-heap = { version = "0.4.2", path = "../../heap", optional = true }
+account-compression = { version = "0.6.2", path = "../account-compression", features = ["cpi"]  }
+light-system-program = { version = "0.6.2", path = "../system", features = ["cpi"]  }
+light-utils = { version = "0.4.2", path = "../../utils" }
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
@@ -42,4 +42,4 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 solana-program-test = { workspace = true }
 tokio = { workspace = true }
-light-macros= { version = "0.6.1", path = "../../macros/light" }
+light-macros= { version = "0.6.2", path = "../../macros/light" }
