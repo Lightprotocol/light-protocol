@@ -1,5 +1,5 @@
 export type AccountCompression = {
-    version: '0.5.0';
+    version: '0.6.1';
     name: 'account_compression';
     constants: [
         {
@@ -1165,7 +1165,7 @@ export type AccountCompression = {
 };
 
 export const IDL: AccountCompression = {
-    version: '0.5.0',
+    version: '0.6.1',
     name: 'account_compression',
     constants: [
         {

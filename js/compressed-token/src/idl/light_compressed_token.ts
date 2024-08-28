@@ -1,5 +1,5 @@
 export type LightCompressedToken = {
-    version: '0.5.0';
+    version: '0.6.1';
     name: 'light_compressed_token';
     instructions: [
         {
@@ -1555,28 +1555,133 @@ export type LightCompressedToken = {
     errors: [
         {
             code: 6000;
-            name: 'SignerCheckFailed';
-            msg: 'Signer check failed';
+            name: 'PublicKeyAmountMissmatch';
+            msg: 'public keys and amounts must be of same length';
         },
         {
             code: 6001;
-            name: 'CreateTransferInstructionFailed';
-            msg: 'Create transfer instruction failed';
+            name: 'ComputeInputSumFailed';
+            msg: 'ComputeInputSumFailed';
         },
         {
             code: 6002;
-            name: 'AccountNotFound';
-            msg: 'Account not found';
+            name: 'ComputeOutputSumFailed';
+            msg: 'ComputeOutputSumFailed';
         },
         {
             code: 6003;
-            name: 'SerializationError';
-            msg: 'Serialization error';
+            name: 'ComputeCompressSumFailed';
+            msg: 'ComputeCompressSumFailed';
+        },
+        {
+            code: 6004;
+            name: 'ComputeDecompressSumFailed';
+            msg: 'ComputeDecompressSumFailed';
+        },
+        {
+            code: 6005;
+            name: 'SumCheckFailed';
+            msg: 'SumCheckFailed';
+        },
+        {
+            code: 6006;
+            name: 'DecompressRecipientUndefinedForDecompress';
+            msg: 'DecompressRecipientUndefinedForDecompress';
+        },
+        {
+            code: 6007;
+            name: 'CompressedPdaUndefinedForDecompress';
+            msg: 'CompressedPdaUndefinedForDecompress';
+        },
+        {
+            code: 6008;
+            name: 'DeCompressAmountUndefinedForDecompress';
+            msg: 'DeCompressAmountUndefinedForDecompress';
+        },
+        {
+            code: 6009;
+            name: 'CompressedPdaUndefinedForCompress';
+            msg: 'CompressedPdaUndefinedForCompress';
+        },
+        {
+            code: 6010;
+            name: 'DeCompressAmountUndefinedForCompress';
+            msg: 'DeCompressAmountUndefinedForCompress';
+        },
+        {
+            code: 6011;
+            name: 'DelegateSignerCheckFailed';
+            msg: 'DelegateSignerCheckFailed';
+        },
+        {
+            code: 6012;
+            name: 'MintTooLarge';
+            msg: 'Minted amount greater than u64::MAX';
+        },
+        {
+            code: 6013;
+            name: 'SplTokenSupplyMismatch';
+            msg: 'SplTokenSupplyMismatch';
+        },
+        {
+            code: 6014;
+            name: 'HeapMemoryCheckFailed';
+            msg: 'HeapMemoryCheckFailed';
+        },
+        {
+            code: 6015;
+            name: 'InstructionNotCallable';
+            msg: 'The instruction is not callable';
+        },
+        {
+            code: 6016;
+            name: 'ArithmeticUnderflow';
+            msg: 'ArithmeticUnderflow';
+        },
+        {
+            code: 6017;
+            name: 'HashToFieldError';
+            msg: 'HashToFieldError';
+        },
+        {
+            code: 6018;
+            name: 'InvalidAuthorityMint';
+            msg: 'Expected the authority to be also a mint authority';
+        },
+        {
+            code: 6019;
+            name: 'InvalidFreezeAuthority';
+            msg: 'Provided authority is not the freeze authority';
+        },
+        {
+            code: 6020;
+            name: 'InvalidDelegateIndex';
+        },
+        {
+            code: 6021;
+            name: 'TokenPoolPdaUndefined';
+        },
+        {
+            code: 6022;
+            name: 'IsTokenPoolPda';
+            msg: 'Compress or decompress recipient is the same account as the token pool pda.';
+        },
+        {
+            code: 6023;
+            name: 'InvalidTokenPoolPda';
+        },
+        {
+            code: 6024;
+            name: 'NoInputTokenAccountsProvided';
+        },
+        {
+            code: 6025;
+            name: 'NoInputsProvided';
         },
     ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.5.0',
+    version: '0.6.1',
     name: 'light_compressed_token',
     instructions: [
         {
@@ -3137,23 +3242,128 @@ export const IDL: LightCompressedToken = {
     errors: [
         {
             code: 6000,
-            name: 'SignerCheckFailed',
-            msg: 'Signer check failed',
+            name: 'PublicKeyAmountMissmatch',
+            msg: 'public keys and amounts must be of same length',
         },
         {
             code: 6001,
-            name: 'CreateTransferInstructionFailed',
-            msg: 'Create transfer instruction failed',
+            name: 'ComputeInputSumFailed',
+            msg: 'ComputeInputSumFailed',
         },
         {
             code: 6002,
-            name: 'AccountNotFound',
-            msg: 'Account not found',
+            name: 'ComputeOutputSumFailed',
+            msg: 'ComputeOutputSumFailed',
         },
         {
             code: 6003,
-            name: 'SerializationError',
-            msg: 'Serialization error',
+            name: 'ComputeCompressSumFailed',
+            msg: 'ComputeCompressSumFailed',
+        },
+        {
+            code: 6004,
+            name: 'ComputeDecompressSumFailed',
+            msg: 'ComputeDecompressSumFailed',
+        },
+        {
+            code: 6005,
+            name: 'SumCheckFailed',
+            msg: 'SumCheckFailed',
+        },
+        {
+            code: 6006,
+            name: 'DecompressRecipientUndefinedForDecompress',
+            msg: 'DecompressRecipientUndefinedForDecompress',
+        },
+        {
+            code: 6007,
+            name: 'CompressedPdaUndefinedForDecompress',
+            msg: 'CompressedPdaUndefinedForDecompress',
+        },
+        {
+            code: 6008,
+            name: 'DeCompressAmountUndefinedForDecompress',
+            msg: 'DeCompressAmountUndefinedForDecompress',
+        },
+        {
+            code: 6009,
+            name: 'CompressedPdaUndefinedForCompress',
+            msg: 'CompressedPdaUndefinedForCompress',
+        },
+        {
+            code: 6010,
+            name: 'DeCompressAmountUndefinedForCompress',
+            msg: 'DeCompressAmountUndefinedForCompress',
+        },
+        {
+            code: 6011,
+            name: 'DelegateSignerCheckFailed',
+            msg: 'DelegateSignerCheckFailed',
+        },
+        {
+            code: 6012,
+            name: 'MintTooLarge',
+            msg: 'Minted amount greater than u64::MAX',
+        },
+        {
+            code: 6013,
+            name: 'SplTokenSupplyMismatch',
+            msg: 'SplTokenSupplyMismatch',
+        },
+        {
+            code: 6014,
+            name: 'HeapMemoryCheckFailed',
+            msg: 'HeapMemoryCheckFailed',
+        },
+        {
+            code: 6015,
+            name: 'InstructionNotCallable',
+            msg: 'The instruction is not callable',
+        },
+        {
+            code: 6016,
+            name: 'ArithmeticUnderflow',
+            msg: 'ArithmeticUnderflow',
+        },
+        {
+            code: 6017,
+            name: 'HashToFieldError',
+            msg: 'HashToFieldError',
+        },
+        {
+            code: 6018,
+            name: 'InvalidAuthorityMint',
+            msg: 'Expected the authority to be also a mint authority',
+        },
+        {
+            code: 6019,
+            name: 'InvalidFreezeAuthority',
+            msg: 'Provided authority is not the freeze authority',
+        },
+        {
+            code: 6020,
+            name: 'InvalidDelegateIndex',
+        },
+        {
+            code: 6021,
+            name: 'TokenPoolPdaUndefined',
+        },
+        {
+            code: 6022,
+            name: 'IsTokenPoolPda',
+            msg: 'Compress or decompress recipient is the same account as the token pool pda.',
+        },
+        {
+            code: 6023,
+            name: 'InvalidTokenPoolPda',
+        },
+        {
+            code: 6024,
+            name: 'NoInputTokenAccountsProvided',
+        },
+        {
+            code: 6025,
+            name: 'NoInputsProvided',
         },
     ],
 };
