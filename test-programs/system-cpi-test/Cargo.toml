@@ -25,7 +25,7 @@ anchor-spl = { workspace = true }
 light-compressed-token = { path = "../../programs/compressed-token", version = "0.6.0", features = ["cpi"]}
 light-system-program = { path = "../../programs/system", version = "0.6.0", features = ["cpi"]}
 light-registry = { path = "../../programs/registry", version = "0.6.0", features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression", version = "0.6.0", features = ["cpi"] }
+account-compression = { path = "../../programs/account-compression", version = "0.6.1", features = ["cpi"] }
 light-hasher = { path = "../../merkle-tree/hasher", version = "0.4.0" }
 light-utils = { path = "../../utils", version = "0.4.0" }
 

@@ -28,7 +28,7 @@ anchor-lang = { workspace = true }
 bytemuck = "1.17"
 light-hasher = { version = "0.4.0", path = "../merkle-tree/hasher" }
 light-heap = { version = "0.4.0", path = "../heap", optional = true }
-account-compression = { version = "0.6.0", path = "../programs/account-compression", features = ["cpi"] }
+account-compression = { version = "0.6.1", path = "../programs/account-compression", features = ["cpi"] }
 light-system-program = { version = "0.6.0", path = "../programs/system", features = ["cpi"] }
 light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.4.0" }
 light-utils = { version = "0.4.0", path = "../utils" }

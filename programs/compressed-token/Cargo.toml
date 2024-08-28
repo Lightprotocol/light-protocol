@@ -29,7 +29,7 @@ anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"]}
 aligned-sized = { version = "0.4.0", path = "../../macros/aligned-sized" }
-account-compression = { version = "0.6.0", path = "../account-compression", features = ["cpi", "no-idl"] }
+account-compression = { version = "0.6.1", path = "../account-compression", features = ["cpi", "no-idl"] }
 light-system-program = { version = "0.6.0", path = "../system", features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-hasher = { version = "0.4.0", path = "../../merkle-tree/hasher" }

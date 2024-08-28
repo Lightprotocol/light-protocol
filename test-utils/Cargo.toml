@@ -22,7 +22,7 @@ solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 thiserror = "1.0"
 light-macros = { path = "../macros/light", version = "0.6.0" }
-account-compression = { path = "../programs/account-compression", version = "0.6.0", features = ["cpi"] }
+account-compression = { path = "../programs/account-compression", version = "0.6.1", features = ["cpi"] }
 light-compressed-token = { path = "../programs/compressed-token", version = "0.6.0", features = ["cpi"] }
 light-system-program = { path = "../programs/system", version = "0.6.0", features = ["cpi"] }
 light-registry = { path = "../programs/registry", version = "0.6.0", features = ["cpi"] }

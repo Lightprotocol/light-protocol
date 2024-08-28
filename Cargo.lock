@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
