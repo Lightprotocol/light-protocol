@@ -1,20 +1,20 @@
 [package]
 name = "xtask"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 
 [dependencies]
-account-compression = { path = "../programs/account-compression", version = "0.6.2" }
+account-compression = { path = "../programs/account-compression", version = "0.7.0" }
 anyhow = "1.0"
 ark-bn254 = "0.4"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.4.2" }
-light-hash-set = { path = "../merkle-tree/hash-set", version = "0.4.2" }
-light-hasher = { path = "../merkle-tree/hasher", version = "0.4.2" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.4.2" }
-light-utils = { path = "../utils", version = "0.4.2" }
+light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.5.0" }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.5.0" }
+light-hasher = { path = "../merkle-tree/hasher", version = "0.5.0" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.5.0" }
+light-utils = { path = "../utils", version = "0.5.0" }
 num-bigint = "0.4"
 rand = "0.8"
 quote = "1.0"
