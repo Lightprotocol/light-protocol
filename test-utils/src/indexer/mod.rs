@@ -128,6 +128,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
         unimplemented!()
     }
+
+    fn is_test_indexer(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone)]

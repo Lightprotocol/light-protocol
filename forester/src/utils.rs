@@ -70,8 +70,11 @@ pub fn kill_photon() {
     }
 }
 pub fn decode_hash(account: &str) -> [u8; 32] {
+    decode_bytes_bs58::<32>(account)
+}
+pub fn decode_bytes_bs58<const LEN: usize>(account: &str) -> [u8; LEN] {
     let bytes = bs58::decode(account).into_vec().unwrap();
-    let mut arr = [0u8; 32];
+    let mut arr = [0u8; LEN];
     arr.copy_from_slice(&bytes);
     arr
 }

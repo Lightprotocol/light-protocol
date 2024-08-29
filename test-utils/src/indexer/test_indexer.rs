@@ -125,6 +125,10 @@ pub struct TokenDataWithContext {
 }
 
 impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
+    fn is_test_indexer(&self) -> bool {
+        true
+    }
+
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,

@@ -71,32 +71,34 @@ export async function initTestEnv({
     rpcPort,
     gossipHost,
   });
+  let promises = [];
   await waitForServers([{ port: rpcPort, path: "/health" }]);
-  await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
-  await initAccounts();
+  promises.push(confirmServerStability(`http://127.0.0.1:${rpcPort}/health`));
+  promises.push(initAccounts());
 
   if (indexer) {
     const config = getConfig();
     config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
     setConfig(config);
-    await startIndexer(
+    promises.push(startIndexer(
       `http://127.0.0.1:${rpcPort}`,
       indexerPort,
       checkPhotonVersion,
       photonDatabaseUrl,
-    );
+    ));
   }
 
   if (prover) {
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
+    promises.push(startProver(proverPort, proveCompressedAccounts, proveNewAddresses));
   }
 
   if (forester) {
-    await startForester();
+    promises.push(startForester());
   }
+  await Promise.all(promises);
 }
 
 export async function initTestEnvIfNeeded({

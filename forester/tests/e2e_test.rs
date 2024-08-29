@@ -1,8 +1,8 @@
 use forester::photon_indexer::PhotonIndexer;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
-use forester::run_pipeline;
 use forester::utils::LightValidatorConfig;
+use forester::{run_pipeline, ForesterConfig};
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
@@ -22,8 +22,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
-
 mod test_utils;
+use log::info;
 use test_utils::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -226,6 +226,23 @@ pub async fn assert_queue_len(
     }
 }
 
+/// Setup:
+/// - X foresters
+/// - local photon
+/// - local test validator
+/// - send transactions every x seconds
+///
+/// Questions:
+/// - what is the expected forester behavior?
+///
+/// Assert:
+/// - queues are being emptied with dynamic traffic
+/// - that only the eligible forester send transactions
+/// - create a test where transactions keep piling up only one forester is live
+///   but multiple have registered and assert that the piled up transactions
+///   have been processed within the next eligible slot (either all or non
+///   should be processed in this case, work counter should have been
+///   incremented)
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_with_photon() {
     init(Some(LightValidatorConfig {
@@ -237,24 +254,73 @@ async fn test_with_photon() {
     }))
     .await;
     let photon_indexer = create_local_photon_indexer();
-    photon_indexer
-        .get_rpc_compressed_accounts_by_owner(&photon_indexer.payer.pubkey())
-        .await
-        .unwrap();
+    create_traffic(5, 100, None).await;
 }
 
+// TODO: make static method of PhotonIndexer
 pub fn create_local_photon_indexer() -> PhotonIndexer<SolanaRpcConnection> {
     let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    PhotonIndexer::new(String::from("127.0. 0.1:3001"), "", rpc)
+    PhotonIndexer::new(String::from("http://127.0.0.1:8784"), None, rpc)
 }
 
-pub fn create_test_forester() {
+pub async fn create_test_forester() -> (ForesterConfig, Keypair) {
+    let forester_keypair = Keypair::new();
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    rpc.payer = forester_keypair.insecure_clone();
+
     let forester_keypair1 = Keypair::new();
     let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
-
+    rpc.airdrop_lamports(&forester_keypair1.pubkey(), LAMPORTS_PER_SOL * 100_000)
+        .await
+        .unwrap();
     let mut config1 = forester_config();
     env_accounts.forester = forester_keypair1.insecure_clone();
-    let config1 = Arc::new(config1);
+    register_test_forester(
+        &mut rpc,
+        &env_accounts.governance_authority,
+        &forester_keypair.pubkey(),
+        light_registry::ForesterConfig::default(),
+    )
+    .await
+    .unwrap();
+    (config1, forester_keypair)
+}
+
+pub async fn create_traffic(num_of_intervalls: u64, intervall_duration: u64, seed: Option<u64>) {
+    let env_accounts = EnvAccounts::get_local_test_validator_accounts();
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), 10_000_000_000_000)
+        .await
+        .unwrap();
+    let photon_indexer = create_local_photon_indexer();
+    let mut env = E2ETestEnv::<SolanaRpcConnection, PhotonIndexer<SolanaRpcConnection>>::new(
+        rpc,
+        photon_indexer,
+        &env_accounts,
+        keypair_action_config(),
+        general_action_config(),
+        0,
+        Some(seed.unwrap_or_default()),
+    )
+    .await;
+
+    let user_index = 0;
+    let balance = env
+        .rpc
+        .get_balance(&env.users[user_index].keypair.pubkey())
+        .await
+        .unwrap();
+    info!("pre compress sol");
+    env.compress_sol(user_index, balance).await;
+    info!("post compress sol");
+    {
+        for i in 0..num_of_intervalls {
+            info!("Round {} of {}", i, num_of_intervalls);
+            env.transfer_sol(user_index).await;
+            sleep(Duration::from_millis(intervall_duration)).await;
+            env.create_address(None).await;
+        }
+    }
 }
 
 // TODO: add test which asserts epoch registration over many epochs (we need a different protocol config for that)

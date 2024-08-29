@@ -313,6 +313,7 @@ pub async fn get_compressed_accounts_by_owner_post(
         "{}/getCompressedAccountsByOwner",
         local_var_configuration.base_path
     );
+    println!("uri: {}", local_var_uri_str);
     let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
 
     let mut local_var_req_builder =

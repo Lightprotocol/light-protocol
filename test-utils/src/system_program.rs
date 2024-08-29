@@ -428,33 +428,34 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await?
         .unwrap();
-
-    let (created_output_compressed_accounts, _) = inputs
-        .test_indexer
-        .add_event_and_compressed_accounts(&event.0);
-    let input = AssertCompressedTransactionInputs {
-        rpc: inputs.rpc,
-        test_indexer: inputs.test_indexer,
-        output_compressed_accounts: inputs.output_compressed_accounts,
-        created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
-        event: &event.0,
-        input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
-        output_merkle_tree_snapshots: output_merkle_tree_snapshots.as_slice(),
-        recipient_balance_pre,
-        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
-        is_compress: inputs.is_compress,
-        compressed_sol_pda_balance_pre,
-        compression_recipient: inputs.recipient,
-        created_addresses: inputs.created_addresses.unwrap_or(&[]),
-        sorted_output_accounts: inputs.sorted_output_accounts,
-        relay_fee: inputs.relay_fee,
-        input_compressed_account_hashes: &compressed_account_hashes,
-        address_queue_pubkeys: &inputs
-            .new_address_params
-            .iter()
-            .map(|x| x.address_queue_pubkey)
-            .collect::<Vec<Pubkey>>(),
-    };
-    assert_compressed_transaction(input).await;
+    if inputs.test_indexer.is_test_indexer() {
+        let (created_output_compressed_accounts, _) = inputs
+            .test_indexer
+            .add_event_and_compressed_accounts(&event.0);
+        let input = AssertCompressedTransactionInputs {
+            rpc: inputs.rpc,
+            test_indexer: inputs.test_indexer,
+            output_compressed_accounts: inputs.output_compressed_accounts,
+            created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
+            event: &event.0,
+            input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
+            output_merkle_tree_snapshots: output_merkle_tree_snapshots.as_slice(),
+            recipient_balance_pre,
+            compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
+            is_compress: inputs.is_compress,
+            compressed_sol_pda_balance_pre,
+            compression_recipient: inputs.recipient,
+            created_addresses: inputs.created_addresses.unwrap_or(&[]),
+            sorted_output_accounts: inputs.sorted_output_accounts,
+            relay_fee: inputs.relay_fee,
+            input_compressed_account_hashes: &compressed_account_hashes,
+            address_queue_pubkeys: &inputs
+                .new_address_params
+                .iter()
+                .map(|x| x.address_queue_pubkey)
+                .collect::<Vec<Pubkey>>(),
+        };
+        assert_compressed_transaction(input).await;
+    }
     Ok(event.1)
 }

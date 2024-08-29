@@ -1,12 +1,20 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use light_system_program::sdk::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+};
+use light_test_utils::indexer::{
+    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext, StateMerkleTreeAccounts,
+};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::test_env::EnvAccounts;
 use log::{debug, info};
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
+use solana_program::pubkey;
 use solana_sdk::bs58;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
@@ -38,6 +46,103 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
 }
 
 impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
+    fn get_state_merkle_tree_accounts(&self, pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts> {
+        let env_accounts = EnvAccounts::get_local_test_validator_accounts();
+        let mut accounts = Vec::new();
+
+        let state_merkle_tree_accounts = vec![StateMerkleTreeAccounts {
+            merkle_tree: env_accounts.merkle_tree_pubkey,
+            nullifier_queue: env_accounts.nullifier_queue_pubkey,
+            cpi_context: env_accounts.cpi_context_account_pubkey,
+        }];
+        for pubkey in pubkeys {
+            if let Some(account) = state_merkle_tree_accounts
+                .iter()
+                .find(|x| &x.merkle_tree == pubkey)
+            {
+                accounts.push(account.clone());
+            }
+        }
+        accounts
+    }
+
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        let params = GetCompressedAccountsByOwnerPostRequestParams {
+            cursor: None,
+            limit: None,
+            owner: owner.to_string(),
+        };
+        let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+            params: Box::from(params),
+            ..Default::default()
+        };
+
+        let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+            &self.configuration,
+            request,
+        )
+        .await;
+        match result {
+            Ok(response) => match response.result {
+                Some(result) => {
+                    let accounts = result
+                        .value
+                        .items
+                        .iter()
+                        .map(|x| {
+                            let address = if let Some(address) = x.address.as_ref() {
+                                Some(decode_hash(address))
+                            } else {
+                                None
+                            };
+                            let data = if let Some(data) = x.data.as_ref() {
+                                Some(CompressedAccountData {
+                                    data: bs58::decode(data.data.clone()).into_vec().unwrap(),
+                                    discriminator: data.discriminator.to_le_bytes(),
+                                    data_hash: decode_hash(&data.data_hash),
+                                })
+                            } else {
+                                None
+                            };
+                            let compressed_account = CompressedAccount {
+                                address,
+                                owner: Pubkey::from_str(x.owner.as_str()).unwrap(),
+                                data,
+                                lamports: x.lamports.try_into().unwrap(),
+                            };
+                            let merkle_context = MerkleContext {
+                                merkle_tree: x.merkle_tree.clone(),
+                                leaf_index: x.leaf_index,
+                                root_seq: x.root_seq,
+                            };
+                            CompressedAccountWithMerkleContext {
+                                compressed_account,
+                                merkle_context,
+                            }
+                        })
+                        .collect();
+                    accounts
+                }
+                None => Vec::new(),
+            },
+            Err(e) => {
+                info!("Error: {:?}", e);
+                Vec::new()
+            }
+        }
+    }
+    // fn add_event_and_compressed_accounts(
+    //     &mut self,
+    //     _event: &PublicTransactionEvent,
+    // ) -> (
+    //     Vec<CompressedAccountWithMerkleContext>,
+    //     Vec<TokenDataWithContext>,
+    // ) {
+    // }
+
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
