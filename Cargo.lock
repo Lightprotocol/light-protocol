@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -159,7 +159,7 @@ checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
 
 [[package]]
 name = "aligned-sized"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1460,7 +1460,7 @@ dependencies = [
 
 [[package]]
 name = "compressed-token-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -1981,7 +1981,7 @@ dependencies = [
 
 [[package]]
 name = "e2e-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -2265,7 +2265,7 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forester"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3415,7 +3415,7 @@ dependencies = [
 
 [[package]]
 name = "light-bounded-vec"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "bytemuck",
  "memoffset 0.9.1",
@@ -3426,7 +3426,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "light-concurrent-merkle-tree"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3468,7 +3468,7 @@ dependencies = [
 
 [[package]]
 name = "light-hash-set"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3485,7 +3485,7 @@ dependencies = [
 
 [[package]]
 name = "light-hasher"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ark-bn254",
  "light-poseidon",
@@ -3498,14 +3498,14 @@ dependencies = [
 
 [[package]]
 name = "light-heap"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "anchor-lang",
 ]
 
 [[package]]
 name = "light-indexed-merkle-tree"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "borsh 0.10.3",
  "light-bounded-vec",
@@ -3524,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "light-macros"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "bs58 0.4.0",
  "light-hasher",
@@ -3536,7 +3536,7 @@ dependencies = [
 
 [[package]]
 name = "light-merkle-tree-reference"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "light-bounded-vec",
  "light-hasher",
@@ -3558,7 +3558,7 @@ dependencies = [
 
 [[package]]
 name = "light-prover-client"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -3568,7 +3568,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.10.3",
+ "borsh 0.9.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -3594,7 +3594,7 @@ dependencies = [
 
 [[package]]
 name = "light-registry"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3616,7 +3616,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3650,7 +3650,7 @@ dependencies = [
 
 [[package]]
 name = "light-system-program"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3670,7 +3670,7 @@ dependencies = [
 
 [[package]]
 name = "light-test-utils"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3708,7 +3708,7 @@ dependencies = [
 
 [[package]]
 name = "light-utils"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "ark-bn254",
@@ -3724,7 +3724,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "borsh 0.10.3",
  "groth16-solana",
@@ -3737,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "light-wasm-hasher"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3965,7 +3965,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "name-service"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -4565,7 +4565,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.30.2"
+version = "0.31.0"
 dependencies = [
  "log",
  "reqwest 0.11.26",
@@ -5115,7 +5115,7 @@ checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
 name = "registry-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -5878,8 +5878,7 @@ dependencies = [
 [[package]]
 name = "solana-account-decoder"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4185d569c062983fc2a618ae4ee6fe1a139b36bce7a25045647c49bf0020a53"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "Inflector",
  "base64 0.21.7",
@@ -5903,8 +5902,7 @@ dependencies = [
 [[package]]
 name = "solana-accounts-db"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c156ddd42a2746e14fe267f85a2f802567dfa7c1702836b0ce69ea3be15a3c3"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "arrayref",
  "bincode",
@@ -5964,8 +5962,7 @@ dependencies = [
 [[package]]
 name = "solana-address-lookup-table-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7f5967c234aa8281f36999ded250403ddacb77863e2a1e157a3203884a13cfa"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5985,8 +5982,7 @@ dependencies = [
 [[package]]
 name = "solana-banks-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d78204433cdb1945ef3622905f806423f5536cc91205dc8e325efe521394d3ca"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "borsh 1.4.0",
  "futures 0.3.30",
@@ -6002,8 +5998,7 @@ dependencies = [
 [[package]]
 name = "solana-banks-interface"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f959539e11afaa554c0ae445bb3c726ad658aa33d8b577b76ab7e0ad6e313405"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "serde",
  "solana-sdk",
@@ -6013,8 +6008,7 @@ dependencies = [
 [[package]]
 name = "solana-banks-server"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5224477dc90857c98bec8ff746926facf525e0216fdfbde51e28d92d5b11b236"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "crossbeam-channel",
@@ -6033,8 +6027,7 @@ dependencies = [
 [[package]]
 name = "solana-bloom"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4aadccb11676cb4f77d26a929293366048b2589e0ce135f29b4b1d4ac0a944e3"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bv",
  "fnv",
@@ -6052,8 +6045,7 @@ dependencies = [
 [[package]]
 name = "solana-bpf-loader-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfab3aa028e4feac760f28e7fb24760813d451e7cff5a13584509ddab4a94311"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "byteorder",
@@ -6071,8 +6063,7 @@ dependencies = [
 [[package]]
 name = "solana-bucket-map"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06f781213cf76d8840e688d52fbc3876ae8522d2ac594c1c11ab9b982d7f0336"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bv",
  "bytemuck",
@@ -6089,8 +6080,7 @@ dependencies = [
 [[package]]
 name = "solana-clap-utils"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c817832e71886dbea877d1aa911c9ce2e984a39081bb56ee30d4c835567827a6"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "chrono",
  "clap 2.34.0",
@@ -6106,8 +6096,7 @@ dependencies = [
 [[package]]
 name = "solana-cli-config"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a3d0ab58e2a883f36082c736fec6e6d5872dc902c3b2cc960ed67d8eaf8994d"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "dirs-next",
  "lazy_static",
@@ -6122,8 +6111,7 @@ dependencies = [
 [[package]]
 name = "solana-cli-output"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a398964bb920e7606a8c4b2c01cb6d394ab9b5eb8a6f214fcdc7c5f90f470f36"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "Inflector",
  "base64 0.21.7",
@@ -6149,8 +6137,7 @@ dependencies = [
 [[package]]
 name = "solana-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fa9cc6e8e59adf70acbf5cac21342ae8b5e41cbf05519fe5f6287e84ab40f63"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -6182,8 +6169,7 @@ dependencies = [
 [[package]]
 name = "solana-compute-budget-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b176bad40620d1c443365daf24e19fbfccafe8daff60eb3ddd6cbd9cf0fbec58"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "solana-program-runtime",
  "solana-sdk",
@@ -6192,8 +6178,7 @@ dependencies = [
 [[package]]
 name = "solana-config-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d02fb29934427f1487d2149fe8bcb405306729b2f22a2ad616bb8ffd024cee7b"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "chrono",
@@ -6206,8 +6191,7 @@ dependencies = [
 [[package]]
 name = "solana-connection-cache"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8e5a2e26448b3e04ce673794994ff27f3972ec8a806c224eccc02e09f751ca5"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -6228,8 +6212,7 @@ dependencies = [
 [[package]]
 name = "solana-cost-model"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4564996ef9f2983efeedb14a38315fa606d3d2cc0a2c8d899c507c5893fe79"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "lazy_static",
  "log",
@@ -6252,8 +6235,7 @@ dependencies = [
 [[package]]
 name = "solana-entry"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ba386267f01dd5705cdefc5beb7130ec8e6c46d1f7b724010ef50d9f42310f7"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "crossbeam-channel",
@@ -6274,8 +6256,7 @@ dependencies = [
 [[package]]
 name = "solana-faucet"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a4ff234ab4eb241f21b116400ffadd1499f292af1e3b9a09b508b4bd4f407e"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "byteorder",
@@ -6298,8 +6279,7 @@ dependencies = [
 [[package]]
 name = "solana-frozen-abi"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20a6ef2db80dceb124b7bf81cca3300804bf427d2711973fc3df450ed7dfb26d"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "block-buffer 0.10.4",
  "bs58 0.4.0",
@@ -6323,8 +6303,7 @@ dependencies = [
 [[package]]
 name = "solana-frozen-abi-macro"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70088de7d4067d19a7455609e2b393e6086bd847bb39c4d2bf234fc14827ef9e"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6335,8 +6314,7 @@ dependencies = [
 [[package]]
 name = "solana-gossip"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95395de72ae9e470b16bf532f95688ff366ed0b9a3f7c3cf839db8a9ce3cdc3f"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "assert_matches",
  "bincode",
@@ -6385,8 +6363,7 @@ dependencies = [
 [[package]]
 name = "solana-ledger"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1979b6d6f8fbf865c5d3aa4b2f4e330ad8af3764bdc62ba7a6707ef11be7d02"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "assert_matches",
  "bincode",
@@ -6452,8 +6429,7 @@ dependencies = [
 [[package]]
 name = "solana-loader-v4-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3fde1ab49eb031882f4803bf5a8008dca84356717e120ba9276d229ff24633c"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "log",
  "solana-measure",
@@ -6465,8 +6441,7 @@ dependencies = [
 [[package]]
 name = "solana-logger"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b129da15193f26db62d62ae6bb9f72361f361bcdc36054be3ab8bc04cc7a4f31"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "env_logger 0.9.3",
  "lazy_static",
@@ -6476,8 +6451,7 @@ dependencies = [
 [[package]]
 name = "solana-measure"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d195b73093a4964ba6b5943418054a5fcbba23eafdd0842fd973fcceac1a967"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "log",
  "solana-sdk",
@@ -6486,8 +6460,7 @@ dependencies = [
 [[package]]
 name = "solana-merkle-tree"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db1311f011af0e6f0fc738bc00a5a8752582c460a1a32a6644614525b568bda9"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "fast-math",
  "solana-program",
@@ -6496,8 +6469,7 @@ dependencies = [
 [[package]]
 name = "solana-metrics"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe7b06860ffbf4cf4714182e1b7eb00eb3ff0bcc9cff615d05e01e488923883c"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "crossbeam-channel",
  "gethostname",
@@ -6511,8 +6483,7 @@ dependencies = [
 [[package]]
 name = "solana-net-utils"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9400b50b8439868a99b5fa2d961d74e37b7a6c1d5865759d0b1c906c2ad6b2a9"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "clap 3.2.25",
@@ -6539,8 +6510,7 @@ checksum = "8b8a731ed60e89177c8a7ab05fe0f1511cedd3e70e773f288f9de33a9cfdc21e"
 [[package]]
 name = "solana-perf"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b01a386e852df67031195094628851b8d239dd71fe17b721c3993277e68cb3ab"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "ahash 0.8.11",
  "bincode",
@@ -6568,8 +6538,7 @@ dependencies = [
 [[package]]
 name = "solana-poh"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8ee2972639da87ad3190fb2bc28092260af5f1e3d6d58ac50df8486d774bce7"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "core_affinity",
  "crossbeam-channel",
@@ -6586,8 +6555,7 @@ dependencies = [
 [[package]]
 name = "solana-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb2b2c8babfae4cace1a25b6efa00418f3acd852cf55d7cecc0360d3c5050479"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -6641,8 +6609,7 @@ dependencies = [
 [[package]]
 name = "solana-program-runtime"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0444f9440f4459d377c41470b2eb48b527def81f3052b7a121f6aa8c7350cc52"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "base64 0.21.7",
  "bincode",
@@ -6669,8 +6636,7 @@ dependencies = [
 [[package]]
 name = "solana-program-test"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c76274336971f37dbbd3508aaaa4c98ca0061abd31fb309ad1c6ad132f0c6c0e"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -6699,8 +6665,7 @@ dependencies = [
 [[package]]
 name = "solana-pubsub-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ee4a39e41e789b6f100c97d9f40c1d08381bf6e3d0e351065e542091cddb039"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "crossbeam-channel",
  "futures-util",
@@ -6724,8 +6689,7 @@ dependencies = [
 [[package]]
 name = "solana-quic-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baad755c76ee0aab8890f0ef873e61b8b3012c523d33bfa5b062fe9be8cef370"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-mutex",
  "async-trait",
@@ -6751,8 +6715,7 @@ dependencies = [
 [[package]]
 name = "solana-rayon-threadlimit"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1c2a0ccb0be7ca79e8ff0d7c786bce586433a5687ffbea522453d0b41c4bf4a"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "lazy_static",
  "num_cpus",
@@ -6761,8 +6724,7 @@ dependencies = [
 [[package]]
 name = "solana-remote-wallet"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d042a812537e3507e1c163c7573fc04c96e12d3eba512e3fe74c7393229fa39"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "console",
  "dialoguer",
@@ -6780,8 +6742,7 @@ dependencies = [
 [[package]]
 name = "solana-rpc"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9bf44b110c15790d97760875a4d97f05a7c0b183410c2899dcdff229ffe8f4c"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "base64 0.21.7",
  "bincode",
@@ -6837,8 +6798,7 @@ dependencies = [
 [[package]]
 name = "solana-rpc-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c6f5560283bd0a6833d1bd816299785058a870fff51b0df399fdb3ce92c8484"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -6863,8 +6823,7 @@ dependencies = [
 [[package]]
 name = "solana-rpc-client-api"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e4ca77f89caa9071acadb1eed19c28a6691fd63d0563ed927c96bf734cf1c9c"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "base64 0.21.7",
  "bs58 0.4.0",
@@ -6885,8 +6844,7 @@ dependencies = [
 [[package]]
 name = "solana-rpc-client-nonce-utils"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42a6ea9ad81d63f18fb8b3a9b39643cc43eaf909199d67037e724562301d1df7"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "clap 2.34.0",
  "solana-clap-utils",
@@ -6898,8 +6856,7 @@ dependencies = [
 [[package]]
 name = "solana-runtime"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7c4b50b29b6f5938d2c9b151e9187d4687ca9c26be2c6ebe53ba34826283441"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "aquamarine",
  "arrayref",
@@ -6975,8 +6932,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e0f0def5c5af07f53d321cea7b104487b522cfff77c3cae3da361bfe956e9e"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "assert_matches",
  "base64 0.21.7",
@@ -7030,8 +6986,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk-macro"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c55c196c8050834c391a34b58e3c9fd86b15452ef1feeeafa1dbeb9d2291dfec"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",
@@ -7049,8 +7004,7 @@ checksum = "468aa43b7edb1f9b7b7b686d5c3aeb6630dc1708e86e31343499dd5c4d775183"
 [[package]]
 name = "solana-send-transaction-service"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c5fc9df712efd671a5a5b68e58a448dc13b70f59ef16bdd0e8d644813eb67a"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "crossbeam-channel",
  "log",
@@ -7065,8 +7019,7 @@ dependencies = [
 [[package]]
 name = "solana-stake-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "624f6d0c84c19a17bf882259303e99e1ed2562a0316c989f847a067aa99d4940"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "log",
@@ -7080,8 +7033,7 @@ dependencies = [
 [[package]]
 name = "solana-storage-bigtable"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c7205397d7453c9a5a432a775d0a1da06f6affe8be69d0b7cacf0c2bf93be52"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "backoff",
  "bincode",
@@ -7114,8 +7066,7 @@ dependencies = [
 [[package]]
 name = "solana-storage-proto"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c28da494fc80ee8506f6397ec5e49d84679cb76fdbc1897dc00c3c275210fd2"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "bs58 0.4.0",
@@ -7131,8 +7082,7 @@ dependencies = [
 [[package]]
 name = "solana-streamer"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "749720d82c5f31f7ec326da1e0baac098201de70f0874719172a55309433b449"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-channel",
  "bytes",
@@ -7164,8 +7114,7 @@ dependencies = [
 [[package]]
 name = "solana-system-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a449f40a516a8e83dcc2ce07643bb3feec4da690f170d438849af06c503cc28"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "log",
@@ -7178,8 +7127,7 @@ dependencies = [
 [[package]]
 name = "solana-thin-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84535de1253afb6ccc4ae6852eb013ca734c439a902ec5e4684b90ed649a37c2"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "log",
@@ -7193,8 +7141,7 @@ dependencies = [
 [[package]]
 name = "solana-tpu-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ff514462bb715aaea9bc5c0ee60f83ab3f91e04279337c6b07d054153b616dc"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -7217,8 +7164,7 @@ dependencies = [
 [[package]]
 name = "solana-transaction-status"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670e387049812d42bdc8fcc4ff75452ff3cb00657af979a90f55f6d37dba9dd9"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "Inflector",
  "base64 0.21.7",
@@ -7242,8 +7188,7 @@ dependencies = [
 [[package]]
 name = "solana-udp-client"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11183dae826f942ebd0401712c8a52367a4a6312f1cd325f304cd9551226fc8b"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "async-trait",
  "solana-connection-cache",
@@ -7257,8 +7202,7 @@ dependencies = [
 [[package]]
 name = "solana-version"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e8d518e61ce22c812df23d9c61ab9bcbef4df3e3d3dcaa74a999625f11bcf07"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "log",
  "rustc_version",
@@ -7273,8 +7217,7 @@ dependencies = [
 [[package]]
 name = "solana-vote"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ae2a4908ac4df02a4adb78f09fe938b31c75f42ba64401b8ac88193eb446943"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "crossbeam-channel",
  "itertools",
@@ -7292,8 +7235,7 @@ dependencies = [
 [[package]]
 name = "solana-vote-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5743503143fb2259c41a973a78e9aeeb8e21f1b03543c3bb85449926ea692719"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bincode",
  "log",
@@ -7314,8 +7256,7 @@ dependencies = [
 [[package]]
 name = "solana-zk-token-proof-program"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5813dc267bea898ff40d3bd662a0a7659170dd19ae5e7c46e8dc0a414a205868"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "bytemuck",
  "num-derive 0.4.2",
@@ -7328,8 +7269,7 @@ dependencies = [
 [[package]]
 name = "solana-zk-token-sdk"
 version = "1.18.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57ee07fa523b4cfcff68de774db7aa87d2da2c4357155a90bacd9a0a0af70a99"
+source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "aes-gcm-siv",
  "base64 0.21.7",
@@ -7844,7 +7784,7 @@ dependencies = [
 
 [[package]]
 name = "system-cpi-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -7867,7 +7807,7 @@ dependencies = [
 
 [[package]]
 name = "system-test"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -8144,7 +8084,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token-escrow"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -9172,7 +9112,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "account-compression",
  "anyhow",
