@@ -15,9 +15,9 @@ pub struct PhotonIndexer<R: RpcConnection> {
 }
 
 impl<R: RpcConnection> PhotonIndexer<R> {
-    pub fn new(path: String, api_key: Option<String>, rpc: R) -> Self {
+    pub fn new(base_url: String, api_key: Option<String>, rpc: R) -> Self {
         let configuration = Configuration {
-            base_path: path,
+            base_path: base_url,
             api_key: api_key.map(|key| ApiKey {
                 prefix: Some("api-key".to_string()),
                 key,

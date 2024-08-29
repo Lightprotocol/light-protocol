@@ -1,3 +1,4 @@
+use forester::photon_indexer::PhotonIndexer;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
 use forester::run_pipeline;
@@ -223,6 +224,37 @@ pub async fn assert_queue_len(
         }
         *total_expected_work += queue_length as u64;
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_with_photon() {
+    init(Some(LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: true,
+        enable_forester: false,
+        wait_time: 10,
+        ..LightValidatorConfig::default()
+    }))
+    .await;
+    let photon_indexer = create_local_photon_indexer();
+    photon_indexer
+        .get_rpc_compressed_accounts_by_owner(&photon_indexer.payer.pubkey())
+        .await
+        .unwrap();
+}
+
+pub fn create_local_photon_indexer() -> PhotonIndexer<SolanaRpcConnection> {
+    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    PhotonIndexer::new(String::from("127.0. 0.1:3001"), "", rpc)
+}
+
+pub fn create_test_forester() {
+    let forester_keypair1 = Keypair::new();
+    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
+
+    let mut config1 = forester_config();
+    env_accounts.forester = forester_keypair1.insecure_clone();
+    let config1 = Arc::new(config1);
 }
 
 // TODO: add test which asserts epoch registration over many epochs (we need a different protocol config for that)
