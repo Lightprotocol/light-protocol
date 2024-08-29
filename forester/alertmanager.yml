@@ -1,0 +1,40 @@
+global:
+  resolve_timeout: 5m
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 5m
+  receiver: 'pagerduty-notifications'
+  routes:
+    - match:
+        alertname: ForesterQueueNearlyFull
+      receiver: 'pagerduty-notifications'
+      group_wait: 45s
+      repeat_interval: 15m
+
+receivers:
+  - name: 'pagerduty-notifications'
+    pagerduty_configs:
+      - routing_key: '<PAGERDUTY_API_KEY>'
+        send_resolved: true
+        client: 'Alertmanager'
+        client_url: 'http://alertmanager:9093'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+        severity: '{{ if eq .GroupLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
+        class: '{{ .GroupLabels.alertname }}'
+        component: '{{ .GroupLabels.instance }}'
+        group: '{{ .GroupLabels.job }}'
+        details:
+          firing: '{{ .Alerts.Firing | len }}'
+          resolved: '{{ .Alerts.Resolved | len }}'
+          all_alerts: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']

@@ -4,6 +4,7 @@ pub mod cli;
 pub mod config;
 pub mod epoch_manager;
 pub mod errors;
+pub mod metrics;
 pub mod photon_indexer;
 pub mod pubsub_client;
 pub mod queue_helpers;
@@ -12,17 +13,18 @@ pub mod rpc_pool;
 pub mod send_transaction;
 pub mod settings;
 mod slot_tracker;
+pub mod telemetry;
 pub mod tree_data_sync;
 pub mod utils;
 
 use crate::epoch_manager::{run_service, WorkReport};
 use crate::errors::ForesterError;
+use crate::metrics::QUEUE_LENGTH;
 use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
 use crate::slot_tracker::SlotTracker;
 use crate::utils::get_protocol_config;
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use env_logger::Env;
 use light_test_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -36,28 +38,26 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-pub fn setup_logger() {
-    let env = Env::new().filter_or("RUST_LOG", "info,forester=debug");
-    env_logger::Builder::from_env(env).init();
-}
-
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,
     trees: Vec<TreeAccounts>,
     queue_type: TreeType,
 ) {
     let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None);
-    let state_trees: Vec<_> = trees
+    let trees: Vec<_> = trees
         .iter()
         .filter(|t| t.tree_type == queue_type)
         .cloned()
         .collect();
 
-    for tree_data in state_trees {
+    for tree_data in trees {
         let queue_length = fetch_queue_item_data(&mut rpc, &tree_data.queue)
             .await
             .unwrap()
             .len();
+        QUEUE_LENGTH
+            .with_label_values(&[&*queue_type.to_string(), &tree_data.merkle_tree.to_string()])
+            .set(queue_length as i64);
         info!(
             "{:?} queue {} length: {}",
             queue_type, tree_data.queue, queue_length

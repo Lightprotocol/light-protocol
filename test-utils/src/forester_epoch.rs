@@ -1,3 +1,4 @@
+use std::fmt::Display;
 // TODO: move into separate forester utils crate
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
@@ -79,6 +80,15 @@ impl TreeAccounts {
 pub enum TreeType {
     Address,
     State,
+}
+
+impl Display for TreeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeType::Address => write!(f, "address"),
+            TreeType::State => write!(f, "state"),
+        }
+    }
 }
 
 pub fn get_schedule_for_queue(

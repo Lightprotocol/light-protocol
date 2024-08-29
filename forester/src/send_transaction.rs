@@ -73,10 +73,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     tree_accounts: TreeAccounts,
     transaction_builder: &T,
     epoch: u64,
-) -> Result<u64> {
+) -> Result<usize> {
     let mut rpc = pool.get_connection().await?;
     let mut num_batches = 0;
-    let mut num_sent_transactions = 0;
+    let mut num_sent_transactions: usize = 0;
     // 1. Execute batches until max number of batches is reached or light slot
     //    ended (global timeout)
     while num_batches < config.num_batches
@@ -113,7 +113,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             num_batches += 1;
 
             // Minimum time to wait for the next batch of transactions.
-            // Can be used to aviod rate limits.
+            // Can be used to avoid rate limits.
             let batch_min_time = tokio::time::sleep(batch_time);
             let start_time = tokio::time::Instant::now();
             let transactions: Vec<Transaction> = transaction_builder
@@ -124,7 +124,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                     config.build_transaction_batch_config,
                 )
                 .await;
-            num_sent_transactions += transactions.len() as u64;
+            num_sent_transactions += transactions.len();
 
             info!("build transaction time {:?}", start_time.elapsed());
             let start_time_get_connections = tokio::time::Instant::now();
@@ -276,11 +276,11 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
 async fn build_signed_transaction(
     payer: &Keypair,
     recent_blockhash: &Hash,
-    comput_unit_price: Option<u64>,
+    compute_unit_price: Option<u64>,
     compute_unit_limit: Option<u32>,
     instruction: Instruction,
 ) -> Transaction {
-    let mut instructions: Vec<Instruction> = if let Some(price) = comput_unit_price {
+    let mut instructions: Vec<Instruction> = if let Some(price) = compute_unit_price {
         vec![ComputeBudgetInstruction::set_compute_unit_price(price)]
     } else {
         vec![]
