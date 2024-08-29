@@ -1,5 +1,5 @@
 export type LightCompressedToken = {
-    version: '0.5.0';
+    version: '0.6.2';
     name: 'light_compressed_token';
     instructions: [
         {
@@ -1681,7 +1681,7 @@ export type LightCompressedToken = {
     ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.5.0',
+    version: '0.6.2',
     name: 'light_compressed_token',
     instructions: [
         {

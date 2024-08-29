@@ -5,6 +5,7 @@ import {
     SystemProgram,
     Connection,
     AddressLookupTableProgram,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, LightCompressedToken } from './idl/light_compressed_token';
@@ -25,6 +26,7 @@ import {
     defaultTestStateTreeAccounts,
 } from '@lightprotocol/stateless.js';
 import {
+    ASSOCIATED_TOKEN_PROGRAM_ID,
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
@@ -730,6 +732,9 @@ export class CompressedTokenProgram {
                 defaultTestStateTreeAccounts().addressQueue,
                 this.programId,
                 TOKEN_PROGRAM_ID,
+                SystemProgram.programId,
+                ComputeBudgetProgram.programId,
+                ASSOCIATED_TOKEN_PROGRAM_ID,
                 authority,
                 ...optionalMintKeys,
                 ...(remainingAccounts ?? []),
