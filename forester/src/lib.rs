@@ -32,8 +32,6 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use log::info;
 pub use settings::init_config;
 use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::signature::Signer;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -78,12 +76,6 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     )
     .await
     .map_err(|e| ForesterError::Custom(e.to_string()))?;
-
-    {
-        let mut rpc = rpc_pool.get_connection().await?;
-        rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
-            .await?;
-    }
 
     let protocol_config = {
         let mut rpc = rpc_pool.get_connection().await?;
