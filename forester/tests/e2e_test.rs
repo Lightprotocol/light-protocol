@@ -5,7 +5,7 @@ use forester::utils::LightValidatorConfig;
 use forester::{run_pipeline, ForesterConfig};
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
-use light_test_utils::e2e_test_env::E2ETestEnv;
+use light_test_utils::e2e_test_env::{E2ETestEnv, User};
 use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
 use light_test_utils::registry::register_test_forester;
 use light_test_utils::rpc::errors::RpcError;
@@ -24,6 +24,8 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
 mod test_utils;
 use log::info;
+use std::io::{self, sink, Write};
+use std::thread;
 use test_utils::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -225,7 +227,25 @@ pub async fn assert_queue_len(
         *total_expected_work += queue_length as u64;
     }
 }
+pub async fn assert_default_queues_zero(url: Option<String>) {
+    let mut rpc = SolanaRpcConnection::new(url.unwrap_or(SolanaRpcUrl::Localnet.to_string()), None);
+    let env_accounts = EnvAccounts::get_local_test_validator_accounts();
 
+    let queue_length = fetch_queue_item_data(&mut rpc, &env_accounts.nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .len();
+
+    assert_eq!(queue_length, 0, "nullfier queue not empty");
+    let queue_length =
+        fetch_queue_item_data(&mut rpc, &env_accounts.address_merkle_tree_queue_pubkey)
+            .await
+            .unwrap()
+            .len();
+
+    assert_eq!(queue_length, 0, "nullfier queue not empty");
+}
+///  > output.txt 2>&1
 /// Setup:
 /// - X foresters
 /// - local photon
@@ -234,6 +254,7 @@ pub async fn assert_queue_len(
 ///
 /// Questions:
 /// - what is the expected forester behavior?
+/// - why does the forester process single transactions?
 ///
 /// Assert:
 /// - queues are being emptied with dynamic traffic
@@ -245,6 +266,10 @@ pub async fn assert_queue_len(
 ///   incremented)
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_with_photon() {
+    let number_of_foresters = 5;
+    let users_generating_traffic = 20;
+    let num_epochs = 200;
+    let num_of_tx = 5000 * num_epochs;
     init(Some(LightValidatorConfig {
         enable_indexer: true,
         enable_prover: true,
@@ -253,8 +278,65 @@ async fn test_with_photon() {
         ..LightValidatorConfig::default()
     }))
     .await;
-    let photon_indexer = create_local_photon_indexer();
-    create_traffic(5, 100, None).await;
+    let mut foresters = Vec::<Arc<ForesterConfig>>::new();
+    for _ in 0..number_of_foresters {
+        let config = create_test_forester().await;
+        let config: Arc<ForesterConfig> = Arc::new(config);
+        foresters.push(config.clone());
+    }
+    let (tx, _) = broadcast::channel(users_generating_traffic);
+    for _ in 0..users_generating_traffic {
+        let rx = tx.subscribe();
+        thread::spawn(|| {
+            // Create a new async runtime within the thread
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(create_traffic(num_of_tx, 0, Some(0), rx));
+        });
+    }
+
+    let mut forester_handles = Vec::new();
+    for forester in foresters.iter() {
+        let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+
+        let (_work_report_sender, mut _work_report_receiver) = mpsc::channel(100);
+        let photon_indexer = create_local_photon_indexer();
+        // Run the forester as pipeline
+        let service_handle = tokio::spawn(run_pipeline(
+            forester.clone(),
+            Arc::new(Mutex::new(photon_indexer)),
+            shutdown_receiver,
+            _work_report_sender.clone(),
+        ));
+        forester_handles.push((shutdown_sender, service_handle, _work_report_receiver));
+    }
+
+    for i in 0..num_epochs {
+        // Wait for epoch i to be processed
+        if let Some(_) = forester_handles[0].2.recv().await {
+            println!("work_reported");
+        };
+        println!("Epoch {} processed", i);
+        for (j, forester) in foresters.iter().enumerate() {
+            let forester_epoch_pda_address =
+                get_forester_epoch_pda_from_authority(&forester.payer_keypair.pubkey(), i as u64).0;
+            let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+            let forester_epoch_pda = rpc
+                .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_address)
+                .await
+                .unwrap()
+                .unwrap();
+            info!(
+                "forester {} forester_epoch_pda: {:?}",
+                j, forester_epoch_pda
+            );
+        }
+    }
+
+    tx.send(1).unwrap();
+    // Sleep to give the foresters time to empty the queue after traffic threads
+    // have been shut down.
+    sleep(Duration::from_secs(10)).await;
+    assert_default_queues_zero(None).await;
 }
 
 // TODO: make static method of PhotonIndexer
@@ -263,18 +345,24 @@ pub fn create_local_photon_indexer() -> PhotonIndexer<SolanaRpcConnection> {
     PhotonIndexer::new(String::from("http://127.0.0.1:8784"), None, rpc)
 }
 
-pub async fn create_test_forester() -> (ForesterConfig, Keypair) {
+pub async fn create_test_forester() -> ForesterConfig {
+    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
     let forester_keypair = Keypair::new();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.payer = forester_keypair.insecure_clone();
-
-    let forester_keypair1 = Keypair::new();
-    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
-    rpc.airdrop_lamports(&forester_keypair1.pubkey(), LAMPORTS_PER_SOL * 100_000)
+    rpc.airdrop_lamports(
+        &env_accounts.governance_authority.pubkey(),
+        LAMPORTS_PER_SOL * 100,
+    )
+    .await
+    .unwrap();
+    rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100)
         .await
         .unwrap();
+    rpc.payer = forester_keypair.insecure_clone();
+
     let mut config1 = forester_config();
-    env_accounts.forester = forester_keypair1.insecure_clone();
+    config1.payer_keypair = forester_keypair.insecure_clone();
+    env_accounts.forester = forester_keypair.insecure_clone();
     register_test_forester(
         &mut rpc,
         &env_accounts.governance_authority,
@@ -283,10 +371,15 @@ pub async fn create_test_forester() -> (ForesterConfig, Keypair) {
     )
     .await
     .unwrap();
-    (config1, forester_keypair)
+    config1
 }
-
-pub async fn create_traffic(num_of_intervalls: u64, intervall_duration: u64, seed: Option<u64>) {
+use tokio::sync::broadcast;
+pub async fn create_traffic(
+    num_of_intervalls: u64,
+    intervall_duration: u64,
+    seed: Option<u64>,
+    mut rx: broadcast::Receiver<usize>,
+) {
     let env_accounts = EnvAccounts::get_local_test_validator_accounts();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), 10_000_000_000_000)
@@ -303,8 +396,17 @@ pub async fn create_traffic(num_of_intervalls: u64, intervall_duration: u64, see
         Some(seed.unwrap_or_default()),
     )
     .await;
-
+    env.users.remove(0);
+    env.users.push(User {
+        keypair: Keypair::new(),
+        token_accounts: vec![],
+    });
     let user_index = 0;
+
+    env.rpc
+        .airdrop_lamports(&env.users[user_index].keypair.pubkey(), 10_000_000_000_000)
+        .await
+        .unwrap();
     let balance = env
         .rpc
         .get_balance(&env.users[user_index].keypair.pubkey())
@@ -315,10 +417,18 @@ pub async fn create_traffic(num_of_intervalls: u64, intervall_duration: u64, see
     info!("post compress sol");
     {
         for i in 0..num_of_intervalls {
-            info!("Round {} of {}", i, num_of_intervalls);
+            if i % 10 == 0 {
+                info!("Round {} of {}", i, num_of_intervalls);
+            }
             env.transfer_sol(user_index).await;
-            sleep(Duration::from_millis(intervall_duration)).await;
-            env.create_address(None).await;
+            let sleep = sleep(Duration::from_millis(intervall_duration));
+            tokio::select! {
+                _ = rx.recv() => {
+                    info!("Received shutdown signal");
+                    break;
+                }
+                _ = sleep=> {}
+            }
         }
     }
 }

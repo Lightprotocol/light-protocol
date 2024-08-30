@@ -1,3 +1,4 @@
+use log::info;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     pubkey::Pubkey,
@@ -115,6 +116,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
     output_merkle_tree_pubkey: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) -> Result<(), RpcError> {
+    info!("compress_sol_test1");
     let input_lamports = if input_compressed_accounts.is_empty() {
         0
     } else {
@@ -123,6 +125,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
             .map(|x| x.compressed_account.lamports)
             .sum::<u64>()
     };
+    info!("compress_sol_test2");
     let mut output_compressed_accounts = Vec::new();
     output_compressed_accounts.push(CompressedAccount {
         lamports: input_lamports + compress_amount,
@@ -130,6 +133,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
         data: None,
         address: None,
     });
+    info!("compress_sol_test3");
     let mut output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     if create_out_compressed_accounts_for_input_compressed_accounts {
         for compressed_account in input_compressed_accounts.iter() {
@@ -142,6 +146,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
             output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
         }
     }
+    info!("compress_sol_test4");
     let inputs = CompressedTransactionTestInputs {
         rpc,
         test_indexer,
@@ -297,7 +302,10 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
-
+    println!(
+        "input_compressed_accounts: {:?}",
+        inputs.input_compressed_accounts
+    );
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
         for compressed_account in inputs.input_compressed_accounts.iter() {
             compressed_account_hashes.push(
@@ -428,6 +436,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await?
         .unwrap();
+    println!("event: {:?}", event.0);
     if inputs.test_indexer.is_test_indexer() {
         let (created_output_compressed_accounts, _) = inputs
             .test_indexer

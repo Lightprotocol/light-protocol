@@ -65,7 +65,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    fn get_state_merkle_trees(&self) -> &Vec<StateMerkleTreeBundle> {
+    fn get_state_merkle_trees(&self) -> Vec<StateMerkleTreeBundle> {
         unimplemented!()
     }
 
@@ -73,7 +73,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+    fn get_address_merkle_trees(&self) -> Vec<AddressMerkleTreeBundle> {
         unimplemented!()
     }
 
@@ -114,10 +114,12 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    fn get_compressed_accounts_by_owner(
+    #[allow(async_fn_in_trait)]
+    async fn get_compressed_accounts_by_owner(
         &self,
         _owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
+        // TODO: return result
         unimplemented!()
     }
 
@@ -140,6 +142,7 @@ pub struct MerkleProof {
     pub leaf_index: u64,
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
+    pub root: [u8; 32],
     pub root_seq: u64,
 }
 
@@ -153,7 +156,7 @@ pub struct NewAddressProofWithContext {
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
-    pub low_address_proof: [[u8; 32]; 16],
+    pub low_address_proof: Vec<[u8; 32]>,
     pub new_low_element: Option<IndexedElement<usize>>,
     pub new_element: Option<IndexedElement<usize>>,
     pub new_element_next_value: Option<BigUint>,

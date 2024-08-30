@@ -100,6 +100,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             .get_latest_blockhash()
             .await
             .map_err(RpcError::from)?;
+        info!("work items {:?}", work_items.len());
         // 4. Iterate over work items in chunks of batch size.
         for work_items in
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
@@ -110,6 +111,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             {
                 break;
             }
+            info!("epoch {} Sending batch {:?}", epoch, num_batches);
+            info!("chunk {:?}", work_items.len());
             num_batches += 1;
 
             // Minimum time to wait for the next batch of transactions.
@@ -328,8 +331,14 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
             .get_multiple_new_address_proofs(merkle_tree, addresses)
             .await?;
         drop(indexer);
-        for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
+        for (item, mut proof) in address_items.iter().zip(address_proofs.into_iter()) {
+            let mut proof_arr = [[0u8; 32]; 16];
+            let mut proof_vec = proof.low_address_proof.clone();
+            proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+            proof_arr.copy_from_slice(&proof_vec);
+            proof.low_address_proof = proof_arr.to_vec();
             proofs.push(MerkleProofType::AddressProof(proof.clone()));
+
             let instruction = create_update_address_merkle_tree_instruction(
                 UpdateAddressMerkleTreeInstructionInputs {
                     authority,
@@ -340,7 +349,10 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
                     low_address_value: proof.low_address_value,
                     low_address_next_index: proof.low_address_next_index,
                     low_address_next_value: proof.low_address_next_value,
-                    low_address_proof: proof.low_address_proof,
+                    low_address_proof: proof
+                        .low_address_proof
+                        .try_into()
+                        .expect("Proof length is 16."),
                     changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
                     indexed_changelog_index: (proof.root_seq
                         % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
@@ -364,7 +376,12 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
             .get_multiple_compressed_account_proofs(states)
             .await?;
         drop(indexer);
-        for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
+        for (item, mut proof) in state_items.iter().zip(state_proofs.into_iter()) {
+            let mut proof_arr = [[0u8; 32]; 16];
+            let mut proof_vec = proof.proof.clone();
+            proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+            proof_arr.copy_from_slice(&proof_vec);
+            proof.proof = proof_arr.to_vec();
             proofs.push(MerkleProofType::StateProof(proof.clone()));
             let instruction = create_nullify_instruction(
                 CreateNullifyInstructionInputs {

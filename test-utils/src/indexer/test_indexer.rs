@@ -155,6 +155,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
                         root_seq: tree.merkle_tree.sequence_number as u64,
+                        root: tree.merkle_tree.root(),
                     });
                 }
             })
@@ -166,7 +167,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {
-        let result = self.get_compressed_accounts_by_owner(owner);
+        let result = self.get_compressed_accounts_by_owner(owner).await;
         let mut hashes: Vec<String> = Vec::new();
         for account in result.iter() {
             let hash = account.hash().unwrap();
@@ -219,14 +220,14 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             let low_address_next_index: u64 = old_low_address.next_index as u64;
             let low_address_next_value: [u8; 32] =
                 bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-            let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
+            // let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
             let proof = NewAddressProofWithContext {
                 merkle_tree: merkle_tree_pubkey,
                 low_address_index,
                 low_address_value,
                 low_address_next_index,
                 low_address_next_value,
-                low_address_proof,
+                low_address_proof: low_address_proof.to_vec(),
                 root: address_tree_bundle.merkle_tree.root(),
                 root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
                 new_low_element: Some(address_bundle.new_low_element),
@@ -446,16 +447,16 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         (compressed_accounts, token_compressed_accounts)
     }
 
-    fn get_state_merkle_trees(&self) -> &Vec<StateMerkleTreeBundle> {
-        &self.state_merkle_trees
+    fn get_state_merkle_trees(&self) -> Vec<StateMerkleTreeBundle> {
+        self.state_merkle_trees.to_vec()
     }
 
     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
         &mut self.state_merkle_trees
     }
 
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
-        &self.address_merkle_trees
+    fn get_address_merkle_trees(&self) -> Vec<AddressMerkleTreeBundle> {
+        self.address_merkle_trees.to_vec()
     }
 
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
@@ -594,7 +595,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
     /// returns compressed_accounts with the owner pubkey
     /// does not return token accounts.
-    fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
