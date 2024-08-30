@@ -3,7 +3,6 @@ use std::fmt::Display;
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
-use log::info;
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
@@ -165,7 +164,7 @@ impl TreeForesterSchedule {
         tree_accounts: &TreeAccounts,
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
-        epoch_pda: &EpochPda
+        epoch_pda: &EpochPda,
     ) -> Self {
         let mut _self = Self {
             tree_accounts: *tree_accounts,
@@ -414,7 +413,7 @@ impl Epoch {
                 tree,
                 current_solana_slot,
                 forester_epoch_pda,
-                epoch_pda
+                epoch_pda,
             );
             self.merkle_trees.push(tree_schedule);
         }

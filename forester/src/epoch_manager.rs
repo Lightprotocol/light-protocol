@@ -26,12 +26,12 @@ use light_test_utils::forester_epoch::{
 };
 use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use solana_program::pubkey::Pubkey;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
@@ -231,14 +231,20 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         if slot < phases.registration.end {
-            let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
+            let forester_epoch_pda_pubkey =
+                get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
             let existing_registration = rpc
                 .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
                 .await?;
 
             if let Some(existing_pda) = existing_registration {
-                info!("Already registered for epoch {}. Recovering registration info.", epoch);
-                let registration_info = self.recover_registration_info(epoch, forester_epoch_pda_pubkey, existing_pda).await?;
+                info!(
+                    "Already registered for epoch {}. Recovering registration info.",
+                    epoch
+                );
+                let registration_info = self
+                    .recover_registration_info(epoch, forester_epoch_pda_pubkey, existing_pda)
+                    .await?;
                 return Ok(registration_info);
             }
 
@@ -254,7 +260,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     Ok(Some(epoch)) => {
                         info!("Registered epoch: {:?}", epoch);
                         epoch
-                    },
+                    }
                     Ok(None) => {
                         return Err(ForesterError::Custom(
                             "Epoch::register returned None".into(),
@@ -275,7 +281,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     Ok(Some(pda)) => {
                         info!("ForesterEpochPda: {:?}", pda);
                         pda
-                    },
+                    }
                     Ok(None) => {
                         return Err(ForesterError::Custom(
                             "Failed to get ForesterEpochPda: returned None".into(),
@@ -292,9 +298,14 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let epoch_pda_address = get_epoch_pda_address(epoch);
                 let epoch_pda = match rpc
                     .get_anchor_account::<EpochPda>(&epoch_pda_address)
-                    .await? {
+                    .await?
+                {
                     Some(pda) => pda,
-                    None => return Err(ForesterError::Custom("Failed to get EpochPda: returned None".into())),
+                    None => {
+                        return Err(ForesterError::Custom(
+                            "Failed to get EpochPda: returned None".into(),
+                        ))
+                    }
                 };
 
                 ForesterEpochInfo {
@@ -333,9 +344,14 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let epoch_pda_address = get_epoch_pda_address(epoch);
         let epoch_pda = match rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_address)
-            .await? {
+            .await?
+        {
             Some(pda) => pda,
-            None => return Err(ForesterError::Custom("Failed to get EpochPda: returned None".into())),
+            None => {
+                return Err(ForesterError::Custom(
+                    "Failed to get EpochPda: returned None".into(),
+                ))
+            }
         };
 
         let epoch_info = Epoch {
@@ -370,7 +386,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
-        let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch_info.epoch.epoch).0;
+        let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
+            &self.config.payer_keypair.pubkey(),
+            epoch_info.epoch.epoch,
+        )
+        .0;
         let existing_registration = rpc
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?;
@@ -387,7 +407,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &self.config.payer_keypair.pubkey(),
                     &[&self.config.payer_keypair],
                 )
-                    .await?;
+                .await?;
             }
         }
 

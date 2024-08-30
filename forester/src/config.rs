@@ -24,8 +24,12 @@ impl ForesterEpochInfo {
             info!("Adding tree schedule for {:?}", tree);
             info!("Current slot: {}", current_solana_slot);
             info!("Epoch: {:?}", self.epoch_pda);
-            let tree_schedule =
-                TreeForesterSchedule::new_with_schedule(tree, current_solana_slot, &self.forester_epoch_pda, &self.epoch_pda);
+            let tree_schedule = TreeForesterSchedule::new_with_schedule(
+                tree,
+                current_solana_slot,
+                &self.forester_epoch_pda,
+                &self.epoch_pda,
+            );
             self.trees.push(tree_schedule);
         }
     }

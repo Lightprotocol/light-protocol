@@ -472,7 +472,6 @@ async fn assert_foresters_registered(
     Ok(performed_work)
 }
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_epoch_double_registration() {
     println!("*****************************************************************");
@@ -545,7 +544,7 @@ async fn test_epoch_double_registration() {
     let protocol_config = get_protocol_config(&mut *rpc).await;
     let solana_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(solana_slot);
-    
+
     // Attempt to register for the same epoch again
     let (shutdown_sender2, shutdown_receiver2) = oneshot::channel();
     let (work_report_sender2, _work_report_receiver2) = mpsc::channel(100);
@@ -561,8 +560,12 @@ async fn test_epoch_double_registration() {
     sleep(Duration::from_secs(5)).await;
 
     // Send shutdown signals to both services
-    shutdown_sender.send(()).expect("Failed to send shutdown signal");
-    shutdown_sender2.send(()).expect("Failed to send shutdown signal");
+    shutdown_sender
+        .send(())
+        .expect("Failed to send shutdown signal");
+    shutdown_sender2
+        .send(())
+        .expect("Failed to send shutdown signal");
 
     // Wait for both services to complete
     let result1 = service_handle.await.unwrap();
@@ -570,8 +573,11 @@ async fn test_epoch_double_registration() {
 
     // Check if the second registration attempt was handled gracefully
     assert!(result1.is_ok(), "First registration should succeed");
-    assert!(result2.is_ok(), "Second registration should be handled gracefully");
-    
+    assert!(
+        result2.is_ok(),
+        "Second registration should be handled gracefully"
+    );
+
     let forester_epoch_pda_address =
         get_forester_epoch_pda_from_authority(&config.payer_keypair.pubkey(), current_epoch).0;
 
@@ -580,7 +586,10 @@ async fn test_epoch_double_registration() {
         .await
         .unwrap();
 
-    assert!(forester_epoch_pda.is_some(), "Forester should be registered");
+    assert!(
+        forester_epoch_pda.is_some(),
+        "Forester should be registered"
+    );
     let forester_epoch_pda = forester_epoch_pda.unwrap();
     assert_eq!(
         forester_epoch_pda.epoch, current_epoch,
