@@ -1,4 +1,4 @@
-use light_registry::ForesterEpochPda;
+use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use log::info;
 use solana_sdk::pubkey::Pubkey;
@@ -7,7 +7,8 @@ use solana_sdk::signature::Keypair;
 #[derive(Debug, Clone)]
 pub struct ForesterEpochInfo {
     pub epoch: Epoch,
-    pub epoch_pda: ForesterEpochPda,
+    pub epoch_pda: EpochPda,
+    pub forester_epoch_pda: ForesterEpochPda,
     pub trees: Vec<TreeForesterSchedule>,
 }
 
@@ -24,7 +25,7 @@ impl ForesterEpochInfo {
             info!("Current slot: {}", current_solana_slot);
             info!("Epoch: {:?}", self.epoch_pda);
             let tree_schedule =
-                TreeForesterSchedule::new_with_schedule(tree, current_solana_slot, &self.epoch_pda);
+                TreeForesterSchedule::new_with_schedule(tree, current_solana_slot, &self.forester_epoch_pda, &self.epoch_pda);
             self.trees.push(tree_schedule);
         }
     }

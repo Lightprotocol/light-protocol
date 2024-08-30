@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
-
+use log::info;
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
@@ -149,7 +149,7 @@ pub fn get_schedule_for_forester_in_queue(
 pub struct TreeForesterSchedule {
     pub tree_accounts: TreeAccounts,
     /// Vec with the slots that the forester is eligible to perform work.
-    /// Non eligible slots are None.
+    /// Non-eligible slots are None.
     pub slots: Vec<Option<ForesterSlot>>,
 }
 
@@ -165,6 +165,7 @@ impl TreeForesterSchedule {
         tree_accounts: &TreeAccounts,
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
+        epoch_pda: &EpochPda
     ) -> Self {
         let mut _self = Self {
             tree_accounts: *tree_accounts,
@@ -173,7 +174,7 @@ impl TreeForesterSchedule {
         _self.slots = get_schedule_for_forester_in_queue(
             solana_slot,
             &_self.tree_accounts.queue,
-            forester_epoch_pda.total_epoch_weight.unwrap(),
+            epoch_pda.registered_weight,
             forester_epoch_pda,
         );
         _self
@@ -392,7 +393,7 @@ impl Epoch {
         if forester_epoch_pda.total_epoch_weight.is_none() {
             forester_epoch_pda.total_epoch_weight = Some(epoch_pda.registered_weight);
         }
-        self.add_trees_with_schedule(&forester_epoch_pda, trees, current_solana_slot);
+        self.add_trees_with_schedule(&forester_epoch_pda, &epoch_pda, trees, current_solana_slot);
         Ok(())
     }
     /// Internal function to init Epoch struct with registered account
@@ -402,6 +403,7 @@ impl Epoch {
     pub fn add_trees_with_schedule(
         &mut self,
         forester_epoch_pda: &ForesterEpochPda,
+        epoch_pda: &EpochPda,
         trees: &[TreeAccounts],
         current_solana_slot: u64,
     ) {
@@ -412,6 +414,7 @@ impl Epoch {
                 tree,
                 current_solana_slot,
                 forester_epoch_pda,
+                epoch_pda
             );
             self.merkle_trees.push(tree_schedule);
         }
