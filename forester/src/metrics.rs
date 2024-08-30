@@ -2,6 +2,7 @@ use crate::Result;
 use lazy_static::lazy_static;
 use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
 use reqwest::Client;
+use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tracing::{error, info};
@@ -46,22 +47,25 @@ lazy_static! {
         Mutex::new(Vec::new());
 }
 
+static INIT: Once = Once::new();
 pub fn register_metrics() {
-    REGISTRY
-        .register(Box::new(QUEUE_LENGTH.clone()))
-        .expect("collector can be registered");
-    REGISTRY
-        .register(Box::new(LAST_RUN_TIMESTAMP.clone()))
-        .expect("collector can be registered");
-    REGISTRY
-        .register(Box::new(TRANSACTIONS_PROCESSED.clone()))
-        .expect("collector can be registered");
-    REGISTRY
-        .register(Box::new(TRANSACTION_TIMESTAMP.clone()))
-        .expect("collector can be registered");
-    REGISTRY
-        .register(Box::new(TRANSACTION_RATE.clone()))
-        .expect("collector can be registered");
+    INIT.call_once(|| {
+        REGISTRY
+            .register(Box::new(QUEUE_LENGTH.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(LAST_RUN_TIMESTAMP.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(TRANSACTIONS_PROCESSED.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(TRANSACTION_TIMESTAMP.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(TRANSACTION_RATE.clone()))
+            .expect("collector can be registered");
+    });
 }
 
 pub fn update_last_run_timestamp() {
