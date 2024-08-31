@@ -88,3 +88,5 @@ for r1cs_file in "$OUTPUT_DIR"/*.r1cs; do
 done
 
 echo "All .ph2 files have been generated in $PH2_OUTPUT_DIR"
+
+
