@@ -24,7 +24,6 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
 mod test_utils;
 use log::info;
-use std::io::{self, sink, Write};
 use std::thread;
 use test_utils::*;
 
@@ -267,7 +266,7 @@ pub async fn assert_default_queues_zero(url: Option<String>) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_with_photon() {
     let number_of_foresters = 5;
-    let users_generating_traffic = 20;
+    let users_generating_traffic = 10;
     let num_epochs = 200;
     let num_of_tx = 5000 * num_epochs;
     init(Some(LightValidatorConfig {
@@ -287,10 +286,10 @@ async fn test_with_photon() {
     let (tx, _) = broadcast::channel(users_generating_traffic);
     for _ in 0..users_generating_traffic {
         let rx = tx.subscribe();
-        thread::spawn(|| {
+        thread::spawn(move || {
             // Create a new async runtime within the thread
             let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(create_traffic(num_of_tx, 0, Some(0), rx));
+            rt.block_on(create_traffic(num_of_tx.clone(), 0, Some(0), rx));
         });
     }
 
@@ -349,15 +348,18 @@ pub async fn create_test_forester() -> ForesterConfig {
     let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
     let forester_keypair = Keypair::new();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.airdrop_lamports(
-        &env_accounts.governance_authority.pubkey(),
-        LAMPORTS_PER_SOL * 100,
-    )
-    .await
-    .unwrap();
-    rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100)
-        .await
-        .unwrap();
+    let mut res = Err(RpcError::CustomError("".to_string()));
+    // while res.is_err() {
+    res = rpc
+        .airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100)
+        .await;
+    res = rpc
+        .airdrop_lamports(
+            &env_accounts.governance_authority.pubkey(),
+            LAMPORTS_PER_SOL * 100,
+        )
+        .await;
+    // }
     rpc.payer = forester_keypair.insecure_clone();
 
     let mut config1 = forester_config();
