@@ -12,9 +12,9 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
 
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
+use forester_utils::rpc::errors::RpcError;
+use forester_utils::rpc::RpcConnection;
+use forester_utils::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,

@@ -1,5 +1,6 @@
-use crate::{get_hash_set, rpc::rpc_connection::RpcConnection, AccountZeroCopy};
 use account_compression::{QueueAccount, QueueMetadata, QueueType, RolloverMetadata};
+use forester_utils::rpc::RpcConnection;
+use forester_utils::{get_hash_set, AccountZeroCopy};
 use light_utils::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 

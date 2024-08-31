@@ -1,13 +1,6 @@
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
-use crate::create_account_instruction;
-use crate::forester_epoch::{Epoch, TreeAccounts, TreeType};
-use crate::registry::register_test_forester;
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::rpc::solana_rpc::SolanaRpcUrl;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
-use crate::rpc::SolanaRpcConnection;
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
@@ -15,6 +8,12 @@ use account_compression::{
 };
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueType};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
+use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
+use forester_utils::registry::register_test_forester;
+use forester_utils::rpc::errors::RpcError;
+use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
+use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
+use forester_utils::{airdrop_lamports, create_account_instruction};
 use light_hasher::Poseidon;
 use light_macros::pubkey;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
@@ -297,8 +296,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
-    use crate::airdrop_lamports;
-
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
@@ -853,7 +850,7 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Pubkey,
-) -> Result<Pubkey, crate::rpc::errors::RpcError> {
+) -> Result<Pubkey, RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
         governance_authority.pubkey(),
@@ -884,7 +881,7 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,
-) -> Result<Pubkey, crate::rpc::errors::RpcError> {
+) -> Result<Pubkey, forester_utils::rpc::errors::RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_deregister_program_instruction(
         governance_authority.pubkey(),

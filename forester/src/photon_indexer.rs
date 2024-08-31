@@ -1,7 +1,7 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use forester_utils::rpc::RpcConnection;
 use log::{debug, info};
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;

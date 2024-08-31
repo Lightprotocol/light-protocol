@@ -1,9 +1,4 @@
-use solana_sdk::signature::Signature;
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::{Keypair, Signer},
-};
-
+use forester_utils::indexer::Indexer;
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
@@ -16,14 +11,18 @@ use light_system_program::{
     },
     NewAddressParams,
 };
+use solana_sdk::signature::Signature;
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+};
 
 use crate::assert_compressed_tx::{
     assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
 };
-use crate::indexer::Indexer;
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
+use forester_utils::rpc::errors::RpcError;
+use forester_utils::rpc::RpcConnection;
+use forester_utils::transaction_params::TransactionParams;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(

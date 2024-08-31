@@ -42,6 +42,7 @@ light-indexed-merkle-tree = {path = "../../merkle-tree/indexed"}
 light-merkle-tree-reference = {path = "../../merkle-tree/reference"}
 light-bounded-vec = {path = "../../merkle-tree/bounded-vec"}
 light-utils = {path = "../../utils"}
+forester-utils = {path = "../../forester-utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}
 rand = "0.8"
 solana-cli-output = { workspace = true }

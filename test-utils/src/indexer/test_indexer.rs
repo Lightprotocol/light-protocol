@@ -4,18 +4,28 @@ use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use crate::e2e_test_env::KeypairActionConfig;
+use crate::{
+    spl::create_initialize_mint_instructions,
+    test_env::create_address_merkle_tree_and_queue_account,
+};
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
+use forester_utils::indexer::{
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof,
+    NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+    TokenDataWithContext,
+};
+use forester_utils::rpc::RpcConnection;
+use forester_utils::transaction_params::FeeConfig;
+use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
-    crate::{
-        create_account_instruction,
-        test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
-    },
+    crate::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     account_compression::{
         utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
@@ -58,50 +68,6 @@ use {
     std::time::Duration,
 };
 
-use crate::e2e_test_env::KeypairActionConfig;
-use crate::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
-use crate::transaction_params::FeeConfig;
-use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
-use crate::{
-    rpc::rpc_connection::RpcConnection, spl::create_initialize_mint_instructions,
-    test_env::create_address_merkle_tree_and_queue_account,
-};
-
-#[derive(Debug)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<u16>,
-    pub address_root_indices: Vec<u16>,
-}
-
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct StateMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub nullifier_queue: Pubkey,
-    pub cpi_context: Pubkey,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct AddressMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub queue: Pubkey,
-}
-
-#[derive(Debug, Clone)]
-pub struct StateMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<MerkleTree<Poseidon>>,
-    pub accounts: StateMerkleTreeAccounts,
-}
-
-#[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
-    pub accounts: AddressMerkleTreeAccounts,
-}
-
 // TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
 #[derive(Debug)]
 pub struct TestIndexer<R: RpcConnection> {
@@ -116,12 +82,6 @@ pub struct TestIndexer<R: RpcConnection> {
     pub events: Vec<PublicTransactionEvent>,
     pub proof_types: Vec<ProofType>,
     phantom: PhantomData<R>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TokenDataWithContext {
-    pub token_data: TokenData,
-    pub compressed_account: CompressedAccountWithMerkleContext,
 }
 
 impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {

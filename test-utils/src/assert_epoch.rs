@@ -1,4 +1,4 @@
-use crate::rpc::rpc_connection::RpcConnection;
+use forester_utils::rpc::RpcConnection;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     utils::{get_epoch_pda_address, get_forester_pda, get_protocol_config_pda_address},

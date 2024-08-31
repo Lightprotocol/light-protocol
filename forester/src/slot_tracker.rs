@@ -1,4 +1,4 @@
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use forester_utils::rpc::RpcConnection;
 use log::{debug, error};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;

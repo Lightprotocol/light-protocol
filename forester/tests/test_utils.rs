@@ -5,10 +5,10 @@ use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::ForesterConfig;
+use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
+use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
-use light_test_utils::indexer::{Indexer, NewAddressProofWithContext, TestIndexer};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::SolanaRpcConnection;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::test_env::get_test_env_accounts;
 use log::{debug, info};
 use solana_sdk::signature::{Keypair, Signer};
@@ -217,7 +217,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection>
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
+    let accs: Result<Vec<String>, IndexerError> = indexer
         .get_rpc_compressed_accounts_by_owner(user_pubkey)
         .await;
     for account_hash in accs.unwrap() {

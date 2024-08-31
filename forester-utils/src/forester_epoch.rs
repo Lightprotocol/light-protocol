@@ -1,5 +1,6 @@
 use std::fmt::Display;
 // TODO: move into separate forester utils crate
+use crate::rpc::{RpcConnection, RpcError};
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
@@ -10,8 +11,6 @@ use light_registry::{
     EpochPda, ForesterEpochPda,
 };
 use solana_sdk::signature::{Keypair, Signature, Signer};
-
-use crate::rpc::{errors::RpcError, rpc_connection::RpcConnection};
 
 // What does the forester need to know?
 // What are my public keys (current epoch account, last epoch account, known Merkle trees)

@@ -1,5 +1,5 @@
+use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_registry::{EpochPda, ForesterEpochPda};
-use light_test_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use log::info;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;

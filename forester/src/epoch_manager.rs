@@ -15,17 +15,17 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 
 use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
+use forester_utils::forester_epoch::{
+    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
+};
+use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
+use forester_utils::rpc::RpcConnection;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
 };
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
-use light_test_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-};
-use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;

@@ -25,6 +25,7 @@ account-compression = { path = "../../programs/account-compression" , features =
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
 light-utils = {path = "../../utils"}
+forester-utils = {path = "../../forester-utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
