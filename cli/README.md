@@ -88,7 +88,7 @@ solana balance
 
 Now you're all set up to run CLI commands :)
 
-#### Using ZK Testnet
+#### Using Devnet
 
 By default, the CLI interacts with localnet. You can view the current config by running:
 
@@ -96,7 +96,7 @@ By default, the CLI interacts with localnet. You can view the current config by 
 light config --get
 ```
 
-To switch to ZK Testnet, run:
+To switch to Devnet, point the URLs to an RPC supporting ZK Compression. For example, run:
 
 ```bash
   light config --indexerUrl "https://devnet.helius-rpc.com/?api-key=<api-key>" \
