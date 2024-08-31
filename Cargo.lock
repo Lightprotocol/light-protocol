@@ -8219,6 +8219,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "forester-utils",
  "light-compressed-token",
  "light-hasher",
  "light-prover-client",
