@@ -99,16 +99,16 @@ light config --get
 To switch to ZK Testnet, run:
 
 ```bash
-  light config --indexerUrl "https://zk-testnet.helius.dev:8784" \
-    --proverUrl "https://zk-testnet.helius.dev:3001" \
-    --solanaRpcUrl "https://zk-testnet.helius.dev:8899"
+  light config --indexerUrl "https://devnet.helius-rpc.com/?api-key=<api-key>" \
+    --proverUrl "https://devnet.helius-rpc.com/?api-key=<api-key>" \
+    --solanaRpcUrl "https://devnet.helius-rpc.com/?api-key=<api-key>"
 ```
 
 Also adjust your solana config:
 
 ```bash
 # Set config
-solana config set --url "https://zk-testnet.helius.dev:8899"
+solana config set --url "https://devnet.helius-rpc.com/?api-key=<api-key>"
 
 # Airdrop 1 SOL
 solana airdrop 1
