@@ -14,6 +14,12 @@
 # - Proper permissions to access the specified S3 bucket
 # - For the first user (Alice), manually uploaded initial files to the S3 bucket
 #   with names like 'inclusion_26_1_contribution_0.ph2'
+# - Set up the S3 bucket:
+#   - Place all files in the root bucket
+#   - Enable WORM (Write Once Read Many) model
+#   - Enable S3 versioning
+#   - Set up IAM roles and bucket policies to restrict access
+#   - Enable server-side encryption
 
 create_presigned_url() {
     local bucket_name=$1

@@ -47,18 +47,18 @@ generate_r1cs() {
 
 # Generate R1CS for inclusion circuits
 for accounts in 1 2 3 4 8; do
-    generate_r1cs "inclusion" "$accounts" "0" "26" "inclusion_26_${accounts}.r1cs"
+    generate_r1cs "inclusion" "$accounts" "0" "26" "inclusion_26_${accounts}_contribution_0.r1cs"
 done
 
 # Generate R1CS for non-inclusion circuits
 for accounts in 1 2; do
-    generate_r1cs "non-inclusion" "0" "$accounts" "26" "non-inclusion_26_${accounts}.r1cs"
+    generate_r1cs "non-inclusion" "0" "$accounts" "26" "non-inclusion_26_${accounts}_contribution_0.r1cs"
 done
 
 # Generate R1CS for combined circuits
 for inclusion_accounts in 1 2 3 4; do
     for non_inclusion_accounts in 1 2; do
-        generate_r1cs "combined" "$inclusion_accounts" "$non_inclusion_accounts" "26" "combined_26_${inclusion_accounts}_${non_inclusion_accounts}.r1cs"
+        generate_r1cs "combined" "$inclusion_accounts" "$non_inclusion_accounts" "26" "combined_26_${inclusion_accounts}_${non_inclusion_accounts}_contribution_0.r1cs"
     done
 done
 

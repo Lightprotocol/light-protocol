@@ -78,6 +78,20 @@ if [ $(($# - $separator_index - 1)) -ne $((${#PH2_FILES[@]} + 1)) ]; then
     echo "Error: Number of upload URLs ($((${#PH2_FILES[@]} + 1))) does not match the number of PH2 files plus one for the contribution file."
     exit 1
 fi
+# Check if curl is installed, install if not present
+if ! command -v curl &> /dev/null; then
+    echo "curl is not installed. Attempting to install..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y curl
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y curl
+    elif command -v brew &> /dev/null; then
+        brew install curl
+    else
+        echo "Error: Unable to install curl. Please install it manually and try again."
+        exit 1
+    fi
+fi
 
 # Process each download URL
 for i in "${!PH2_FILES[@]}"; do
