@@ -56,7 +56,7 @@ where
 
 impl<T> LightAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn new_init(
         seeds: &[&[u8]],
@@ -206,7 +206,7 @@ where
 
 impl<T> LightInitAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + Default + DataHasher + Discriminator,
 {
     pub fn new<'a>(
         seeds: &'a [&'a [u8]],
@@ -216,7 +216,7 @@ where
         address_merkle_tree_root_index: u16,
         remaining_accounts: &[AccountInfo],
     ) -> Self {
-        let output_account = unsafe { mem::zeroed() };
+        let output_account = T::default();
 
         let unpacked_address_merkle_context =
             unpack_address_merkle_context(*address_merkle_context, remaining_accounts);

@@ -77,8 +77,14 @@ impl AsByteVec for RData {
     }
 }
 
+impl Default for RData {
+    fn default() -> Self {
+        Self::A(Ipv4Addr::new(127, 0, 0, 1))
+    }
+}
+
 #[light_account]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NameRecord {
     #[truncate]
     pub owner: Pubkey,
