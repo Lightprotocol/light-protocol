@@ -11,12 +11,6 @@ use account_compression::{
 use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use forester_utils::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
-use forester_utils::rpc::{assert_rpc_error, RpcConnection, RpcError};
-use forester_utils::transaction_params::FeeConfig;
-use forester_utils::{
-    airdrop_lamports, create_account_instruction, get_hash_set, get_indexed_merkle_tree,
-};
 use light_bounded_vec::BoundedVecError;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
@@ -32,6 +26,11 @@ use light_test_utils::{
     },
     test_env::create_address_merkle_tree_and_queue_account,
     test_forester::{empty_address_queue_test, insert_addresses},
+};
+use light_test_utils::{
+    airdrop_lamports, assert_rpc_error, create_account_instruction, get_hash_set,
+    get_indexed_merkle_tree, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, FeeConfig,
+    RpcConnection, RpcError,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;

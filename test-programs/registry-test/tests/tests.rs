@@ -4,13 +4,6 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
-use forester_utils::registry::{
-    create_rollover_address_merkle_tree_instructions,
-    create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
-};
-use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
-use forester_utils::rpc::{assert_rpc_error, RpcConnection, SolanaRpcConnection};
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -41,6 +34,11 @@ use light_test_utils::test_env::{
 };
 use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with_accounts};
 use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
+use light_test_utils::{
+    assert_rpc_error, create_rollover_address_merkle_tree_instructions,
+    create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
+    Epoch, RpcConnection, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts, TreeType,
+};
 use solana_sdk::{
     instruction::Instruction,
     native_token::LAMPORTS_PER_SOL,

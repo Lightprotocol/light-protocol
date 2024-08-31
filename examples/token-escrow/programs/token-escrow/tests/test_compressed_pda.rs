@@ -14,9 +14,6 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
-use forester_utils::indexer::Indexer;
-use forester_utils::rpc::{RpcConnection, RpcError};
-use forester_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_hasher::{Hasher, Poseidon};
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::MerkleContext;
@@ -25,6 +22,7 @@ use light_system_program::NewAddressParams;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_test_utils::{FeeConfig, Indexer, RpcConnection, RpcError, TransactionParams};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::Keypair;
 use solana_sdk::{signer::Signer, transaction::Transaction};

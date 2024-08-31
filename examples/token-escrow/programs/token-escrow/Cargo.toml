@@ -34,7 +34,6 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 solana-program-test = { workspace = true }
 light-test-utils = { version = "0.5.0", path = "../../../../test-utils" }
-forester-utils = { path = "../../../../forester-utils" }
 reqwest = "0.12"
 tokio = { workspace = true }
 light-prover-client = { path = "../../../../circuit-lib/light-prover-client", version = "0.5.0" }

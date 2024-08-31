@@ -1,4 +1,3 @@
-use forester_utils::rpc::errors::RpcError;
 use solana_sdk::{instruction::InstructionError, transaction};
 
 pub mod address_tree_rollover;
@@ -19,6 +18,22 @@ pub mod system_program;
 pub mod test_env;
 #[allow(unused)]
 pub mod test_forester;
+
+pub use forester_utils::{
+    airdrop_lamports, create_account_instruction,
+    forester_epoch::{Epoch, TreeAccounts, TreeType},
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
+    indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, TokenDataWithContext},
+    registry::{
+        create_rollover_address_merkle_tree_instructions,
+        create_rollover_state_merkle_tree_instructions, register_test_forester,
+        update_test_forester,
+    },
+    rpc::solana_rpc::SolanaRpcUrl,
+    rpc::{assert_rpc_error, RpcConnection, RpcError, SolanaRpcConnection},
+    transaction_params::{FeeConfig, TransactionParams},
+    AccountZeroCopy,
+};
 
 /// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code
 /// or a program error.

@@ -38,6 +38,5 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 light-test-utils = { path = "../../../../test-utils", version = "0.5.0" }
-forester-utils = { path = "../../../../forester-utils" }
 solana-program-test = { workspace = true }
 tokio = "1.36.0"
