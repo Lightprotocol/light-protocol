@@ -10,7 +10,7 @@
 
 #[derive(Debug, Clone)]
 pub struct Configuration {
-    pub base_path: String,
+    pub base_path: String, // TODO: rename to url
     pub user_agent: Option<String>,
     pub client: reqwest::Client,
     pub basic_auth: Option<BasicAuth>,

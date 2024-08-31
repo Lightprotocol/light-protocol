@@ -170,7 +170,8 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -273,7 +274,8 @@ async fn only_test_create_pda() {
                 26, 211, 193, 195, 11, 219, 9, 155, 58, 172, 58, 200, 254, 75, 231, 106, 31, 168,
                 183, 76, 179, 113, 234, 101, 191, 99, 156, 98,
             ];
-            let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+            let compressed_account =
+                test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
             let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
             let result = transfer_compressed_sol_test(
                 &mut rpc,
@@ -354,7 +356,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
     // 1. Approve functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -381,7 +384,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 2. Revoke functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey())
             .iter()
@@ -407,7 +411,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 3. Freeze functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -430,7 +435,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 4. Thaw functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -452,7 +458,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 5. Burn functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&ID).await[0].clone();
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(

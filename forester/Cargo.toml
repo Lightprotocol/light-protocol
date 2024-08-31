@@ -52,6 +52,9 @@ tracing-appender = "0.2.3"
 prometheus = "0.13"
 lazy_static = "1.4"
 warp = "0.3"
+num-traits = "0.2.19"
+num-bigint = "0.4"
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.5.0" }
 
 [dev-dependencies]
 function_name = "0.3.0"

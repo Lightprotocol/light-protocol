@@ -105,19 +105,21 @@ pub async fn mint_tokens_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
         .unwrap()
         .unwrap();
 
-    let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-    assert_mint_to(
-        rpc,
-        test_indexer,
-        &recipients,
-        *mint,
-        amounts.as_slice(),
-        &snapshots,
-        &created_token_accounts,
-        previous_mint_supply,
-        previous_pool_amount,
-    )
-    .await;
+    if test_indexer.is_test_indexer() {
+        let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
+        assert_mint_to(
+            rpc,
+            test_indexer,
+            &recipients,
+            *mint,
+            amounts.as_slice(),
+            &snapshots,
+            &created_token_accounts,
+            previous_mint_supply,
+            previous_pool_amount,
+        )
+        .await;
+    }
 }
 
 pub async fn create_token_pool<R: RpcConnection>(
@@ -449,36 +451,37 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap()
         .unwrap();
-
-    let (created_change_output_account, created_token_output_accounts) =
-        test_indexer.add_event_and_compressed_accounts(&event);
-    let delegates = if let Some(index) = delegate_change_account_index {
-        let mut delegates = vec![None; created_token_output_accounts.len()];
-        delegates[index as usize] = Some(payer.pubkey());
-        Some(delegates)
-    } else {
-        None
-    };
-    let mut created_output_accounts = Vec::new();
-    created_token_output_accounts.iter().for_each(|x| {
-        created_output_accounts.push(x.compressed_account.clone());
-    });
-    created_change_output_account.iter().for_each(|x| {
-        created_output_accounts.push(x.clone());
-    });
-    assert_transfer(
-        rpc,
-        test_indexer,
-        &output_compressed_accounts,
-        created_output_accounts.as_slice(),
-        lamports,
-        &input_compressed_account_hashes,
-        &snapshots,
-        &input_snapshots,
-        &event,
-        delegates,
-    )
-    .await;
+    if test_indexer.is_test_indexer() {
+        let (created_change_output_account, created_token_output_accounts) =
+            test_indexer.add_event_and_compressed_accounts(&event);
+        let delegates = if let Some(index) = delegate_change_account_index {
+            let mut delegates = vec![None; created_token_output_accounts.len()];
+            delegates[index as usize] = Some(payer.pubkey());
+            Some(delegates)
+        } else {
+            None
+        };
+        let mut created_output_accounts = Vec::new();
+        created_token_output_accounts.iter().for_each(|x| {
+            created_output_accounts.push(x.compressed_account.clone());
+        });
+        created_change_output_account.iter().for_each(|x| {
+            created_output_accounts.push(x.clone());
+        });
+        assert_transfer(
+            rpc,
+            test_indexer,
+            &output_compressed_accounts,
+            created_output_accounts.as_slice(),
+            lamports,
+            &input_compressed_account_hashes,
+            &snapshots,
+            &input_snapshots,
+            &event,
+            delegates,
+        )
+        .await;
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -677,38 +680,40 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         .unwrap()
         .unwrap();
 
-    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
+    if test_indexer.is_test_indexer() {
+        let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
-    assert_transfer(
-        rpc,
-        test_indexer,
-        &[output_compressed_account],
-        created_output_accounts
-            .iter()
-            .map(|x| x.compressed_account.clone())
-            .collect::<Vec<_>>()
-            .as_slice(),
-        None,
-        Vec::new().as_slice(),
-        &output_merkle_tree_test_snapshots,
-        &input_merkle_tree_test_snapshots,
-        &event,
-        None,
-    )
-    .await;
+        assert_transfer(
+            rpc,
+            test_indexer,
+            &[output_compressed_account],
+            created_output_accounts
+                .iter()
+                .map(|x| x.compressed_account.clone())
+                .collect::<Vec<_>>()
+                .as_slice(),
+            None,
+            Vec::new().as_slice(),
+            &output_merkle_tree_test_snapshots,
+            &input_merkle_tree_test_snapshots,
+            &event,
+            None,
+        )
+        .await;
 
-    let recipient_token_account_data = spl_token::state::Account::unpack(
-        &rpc.get_account(*sender_token_account)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-    assert_eq!(
-        recipient_token_account_data.amount,
-        recipient_token_account_data_pre.amount - amount
-    );
+        let recipient_token_account_data = spl_token::state::Account::unpack(
+            &rpc.get_account(*sender_token_account)
+                .await
+                .unwrap()
+                .unwrap()
+                .data,
+        )
+        .unwrap();
+        assert_eq!(
+            recipient_token_account_data.amount,
+            recipient_token_account_data_pre.amount - amount
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -186,8 +186,10 @@ pub async fn failing_transaction_inputs(
     }
     let (mut new_address_params, derived_addresses) =
         create_address_test_inputs(env, num_addresses);
-    let input_compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&payer.pubkey())[0..num_inputs].to_vec();
+    let input_compressed_accounts = test_indexer
+        .get_compressed_accounts_by_owner(&payer.pubkey())
+        .await[0..num_inputs]
+        .to_vec();
     let hashes = input_compressed_accounts
         .iter()
         .map(|x| x.hash().unwrap())
@@ -1300,7 +1302,8 @@ async fn test_with_address() {
     ];
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
         let compressed_input_accounts = test_indexer
-            .get_compressed_accounts_by_owner(&payer_pubkey)[0..n_input_compressed_accounts]
+            .get_compressed_accounts_by_owner(&payer_pubkey)
+            .await[0..n_input_compressed_accounts]
             .to_vec();
         let mut address_vec = Vec::new();
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
@@ -1479,8 +1482,10 @@ async fn test_with_compression() {
     assert_custom_error_or_program_error(result, SystemProgramError::SumCheckFailed.into())
         .unwrap();
 
-    let compressed_account_with_context =
-        test_indexer.get_compressed_accounts_by_owner(&payer_pubkey)[0].clone();
+    let compressed_account_with_context = test_indexer
+        .get_compressed_accounts_by_owner(&payer_pubkey)
+        .await[0]
+        .clone();
     decompress_sol_test(
         &mut context,
         &mut test_indexer,
