@@ -81,7 +81,8 @@ class SetupCommand extends Command {
       default: "127.0.0.1",
     }),
     stop: Flags.boolean({
-      description: "Stops the test validator and dependent processes.",
+      description:
+        "Stops the test validator and dependent processes. Use with --skip-indexer, --skip-prover, --skip-forester to keep specific services running.",
       required: false,
       default: false,
     }),

@@ -40,9 +40,9 @@ export async function stopTestEnv(options: {
       killFunction: killTestValidator,
     },
   ];
-
-  for (const process of processesToKill) {
-    if (process.condition) {
+  const killPromises = processesToKill
+    .filter((process) => process.condition)
+    .map(async (process) => {
       try {
         if (process.killFunction) {
           await process.killFunction();
@@ -51,8 +51,9 @@ export async function stopTestEnv(options: {
       } catch (error) {
         console.error(`Failed to stop ${process.name}:`, error);
       }
-    }
-  }
+    });
+
+  await Promise.all(killPromises);
 
   console.log("All specified processes and validator stopped.");
 }
