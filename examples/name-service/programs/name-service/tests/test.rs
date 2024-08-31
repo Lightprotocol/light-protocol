@@ -3,6 +3,8 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use forester_utils::indexer::Indexer;
+use forester_utils::rpc::RpcConnection;
 use light_sdk::address::derive_address_seed;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, pack_merkle_output_context,
@@ -10,8 +12,7 @@ use light_sdk::merkle_context::{
 };
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_test_utils::indexer::{test_indexer::TestIndexer, Indexer};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::indexer::test_indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use name_service::{NameRecord, RData};
