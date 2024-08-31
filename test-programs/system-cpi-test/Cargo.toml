@@ -28,7 +28,6 @@ light-registry = { path = "../../programs/registry", version = "0.7.0", features
 account-compression = { path = "../../programs/account-compression", version = "0.7.0", features = ["cpi"] }
 light-hasher = { path = "../../merkle-tree/hasher", version = "0.5.0" }
 light-utils = { path = "../../utils", version = "0.5.0" }
-forester-utils = { path = "../../forester-utils" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -43,3 +42,4 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
+forester-utils = { path = "../../forester-utils" }
