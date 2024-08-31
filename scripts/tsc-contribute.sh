@@ -9,7 +9,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$REPO_ROOT"
 
-# Hardcoded array of ph2 file names
+# Names of phase2 files to download
 PH2_FILES=(
     "inclusion_26_1.ph2"
     "inclusion_26_2.ph2"
