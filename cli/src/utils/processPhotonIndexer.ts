@@ -38,7 +38,7 @@ export async function startIndexer(
   }
 }
 
-async function killIndexer() {
+export async function killIndexer() {
   await killProcess(INDEXER_PROCESS_NAME);
 }
 

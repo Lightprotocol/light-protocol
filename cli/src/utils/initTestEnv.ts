@@ -17,9 +17,45 @@ import {
   killProcess,
   waitForServers,
 } from "./process";
-import { startProver } from "./processProverServer";
-import { startIndexer } from "./processPhotonIndexer";
-import { startForester } from "./processForester";
+import { killProver, startProver } from "./processProverServer";
+import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import { killForester, startForester } from "./processForester";
+
+export async function stopTestEnv(options: {
+  forester: boolean;
+  indexer: boolean;
+  prover: boolean;
+}) {
+  const processesToKill = [
+    { name: "photon", condition: options.indexer, killFunction: killIndexer },
+    { name: "prover", condition: options.prover, killFunction: killProver },
+    {
+      name: "forester",
+      condition: options.forester,
+      killFunction: killForester,
+    },
+    {
+      name: "test-validator",
+      condition: true,
+      killFunction: killTestValidator,
+    },
+  ];
+
+  for (const process of processesToKill) {
+    if (process.condition) {
+      try {
+        if (process.killFunction) {
+          await process.killFunction();
+        }
+        console.log(`${process.name} stopped successfully.`);
+      } catch (error) {
+        console.error(`Failed to stop ${process.name}:`, error);
+      }
+    }
+  }
+
+  console.log("All specified processes and validator stopped.");
+}
 
 export async function initTestEnv({
   additionalPrograms,
@@ -52,8 +88,6 @@ export async function initTestEnv({
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
 }) {
-  console.log("Performing setup tasks...\n");
-
   const initAccounts = async () => {
     const anchorProvider = await setAnchorProvider();
     const payer = await getPayer();

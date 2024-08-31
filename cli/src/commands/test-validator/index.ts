@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { initTestEnv } from "../../utils/initTestEnv";
+import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
 import { CustomLoader } from "../../utils/index";
 
 class SetupCommand extends Command {
@@ -80,29 +80,43 @@ class SetupCommand extends Command {
       required: false,
       default: "127.0.0.1",
     }),
+    stop: Flags.boolean({
+      description: "Stops the test validator and dependent processes.",
+      required: false,
+      default: false,
+    }),
   };
 
   async run() {
     const { flags } = await this.parse(SetupCommand);
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
-    await initTestEnv({
-      checkPhotonVersion: !flags["relax-indexer-version-constraint"],
-      forester: !flags["skip-forester"],
-      indexer: !flags["skip-indexer"],
-      limitLedgerSize: flags["limit-ledger-size"],
-      photonDatabaseUrl: flags["indexer-db-url"],
-      rpcPort: flags["rpc-port"],
-      gossipHost: flags["gossip-host"],
-      indexerPort: flags["indexer-port"],
-      proverPort: flags["prover-port"],
-      proveCompressedAccounts: flags["prove-compressed-accounts"],
-      proveNewAddresses: flags["prove-new-addresses"],
-      prover: !flags["skip-prover"],
-      skipSystemAccounts: flags["skip-system-accounts"],
-    });
 
-    this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
+    if (flags["stop"] === true) {
+      await stopTestEnv({
+        forester: !flags["skip-forester"],
+        indexer: !flags["skip-indexer"],
+        prover: !flags["skip-prover"],
+      });
+      this.log("\nTest validator stopped successfully \x1b[32m✔\x1b[0m");
+    } else {
+      await initTestEnv({
+        checkPhotonVersion: !flags["relax-indexer-version-constraint"],
+        forester: !flags["skip-forester"],
+        indexer: !flags["skip-indexer"],
+        limitLedgerSize: flags["limit-ledger-size"],
+        photonDatabaseUrl: flags["indexer-db-url"],
+        rpcPort: flags["rpc-port"],
+        gossipHost: flags["gossip-host"],
+        indexerPort: flags["indexer-port"],
+        proverPort: flags["prover-port"],
+        proveCompressedAccounts: flags["prove-compressed-accounts"],
+        proveNewAddresses: flags["prove-new-addresses"],
+        prover: !flags["skip-prover"],
+        skipSystemAccounts: flags["skip-system-accounts"],
+      });
+      this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
+    }
   }
 }
 
