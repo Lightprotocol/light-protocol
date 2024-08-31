@@ -1,7 +1,4 @@
-use std::{
-    mem,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AccountInfo, Key, ProgramError, Pubkey, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -18,10 +15,10 @@ pub use light_system_program::{
 use crate::{
     address::derive_address_seed,
     merkle_context::{
-        pack_merkle_context, AddressMerkleContext, PackedAddressMerkleContext,
-        PackedMerkleOutputContext, RemainingAccounts,
+        pack_merkle_context, PackedAddressMerkleContext, PackedMerkleOutputContext,
+        RemainingAccounts,
     },
-    program_merkle_context::{pack_address_merkle_context, unpack_address_merkle_context},
+    program_merkle_context::unpack_address_merkle_context,
 };
 
 pub trait LightAccounts: Sized {

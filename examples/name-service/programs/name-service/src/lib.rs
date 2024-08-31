@@ -4,22 +4,11 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
-    address::derive_address_seed,
-    compressed_account::{
-        input_compressed_account, new_compressed_account, output_compressed_account, LightAccount,
-    },
-    context::LightContext,
+    compressed_account::LightAccount,
     light_account, light_accounts, light_program,
-    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
-    program_merkle_context::unpack_address_merkle_context,
-    utils::{
-        create_cpi_inputs_for_account_deletion, create_cpi_inputs_for_account_update,
-        create_cpi_inputs_for_new_account,
-    },
-    verify::verify,
-    LightTraits,
+    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
 };
-use light_system_program::{invoke::processor::CompressedProof, sdk::CompressedCpiContext};
+use light_system_program::invoke::processor::CompressedProof;
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 

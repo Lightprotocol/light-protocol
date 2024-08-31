@@ -2,16 +2,13 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_quote,
     punctuated::Punctuated,
     token::PathSep,
-    Data, DeriveInput, Error, Expr, Fields, Ident, ItemStruct, Meta, Path, PathSegment, Result,
-    Token, Type, TypePath,
+    Error, Expr, Fields, Ident, ItemStruct, Meta, Path, PathSegment, Result, Token, Type, TypePath,
 };
 
 pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     let mut anchor_accounts_strct = input.clone();
-    let generics = &anchor_accounts_strct.generics;
 
     let light_accounts_name = Ident::new(
         &format!("Light{}", input.ident.to_string()),
