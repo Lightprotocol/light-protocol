@@ -1,4 +1,5 @@
-use crate::{get_indexed_merkle_tree, rpc::rpc_connection::RpcConnection, AccountZeroCopy};
+use forester_utils::rpc::RpcConnection;
+use forester_utils::{get_indexed_merkle_tree, AccountZeroCopy};
 use light_hasher::Poseidon;
 use solana_sdk::pubkey::Pubkey;
 

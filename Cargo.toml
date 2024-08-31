@@ -19,10 +19,10 @@ members = [
     "examples/token-escrow/programs/*",
     "examples/name-service/programs/*",
     "test-programs/*",
+    "forester-utils",
     "forester",
     "photon-api",
-    "sdk"
-]
+    "sdk"]
 
 [profile.release]
 overflow-checks = true

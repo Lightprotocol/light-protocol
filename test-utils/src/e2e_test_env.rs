@@ -86,23 +86,6 @@ use solana_sdk::signature::Signature;
 use solana_sdk::signer::{SeedDerivable, Signer};
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
-    SAFETY_MARGIN,
-};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::rand::gen_prime;
-
-use crate::address_merkle_tree_config::{
-    address_tree_ready_for_rollover, state_tree_ready_for_rollover,
-};
 use crate::address_tree_rollover::{
     assert_rolled_over_address_merkle_tree_and_queue,
     perform_address_merkle_tree_roll_over_forester, perform_state_merkle_tree_roll_over_forester,
@@ -110,14 +93,6 @@ use crate::address_tree_rollover::{
 use crate::assert_epoch::{
     assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
 };
-use crate::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use crate::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
-};
-use crate::registry::register_test_forester;
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::ProgramTestRpcConnection;
 use crate::spl::{
     approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
@@ -132,8 +107,34 @@ use crate::test_env::{
     EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
-use crate::transaction_params::{FeeConfig, TransactionParams};
-use crate::{airdrop_lamports, AccountZeroCopy};
+use account_compression::utils::constants::{
+    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
+};
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    SAFETY_MARGIN,
+};
+use forester_utils::address_merkle_tree_config::{
+    address_tree_ready_for_rollover, state_tree_ready_for_rollover,
+};
+use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
+use forester_utils::indexer::{
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+    StateMerkleTreeBundle, TokenDataWithContext,
+};
+use forester_utils::registry::register_test_forester;
+use forester_utils::{airdrop_lamports, AccountZeroCopy};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::rand::gen_prime;
+
+use crate::indexer::TestIndexer;
+use forester_utils::rpc::errors::RpcError;
+use forester_utils::rpc::RpcConnection;
+use forester_utils::transaction_params::{FeeConfig, TransactionParams};
 
 pub struct User {
     pub keypair: Keypair,

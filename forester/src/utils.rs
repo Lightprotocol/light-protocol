@@ -1,6 +1,6 @@
+use forester_utils::rpc::RpcConnection;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::utils::get_protocol_config_pda_address;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, info};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};

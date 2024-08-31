@@ -1,6 +1,6 @@
 use crate::RpcConnection;
 use bb8::{Pool, PooledConnection};
-use light_test_utils::rpc::errors::RpcError;
+use forester_utils::rpc::RpcError;
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::time::Duration;
 use thiserror::Error;

@@ -15,16 +15,18 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 
 use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
+use forester_utils::forester_epoch::{
+    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
+};
+use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
+use forester_utils::rpc::RpcConnection;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
 };
-use light_registry::ForesterEpochPda;
-use light_test_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-};
-use light_test_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
+use light_registry::{EpochPda, ForesterEpochPda};
+use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -229,27 +231,22 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         if slot < phases.registration.end {
-            // TODO: check if we're already registered
-            /*
-            let (forester_epoch_pda_pubkey, _) = Pubkey::find_program_address(
-                &[
-                    b"forester_epoch",
-                    &epoch.to_le_bytes(),
-                    &self.config.payer_keypair.pubkey().to_bytes(),
-                ],
-                &light_registry::id(),
-            );
-
-            let existing_registration = rpc_guard
+            let forester_epoch_pda_pubkey =
+                get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
+            let existing_registration = rpc
                 .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
                 .await?;
 
             if let Some(existing_pda) = existing_registration {
-                info!("Already registered for epoch {}. Recovering registration info.", epoch);
-                let registration_info = self.recover_registration_info(epoch, existing_pda).await?;
+                info!(
+                    "Already registered for epoch {}. Recovering registration info.",
+                    epoch
+                );
+                let registration_info = self
+                    .recover_registration_info(epoch, forester_epoch_pda_pubkey, existing_pda)
+                    .await?;
                 return Ok(registration_info);
             }
-             */
 
             let registration_info = {
                 debug!("Registering epoch {}", epoch);
@@ -260,7 +257,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 )
                 .await
                 {
-                    Ok(Some(epoch)) => epoch,
+                    Ok(Some(epoch)) => {
+                        info!("Registered epoch: {:?}", epoch);
+                        epoch
+                    }
                     Ok(None) => {
                         return Err(ForesterError::Custom(
                             "Epoch::register returned None".into(),
@@ -278,7 +278,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
                     .await
                 {
-                    Ok(Some(pda)) => pda,
+                    Ok(Some(pda)) => {
+                        info!("ForesterEpochPda: {:?}", pda);
+                        pda
+                    }
                     Ok(None) => {
                         return Err(ForesterError::Custom(
                             "Failed to get ForesterEpochPda: returned None".into(),
@@ -292,9 +295,23 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     }
                 };
 
+                let epoch_pda_address = get_epoch_pda_address(epoch);
+                let epoch_pda = match rpc
+                    .get_anchor_account::<EpochPda>(&epoch_pda_address)
+                    .await?
+                {
+                    Some(pda) => pda,
+                    None => {
+                        return Err(ForesterError::Custom(
+                            "Failed to get EpochPda: returned None".into(),
+                        ))
+                    }
+                };
+
                 ForesterEpochInfo {
                     epoch: registered_epoch,
-                    epoch_pda: forester_epoch_pda,
+                    epoch_pda,
+                    forester_epoch_pda,
                     trees: Vec::new(),
                 }
             };
@@ -312,22 +329,48 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
     }
 
-    // TODO: implement
-    #[allow(dead_code)]
     async fn recover_registration_info(
         &self,
-        _epoch: u64,
-        _existing_pda: ForesterEpochPda,
+        epoch: u64,
+        forester_epoch_pda_address: Pubkey,
+        forester_epoch_pda: ForesterEpochPda,
     ) -> Result<ForesterEpochInfo> {
-        unimplemented!()
-        // let rpc = self.rpc_pool.get_connection().await;
-        //
-        // let registration_info = ForesterEpochInfo {
-        //     epoch: ...,
-        //     epoch_pda: existing_pda,
-        //     trees: ...,
-        // };
-        // Ok(registration_info)
+        let mut rpc = self.rpc_pool.get_connection().await?;
+
+        let phases = get_epoch_phases(&self.protocol_config, epoch);
+        let slot = rpc.get_slot().await?;
+        let state = phases.get_current_epoch_state(slot);
+
+        let epoch_pda_address = get_epoch_pda_address(epoch);
+        let epoch_pda = match rpc
+            .get_anchor_account::<EpochPda>(&epoch_pda_address)
+            .await?
+        {
+            Some(pda) => pda,
+            None => {
+                return Err(ForesterError::Custom(
+                    "Failed to get EpochPda: returned None".into(),
+                ))
+            }
+        };
+
+        let epoch_info = Epoch {
+            epoch,
+            epoch_pda: epoch_pda_address,
+            forester_epoch_pda: forester_epoch_pda_address,
+            phases,
+            state,
+            merkle_trees: Vec::new(),
+        };
+
+        let forester_epoch_info = ForesterEpochInfo {
+            epoch: epoch_info,
+            epoch_pda,
+            forester_epoch_pda,
+            trees: Vec::new(),
+        };
+
+        Ok(forester_epoch_info)
     }
 
     #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
@@ -337,31 +380,45 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
         info!("Waiting for active phase");
+
         let mut rpc = self.rpc_pool.get_connection().await?;
+
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
-        // TODO: we can put this ix into every tx of the first batch of the current active phase
-        let ix = create_finalize_registration_instruction(
+        let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
-        );
-        rpc.create_and_send_transaction(
-            &[ix],
-            &self.config.payer_keypair.pubkey(),
-            &[&self.config.payer_keypair],
         )
-        .await?;
+        .0;
+        let existing_registration = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await?;
+
+        if let Some(registration) = existing_registration {
+            if registration.total_epoch_weight.is_none() {
+                // TODO: we can put this ix into every tx of the first batch of the current active phase
+                let ix = create_finalize_registration_instruction(
+                    &self.config.payer_keypair.pubkey(),
+                    epoch_info.epoch.epoch,
+                );
+                rpc.create_and_send_transaction(
+                    &[ix],
+                    &self.config.payer_keypair.pubkey(),
+                    &[&self.config.payer_keypair],
+                )
+                .await?;
+            }
+        }
 
         let mut epoch_info = (*epoch_info).clone();
-        epoch_info.epoch_pda = rpc
+        epoch_info.forester_epoch_pda = rpc
             .get_anchor_account::<ForesterEpochPda>(&epoch_info.epoch.forester_epoch_pda)
             .await?
             .ok_or_else(|| ForesterError::Custom("Failed to get ForesterEpochPda".to_string()))?;
 
         let slot = rpc.get_slot().await?;
         epoch_info.add_trees_with_schedule(&self.trees, slot);
-
         info!("Finished waiting for active phase");
         Ok(epoch_info)
     }
@@ -409,7 +466,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 if let Err(e) = self_clone
                     .process_queue(
                         epoch_info_clone.epoch, // TODO: only clone the necessary fields
-                        epoch_info_clone.epoch_pda.clone(),
+                        epoch_info_clone.forester_epoch_pda.clone(),
                         tree,
                     )
                     .await

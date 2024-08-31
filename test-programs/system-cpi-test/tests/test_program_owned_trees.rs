@@ -9,7 +9,6 @@ use account_compression::{
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
-
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
 };
@@ -17,16 +16,15 @@ use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
-use light_test_utils::get_concurrent_merkle_tree;
-use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::spl::create_mint_helper;
 use light_test_utils::test_env::{
     initialize_new_group, register_program_with_registry_program, NOOP_PROGRAM_ID,
 };
-use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
-use light_test_utils::{airdrop_lamports, create_account_instruction};
+use light_test_utils::{
+    airdrop_lamports, assert_rpc_error, create_account_instruction, get_concurrent_merkle_tree,
+    FeeConfig, RpcConnection, RpcError, TransactionParams,
+};
 use light_test_utils::{
     assert_custom_error_or_program_error, indexer::TestIndexer,
     test_env::setup_test_programs_with_accounts,

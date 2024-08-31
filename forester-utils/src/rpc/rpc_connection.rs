@@ -1,12 +1,13 @@
 use crate::rpc::errors::RpcError;
 use crate::transaction_params::TransactionParams;
-use account_compression::initialize_address_merkle_tree::{AnchorDeserialize, Pubkey};
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::instruction::Instruction;
+use anchor_lang::AnchorDeserialize;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::epoch_info::EpochInfo;
 use solana_sdk::hash::Hash;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;

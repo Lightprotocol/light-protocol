@@ -10,16 +10,14 @@ use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
     PackedMerkleContext,
 };
-
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::{Indexer, TestIndexer, TokenDataWithContext};
-use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::system_program::transfer_compressed_sol_test;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};

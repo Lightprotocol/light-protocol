@@ -10,10 +10,10 @@ use light_sdk::merkle_context::{
 };
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_test_utils::indexer::{test_indexer::TestIndexer, Indexer};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::indexer::test_indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_test_utils::{Indexer, RpcConnection};
 use name_service::{NameRecord, RData};
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;

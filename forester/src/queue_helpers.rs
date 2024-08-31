@@ -1,8 +1,8 @@
 use crate::{errors::ForesterError, Result};
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::QueueAccount;
+use forester_utils::rpc::RpcConnection;
 use light_hash_set::HashSet;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::debug;
 use std::mem;
 

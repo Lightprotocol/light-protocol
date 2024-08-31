@@ -1,16 +1,15 @@
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
 use forester::run_pipeline;
-use forester::utils::LightValidatorConfig;
+use forester::utils::{get_protocol_config, LightValidatorConfig};
+use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use forester_utils::registry::register_test_forester;
+use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
+use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
-use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
-use light_test_utils::registry::register_test_forester;
-use light_test_utils::rpc::errors::RpcError;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
-use light_test_utils::rpc::SolanaRpcConnection;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::test_env::EnvAccounts;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
@@ -120,7 +119,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
             env.create_address(None).await;
         }
 
-        // Asserting non empty because transfer sol is not deterministic.
+        // Asserting non-empty because transfer sol is not deterministic.
         assert_queue_len(
             &pool,
             &state_trees,
@@ -470,4 +469,129 @@ async fn assert_foresters_registered(
         }
     }
     Ok(performed_work)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_epoch_double_registration() {
+    println!("*****************************************************************");
+    init(Some(LightValidatorConfig {
+        enable_indexer: false,
+        enable_prover: true,
+        enable_forester: false,
+        wait_time: 10,
+        ..LightValidatorConfig::default()
+    }))
+    .await;
+
+    let forester_keypair = Keypair::new();
+
+    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
+    env_accounts.forester = forester_keypair.insecure_clone();
+
+    let mut config = forester_config();
+    config.payer_keypair = forester_keypair.insecure_clone();
+
+    let config = Arc::new(config);
+    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
+        config.external_services.rpc_url.to_string(),
+        CommitmentConfig::confirmed(),
+        config.rpc_pool_size as u32,
+    )
+    .await
+    .unwrap();
+
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    rpc.payer = forester_keypair.insecure_clone();
+
+    rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
+        .await
+        .unwrap();
+
+    rpc.airdrop_lamports(
+        &env_accounts.governance_authority.pubkey(),
+        LAMPORTS_PER_SOL * 100_000,
+    )
+    .await
+    .unwrap();
+
+    register_test_forester(
+        &mut rpc,
+        &env_accounts.governance_authority,
+        &forester_keypair.pubkey(),
+        light_registry::ForesterConfig::default(),
+    )
+    .await
+    .unwrap();
+
+    let indexer: TestIndexer<SolanaRpcConnection> =
+        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, false, false).await;
+
+    let indexer = Arc::new(Mutex::new(indexer));
+
+    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+    let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
+
+    // Run the forester pipeline for the first time
+    let service_handle = tokio::spawn(run_pipeline(
+        config.clone(),
+        indexer.clone(),
+        shutdown_receiver,
+        work_report_sender,
+    ));
+
+    let mut rpc = pool.get_connection().await.unwrap();
+    let protocol_config = get_protocol_config(&mut *rpc).await;
+    let solana_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config.get_current_epoch(solana_slot);
+
+    // Attempt to register for the same epoch again
+    let (shutdown_sender2, shutdown_receiver2) = oneshot::channel();
+    let (work_report_sender2, _work_report_receiver2) = mpsc::channel(100);
+
+    let service_handle2 = tokio::spawn(run_pipeline(
+        config.clone(),
+        indexer.clone(),
+        shutdown_receiver2,
+        work_report_sender2,
+    ));
+
+    // Wait for a short duration to allow both services to run
+    sleep(Duration::from_secs(5)).await;
+
+    // Send shutdown signals to both services
+    shutdown_sender
+        .send(())
+        .expect("Failed to send shutdown signal");
+    shutdown_sender2
+        .send(())
+        .expect("Failed to send shutdown signal");
+
+    // Wait for both services to complete
+    let result1 = service_handle.await.unwrap();
+    let result2 = service_handle2.await.unwrap();
+
+    // Check if the second registration attempt was handled gracefully
+    assert!(result1.is_ok(), "First registration should succeed");
+    assert!(
+        result2.is_ok(),
+        "Second registration should be handled gracefully"
+    );
+
+    let forester_epoch_pda_address =
+        get_forester_epoch_pda_from_authority(&config.payer_keypair.pubkey(), current_epoch).0;
+
+    let forester_epoch_pda = rpc
+        .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_address)
+        .await
+        .unwrap();
+
+    assert!(
+        forester_epoch_pda.is_some(),
+        "Forester should be registered"
+    );
+    let forester_epoch_pda = forester_epoch_pda.unwrap();
+    assert_eq!(
+        forester_epoch_pda.epoch, current_epoch,
+        "Registered epoch should match current epoch"
+    );
 }

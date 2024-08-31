@@ -1,7 +1,7 @@
+use crate::rpc::RpcConnection;
 use crate::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::rpc_connection::RpcConnection,
     AccountZeroCopy,
 };
 use account_compression::{

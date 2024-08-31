@@ -1,7 +1,9 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::error::ErrorCode;
+use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
     errors::SystemProgramError,
     sdk::{
@@ -14,10 +16,10 @@ use light_system_program::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams,
 };
+use light_test_utils::test_env::{EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR};
 use light_test_utils::{
-    airdrop_lamports,
-    rpc::test_rpc::ProgramTestRpcConnection,
-    test_env::{initialize_accounts, setup_test_programs, EnvAccountKeypairs},
+    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
+    TransactionParams,
 };
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
@@ -28,14 +30,9 @@ use light_test_utils::{
     },
     test_env::setup_test_programs_with_accounts,
 };
-use light_test_utils::{rpc::errors::RpcError, test_env::EnvAccounts};
 use light_test_utils::{
-    rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection},
-    test_env::PAYER_KEYPAIR,
-};
-use light_test_utils::{
-    test_env::FORESTER_TEST_KEYPAIR,
-    transaction_params::{FeeConfig, TransactionParams},
+    rpc::test_rpc::ProgramTestRpcConnection,
+    test_env::{initialize_accounts, setup_test_programs, EnvAccountKeypairs},
 };
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
@@ -829,10 +826,6 @@ pub async fn perform_tx_with_output_compressed_accounts(
         .await;
     assert_rpc_error(result, 0, expected_error_code)
 }
-
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use light_registry::protocol_config::state::ProtocolConfig;
-use light_test_utils::indexer::Indexer;
 
 pub async fn create_instruction_and_failing_transaction(
     context: &mut ProgramTestRpcConnection,

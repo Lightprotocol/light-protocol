@@ -12,28 +12,23 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use crate::assert_rollover::{
+    assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
+    assert_rolledover_queues_metadata,
+};
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
     AddressMerkleTreeAccount,
 };
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-
-use crate::get_indexed_merkle_tree;
-use crate::registry::{
+use forester_utils::registry::{
     create_rollover_address_merkle_tree_instructions,
     create_rollover_state_merkle_tree_instructions,
 };
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::{
-    assert_rollover::{
-        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
-        assert_rolledover_queues_metadata,
-    },
-    get_hash_set,
-};
+use forester_utils::rpc::{RpcConnection, RpcError};
+use forester_utils::{create_account_instruction, get_hash_set, get_indexed_merkle_tree};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 
 pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     rpc: &mut R,
@@ -73,7 +68,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer = context.get_payer().insecure_clone();
     let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
-    let account_create_ix = crate::create_account_instruction(
+    let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
         context
@@ -91,7 +86,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         merkle_tree_config.canopy_depth as usize,
         merkle_tree_config.address_changelog_size as usize,
     );
-    let mt_account_create_ix = crate::create_account_instruction(
+    let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
         context

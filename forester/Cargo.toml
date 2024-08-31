@@ -36,7 +36,7 @@ bs58 = "0.4.0"
 photon-api = { path = "../photon-api" }
 bincode = "1.3"
 sysinfo = "0.31"
-light-test-utils = { path = "../test-utils" }
+forester-utils = { path = "../forester-utils" }
 log = "0.4"
 env_logger = "0.11"
 rand = "0.8.5"
@@ -61,6 +61,7 @@ light-prover-client = {path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = {path = "../merkle-tree/reference"}
 light-hasher = {path = "../merkle-tree/hasher"}
 light-bounded-vec = {path = "../merkle-tree/bounded-vec"}
+light-test-utils = {path = "../test-utils" }
 num-bigint = "0.4"
 num-traits = "0.2"
 rand = "0.8.5"
