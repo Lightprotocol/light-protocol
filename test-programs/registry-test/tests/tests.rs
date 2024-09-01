@@ -652,7 +652,7 @@ async fn test_register_and_update_forester_pda() {
     // create work 1 item in address and nullifier queue each
     let (mut state_merkle_tree_bundle, mut address_merkle_tree, mut rpc) = {
         let mut e2e_env = init_program_test_env(rpc, &env).await;
-        e2e_env.create_address(None).await;
+        e2e_env.create_address(None, None).await;
         e2e_env
             .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
             .await;
