@@ -1,8 +1,6 @@
 use anchor_lang::{prelude::AccountInfo, Key};
 
-use crate::merkle_context::{
-    AddressMerkleContext, MerkleContext, PackedAddressMerkleContext, PackedMerkleContext,
-};
+use crate::merkle_context::{AddressMerkleContext, PackedAddressMerkleContext};
 
 pub fn pack_address_merkle_contexts(
     address_merkle_contexts: &[AddressMerkleContext],

@@ -300,7 +300,11 @@ where
         address_merkle_context: &PackedAddressMerkleContext,
         remaining_accounts: &[AccountInfo],
     ) -> Result<Self> {
+        use anchor_lang::prelude::msg;
+        msg!("before");
+        msg!("v: {:?}", v);
         let account = T::try_from_slice(v)?;
+        msg!("after");
 
         let unpacked_address_merkle_context =
             unpack_address_merkle_context(*address_merkle_context, remaining_accounts);

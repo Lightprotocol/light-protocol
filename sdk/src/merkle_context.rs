@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use anchor_lang::{
-    prelude::{AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey},
-    Key,
-};
+use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
 
 // TODO(vadorovsky): Consider moving these structs here.
 pub use light_system_program::sdk::compressed_account::{MerkleContext, PackedMerkleContext};
