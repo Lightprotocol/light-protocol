@@ -123,6 +123,6 @@ pub fn verify<'info, 'a, 'b, 'c>(
     let mut inputs: Vec<u8> = Vec::new();
     InstructionDataInvokeCpi::serialize(inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = setup_cpi_accounts(&ctx);
-    invoke_cpi(&ctx, cpi_accounts, inputs, signer_seeds)
+    let cpi_accounts = setup_cpi_accounts(ctx);
+    invoke_cpi(ctx, cpi_accounts, inputs, signer_seeds)
 }

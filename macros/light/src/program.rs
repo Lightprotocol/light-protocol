@@ -51,7 +51,7 @@ impl VisitMut for LightProgramTransform {
         };
         let accounts_segment = &last_arg_type_path.path.segments.last().unwrap();
         let accounts_ident = accounts_segment.ident.clone();
-        let light_accounts_name = format!("Light{}", accounts_segment.ident.to_string());
+        let light_accounts_name = format!("Light{}", accounts_segment.ident);
         let light_accounts_ident = Ident::new(&light_accounts_name, Span::call_site());
 
         // Inject an `inputs: Vec<Vec<u8>>` argument to all instructions. The

@@ -75,10 +75,7 @@ pub(crate) fn process_light_system_accounts(input: ItemStruct) -> Result<TokenSt
 pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     let mut anchor_accounts_strct = input.clone();
 
-    let light_accounts_name = Ident::new(
-        &format!("Light{}", input.ident.to_string()),
-        Span::call_site(),
-    );
+    let light_accounts_name = Ident::new(&format!("Light{}", input.ident), Span::call_site());
     let mut light_accounts_fields: Punctuated<syn::Field, Token![,]> = Punctuated::new();
 
     if let Fields::Named(ref mut fields) = anchor_accounts_strct.fields {
