@@ -765,7 +765,7 @@ where
         let cpi_context_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
             Some(rollover_threshold)
-        } else if self.rng.gen_bool(0.5) {
+        } else if self.rng.gen_bool(0.5) && !self.keypair_action_config.fee_assert {
             Some(self.rng.gen_range(1..100))
         } else {
             None
@@ -791,6 +791,8 @@ where
                 sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,
                 network_fee: None,
             }
+        } else if rollover_threshold.is_some() {
+            panic!("rollover_threshold should not be set when fee_assert is set (keypair_action_config.fee_assert)");
         } else {
             NullifierQueueConfig::default()
         };
@@ -844,7 +846,7 @@ where
         let nullifier_queue_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
             Some(rollover_threshold)
-        } else if self.rng.gen_bool(0.5) {
+        } else if self.rng.gen_bool(0.5) && !self.keypair_action_config.fee_assert {
             Some(self.rng.gen_range(1..100))
         } else {
             None
