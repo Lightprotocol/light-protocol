@@ -1,5 +1,5 @@
 extern crate proc_macro;
-use accounts::process_light_accounts;
+use accounts::{process_light_accounts, process_light_system_accounts};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn, ItemMod, ItemStruct};
@@ -59,14 +59,14 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 /// state transition.
 ///
 /// ## Usage
-/// Add `#[light_accounts]` to your struct. Ensure it's applied before Anchor's
+/// Add `#[light_system_accounts]` to your struct. Ensure it's applied before Anchor's
 /// `#[derive(Accounts)]` and Light's `#[derive(LightTraits)]`.
 ///
 /// ## Example
 /// Note: You will have to build your program IDL using Anchor's `idl-build`
 /// feature, otherwise your IDL won't include these accounts.
 /// ```ignore
-/// #[light_accounts]
+/// #[light_system_accounts]
 /// #[derive(Accounts)]
 /// pub struct ExampleInstruction<'info> {
 ///     pub my_program: Program<'info, MyProgram>,
@@ -85,6 +85,15 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 /// - `account_compression_program`:    Called by light_system_program. Updates
 ///                                     state trees.
 /// - `system_program`:                 The Solana System program.
+#[proc_macro_attribute]
+pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    process_light_system_accounts(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
 #[proc_macro_attribute]
 pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

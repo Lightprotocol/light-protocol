@@ -7,16 +7,10 @@ use syn::{
     Error, Expr, Fields, Ident, ItemStruct, Meta, Path, PathSegment, Result, Token, Type, TypePath,
 };
 
-pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
-    let mut anchor_accounts_strct = input.clone();
+pub(crate) fn process_light_system_accounts(input: ItemStruct) -> Result<TokenStream> {
+    let mut output = input.clone();
 
-    let light_accounts_name = Ident::new(
-        &format!("Light{}", input.ident.to_string()),
-        Span::call_site(),
-    );
-    let mut light_accounts_fields: Punctuated<syn::Field, Token![,]> = Punctuated::new();
-
-    if let Fields::Named(ref mut fields) = anchor_accounts_strct.fields {
+    if let Fields::Named(ref mut fields) = output.fields {
         let fields_to_add = [
             (
                 "light_system_program",
@@ -36,7 +30,58 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             ("noop_program", "AccountInfo<'info>"),
             ("account_compression_authority", "AccountInfo<'info>"),
         ];
+        let existing_field_names: Vec<_> = fields
+            .named
+            .iter()
+            .map(|f| f.ident.as_ref().unwrap().to_string())
+            .collect();
 
+        // TODO: Eventually we want to provide flexibility to override.
+        // Until then, we error if the fields are manually defined.
+        for (field_name, field_type) in fields_to_add.iter().chain(fields_to_add_check.iter()) {
+            if existing_field_names.contains(&field_name.to_string()) {
+                return Err(syn::Error::new_spanned(
+                    &output,
+                    format!("Field `{}` already exists in the struct.", field_name),
+                ));
+            }
+
+            let new_field = syn::Field {
+                attrs: vec![],
+                vis: syn::Visibility::Public(syn::token::Pub {
+                    span: proc_macro2::Span::call_site(),
+                }),
+                mutability: syn::FieldMutability::None,
+                ident: Some(syn::Ident::new(field_name, proc_macro2::Span::call_site())),
+                colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+                ty: syn::parse_str(field_type)?,
+            };
+            fields.named.push(new_field);
+        }
+    } else {
+        return Err(syn::Error::new_spanned(
+            &output,
+            "`light_accounts` attribute can only be used with structs that have named fields.",
+        ));
+    }
+
+    let expanded = quote! {
+        #output
+    };
+
+    Ok(expanded)
+}
+
+pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
+    let mut anchor_accounts_strct = input.clone();
+
+    let light_accounts_name = Ident::new(
+        &format!("Light{}", input.ident.to_string()),
+        Span::call_site(),
+    );
+    let mut light_accounts_fields: Punctuated<syn::Field, Token![,]> = Punctuated::new();
+
+    if let Fields::Named(ref mut fields) = anchor_accounts_strct.fields {
         let mut anchor_fields = Punctuated::new();
         let mut existing_field_names = Vec::new();
 
@@ -57,29 +102,6 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
         }
 
         fields.named = anchor_fields;
-
-        // TODO: Eventually we want to provide flexibility to override.
-        // Until then, we error if the fields are manually defined.
-        for (field_name, field_type) in fields_to_add.iter().chain(fields_to_add_check.iter()) {
-            if existing_field_names.contains(&field_name.to_string()) {
-                return Err(syn::Error::new_spanned(
-                    &anchor_accounts_strct,
-                    format!("Field `{}` already exists in the struct.", field_name),
-                ));
-            }
-
-            let new_field = syn::Field {
-                attrs: vec![],
-                vis: syn::Visibility::Public(syn::token::Pub {
-                    span: proc_macro2::Span::call_site(),
-                }),
-                mutability: syn::FieldMutability::None,
-                ident: Some(syn::Ident::new(field_name, proc_macro2::Span::call_site())),
-                colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
-                ty: syn::parse_str(field_type)?,
-            };
-            fields.named.push(new_field);
-        }
     }
 
     let light_accounts_strct = if light_accounts_fields.is_empty() {
@@ -97,6 +119,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     };
 
     let expanded = quote! {
+        #[::light_sdk::light_system_accounts]
         #[derive(::anchor_lang::Accounts, ::light_sdk::LightTraits)]
         #anchor_accounts_strct
 
@@ -324,7 +347,7 @@ mod tests {
     use syn::{parse_quote, ItemStruct};
 
     #[test]
-    fn test_process_light_accounts_adds_fields_correctly() {
+    fn test_process_light_system_accounts_adds_fields_correctly() {
         let input: ItemStruct = parse_quote! {
             struct TestStruct {
                 #[light_account(mut)]
@@ -347,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn test_process_light_accounts_fails_on_existing_field() {
+    fn test_process_light_system_accounts_fails_on_existing_field() {
         let input: ItemStruct = parse_quote! {
             struct TestStruct {
                 existing_field: u32,
