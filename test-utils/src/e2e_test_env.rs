@@ -765,7 +765,7 @@ where
         let cpi_context_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
             Some(rollover_threshold)
-        } else if self.rng.gen_bool(0.5) {
+        } else if self.rng.gen_bool(0.5) && !self.keypair_action_config.fee_assert {
             Some(self.rng.gen_range(1..100))
         } else {
             None
@@ -791,6 +791,8 @@ where
                 sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,
                 network_fee: None,
             }
+        } else if rollover_threshold.is_some() {
+            panic!("rollover_threshold should not be set when fee_assert is set (keypair_action_config.fee_assert)");
         } else {
             NullifierQueueConfig::default()
         };
@@ -844,7 +846,7 @@ where
         let nullifier_queue_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
             Some(rollover_threshold)
-        } else if self.rng.gen_bool(0.5) {
+        } else if self.rng.gen_bool(0.5) && !self.keypair_action_config.fee_assert {
             Some(self.rng.gen_range(1..100))
         } else {
             None
@@ -869,6 +871,8 @@ where
                     ..Default::default()
                 },
             )
+        } else if rollover_threshold.is_some() {
+            panic!("rollover_threshold should not be set when fee_assert is set (keypair_action_config.fee_assert)");
         } else {
             (
                 AddressMerkleTreeConfig::default(),
@@ -974,7 +978,7 @@ where
             .rng
             .gen_bool(self.keypair_action_config.create_address.unwrap_or(0.0))
         {
-            self.create_address(None).await;
+            self.create_address(None, None).await;
         }
 
         // compress sol
@@ -1083,6 +1087,17 @@ where
             .accounts
             .merkle_tree;
         let recipients = vec![*to];
+        let transaction_params = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
         transfer_compressed_sol_test(
             &mut self.rpc,
             &mut self.indexer,
@@ -1090,13 +1105,7 @@ where
             input_compressed_accounts.as_slice(),
             recipients.as_slice(),
             &[output_merkle_tree],
-            Some(TransactionParams {
-                num_new_addresses: 0,
-                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
-                num_output_compressed_accounts: 1u8,
-                compress: 0,
-                fee_config: FeeConfig::default(),
-            }),
+            transaction_params,
         )
         .await
     }
@@ -1276,13 +1285,34 @@ where
         self.stats.sol_compress += 1;
     }
 
-    pub async fn create_address(&mut self, optional_addresses: Option<Vec<Pubkey>>) -> Vec<Pubkey> {
+    pub async fn create_address(
+        &mut self,
+        optional_addresses: Option<Vec<Pubkey>>,
+        address_tree_index: Option<usize>,
+    ) -> Vec<Pubkey> {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
         // select number of addresses to create
         let num_addresses = self.rng.gen_range(1..=2);
-        // select random address Merkle tree(s)
         let (address_merkle_tree_pubkeys, address_queue_pubkeys) =
-            self.get_address_merkle_tree_pubkeys(num_addresses);
+            if let Some(address_tree_index) = address_tree_index {
+                (
+                    vec![
+                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                            .accounts
+                            .merkle_tree;
+                        num_addresses as usize
+                    ],
+                    vec![
+                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                            .accounts
+                            .queue;
+                        num_addresses as usize
+                    ],
+                )
+            } else {
+                // select random address Merkle tree(s)
+                self.get_address_merkle_tree_pubkeys(num_addresses)
+            };
         let mut address_seeds = Vec::new();
         let mut created_addresses = Vec::new();
 

@@ -52,7 +52,8 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap();
-            info!("Account: {:?}", account);
+            // let account_info = rpc.get_account(tree_pubkey).await?.unwrap();
+
             let is_already_rolled_over =
                 account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
             if is_already_rolled_over {
@@ -68,6 +69,9 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
             let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
 
+            //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
+            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
+            //     > account.metadata.rollover_metadata.rollover_fee * (1 << height);
             Ok(merkle_tree.next_index() >= threshold)
         }
         TreeType::Address => {
@@ -75,7 +79,14 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap();
-            info!("Account: {:?}", account);
+            let queue_account = rpc
+                .get_anchor_account::<QueueAccount>(&account.metadata.associated_queue)
+                .await?
+                .unwrap();
+            // let account_info = rpc
+            //     .get_account(account.metadata.associated_queue)
+            //     .await?
+            //     .unwrap();
             let is_already_rolled_over =
                 account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
             if is_already_rolled_over {
@@ -90,15 +101,19 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await;
 
             let height = 26;
-            let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
+            let threshold = ((1 << height)
+                * queue_account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
 
+            //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
+            //  current implementation is returns always true
+            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
+            // > account.metadata.rollover_metadata.rollover_fee * (1 << height);
             Ok(merkle_tree.next_index() >= threshold)
         }
     }
 }
 
-#[allow(dead_code)]
 pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     config: Arc<ForesterConfig>,
     rpc: &mut R,
@@ -109,7 +124,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     let new_merkle_tree_keypair = Keypair::new();
     let new_cpi_signature_keypair = Keypair::new();
 
-    let rollover_signature = perform_state_merkle_tree_roll_over_forester(
+    let rollover_signature = perform_state_merkle_tree_rollover_forester(
         &config.payer_keypair,
         rpc,
         &new_nullifier_queue_keypair,
@@ -120,7 +135,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &Pubkey::default(),
     )
     .await?;
-    println!("Rollover signature: {:?}", rollover_signature);
+    info!("State rollover signature: {:?}", rollover_signature);
 
     let state_bundle = StateMerkleTreeBundle {
         // TODO: fetch correct fee when this property is used
@@ -140,7 +155,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
+pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     payer: &Keypair,
     context: &mut R,
     new_queue_keypair: &Keypair,
@@ -165,7 +180,12 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
-        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+        &vec![
+            &payer,
+            &new_queue_keypair,
+            &new_address_merkle_tree_keypair,
+            &new_cpi_context_keypair,
+        ],
         blockhash,
     );
     context.process_transaction(transaction).await
@@ -179,7 +199,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
 ) -> Result<(), ForesterError> {
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
-    perform_address_merkle_tree_roll_over(
+    let rollover_signature = perform_address_merkle_tree_rollover(
         &config.payer_keypair,
         rpc,
         &new_nullifier_queue_keypair,
@@ -188,6 +208,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &tree_data.queue,
     )
     .await?;
+    info!("Address rollover signature: {:?}", rollover_signature);
 
     indexer.lock().await.add_address_merkle_tree_accounts(
         &new_merkle_tree_keypair,
@@ -197,7 +218,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     Ok(())
 }
 
-pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
+pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     payer: &Keypair,
     context: &mut R,
     new_queue_keypair: &Keypair,

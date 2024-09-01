@@ -47,7 +47,7 @@ pub fn keypair_action_config() -> KeypairActionConfig {
         mint_spl: Some(1.0),
         transfer_spl: Some(1.0),
         max_output_accounts: Some(3),
-        fee_assert: true,
+        fee_assert: false,
         approve_spl: None,
         revoke_spl: None,
         freeze_spl: None,

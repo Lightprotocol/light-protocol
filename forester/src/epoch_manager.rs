@@ -461,7 +461,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let epoch_info_clone = epoch_info.clone();
             let self_clone = self.clone();
             let tree = tree.clone();
-            // TODO: consider passing global shutdown signal (might be overkill since we have timeouts)
+            // TODO: consider passing global shutdown signal (might be overkill
+            // since we have timeouts)
             tokio::spawn(async move {
                 if let Err(e) = self_clone
                     .process_queue(
@@ -485,24 +486,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             "Estimated current slot: {}, active phase end: {}",
             estimated_slot, active_phase_end
         );
-
-        // TODO: move (Jorrit low prio)
-        // Should be called every multiple times per epoch for every tree. It is
-        // tricky because we need to fetch both the Merkle tree and the queue
-        // (by default we just fetch the queue account).
-        info!("Checking for rollover eligibility");
-        for tree in &epoch_info.trees {
-            let mut rpc = self.rpc_pool.get_connection().await?;
-            if is_tree_ready_for_rollover(
-                &mut *rpc,
-                tree.tree_accounts.merkle_tree,
-                tree.tree_accounts.tree_type,
-            )
-            .await?
-            {
-                self.perform_rollover(&tree.tree_accounts).await?;
-            }
-        }
 
         info!("Completed active work");
         Ok(())
@@ -582,9 +565,22 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     tree.tree_accounts,
                     &transaction_builder,
                     epoch_pda.epoch,
+                );
+                // Check whether the tree is ready for rollover once per slot.
+                // Check in parallel with sending transactions.
+                if is_tree_ready_for_rollover(
+                    &mut *rpc,
+                    tree.tree_accounts.merkle_tree,
+                    tree.tree_accounts.tree_type,
                 )
-                .await?;
-
+                .await?
+                {
+                    info!("Starting {} rollover.", tree.tree_accounts.merkle_tree);
+                    self.perform_rollover(&tree.tree_accounts).await?;
+                }
+                // Await the result of the batch transactions after the
+                // potential rollover.
+                let num_tx_sent = num_tx_sent.await?;
                 // Prometheus metrics
                 let chunk_duration = start_time.elapsed();
                 queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
@@ -723,7 +719,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                 let rpc = rpc_pool.get_connection().await?;
                 fetch_trees(&*rpc).await
             };
-
+            info!("Fetched trees: {:?}", trees);
             while retry_count < config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
                 match EpochManager::new(

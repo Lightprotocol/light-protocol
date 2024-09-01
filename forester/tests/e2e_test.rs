@@ -1,3 +1,4 @@
+use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
 use forester::run_pipeline;
@@ -116,7 +117,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     {
         for _ in 0..iterations {
             env.transfer_sol(user_index).await;
-            env.create_address(None).await;
+            env.create_address(None, None).await;
         }
 
         // Asserting non-empty because transfer sol is not deterministic.
@@ -305,6 +306,17 @@ async fn test_epoch_monitor_with_2_foresters() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
+    // Create state and address trees which can be rolled over
+    env.create_address_tree(Some(0)).await;
+    env.create_state_tree(Some(0)).await;
+    let state_tree_with_rollover_threshold_0 = env.indexer.state_merkle_trees[1]
+        .accounts
+        .merkle_tree
+        .clone();
+    let address_tree_with_rollover_threshold_0 = env.indexer.address_merkle_trees[1]
+        .accounts
+        .merkle_tree
+        .clone();
 
     let state_trees: Vec<StateMerkleTreeAccounts> = env
         .indexer
@@ -318,14 +330,23 @@ async fn test_epoch_monitor_with_2_foresters() {
         .iter()
         .map(|x| x.accounts)
         .collect();
-    let mut total_expected_work = 0;
+
+    // Two rollovers plus other work
+    let mut total_expected_work = 2;
     {
         let iterations = 5;
         for i in 0..iterations {
             println!("Round {} of {}", i, iterations);
-            env.transfer_sol(user_index).await;
+            let user_keypair = env.users[0].keypair.insecure_clone();
+            env.transfer_sol_deterministic(&user_keypair, &user_keypair.pubkey(), Some(1))
+                .await
+                .unwrap();
+            env.transfer_sol_deterministic(&user_keypair, &user_keypair.pubkey().clone(), Some(0))
+                .await
+                .unwrap();
             sleep(Duration::from_millis(100)).await;
-            env.create_address(None).await;
+            env.create_address(None, Some(1)).await;
+            env.create_address(None, Some(0)).await;
         }
         assert_queue_len(
             &pool,
@@ -364,18 +385,19 @@ async fn test_epoch_monitor_with_2_foresters() {
     // Wait for both foresters to report work for epoch 1
     const TIMEOUT_DURATION: Duration = Duration::from_secs(360);
     let mut total_processed = 0;
-    let result = timeout(TIMEOUT_DURATION, async {
+    let finish_epoch = 1;
+    let result: Result<usize, tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {
         loop {
             tokio::select! {
             Some(report) = work_report_receiver1.recv(), if !forester1_reported_work_for_epoch1 => {
                     total_processed += report.processed_items;
-                if report.epoch == 1 {
+                if report.epoch == finish_epoch {
                     forester1_reported_work_for_epoch1 = true;
                 }
             }
             Some(report) = work_report_receiver2.recv(), if !forester2_reported_work_for_epoch1 => {
                     total_processed += report.processed_items;
-                if report.epoch == 1 {
+                if report.epoch == finish_epoch {
                     forester2_reported_work_for_epoch1 = true;
                 }
             }
@@ -401,6 +423,12 @@ async fn test_epoch_monitor_with_2_foresters() {
         }
     }
 
+    assert_trees_are_rollledover(
+        &pool,
+        &state_tree_with_rollover_threshold_0,
+        &address_tree_with_rollover_threshold_0,
+    )
+    .await;
     // assert queues have been emptied
     assert_queue_len(&pool, &state_trees, &address_trees, &mut 0, 0, false).await;
     let mut rpc = pool.get_connection().await.unwrap();
@@ -408,27 +436,27 @@ async fn test_epoch_monitor_with_2_foresters() {
         config1.payer_keypair.pubkey(),
         config2.payer_keypair.pubkey(),
     ];
-    // assert epoch 0
-    {
-        let total_processed_work = assert_foresters_registered(&forester_pubkeys[..], &mut rpc, 0)
-            .await
-            .unwrap();
-        assert_eq!(
-            total_processed_work, total_expected_work,
-            "Not all items were processed."
-        );
-    }
+
     // assert that foresters registered for epoch 1 and 2 (no new work is emitted after epoch 0)
-    for epoch in 1..=2 {
+    // Assert that foresters have registered all processed epochs and the next epoch (+1)
+    for epoch in 0..=finish_epoch + 1 {
         let total_processed_work =
             assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
                 .await
                 .unwrap();
-        assert_eq!(
-            total_processed_work, 0,
-            "Not all items were processed in prior epoch."
-        );
+        if epoch == 0 {
+            assert_eq!(
+                total_processed_work, total_expected_work,
+                "Not all items were processed."
+            );
+        } else {
+            assert_eq!(
+                total_processed_work, 0,
+                "Not all items were processed in prior epoch."
+            );
+        }
     }
+
     shutdown_sender1
         .send(())
         .expect("Failed to send shutdown signal to forester 1");
@@ -438,7 +466,38 @@ async fn test_epoch_monitor_with_2_foresters() {
     service_handle1.await.unwrap().unwrap();
     service_handle2.await.unwrap().unwrap();
 }
-
+pub async fn assert_trees_are_rollledover(
+    pool: &SolanaRpcPool<SolanaRpcConnection>,
+    state_tree_with_rollover_threshold_0: &Pubkey,
+    address_tree_with_rollover_threshold_0: &Pubkey,
+) {
+    let mut rpc = pool.get_connection().await.unwrap();
+    let address_merkle_tree = rpc
+        .get_anchor_account::<AddressMerkleTreeAccount>(&address_tree_with_rollover_threshold_0)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_ne!(
+        address_merkle_tree
+            .metadata
+            .rollover_metadata
+            .rolledover_slot,
+        u64::MAX,
+        "address_merkle_tree: {:?}",
+        address_merkle_tree
+    );
+    let state_merkle_tree = rpc
+        .get_anchor_account::<AddressMerkleTreeAccount>(&state_tree_with_rollover_threshold_0)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_ne!(
+        state_merkle_tree.metadata.rollover_metadata.rolledover_slot,
+        u64::MAX,
+        "state_merkle_tree: {:?}",
+        state_merkle_tree
+    );
+}
 async fn assert_foresters_registered(
     foresters: &[Pubkey],
     rpc: &mut SolanaRpcConnection,
