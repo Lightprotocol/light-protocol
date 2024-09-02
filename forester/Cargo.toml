@@ -44,7 +44,7 @@ dotenvy = "0.15.7"
 crossbeam-channel = "0.5.12"
 tokio-stream = "0.1.14"
 base64 = "0.22.0"
-async-trait = "0.1.81"
+async-trait = "0.1.82"
 bb8 = "0.8.5"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
