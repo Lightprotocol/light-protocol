@@ -41,7 +41,6 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 6. provide cpi context account but no cpi context (CpiContextAccountUndefined)
 /// 7. provide cpi context account but cpi context is empty (CpiContextEmpty)
 /// 8. test signer checks trying to insert into cpi context account (invalid invoking program)
-/// 9. test signer checks trying to insert into cpi context account (invalid signer seeds)
 /// 10. provide cpi context account but cpi context has a different fee payer (CpiContextFeePayerMismatch)
 /// 11. write data to an account that it doesn't own (WriteAccessCheckFailed)
 /// 12. Spend Program owned account with program keypair (SignerCheckFailed)
@@ -206,19 +205,6 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
-        // // Failing 9 test signer checks trying to insert into cpi context account (invalid signer seeds) ----------------------------------------------
-        // perform_with_input_accounts(
-        //     &mut test_indexer,
-        //     &mut rpc,
-        //     &payer,
-        //     None,
-        //     &compressed_account,
-        //     None,
-        //     SystemProgramError::CpiSignerCheckFailed.into(),
-        //     WithInputAccountsMode::CpiContextInvalidSignerSeeds,
-        // )
-        // .await
-        // .unwrap();
         let compressed_token_account_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------

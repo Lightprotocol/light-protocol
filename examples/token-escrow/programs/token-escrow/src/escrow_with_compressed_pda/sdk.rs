@@ -97,7 +97,7 @@ pub fn create_escrow_instruction(
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let cpi_authority_pda = light_sdk::utils::get_cpi_authority_pda(&crate::ID);
-    println!("cpi_authority_pda: {:?}", cpi_authority_pda);
+
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),

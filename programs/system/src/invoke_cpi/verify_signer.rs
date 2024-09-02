@@ -46,8 +46,6 @@ pub fn cpi_signer_checks(
 #[heap_neutral]
 pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
     let seeds = [CPI_AUTHORITY_PDA_SEED];
-    println!("seeds: {:?}", seeds);
-    println!("invoking program: {:?}", invoking_program);
     let derived_signer = Pubkey::try_find_program_address(&seeds, invoking_program)
         .ok_or(ProgramError::InvalidSeeds)?
         .0;
@@ -205,11 +203,8 @@ mod test {
     fn test_cpi_signer_check() {
         for _ in 0..1000 {
             let seeds = [CPI_AUTHORITY_PDA_SEED];
-            println!("seeds: {:?}", seeds);
             let invoking_program = Pubkey::new_unique();
             let (derived_signer, _) = Pubkey::find_program_address(&seeds[..], &invoking_program);
-            println!("derived_signer: {}", derived_signer);
-            println!("invoking_program: {}", invoking_program);
             assert_eq!(cpi_signer_check(&invoking_program, &derived_signer), Ok(()));
 
             let authority = Pubkey::new_unique();
