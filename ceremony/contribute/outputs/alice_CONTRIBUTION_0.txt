@@ -1,0 +1,5 @@
+inclusion_26_1 Current #Contributions := 0
+Sampling toxic parameters Delta
+Processing DeltaG1 and DeltaG2
+Contirbution has been successful!
+Contribution Hash :=  ec5c11ecb949540719aa66d55314f0881e92156d02de019ad88a259f70755bb6
