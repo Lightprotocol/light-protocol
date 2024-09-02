@@ -54,4 +54,5 @@ pub enum AccountCompressionErrorCode {
     InvalidAccountBalance,
     UnsupportedAdditionalBytes,
     InvalidGroup,
+    ProofLengthMismatch,
 }
