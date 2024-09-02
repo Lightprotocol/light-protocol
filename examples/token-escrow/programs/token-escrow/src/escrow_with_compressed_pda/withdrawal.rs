@@ -1,3 +1,4 @@
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
@@ -63,7 +64,7 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
         cpi_context,
     )?;
 
-    cpi_compressed_pda_withdrawal(ctx, proof, old_state, new_state, cpi_context, bump)?;
+    cpi_compressed_pda_withdrawal(ctx, proof, old_state, new_state, cpi_context)?;
     Ok(())
 }
 
@@ -130,12 +131,11 @@ fn cpi_compressed_pda_withdrawal<'info>(
     old_state: PackedCompressedAccountWithMerkleContext,
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
-    bump: u8,
 ) -> Result<()> {
     // Create CPI signer seed
-    let bump_seed = &[bump];
-    let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
-    let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
+    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
+    let bump = [bump];
+    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
 
     // Create CPI inputs
@@ -147,7 +147,6 @@ fn cpi_compressed_pda_withdrawal<'info>(
         new_address_params: Vec::new(),
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context: Some(cpi_context),
     };
 

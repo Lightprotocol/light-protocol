@@ -95,7 +95,6 @@ pub mod token_escrow {
         output_state_merkle_tree_account_indices: Vec<u8>,
         new_address_params: NewAddressParamsPacked,
         cpi_context: CompressedCpiContext,
-        bump: u8,
     ) -> Result<()> {
         process_escrow_compressed_tokens_with_compressed_pda(
             ctx,
@@ -108,7 +107,6 @@ pub mod token_escrow {
             output_state_merkle_tree_account_indices,
             new_address_params,
             cpi_context,
-            bump,
         )
     }
 

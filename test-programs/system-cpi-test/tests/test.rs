@@ -41,7 +41,6 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 6. provide cpi context account but no cpi context (CpiContextAccountUndefined)
 /// 7. provide cpi context account but cpi context is empty (CpiContextEmpty)
 /// 8. test signer checks trying to insert into cpi context account (invalid invoking program)
-/// 9. test signer checks trying to insert into cpi context account (invalid signer seeds)
 /// 10. provide cpi context account but cpi context has a different fee payer (CpiContextFeePayerMismatch)
 /// 11. write data to an account that it doesn't own (WriteAccessCheckFailed)
 /// 12. Spend Program owned account with program keypair (SignerCheckFailed)
@@ -74,21 +73,6 @@ async fn only_test_create_pda() {
 
     let seed = [2u8; 32];
     let data = [3u8; 31];
-
-    // Failing 1 invalid signer seeds ----------------------------------------------
-    perform_create_pda_failing(
-        &mut test_indexer,
-        &mut rpc,
-        &env,
-        &payer,
-        seed,
-        &data,
-        &ID,
-        CreatePdaMode::InvalidSignerSeeds,
-        SystemProgramError::CpiSignerCheckFailed.into(),
-    )
-    .await
-    .unwrap();
 
     // Failing 2 invoking program ----------------------------------------------
     perform_create_pda_failing(
@@ -218,19 +202,6 @@ async fn only_test_create_pda() {
             None,
             SystemProgramError::CpiSignerCheckFailed.into(),
             WithInputAccountsMode::CpiContextInvalidInvokingProgram,
-        )
-        .await
-        .unwrap();
-        // Failing 9 test signer checks trying to insert into cpi context account (invalid signer seeds) ----------------------------------------------
-        perform_with_input_accounts(
-            &mut test_indexer,
-            &mut rpc,
-            &payer,
-            None,
-            &compressed_account,
-            None,
-            SystemProgramError::CpiSignerCheckFailed.into(),
-            WithInputAccountsMode::CpiContextInvalidSignerSeeds,
         )
         .await
         .unwrap();
@@ -823,7 +794,6 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         | WithInputAccountsMode::CpiContextMissing
         | WithInputAccountsMode::CpiContextAccountMissing
         | WithInputAccountsMode::CpiContextInvalidInvokingProgram
-        | WithInputAccountsMode::CpiContextInvalidSignerSeeds
         | WithInputAccountsMode::CpiContextFeePayerMismatch
         | WithInputAccountsMode::CpiContextWriteToNotOwnedAccount => Some(CompressedCpiContext {
             cpi_context_account_index: 2,

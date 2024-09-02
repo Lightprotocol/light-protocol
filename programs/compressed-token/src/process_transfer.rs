@@ -364,7 +364,6 @@ pub fn cpi_execute_compressed_transaction_transfer<
         new_address_params: Vec::new(),
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
     };
     let mut inputs = Vec::new();

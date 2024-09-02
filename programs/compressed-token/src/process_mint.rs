@@ -77,7 +77,7 @@ pub fn process_mint_to<'info>(
     {
         let option_compression_lamports = if lamports.unwrap_or(0) == 0 { 0 } else { 8 };
         let inputs_len =
-            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 26 + 1 + option_compression_lamports;
+            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 1 + option_compression_lamports;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
@@ -86,7 +86,6 @@ pub fn process_mint_to<'info>(
         // + 1                          Option<relay_fee>
         // + 1 + 8                         Option<compression_lamports>
         // + 1                          is_compress
-        // + 26                         seeds
         // + 1                          Option<CpiContextAccount>
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
@@ -153,12 +152,11 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     bench_sbf_start!("tm_cpi");
 
     let signer_seeds = get_cpi_signer_seeds();
-    let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
 
     // 4300 CU for 10 accounts
     // 6700 CU for 20 accounts
     // 7,978 CU for 25 accounts
-    serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec);
+    serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts);
 
     GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
 
@@ -273,7 +271,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 pub fn serialize_mint_to_cpi_instruction_data(
     inputs: &mut Vec<u8>,
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
-    seeds: &Vec<Vec<u8>>,
 ) {
     let len = output_compressed_accounts.len();
     // proof (option None)
@@ -302,8 +299,6 @@ pub fn serialize_mint_to_cpi_instruction_data(
         inputs.extend_from_slice(&[0u8; 2]); // None compression lamports, is compress bool = false
     }
 
-    // seeds
-    seeds.serialize(inputs).unwrap();
     // None compressed_cpi_context
     inputs.extend_from_slice(&[0u8]);
 }
@@ -491,7 +486,6 @@ mod test {
     };
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat() {
-        use crate::process_transfer::get_cpi_signer_seeds;
         let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
         let amounts = vec![1, 2];
         let mint_pubkey = Pubkey::new_unique();
@@ -529,15 +523,8 @@ mod test {
             };
         }
 
-        let signer_seeds = get_cpi_signer_seeds();
-
-        let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
         let mut inputs = Vec::<u8>::new();
-        serialize_mint_to_cpi_instruction_data(
-            &mut inputs,
-            &output_compressed_accounts,
-            &signer_seeds_vec,
-        );
+        serialize_mint_to_cpi_instruction_data(&mut inputs, &output_compressed_accounts);
         let inputs_struct = light_system_program::InstructionDataInvokeCpi {
             relay_fee: None,
             input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
@@ -546,7 +533,6 @@ mod test {
             new_address_params: Vec::with_capacity(0),
             compress_or_decompress_lamports: None,
             is_compress: false,
-            signer_seeds: signer_seeds_vec,
             cpi_context: None,
         };
         let mut reference = Vec::<u8>::new();
@@ -562,7 +548,6 @@ mod test {
 
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat_random() {
-        use crate::process_transfer::get_cpi_signer_seeds;
         use rand::Rng;
 
         for _ in 0..10000 {
@@ -603,16 +588,8 @@ mod test {
                     merkle_tree_index: 0,
                 };
             }
-
-            let signer_seeds = get_cpi_signer_seeds();
-
-            let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
             let mut inputs = Vec::<u8>::new();
-            serialize_mint_to_cpi_instruction_data(
-                &mut inputs,
-                &output_compressed_accounts,
-                &signer_seeds_vec,
-            );
+            serialize_mint_to_cpi_instruction_data(&mut inputs, &output_compressed_accounts);
             let sum = output_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.lamports)
@@ -625,7 +602,6 @@ mod test {
                 new_address_params: Vec::with_capacity(0),
                 compress_or_decompress_lamports: Some(sum),
                 is_compress: true,
-                signer_seeds: signer_seeds_vec,
                 cpi_context: None,
             };
             let mut reference = Vec::<u8>::new();

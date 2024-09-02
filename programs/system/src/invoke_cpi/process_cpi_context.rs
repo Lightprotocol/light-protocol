@@ -123,7 +123,6 @@ fn clean_input_data(inputs: &mut InstructionDataInvokeCpi) {
     inputs.cpi_context = None;
     inputs.compress_or_decompress_lamports = None;
     inputs.relay_fee = None;
-    inputs.signer_seeds = Vec::new();
     inputs.proof = None;
 }
 
@@ -212,7 +211,6 @@ mod tests {
             relay_fee: None,
             compress_or_decompress_lamports: None,
             is_compress: false,
-            signer_seeds: vec![vec![iter; 32]],
             cpi_context: Some(CompressedCpiContext {
                 first_set_context,
                 set_context,

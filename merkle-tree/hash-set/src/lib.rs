@@ -446,14 +446,16 @@ impl HashSet {
                         continue;
                     }
                 }
-
                 None => {
+                    // A previous bucket could have been freed already even
+                    // though the whole hash set has not been used yet.
                     if first_free_element.is_none() {
                         first_free_element = Some((probe_index, true));
-                        // Since we encountered an empty element we know for sure
-                        // that the element is not in the hash set.
-                        break;
                     }
+                    // Since we encountered an empty bucket we know for sure
+                    // that the element is not in a bucket with higher probe
+                    // index.
+                    break;
                 }
             }
         }

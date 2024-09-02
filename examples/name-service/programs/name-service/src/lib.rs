@@ -16,6 +16,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
+    use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
     use light_sdk::{
         address::derive_address_seed,
         compressed_account::{
@@ -64,7 +65,7 @@ pub mod name_service {
             ctx.remaining_accounts,
         )?;
 
-        let signer_seed = b"cpi_signer".as_slice();
+        let signer_seed = CPI_AUTHORITY_PDA_SEED;
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
@@ -72,7 +73,6 @@ pub mod name_service {
             proof,
             new_address_params,
             compressed_account,
-            &signer_seeds,
             cpi_context,
         );
 
@@ -137,7 +137,7 @@ pub mod name_service {
             ctx.remaining_accounts,
         )?;
 
-        let signer_seed = b"cpi_signer".as_slice();
+        let signer_seed = CPI_AUTHORITY_PDA_SEED;
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
@@ -145,7 +145,6 @@ pub mod name_service {
             proof,
             old_compressed_account,
             new_compressed_account,
-            &signer_seeds,
             cpi_context,
         );
 
@@ -191,16 +190,11 @@ pub mod name_service {
             ctx.remaining_accounts,
         )?;
 
-        let signer_seed = b"cpi_signer".as_slice();
+        let signer_seed = CPI_AUTHORITY_PDA_SEED;
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
-        let inputs = create_cpi_inputs_for_account_deletion(
-            proof,
-            compressed_account,
-            &signer_seeds,
-            cpi_context,
-        );
+        let inputs = create_cpi_inputs_for_account_deletion(proof, compressed_account, cpi_context);
 
         verify(ctx, &inputs, &[&signer_seeds])?;
 

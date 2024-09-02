@@ -22,7 +22,6 @@ pub fn create_cpi_inputs_for_new_account(
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    signer_seeds: &[&[u8]],
     cpi_context: Option<CompressedCpiContext>,
 ) -> InstructionDataInvokeCpi {
     InstructionDataInvokeCpi {
@@ -33,10 +32,6 @@ pub fn create_cpi_inputs_for_new_account(
         output_compressed_accounts: vec![compressed_pda],
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds
-            .iter()
-            .map(|x| x.to_vec())
-            .collect::<Vec<Vec<u8>>>(),
         cpi_context,
     }
 }
@@ -45,7 +40,6 @@ pub fn create_cpi_inputs_for_account_update(
     proof: CompressedProof,
     old_compressed_pda: PackedCompressedAccountWithMerkleContext,
     new_compressed_pda: OutputCompressedAccountWithPackedContext,
-    signer_seeds: &[&[u8]],
     cpi_context: Option<CompressedCpiContext>,
 ) -> InstructionDataInvokeCpi {
     InstructionDataInvokeCpi {
@@ -56,10 +50,6 @@ pub fn create_cpi_inputs_for_account_update(
         relay_fee: None,
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds
-            .iter()
-            .map(|x| x.to_vec())
-            .collect::<Vec<Vec<u8>>>(),
         cpi_context,
     }
 }
@@ -67,7 +57,6 @@ pub fn create_cpi_inputs_for_account_update(
 pub fn create_cpi_inputs_for_account_deletion(
     proof: CompressedProof,
     compressed_pda: PackedCompressedAccountWithMerkleContext,
-    signer_seeds: &[&[u8]],
     cpi_context: Option<CompressedCpiContext>,
 ) -> InstructionDataInvokeCpi {
     InstructionDataInvokeCpi {
@@ -78,10 +67,6 @@ pub fn create_cpi_inputs_for_account_deletion(
         relay_fee: None,
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds
-            .iter()
-            .map(|x| x.to_vec())
-            .collect::<Vec<Vec<u8>>>(),
         cpi_context,
     }
 }

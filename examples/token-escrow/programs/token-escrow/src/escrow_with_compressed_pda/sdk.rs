@@ -86,7 +86,6 @@ pub fn create_escrow_instruction(
             first_set_context: true,
             cpi_context_account_index,
         },
-        bump: token_owner_pda.1,
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -97,6 +96,7 @@ pub fn create_escrow_instruction(
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
+    let cpi_authority_pda = light_sdk::utils::get_cpi_authority_pda(&crate::ID);
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
@@ -111,6 +111,7 @@ pub fn create_escrow_instruction(
         token_owner_pda: token_owner_pda.0,
         system_program: solana_sdk::system_program::id(),
         cpi_context_account: *input_params.cpi_context_account,
+        cpi_authority_pda,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -222,6 +223,7 @@ pub fn create_withdrawal_instruction(
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
+    let cpi_authority_pda = light_system_program::utils::get_cpi_authority_pda(&crate::ID);
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
@@ -236,6 +238,7 @@ pub fn create_withdrawal_instruction(
         token_owner_pda,
         system_program: solana_sdk::system_program::id(),
         cpi_context_account: *input_params.cpi_context_account,
+        cpi_authority_pda,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

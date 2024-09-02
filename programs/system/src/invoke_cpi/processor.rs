@@ -20,7 +20,6 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     cpi_signer_checks(
         &ctx.accounts.invoking_program.key(),
         &ctx.accounts.get_authority().key(),
-        &inputs.signer_seeds,
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
     )?;
