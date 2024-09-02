@@ -81,6 +81,10 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     }
     let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
+            // The signer in this case is the freeze authority. The owner is not
+            // required to sign for this instruction. Hence, we pass the owner
+            // from a variable instead of an account to still reproduce value
+            // token data hashes for the input accounts.
             &inputs.owner,
             &None,
             remaining_accounts,
@@ -97,6 +101,10 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         inputs.input_token_data_with_context.as_slice(),
         remaining_accounts,
         mint,
+        // The signer in this case is the freeze authority. The owner is not
+        // required to sign for this instruction. Hence, we pass the owner
+        // from a variable instead of an account to still reproduce value
+        // token data hashes for the input accounts.
         &inputs.owner,
         &inputs.outputs_merkle_tree_index,
         &mut output_compressed_accounts,
@@ -128,10 +136,11 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         // +    8       amount
         // +    1 + 32  option + delegate (optional)
         // +    1       state
+        // +    1       tlv
         let capacity = if token_data_with_context.delegate_index.is_some() {
-            106
+            107
         } else {
-            74
+            75
         };
         let mut token_data_bytes = Vec::with_capacity(capacity);
         let delegate = token_data_with_context
