@@ -27,6 +27,7 @@ use solana_sdk::{
 };
 use std::sync::Arc;
 use std::{time::Duration, vec};
+use tokio::join;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
@@ -310,8 +311,8 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         .iter()
         .partition(|item| matches!(item.tree_account.tree_type, TreeType::Address));
 
-    // Fetch address proofs in batch
-    if !address_items.is_empty() {
+    // Prepare data for batch fetching
+    let address_data = if !address_items.is_empty() {
         let merkle_tree = address_items
             .first()
             .ok_or_else(|| ForesterError::Custom("No address items found".to_string()))?
@@ -322,65 +323,91 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
             .iter()
             .map(|item| item.queue_item_data.hash)
             .collect();
-        let indexer = indexer.lock().await;
-        let address_proofs = indexer
-            .get_multiple_new_address_proofs(merkle_tree, addresses)
-            .await?;
-        drop(indexer);
-        for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
-            proofs.push(MerkleProofType::AddressProof(proof.clone()));
-            let instruction = create_update_address_merkle_tree_instruction(
-                UpdateAddressMerkleTreeInstructionInputs {
-                    authority,
-                    address_merkle_tree: item.tree_account.merkle_tree,
-                    address_queue: item.tree_account.queue,
-                    value: item.queue_item_data.index as u16,
-                    low_address_index: proof.low_address_index,
-                    low_address_value: proof.low_address_value,
-                    low_address_next_index: proof.low_address_next_index,
-                    low_address_next_value: proof.low_address_next_value,
-                    low_address_proof: proof.low_address_proof,
-                    changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
-                    indexed_changelog_index: (proof.root_seq
-                        % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
-                        as u16,
-                    is_metadata_forester: false,
-                },
-                epoch,
-            );
-            instructions.push(instruction);
-        }
-    }
+        Some((merkle_tree, addresses))
+    } else {
+        None
+    };
 
-    // Fetch state proofs in batch
-    if !state_items.is_empty() {
+    let state_data = if !state_items.is_empty() {
         let states: Vec<String> = state_items
             .iter()
             .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
             .collect();
+        Some(states)
+    } else {
+        None
+    };
+
+    // Fetch all proofs in parallel
+    let (address_proofs, state_proofs) = {
         let indexer = indexer.lock().await;
-        let state_proofs = indexer
-            .get_multiple_compressed_account_proofs(states)
-            .await?;
-        drop(indexer);
-        for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
-            proofs.push(MerkleProofType::StateProof(proof.clone()));
-            let instruction = create_nullify_instruction(
-                CreateNullifyInstructionInputs {
-                    nullifier_queue: item.tree_account.queue,
-                    merkle_tree: item.tree_account.merkle_tree,
-                    change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
-                    leaves_queue_indices: vec![item.queue_item_data.index as u16],
-                    indices: vec![proof.leaf_index],
-                    proofs: vec![proof.proof.clone()],
-                    authority,
-                    derivation,
-                    is_metadata_forester: false,
-                },
-                epoch,
-            );
-            instructions.push(instruction);
-        }
+
+        let address_future = async {
+            if let Some((merkle_tree, addresses)) = address_data {
+                indexer
+                    .get_multiple_new_address_proofs(merkle_tree, addresses)
+                    .await
+            } else {
+                Ok(vec![])
+            }
+        };
+
+        let state_future = async {
+            if let Some(states) = state_data {
+                indexer.get_multiple_compressed_account_proofs(states).await
+            } else {
+                Ok(vec![])
+            }
+        };
+
+        join!(address_future, state_future)
+    };
+
+    let address_proofs = address_proofs?;
+    let state_proofs = state_proofs?;
+
+    // Process address proofs and create instructions
+    for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
+        proofs.push(MerkleProofType::AddressProof(proof.clone()));
+        let instruction = create_update_address_merkle_tree_instruction(
+            UpdateAddressMerkleTreeInstructionInputs {
+                authority,
+                address_merkle_tree: item.tree_account.merkle_tree,
+                address_queue: item.tree_account.queue,
+                value: item.queue_item_data.index as u16,
+                low_address_index: proof.low_address_index,
+                low_address_value: proof.low_address_value,
+                low_address_next_index: proof.low_address_next_index,
+                low_address_next_value: proof.low_address_next_value,
+                low_address_proof: proof.low_address_proof,
+                changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
+                indexed_changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
+                    as u16,
+                is_metadata_forester: false,
+            },
+            epoch,
+        );
+        instructions.push(instruction);
+    }
+
+    // Process state proofs and create instructions
+    for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
+        proofs.push(MerkleProofType::StateProof(proof.clone()));
+        let instruction = create_nullify_instruction(
+            CreateNullifyInstructionInputs {
+                nullifier_queue: item.tree_account.queue,
+                merkle_tree: item.tree_account.merkle_tree,
+                change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
+                leaves_queue_indices: vec![item.queue_item_data.index as u16],
+                indices: vec![proof.leaf_index],
+                proofs: vec![proof.proof.clone()],
+                authority,
+                derivation,
+                is_metadata_forester: false,
+            },
+            epoch,
+        );
+        instructions.push(instruction);
     }
 
     Ok((proofs, instructions))
