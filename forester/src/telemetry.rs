@@ -32,16 +32,6 @@ pub fn setup_telemetry() {
             .with(file_layer)
             .init();
 
-        // tracing_subscriber::registry()
-        //     .with(env_filter)
-        //     .with(
-        //         fmt::Layer::new()
-        //             .with_writer(std::io::stdout)
-        //             .with_ansi(true),
-        //     )
-        //     .with(fmt::Layer::new().with_writer(non_blocking).json())
-        //     .init();
-
         // Keep _guard in scope to keep the non-blocking writer alive
         std::mem::forget(_guard);
     });
