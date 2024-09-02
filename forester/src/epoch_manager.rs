@@ -496,7 +496,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let results = join_all(handles).await;
         for result in results {
             match result {
-                Ok(Ok(())) => {},
+                Ok(Ok(())) => {}
                 Ok(Err(e)) => error!("Error processing queue: {:?}", e),
                 Err(e) => error!("Task panicked: {:?}", e),
             }
