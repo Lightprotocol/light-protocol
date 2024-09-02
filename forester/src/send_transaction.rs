@@ -16,7 +16,6 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use log::info;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;
@@ -30,6 +29,7 @@ use std::{time::Duration, vec};
 use tokio::join;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
+use tracing::{debug, warn};
 
 pub trait TransactionBuilder {
     fn build_signed_transaction_batch(
@@ -126,9 +126,9 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 .await;
             num_sent_transactions += transactions.len();
 
-            info!("build transaction time {:?}", start_time.elapsed());
+            debug!("build transaction time {:?}", start_time.elapsed());
             let start_time_get_connections = tokio::time::Instant::now();
-            info!(
+            debug!(
                 "get get connections txs time {:?}",
                 start_time_get_connections.elapsed()
             );
@@ -146,7 +146,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 all_results.await;
             });
 
-            info!(
+            debug!(
                 "get send txs time {:?}",
                 start_time_get_connections.elapsed()
             );
@@ -157,7 +157,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         // 8. If work items is empty, await minimum batch time.
         // If this is triggered we could switch to subscribing to the queue
         if work_items.is_empty() {
-            info!("Work items empty, waiting for next batch epoch {:?}", epoch);
+            debug!("Work items empty, waiting for next batch epoch {:?}", epoch);
             tokio::time::sleep(batch_time).await;
         }
     }
@@ -202,7 +202,7 @@ pub async fn send_signed_transaction(
                 // info!("Transaction sent: {}", signature);
             }
             Err(e) => {
-                info!("Error sending transaction: {:?}", e);
+                warn!("Error sending transaction: {:?}", e);
                 return Err(ForesterError::from(e));
             }
         }

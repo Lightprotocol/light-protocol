@@ -28,12 +28,12 @@ pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
 use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
-use log::info;
 pub use settings::init_config;
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
+use tracing::debug;
 
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,
@@ -55,7 +55,7 @@ pub async fn run_queue_info(
         QUEUE_LENGTH
             .with_label_values(&[&*queue_type.to_string(), &tree_data.merkle_tree.to_string()])
             .set(queue_length as i64);
-        info!(
+        println!(
             "{:?} queue {} length: {}",
             queue_type, tree_data.queue, queue_length
         );
@@ -102,7 +102,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
         SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
     });
 
-    info!("Starting Forester pipeline");
+    debug!("Starting Forester pipeline");
     run_service(
         config,
         Arc::new(protocol_config),

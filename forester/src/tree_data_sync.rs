@@ -4,9 +4,9 @@ use account_compression::{AddressMerkleTreeAccount, MerkleTreeMetadata, StateMer
 use borsh::BorshDeserialize;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::rpc::RpcConnection;
-use log::debug;
 use solana_sdk::account::Account;
 use solana_sdk::pubkey::Pubkey;
+use tracing::debug;
 
 pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Vec<TreeAccounts> {
     let program_id = account_compression::id();

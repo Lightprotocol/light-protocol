@@ -3,8 +3,8 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::QueueAccount;
 use forester_utils::rpc::RpcConnection;
 use light_hash_set::HashSet;
-use log::debug;
 use std::mem;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct QueueItemData {
@@ -37,7 +37,7 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
             }
         })
         .collect();
-    log::info!("Queue data fetched: {:?}", filtered_queue);
+    debug!("Queue data fetched: {:?}", filtered_queue);
     Ok(filtered_queue)
 }
 

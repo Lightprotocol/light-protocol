@@ -1,8 +1,8 @@
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_registry::{EpochPda, ForesterEpochPda};
-use log::info;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct ForesterEpochInfo {
@@ -21,9 +21,9 @@ impl ForesterEpochInfo {
         // let state = self.phases.get_current_epoch_state(current_solana_slot);
         // TODO: add epoch state to sync schedule
         for tree in trees {
-            info!("Adding tree schedule for {:?}", tree);
-            info!("Current slot: {}", current_solana_slot);
-            info!("Epoch: {:?}", self.epoch_pda);
+            debug!("Adding tree schedule for {:?}", tree);
+            debug!("Current slot: {}", current_solana_slot);
+            debug!("Epoch: {:?}", self.epoch_pda);
             let tree_schedule = TreeForesterSchedule::new_with_schedule(
                 tree,
                 current_solana_slot,

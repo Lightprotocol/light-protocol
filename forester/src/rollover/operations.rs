@@ -5,13 +5,13 @@ use light_registry::account_compression_cpi::sdk::{
     CreateRolloverMerkleTreeInstructionInputs,
 };
 use light_registry::protocol_config::state::ProtocolConfig;
-use log::info;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::Transaction;
 use tokio::sync::Mutex;
+use tracing::{debug, info};
 
 use crate::errors::ForesterError;
 use crate::ForesterConfig;
@@ -42,7 +42,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    info!(
+    debug!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );

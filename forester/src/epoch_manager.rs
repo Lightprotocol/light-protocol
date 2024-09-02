@@ -134,6 +134,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, tx))]
     async fn monitor_epochs(&self, tx: mpsc::Sender<u64>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
         debug!("Starting epoch monitor");
@@ -159,7 +160,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
             let mut rpc = self.rpc_pool.get_connection().await?;
             let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
-            info!(
+            debug!(
                 "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
                 next_epoch, slot, next_phases.registration.start, slots_to_wait
             );
@@ -192,7 +193,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .fetch_add(increment_by, Ordering::Relaxed);
     }
 
-    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
+    #[instrument(level = "info", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
     ))]
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
         info!("Entering process_epoch");
@@ -258,7 +259,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .await
                 {
                     Ok(Some(epoch)) => {
-                        info!("Registered epoch: {:?}", epoch);
+                        debug!("Registered epoch: {:?}", epoch);
                         epoch
                     }
                     Ok(None) => {
@@ -279,7 +280,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     .await
                 {
                     Ok(Some(pda)) => {
-                        info!("ForesterEpochPda: {:?}", pda);
+                        debug!("ForesterEpochPda: {:?}", pda);
                         pda
                     }
                     Ok(None) => {
@@ -373,7 +374,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(forester_epoch_info)
     }
 
-    #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
+    #[instrument(level = "info", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn wait_for_active_phase(
         &self,
@@ -503,13 +504,13 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         epoch_pda: ForesterEpochPda,
         mut tree: TreeForesterSchedule,
     ) -> Result<()> {
-        info!("enter process_queue");
-        info!("Tree schedule slots: {:?}", tree.slots);
+        debug!("enter process_queue");
+        debug!("Tree schedule slots: {:?}", tree.slots);
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
         while estimated_slot < epoch_info.phases.active.end {
-            info!("Processing queue");
+            debug!("Processing queue");
             // search for next eligible slot
             let index_and_forester_slot = tree
                 .slots
@@ -517,7 +518,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .enumerate()
                 .find(|(_, slot)| slot.is_some());
 
-            info!("Result: {:?}", index_and_forester_slot);
+            debug!("Result: {:?}", index_and_forester_slot);
             if let Some((index, forester_slot)) = index_and_forester_slot {
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
@@ -697,6 +698,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     }
 }
 
+#[instrument(
+    level = "info",
+    skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
+    fields(forester = %config.payer_keypair.pubkey())
+)]
 pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,

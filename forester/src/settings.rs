@@ -4,12 +4,12 @@ use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::Id;
 use config::{Config, Environment};
-use log::info;
 use solana_sdk::signature::{Keypair, Signer};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
 use std::{env, fmt};
+use tracing::debug;
 
 pub enum SettingsKey {
     Payer,
@@ -137,7 +137,7 @@ pub fn init_config() -> Result<ForesterConfig, ForesterError> {
         state_tree_data: vec![],
     };
 
-    info!("Config: {:?}", config);
+    debug!("Config: {:?}", config);
     Ok(config)
 }
 

@@ -8,10 +8,10 @@ use forester::tree_data_sync::fetch_trees;
 use forester::{init_config, run_pipeline, run_queue_info};
 use forester_utils::forester_epoch::TreeType;
 use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
-use log::{debug, info, warn};
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, warn};
 
 #[tokio::main]
 async fn main() -> Result<(), ForesterError> {
@@ -55,8 +55,8 @@ async fn main() -> Result<(), ForesterError> {
             run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
         }
         Some(Commands::Status) => {
-            info!("Fetching trees...");
-            info!("RPC URL: {}", config.external_services.rpc_url);
+            debug!("Fetching trees...");
+            debug!("RPC URL: {}", config.external_services.rpc_url);
             let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None);
             let trees = fetch_trees(&rpc).await;
             if trees.is_empty() {
