@@ -122,7 +122,6 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         new_address_params: vec![new_address_params],
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: Vec::new(),
         cpi_context,
     };
 
@@ -162,10 +161,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     bump: u8,
     mode: CreatePdaMode,
 ) -> Result<()> {
-    let signer_seed = match mode {
-        CreatePdaMode::InvalidSignerSeeds => b"cpi_signer1".as_slice(),
-        _ => b"cpi_signer".as_slice(),
-    };
     let invoking_program = match mode {
         CreatePdaMode::InvalidInvokingProgram => ctx.accounts.signer.to_account_info(),
         _ => ctx.accounts.self_program.to_account_info(),
@@ -186,8 +181,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         _ => compressed_pda,
     };
 
-    let local_bump = Pubkey::find_program_address(&[signer_seed], &invoking_program.key()).1;
-    let seeds: [&[u8]; 2] = [signer_seed, &[local_bump]];
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
@@ -196,7 +189,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         new_address_params: vec![new_address_params],
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
     };
     // defining seeds again so that the cpi doesn't fail we want to test the check in the compressed pda program

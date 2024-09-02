@@ -72,7 +72,6 @@ pub mod name_service {
             proof,
             new_address_params,
             compressed_account,
-            &signer_seeds,
             cpi_context,
         );
 
@@ -145,7 +144,6 @@ pub mod name_service {
             proof,
             old_compressed_account,
             new_compressed_account,
-            &signer_seeds,
             cpi_context,
         );
 
@@ -195,12 +193,7 @@ pub mod name_service {
         let bump = Pubkey::find_program_address(&[signer_seed], &ctx.accounts.self_program.key()).1;
         let signer_seeds = [signer_seed, &[bump]];
 
-        let inputs = create_cpi_inputs_for_account_deletion(
-            proof,
-            compressed_account,
-            &signer_seeds,
-            cpi_context,
-        );
+        let inputs = create_cpi_inputs_for_account_deletion(proof, compressed_account, cpi_context);
 
         verify(ctx, &inputs, &[&signer_seeds])?;
 

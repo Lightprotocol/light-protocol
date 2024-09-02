@@ -1,6 +1,6 @@
 use account_compression::{
-    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
-    StateMerkleTreeAccount,
+    utils::{check_discrimininator::check_discriminator, constants::CPI_AUTHORITY_PDA_SEED},
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use anchor_lang::prelude::*;
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
@@ -23,12 +23,11 @@ use crate::{
 pub fn cpi_signer_checks(
     invoking_programid: &Pubkey,
     authority: &Pubkey,
-    signer_seeds: &[Vec<u8>],
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
-    cpi_signer_check(signer_seeds, invoking_programid, authority)?;
+    cpi_signer_check(invoking_programid, authority)?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpd_input_checks");
     input_compressed_accounts_signer_check(
@@ -45,21 +44,13 @@ pub fn cpi_signer_checks(
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
 #[heap_neutral]
-pub fn cpi_signer_check(
-    signer_seeds: &[Vec<u8>],
-    invoking_program: &Pubkey,
-    authority: &Pubkey,
-) -> Result<()> {
-    let seeds = signer_seeds
-        .iter()
-        .map(|x| x.as_slice())
-        .collect::<Vec<&[u8]>>();
+pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
     let derived_signer =
-        Pubkey::create_program_address(&seeds[..], invoking_program).map_err(ProgramError::from)?;
+        Pubkey::create_program_address(&[CPI_AUTHORITY_PDA_SEED], invoking_program)
+            .map_err(ProgramError::from)?;
     if derived_signer != *authority {
         msg!(
-            "Cpi signer check failed. Seeds {:?} derived cpi signer {} !=  authority {}",
-            seeds,
+            "Cpi signer check failed. Derived cpi signer {} !=  authority {}",
             derived_signer,
             authority
         );
@@ -210,26 +201,17 @@ mod test {
     #[test]
     fn test_cpi_signer_check() {
         for _ in 0..1000 {
-            let seeds = [1, 2, 3];
+            let seeds = [CPI_AUTHORITY_PDA_SEED];
             let invoking_program = Pubkey::new_unique();
-            let (derived_signer, bump) =
-                Pubkey::find_program_address(&[&seeds[..]], &invoking_program);
-            assert_eq!(
-                cpi_signer_check(
-                    &vec![seeds.to_vec(), vec![bump]],
-                    &invoking_program,
-                    &derived_signer
-                ),
-                Ok(())
-            );
+            let (derived_signer, _) = Pubkey::find_program_address(&seeds[..], &invoking_program);
+            assert_eq!(cpi_signer_check(&invoking_program, &derived_signer), Ok(()));
 
             let authority = Pubkey::new_unique();
-            let seeds = vec![vec![1, 2, 3], vec![bump]];
             let invoking_program = Pubkey::new_unique();
             assert!(
-                cpi_signer_check(&seeds, &invoking_program, &authority)
+                cpi_signer_check(&invoking_program, &authority)
                     == Err(ProgramError::InvalidSeeds.into())
-                    || cpi_signer_check(&seeds, &invoking_program, &authority)
+                    || cpi_signer_check(&invoking_program, &authority)
                         == Err(SystemProgramError::CpiSignerCheckFailed.into())
             );
         }

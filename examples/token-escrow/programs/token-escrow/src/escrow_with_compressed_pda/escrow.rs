@@ -121,7 +121,6 @@ fn cpi_compressed_pda_transfer<'info>(
         proof,
         new_address_params,
         compressed_pda,
-        &signer_seeds,
         Some(cpi_context),
     );
 

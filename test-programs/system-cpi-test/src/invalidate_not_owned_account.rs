@@ -29,7 +29,6 @@ pub enum WithInputAccountsMode {
     CpiContextFeePayerMismatch,
     CpiContextEmpty,
     CpiContextInvalidInvokingProgram,
-    CpiContextInvalidSignerSeeds,
     CpiContextWriteAccessCheckFailed,
     CpiContextWriteToNotOwnedAccount,
     Approve,
@@ -65,7 +64,6 @@ pub fn process_with_input_accounts<'info>(
         | WithInputAccountsMode::CpiContextAccountMissing
         | WithInputAccountsMode::CpiContextEmpty
         | WithInputAccountsMode::CpiContextInvalidInvokingProgram
-        | WithInputAccountsMode::CpiContextInvalidSignerSeeds
         | WithInputAccountsMode::CpiContextWriteToNotOwnedAccount => {
             process_invalidate_not_owned_compressed_account(
                 &ctx,
@@ -145,12 +143,6 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         }
         _ => ctx.accounts.self_program.to_account_info(),
     };
-    let signer_seed = match mode {
-        WithInputAccountsMode::CpiContextInvalidSignerSeeds => b"cpi_signer1".as_slice(),
-        _ => b"cpi_signer".as_slice(),
-    };
-    let local_bump = Pubkey::find_program_address(&[signer_seed], &invoking_program.key()).1;
-    let seeds: [&[u8]; 2] = [signer_seed, &[local_bump]];
 
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
@@ -160,7 +152,6 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         new_address_params: Vec::new(),
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
     };
 
@@ -636,7 +627,6 @@ fn write_into_cpi_account<'info>(
         new_address_params: Vec::new(),
         compress_or_decompress_lamports: None,
         is_compress: false,
-        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
     };
 

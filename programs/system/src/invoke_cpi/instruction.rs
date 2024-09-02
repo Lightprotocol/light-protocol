@@ -97,7 +97,6 @@ pub struct InstructionDataInvokeCpi {
     pub relay_fee: Option<u64>,
     pub compress_or_decompress_lamports: Option<u64>,
     pub is_compress: bool,
-    pub signer_seeds: Vec<Vec<u8>>,
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
@@ -140,7 +139,6 @@ mod tests {
             relay_fee: Some(1),
             compress_or_decompress_lamports: Some(1),
             is_compress: true,
-            signer_seeds: vec![vec![0; 32], vec![1; 32]],
             cpi_context: None,
         };
         let other = InstructionDataInvokeCpi {
@@ -157,7 +155,6 @@ mod tests {
             compress_or_decompress_lamports: Some(1),
             is_compress: true,
             new_address_params: vec![NewAddressParamsPacked::default()],
-            signer_seeds: vec![],
             cpi_context: None,
         };
         instruction_data_transfer.combine(&[other]);
