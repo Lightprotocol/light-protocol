@@ -115,7 +115,7 @@ impl QueueAccount {
     }
 }
 
-/// Creates a copy of `IndexedArray` from the given account data.
+/// Creates a copy of `HashSet` from the given account data.
 ///
 /// # Safety
 ///
@@ -127,7 +127,7 @@ pub unsafe fn queue_from_bytes_copy(data: &mut [u8]) -> Result<HashSet> {
     Ok(queue)
 }
 
-/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+/// Casts the given account data to an `HashSetZeroCopy` instance.
 ///
 /// # Safety
 ///
@@ -138,7 +138,7 @@ pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZ
     let queue = HashSetZeroCopy::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
     Ok(queue)
 }
-/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+/// Casts the given account data to an `HashSetZeroCopy` instance.
 ///
 /// # Safety
 ///
