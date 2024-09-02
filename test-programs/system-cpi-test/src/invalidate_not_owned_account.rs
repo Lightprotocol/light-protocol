@@ -1,4 +1,4 @@
-use account_compression::program::AccountCompression;
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     delegation::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke},
@@ -157,7 +157,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
 
     let mut inputs = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
-    let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
+    let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
     let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
@@ -617,7 +617,7 @@ fn write_into_cpi_account<'info>(
         },
         merkle_tree_index: 0,
     };
-    let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
+    let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,

@@ -1,4 +1,4 @@
-use account_compression::program::AccountCompression;
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
 use light_system_program::{
@@ -192,7 +192,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         cpi_context,
     };
     // defining seeds again so that the cpi doesn't fail we want to test the check in the compressed pda program
-    let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
+    let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
     let mut inputs = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 

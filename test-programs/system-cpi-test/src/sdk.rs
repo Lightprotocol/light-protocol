@@ -37,8 +37,7 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
 }
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
-    let (cpi_signer, bump) =
-        Pubkey::find_program_address(&[b"cpi_signer".as_slice()], &crate::id());
+    let (cpi_signer, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::id());
     let mut remaining_accounts = HashMap::new();
     remaining_accounts.insert(
         *input_params.output_compressed_account_merkle_tree_pubkey,
@@ -100,8 +99,7 @@ pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
     mode: crate::WithInputAccountsMode,
 ) -> Instruction {
-    let (cpi_signer, bump) =
-        Pubkey::find_program_address(&[b"cpi_signer".as_slice()], &crate::id());
+    let (cpi_signer, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::id());
     let cpi_context = input_params.cpi_context;
 
     let mut remaining_accounts = HashMap::new();
