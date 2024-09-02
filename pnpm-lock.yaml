@@ -15,8 +15,8 @@ importers:
         specifier: ^19.6.2
         version: 19.6.2
       playwright:
-        specifier: ^1.45.3
-        version: 1.45.3
+        specifier: ^1.46.1
+        version: 1.46.1
       prettier:
         specifier: ^3.3.3
         version: 3.3.3
@@ -412,10 +412,6 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.0(@types/node@22.4.1)(@vitest/browser@1.6.0)(terser@5.31.0)
-
-  hasher.rs/src/main/wasm: {}
-
-  hasher.rs/src/main/wasm-simd: {}
 
   js/compressed-token:
     dependencies:
@@ -6402,8 +6398,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright-core@1.45.3:
-    resolution: {integrity: sha512-+ym0jNbcjikaOwwSZycFbwkWgfruWvYlJfThKYAlImbxUgdWFO2oW70ojPm4OpE4t6TAo2FY/smM+hpVTtkhDA==}
+  playwright-core@1.46.1:
+    resolution: {integrity: sha512-h9LqIQaAv+CYvWzsZ+h3RsrqCStkBHlgo6/TJlFst3cOTlLghBQlJwPOZKQJTKNaD3QIB7aAVQ+gfWbN3NXB7A==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -6417,8 +6413,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.45.3:
-    resolution: {integrity: sha512-QhVaS+lpluxCaioejDZ95l4Y4jSFCsBvl2UZkpeXlzxmqS+aABr5c82YmfMHrL6x27nvrvykJAFpkzT2eWdJww==}
+  playwright@1.46.1:
+    resolution: {integrity: sha512-oPcr1yqoXLCkgKtD5eNUPLiN40rYEM39odNpIb6VE6S7/15gJmA1NzVv6zJYusV0e7tzvkU/utBFNa/Kpxmwng==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -11458,14 +11454,14 @@ snapshots:
     optionalDependencies:
       playwright: 1.45.1
 
-  '@vitest/browser@1.6.0(playwright@1.45.3)(vitest@1.6.0)':
+  '@vitest/browser@1.6.0(playwright@1.46.1)(vitest@1.6.0)':
     dependencies:
       '@vitest/utils': 1.6.0
       magic-string: 0.30.5
       sirv: 2.0.4
       vitest: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
     optionalDependencies:
-      playwright: 1.45.3
+      playwright: 1.46.1
     optional: true
 
   '@vitest/expect@1.6.0':
@@ -15283,7 +15279,7 @@ snapshots:
 
   playwright-core@1.45.1: {}
 
-  playwright-core@1.45.3: {}
+  playwright-core@1.46.1: {}
 
   playwright@1.43.1:
     dependencies:
@@ -15297,9 +15293,9 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.2
 
-  playwright@1.45.3:
+  playwright@1.46.1:
     dependencies:
-      playwright-core: 1.45.3
+      playwright-core: 1.46.1
     optionalDependencies:
       fsevents: 2.3.2
 
@@ -16568,7 +16564,7 @@ snapshots:
       why-is-node-running: 2.2.2
     optionalDependencies:
       '@types/node': 20.12.11
-      '@vitest/browser': 1.6.0(playwright@1.45.3)(vitest@1.6.0)
+      '@vitest/browser': 1.6.0(playwright@1.46.1)(vitest@1.6.0)
     transitivePeerDependencies:
       - less
       - lightningcss
