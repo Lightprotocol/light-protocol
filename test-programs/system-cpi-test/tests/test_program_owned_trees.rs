@@ -286,7 +286,7 @@ async fn test_invalid_registered_program() {
         &mut rpc,
         &env.governance_authority,
         &env.group_pda,
-        &other_program_id_keypair.pubkey(),
+        &other_program_id_keypair,
     )
     .await
     .unwrap();

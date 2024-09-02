@@ -11,7 +11,11 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
+#[cfg(not(feature = "test"))]
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+
+#[cfg(feature = "test")]
+declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

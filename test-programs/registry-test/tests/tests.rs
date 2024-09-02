@@ -202,7 +202,7 @@ async fn test_initialize_protocol_config() {
             &mut rpc,
             &payer,
             &group_pda,
-            &random_program_keypair.pubkey(),
+            &random_program_keypair,
         )
         .await;
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
@@ -215,7 +215,7 @@ async fn test_initialize_protocol_config() {
             &mut rpc,
             &updated_keypair,
             &group_pda,
-            &random_program_keypair.pubkey(),
+            &random_program_keypair,
         )
         .await
         .unwrap();
@@ -239,12 +239,12 @@ async fn test_initialize_protocol_config() {
     }
     // register program
     {
-        // let program_keypair = Keypair::from_bytes(light_registry::id().as_ref()).unwrap();
+        let program_keypair = Keypair::from_bytes(light_registry::id().as_ref()).unwrap();
         register_program_with_registry_program(
             &mut rpc,
             &updated_keypair,
             &group_pda,
-            &light_registry::id(),
+            &program_keypair,
         )
         .await
         .unwrap();
