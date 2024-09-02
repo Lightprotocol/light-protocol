@@ -2,11 +2,11 @@ use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use forester_utils::rpc::RpcConnection;
-use log::{debug, info};
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
 use std::fmt::Debug;
+use tracing::debug;
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
@@ -132,7 +132,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             ..Default::default()
         };
 
-        info!("Request: {:?}", request);
+        debug!("Request: {:?}", request);
 
         let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
             &self.configuration,

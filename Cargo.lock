@@ -2295,7 +2295,6 @@ dependencies = [
  "light-registry",
  "light-system-program",
  "light-test-utils",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "once_cell",

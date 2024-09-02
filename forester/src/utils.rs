@@ -1,10 +1,10 @@
 use forester_utils::rpc::RpcConnection;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::utils::get_protocol_config_pda_address;
-use log::{debug, info};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{Signal, System};
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct LightValidatorConfig {
@@ -90,7 +90,7 @@ pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfi
         .await
         .unwrap()
         .unwrap();
-    info!("Protocol config account: {:?}", protocol_config_account);
+    debug!("Protocol config account: {:?}", protocol_config_account);
     protocol_config_account.config
 }
 

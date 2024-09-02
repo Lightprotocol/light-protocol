@@ -5,7 +5,7 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_program_test::BanksClientError;
@@ -151,7 +151,7 @@ impl RpcConnection for SolanaRpcConnection {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
-        info!(
+        debug!(
             "Fetching accounts for program: {}, client url: {}",
             program_id,
             self.client.url()
@@ -361,7 +361,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        println!("Calling get_slot");
+        debug!("Calling get_slot");
         self.client.get_slot().map_err(RpcError::from)
     }
 

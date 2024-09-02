@@ -1,9 +1,9 @@
 use forester_utils::rpc::RpcConnection;
-use log::{debug, error};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
 use std::{sync::Arc, time::SystemTime};
 use tokio::time::{sleep, Duration};
+use tracing::{debug, error};
 
 pub fn slot_duration() -> Duration {
     Duration::from_nanos(solana_sdk::genesis_config::GenesisConfig::default().ns_per_slot() as u64)

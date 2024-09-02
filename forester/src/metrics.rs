@@ -5,7 +5,7 @@ use reqwest::Client;
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
@@ -94,7 +94,7 @@ pub fn update_transactions_processed(epoch: u64, count: usize, duration: std::ti
         .with_label_values(&[&epoch.to_string()])
         .set(rate);
 
-    info!(
+    debug!(
         "Updated metrics for epoch {}: processed = {}, rate = {} tx/s",
         epoch, count, rate
     );
@@ -120,13 +120,13 @@ pub async fn push_metrics(url: &str) -> Result<()> {
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer)?;
 
-    info!("Pushing metrics to Pushgateway");
+    debug!("Pushing metrics to Pushgateway");
 
     let client = Client::new();
     let res = client.post(url).body(buffer).send().await?;
 
     if res.status().is_success() {
-        println!("Successfully pushed metrics to Pushgateway");
+        debug!("Successfully pushed metrics to Pushgateway");
         Ok(())
     } else {
         let error_message = format!(

@@ -4,7 +4,6 @@ use crate::ForesterConfig;
 use crate::Result;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use futures::StreamExt;
-use log::{debug, error, info};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
@@ -13,12 +12,13 @@ use std::str::FromStr;
 use std::thread;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc;
+use tracing::{debug, error};
 
 pub async fn setup_pubsub_client(
     config: &ForesterConfig,
     queue_pubkeys: std::collections::HashSet<Pubkey>,
 ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
-    info!(
+    debug!(
         "Setting up pubsub client for {} queues",
         queue_pubkeys.len()
     );
@@ -38,7 +38,7 @@ pub async fn setup_pubsub_client(
                 if let Err(e) = result {
                     error!("PubSub client error: {:?}", e);
                 } else {
-                    info!("PubSub client thread completed successfully");
+                    debug!("PubSub client thread completed successfully");
                 }
             }
             Err(e) => error!("Failed to join PubSub client thread: {:?}", e),
@@ -61,12 +61,12 @@ fn spawn_pubsub_client(
             .map_err(|e| ForesterError::Custom(format!("Failed to build runtime: {}", e)))?;
 
         rt.block_on(async {
-            info!("Connecting to PubSub at {}", ws_url);
+            debug!("Connecting to PubSub at {}", ws_url);
             let pubsub_client = PubsubClient::new(&ws_url).await.map_err(|e| {
                 ForesterError::Custom(format!("Failed to create PubsubClient: {}", e))
             })?;
 
-            info!("PubSub connection established");
+            debug!("PubSub connection established");
 
             let (mut subscription, _) = pubsub_client
                 .program_subscribe(
@@ -109,7 +109,7 @@ fn spawn_pubsub_client(
                     }
                 }
             }
-            info!("PubSub client loop ended");
+            debug!("PubSub client loop ended");
             Ok(())
         })
     })
