@@ -20,6 +20,7 @@ use forester_utils::forester_epoch::{
 };
 use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use forester_utils::rpc::RpcConnection;
+use futures::future::join_all;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
@@ -32,7 +33,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use futures::future::join_all;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Instant};
@@ -495,7 +495,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let results = join_all(handles).await;
         for result in results {
             match result {
-                Ok(Ok(())) => {},
+                Ok(Ok(())) => {}
                 Ok(Err(e)) => error!("Error processing queue: {:?}", e),
                 Err(e) => error!("Task panicked: {:?}", e),
             }
