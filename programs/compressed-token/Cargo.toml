@@ -21,7 +21,7 @@ test-sbf = []
 bench-sbf = []
 cpi-context = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
-test = []
+test-program-ids = []
 
 
 [dependencies]

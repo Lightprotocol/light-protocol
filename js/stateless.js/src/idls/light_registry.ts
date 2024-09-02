@@ -3,14 +3,14 @@ export type LightRegistry = {
     name: 'light_registry';
     constants: [
         {
-            name: 'FORESTER_SEED';
-            type: 'bytes';
-            value: '[102, 111, 114, 101, 115, 116, 101, 114]';
-        },
-        {
             name: 'FORESTER_EPOCH_SEED';
             type: 'bytes';
             value: '[102, 111, 114, 101, 115, 116, 101, 114, 95, 101, 112, 111, 99, 104]';
+        },
+        {
+            name: 'FORESTER_SEED';
+            type: 'bytes';
+            value: '[102, 111, 114, 101, 115, 116, 101, 114]';
         },
         {
             name: 'PROTOCOL_CONFIG_PDA_SEED';
@@ -146,7 +146,7 @@ export type LightRegistry = {
                 {
                     name: 'programToBeRegistered';
                     isMut: false;
-                    isSigner: false;
+                    isSigner: true;
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ];
@@ -492,7 +492,7 @@ export type LightRegistry = {
                 {
                     name: 'queueConfig';
                     type: {
-                        defined: 'AddressQueueConfig';
+                        defined: 'NullifierQueueConfig';
                     };
                 },
             ];
@@ -889,6 +889,53 @@ export type LightRegistry = {
     ];
     accounts: [
         {
+            name: 'addressMerkleTreeAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'MerkleTreeMetadata';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'groupAuthority';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'authority';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seed';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'stateMerkleTreeAccount';
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'MerkleTreeMetadata';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'epochPda';
             docs: ['Is used for tallying and rewards calculation'];
             type: {
@@ -1059,6 +1106,233 @@ export type LightRegistry = {
     ];
     types: [
         {
+            name: 'AddressMerkleTreeConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'addressChangelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NullifierQueueConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'capacity';
+                        type: 'u16';
+                    },
+                    {
+                        name: 'sequenceThreshold';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'StateMerkleTreeConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'AccessMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        docs: ['Owner of the Merkle tree.'];
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'programOwner';
+                        docs: [
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ];
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'forester';
+                        docs: [
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ];
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleTreeMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'accessMetadata';
+                        type: {
+                            defined: 'AccessMetadata';
+                        };
+                    },
+                    {
+                        name: 'rolloverMetadata';
+                        type: {
+                            defined: 'RolloverMetadata';
+                        };
+                    },
+                    {
+                        name: 'associatedQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextMerkleTree';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'RolloverMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'index';
+                        docs: ['Unique index.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverFee';
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'closeThreshold';
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'additionalBytes';
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
+                        ];
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
             name: 'ProtocolConfig';
             docs: [
                 'Epoch Phases:',
@@ -1162,29 +1436,6 @@ export type LightRegistry = {
                         name: 'fee';
                         docs: ['Fee in percentage points.'];
                         type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'EpochState';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'Registration';
-                    },
-                    {
-                        name: 'Active';
-                    },
-                    {
-                        name: 'ReportWork';
-                    },
-                    {
-                        name: 'Post';
-                    },
-                    {
-                        name: 'Pre';
                     },
                 ];
             };
@@ -1300,14 +1551,14 @@ export const IDL: LightRegistry = {
     name: 'light_registry',
     constants: [
         {
-            name: 'FORESTER_SEED',
-            type: 'bytes',
-            value: '[102, 111, 114, 101, 115, 116, 101, 114]',
-        },
-        {
             name: 'FORESTER_EPOCH_SEED',
             type: 'bytes',
             value: '[102, 111, 114, 101, 115, 116, 101, 114, 95, 101, 112, 111, 99, 104]',
+        },
+        {
+            name: 'FORESTER_SEED',
+            type: 'bytes',
+            value: '[102, 111, 114, 101, 115, 116, 101, 114]',
         },
         {
             name: 'PROTOCOL_CONFIG_PDA_SEED',
@@ -1443,7 +1694,7 @@ export const IDL: LightRegistry = {
                 {
                     name: 'programToBeRegistered',
                     isMut: false,
-                    isSigner: false,
+                    isSigner: true,
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ],
@@ -1789,7 +2040,7 @@ export const IDL: LightRegistry = {
                 {
                     name: 'queueConfig',
                     type: {
-                        defined: 'AddressQueueConfig',
+                        defined: 'NullifierQueueConfig',
                     },
                 },
             ],
@@ -2186,6 +2437,53 @@ export const IDL: LightRegistry = {
     ],
     accounts: [
         {
+            name: 'addressMerkleTreeAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'MerkleTreeMetadata',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'groupAuthority',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'authority',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seed',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'stateMerkleTreeAccount',
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'MerkleTreeMetadata',
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'epochPda',
             docs: ['Is used for tallying and rewards calculation'],
             type: {
@@ -2356,6 +2654,233 @@ export const IDL: LightRegistry = {
     ],
     types: [
         {
+            name: 'AddressMerkleTreeConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'changelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootsSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'canopyDepth',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'addressChangelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'networkFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NullifierQueueConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'capacity',
+                        type: 'u16',
+                    },
+                    {
+                        name: 'sequenceThreshold',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'networkFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'StateMerkleTreeConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'changelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootsSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'canopyDepth',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'networkFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'AccessMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        docs: ['Owner of the Merkle tree.'],
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'programOwner',
+                        docs: [
+                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ],
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'forester',
+                        docs: [
+                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
+                            'without a network fee. Merkle trees without network fees are not',
+                            'forested by light foresters. The variable is not used in the account',
+                            'compression program but the registry program. The registry program',
+                            'implements access control to prevent contention during forester. The',
+                            'forester pubkey specified in this struct can bypass contention checks.',
+                        ],
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleTreeMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'accessMetadata',
+                        type: {
+                            defined: 'AccessMetadata',
+                        },
+                    },
+                    {
+                        name: 'rolloverMetadata',
+                        type: {
+                            defined: 'RolloverMetadata',
+                        },
+                    },
+                    {
+                        name: 'associatedQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextMerkleTree',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'RolloverMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'index',
+                        docs: ['Unique index.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverFee',
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'networkFee',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'closeThreshold',
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'additionalBytes',
+                        docs: [
+                            'Placeholder for bytes of additional accounts which are tied to the',
+                            'Merkle trees operation and need to be rolled over as well.',
+                        ],
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
             name: 'ProtocolConfig',
             docs: [
                 'Epoch Phases:',
@@ -2459,29 +2984,6 @@ export const IDL: LightRegistry = {
                         name: 'fee',
                         docs: ['Fee in percentage points.'],
                         type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'EpochState',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'Registration',
-                    },
-                    {
-                        name: 'Active',
-                    },
-                    {
-                        name: 'ReportWork',
-                    },
-                    {
-                        name: 'Post',
-                    },
-                    {
-                        name: 'Pre',
                     },
                 ],
             },
