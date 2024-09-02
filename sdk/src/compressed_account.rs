@@ -222,8 +222,8 @@ where
         Self {
             output_account,
             address_seed,
-            merkle_context: merkle_context.clone(),
-            address_merkle_context: address_merkle_context.clone(),
+            merkle_context: *merkle_context,
+            address_merkle_context: *address_merkle_context,
             address_merkle_tree_root_index,
         }
     }
@@ -314,9 +314,9 @@ where
             input_account: account.clone(),
             output_account: account,
             address_seed,
-            merkle_context: merkle_context.clone(),
+            merkle_context: *merkle_context,
             merkle_tree_root_index,
-            address_merkle_context: address_merkle_context.clone(),
+            address_merkle_context: *address_merkle_context,
         })
     }
 
@@ -405,9 +405,9 @@ where
         Ok(Self {
             input_account,
             address_seed,
-            merkle_context: merkle_context.clone(),
+            merkle_context: *merkle_context,
             merkle_tree_root_index,
-            address_merkle_context: address_merkle_context.clone(),
+            address_merkle_context: *address_merkle_context,
         })
     }
 
