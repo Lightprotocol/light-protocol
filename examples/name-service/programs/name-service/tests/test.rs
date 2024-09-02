@@ -2,6 +2,7 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_sdk::address::derive_address_seed;
 use light_sdk::merkle_context::{
@@ -21,7 +22,7 @@ use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 
 fn find_cpi_signer() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"cpi_signer"], &name_service::ID)
+    Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), &name_service::ID)
 }
 
 #[tokio::test]

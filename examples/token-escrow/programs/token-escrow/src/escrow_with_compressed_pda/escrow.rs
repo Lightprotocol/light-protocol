@@ -1,4 +1,5 @@
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     process_transfer::{
@@ -29,7 +30,6 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
-    #[authority]
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
@@ -40,6 +40,9 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[cpi_context]
     #[account(mut)]
     pub cpi_context_account: Account<'info, CpiContextAccount>,
+    #[authority]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    pub cpi_authority_pda: AccountInfo<'info>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -65,7 +68,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     output_state_merkle_tree_account_indices: Vec<u8>,
     new_address_params: NewAddressParamsPacked,
     cpi_context: CompressedCpiContext,
-    bump: u8,
 ) -> Result<()> {
     let compressed_pda = create_compressed_pda_data(lock_up_time, &ctx, &new_address_params)?;
     let escrow_token_data = PackedTokenTransferOutputData {
@@ -92,14 +94,7 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         proof.clone(),
         cpi_context,
     )?;
-    cpi_compressed_pda_transfer(
-        ctx,
-        proof,
-        new_address_params,
-        compressed_pda,
-        cpi_context,
-        bump,
-    )?;
+    cpi_compressed_pda_transfer(ctx, proof, new_address_params, compressed_pda, cpi_context)?;
     Ok(())
 }
 
@@ -109,12 +104,10 @@ fn cpi_compressed_pda_transfer<'info>(
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
-    bump: u8,
 ) -> Result<()> {
-    // Create CPI signer seed
-    let bump_seed = &[bump];
-    let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
-    let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
+    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
+    let bump = [bump];
+    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_account(

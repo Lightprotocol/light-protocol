@@ -77,7 +77,7 @@ pub fn process_mint_to<'info>(
     {
         let option_compression_lamports = if lamports.unwrap_or(0) == 0 { 0 } else { 8 };
         let inputs_len =
-            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 26 + 1 + option_compression_lamports;
+            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 1 + option_compression_lamports;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
@@ -86,7 +86,6 @@ pub fn process_mint_to<'info>(
         // + 1                          Option<relay_fee>
         // + 1 + 8                         Option<compression_lamports>
         // + 1                          is_compress
-        // + 26                         seeds
         // + 1                          Option<CpiContextAccount>
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
