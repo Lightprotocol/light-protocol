@@ -109,9 +109,8 @@ pub fn process<
         || !inputs.new_address_params.is_empty()
     {
         // Allocate heap memory here because roots are only used for proof verification.
-        let mut new_address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
-        let mut input_compressed_account_roots =
-            vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+        let mut new_address_roots = vec![[0u8; 32]; num_new_addresses];
+        let mut input_compressed_account_roots = vec![[0u8; 32]; num_input_compressed_accounts];
         // hash input compressed accounts ---------------------------------------------------
         bench_sbf_start!("cpda_hash_input_compressed_accounts");
         if !inputs
