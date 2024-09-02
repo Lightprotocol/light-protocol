@@ -62,6 +62,14 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
     }
+    if proofs.len() > 1 && proofs[0].len() != proofs[1].len() {
+        msg!(
+            "Proofs length mismatch {} {}",
+            proofs[0].len(),
+            proofs[1].len()
+        );
+        return Err(AccountCompressionErrorCode::ProofLengthMismatch.into());
+    }
     insert_nullifier(
         proofs,
         change_log_indices,
