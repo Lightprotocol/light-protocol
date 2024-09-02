@@ -49,7 +49,7 @@ pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result
     println!("seeds: {:?}", seeds);
     println!("invoking program: {:?}", invoking_program);
     let derived_signer = Pubkey::try_find_program_address(&seeds, invoking_program)
-        .ok_or_else(|| ProgramError::InvalidSeeds)?
+        .ok_or(ProgramError::InvalidSeeds)?
         .0;
     if derived_signer != *authority {
         msg!(
