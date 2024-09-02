@@ -11,7 +11,7 @@ use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::Transaction;
 use tokio::sync::Mutex;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 use crate::errors::ForesterError;
 use crate::ForesterConfig;
@@ -53,7 +53,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await?
                 .unwrap();
             // let account_info = rpc.get_account(tree_pubkey).await?.unwrap();
-            
+
             let is_already_rolled_over =
                 account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
             if is_already_rolled_over {
