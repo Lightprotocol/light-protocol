@@ -619,12 +619,6 @@ export type LightSystemProgram = {
                         type: 'bool';
                     },
                     {
-                        name: 'signerSeeds';
-                        type: {
-                            vec: 'bytes';
-                        };
-                    },
-                    {
                         name: 'cpiContext';
                         type: {
                             option: {
@@ -1692,12 +1686,6 @@ export const IDL: LightSystemProgram = {
                     {
                         name: 'isCompress',
                         type: 'bool',
-                    },
-                    {
-                        name: 'signerSeeds',
-                        type: {
-                            vec: 'bytes',
-                        },
                     },
                     {
                         name: 'cpiContext',
