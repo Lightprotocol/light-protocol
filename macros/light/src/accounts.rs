@@ -353,7 +353,7 @@ mod tests {
             }
         };
 
-        let output = process_light_accounts(input).unwrap();
+        let output = process_light_system_accounts(input).unwrap();
         let output_string = output.to_string();
 
         println!("{output_string}");
@@ -375,7 +375,7 @@ mod tests {
             }
         };
 
-        let result = process_light_accounts(input);
+        let result = process_light_system_accounts(input);
         assert!(result.is_err());
         let error_message = result.unwrap_err().to_string();
         assert!(error_message.contains("Field `system_program` already exists in the struct."));
