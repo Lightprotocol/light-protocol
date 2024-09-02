@@ -31,6 +31,20 @@ pub struct RegisterProgramToGroup<'info> {
 }
 
 pub fn process_register_program(ctx: Context<RegisterProgramToGroup>) -> Result<()> {
+    // Guard register program function to be only usable by light registry
+    // program.
+    #[cfg(not(feature = "test-program-ids"))]
+    {
+        use std::str::FromStr;
+        let registry_program_registered_program_pda =
+            anchor_lang::solana_program::pubkey::Pubkey::from_str(
+                "DumMsyvkaGJG4QnQ1BhTgvoRMXsgGxfpKDUCr22Xqu4w",
+            )
+            .unwrap();
+        if ctx.accounts.authority.key() != registry_program_registered_program_pda {
+            return Err(AccountCompressionErrorCode::InvalidAuthority.into());
+        }
+    }
     ctx.accounts.registered_program_pda.registered_program_id =
         ctx.accounts.program_to_be_registered.key();
     ctx.accounts.registered_program_pda.group_authority_pda =
