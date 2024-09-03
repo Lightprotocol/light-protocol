@@ -61,6 +61,8 @@ pub enum ForesterError {
     Custom(String),
     #[error("unknown error")]
     Unknown,
+    #[error("ForesterEpochPda not found")]
+    ForesterEpochPdaNotFound,
 }
 
 #[derive(Error, Debug)]
