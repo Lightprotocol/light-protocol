@@ -25,7 +25,7 @@ pub enum RegistryError {
     InvalidConfigUpdate,
     InvalidSigner,
     GetLatestedRegisterEpochFailed,
-    GetLatestActiveEpochFailed,
+    GetCurrentActiveEpochFailed,
     ForesterUndefined,
     ForesterDefined,
 }
