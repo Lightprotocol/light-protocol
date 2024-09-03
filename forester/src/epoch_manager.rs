@@ -472,7 +472,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 self_clone
                     .process_queue(
                         &epoch_info_clone.epoch,
-                        &epoch_info_clone.forester_epoch_pda.clone(),
+                        &epoch_info_clone.forester_epoch_pda,
                         tree,
                     )
                     .await
