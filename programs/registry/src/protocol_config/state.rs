@@ -129,7 +129,7 @@ impl ProtocolConfig {
     pub fn get_latest_register_epoch(&self, slot: u64) -> Result<u64> {
         let slot = slot
             .checked_sub(self.genesis_slot)
-            .ok_or(RegistryError::GetLatestedRegisterEpochFailed)?;
+            .ok_or(RegistryError::GetLatestRegisterEpochFailed)?;
         Ok(slot / self.active_phase_length)
     }
 
@@ -140,7 +140,7 @@ impl ProtocolConfig {
     pub fn get_current_active_epoch(&self, slot: u64) -> Result<u64> {
         let slot = slot
             .checked_sub(self.genesis_slot + self.registration_phase_length)
-            .ok_or(RegistryError::GetLatestActiveEpochFailed)?;
+            .ok_or(RegistryError::GetCurrentActiveEpochFailed)?;
         Ok(slot / self.active_phase_length)
     }
 
