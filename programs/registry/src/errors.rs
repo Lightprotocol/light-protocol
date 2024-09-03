@@ -24,7 +24,7 @@ pub enum RegistryError {
     CpiContextAccountInvalidDataLen,
     InvalidConfigUpdate,
     InvalidSigner,
-    GetLatestedRegisterEpochFailed,
+    GetLatestRegisterEpochFailed,
     GetCurrentActiveEpochFailed,
     ForesterUndefined,
     ForesterDefined,
