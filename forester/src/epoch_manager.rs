@@ -123,6 +123,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             async move { self_clone.monitor_epochs(tx).await }
         });
 
+        // Check and process current and previous epochs
+        self.process_current_and_previous_epochs().await?;
+
         while let Some(epoch) = rx.recv().await {
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
@@ -195,7 +198,76 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .fetch_add(increment_by, Ordering::Relaxed);
     }
 
-    #[instrument(level = "info", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
+    async fn recover_registration_info(&self, epoch: u64) -> Result<ForesterEpochInfo> {
+        let forester_epoch_pda_pubkey =
+            get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        let existing_pda = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await?;
+
+        match existing_pda {
+            Some(pda) => {
+                self.recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, pda)
+                    .await
+            }
+            None => Err(ForesterError::ForesterEpochPdaNotFound),
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn process_current_and_previous_epochs(&self) -> Result<()> {
+        let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
+        let current_phases = get_epoch_phases(&self.protocol_config, current_epoch);
+        let previous_phases =
+            get_epoch_phases(&self.protocol_config, current_epoch.saturating_sub(1));
+
+        // Check if we're in the active phase of the previous epoch
+        if slot >= previous_phases.active.start && slot < previous_phases.active.end {
+            info!(
+                "Currently in active phase of previous epoch {}. Processing remaining work.",
+                current_epoch - 1
+            );
+
+            match self.recover_registration_info(current_epoch - 1).await {
+                Ok(previous_registration_info) => {
+                    self.perform_active_work(&previous_registration_info)
+                        .await?;
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to recover registration info for previous epoch {}: {:?}",
+                        current_epoch - 1,
+                        e
+                    );
+                }
+            }
+        }
+
+        // Check if we're in the active phase of the current epoch
+        if slot >= current_phases.active.start && slot < current_phases.active.end {
+            info!(
+                "Currently in active phase of current epoch {}. Processing remaining work.",
+                current_epoch
+            );
+
+            match self.recover_registration_info(current_epoch).await {
+                Ok(current_registration_info) => {
+                    self.perform_active_work(&current_registration_info).await?;
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to recover registration info for current epoch {}: {:?}",
+                        current_epoch, e
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
     ))]
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
         info!("Entering process_epoch");
@@ -246,7 +318,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     epoch
                 );
                 let registration_info = self
-                    .recover_registration_info(epoch, forester_epoch_pda_pubkey, existing_pda)
+                    .recover_registration_info_internal(
+                        epoch,
+                        forester_epoch_pda_pubkey,
+                        existing_pda,
+                    )
                     .await?;
                 return Ok(registration_info);
             }
@@ -332,7 +408,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
     }
 
-    async fn recover_registration_info(
+    async fn recover_registration_info_internal(
         &self,
         epoch: u64,
         forester_epoch_pda_address: Pubkey,
@@ -376,7 +452,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         Ok(forester_epoch_info)
     }
 
-    #[instrument(level = "info", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
+    #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn wait_for_active_phase(
         &self,
@@ -434,30 +510,17 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn perform_active_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-        info!("Entering perform_active_work");
+        info!("Performing active work");
 
         let current_slot = self.slot_tracker.estimated_current_slot();
         let active_phase_end = epoch_info.epoch.phases.active.end;
 
-        debug!(
-            current_slot,
-            active_phase_end, "Checking if in active phase"
-        );
-
-        if self.is_in_active_phase(current_slot, epoch_info)? {
-            debug!("Forester in active phase, processing initial queues");
-        } else {
-            debug!("Forester not in active phase, skipping initial queue processing");
+        if !self.is_in_active_phase(current_slot, epoch_info)? {
+            info!("No longer in active phase. Skipping work.");
             return Ok(());
         }
 
-        // Sync estimated slot before creating threads.
-        // Threads rely on the estimated slot.
-        {
-            let mut rpc = self.rpc_pool.get_connection().await?;
-            let current_slot = rpc.get_slot().await?;
-            self.slot_tracker.update(current_slot);
-        }
+        self.sync_slot().await?;
 
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
@@ -482,19 +545,13 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             handles.push(handle);
         }
 
-        info!("Threads created. Waiting for active phase to end");
+        debug!("Threads created. Waiting for active phase to end");
 
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_end).await?;
-        let estimated_slot = self.slot_tracker.estimated_current_slot();
-        debug!(
-            "Estimated current slot: {}, active phase end: {}",
-            estimated_slot, active_phase_end
-        );
 
         // Wait for all tasks to complete
-        let results = join_all(handles).await;
-        for result in results {
+        for result in join_all(handles).await {
             match result {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => error!("Error processing queue: {:?}", e),
@@ -503,6 +560,15 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
 
         info!("Completed active work");
+        Ok(())
+    }
+
+    // Sync estimated slot before creating threads.
+    // Threads rely on the estimated slot.
+    async fn sync_slot(&self) -> Result<()> {
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        let current_slot = rpc.get_slot().await?;
+        self.slot_tracker.update(current_slot);
         Ok(())
     }
 
