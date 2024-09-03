@@ -1161,6 +1161,10 @@ export type AccountCompression = {
             code: 6025;
             name: 'InvalidGroup';
         },
+        {
+            code: 6026;
+            name: 'ProofLengthMismatch';
+        },
     ];
 };
 
@@ -2326,6 +2330,10 @@ export const IDL: AccountCompression = {
         {
             code: 6025,
             name: 'InvalidGroup',
+        },
+        {
+            code: 6026,
+            name: 'ProofLengthMismatch',
         },
     ],
 };
