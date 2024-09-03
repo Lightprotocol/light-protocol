@@ -4,6 +4,11 @@ Light Prover is a service for processing of Merkle tree updates.
 The correctness of the batched Merkle tree update is assured through the generation of a SNARK (generated
 through [gnark](https://github.com/ConsenSys/gnark)).
 
+# Acknowledgment
+This project is based on the [Semaphore Merkle Tree Batcher (SMTB)](https://github.com/worldcoin/semaphore-mtb) by Worldcoin. 
+We've adapted their work to suit our specific needs. 
+We encourage interested users to check out the original [SMTB](https://github.com/worldcoin/semaphore-mtb) project for reference.
+
 ## Table of Contents
 
 1. [Usage](#usage)
