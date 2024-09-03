@@ -75,7 +75,7 @@ pub mod light_registry {
                 != ctx.accounts.protocol_config_pda.config.active_phase_length
             {
                 msg!(
-                    "Active phase length must not be changed otherwise epochs will repeat {} {}.",
+                    "Active phase length must not be changed, otherwise epochs will repeat {} {}.",
                     protocol_config.active_phase_length,
                     ctx.accounts.protocol_config_pda.config.active_phase_length
                 );
