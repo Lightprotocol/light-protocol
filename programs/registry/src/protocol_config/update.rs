@@ -38,7 +38,7 @@ pub fn check_protocol_config(protocol_config: ProtocolConfig) -> Result<()> {
     }
     if protocol_config.active_phase_length < protocol_config.slot_length {
         msg!(
-            "Active phase length must be greater than slot length. {} {}",
+            "Active phase length is less than slot length, active phase length {} < slot length {}. (Active phase lenght must be greater than slot length.)",
             protocol_config.active_phase_length,
             protocol_config.slot_length
         );
