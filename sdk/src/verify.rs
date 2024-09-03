@@ -105,7 +105,7 @@ pub fn invoke_cpi<'info, 'a, 'b, 'c>(
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
 pub fn verify<'info, 'a, 'b, 'c>(
-    ctx: Context<
+    ctx: &Context<
         '_,
         '_,
         '_,
@@ -123,6 +123,6 @@ pub fn verify<'info, 'a, 'b, 'c>(
     let mut inputs: Vec<u8> = Vec::new();
     InstructionDataInvokeCpi::serialize(inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = setup_cpi_accounts(&ctx);
-    invoke_cpi(&ctx, cpi_accounts, inputs, signer_seeds)
+    let cpi_accounts = setup_cpi_accounts(ctx);
+    invoke_cpi(ctx, cpi_accounts, inputs, signer_seeds)
 }

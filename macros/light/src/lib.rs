@@ -1,14 +1,15 @@
 extern crate proc_macro;
-use accounts::process_light_accounts;
+use accounts::{process_light_accounts, process_light_system_accounts};
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn, ItemStruct};
+use syn::{parse_macro_input, parse_quote, DeriveInput, ItemFn, ItemMod, ItemStruct};
 use traits::process_light_traits;
 
 mod account;
 mod accounts;
 mod discriminator;
 mod hasher;
+mod program;
 mod pubkey;
 mod traits;
 
@@ -58,14 +59,14 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 /// state transition.
 ///
 /// ## Usage
-/// Add `#[light_accounts]` to your struct. Ensure it's applied before Anchor's
+/// Add `#[light_system_accounts]` to your struct. Ensure it's applied before Anchor's
 /// `#[derive(Accounts)]` and Light's `#[derive(LightTraits)]`.
 ///
 /// ## Example
 /// Note: You will have to build your program IDL using Anchor's `idl-build`
 /// feature, otherwise your IDL won't include these accounts.
 /// ```ignore
-/// #[light_accounts]
+/// #[light_system_accounts]
 /// #[derive(Accounts)]
 /// pub struct ExampleInstruction<'info> {
 ///     pub my_program: Program<'info, MyProgram>,
@@ -85,13 +86,30 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 ///                                     state trees.
 /// - `system_program`:                 The Solana System program.
 #[proc_macro_attribute]
+pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    process_light_system_accounts(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
 pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
+    let input = parse_macro_input!(input as ItemStruct);
 
     match process_light_accounts(input) {
         Ok(token_stream) => token_stream.into(),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
+}
+
+#[proc_macro_derive(LightAccounts, attributes(light_account))]
+pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    accounts::process_light_accounts_derive(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
 }
 
 /// Implements traits on the given struct required for invoking The Light system
@@ -284,6 +302,14 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
 pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     account::account(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemMod);
+    program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

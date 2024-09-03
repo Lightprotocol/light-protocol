@@ -150,7 +150,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         cpi_context: Some(cpi_context),
     };
 
-    verify(ctx, &inputs_struct, &[&signer_seeds])?;
+    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
 
     Ok(())
 }

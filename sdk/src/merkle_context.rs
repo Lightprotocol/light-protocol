@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use anchor_lang::{
-    prelude::{AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey},
-    Key,
-};
+use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
 
 // TODO(vadorovsky): Consider moving these structs here.
 pub use light_system_program::sdk::compressed_account::{MerkleContext, PackedMerkleContext};
@@ -180,30 +177,4 @@ pub fn pack_address_merkle_context(
     remaining_accounts: &mut RemainingAccounts,
 ) -> PackedAddressMerkleContext {
     pack_address_merkle_contexts(&[address_merkle_context], remaining_accounts)[0]
-}
-
-pub fn unpack_address_merkle_contexts(
-    address_merkle_contexts: &[PackedAddressMerkleContext],
-    remaining_accounts: &[AccountInfo],
-) -> Vec<AddressMerkleContext> {
-    address_merkle_contexts
-        .iter()
-        .map(|x| {
-            let address_merkle_tree_pubkey =
-                remaining_accounts[x.address_merkle_tree_pubkey_index as usize].key();
-            let address_queue_pubkey =
-                remaining_accounts[x.address_queue_pubkey_index as usize].key();
-            AddressMerkleContext {
-                address_merkle_tree_pubkey,
-                address_queue_pubkey,
-            }
-        })
-        .collect::<Vec<_>>()
-}
-
-pub fn unpack_address_merkle_context(
-    address_merkle_context: PackedAddressMerkleContext,
-    remaining_accounts: &[AccountInfo],
-) -> AddressMerkleContext {
-    unpack_address_merkle_contexts(&[address_merkle_context], remaining_accounts)[0]
 }

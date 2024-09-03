@@ -6,8 +6,8 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_sdk::address::derive_address_seed;
 use light_sdk::merkle_context::{
-    pack_address_merkle_context, pack_merkle_context, pack_merkle_output_context,
-    AddressMerkleContext, MerkleOutputContext, PackedAddressMerkleContext, RemainingAccounts,
+    pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
+    PackedAddressMerkleContext, RemainingAccounts,
 };
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
@@ -47,10 +47,11 @@ async fn test_name_service() {
     };
 
     let address_seed = derive_address_seed(
-        &[payer.pubkey().to_bytes().as_slice(), name.as_bytes()],
+        &[b"name-service", name.as_bytes()],
         &name_service::ID,
         &address_merkle_context,
     );
+    println!("ADDRESS_SEED: {address_seed:?}");
     let address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
 
     let address_merkle_context =
@@ -101,7 +102,6 @@ async fn test_name_service() {
         &mut rpc,
         &mut test_indexer,
         &mut remaining_accounts,
-        &rdata_1,
         &rdata_2,
         &payer,
         compressed_account,
@@ -130,7 +130,6 @@ async fn test_name_service() {
         &mut rpc,
         &mut test_indexer,
         &mut remaining_accounts,
-        &rdata_2,
         &payer,
         compressed_account,
         &address_merkle_context,
@@ -163,30 +162,39 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
-    let merkle_output_context = MerkleOutputContext {
+    let merkle_context = MerkleContext {
         merkle_tree_pubkey: env.merkle_tree_pubkey,
+        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        leaf_index: 0,
+        queue_index: None,
     };
-    let merkle_output_context =
-        pack_merkle_output_context(merkle_output_context, remaining_accounts);
+    let merkle_context = pack_merkle_context(merkle_context, remaining_accounts);
 
     let instruction_data = name_service::instruction::CreateRecord {
+        inputs: Vec::new(),
         proof: rpc_result.proof,
-        merkle_output_context,
+        merkle_context,
+        merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
         name: name.to_string(),
         rdata: rdata.clone(),
-        cpi_context: None,
     };
 
     let (cpi_signer, _) = find_cpi_signer();
 
-    let accounts = instruction_accounts(
-        payer,
-        account_compression_authority,
-        registered_program_pda,
-        &cpi_signer,
-    );
+    let accounts = name_service::accounts::CreateRecord {
+        signer: payer.pubkey(),
+        light_system_program: light_system_program::ID,
+        account_compression_program: account_compression::ID,
+        account_compression_authority: *account_compression_authority,
+        registered_program_pda: *registered_program_pda,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        self_program: name_service::ID,
+        cpi_signer,
+        system_program: solana_sdk::system_program::id(),
+    };
+
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
@@ -207,7 +215,6 @@ async fn update_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
-    old_rdata: &RData,
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
@@ -230,25 +237,39 @@ async fn update_record<R: RpcConnection>(
 
     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
 
+    let inputs = vec![
+        compressed_account
+            .compressed_account
+            .data
+            .clone()
+            .unwrap()
+            .data,
+    ];
+
     let instruction_data = name_service::instruction::UpdateRecord {
+        inputs,
         proof: rpc_result.proof,
         merkle_context,
         merkle_tree_root_index: rpc_result.root_indices[0],
         address_merkle_context: *address_merkle_context,
-        name: "example.io".to_string(),
-        old_rdata: old_rdata.clone(),
+        address_merkle_tree_root_index: 0,
         new_rdata: new_rdata.clone(),
-        cpi_context: None,
     };
 
     let (cpi_signer, _) = find_cpi_signer();
 
-    let accounts = instruction_accounts(
-        payer,
-        account_compression_authority,
-        registered_program_pda,
-        &cpi_signer,
-    );
+    let accounts = name_service::accounts::UpdateRecord {
+        signer: payer.pubkey(),
+        light_system_program: light_system_program::ID,
+        account_compression_program: account_compression::ID,
+        account_compression_authority: *account_compression_authority,
+        registered_program_pda: *registered_program_pda,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        self_program: name_service::ID,
+        cpi_signer,
+        system_program: solana_sdk::system_program::id(),
+    };
+
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
@@ -269,7 +290,6 @@ async fn delete_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
-    rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
     address_merkle_context: &PackedAddressMerkleContext,
@@ -291,24 +311,38 @@ async fn delete_record<R: RpcConnection>(
 
     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
 
+    let inputs = vec![
+        compressed_account
+            .compressed_account
+            .data
+            .clone()
+            .unwrap()
+            .data,
+    ];
+
     let instruction_data = name_service::instruction::DeleteRecord {
+        inputs,
         proof: rpc_result.proof,
         merkle_context,
         merkle_tree_root_index: rpc_result.root_indices[0],
         address_merkle_context: *address_merkle_context,
-        name: "example.io".to_string(),
-        rdata: rdata.clone(),
-        cpi_context: None,
+        address_merkle_tree_root_index: 0,
     };
 
     let (cpi_signer, _) = find_cpi_signer();
 
-    let accounts = instruction_accounts(
-        payer,
-        account_compression_authority,
-        registered_program_pda,
-        &cpi_signer,
-    );
+    let accounts = name_service::accounts::DeleteRecord {
+        signer: payer.pubkey(),
+        light_system_program: light_system_program::ID,
+        account_compression_program: account_compression::ID,
+        account_compression_authority: *account_compression_authority,
+        registered_program_pda: *registered_program_pda,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        self_program: name_service::ID,
+        cpi_signer,
+        system_program: solana_sdk::system_program::id(),
+    };
+
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
@@ -324,23 +358,4 @@ async fn delete_record<R: RpcConnection>(
         rpc.get_latest_blockhash().await.unwrap(),
     );
     rpc.process_transaction(transaction).await.unwrap();
-}
-
-fn instruction_accounts(
-    payer: &Keypair,
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    cpi_signer: &Pubkey,
-) -> name_service::accounts::NameService {
-    name_service::accounts::NameService {
-        signer: payer.pubkey(),
-        light_system_program: light_system_program::ID,
-        account_compression_program: account_compression::ID,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        self_program: name_service::ID,
-        cpi_signer: *cpi_signer,
-        system_program: solana_sdk::system_program::id(),
-    }
 }

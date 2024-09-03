@@ -10,7 +10,7 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    light_accounts, utils::create_cpi_inputs_for_new_account, verify::verify, LightTraits,
+    light_system_accounts, utils::create_cpi_inputs_for_new_account, verify::verify, LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -23,7 +23,7 @@ use light_system_program::{
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
-#[light_accounts]
+#[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[account(mut)]
@@ -117,7 +117,7 @@ fn cpi_compressed_pda_transfer<'info>(
         Some(cpi_context),
     );
 
-    verify(ctx, &inputs_struct, &[&signer_seeds])?;
+    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
 
     Ok(())
 }

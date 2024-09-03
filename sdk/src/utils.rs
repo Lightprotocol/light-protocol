@@ -1,8 +1,8 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
+pub use light_system_program::{invoke::processor::CompressedProof, InstructionDataInvokeCpi};
 use light_system_program::{
-    invoke::processor::CompressedProof,
     sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
-    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
