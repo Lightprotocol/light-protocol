@@ -1,4 +1,5 @@
 pub use light_macros::*;
+pub use light_system_program::invoke::processor::CompressedProof;
 
 pub mod address;
 pub mod compressed_account;

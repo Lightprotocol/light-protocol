@@ -178,7 +178,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             #[allow(unused_variables)]
             fn derive_address_seeds(
                 &mut self,
-                address_merkle_context: PackedAddressMerkleContext,
+                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
             ) {
                 let #anchor_accounts_name { #(#anchor_field_idents),*, .. } = &self.anchor_context.accounts;
                 let #light_accounts_name { #(#light_field_idents),* } = &mut self.light_accounts;
@@ -311,7 +311,7 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
         let try_from_slice_call = match account_args.action {
             LightAccountAction::Init => quote! {
                 let mut #field_ident: #type_path = #type_path_without_args::new_init(
-                    &merkle_context,
+                    &output_merkle_context,
                     &address_merkle_context,
                     address_merkle_tree_root_index,
                 );
@@ -319,16 +319,17 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             LightAccountAction::Mut => quote! {
                 let mut #field_ident: #type_path = #type_path_without_args::try_from_slice_mut(
                     inputs[#i].as_slice(),
-                    &merkle_context,
-                    merkle_tree_root_index,
+                    &input_merkle_context,
+                    input_merkle_tree_root_index,
+                    &output_merkle_context,
                     &address_merkle_context,
                 )?;
             },
             LightAccountAction::Close => quote! {
                 let mut #field_ident: #type_path = #type_path_without_args::try_from_slice_close(
                     inputs[#i].as_slice(),
-                    &merkle_context,
-                    merkle_tree_root_index,
+                    &input_merkle_context,
+                    input_merkle_tree_root_index,
                     &address_merkle_context,
                 )?;
             },
@@ -362,8 +363,9 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
         impl #impl_gen ::light_sdk::compressed_account::LightAccounts for #strct_name #type_gen #where_clause {
             fn try_light_accounts(
                 inputs: Vec<Vec<u8>>,
-                merkle_context: ::light_sdk::merkle_context::PackedMerkleContext,
-                merkle_tree_root_index: u16,
+                input_merkle_context: ::light_sdk::merkle_context::PackedMerkleContext,
+                input_merkle_tree_root_index: u16,
+                output_merkle_context: ::light_sdk::merkle_context::PackedMerkleOutputContext,
                 address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
                 address_merkle_tree_root_index: u16,
                 remaining_accounts: &[::anchor_lang::prelude::AccountInfo],

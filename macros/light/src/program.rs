@@ -68,18 +68,30 @@ impl VisitMut for LightProgramTransform {
         i.sig.inputs.insert(1, inputs_arg);
 
         // Inject Merkle context related arguments.
-        let proof_arg: FnArg = parse_quote! { proof: CompressedProof };
+        let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::CompressedProof };
         i.sig.inputs.insert(2, proof_arg);
-        let merkle_context_arg: FnArg = parse_quote! { merkle_context: PackedMerkleContext };
-        i.sig.inputs.insert(3, merkle_context_arg);
-        let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg =
-            parse_quote! { address_merkle_context: PackedAddressMerkleContext };
-        i.sig.inputs.insert(5, address_merkle_context_arg);
+
+        let input_merkle_context_arg: FnArg =
+            parse_quote! { input_merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
+        i.sig.inputs.insert(3, input_merkle_context_arg);
+
+        let input_merkle_tree_root_index_arg: FnArg =
+            parse_quote! { input_merkle_tree_root_index: u16 };
+        i.sig.inputs.insert(4, input_merkle_tree_root_index_arg);
+
+        let output_merkle_context_arg: FnArg = parse_quote! {
+            output_merkle_context: ::light_sdk::merkle_context::PackedMerkleOutputContext
+        };
+        i.sig.inputs.insert(5, output_merkle_context_arg);
+
+        let address_merkle_context_arg: FnArg = parse_quote! {
+            address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext
+        };
+        i.sig.inputs.insert(6, address_merkle_context_arg);
+
         let address_merkle_tree_root_index_arg: FnArg =
             parse_quote! { address_merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(6, address_merkle_tree_root_index_arg);
+        i.sig.inputs.insert(7, address_merkle_tree_root_index_arg);
 
         // Inject a `LightContext` into the function body.
         let light_context_stmt: Stmt = parse_quote! {
@@ -89,8 +101,9 @@ impl VisitMut for LightProgramTransform {
             > = ::light_sdk::context::LightContext::new(
                 ctx,
                 inputs,
-                merkle_context,
-                merkle_tree_root_index,
+                input_merkle_context,
+                input_merkle_tree_root_index,
+                output_merkle_context,
                 address_merkle_context,
                 address_merkle_tree_root_index,
             )?;
@@ -131,7 +144,10 @@ pub(crate) fn program(mut input: ItemMod) -> Result<TokenStream> {
 
     Ok(quote! {
         pub trait LightContextExt {
-            fn derive_address_seeds(&mut self, address_merkle_context: PackedAddressMerkleContext);
+            fn derive_address_seeds(
+                &mut self,
+                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext
+            );
         }
 
         #[program]
