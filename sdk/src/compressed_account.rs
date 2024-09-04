@@ -19,8 +19,9 @@ use crate::merkle_context::{
 pub trait LightAccounts: Sized {
     fn try_light_accounts(
         inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
+        input_merkle_context: PackedMerkleContext,
+        input_merkle_tree_root_index: u16,
+        output_merkle_context: PackedMerkleOutputContext,
         address_merkle_context: PackedAddressMerkleContext,
         address_merkle_tree_root_index: u16,
         remaining_accounts: &[AccountInfo],
@@ -51,7 +52,7 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn new_init(
-        merkle_context: &PackedMerkleContext,
+        merkle_context: &PackedMerkleOutputContext,
         address_merkle_context: &PackedAddressMerkleContext,
         address_merkle_tree_root_index: u16,
     ) -> Self {
@@ -64,14 +65,16 @@ where
 
     pub fn try_from_slice_mut(
         v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
+        input_merkle_context: &PackedMerkleContext,
+        input_merkle_tree_root_index: u16,
+        output_merkle_context: &PackedMerkleOutputContext,
         address_merkle_context: &PackedAddressMerkleContext,
     ) -> Result<Self> {
         Ok(Self::Mut(LightMutAccount::try_from_slice(
             v,
-            merkle_context,
-            merkle_tree_root_index,
+            input_merkle_context,
+            input_merkle_tree_root_index,
+            output_merkle_context,
             address_merkle_context,
         )?))
     }
@@ -181,7 +184,7 @@ where
 {
     output_account: T,
     address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
+    merkle_context: PackedMerkleOutputContext,
     address_merkle_context: PackedAddressMerkleContext,
     address_merkle_tree_root_index: u16,
 }
@@ -191,7 +194,7 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + Default + DataHasher + Discriminator,
 {
     pub fn new(
-        merkle_context: &PackedMerkleContext,
+        merkle_context: &PackedMerkleOutputContext,
         address_merkle_context: &PackedAddressMerkleContext,
         address_merkle_tree_root_index: u16,
     ) -> Self {
@@ -264,8 +267,9 @@ where
     input_account: T,
     output_account: T,
     address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    merkle_tree_root_index: u16,
+    input_merkle_context: PackedMerkleContext,
+    input_merkle_tree_root_index: u16,
+    output_merkle_context: PackedMerkleOutputContext,
     address_merkle_context: PackedAddressMerkleContext,
 }
 
@@ -275,8 +279,9 @@ where
 {
     pub fn try_from_slice(
         v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
+        input_merkle_context: &PackedMerkleContext,
+        input_merkle_tree_root_index: u16,
+        output_merkle_context: &PackedMerkleOutputContext,
         address_merkle_context: &PackedAddressMerkleContext,
     ) -> Result<Self> {
         let account = T::try_from_slice(v)?;
@@ -285,8 +290,9 @@ where
             input_account: account.clone(),
             output_account: account,
             address_seed: None,
-            merkle_context: *merkle_context,
-            merkle_tree_root_index,
+            input_merkle_context: *input_merkle_context,
+            input_merkle_tree_root_index,
+            output_merkle_context: *output_merkle_context,
             address_merkle_context: *address_merkle_context,
         })
     }
@@ -304,8 +310,8 @@ where
             &self.input_account,
             &self.address_seed.unwrap(),
             program_id,
-            &self.merkle_context,
-            self.merkle_tree_root_index,
+            &self.input_merkle_context,
+            self.input_merkle_tree_root_index,
             &self.address_merkle_context,
             remaining_accounts,
         )
@@ -320,7 +326,7 @@ where
             &self.output_account,
             &self.address_seed.unwrap(),
             program_id,
-            &self.merkle_context,
+            &self.output_merkle_context,
             &self.address_merkle_context,
             remaining_accounts,
         )
@@ -524,7 +530,7 @@ pub fn output_compressed_account<T>(
     account: &T,
     address_seed: &[u8; 32],
     program_id: &Pubkey,
-    merkle_context: &PackedMerkleContext,
+    merkle_context: &PackedMerkleOutputContext,
     address_merkle_context: &PackedAddressMerkleContext,
     remaining_accounts: &[AccountInfo],
 ) -> Result<OutputCompressedAccountWithPackedContext>

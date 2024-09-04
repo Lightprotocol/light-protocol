@@ -6,7 +6,7 @@ use light_system_program::{invoke::processor::CompressedProof, InstructionDataIn
 
 use crate::{
     compressed_account::LightAccounts,
-    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
+    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext, PackedMerkleOutputContext},
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -75,15 +75,17 @@ where
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
         inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
+        input_merkle_context: PackedMerkleContext,
+        input_merkle_tree_root_index: u16,
+        output_merkle_context: PackedMerkleOutputContext,
         address_merkle_context: PackedAddressMerkleContext,
         address_merkle_tree_root_index: u16,
     ) -> Result<Self> {
         let light_accounts = U::try_light_accounts(
             inputs,
-            merkle_context,
-            merkle_tree_root_index,
+            input_merkle_context,
+            input_merkle_tree_root_index,
+            output_merkle_context,
             address_merkle_context,
             address_merkle_tree_root_index,
             anchor_context.remaining_accounts,

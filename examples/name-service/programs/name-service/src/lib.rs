@@ -3,12 +3,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
-use light_sdk::{
-    compressed_account::LightAccount,
-    light_account, light_accounts, light_program,
-    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
-};
-use light_system_program::invoke::processor::CompressedProof;
+use light_sdk::{compressed_account::LightAccount, light_account, light_accounts, light_program};
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 

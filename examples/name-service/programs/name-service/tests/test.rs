@@ -6,8 +6,9 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_sdk::address::derive_address_seed;
 use light_sdk::merkle_context::{
-    pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
-    PackedAddressMerkleContext, RemainingAccounts,
+    pack_address_merkle_context, pack_merkle_context, pack_merkle_output_context,
+    AddressMerkleContext, MerkleContext, MerkleOutputContext, PackedAddressMerkleContext,
+    RemainingAccounts,
 };
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
@@ -51,7 +52,6 @@ async fn test_name_service() {
         &name_service::ID,
         &address_merkle_context,
     );
-    println!("ADDRESS_SEED: {address_seed:?}");
     let address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
 
     let address_merkle_context =
@@ -101,6 +101,7 @@ async fn test_name_service() {
     update_record(
         &mut rpc,
         &mut test_indexer,
+        &env,
         &mut remaining_accounts,
         &rdata_2,
         &payer,
@@ -129,6 +130,7 @@ async fn test_name_service() {
     delete_record(
         &mut rpc,
         &mut test_indexer,
+        &env,
         &mut remaining_accounts,
         &payer,
         compressed_account,
@@ -162,19 +164,28 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
-    let merkle_context = MerkleContext {
+    // Input Merkle tree.
+    let input_merkle_context = MerkleContext {
         merkle_tree_pubkey: env.merkle_tree_pubkey,
         nullifier_queue_pubkey: env.nullifier_queue_pubkey,
         leaf_index: 0,
         queue_index: None,
     };
-    let merkle_context = pack_merkle_context(merkle_context, remaining_accounts);
+    let input_merkle_context = pack_merkle_context(input_merkle_context, remaining_accounts);
+
+    // Output Merkle tree.
+    let output_merkle_context = MerkleOutputContext {
+        merkle_tree_pubkey: env.merkle_tree_pubkey,
+    };
+    let output_merkle_context =
+        pack_merkle_output_context(output_merkle_context, remaining_accounts);
 
     let instruction_data = name_service::instruction::CreateRecord {
         inputs: Vec::new(),
         proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: 0,
+        input_merkle_context,
+        input_merkle_tree_root_index: 0,
+        output_merkle_context,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
         name: name.to_string(),
@@ -214,6 +225,7 @@ async fn create_record<R: RpcConnection>(
 async fn update_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
+    env: &EnvAccounts,
     remaining_accounts: &mut RemainingAccounts,
     new_rdata: &RData,
     payer: &Keypair,
@@ -235,7 +247,16 @@ async fn update_record<R: RpcConnection>(
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    // Input Merkle tree.
+    let input_merkle_context =
+        pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+
+    // Output Merkle tree.
+    let output_merkle_context = MerkleOutputContext {
+        merkle_tree_pubkey: env.merkle_tree_pubkey,
+    };
+    let output_merkle_context =
+        pack_merkle_output_context(output_merkle_context, remaining_accounts);
 
     let inputs = vec![
         compressed_account
@@ -249,8 +270,9 @@ async fn update_record<R: RpcConnection>(
     let instruction_data = name_service::instruction::UpdateRecord {
         inputs,
         proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
+        input_merkle_context,
+        input_merkle_tree_root_index: rpc_result.root_indices[0],
+        output_merkle_context,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
         new_rdata: new_rdata.clone(),
@@ -289,6 +311,7 @@ async fn update_record<R: RpcConnection>(
 async fn delete_record<R: RpcConnection>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
+    env: &EnvAccounts,
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
@@ -309,7 +332,16 @@ async fn delete_record<R: RpcConnection>(
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    // Input Merkle tree.
+    let input_merkle_context =
+        pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+
+    // Output Merkle tree.
+    let output_merkle_context = MerkleOutputContext {
+        merkle_tree_pubkey: env.merkle_tree_pubkey,
+    };
+    let output_merkle_context =
+        pack_merkle_output_context(output_merkle_context, remaining_accounts);
 
     let inputs = vec![
         compressed_account
@@ -323,8 +355,9 @@ async fn delete_record<R: RpcConnection>(
     let instruction_data = name_service::instruction::DeleteRecord {
         inputs,
         proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
+        input_merkle_context,
+        input_merkle_tree_root_index: rpc_result.root_indices[0],
+        output_merkle_context,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
     };
