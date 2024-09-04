@@ -3,6 +3,8 @@
 # Ensure we're working from the root directory of the monorepo
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+SEMAPHORE_MTB_SETUP="../semaphore-mtb-setup/semaphore-mtb-setup"
+
 cd "$REPO_ROOT"
 
 # Get phase 1 ptau file.
@@ -10,9 +12,11 @@ echo "Performing pre-steps..."
 cd ..
 git clone https://github.com/worldcoin/semaphore-mtb-setup
 cd semaphore-mtb-setup && go build -v
-wget https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_16.ptau
+wget https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_16.ptau 16.ptau
 mkdir -p "$REPO_ROOT/ceremony"
-mv powersOfTau28_hez_final_16.ptau "$REPO_ROOT/ceremony/16.ph1"
+
+$SEMAPHORE_MTB_SETUP p1i 16.ptau "$REPO_ROOT/ceremony/16.ph1"
+
 cd "$REPO_ROOT"
 
 # Set the output directory
@@ -65,7 +69,6 @@ done
 echo "All R1CS files have been generated in $OUTPUT_DIR"
 
 # Run semaphore-mtb-setup for each R1CS file
-SEMAPHORE_MTB_SETUP="../semaphore-mtb-setup/semaphore-mtb-setup"
 PH2_OUTPUT_DIR="$REPO_ROOT/ceremony/ph2-files"
 PH1_FILE="$REPO_ROOT/ceremony/16.ph1"
 
