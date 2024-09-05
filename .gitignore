@@ -16,6 +16,10 @@
 
 **/light-test-cache/
 
+# for running setup-ph2-files.sh
+/ceremony/
+/semaphore-mtb-setup/
+
 /cli/bin
 
 **/photon.log
