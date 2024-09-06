@@ -3,7 +3,7 @@ use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };
-use light_system_program::invoke::processor::CompressedProof;
+use light_sdk::proof::CompressedProof;
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithPda, EscrowError,
@@ -62,6 +62,14 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
 ) -> Result<()> {
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
+
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
         mint,

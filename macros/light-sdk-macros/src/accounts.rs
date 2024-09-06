@@ -20,21 +20,12 @@ pub(crate) fn process_light_system_accounts(input: ItemStruct) -> Result<TokenSt
         };
 
     let fields_to_add = [
-        (
-            "light_system_program",
-            "Program<'info, ::light_system_program::program::LightSystemProgram>",
-        ),
+        ("light_system_program", "AccountInfo<'info>"),
         ("system_program", "Program<'info, System>"),
-        (
-            "account_compression_program",
-            "Program<'info, ::account_compression::program::AccountCompression>",
-        ),
+        ("account_compression_program", "AccountInfo<'info>"),
     ];
     let fields_to_add_check = [
-        (
-            "registered_program_pda",
-            "Account<'info, ::account_compression::RegisteredProgram>",
-        ),
+        ("registered_program_pda", "AccountInfo<'info>"),
         ("noop_program", "AccountInfo<'info>"),
         ("account_compression_authority", "AccountInfo<'info>"),
     ];
@@ -139,7 +130,6 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
                 let address_seed = ::light_sdk::address::derive_address_seed(
                     &#seeds,
                     &crate::ID,
-                    &unpacked_address_merkle_context,
                 );
                 #field_ident.set_address_seed(address_seed);
             });
@@ -378,7 +368,7 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
                 })
             }
 
-            fn new_address_params(&self) -> Vec<::light_sdk::compressed_account::NewAddressParamsPacked> {
+            fn new_address_params(&self) -> Vec<::light_sdk::address::NewAddressParamsPacked> {
                 let mut new_address_params = Vec::new();
                 #(#new_address_params_calls)*
                 new_address_params

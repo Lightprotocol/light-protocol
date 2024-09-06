@@ -4,6 +4,7 @@ set -euo pipefail
 
 PREFIX="${PWD}/.local"
 INSTALL_LOG="${PREFIX}/.install_log"
+LIGHT_PROTOCOL_TOPLEVEL="`git rev-parse --show-toplevel`"
 
 # Versions
 VERSIONS=(
@@ -184,6 +185,16 @@ install_dependencies() {
     fi
 }
 
+create_cli_symlink() {
+    local symlink="${LIGHT_PROTOCOL_TOPLEVEL}/.local/bin/light"
+    local source_file="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"
+
+    if [ ! -L "$symlink" ]; then
+        echo "Creating a symlink to the light CLI..."
+        ln -s "$source_file" "$symlink"
+    fi
+}
+
 main() {
     mkdir -p "${PREFIX}/bin"
 
@@ -196,6 +207,7 @@ main() {
     install_jq
     download_gnark_keys
     install_dependencies
+    create_cli_symlink
 
     rm -f "$INSTALL_LOG"
 

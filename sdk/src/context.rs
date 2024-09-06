@@ -1,17 +1,17 @@
 use std::ops::{Deref, DerefMut};
 
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{context::Context, prelude::Pubkey, Bumps, Key, Result};
-use light_system_program::{invoke::processor::CompressedProof, InstructionDataInvokeCpi};
 
 use crate::{
     compressed_account::LightAccounts,
+    constants::CPI_AUTHORITY_PDA_SEED,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
+    proof::CompressedProof,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
     },
-    verify::verify,
+    verify::{verify, InstructionDataInvokeCpi},
 };
 
 /// Provides non-argument inputs to the program, including light accounts and

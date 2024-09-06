@@ -717,12 +717,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-dropper"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d901072ae4dcdca2201b98beb02d31fb4b6b2472fbd0e870b12ec15b8b35b2d2"
+dependencies = [
+ "async-dropper-derive",
+ "async-dropper-simple",
+ "async-trait",
+ "futures 0.3.30",
+ "tokio",
+]
+
+[[package]]
+name = "async-dropper-derive"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a35cf17a37761f1c88b8e770b5956820fe84c12854165b6f930c604ea186e47e"
+dependencies = [
+ "async-trait",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+ "tokio",
+]
+
+[[package]]
+name = "async-dropper-simple"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7c4748dfe8cd3d625ec68fc424fa80c134319881185866f9e173af9e5d8add8"
+dependencies = [
+ "async-scoped",
+ "async-trait",
+ "futures 0.3.30",
+ "rustc_version",
+ "tokio",
+]
+
+[[package]]
 name = "async-mutex"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479db852db25d9dbf6204e6cb6253698f175c15726470f78af0d918e99d6156e"
 dependencies = [
  "event-listener",
+]
+
+[[package]]
+name = "async-scoped"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4042078ea593edffc452eef14e99fdb2b120caa4ad9618bcdeabc4a023b98740"
+dependencies = [
+ "futures 0.3.30",
+ "pin-project",
+ "tokio",
 ]
 
 [[package]]
@@ -1255,12 +1305,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "camino"
+version = "1.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b96ec4966b5813e2c0507c1f86115c8c5abaadc3980879c3424042a02fd1ad3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "caps"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "190baaad529bcfbde9e1a19022c42781bdb6ff9de25721abdb8fd98c0807730b"
 dependencies = [
  "libc",
+ "thiserror",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -3637,7 +3719,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -3686,9 +3768,9 @@ dependencies = [
 name = "light-sdk"
 version = "0.8.0"
 dependencies = [
- "account-compression",
  "aligned-sized",
  "anchor-lang",
+ "anchor-spl",
  "borsh 0.10.3",
  "bytemuck",
  "groth16-solana",
@@ -3696,13 +3778,11 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
- "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
  "light-prover-client",
  "light-sdk-macros",
- "light-system-program",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.6",
@@ -3712,6 +3792,7 @@ dependencies = [
  "serde_json",
  "solana-banks-interface",
  "solana-cli-output",
+ "solana-program",
  "solana-program-test",
  "solana-sdk",
  "tokio",
@@ -3747,6 +3828,22 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+]
+
+[[package]]
+name = "light-test-sdk"
+version = "0.8.0"
+dependencies = [
+ "anchor-lang",
+ "async-dropper",
+ "async-trait",
+ "cargo_metadata",
+ "light-macros",
+ "light-sdk",
+ "photon-api",
+ "solana-client",
+ "solana-sdk",
+ "tokio",
 ]
 
 [[package]]
@@ -4086,20 +4183,17 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 name = "name-service"
 version = "0.6.0"
 dependencies = [
- "account-compression",
  "anchor-lang",
  "borsh 0.10.3",
- "light-compressed-token",
  "light-hasher",
- "light-heap",
  "light-macros",
  "light-sdk",
  "light-sdk-macros",
- "light-system-program",
- "light-test-utils",
+ "light-test-sdk",
  "light-utils",
  "light-verifier",
- "solana-program-test",
+ "photon-api",
+ "solana-client",
  "solana-sdk",
  "tokio",
 ]
@@ -5731,6 +5825,9 @@ name = "semver"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "seqlock"

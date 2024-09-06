@@ -14,6 +14,7 @@ members = [
     "programs/compressed-token",
     "programs/registry",
     "sdk",
+    "test-sdk",
     "test-utils",
     "utils",
     "xtask",
@@ -23,7 +24,7 @@ members = [
     "forester-utils",
     "forester",
     "photon-api",
-    "sdk"]
+]
 
 [profile.release]
 overflow-checks = true
@@ -52,6 +53,10 @@ quote = "1.0"
 syn = { version = "2.0", features = ["visit-mut", "full"] }
 
 tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
+async-trait = "0.1"
+async-dropper = { version = "0.3", features = ["simple", "tokio"] }
+
+cargo_metadata = "0.18"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
