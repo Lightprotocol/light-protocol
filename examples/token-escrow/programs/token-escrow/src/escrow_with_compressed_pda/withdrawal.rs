@@ -5,16 +5,13 @@ use light_compressed_token::process_transfer::{
     PackedTokenTransferOutputData,
 };
 use light_hasher::{DataHasher, Poseidon};
-use light_sdk::verify::verify;
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        },
-        CompressedCpiContext,
+use light_sdk::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
+        PackedCompressedAccountWithMerkleContext,
     },
-    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
+    proof::CompressedProof,
+    verify::{verify, CompressedCpiContext, InstructionDataInvokeCpi},
 };
 
 use crate::{
@@ -171,6 +168,19 @@ pub fn cpi_compressed_token_withdrawal<'info>(
     let signer_bytes = ctx.accounts.signer.key.to_bytes();
     let seeds: [&[u8]; 3] = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
     cpi_context.set_context = true;
+
+    // TODO(vadorovsky): Instead of doing these conversions, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
+    let cpi_context = light_system_program::sdk::CompressedCpiContext {
+        set_context: cpi_context.set_context,
+        first_set_context: cpi_context.first_set_context,
+        cpi_context_account_index: cpi_context.cpi_context_account_index,
+    };
 
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),

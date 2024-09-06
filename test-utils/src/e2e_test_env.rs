@@ -127,7 +127,7 @@ use forester_utils::{airdrop_lamports, AccountZeroCopy};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 

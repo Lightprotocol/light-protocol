@@ -23,6 +23,10 @@ use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_sdk::{
+    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    merkle_context::MerkleContext, proof::CompressedProof,
+};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     crate::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
@@ -48,13 +52,6 @@ use {
         },
         non_inclusion::merkle_non_inclusion_proof_inputs::{
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-        },
-    },
-    light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
         },
     },
     num_bigint::BigInt,

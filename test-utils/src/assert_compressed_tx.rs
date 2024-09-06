@@ -3,10 +3,9 @@ use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
 use forester_utils::rpc::RpcConnection;
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
 use light_hasher::Poseidon;
-use light_system_program::sdk::event::MerkleTreeSequenceNumber;
+use light_sdk::event::{MerkleTreeSequenceNumber, PublicTransactionEvent};
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    event::PublicTransactionEvent,
     invoke::get_sol_pool_pda,
 };
 use log::debug;

@@ -7,8 +7,7 @@ use light_compressed_token::{
     },
     program::LightCompressedToken,
 };
-use light_sdk::{light_system_accounts, LightTraits};
-use light_system_program::invoke::processor::CompressedProof;
+use light_sdk::{light_system_accounts, proof::CompressedProof, LightTraits};
 
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
@@ -82,6 +81,14 @@ pub fn cpi_compressed_token_transfer<'info>(
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
 ) -> Result<()> {
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
+
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
         mint,

@@ -10,18 +10,18 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    light_system_accounts, utils::create_cpi_inputs_for_new_account, verify::verify, LightTraits,
-};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    invoke_cpi::account::CpiContextAccount,
-    sdk::{
-        address::derive_address,
-        compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
-        CompressedCpiContext,
+    address::NewAddressParamsPacked,
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
     },
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+    light_system_accounts,
+    merkle_context::PackedMerkleContext,
+    proof::CompressedProof,
+    utils::create_cpi_inputs_for_new_account,
+    verify::{verify, CompressedCpiContext},
+    LightTraits,
 };
+use light_system_program::sdk::address::derive_address;
 
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
@@ -39,7 +39,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     /// CHECK:
     #[cpi_context]
     #[account(mut)]
-    pub cpi_context_account: Account<'info, CpiContextAccount>,
+    pub cpi_context_account: AccountInfo<'info>,
     #[authority]
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
@@ -172,6 +172,19 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
     cpi_context.set_context = true;
+
+    // TODO(vadorovsky): Instead of doing these conversions, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
+    let cpi_context = light_system_program::sdk::CompressedCpiContext {
+        set_context: cpi_context.set_context,
+        first_set_context: cpi_context.first_set_context,
+        cpi_context_account_index: cpi_context.cpi_context_account_index,
+    };
 
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),

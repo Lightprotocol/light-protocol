@@ -7,14 +7,15 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::{add_and_get_remaining_account_indices, pack_new_address_params},
-        compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
-        CompressedCpiContext,
-    },
-    NewAddressParams,
+use light_sdk::{
+    address::{NewAddressParams, NewAddressParamsPacked},
+    merkle_context::{MerkleContext, PackedMerkleContext, QueueIndex},
+    proof::CompressedProof,
+    verify::CompressedCpiContext,
+};
+use light_system_program::sdk::{
+    address::{add_and_get_remaining_account_indices, pack_new_address_params},
+    compressed_account::{pack_merkle_context, CompressedAccount},
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -38,15 +39,46 @@ pub fn create_escrow_instruction(
     input_params: CreateCompressedPdaEscrowInstructionInputs,
     escrow_amount: u64,
 ) -> Instruction {
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let input_merkle_context = input_params
+        .input_merkle_context
+        .iter()
+        .map(
+            |context| light_system_program::sdk::compressed_account::MerkleContext {
+                merkle_tree_pubkey: context.merkle_tree_pubkey,
+                nullifier_queue_pubkey: context.nullifier_queue_pubkey,
+                leaf_index: context.leaf_index,
+                queue_index: context.queue_index.map(|queue_index| {
+                    light_system_program::sdk::compressed_account::QueueIndex {
+                        queue_id: queue_index.queue_id,
+                        index: queue_index.index,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
+
     let token_owner_pda = get_token_owner_pda(input_params.signer);
+
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = input_params.proof.as_ref().map(|proof| {
+        light_system_program::invoke::processor::CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        }
+    });
+
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        input_params.input_merkle_context,
+        input_merkle_context.as_slice(),
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
-        input_params.proof,
+        &proof,
         *input_params.mint,
         input_params.signer,
         false,
@@ -61,8 +93,25 @@ pub fn create_escrow_instruction(
         &mut remaining_accounts,
     );
 
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let new_address_params = light_system_program::invoke::instruction::NewAddressParams {
+        seed: input_params.new_address_params.seed,
+        address_queue_pubkey: input_params.new_address_params.address_queue_pubkey,
+        address_merkle_tree_pubkey: input_params.new_address_params.address_merkle_tree_pubkey,
+        address_merkle_tree_root_index: input_params
+            .new_address_params
+            .address_merkle_tree_root_index,
+    };
     let new_address_params =
-        pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
+        pack_new_address_params(&[new_address_params], &mut remaining_accounts)[0];
+    let new_address_params = NewAddressParamsPacked {
+        seed: new_address_params.seed,
+        address_queue_account_index: new_address_params.address_queue_account_index,
+        address_merkle_tree_account_index: new_address_params.address_merkle_tree_account_index,
+        address_merkle_tree_root_index: new_address_params.address_merkle_tree_root_index,
+    };
+
     let cpi_context_account_index: u8 = match remaining_accounts
         .get(input_params.cpi_context_account)
     {
@@ -80,7 +129,7 @@ pub fn create_escrow_instruction(
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: merkle_tree_indices,
-        new_address_params: new_address_params[0],
+        new_address_params,
         cpi_context: CompressedCpiContext {
             set_context: false,
             first_set_context: true,
@@ -153,14 +202,60 @@ pub fn create_withdrawal_instruction(
     withdrawal_amount: u64,
 ) -> Instruction {
     let (token_owner_pda, bump) = get_token_owner_pda(input_params.signer);
+
+    // TODO(vadorovsky): Instead of doing these conversions, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let input_cpda_merkle_context = light_system_program::sdk::compressed_account::MerkleContext {
+        merkle_tree_pubkey: input_params.input_cpda_merkle_context.merkle_tree_pubkey,
+        nullifier_queue_pubkey: input_params
+            .input_cpda_merkle_context
+            .nullifier_queue_pubkey,
+        leaf_index: input_params.input_cpda_merkle_context.leaf_index,
+        queue_index: input_params
+            .input_cpda_merkle_context
+            .queue_index
+            .map(
+                |queue_index| light_system_program::sdk::compressed_account::QueueIndex {
+                    queue_id: queue_index.queue_id,
+                    index: queue_index.index,
+                },
+            ),
+    };
+    let input_token_escrow_merkle_context =
+        light_system_program::sdk::compressed_account::MerkleContext {
+            merkle_tree_pubkey: input_params
+                .input_token_escrow_merkle_context
+                .merkle_tree_pubkey,
+            nullifier_queue_pubkey: input_params
+                .input_token_escrow_merkle_context
+                .nullifier_queue_pubkey,
+            leaf_index: input_params.input_token_escrow_merkle_context.leaf_index,
+            queue_index: input_params
+                .input_token_escrow_merkle_context
+                .queue_index
+                .map(
+                    |queue_index| light_system_program::sdk::compressed_account::QueueIndex {
+                        queue_id: queue_index.queue_id,
+                        index: queue_index.index,
+                    },
+                ),
+        };
+    let proof = input_params.proof.as_ref().map(|proof| {
+        light_system_program::invoke::processor::CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        }
+    });
+
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        &[input_params.input_token_escrow_merkle_context],
+        &[input_token_escrow_merkle_context],
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
-        input_params.proof,
+        &proof,
         *input_params.mint,
         &token_owner_pda,
         false,
@@ -176,12 +271,21 @@ pub fn create_withdrawal_instruction(
     );
 
     let merkle_context_packed = pack_merkle_context(
-        &[
-            input_params.input_cpda_merkle_context,
-            input_params.input_token_escrow_merkle_context,
-        ],
+        &[input_cpda_merkle_context, input_token_escrow_merkle_context],
         &mut remaining_accounts,
     );
+    let merkle_context_packed = PackedMerkleContext {
+        merkle_tree_pubkey_index: merkle_context_packed[0].merkle_tree_pubkey_index,
+        nullifier_queue_pubkey_index: merkle_context_packed[0].nullifier_queue_pubkey_index,
+        leaf_index: merkle_context_packed[0].leaf_index,
+        queue_index: merkle_context_packed[0]
+            .queue_index
+            .map(|queue_index| QueueIndex {
+                queue_id: queue_index.queue_id,
+                index: queue_index.index,
+            }),
+    };
+
     let cpi_context_account_index: u8 = match remaining_accounts
         .get(input_params.cpi_context_account)
     {
@@ -200,7 +304,7 @@ pub fn create_withdrawal_instruction(
         old_lock_up_time: input_params.old_lock_up_time,
         new_lock_up_time: input_params.new_lock_up_time,
         address: input_params.address,
-        merkle_context: merkle_context_packed[0],
+        merkle_context: merkle_context_packed,
         root_index: input_params.root_indices[0],
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {

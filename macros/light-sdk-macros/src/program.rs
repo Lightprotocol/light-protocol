@@ -68,14 +68,14 @@ impl VisitMut for LightProgramTransform {
         i.sig.inputs.insert(1, inputs_arg);
 
         // Inject Merkle context related arguments.
-        let proof_arg: FnArg = parse_quote! { proof: CompressedProof };
+        let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::proof::CompressedProof };
         i.sig.inputs.insert(2, proof_arg);
-        let merkle_context_arg: FnArg = parse_quote! { merkle_context: PackedMerkleContext };
+        let merkle_context_arg: FnArg =
+            parse_quote! { merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
         i.sig.inputs.insert(3, merkle_context_arg);
         let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
         i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg =
-            parse_quote! { address_merkle_context: PackedAddressMerkleContext };
+        let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
         i.sig.inputs.insert(5, address_merkle_context_arg);
         let address_merkle_tree_root_index_arg: FnArg =
             parse_quote! { address_merkle_tree_root_index: u16 };

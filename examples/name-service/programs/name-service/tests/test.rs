@@ -4,13 +4,12 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_sdk::address::derive_address_seed;
+use light_sdk::address::{derive_address, derive_address_seed};
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
     PackedAddressMerkleContext, RemainingAccounts,
 };
-use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_test_utils::indexer::test_indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
@@ -46,13 +45,8 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(
-        &[b"name-service", name.as_bytes()],
-        &name_service::ID,
-        &address_merkle_context,
-    );
-    println!("ADDRESS_SEED: {address_seed:?}");
-    let address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let address_seed = derive_address_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
+    let address = derive_address(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
         pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);

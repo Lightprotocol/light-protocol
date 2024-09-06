@@ -13,6 +13,7 @@ light-concurrent-merkle-tree = { version = "1.0.0", path = "../merkle-tree/concu
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.0.0" }
 light-prover-client = { path = "../circuit-lib/light-prover-client", version = "1.0.0" }
 light-registry = { path = "../programs/registry", version = "1.0.0", features = ["cpi"] }
+light-sdk = { path = "../sdk", version = "0.8.0" }
 light-system-program = { path = "../programs/system", version = "1.0.0", features = ["cpi"] }
 light-utils = { path = "../utils", version = "1.0.0" }
 

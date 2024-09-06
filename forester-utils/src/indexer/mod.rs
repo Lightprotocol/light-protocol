@@ -12,9 +12,10 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
 use light_indexed_merkle_tree::reference::IndexedMerkleTree;
 use light_merkle_tree_reference::MerkleTree;
-use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_system_program::sdk::event::PublicTransactionEvent;
+use light_sdk::{
+    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    proof::CompressedProof,
+};
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 

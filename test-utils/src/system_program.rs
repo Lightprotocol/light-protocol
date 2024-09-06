@@ -1,12 +1,12 @@
 use forester_utils::indexer::Indexer;
 use light_hasher::Poseidon;
-use light_system_program::sdk::event::PublicTransactionEvent;
+use light_sdk::{
+    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    event::PublicTransactionEvent,
+};
 use light_system_program::{
     sdk::{
         address::derive_address,
-        compressed_account::{
-            CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
-        },
         invoke::{create_invoke_instruction, get_sol_pool_pda},
     },
     NewAddressParams,
@@ -371,21 +371,75 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         .get_state_merkle_tree_accounts(inputs.output_merkle_tree_pubkeys);
     let output_merkle_tree_snapshots =
         get_merkle_tree_snapshots::<R>(inputs.rpc, output_merkle_tree_accounts.as_slice()).await;
+
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = proof.map(
+        |proof| light_system_program::invoke::processor::CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        },
+    );
+
     let instruction = create_invoke_instruction(
         &inputs.fee_payer.pubkey(),
         &inputs.authority.pubkey().clone(),
         inputs
             .input_compressed_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
-            .collect::<Vec<CompressedAccount>>()
+            .map(
+                |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                    owner: x.compressed_account.owner,
+                    lamports: x.compressed_account.lamports,
+                    address: x.compressed_account.address,
+                    data: x.compressed_account.data.as_ref().map(|data| {
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            discriminator: data.discriminator,
+                            data: data.data.clone(),
+                            data_hash: data.data_hash,
+                        }
+                    }),
+                },
+            )
+            .collect::<Vec<_>>()
             .as_slice(),
-        inputs.output_compressed_accounts,
+        inputs
+            .output_compressed_accounts
+            .iter()
+            .map(
+                |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                    owner: x.owner,
+                    lamports: x.lamports,
+                    address: x.address,
+                    data: x.data.as_ref().map(|data| {
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            discriminator: data.discriminator,
+                            data: data.data.clone(),
+                            data_hash: data.data_hash,
+                        }
+                    }),
+                },
+            )
+            .collect::<Vec<_>>()
+            .as_slice(),
         inputs
             .input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context)
-            .collect::<Vec<MerkleContext>>()
+            .map(
+                |x| light_system_program::sdk::compressed_account::MerkleContext {
+                    merkle_tree_pubkey: x.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: x.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: x.merkle_context.leaf_index,
+                    queue_index: x.merkle_context.queue_index.map(|queue_index| {
+                        light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        }
+                    }),
+                },
+            )
+            .collect::<Vec<_>>()
             .as_slice(),
         inputs.output_merkle_tree_pubkeys,
         &root_indices,
@@ -431,10 +485,62 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(&event.0);
+
+    let created_output_compressed_accounts = created_output_compressed_accounts
+        .iter()
+        .map(|x| {
+            light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext {
+                compressed_account:
+                    light_system_program::sdk::compressed_account::CompressedAccount {
+                        owner: x.compressed_account.owner,
+                        lamports: x.compressed_account.lamports,
+                        address: x.compressed_account.address,
+                        data: x.compressed_account.data.as_ref().map(|y| {
+                            light_system_program::sdk::compressed_account::CompressedAccountData {
+                                discriminator: y.discriminator,
+                                data: y.data.clone(),
+                                data_hash: y.data_hash,
+                            }
+                        }),
+                    },
+                merkle_context: light_system_program::sdk::compressed_account::MerkleContext {
+                    merkle_tree_pubkey: x.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: x.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: x.merkle_context.leaf_index,
+                    queue_index: x.merkle_context.queue_index.map(|queue_index| {
+                        light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        }
+                    }),
+                },
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let output_compressed_accounts = inputs
+        .output_compressed_accounts
+        .iter()
+        .map(
+            |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: x.owner,
+                lamports: x.lamports,
+                address: x.address,
+                data: x.data.as_ref().map(|data| {
+                    light_system_program::sdk::compressed_account::CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
+
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
-        output_compressed_accounts: inputs.output_compressed_accounts,
+        output_compressed_accounts: output_compressed_accounts.as_slice(),
         created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
         event: &event.0,
         input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
