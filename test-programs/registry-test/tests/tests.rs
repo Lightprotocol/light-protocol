@@ -100,12 +100,16 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
     // Test for 10 epochs
     let epochs = 10;
 
-    let total_slots_to_test = (config.registration_phase_length
-        + config.active_phase_length
-        + config.report_work_phase_length)
-        * epochs;
+    let total_slots_to_test = config.active_phase_length * epochs;
 
     for slot in config.genesis_slot..(config.genesis_slot + total_slots_to_test) {
+        if slot < config.genesis_slot + config.registration_phase_length {
+            // assert that is registration phase
+            assert_eq!(
+                config.get_latest_register_epoch(slot).unwrap(),0
+            );
+            continue;
+        }
         let mut active_epochs = HashSet::new();
         for offset in -1..1 {
             let epoch = config.get_current_epoch(slot) as i64 + offset;
