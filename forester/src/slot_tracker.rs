@@ -34,13 +34,8 @@ impl SlotTracker {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
-        let old_slot = self.last_known_slot.load(Ordering::Acquire);
         self.last_known_slot.store(new_slot, Ordering::Release);
         self.last_update_time.store(now, Ordering::Release);
-        debug!(
-            "SlotTracker updated: old_slot={}, new_slot={}",
-            old_slot, new_slot
-        );
     }
 
     pub fn estimated_current_slot(&self) -> u64 {
@@ -65,7 +60,6 @@ impl SlotTracker {
             match rpc.get_slot().await {
                 Ok(slot) => {
                     self.update(slot);
-                    debug!("SlotTracker run: Updated slot to {}", slot);
                 }
                 Err(e) => error!("Failed to get slot: {:?}", e),
             }
