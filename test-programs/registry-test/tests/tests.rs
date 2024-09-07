@@ -4,6 +4,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
+use forester_utils::forester_epoch::get_epoch_phases;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -46,6 +47,85 @@ use solana_sdk::{
     signature::{read_keypair_file, Keypair},
     signer::Signer,
 };
+use std::collections::HashSet;
+
+#[test]
+fn test_protocol_config_active_phase_continuity() {
+    let devnet_config = ProtocolConfig {
+        genesis_slot: 0,
+        min_weight: 1,
+        slot_length: 10,
+        registration_phase_length: 100,
+        active_phase_length: 1000,
+        report_work_phase_length: 100,
+        network_fee: 5000,
+        cpi_context_size: 20488,
+        finalize_counter_limit: 100,
+        place_holder: Pubkey::default(),
+        place_holder_a: 0,
+        place_holder_b: 0,
+        place_holder_c: 0,
+        place_holder_d: 0,
+        place_holder_e: 0,
+        place_holder_f: 0,
+    };
+
+    let mainnet_config = ProtocolConfig {
+        genesis_slot: 286142505,
+        min_weight: 1,
+        slot_length: 50,
+        registration_phase_length: 216000,
+        active_phase_length: 432000,
+        report_work_phase_length: 216000,
+        network_fee: 5000,
+        cpi_context_size: 20488,
+        finalize_counter_limit: 100,
+        place_holder: Pubkey::default(),
+        place_holder_a: 0,
+        place_holder_b: 0,
+        place_holder_c: 0,
+        place_holder_d: 0,
+        place_holder_e: 0,
+        place_holder_f: 0,
+    };
+
+    let configs = vec![devnet_config, mainnet_config];
+    for config in configs {
+        test_protocol_config_active_phase_continuity_for_config(config);
+    }
+}
+
+fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfig) {
+    // Test for a range of slots covering multiple epochs
+    let total_slots_to_test = (config.registration_phase_length
+        + config.active_phase_length
+        + config.report_work_phase_length)
+        * 10; // Test across 10 epochs
+
+    for slot in config.genesis_slot..(config.genesis_slot + total_slots_to_test) {
+        let mut active_epochs = HashSet::new();
+        for epoch_offset in 0..2 {
+            let epoch = config.get_current_epoch(slot) as i64 + epoch_offset;
+            if epoch < 0 {
+                continue;
+            }
+            let phases = get_epoch_phases(&config, epoch as u64);
+
+            if slot >= phases.active.start && slot <= phases.active.end {
+                active_epochs.insert(epoch);
+            }
+        }
+
+        assert_eq!(
+            active_epochs.len(),
+            1,
+            "Slot {} should be active in exactly one epoch, but was active in {} epochs. Protocol config: {:?}",
+            slot,
+            active_epochs.len(),
+            config
+        );
+    }
+}
 
 #[tokio::test]
 async fn test_initialize_protocol_config() {
