@@ -219,39 +219,38 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     async fn process_current_and_previous_epochs(&self) -> Result<()> {
         let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
         let current_phases = get_epoch_phases(&self.protocol_config, current_epoch);
-        let previous_phases =
-            get_epoch_phases(&self.protocol_config, current_epoch.saturating_sub(1));
+        let previous_epoch = current_epoch.saturating_sub(1);
 
-        // Process previous epoch if still in active phase
-        if slot >= previous_phases.active.start && slot < previous_phases.active.end {
-            info!(
-                "Processing remaining work for previous epoch {}",
-                current_epoch - 1
-            );
-            self.process_epoch_work(current_epoch - 1).await?;
+        let mut tasks = Vec::new();
+
+        // Process previous epoch if still in active or later phase
+        if slot < current_phases.registration.start {
+            info!("Spawning task for previous epoch {}", previous_epoch);
+            let self_clone = Arc::new(self.clone());
+            tasks.push(tokio::spawn(async move {
+                if let Err(e) = self_clone.process_epoch(previous_epoch).await {
+                    error!("Error processing previous epoch {}: {:?}", previous_epoch, e);
+                }
+            }));
         }
 
         // Process current epoch
-        if slot >= current_phases.active.start && slot < current_phases.active.end {
-            info!("Processing work for current epoch {}", current_epoch);
-            self.process_epoch_work(current_epoch).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn process_epoch_work(&self, epoch: u64) -> Result<()> {
-        match self.recover_registration_info(epoch).await {
-            Ok(registration_info) => {
-                self.perform_active_work(&registration_info).await?;
+        info!("Spawning task for current epoch {}", current_epoch);
+        let self_clone = Arc::new(self.clone());
+        tasks.push(tokio::spawn(async move {
+            if let Err(e) = self_clone.process_epoch(current_epoch).await {
+                error!("Error processing current epoch {}: {:?}", current_epoch, e);
             }
-            Err(e) => {
-                warn!(
-                    "Failed to recover registration info for epoch {}: {:?}",
-                    epoch, e
-                );
+        }));
+
+        // Wait for all spawned tasks to complete
+        let results = join_all(tasks).await;
+        for (i, result) in results.into_iter().enumerate() {
+            if let Err(e) = result {
+                error!("Task {} join error: {}", i, e);
             }
         }
+
         Ok(())
     }
 
@@ -260,22 +259,37 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
         info!("Entering process_epoch");
 
-        // Registration
-        let mut registration_info = self
-            .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200))
-            .await?;
+        // Attempt to recover registration info
+        let mut registration_info = match self.recover_registration_info(epoch).await {
+            Ok(info) => info,
+            Err(_) => {
+                // If recovery fails, attempt to register
+                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200)).await?
+            }
+        };
+
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Wait for active phase
-        registration_info = self.wait_for_active_phase(&registration_info).await?;
+        if current_slot < phases.active.start {
+            // Wait for active phase
+            registration_info = self.wait_for_active_phase(&registration_info).await?;
+        }
 
         // Perform work
-        self.perform_active_work(&registration_info).await?;
-
+        if current_slot < phases.active.end {
+            self.perform_active_work(&registration_info).await?;
+        }
         // Wait for report work phase
-        self.wait_for_report_work_phase(&registration_info).await?;
+        if current_slot < phases.report_work.start {
+            self.wait_for_report_work_phase(&registration_info).await?;
+        }
 
         // Report work
-        self.report_work(&registration_info).await?;
+        if current_slot < phases.report_work.end {
+            self.report_work(&registration_info).await?;
+        }
 
         // TODO: implement
         // self.claim(&registration_info).await?;
