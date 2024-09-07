@@ -15,6 +15,7 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 
 use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
+use dashmap::DashMap;
 use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
@@ -30,7 +31,7 @@ use light_registry::{EpochPda, ForesterEpochPda};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -76,6 +77,7 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
     trees: Vec<TreeAccounts>,
     slot_tracker: Arc<SlotTracker>,
+    processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
 }
 
 impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
@@ -89,6 +91,7 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
             processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
             trees: self.trees.clone(),
             slot_tracker: self.slot_tracker.clone(),
+            processing_epochs: self.processing_epochs.clone(),
         }
     }
 }
@@ -112,19 +115,30 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
             trees,
             slot_tracker,
+            processing_epochs: Arc::new(DashMap::new()),
         })
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
         let (tx, mut rx) = mpsc::channel(100);
+        let tx = Arc::new(tx);
 
         let monitor_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
-            async move { self_clone.monitor_epochs(tx).await }
+            let tx_clone = Arc::clone(&tx);
+            async move { self_clone.monitor_epochs(tx_clone).await }
         });
 
-        // Check and process current and previous epochs
-        self.process_current_and_previous_epochs().await?;
+        // Process current and previous epochs
+        let current_previous_handle = tokio::spawn({
+            let self_clone = Arc::clone(&self);
+            let tx_clone = Arc::clone(&tx);
+            async move {
+                self_clone
+                    .process_current_and_previous_epochs(tx_clone)
+                    .await
+            }
+        });
 
         while let Some(epoch) = rx.recv().await {
             let self_clone = Arc::clone(&self);
@@ -136,11 +150,13 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         }
 
         monitor_handle.await??;
+        current_previous_handle.await??;
+
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self, tx))]
-    async fn monitor_epochs(&self, tx: mpsc::Sender<u64>) -> Result<()> {
+    async fn monitor_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
         debug!("Starting epoch monitor");
 
@@ -216,40 +232,22 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn process_current_and_previous_epochs(&self) -> Result<()> {
+    async fn process_current_and_previous_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
         let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
         let current_phases = get_epoch_phases(&self.protocol_config, current_epoch);
         let previous_epoch = current_epoch.saturating_sub(1);
 
-        let mut tasks = Vec::new();
-
         // Process previous epoch if still in active or later phase
         if slot < current_phases.registration.start {
-            info!("Spawning task for previous epoch {}", previous_epoch);
-            let self_clone = Arc::new(self.clone());
-            tasks.push(tokio::spawn(async move {
-                if let Err(e) = self_clone.process_epoch(previous_epoch).await {
-                    error!("Error processing previous epoch {}: {:?}", previous_epoch, e);
-                }
-            }));
+            tx.send(previous_epoch).await.map_err(|e| {
+                ForesterError::Custom(format!("Failed to send previous epoch: {}", e))
+            })?;
         }
 
         // Process current epoch
-        info!("Spawning task for current epoch {}", current_epoch);
-        let self_clone = Arc::new(self.clone());
-        tasks.push(tokio::spawn(async move {
-            if let Err(e) = self_clone.process_epoch(current_epoch).await {
-                error!("Error processing current epoch {}: {:?}", current_epoch, e);
-            }
-        }));
-
-        // Wait for all spawned tasks to complete
-        let results = join_all(tasks).await;
-        for (i, result) in results.into_iter().enumerate() {
-            if let Err(e) = result {
-                error!("Task {} join error: {}", i, e);
-            }
-        }
+        tx.send(current_epoch)
+            .await
+            .map_err(|e| ForesterError::Custom(format!("Failed to send current epoch: {}", e)))?;
 
         Ok(())
     }
@@ -259,40 +257,67 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
         info!("Entering process_epoch");
 
+        let processing_flag = self
+            .processing_epochs
+            .entry(epoch)
+            .or_insert_with(|| Arc::new(AtomicBool::new(false)));
+
+        if processing_flag
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            // Another task is already processing this epoch
+            debug!("Epoch {} is already being processed, skipping", epoch);
+            return Ok(());
+        } else {
+            info!(
+                "Flag set for epoch {}, forester {}",
+                epoch,
+                self.config.payer_keypair.pubkey()
+            );
+        }
+
         // Attempt to recover registration info
         let mut registration_info = match self.recover_registration_info(epoch).await {
             Ok(info) => info,
-            Err(_) => {
+            Err(e) => {
+                warn!("Failed to recover registration info: {:?}", e);
                 // If recovery fails, attempt to register
-                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200)).await?
+                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200))
+                    .await?
             }
         };
 
-        let current_slot = self.slot_tracker.estimated_current_slot();
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Wait for active phase
-        if current_slot < phases.active.start {
+        if self.slot_tracker.estimated_current_slot() < phases.active.start {
             // Wait for active phase
             registration_info = self.wait_for_active_phase(&registration_info).await?;
         }
 
         // Perform work
-        if current_slot < phases.active.end {
+        if self.slot_tracker.estimated_current_slot() < phases.active.end {
             self.perform_active_work(&registration_info).await?;
         }
         // Wait for report work phase
-        if current_slot < phases.report_work.start {
+        if self.slot_tracker.estimated_current_slot() < phases.report_work.start {
             self.wait_for_report_work_phase(&registration_info).await?;
         }
 
         // Report work
-        if current_slot < phases.report_work.end {
+        if self.slot_tracker.estimated_current_slot() < phases.report_work.end {
             self.report_work(&registration_info).await?;
         }
 
         // TODO: implement
         // self.claim(&registration_info).await?;
+
+        // Ensure we reset the processing flag when we're done
+        let _reset_guard = scopeguard::guard((), |_| {
+            debug!("Resetting processing flag for epoch {}", epoch);
+            processing_flag.store(false, Ordering::SeqCst);
+        });
 
         info!("Exiting process_epoch");
         Ok(())
@@ -311,6 +336,18 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        let slot = rpc.get_slot().await?;
+        let phases = get_epoch_phases(&self.protocol_config, epoch);
+
+        // Check if it's already too late to register
+        if slot >= phases.registration.end {
+            return Err(ForesterError::Custom(format!(
+                "Too late to register for epoch {}. Current slot: {}, Registration end: {}",
+                epoch, slot, phases.registration.end
+            )));
+        }
+
         for attempt in 0..max_retries {
             match self.register_for_epoch(epoch).await {
                 Ok(registration_info) => return Ok(registration_info),

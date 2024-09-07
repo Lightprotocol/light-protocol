@@ -1785,6 +1785,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if 1.0.0",
+ "crossbeam-utils",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core 0.9.10",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2288,6 +2302,7 @@ dependencies = [
  "clap 4.5.16",
  "config",
  "crossbeam-channel",
+ "dashmap 6.1.0",
  "dotenvy",
  "env_logger 0.11.5",
  "forester-utils",
@@ -2312,6 +2327,7 @@ dependencies = [
  "rand 0.8.5",
  "reqwest 0.11.27",
  "rstest",
+ "scopeguard",
  "serde",
  "serde_json",
  "serial_test",
@@ -6068,7 +6084,7 @@ dependencies = [
  "byteorder",
  "bzip2",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "flate2",
  "fnv",
  "im",
@@ -6297,7 +6313,7 @@ source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi
 dependencies = [
  "async-trait",
  "bincode",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.30",
  "futures-util",
  "indexmap 2.5.0",
@@ -6528,7 +6544,7 @@ dependencies = [
  "chrono",
  "chrono-humanize",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "fs_extra",
  "futures 0.3.30",
  "itertools",
@@ -6904,7 +6920,7 @@ dependencies = [
  "bincode",
  "bs58 0.4.0",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "itertools",
  "jsonrpc-core",
  "jsonrpc-core-client",
@@ -7024,7 +7040,7 @@ dependencies = [
  "byteorder",
  "bzip2",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "dir-diff",
  "flate2",
  "fnv",
