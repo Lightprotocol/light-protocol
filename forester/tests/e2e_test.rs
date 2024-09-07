@@ -17,6 +17,7 @@ use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -143,7 +144,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         work_report_sender,
     ));
 
-    if let Some(_) = work_report_receiver.recv().await {
+    if work_report_receiver.recv().await.is_some() {
         println!("work_reported");
     };
     let mut rpc = pool.get_connection().await.unwrap();
@@ -190,8 +191,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
 
 pub async fn assert_queue_len(
     pool: &SolanaRpcPool<SolanaRpcConnection>,
-    state_trees: &Vec<StateMerkleTreeAccounts>,
-    address_trees: &Vec<AddressMerkleTreeAccounts>,
+    state_trees: &[StateMerkleTreeAccounts],
+    address_trees: &[AddressMerkleTreeAccounts],
     total_expected_work: &mut u64,
     expected_len: usize,
     not_empty: bool,
@@ -226,7 +227,7 @@ pub async fn assert_queue_len(
 }
 
 // TODO: add test which asserts epoch registration over many epochs (we need a different protocol config for that)
-// TODO: add test with photon indexer for an infitine local test which performs work over many epochs
+// TODO: add test with photon indexer for an infinite local test which performs work over many epochs
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
@@ -309,14 +310,10 @@ async fn test_epoch_monitor_with_2_foresters() {
     // Create state and address trees which can be rolled over
     env.create_address_tree(Some(0)).await;
     env.create_state_tree(Some(0)).await;
-    let state_tree_with_rollover_threshold_0 = env.indexer.state_merkle_trees[1]
-        .accounts
-        .merkle_tree
-        .clone();
-    let address_tree_with_rollover_threshold_0 = env.indexer.address_merkle_trees[1]
-        .accounts
-        .merkle_tree
-        .clone();
+    let state_tree_with_rollover_threshold_0 =
+        env.indexer.state_merkle_trees[1].accounts.merkle_tree;
+    let address_tree_with_rollover_threshold_0 =
+        env.indexer.address_merkle_trees[1].accounts.merkle_tree;
 
     let state_trees: Vec<StateMerkleTreeAccounts> = env
         .indexer
@@ -379,48 +376,49 @@ async fn test_epoch_monitor_with_2_foresters() {
         work_report_sender2,
     ));
 
-    let mut forester1_reported_work_for_epoch1 = false;
-    let mut forester2_reported_work_for_epoch1 = false;
-
     // Wait for both foresters to report work for epoch 1
     const TIMEOUT_DURATION: Duration = Duration::from_secs(360);
-    let mut total_processed = 0;
-    let finish_epoch = 1;
-    let result: Result<usize, tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {
-        loop {
-            tokio::select! {
-            Some(report) = work_report_receiver1.recv(), if !forester1_reported_work_for_epoch1 => {
-                    total_processed += report.processed_items;
-                if report.epoch == finish_epoch {
-                    forester1_reported_work_for_epoch1 = true;
-                }
-            }
-            Some(report) = work_report_receiver2.recv(), if !forester2_reported_work_for_epoch1 => {
-                    total_processed += report.processed_items;
-                if report.epoch == finish_epoch {
-                    forester2_reported_work_for_epoch1 = true;
-                }
-            }
-            else => break,
-        }
-            if forester1_reported_work_for_epoch1 && forester2_reported_work_for_epoch1 {
-                break;
-            }
-        }
-        total_processed
-    }).await;
+    const EXPECTED_EPOCHS: u64 = 2; // We expect to process 2 epochs (0 and 1)
 
-    match result {
-        Ok(total_processed) => {
-            assert!(total_processed > 0, "No items were processed");
-            println!(
-                "Both foresters reported work for epoch 1. Total processed: {}",
-                total_processed
-            );
+    let result: Result<(), tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {
+        let mut processed_epochs = HashSet::new();
+        let mut total_processed = 0;
+        while processed_epochs.len() < EXPECTED_EPOCHS as usize {
+            tokio::select! {
+                Some(report) = work_report_receiver1.recv() => {
+                    println!("Received work report from forester 1: {:?}", report);
+                    total_processed += report.processed_items;
+                    processed_epochs.insert(report.epoch);
+                }
+                Some(report) = work_report_receiver2.recv() => {
+                    println!("Received work report from forester 2: {:?}", report);
+                    total_processed += report.processed_items;
+                    processed_epochs.insert(report.epoch);
+                }
+                else => break,
+            }
         }
-        Err(_) => {
-            panic!("Test timed out after {:?}", TIMEOUT_DURATION);
-        }
+
+        println!("Processed {} items", total_processed);
+
+        // Verify that we've processed the expected number of epochs
+        assert_eq!(
+            processed_epochs.len(),
+            EXPECTED_EPOCHS as usize,
+            "Processed {} epochs, expected {}",
+            processed_epochs.len(),
+            EXPECTED_EPOCHS
+        );
+
+        // Verify that we've processed epochs 0 and 1
+        assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
+        assert!(processed_epochs.contains(&1), "Epoch 1 was not processed");
+    })
+    .await;
+
+    // Handle timeout
+    if result.is_err() {
+        panic!("Test timed out after {:?}", TIMEOUT_DURATION);
     }
 
     assert_trees_are_rollledover(
@@ -439,7 +437,7 @@ async fn test_epoch_monitor_with_2_foresters() {
 
     // assert that foresters registered for epoch 1 and 2 (no new work is emitted after epoch 0)
     // Assert that foresters have registered all processed epochs and the next epoch (+1)
-    for epoch in 0..=finish_epoch + 1 {
+    for epoch in 0..=EXPECTED_EPOCHS {
         let total_processed_work =
             assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
                 .await
@@ -473,7 +471,7 @@ pub async fn assert_trees_are_rollledover(
 ) {
     let mut rpc = pool.get_connection().await.unwrap();
     let address_merkle_tree = rpc
-        .get_anchor_account::<AddressMerkleTreeAccount>(&address_tree_with_rollover_threshold_0)
+        .get_anchor_account::<AddressMerkleTreeAccount>(address_tree_with_rollover_threshold_0)
         .await
         .unwrap()
         .unwrap();
@@ -487,7 +485,7 @@ pub async fn assert_trees_are_rollledover(
         address_merkle_tree
     );
     let state_merkle_tree = rpc
-        .get_anchor_account::<AddressMerkleTreeAccount>(&state_tree_with_rollover_threshold_0)
+        .get_anchor_account::<AddressMerkleTreeAccount>(state_tree_with_rollover_threshold_0)
         .await
         .unwrap()
         .unwrap();
@@ -615,7 +613,7 @@ async fn test_epoch_double_registration() {
     ));
 
     // Wait for a short duration to allow both services to run
-    sleep(Duration::from_secs(5)).await;
+    sleep(Duration::from_secs(3)).await;
 
     // Send shutdown signals to both services
     shutdown_sender

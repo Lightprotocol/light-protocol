@@ -51,6 +51,8 @@ tracing-appender = "0.2.3"
 prometheus = "0.13"
 lazy_static = "1.4"
 warp = "0.3"
+dashmap = "6.1.0"
+scopeguard = "1.2.0"
 
 [dev-dependencies]
 function_name = "0.3.0"
