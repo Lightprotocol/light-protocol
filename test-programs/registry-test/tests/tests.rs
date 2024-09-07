@@ -96,19 +96,21 @@ fn test_protocol_config_active_phase_continuity() {
 }
 
 fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfig) {
+    let EPOCHS = 10;
     // Test for a range of slots covering multiple epochs
     let total_slots_to_test = (config.registration_phase_length
         + config.active_phase_length
         + config.report_work_phase_length)
-        * 10; // Test across 10 epochs
+        * EPOCHS; // Test across 10 epochs
 
     for slot in config.genesis_slot..(config.genesis_slot + total_slots_to_test) {
         let mut active_epochs = HashSet::new();
-        for epoch_offset in 0..2 {
-            let epoch = config.get_current_epoch(slot) as i64 + epoch_offset;
+        for offset in -1..1 {
+            let epoch = config.get_current_epoch(slot) as i64 + offset;
             if epoch < 0 {
                 continue;
             }
+
             let phases = get_epoch_phases(&config, epoch as u64);
 
             if slot >= phases.active.start && slot <= phases.active.end {
