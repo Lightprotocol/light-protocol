@@ -90,7 +90,7 @@ fn build_config() -> Result<Config, ForesterError> {
         .map_err(|e| ForesterError::ConfigError(e.to_string()))
 }
 
-pub fn init_config() -> Result<ForesterConfig, ForesterError> {
+pub fn init_config(enable_metrics: bool) -> Result<ForesterConfig, ForesterError> {
     let settings = build_config()?;
     let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
@@ -135,6 +135,7 @@ pub fn init_config() -> Result<ForesterConfig, ForesterError> {
             as u64,
         address_tree_data: vec![],
         state_tree_data: vec![],
+        enable_metrics,
     };
 
     debug!("Config: {:?}", config);

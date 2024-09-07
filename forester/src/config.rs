@@ -50,6 +50,7 @@ pub struct ForesterConfig {
     pub slot_update_interval_seconds: u64,
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
+    pub enable_metrics: bool,
 }
 
 impl Clone for ForesterConfig {
@@ -68,6 +69,7 @@ impl Clone for ForesterConfig {
             state_tree_data: self.state_tree_data.clone(),
             address_tree_data: self.address_tree_data.clone(),
             slot_update_interval_seconds: self.slot_update_interval_seconds,
+            enable_metrics: self.enable_metrics,
         }
     }
 }

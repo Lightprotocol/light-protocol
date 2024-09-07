@@ -97,6 +97,7 @@ pub fn forester_config() -> ForesterConfig {
         slot_update_interval_seconds: 10,
         address_tree_data: vec![],
         state_tree_data: vec![],
+        enable_metrics: false,
     }
 }
 

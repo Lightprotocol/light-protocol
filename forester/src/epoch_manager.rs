@@ -664,8 +664,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let num_tx_sent = num_tx_sent.await?;
                 // Prometheus metrics
                 let chunk_duration = start_time.elapsed();
-                queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
-
+                if self.config.enable_metrics {
+                    queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
+                }
                 // TODO: consider do we really need WorkReport
                 self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
                     .await;
@@ -673,10 +674,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 // The forester is not eligible for any more slots in the current epoch
                 break;
             }
-
-            process_queued_metrics().await;
-            if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
-                error!("Failed to push metrics: {:?}", e);
+            if self.config.enable_metrics {
+                process_queued_metrics().await;
+                if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
+                    error!("Failed to push metrics: {:?}", e);
+                }
             }
 
             estimated_slot = self.slot_tracker.estimated_current_slot();
