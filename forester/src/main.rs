@@ -16,16 +16,19 @@ use tracing::{debug, warn};
 #[tokio::main]
 async fn main() -> Result<(), ForesterError> {
     setup_telemetry();
-    register_metrics();
 
-    let config = match init_config() {
+    let cli = Cli::parse();
+
+    if cli.enable_metrics {
+        register_metrics();
+    }
+
+    let config = match init_config(cli.enable_metrics) {
         Ok(config) => Arc::new(config),
         Err(e) => {
             panic!("Failed to initialize config: {}", e);
         }
     };
-
-    let cli = Cli::parse();
 
     match &cli.command {
         Some(Commands::Start) => {
@@ -65,8 +68,10 @@ async fn main() -> Result<(), ForesterError> {
             run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
             run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
 
-            if let Err(e) = push_metrics(&config.external_services.pushgateway_url).await {
-                warn!("Failed to push metrics: {:?}", e);
+            if cli.enable_metrics {
+                if let Err(e) = push_metrics(&config.external_services.pushgateway_url).await {
+                    warn!("Failed to push metrics: {:?}", e);
+                }
             }
         }
         None => {}
