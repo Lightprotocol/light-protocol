@@ -95,13 +95,15 @@ fn test_protocol_config_active_phase_continuity() {
     }
 }
 
+// Test that each slot is active in exactly one epoch
 fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfig) {
-    let EPOCHS = 10;
-    // Test for a range of slots covering multiple epochs
+    // Test for 10 epochs
+    let epochs = 10;
+
     let total_slots_to_test = (config.registration_phase_length
         + config.active_phase_length
         + config.report_work_phase_length)
-        * EPOCHS; // Test across 10 epochs
+        * epochs;
 
     for slot in config.genesis_slot..(config.genesis_slot + total_slots_to_test) {
         let mut active_epochs = HashSet::new();
