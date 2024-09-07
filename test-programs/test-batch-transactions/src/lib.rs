@@ -20,6 +20,7 @@ pub mod test_batch_transactions {
             .unwrap();
         }
         ctx.accounts.counter.counter += 1;
+        msg!("upgraded");
         Ok(())
     }
 }
