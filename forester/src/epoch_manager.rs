@@ -269,12 +269,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             // Another task is already processing this epoch
             debug!("Epoch {} is already being processed, skipping", epoch);
             return Ok(());
-        } else {
-            info!(
-                "Flag set for epoch {}, forester {}",
-                epoch,
-                self.config.payer_keypair.pubkey()
-            );
         }
 
         // Attempt to recover registration info
@@ -315,7 +309,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         // Ensure we reset the processing flag when we're done
         let _reset_guard = scopeguard::guard((), |_| {
-            debug!("Resetting processing flag for epoch {}", epoch);
             processing_flag.store(false, Ordering::SeqCst);
         });
 
