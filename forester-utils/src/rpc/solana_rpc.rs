@@ -361,7 +361,6 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        debug!("Calling get_slot");
         self.client.get_slot().map_err(RpcError::from)
     }
 
