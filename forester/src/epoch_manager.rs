@@ -285,22 +285,23 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Wait for active phase
-        if self.slot_tracker.estimated_current_slot() < phases.active.start {
+
+        if self.sync_slot().await? < phases.active.start {
             // Wait for active phase
             registration_info = self.wait_for_active_phase(&registration_info).await?;
         }
 
         // Perform work
-        if self.slot_tracker.estimated_current_slot() < phases.active.end {
+        if self.sync_slot().await? < phases.active.end {
             self.perform_active_work(&registration_info).await?;
         }
         // Wait for report work phase
-        if self.slot_tracker.estimated_current_slot() < phases.report_work.start {
+        if self.sync_slot().await? < phases.report_work.start {
             self.wait_for_report_work_phase(&registration_info).await?;
         }
 
         // Report work
-        if self.slot_tracker.estimated_current_slot() < phases.report_work.end {
+        if self.sync_slot().await? < phases.report_work.end {
             self.report_work(&registration_info).await?;
         }
 
@@ -633,11 +634,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
     // Sync estimated slot before creating threads.
     // Threads rely on the estimated slot.
-    async fn sync_slot(&self) -> Result<()> {
+    async fn sync_slot(&self) -> Result<u64> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let current_slot = rpc.get_slot().await?;
         self.slot_tracker.update(current_slot);
-        Ok(())
+        Ok(current_slot)
     }
 
     #[instrument(
