@@ -17,7 +17,7 @@ type InclusionCircuit struct {
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
@@ -28,7 +28,7 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Depth:         circuit.Depth,
+		Depth:                      circuit.Depth,
 	})
 	return nil
 }
@@ -39,13 +39,16 @@ func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, p
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
+	for i := 0; i < int(numberOfCompressedAccounts); i++ {
+		inPathElements[i] = make([]frontend.Variable, treeDepth)
+	}
 	circuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfCompressedAccounts:  numberOfCompressedAccounts,
-		Roots:          roots,
-		Leaves:         leaves,
-		InPathIndices:  inPathIndices,
-		InPathElements: inPathElements,
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Leaves:                     leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
 	}
 
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
