@@ -49,12 +49,13 @@ export async function transfer(
     confirmOptions?: ConfirmOptions,
     config?: Omit<GetCompressedAccountsByOwnerConfig, 'cursor' | 'limit'>,
 ): Promise<TransactionSignature> {
-    let compressedAccounts: CompressedAccountWithMerkleContext[] = [];
+    let accumulatedLamports = bn(0);
+    const compressedAccounts: CompressedAccountWithMerkleContext[] = [];
     let cursor: string | null = null;
     const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
 
-    do {
+    while (accumulatedLamports.lt(lamports)) {
         const batchConfig: GetCompressedAccountsByOwnerConfig = {
             ...config,
             cursor,
@@ -64,13 +65,25 @@ export async function transfer(
             owner.publicKey,
             batchConfig,
         );
-        const positiveBalanceAccounts = batch.items.filter(account =>
-            account.lamports.gt(new BN(0)),
-        );
-        compressedAccounts = compressedAccounts.concat(positiveBalanceAccounts);
+
+        for (const account of batch.items) {
+            if (account.lamports.gt(new BN(0))) {
+                compressedAccounts.push(account);
+                accumulatedLamports = accumulatedLamports.add(account.lamports);
+                if (accumulatedLamports.gte(lamports)) break;
+            }
+        }
+
         cursor = batch.cursor;
-        if (batch.items.length < batchSize) break;
-    } while (cursor !== null);
+        if (batch.items.length < batchSize || accumulatedLamports.gte(lamports))
+            break;
+    }
+
+    if (accumulatedLamports.lt(lamports)) {
+        throw new Error(
+            `Not enough balance for transfer. Required: ${lamports.toString()}, available: ${accumulatedLamports.toString()}`,
+        );
+    }
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
         compressedAccounts,

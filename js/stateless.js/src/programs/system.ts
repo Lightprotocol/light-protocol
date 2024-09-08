@@ -615,7 +615,6 @@ export function selectMinCompressedSolAccountsForTransfer(
 
     accounts.sort((a, b) => b.lamports.cmp(a.lamports));
 
-    accounts = accounts.filter(account => account.lamports.gt(bn(0)));
     for (const account of accounts) {
         if (accumulatedLamports.gte(bn(transferLamports))) break;
         accumulatedLamports = accumulatedLamports.add(account.lamports);
