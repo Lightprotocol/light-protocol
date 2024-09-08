@@ -47,17 +47,17 @@ export async function transfer(
     /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
-    config?: Omit<GetCompressedAccountsByOwnerConfig, 'cursor' | 'limit'>,
 ): Promise<TransactionSignature> {
     let accumulatedLamports = bn(0);
     const compressedAccounts: CompressedAccountWithMerkleContext[] = [];
-    let cursor: string | null = null;
+    let cursor: string | undefined;
     const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
 
     while (accumulatedLamports.lt(lamports)) {
         const batchConfig: GetCompressedAccountsByOwnerConfig = {
-            ...config,
+            filters: undefined,
+            dataSlice: undefined,
             cursor,
             limit: new BN(batchSize),
         };
@@ -73,7 +73,7 @@ export async function transfer(
             }
         }
 
-        cursor = batch.cursor;
+        cursor = batch.cursor ?? undefined;
         if (batch.items.length < batchSize || accumulatedLamports.gte(lamports))
             break;
     }

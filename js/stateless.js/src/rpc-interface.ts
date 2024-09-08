@@ -40,7 +40,7 @@ export interface LatestNonVotingSignatures {
 export interface GetCompressedAccountsByOwnerConfig {
     filters?: GetCompressedAccountsFilter[];
     dataSlice?: DataSlice;
-    cursor: string | null;
+    cursor?: string;
     limit?: BN;
 }
 
@@ -504,9 +504,7 @@ export interface CompressionApiInterface {
 
     getCompressedAccountsByOwner(
         owner: PublicKey,
-        config?:
-            | Omit<GetCompressedAccountsByOwnerConfig, 'cursor' | 'limit'>
-            | undefined,
+        config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>>;
 
     getCompressedTokenAccountsByOwner(
