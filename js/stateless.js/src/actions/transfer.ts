@@ -1,7 +1,6 @@
 import {
     ComputeBudgetProgram,
     ConfirmOptions,
-    DataSlice,
     PublicKey,
     Signer,
     TransactionSignature,
@@ -16,11 +15,8 @@ import { Rpc } from '../rpc';
 
 import { bn, CompressedAccountWithMerkleContext } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
-import {
-    GetCompressedAccountsByOwnerConfig,
-    GetCompressedAccountsFilter,
-} from '../rpc-interface';
-import { string } from 'superstruct';
+import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
+
 
 /**
  * Transfer compressed lamports from one owner to another
