@@ -578,7 +578,7 @@ where
             let new_slot = current_solana_slot + self.protocol_config.slot_length;
             println!("advanced slot from {} to {}", self.slot, current_light_slot);
             println!("solana slot from {} to {}", current_solana_slot, new_slot);
-            self.rpc.warp_to_slot(new_slot).unwrap();
+            self.rpc.warp_to_slot(new_slot).await.unwrap();
 
             self.slot = current_light_slot + 1;
 

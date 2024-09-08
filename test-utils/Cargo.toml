@@ -43,6 +43,7 @@ rand = "0.8"
 photon-api = { path = "../photon-api", version = "0.31.0" }
 log = "0.4"
 serde = { version = "1.0.197", features = ["derive"] }
+async-trait = "0.1.82"
 
 [dev-dependencies]
 rand = "0.8"

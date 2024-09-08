@@ -443,6 +443,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
             .unwrap();
         context
             .warp_to_slot(registered_epoch.phases.active.start)
+            .await
             .unwrap();
         let tree_accounts = vec![
             TreeAccounts {

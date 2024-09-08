@@ -12,6 +12,7 @@ pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Vec<TreeAccounts> {
     let program_id = account_compression::id();
     debug!("Fetching accounts for program: {}", program_id);
     rpc.get_program_accounts(&program_id)
+        .await
         .unwrap()
         .into_iter()
         .filter_map(|(pubkey, account)| process_account(pubkey, account))
