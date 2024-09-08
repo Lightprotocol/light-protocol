@@ -70,7 +70,6 @@ export async function transfer(
             if (account.lamports.gt(new BN(0))) {
                 compressedAccounts.push(account);
                 accumulatedLamports = accumulatedLamports.add(account.lamports);
-                if (accumulatedLamports.gte(lamports)) break;
             }
         }
 
