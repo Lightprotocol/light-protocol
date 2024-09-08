@@ -8,6 +8,7 @@ use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
     STATE_MERKLE_TREE_CHANGELOG,
 };
+use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
 use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
@@ -26,7 +27,6 @@ use solana_sdk::{
 };
 use std::sync::Arc;
 use std::{time::Duration, vec};
-use async_trait::async_trait;
 use tokio::join;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
