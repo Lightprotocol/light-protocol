@@ -335,9 +335,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
-        _config?: GetCompressedAccountsByOwnerConfig,
+        config?:
+            | Omit<GetCompressedAccountsByOwnerConfig, 'cursor' | 'limit'>
+            | undefined,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
-        if (_config) {
+        if (config) {
             throw new Error(
                 'dataSlice or filters are not supported in test-rpc. Please use rpc.ts instead.',
             );

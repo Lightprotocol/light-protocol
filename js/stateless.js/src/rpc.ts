@@ -664,7 +664,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
-        config?: GetCompressedAccountsByOwnerConfig,
+        config?: GetCompressedAccountsByOwnerConfig | undefined,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,

@@ -1,6 +1,7 @@
 import {
     ComputeBudgetProgram,
     ConfirmOptions,
+    DataSlice,
     PublicKey,
     Signer,
     TransactionSignature,
@@ -13,8 +14,13 @@ import {
 } from '../programs';
 import { Rpc } from '../rpc';
 
-import { bn } from '../state';
+import { bn, CompressedAccountWithMerkleContext } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import {
+    GetCompressedAccountsByOwnerConfig,
+    GetCompressedAccountsFilter,
+} from '../rpc-interface';
+import { string } from 'superstruct';
 
 /**
  * Transfer compressed lamports from one owner to another
@@ -27,6 +33,7 @@ import { buildAndSignTx, sendAndConfirmTx } from '../utils';
  * @param merkleTree     State tree account that the compressed lamports should be
  *                       inserted into. Defaults to the default state tree account.
  * @param confirmOptions Options for confirming the transaction
+ * @param config         Configuration for fetching compressed accounts
  *
  *
  * @return Signature of the confirmed transaction
@@ -40,14 +47,33 @@ export async function transfer(
     /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
+    config?: Omit<GetCompressedAccountsByOwnerConfig, 'cursor' | 'limit'>,
 ): Promise<TransactionSignature> {
+    let compressedAccounts: CompressedAccountWithMerkleContext[] = [];
+    let cursor: string | null = null;
+    const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
-    const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-        owner.publicKey,
-    );
+
+    do {
+        const batchConfig: GetCompressedAccountsByOwnerConfig = {
+            ...config,
+            cursor,
+            limit: new BN(batchSize),
+        };
+        const batch = await rpc.getCompressedAccountsByOwner(
+            owner.publicKey,
+            batchConfig,
+        );
+        const positiveBalanceAccounts = batch.items.filter(account =>
+            account.lamports.gt(new BN(0)),
+        );
+        compressedAccounts = compressedAccounts.concat(positiveBalanceAccounts);
+        cursor = batch.cursor;
+        if (batch.items.length < batchSize) break;
+    } while (cursor !== null);
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
-        compressedAccounts.items,
+        compressedAccounts,
         lamports,
     );
 
