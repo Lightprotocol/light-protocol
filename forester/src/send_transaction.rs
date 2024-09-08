@@ -26,19 +26,21 @@ use solana_sdk::{
 };
 use std::sync::Arc;
 use std::{time::Duration, vec};
+use async_trait::async_trait;
 use tokio::join;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
+#[async_trait]
 pub trait TransactionBuilder {
-    fn build_signed_transaction_batch(
+    async fn build_signed_transaction_batch(
         &self,
         payer: &Keypair,
         recent_blockhash: &Hash,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
-    ) -> impl std::future::Future<Output = Vec<Transaction>> + Send;
+    ) -> Vec<Transaction>;
 }
 
 /// Setting:
@@ -186,6 +188,8 @@ pub struct RetryConfig {
     pub global_timeout: u128,
 }
 
+// TODO: We have retry logic for send_transaction in solana_rpc. We should use that,
+// otherwise we'd do unnecessary retries.
 /// Sends a transaction and retries if not confirmed after retry wait time.
 /// Stops retrying at the global timeout (end of light slot).
 pub async fn send_signed_transaction(
@@ -240,6 +244,7 @@ pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
     pub phantom: std::marker::PhantomData<R>,
 }
 
+#[async_trait]
 impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransactions<R, I> {
     async fn build_signed_transaction_batch(
         &self,
