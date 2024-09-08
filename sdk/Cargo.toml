@@ -1,6 +1,6 @@
 [package]
 name = "light-sdk"
-version = "0.5.0"
+version = "0.6.0"
 description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,18 +22,18 @@ test-sbf = []
 bench-sbf = []
 
 [dependencies]
-aligned-sized = { version = "0.5.0", path = "../macros/aligned-sized" }
-light-macros = { version = "0.7.0", path = "../macros/light" }
+aligned-sized = { version = "0.6.0", path = "../macros/aligned-sized" }
+light-macros = { version = "0.8.0", path = "../macros/light" }
 anchor-lang = { workspace = true }
 bytemuck = "1.17"
-light-hasher = { version = "0.5.0", path = "../merkle-tree/hasher" }
-light-heap = { version = "0.5.0", path = "../heap", optional = true }
-account-compression = { version = "0.7.0", path = "../programs/account-compression", features = ["cpi"] }
-light-system-program = { version = "0.7.0", path = "../programs/system", features = ["cpi"] }
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.5.0" }
-light-utils = { version = "0.5.0", path = "../utils" }
+light-hasher = { version = "0.6.0", path = "../merkle-tree/hasher" }
+light-heap = { version = "0.6.0", path = "../heap", optional = true }
+account-compression = { version = "0.8.0", path = "../programs/account-compression", features = ["cpi"] }
+light-system-program = { version = "0.8.0", path = "../programs/system", features = ["cpi"] }
+light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.6.0" }
+light-utils = { version = "0.6.0", path = "../utils" }
 groth16-solana = "0.0.3"
-light-verifier = { path = "../circuit-lib/verifier", version = "0.5.0", features = ["solana"] }
+light-verifier = { path = "../circuit-lib/verifier", version = "0.6.0", features = ["solana"] }
 borsh = "0.10.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
@@ -47,11 +47,11 @@ solana-sdk = { workspace = true }
 serde_json = "1.0.114"
 reqwest = "0.12"
 tokio = { workspace = true }
-light-prover-client = { version = "0.5.0", path = "../circuit-lib/light-prover-client" }
-light-merkle-tree-reference = { version = "0.5.0", path = "../merkle-tree/reference/" }
-light-indexed-merkle-tree = { version = "0.5.0", path = "../merkle-tree/indexed/" }
+light-prover-client = { version = "0.6.0", path = "../circuit-lib/light-prover-client" }
+light-merkle-tree-reference = { version = "0.6.0", path = "../merkle-tree/reference/" }
+light-indexed-merkle-tree = { version = "0.6.0", path = "../merkle-tree/indexed/" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 lazy_static = "1.4.0"
-light-hash-set = { version = "0.5.0", path = "../merkle-tree/hash-set", features = ["solana"] }
+light-hash-set = { version = "0.6.0", path = "../merkle-tree/hash-set", features = ["solana"] }
 rand = "0.8.5"

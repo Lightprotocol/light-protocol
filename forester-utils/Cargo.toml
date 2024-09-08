@@ -1,22 +1,22 @@
 [package]
 name = "forester-utils"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-account-compression = { path = "../programs/account-compression", version = "0.7.0", features = ["cpi"] }
-light-compressed-token = { path = "../programs/compressed-token", version = "0.7.0", features = ["cpi"] }
-light-hash-set = { path = "../merkle-tree/hash-set", version = "0.5.0" }
-light-hasher = { version = "0.5.0", path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { version = "0.5.0", path = "../merkle-tree/reference" }
-light-concurrent-merkle-tree = { version = "0.5.0", path = "../merkle-tree/concurrent" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.5.0" }
-light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.5.0" }
-light-registry = { path = "../programs/registry", version = "0.7.0", features = ["cpi"] }
-light-system-program = { path = "../programs/system", version = "0.7.0", features = ["cpi"] }
-light-utils = { path = "../utils", version = "0.5.0" }
+account-compression = { path = "../programs/account-compression", version = "0.8.0", features = ["cpi"] }
+light-compressed-token = { path = "../programs/compressed-token", version = "0.8.0", features = ["cpi"] }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.6.0" }
+light-hasher = { version = "0.6.0", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "0.6.0", path = "../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "0.6.0", path = "../merkle-tree/concurrent" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.6.0" }
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.6.0" }
+light-registry = { path = "../programs/registry", version = "0.8.0", features = ["cpi"] }
+light-system-program = { path = "../programs/system", version = "0.8.0", features = ["cpi"] }
+light-utils = { path = "../utils", version = "0.6.0" }
 
-photon-api = { path = "../photon-api", version = "0.31.0" }
+photon-api = { path = "../photon-api", version = "0.32.0" }
 
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
