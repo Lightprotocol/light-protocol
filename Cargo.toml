@@ -34,7 +34,6 @@ solana-cli-output = "=1.18.22"
 solana-transaction-status = "=1.18.22"
 solana-account-decoder = "=1.18.22"
 solana-rpc = "=1.18.22"
-
 anchor-lang = "0.30.1"
 anchor-spl = "0.30.1"
 

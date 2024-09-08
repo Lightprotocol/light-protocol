@@ -1,0 +1,1234 @@
+{
+    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N",
+    "metadata": {
+        "name": "light_system_program",
+        "version": "0.7.0",
+        "spec": "0.1.0",
+        "description": "ZK Compression on Solana",
+        "repository": "https://github.com/Lightprotocol/light-protocol"
+    },
+    "instructions": [
+        {
+            "name": "init_cpi_context_account",
+            "discriminator": [233, 112, 71, 66, 121, 33, 178, 188],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "cpi_context_account",
+                    "writable": true
+                },
+                {
+                    "name": "associated_merkle_tree"
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "invoke",
+            "discriminator": [26, 16, 169, 7, 21, 202, 242, 25],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": [
+                        "Fee payer needs to be mutable to pay rollover and protocol fees."
+                    ],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "registered_program_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    133, 110, 129, 246, 34, 115, 134, 36, 116,
+                                    170, 124, 71, 118, 109, 243, 40, 228, 60,
+                                    79, 79, 177, 82, 14, 121, 210, 121, 182,
+                                    180, 6, 232, 141, 67
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                42, 198, 44, 250, 21, 12, 97, 213, 145, 98, 1,
+                                147, 196, 121, 169, 33, 248, 42, 217, 95, 192,
+                                109, 80, 10, 145, 159, 227, 79, 164, 34, 182, 86
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "docs": [
+                        "This pda is used to invoke the account compression program."
+                    ],
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "docs": ["Merkle trees."],
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "sol_pool_pda",
+                    "docs": [
+                        "Sol pool pda is used to store the native sol that has been compressed.",
+                        "It's only required when compressing or decompressing sol."
+                    ],
+                    "writable": true,
+                    "optional": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    115, 111, 108, 95, 112, 111, 111, 108, 95,
+                                    112, 100, 97
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "decompression_recipient",
+                    "docs": [
+                        "Only needs to be provided for decompression as a recipient for the",
+                        "decompressed sol.",
+                        "Compressed sol originate from authority."
+                    ],
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "invoke_cpi",
+            "discriminator": [49, 212, 191, 129, 39, 194, 43, 196],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": [
+                        "Fee payer needs to be mutable to pay rollover and protocol fees."
+                    ],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "registered_program_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    133, 110, 129, 246, 34, 115, 134, 36, 116,
+                                    170, 124, 71, 118, 109, 243, 40, 228, 60,
+                                    79, 79, 177, 82, 14, 121, 210, 121, 182,
+                                    180, 6, 232, 141, 67
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                42, 198, 44, 250, 21, 12, 97, 213, 145, 98, 1,
+                                147, 196, 121, 169, 33, 248, 42, 217, 95, 192,
+                                109, 80, 10, 145, 159, 227, 79, 164, 34, 182, 86
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "invoking_program"
+                },
+                {
+                    "name": "sol_pool_pda",
+                    "writable": true,
+                    "optional": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    115, 111, 108, 95, 112, 111, 111, 108, 95,
+                                    112, 100, 97
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "decompression_recipient",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "cpi_context_account",
+                    "writable": true,
+                    "optional": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "stub_idl_build",
+            "docs": [
+                "This function is a stub to allow Anchor to include the input types in",
+                "the IDL. It should not be included in production builds nor be called in",
+                "practice."
+            ],
+            "discriminator": [118, 99, 238, 243, 8, 167, 251, 168],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": [
+                        "Fee payer needs to be mutable to pay rollover and protocol fees."
+                    ],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "registered_program_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    133, 110, 129, 246, 34, 115, 134, 36, 116,
+                                    170, 124, 71, 118, 109, 243, 40, 228, 60,
+                                    79, 79, 177, 82, 14, 121, 210, 121, 182,
+                                    180, 6, 232, 141, 67
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                42, 198, 44, 250, 21, 12, 97, 213, 145, 98, 1,
+                                147, 196, 121, 169, 33, 248, 42, 217, 95, 192,
+                                109, 80, 10, 145, 159, 227, 79, 164, 34, 182, 86
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "docs": [
+                        "This pda is used to invoke the account compression program."
+                    ],
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "docs": ["Merkle trees."],
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "sol_pool_pda",
+                    "docs": [
+                        "Sol pool pda is used to store the native sol that has been compressed.",
+                        "It's only required when compressing or decompressing sol."
+                    ],
+                    "writable": true,
+                    "optional": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    115, 111, 108, 95, 112, 111, 111, 108, 95,
+                                    112, 100, 97
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "decompression_recipient",
+                    "docs": [
+                        "Only needs to be provided for decompression as a recipient for the",
+                        "decompressed sol.",
+                        "Compressed sol originate from authority."
+                    ],
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "_inputs1",
+                    "type": {
+                        "defined": {
+                            "name": "InstructionDataInvoke"
+                        }
+                    }
+                },
+                {
+                    "name": "_inputs2",
+                    "type": {
+                        "defined": {
+                            "name": "InstructionDataInvokeCpi"
+                        }
+                    }
+                },
+                {
+                    "name": "_inputs3",
+                    "type": {
+                        "defined": {
+                            "name": "PublicTransactionEvent"
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "accounts": [
+        {
+            "name": "CpiContextAccount",
+            "discriminator": [22, 20, 149, 218, 74, 204, 128, 166]
+        },
+        {
+            "name": "StateMerkleTreeAccount",
+            "discriminator": [172, 43, 172, 186, 29, 73, 219, 84]
+        }
+    ],
+    "errors": [
+        {
+            "code": 6000,
+            "name": "SumCheckFailed",
+            "msg": "Sum check failed"
+        },
+        {
+            "code": 6001,
+            "name": "SignerCheckFailed",
+            "msg": "Signer check failed"
+        },
+        {
+            "code": 6002,
+            "name": "CpiSignerCheckFailed",
+            "msg": "Cpi signer check failed"
+        },
+        {
+            "code": 6003,
+            "name": "ComputeInputSumFailed",
+            "msg": "Computing input sum failed."
+        },
+        {
+            "code": 6004,
+            "name": "ComputeOutputSumFailed",
+            "msg": "Computing output sum failed."
+        },
+        {
+            "code": 6005,
+            "name": "ComputeRpcSumFailed",
+            "msg": "Computing rpc sum failed."
+        },
+        {
+            "code": 6006,
+            "name": "InvalidAddress",
+            "msg": "InvalidAddress"
+        },
+        {
+            "code": 6007,
+            "name": "DeriveAddressError",
+            "msg": "DeriveAddressError"
+        },
+        {
+            "code": 6008,
+            "name": "CompressedSolPdaUndefinedForCompressSol",
+            "msg": "CompressedSolPdaUndefinedForCompressSol"
+        },
+        {
+            "code": 6009,
+            "name": "DeCompressLamportsUndefinedForCompressSol",
+            "msg": "DeCompressLamportsUndefinedForCompressSol"
+        },
+        {
+            "code": 6010,
+            "name": "CompressedSolPdaUndefinedForDecompressSol",
+            "msg": "CompressedSolPdaUndefinedForDecompressSol"
+        },
+        {
+            "code": 6011,
+            "name": "DeCompressLamportsUndefinedForDecompressSol",
+            "msg": "DeCompressLamportsUndefinedForDecompressSol"
+        },
+        {
+            "code": 6012,
+            "name": "DecompressRecipientUndefinedForDecompressSol",
+            "msg": "DecompressRecipientUndefinedForDecompressSol"
+        },
+        {
+            "code": 6013,
+            "name": "WriteAccessCheckFailed",
+            "msg": "WriteAccessCheckFailed"
+        },
+        {
+            "code": 6014,
+            "name": "InvokingProgramNotProvided",
+            "msg": "InvokingProgramNotProvided"
+        },
+        {
+            "code": 6015,
+            "name": "InvalidCapacity",
+            "msg": "InvalidCapacity"
+        },
+        {
+            "code": 6016,
+            "name": "InvalidMerkleTreeOwner",
+            "msg": "InvalidMerkleTreeOwner"
+        },
+        {
+            "code": 6017,
+            "name": "ProofIsNone",
+            "msg": "ProofIsNone"
+        },
+        {
+            "code": 6018,
+            "name": "ProofIsSome",
+            "msg": "Proof is some but no input compressed accounts or new addresses provided."
+        },
+        {
+            "code": 6019,
+            "name": "EmptyInputs",
+            "msg": "EmptyInputs"
+        },
+        {
+            "code": 6020,
+            "name": "CpiContextAccountUndefined",
+            "msg": "CpiContextAccountUndefined"
+        },
+        {
+            "code": 6021,
+            "name": "CpiContextEmpty",
+            "msg": "CpiContextEmpty"
+        },
+        {
+            "code": 6022,
+            "name": "CpiContextMissing",
+            "msg": "CpiContextMissing"
+        },
+        {
+            "code": 6023,
+            "name": "DecompressionRecipientDefined",
+            "msg": "DecompressionRecipientDefined"
+        },
+        {
+            "code": 6024,
+            "name": "SolPoolPdaDefined",
+            "msg": "SolPoolPdaDefined"
+        },
+        {
+            "code": 6025,
+            "name": "AppendStateFailed",
+            "msg": "AppendStateFailed"
+        },
+        {
+            "code": 6026,
+            "name": "InstructionNotCallable",
+            "msg": "The instruction is not callable"
+        },
+        {
+            "code": 6027,
+            "name": "CpiContextFeePayerMismatch",
+            "msg": "CpiContextFeePayerMismatch"
+        },
+        {
+            "code": 6028,
+            "name": "CpiContextAssociatedMerkleTreeMismatch",
+            "msg": "CpiContextAssociatedMerkleTreeMismatch"
+        },
+        {
+            "code": 6029,
+            "name": "NoInputs",
+            "msg": "NoInputs"
+        },
+        {
+            "code": 6030,
+            "name": "InputMerkleTreeIndicesNotInOrder",
+            "msg": "Input merkle tree indices are not in ascending order."
+        },
+        {
+            "code": 6031,
+            "name": "OutputMerkleTreeIndicesNotInOrder",
+            "msg": "Output merkle tree indices are not in ascending order."
+        },
+        {
+            "code": 6032,
+            "name": "OutputMerkleTreeNotUnique"
+        },
+        {
+            "code": 6033,
+            "name": "DataFieldUndefined"
+        }
+    ],
+    "types": [
+        {
+            "name": "AccessMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "owner",
+                        "docs": ["Owner of the Merkle tree."],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "program_owner",
+                        "docs": [
+                            "Program owner of the Merkle tree. This will be used for program owned Merkle trees."
+                        ],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "forester",
+                        "docs": [
+                            "Optional privileged forester pubkey, can be set for custom Merkle trees",
+                            "without a network fee. Merkle trees without network fees are not",
+                            "forested by light foresters. The variable is not used in the account",
+                            "compression program but the registry program. The registry program",
+                            "implements access control to prevent contention during forester. The",
+                            "forester pubkey specified in this struct can bypass contention checks."
+                        ],
+                        "type": "pubkey"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedAccount",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "owner",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "lamports",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "address",
+                        "type": {
+                            "option": {
+                                "array": ["u8", 32]
+                            }
+                        }
+                    },
+                    {
+                        "name": "data",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedAccountData"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedAccountData",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "discriminator",
+                        "type": {
+                            "array": ["u8", 8]
+                        }
+                    },
+                    {
+                        "name": "data",
+                        "type": "bytes"
+                    },
+                    {
+                        "name": "data_hash",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedCpiContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "set_context",
+                        "docs": [
+                            "Is set by the program that is invoking the CPI to signal that is should",
+                            "set the cpi context."
+                        ],
+                        "type": "bool"
+                    },
+                    {
+                        "name": "first_set_context",
+                        "docs": [
+                            "Is set to wipe the cpi context since someone could have set it before",
+                            "with unrelated data."
+                        ],
+                        "type": "bool"
+                    },
+                    {
+                        "name": "cpi_context_account_index",
+                        "docs": [
+                            "Index of cpi context account in remaining accounts."
+                        ],
+                        "type": "u8"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedProof",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "a",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    },
+                    {
+                        "name": "b",
+                        "type": {
+                            "array": ["u8", 64]
+                        }
+                    },
+                    {
+                        "name": "c",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CpiContextAccount",
+            "docs": [
+                "Collects instruction data without executing a compressed transaction.",
+                "Signer checks are performed on instruction data.",
+                "Collected instruction data is combined with the instruction data of the executing cpi,",
+                "and executed as a single transaction.",
+                "This enables to use input compressed accounts that are owned by multiple programs,",
+                "with one zero-knowledge proof."
+            ],
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "fee_payer",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "associated_merkle_tree",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "context",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "InstructionDataInvokeCpi"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "InstructionDataInvoke",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "proof",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedProof"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "input_compressed_accounts_with_merkle_context",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "PackedCompressedAccountWithMerkleContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_compressed_accounts",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "OutputCompressedAccountWithPackedContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "relay_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "new_address_params",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "NewAddressParamsPacked"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "compress_or_decompress_lamports",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "is_compress",
+                        "type": "bool"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "InstructionDataInvokeCpi",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "proof",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedProof"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "new_address_params",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "NewAddressParamsPacked"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "input_compressed_accounts_with_merkle_context",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "PackedCompressedAccountWithMerkleContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_compressed_accounts",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "OutputCompressedAccountWithPackedContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "relay_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "compress_or_decompress_lamports",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "is_compress",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "cpi_context",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedCpiContext"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "MerkleTreeMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "access_metadata",
+                        "type": {
+                            "defined": {
+                                "name": "AccessMetadata"
+                            }
+                        }
+                    },
+                    {
+                        "name": "rollover_metadata",
+                        "type": {
+                            "defined": {
+                                "name": "RolloverMetadata"
+                            }
+                        }
+                    },
+                    {
+                        "name": "associated_queue",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "next_merkle_tree",
+                        "type": "pubkey"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "MerkleTreeSequenceNumber",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "pubkey",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "seq",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "NewAddressParamsPacked",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "seed",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    },
+                    {
+                        "name": "address_queue_account_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "address_merkle_tree_account_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "address_merkle_tree_root_index",
+                        "type": "u16"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "OutputCompressedAccountWithPackedContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "compressed_account",
+                        "type": {
+                            "defined": {
+                                "name": "CompressedAccount"
+                            }
+                        }
+                    },
+                    {
+                        "name": "merkle_tree_index",
+                        "type": "u8"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PackedCompressedAccountWithMerkleContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "compressed_account",
+                        "type": {
+                            "defined": {
+                                "name": "CompressedAccount"
+                            }
+                        }
+                    },
+                    {
+                        "name": "merkle_context",
+                        "type": {
+                            "defined": {
+                                "name": "PackedMerkleContext"
+                            }
+                        }
+                    },
+                    {
+                        "name": "root_index",
+                        "docs": [
+                            "Index of root used in inclusion validity proof."
+                        ],
+                        "type": "u16"
+                    },
+                    {
+                        "name": "read_only",
+                        "docs": [
+                            "Placeholder to mark accounts read-only unimplemented set to false."
+                        ],
+                        "type": "bool"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PackedMerkleContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "merkle_tree_pubkey_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "nullifier_queue_pubkey_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "leaf_index",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "queue_index",
+                        "docs": [
+                            "Index of leaf in queue. Placeholder of batched Merkle tree updates",
+                            "currently unimplemented."
+                        ],
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "QueueIndex"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PublicTransactionEvent",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "input_compressed_account_hashes",
+                        "type": {
+                            "vec": {
+                                "array": ["u8", 32]
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_compressed_account_hashes",
+                        "type": {
+                            "vec": {
+                                "array": ["u8", 32]
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_compressed_accounts",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "OutputCompressedAccountWithPackedContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_leaf_indices",
+                        "type": {
+                            "vec": "u32"
+                        }
+                    },
+                    {
+                        "name": "sequence_numbers",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "MerkleTreeSequenceNumber"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "relay_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "is_compress",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "compress_or_decompress_lamports",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "pubkey_array",
+                        "type": {
+                            "vec": "pubkey"
+                        }
+                    },
+                    {
+                        "name": "message",
+                        "type": {
+                            "option": "bytes"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "QueueIndex",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "queue_id",
+                        "docs": ["Id of queue in queue account."],
+                        "type": "u8"
+                    },
+                    {
+                        "name": "index",
+                        "docs": ["Index of compressed account hash in queue."],
+                        "type": "u16"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "RolloverMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "index",
+                        "docs": ["Unique index."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rollover_fee",
+                        "docs": [
+                            "This fee is used for rent for the next account.",
+                            "It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over"
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rollover_threshold",
+                        "docs": [
+                            "The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled)."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "docs": ["Tip for maintaining the account."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rolledover_slot",
+                        "docs": [
+                            "The slot when the account was rolled over, a rolled over account should not be written to."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "close_threshold",
+                        "docs": [
+                            "If current slot is greater than rolledover_slot + close_threshold and",
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            "implemented yet."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "additional_bytes",
+                        "docs": [
+                            "Placeholder for bytes of additional accounts which are tied to the",
+                            "Merkle trees operation and need to be rolled over as well."
+                        ],
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "StateMerkleTreeAccount",
+            "docs": [
+                "Concurrent state Merkle tree used for public compressed transactions."
+            ],
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "metadata",
+                        "type": {
+                            "defined": {
+                                "name": "MerkleTreeMetadata"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "constants": [
+        {
+            "name": "SOL_POOL_PDA_SEED",
+            "type": "bytes",
+            "value": "[115, 111, 108, 95, 112, 111, 111, 108, 95, 112, 100, 97]"
+        }
+    ]
+}

@@ -1,0 +1,1660 @@
+{
+    "address": "6Tw7TJ6W95qrV22FeAhpVFBDES4PccGj3sEYecZ8goto",
+    "metadata": {
+        "name": "light_registry",
+        "version": "0.7.0",
+        "spec": "0.1.0",
+        "description": "Light core protocol logic",
+        "repository": "https://github.com/Lightprotocol/light-protocol"
+    },
+    "instructions": [
+        {
+            "name": "deregister_system_program",
+            "discriminator": [11, 156, 246, 218, 141, 251, 236, 95],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "writable": true,
+                    "signer": true,
+                    "relations": ["protocol_config_pda"]
+                },
+                {
+                    "name": "protocol_config_pda",
+                    "writable": true
+                },
+                {
+                    "name": "cpi_authority",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "group_pda",
+                    "writable": true
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "registered_program_pda",
+                    "writable": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "finalize_registration",
+            "docs": [
+                "This transaction can be included as additional instruction in the first",
+                "work instructions during the active phase.",
+                "Registration Period must be over."
+            ],
+            "discriminator": [230, 188, 172, 96, 204, 247, 98, 227],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["forester_epoch_pda"]
+                },
+                {
+                    "name": "forester_epoch_pda",
+                    "writable": true
+                },
+                {
+                    "name": "epoch_pda"
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "initialize_address_merkle_tree",
+            "discriminator": [3, 163, 248, 25, 49, 199, 115, 232],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Anyone can create new trees just the fees cannot be set arbitrarily."
+                    ],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "queue",
+                    "writable": true
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "cpi_authority",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "protocol_config_pda"
+                },
+                {
+                    "name": "cpi_context_account",
+                    "optional": true
+                },
+                {
+                    "name": "light_system_program",
+                    "optional": true,
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "program_owner",
+                    "type": {
+                        "option": "pubkey"
+                    }
+                },
+                {
+                    "name": "forester",
+                    "type": {
+                        "option": "pubkey"
+                    }
+                },
+                {
+                    "name": "merkle_tree_config",
+                    "type": {
+                        "defined": {
+                            "name": "AddressMerkleTreeConfig"
+                        }
+                    }
+                },
+                {
+                    "name": "queue_config",
+                    "type": {
+                        "defined": {
+                            "name": "NullifierQueueConfig"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "initialize_protocol_config",
+            "docs": [
+                "Initializes the protocol config pda. Can only be called once by the",
+                "program account keypair."
+            ],
+            "discriminator": [28, 50, 43, 233, 244, 98, 123, 118],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "The authority should be updated to a different keypair after",
+                        "initialization."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "protocol_config_pda",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    97, 117, 116, 104, 111, 114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "self_program",
+                    "address": "6Tw7TJ6W95qrV22FeAhpVFBDES4PccGj3sEYecZ8goto"
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "protocol_config",
+                    "type": {
+                        "defined": {
+                            "name": "ProtocolConfig"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "initialize_state_merkle_tree",
+            "discriminator": [49, 16, 53, 208, 88, 90, 196, 56],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Anyone can create new trees just the fees cannot be set arbitrarily."
+                    ],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "queue",
+                    "writable": true
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "cpi_authority",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "protocol_config_pda"
+                },
+                {
+                    "name": "cpi_context_account",
+                    "optional": true
+                },
+                {
+                    "name": "light_system_program",
+                    "optional": true,
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "program_owner",
+                    "type": {
+                        "option": "pubkey"
+                    }
+                },
+                {
+                    "name": "forester",
+                    "type": {
+                        "option": "pubkey"
+                    }
+                },
+                {
+                    "name": "merkle_tree_config",
+                    "type": {
+                        "defined": {
+                            "name": "StateMerkleTreeConfig"
+                        }
+                    }
+                },
+                {
+                    "name": "queue_config",
+                    "type": {
+                        "defined": {
+                            "name": "NullifierQueueConfig"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "nullify",
+            "discriminator": [207, 160, 198, 75, 227, 146, 128, 1],
+            "accounts": [
+                {
+                    "name": "registered_forester_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "log_wrapper"
+                },
+                {
+                    "name": "merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "nullifier_queue",
+                    "writable": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "change_log_indices",
+                    "type": {
+                        "vec": "u64"
+                    }
+                },
+                {
+                    "name": "leaves_queue_indices",
+                    "type": {
+                        "vec": "u16"
+                    }
+                },
+                {
+                    "name": "indices",
+                    "type": {
+                        "vec": "u64"
+                    }
+                },
+                {
+                    "name": "proofs",
+                    "type": {
+                        "vec": {
+                            "vec": {
+                                "array": ["u8", 32]
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "register_forester",
+            "discriminator": [62, 47, 240, 103, 84, 200, 226, 73],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["protocol_config_pda"]
+                },
+                {
+                    "name": "protocol_config_pda"
+                },
+                {
+                    "name": "forester_pda",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    102, 111, 114, 101, 115, 116, 101, 114
+                                ]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "forester_authority"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "_bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "authority",
+                    "type": "pubkey"
+                },
+                {
+                    "name": "config",
+                    "type": {
+                        "defined": {
+                            "name": "ForesterConfig"
+                        }
+                    }
+                },
+                {
+                    "name": "weight",
+                    "type": {
+                        "option": "u64"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "register_forester_epoch",
+            "docs": [
+                "Registers the forester for the epoch.",
+                "1. Only the forester can register herself for the epoch.",
+                "2. Protocol config is copied.",
+                "3. Epoch account is created if needed."
+            ],
+            "discriminator": [43, 120, 253, 194, 109, 192, 101, 188],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["forester_pda"]
+                },
+                {
+                    "name": "forester_pda"
+                },
+                {
+                    "name": "forester_epoch_pda",
+                    "docs": [
+                        "Instruction checks that current_epoch is the the current epoch and that",
+                        "the epoch is in registration phase."
+                    ],
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    102, 111, 114, 101, 115, 116, 101, 114, 95,
+                                    101, 112, 111, 99, 104
+                                ]
+                            },
+                            {
+                                "kind": "account",
+                                "path": "forester_pda"
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "current_epoch"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "protocol_config"
+                },
+                {
+                    "name": "epoch_pda",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "arg",
+                                "path": "current_epoch"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "epoch",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "register_system_program",
+            "discriminator": [10, 100, 93, 53, 172, 229, 7, 244],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "writable": true,
+                    "signer": true,
+                    "relations": ["protocol_config_pda"]
+                },
+                {
+                    "name": "protocol_config_pda",
+                    "writable": true
+                },
+                {
+                    "name": "cpi_authority",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "group_pda",
+                    "writable": true
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "registered_program_pda",
+                    "writable": true
+                },
+                {
+                    "name": "program_to_be_registered",
+                    "docs": [
+                        "- is signer so that only the program deployer can register a program."
+                    ]
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "report_work",
+            "discriminator": [170, 110, 232, 47, 145, 213, 138, 162],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["forester_epoch_pda"]
+                },
+                {
+                    "name": "forester_epoch_pda",
+                    "writable": true
+                },
+                {
+                    "name": "epoch_pda",
+                    "writable": true
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "rollover_address_merkle_tree_and_queue",
+            "discriminator": [24, 84, 27, 12, 134, 166, 23, 192],
+            "accounts": [
+                {
+                    "name": "registered_forester_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "authority",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "new_merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "new_queue",
+                    "writable": true
+                },
+                {
+                    "name": "old_merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "old_queue",
+                    "writable": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "rollover_state_merkle_tree_and_queue",
+            "discriminator": [110, 28, 22, 15, 48, 90, 127, 210],
+            "accounts": [
+                {
+                    "name": "registered_forester_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "authority",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "new_merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "new_queue",
+                    "writable": true
+                },
+                {
+                    "name": "old_merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "old_queue",
+                    "writable": true
+                },
+                {
+                    "name": "cpi_context_account"
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "protocol_config_pda"
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "update_address_merkle_tree",
+            "discriminator": [75, 208, 63, 56, 207, 74, 124, 18],
+            "accounts": [
+                {
+                    "name": "registered_forester_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "queue",
+                    "writable": true
+                },
+                {
+                    "name": "merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "log_wrapper"
+                }
+            ],
+            "args": [
+                {
+                    "name": "bump",
+                    "type": "u8"
+                },
+                {
+                    "name": "changelog_index",
+                    "type": "u16"
+                },
+                {
+                    "name": "indexed_changelog_index",
+                    "type": "u16"
+                },
+                {
+                    "name": "value",
+                    "type": "u16"
+                },
+                {
+                    "name": "low_address_index",
+                    "type": "u64"
+                },
+                {
+                    "name": "low_address_value",
+                    "type": {
+                        "array": ["u8", 32]
+                    }
+                },
+                {
+                    "name": "low_address_next_index",
+                    "type": "u64"
+                },
+                {
+                    "name": "low_address_next_value",
+                    "type": {
+                        "array": ["u8", 32]
+                    }
+                },
+                {
+                    "name": "low_address_proof",
+                    "type": {
+                        "array": [
+                            {
+                                "array": ["u8", 32]
+                            },
+                            16
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_forester_pda",
+            "discriminator": [246, 179, 30, 239, 171, 39, 57, 171],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["forester_pda"]
+                },
+                {
+                    "name": "forester_pda",
+                    "writable": true
+                },
+                {
+                    "name": "new_authority",
+                    "signer": true,
+                    "optional": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "config",
+                    "type": {
+                        "option": {
+                            "defined": {
+                                "name": "ForesterConfig"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_forester_pda_weight",
+            "discriminator": [227, 190, 126, 130, 203, 247, 54, 43],
+            "accounts": [
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["protocol_config_pda"]
+                },
+                {
+                    "name": "protocol_config_pda"
+                },
+                {
+                    "name": "forester_pda",
+                    "writable": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "new_weight",
+                    "type": "u64"
+                }
+            ]
+        },
+        {
+            "name": "update_protocol_config",
+            "discriminator": [197, 97, 123, 54, 221, 168, 11, 135],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true,
+                    "relations": ["protocol_config_pda"]
+                },
+                {
+                    "name": "protocol_config_pda",
+                    "writable": true
+                },
+                {
+                    "name": "new_authority",
+                    "signer": true,
+                    "optional": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "protocol_config",
+                    "type": {
+                        "option": {
+                            "defined": {
+                                "name": "ProtocolConfig"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "accounts": [
+        {
+            "name": "AddressMerkleTreeAccount",
+            "discriminator": [11, 161, 175, 9, 212, 229, 73, 73]
+        },
+        {
+            "name": "EpochPda",
+            "discriminator": [66, 224, 46, 2, 167, 137, 120, 107]
+        },
+        {
+            "name": "ForesterEpochPda",
+            "discriminator": [29, 117, 211, 141, 99, 143, 250, 114]
+        },
+        {
+            "name": "ForesterPda",
+            "discriminator": [51, 47, 187, 86, 82, 153, 117, 5]
+        },
+        {
+            "name": "GroupAuthority",
+            "discriminator": [15, 207, 4, 160, 127, 38, 142, 162]
+        },
+        {
+            "name": "ProtocolConfigPda",
+            "discriminator": [96, 176, 239, 146, 1, 254, 99, 146]
+        },
+        {
+            "name": "StateMerkleTreeAccount",
+            "discriminator": [172, 43, 172, 186, 29, 73, 219, 84]
+        }
+    ],
+    "errors": [
+        {
+            "code": 6000,
+            "name": "InvalidForester",
+            "msg": "InvalidForester"
+        },
+        {
+            "code": 6001,
+            "name": "NotInReportWorkPhase"
+        },
+        {
+            "code": 6002,
+            "name": "StakeAccountAlreadySynced"
+        },
+        {
+            "code": 6003,
+            "name": "EpochEnded"
+        },
+        {
+            "code": 6004,
+            "name": "ForesterNotEligible"
+        },
+        {
+            "code": 6005,
+            "name": "NotInRegistrationPeriod"
+        },
+        {
+            "code": 6006,
+            "name": "WeightInsuffient"
+        },
+        {
+            "code": 6007,
+            "name": "ForesterAlreadyRegistered"
+        },
+        {
+            "code": 6008,
+            "name": "InvalidEpochAccount"
+        },
+        {
+            "code": 6009,
+            "name": "InvalidEpoch"
+        },
+        {
+            "code": 6010,
+            "name": "EpochStillInProgress"
+        },
+        {
+            "code": 6011,
+            "name": "NotInActivePhase"
+        },
+        {
+            "code": 6012,
+            "name": "ForesterAlreadyReportedWork"
+        },
+        {
+            "code": 6013,
+            "name": "InvalidNetworkFee"
+        },
+        {
+            "code": 6014,
+            "name": "FinalizeCounterExceeded"
+        },
+        {
+            "code": 6015,
+            "name": "CpiContextAccountMissing"
+        },
+        {
+            "code": 6016,
+            "name": "ArithmeticUnderflow"
+        },
+        {
+            "code": 6017,
+            "name": "RegistrationNotFinalized"
+        },
+        {
+            "code": 6018,
+            "name": "CpiContextAccountInvalidDataLen"
+        },
+        {
+            "code": 6019,
+            "name": "InvalidConfigUpdate"
+        },
+        {
+            "code": 6020,
+            "name": "InvalidSigner"
+        },
+        {
+            "code": 6021,
+            "name": "GetLatestRegisterEpochFailed"
+        },
+        {
+            "code": 6022,
+            "name": "GetCurrentActiveEpochFailed"
+        },
+        {
+            "code": 6023,
+            "name": "ForesterUndefined"
+        },
+        {
+            "code": 6024,
+            "name": "ForesterDefined"
+        }
+    ],
+    "types": [
+        {
+            "name": "AccessMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "owner",
+                        "docs": ["Owner of the Merkle tree."],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "program_owner",
+                        "docs": [
+                            "Program owner of the Merkle tree. This will be used for program owned Merkle trees."
+                        ],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "forester",
+                        "docs": [
+                            "Optional privileged forester pubkey, can be set for custom Merkle trees",
+                            "without a network fee. Merkle trees without network fees are not",
+                            "forested by light foresters. The variable is not used in the account",
+                            "compression program but the registry program. The registry program",
+                            "implements access control to prevent contention during forester. The",
+                            "forester pubkey specified in this struct can bypass contention checks."
+                        ],
+                        "type": "pubkey"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "AddressMerkleTreeAccount",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "metadata",
+                        "type": {
+                            "defined": {
+                                "name": "MerkleTreeMetadata"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "AddressMerkleTreeConfig",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "height",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "changelog_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "roots_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "canopy_depth",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "address_changelog_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "rollover_threshold",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "close_threshold",
+                        "type": {
+                            "option": "u64"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "EpochPda",
+            "docs": ["Is used for tallying and rewards calculation"],
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "epoch",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "protocol_config",
+                        "type": {
+                            "defined": {
+                                "name": "ProtocolConfig"
+                            }
+                        }
+                    },
+                    {
+                        "name": "total_work",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "registered_weight",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ForesterConfig",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "fee",
+                        "docs": ["Fee in percentage points."],
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ForesterEpochPda",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "authority",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "config",
+                        "type": {
+                            "defined": {
+                                "name": "ForesterConfig"
+                            }
+                        }
+                    },
+                    {
+                        "name": "epoch",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "weight",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "work_counter",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "has_reported_work",
+                        "docs": [
+                            "Work can be reported in an extra round to earn extra performance based",
+                            "rewards."
+                        ],
+                        "type": "bool"
+                    },
+                    {
+                        "name": "forester_index",
+                        "docs": [
+                            "Start index of the range that determines when the forester is eligible to perform work.",
+                            "End index is forester_start_index + weight"
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "epoch_active_phase_start_slot",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "total_epoch_weight",
+                        "docs": [
+                            "Total epoch weight is registered weight of the epoch account after",
+                            "registration is concluded and active epoch period starts."
+                        ],
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "protocol_config",
+                        "type": {
+                            "defined": {
+                                "name": "ProtocolConfig"
+                            }
+                        }
+                    },
+                    {
+                        "name": "finalize_counter",
+                        "docs": [
+                            "Incremented every time finalize registration is called."
+                        ],
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ForesterPda",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "authority",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "config",
+                        "type": {
+                            "defined": {
+                                "name": "ForesterConfig"
+                            }
+                        }
+                    },
+                    {
+                        "name": "active_weight",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "pending_weight",
+                        "docs": [
+                            "Pending weight which will get active once the next epoch starts."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "current_epoch",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "last_compressed_forester_epoch_pda_hash",
+                        "docs": [
+                            "Link to previous compressed forester epoch account hash."
+                        ],
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    },
+                    {
+                        "name": "last_registered_epoch",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "GroupAuthority",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "authority",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "seed",
+                        "type": "pubkey"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "MerkleTreeMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "access_metadata",
+                        "type": {
+                            "defined": {
+                                "name": "AccessMetadata"
+                            }
+                        }
+                    },
+                    {
+                        "name": "rollover_metadata",
+                        "type": {
+                            "defined": {
+                                "name": "RolloverMetadata"
+                            }
+                        }
+                    },
+                    {
+                        "name": "associated_queue",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "next_merkle_tree",
+                        "type": "pubkey"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "NullifierQueueConfig",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "capacity",
+                        "type": "u16"
+                    },
+                    {
+                        "name": "sequence_threshold",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ProtocolConfig",
+            "docs": [
+                "Epoch Phases:",
+                "1. Registration",
+                "2. Active",
+                "3. Report Work",
+                "4. Post (Epoch has ended, and rewards can be claimed.)",
+                "- There is always an active phase in progress, registration and report work",
+                "phases run in parallel to a currently active phase."
+            ],
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "genesis_slot",
+                        "docs": [
+                            "Solana slot when the protocol starts operating."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "min_weight",
+                        "docs": [
+                            "Minimum weight required for a forester to register to an epoch."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "slot_length",
+                        "docs": ["Light protocol slot length."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "registration_phase_length",
+                        "docs": ["Foresters can register for this phase."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "active_phase_length",
+                        "docs": ["Foresters can perform work in this phase."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "report_work_phase_length",
+                        "docs": [
+                            "Foresters can report work to receive performance based rewards in this",
+                            "phase."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "cpi_context_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "finalize_counter_limit",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder",
+                        "docs": ["Placeholder for future protocol updates."],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "place_holder_a",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder_b",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder_c",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder_d",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder_e",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "place_holder_f",
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ProtocolConfigPda",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "authority",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "bump",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "config",
+                        "type": {
+                            "defined": {
+                                "name": "ProtocolConfig"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "RolloverMetadata",
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "index",
+                        "docs": ["Unique index."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rollover_fee",
+                        "docs": [
+                            "This fee is used for rent for the next account.",
+                            "It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over"
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rollover_threshold",
+                        "docs": [
+                            "The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled)."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "docs": ["Tip for maintaining the account."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "rolledover_slot",
+                        "docs": [
+                            "The slot when the account was rolled over, a rolled over account should not be written to."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "close_threshold",
+                        "docs": [
+                            "If current slot is greater than rolledover_slot + close_threshold and",
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            "implemented yet."
+                        ],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "additional_bytes",
+                        "docs": [
+                            "Placeholder for bytes of additional accounts which are tied to the",
+                            "Merkle trees operation and need to be rolled over as well."
+                        ],
+                        "type": "u64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "StateMerkleTreeAccount",
+            "docs": [
+                "Concurrent state Merkle tree used for public compressed transactions."
+            ],
+            "serialization": "bytemuck",
+            "repr": {
+                "kind": "c"
+            },
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "metadata",
+                        "type": {
+                            "defined": {
+                                "name": "MerkleTreeMetadata"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "StateMerkleTreeConfig",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "height",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "changelog_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "roots_size",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "canopy_depth",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "network_fee",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "rollover_threshold",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "close_threshold",
+                        "type": {
+                            "option": "u64"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "constants": [
+        {
+            "name": "FORESTER_EPOCH_SEED",
+            "type": "bytes",
+            "value": "[102, 111, 114, 101, 115, 116, 101, 114, 95, 101, 112, 111, 99, 104]"
+        },
+        {
+            "name": "FORESTER_SEED",
+            "type": "bytes",
+            "value": "[102, 111, 114, 101, 115, 116, 101, 114]"
+        },
+        {
+            "name": "PROTOCOL_CONFIG_PDA_SEED",
+            "type": "bytes",
+            "value": "[97, 117, 116, 104, 111, 114, 105, 116, 121]"
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 #![cfg(not(target_os = "solana"))]
-
 use anchor_lang::system_program;
+use anchor_lang::InstructionData;
+use anchor_lang::ToAccountMetas;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
