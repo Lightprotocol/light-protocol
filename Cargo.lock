@@ -5270,6 +5270,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "forester-utils",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",

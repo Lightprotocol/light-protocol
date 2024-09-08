@@ -141,6 +141,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         });
 
         while let Some(epoch) = rx.recv().await {
+            debug!("Received new epoch: {}", epoch);
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
@@ -215,6 +216,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     }
 
     async fn recover_registration_info(&self, epoch: u64) -> Result<ForesterEpochInfo> {
+        debug!("Recovering registration info for epoch {}", epoch);
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
         let mut rpc = self.rpc_pool.get_connection().await?;
@@ -238,17 +240,20 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let previous_epoch = current_epoch.saturating_sub(1);
 
         // Process previous epoch if still in active or later phase
-        if slot < current_phases.registration.start {
+        if slot > current_phases.registration.start {
+            debug!("Processing previous epoch: {}", previous_epoch);
             tx.send(previous_epoch).await.map_err(|e| {
                 ForesterError::Custom(format!("Failed to send previous epoch: {}", e))
             })?;
         }
 
         // Process current epoch
+        debug!("Processing current epoch: {}", current_epoch);
         tx.send(current_epoch)
             .await
             .map_err(|e| ForesterError::Custom(format!("Failed to send current epoch: {}", e)))?;
 
+        debug!("Finished processing current and previous epochs");
         Ok(())
     }
 
@@ -270,8 +275,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             debug!("Epoch {} is already being processed, skipping", epoch);
             return Ok(());
         }
+        let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Attempt to recover registration info
+        debug!("Recovering registration info for epoch {}", epoch);
         let mut registration_info = match self.recover_registration_info(epoch).await {
             Ok(info) => info,
             Err(e) => {
@@ -281,16 +288,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     .await?
             }
         };
-
-        let phases = get_epoch_phases(&self.protocol_config, epoch);
+        debug!("Recovered registration info for epoch {}", epoch);
 
         // Wait for active phase
-
         if self.sync_slot().await? < phases.active.start {
-            // Wait for active phase
             registration_info = self.wait_for_active_phase(&registration_info).await?;
         }
-
         // Perform work
         if self.sync_slot().await? < phases.active.end {
             self.perform_active_work(&registration_info).await?;
@@ -596,6 +599,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
+        debug!(
+            "Creating threads for tree processing. Trees: {:?}",
+            epoch_info.trees
+        );
         for tree in epoch_info.trees.iter() {
             info!("Creating thread for queue {}", tree.tree_accounts.queue);
             let self_clone = self_arc.clone();
@@ -616,17 +623,20 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         debug!("Threads created. Waiting for active phase to end");
 
-        let mut rpc = self.rpc_pool.get_connection().await?;
-        wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_end).await?;
-
         // Wait for all tasks to complete
         for result in join_all(handles).await {
             match result {
-                Ok(Ok(())) => {}
+                Ok(Ok(())) => {
+                    debug!("Queue processed successfully");
+                }
                 Ok(Err(e)) => error!("Error processing queue: {:?}", e),
                 Err(e) => error!("Task panicked: {:?}", e),
             }
         }
+
+        debug!("Waiting for active phase to end");
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_end).await?;
 
         info!("Completed active work");
         Ok(())
