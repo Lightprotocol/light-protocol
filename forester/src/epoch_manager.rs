@@ -20,16 +20,19 @@ use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
 use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
-use forester_utils::rpc::RpcConnection;
+use forester_utils::rpc::{RpcConnection, RpcError};
 use futures::future::join_all;
+use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_finalize_registration_instruction, create_report_work_instruction,
 };
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
+use solana_program::instruction::InstructionError;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
+use solana_sdk::transaction::TransactionError;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -291,9 +294,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         debug!("Recovered registration info for epoch {}", epoch);
 
         // Wait for active phase
-        if self.sync_slot().await? < phases.active.start {
-            registration_info = self.wait_for_active_phase(&registration_info).await?;
-        }
+        registration_info = self.wait_for_active_phase(&registration_info).await?;
+
         // Perform work
         if self.sync_slot().await? < phases.active.end {
             self.perform_active_work(&registration_info).await?;
@@ -795,16 +797,66 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         info!("Reporting work");
         let mut rpc = self.rpc_pool.get_connection().await?;
 
+        let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
+            &self.config.payer_keypair.pubkey(),
+            epoch_info.epoch.epoch,
+        )
+        .0;
+        if let Some(forester_epoch_pda) = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await?
+        {
+            if forester_epoch_pda.has_reported_work {
+                return Ok(());
+            }
+        }
+
+        let forester_epoch_pda = &epoch_info.forester_epoch_pda;
+        if forester_epoch_pda.has_reported_work {
+            return Ok(());
+        }
+
         let ix = create_report_work_instruction(
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
         );
-        rpc.create_and_send_transaction(
-            &[ix],
-            &self.config.payer_keypair.pubkey(),
-            &[&self.config.payer_keypair],
-        )
-        .await?;
+        match rpc
+            .create_and_send_transaction(
+                &[ix],
+                &self.config.payer_keypair.pubkey(),
+                &[&self.config.payer_keypair],
+            )
+            .await
+        {
+            Ok(_) => {
+                info!("Work reported successfully");
+            }
+            Err(e) => {
+                if let RpcError::ClientError(client_error) = &e {
+                    if let Some(TransactionError::InstructionError(
+                        _,
+                        InstructionError::Custom(error_code),
+                    )) = client_error.get_transaction_error()
+                    {
+                        let reported_work_code = RegistryError::ForesterAlreadyReportedWork as u32;
+                        let not_in_report_work_phase_code =
+                            RegistryError::NotInReportWorkPhase as u32;
+
+                        if error_code == reported_work_code {
+                            info!("Work already reported for this epoch. Skipping.");
+                            return Ok(());
+                        } else if error_code == not_in_report_work_phase_code {
+                            warn!("Not in report work phase. Skipping report.");
+                            return Ok(());
+                        } else {
+                            // Log other registry errors but still return an Err
+                            warn!("Registry error encountered: {:?}", client_error);
+                        }
+                    }
+                }
+                return Err(ForesterError::from(e));
+            }
+        }
 
         let report = WorkReport {
             epoch: epoch_info.epoch.epoch,
