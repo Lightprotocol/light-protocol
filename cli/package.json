@@ -23,7 +23,7 @@
     "/oclif.manifest.json"
   ],
   "dependencies": {
-    "@coral-xyz/anchor": "0.29.0",
+    "@coral-xyz/anchor": "0.30.1",
     "@lightprotocol/compressed-token": "workspace:*",
     "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/hasher.rs": "workspace:*",

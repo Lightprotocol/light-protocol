@@ -1,114 +1,62 @@
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/account_compression.json`.
+ */
 export type AccountCompression = {
-    version: '0.7.0';
-    name: 'account_compression';
-    constants: [
-        {
-            name: 'CPI_AUTHORITY_PDA_SEED';
-            type: 'bytes';
-            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
-        },
-        {
-            name: 'GROUP_AUTHORITY_SEED';
-            type: 'bytes';
-            value: '[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
-        },
-        {
-            name: 'STATE_MERKLE_TREE_HEIGHT';
-            type: 'u64';
-            value: '26';
-        },
-        {
-            name: 'STATE_MERKLE_TREE_CHANGELOG';
-            type: 'u64';
-            value: '1400';
-        },
-        {
-            name: 'STATE_MERKLE_TREE_ROOTS';
-            type: 'u64';
-            value: '2400';
-        },
-        {
-            name: 'STATE_MERKLE_TREE_CANOPY_DEPTH';
-            type: 'u64';
-            value: '10';
-        },
-        {
-            name: 'STATE_NULLIFIER_QUEUE_VALUES';
-            type: 'u16';
-            value: '28_807';
-        },
-        {
-            name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD';
-            type: 'u64';
-            value: '2400';
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_HEIGHT';
-            type: 'u64';
-            value: '26';
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_CHANGELOG';
-            type: 'u64';
-            value: '1400';
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_ROOTS';
-            type: 'u64';
-            value: '2400';
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_CANOPY_DEPTH';
-            type: 'u64';
-            value: '10';
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG';
-            type: 'u64';
-            value: '1400';
-        },
-        {
-            name: 'ADDRESS_QUEUE_VALUES';
-            type: 'u16';
-            value: '28_807';
-        },
-        {
-            name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD';
-            type: 'u64';
-            value: '2400';
-        },
-        {
-            name: 'NOOP_PUBKEY';
-            type: {
-                array: ['u8', 32];
-            };
-            value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
-        },
-    ];
+    address: '3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1';
+    metadata: {
+        name: 'accountCompression';
+        version: '0.7.0';
+        spec: '0.1.0';
+        description: 'Solana account compression program';
+        repository: 'https://github.com/Lightprotocol/light-protocol';
+    };
     instructions: [
         {
-            name: 'initializeAddressMerkleTreeAndQueue';
+            name: 'deregisterProgram';
+            discriminator: [132, 71, 110, 206, 141, 57, 182, 162];
             accounts: [
                 {
                     name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'queue';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
+                    writable: true;
+                },
+                {
+                    name: 'groupAuthorityPda';
+                },
+                {
+                    name: 'closeRecipient';
+                    writable: true;
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'initializeAddressMerkleTreeAndQueue';
+            discriminator: [19, 14, 102, 183, 214, 35, 211, 13];
+            accounts: [
+                {
+                    name: 'authority';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'merkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'queue';
+                    writable: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
                 },
             ];
             args: [
@@ -119,53 +67,183 @@ export type AccountCompression = {
                 {
                     name: 'programOwner';
                     type: {
-                        option: 'publicKey';
+                        option: 'pubkey';
                     };
                 },
                 {
                     name: 'forester';
                     type: {
-                        option: 'publicKey';
+                        option: 'pubkey';
                     };
                 },
                 {
                     name: 'addressMerkleTreeConfig';
                     type: {
-                        defined: 'AddressMerkleTreeConfig';
+                        defined: {
+                            name: 'addressMerkleTreeConfig';
+                        };
                     };
                 },
                 {
                     name: 'addressQueueConfig';
                     type: {
-                        defined: 'AddressQueueConfig';
+                        defined: {
+                            name: 'nullifierQueueConfig';
+                        };
                     };
                 },
             ];
         },
         {
-            name: 'insertAddresses';
+            name: 'initializeGroupAuthority';
+            docs: [
+                'initialize group (a group can be used to give multiple programs access',
+                'to the same Merkle trees by registering the programs to the group)',
+            ];
+            discriminator: [123, 237, 161, 80, 234, 215, 67, 183];
             accounts: [
                 {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['Fee payer pays rollover fee.'];
-                },
-                {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    writable: true;
+                    signer: true;
                 },
                 {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
+                    name: 'seed';
+                    docs: [
+                        'Seed public key used to derive the group authority.',
+                    ];
+                    signer: true;
+                },
+                {
+                    name: 'groupAuthority';
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    103,
+                                    114,
+                                    111,
+                                    117,
+                                    112,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                            {
+                                kind: 'account';
+                                path: 'seed';
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'authority';
+                    type: 'pubkey';
+                },
+            ];
+        },
+        {
+            name: 'initializeStateMerkleTreeAndNullifierQueue';
+            docs: [
+                'Initializes a new Merkle tree from config bytes.',
+                'Index is an optional identifier and not checked by the program.',
+            ];
+            discriminator: [45, 191, 235, 231, 63, 209, 142, 148];
+            accounts: [
+                {
+                    name: 'authority';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'merkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'nullifierQueue';
+                    writable: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'index';
+                    type: 'u64';
+                },
+                {
+                    name: 'programOwner';
+                    type: {
+                        option: 'pubkey';
+                    };
+                },
+                {
+                    name: 'forester';
+                    type: {
+                        option: 'pubkey';
+                    };
+                },
+                {
+                    name: 'stateMerkleTreeConfig';
+                    type: {
+                        defined: {
+                            name: 'stateMerkleTreeConfig';
+                        };
+                    };
+                },
+                {
+                    name: 'nullifierQueueConfig';
+                    type: {
+                        defined: {
+                            name: 'nullifierQueueConfig';
+                        };
+                    };
+                },
+                {
+                    name: 'additionalBytes';
+                    type: 'u64';
+                },
+            ];
+        },
+        {
+            name: 'insertAddresses';
+            discriminator: [248, 232, 179, 199, 27, 62, 56, 20];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['Fee payer pays rollover fee.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
@@ -180,34 +258,229 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'updateAddressMerkleTree';
-            docs: ['Updates the address Merkle tree with a new address.'];
+            name: 'insertIntoNullifierQueues';
+            discriminator: [91, 101, 183, 28, 35, 25, 67, 221];
             accounts: [
                 {
+                    name: 'feePayer';
+                    docs: ['Fee payer pays rollover fee.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
+                    optional: true;
                 },
                 {
-                    name: 'queue';
-                    isMut: true;
-                    isSigner: false;
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'nullifiers';
+                    type: {
+                        vec: {
+                            array: ['u8', 32];
+                        };
+                    };
+                },
+            ];
+        },
+        {
+            name: 'nullifyLeaves';
+            discriminator: [158, 91, 21, 224, 159, 65, 177, 67];
+            accounts: [
+                {
+                    name: 'authority';
+                    signer: true;
                 },
                 {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
+                    name: 'registeredProgramPda';
+                    optional: true;
                 },
                 {
                     name: 'logWrapper';
-                    isMut: false;
-                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'nullifierQueue';
+                    writable: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'changeLogIndices';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+                {
+                    name: 'leavesQueueIndices';
+                    type: {
+                        vec: 'u16';
+                    };
+                },
+                {
+                    name: 'leafIndices';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+                {
+                    name: 'proofs';
+                    type: {
+                        vec: {
+                            vec: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    };
+                },
+            ];
+        },
+        {
+            name: 'registerProgramToGroup';
+            discriminator: [225, 86, 207, 211, 21, 1, 46, 25];
+            accounts: [
+                {
+                    name: 'authority';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'programToBeRegistered';
+                },
+                {
+                    name: 'registeredProgramPda';
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'account';
+                                path: 'programToBeRegistered';
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'groupAuthorityPda';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'rolloverAddressMerkleTreeAndQueue';
+            discriminator: [24, 84, 27, 12, 134, 166, 23, 192];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
+                },
+                {
+                    name: 'newAddressMerkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'newQueue';
+                    writable: true;
+                },
+                {
+                    name: 'oldAddressMerkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'oldQueue';
+                    writable: true;
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'rolloverStateMerkleTreeAndNullifierQueue';
+            discriminator: [39, 161, 103, 172, 102, 198, 120, 85];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
+                },
+                {
+                    name: 'newStateMerkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'newNullifierQueue';
+                    writable: true;
+                },
+                {
+                    name: 'oldStateMerkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'oldNullifierQueue';
+                    writable: true;
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'updateAddressMerkleTree';
+            docs: ['Updates the address Merkle tree with a new address.'];
+            discriminator: [75, 208, 63, 56, 207, 74, 124, 18];
+            accounts: [
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    optional: true;
+                },
+                {
+                    name: 'queue';
+                    writable: true;
+                },
+                {
+                    name: 'merkleTree';
+                    writable: true;
+                },
+                {
+                    name: 'logWrapper';
                 },
             ];
             args: [
@@ -257,451 +530,203 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'rolloverAddressMerkleTreeAndQueue';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: [
-                        'Signer used to receive rollover accounts rentexemption reimbursement.',
-                    ];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'newAddressMerkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'newQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'oldAddressMerkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'oldQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'initializeGroupAuthority';
-            docs: [
-                'initialize group (a group can be used to give multiple programs access',
-                'to the same Merkle trees by registering the programs to the group)',
-            ];
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'seed';
-                    isMut: false;
-                    isSigner: true;
-                    docs: [
-                        'Seed public key used to derive the group authority.',
-                    ];
-                },
-                {
-                    name: 'groupAuthority';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'authority';
-                    type: 'publicKey';
-                },
-            ];
-        },
-        {
             name: 'updateGroupAuthority';
+            discriminator: [113, 193, 181, 28, 214, 157, 178, 131];
             accounts: [
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
                     name: 'groupAuthority';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
                 },
             ];
             args: [
                 {
                     name: 'authority';
-                    type: 'publicKey';
+                    type: 'pubkey';
                 },
             ];
-        },
-        {
-            name: 'registerProgramToGroup';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'programToBeRegistered';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'groupAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'deregisterProgram';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'groupAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'closeRecipient';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'initializeStateMerkleTreeAndNullifierQueue';
-            docs: [
-                'Initializes a new Merkle tree from config bytes.',
-                'Index is an optional identifier and not checked by the program.',
-            ];
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'nullifierQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-            ];
-            args: [
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-                {
-                    name: 'programOwner';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'forester';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'stateMerkleTreeConfig';
-                    type: {
-                        defined: 'StateMerkleTreeConfig';
-                    };
-                },
-                {
-                    name: 'nullifierQueueConfig';
-                    type: {
-                        defined: 'NullifierQueueConfig';
-                    };
-                },
-                {
-                    name: 'additionalBytes';
-                    type: 'u64';
-                },
-            ];
-        },
-        {
-            name: 'appendLeavesToMerkleTrees';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['Fee payer pays rollover fee.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                    docs: [
-                        'Checked whether instruction is accessed by a registered program or owner = authority.',
-                    ];
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                    docs: [
-                        'Some assumes that the Merkle trees are accessed by a registered program.',
-                        'None assumes that the Merkle trees are accessed by its owner.',
-                    ];
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'leaves';
-                    type: {
-                        vec: {
-                            defined: '(u8,[u8;32])';
-                        };
-                    };
-                },
-            ];
-        },
-        {
-            name: 'nullifyLeaves';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'logWrapper';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'nullifierQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'changeLogIndices';
-                    type: {
-                        vec: 'u64';
-                    };
-                },
-                {
-                    name: 'leavesQueueIndices';
-                    type: {
-                        vec: 'u16';
-                    };
-                },
-                {
-                    name: 'leafIndices';
-                    type: {
-                        vec: 'u64';
-                    };
-                },
-                {
-                    name: 'proofs';
-                    type: {
-                        vec: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    };
-                },
-            ];
-        },
-        {
-            name: 'insertIntoNullifierQueues';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['Fee payer pays rollover fee.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'nullifiers';
-                    type: {
-                        vec: {
-                            array: ['u8', 32];
-                        };
-                    };
-                },
-            ];
-        },
-        {
-            name: 'rolloverStateMerkleTreeAndNullifierQueue';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: [
-                        'Signer used to receive rollover accounts rentexemption reimbursement.',
-                    ];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'newStateMerkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'newNullifierQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'oldStateMerkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'oldNullifierQueue';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [];
         },
     ];
     accounts: [
         {
-            name: 'registeredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'registeredProgramId';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
+            name: 'addressMerkleTreeAccount';
+            discriminator: [11, 161, 175, 9, 212, 229, 73, 73];
         },
         {
+            name: 'groupAuthority';
+            discriminator: [15, 207, 4, 160, 127, 38, 142, 162];
+        },
+        {
+            name: 'queueAccount';
+            discriminator: [164, 200, 108, 62, 87, 63, 123, 65];
+        },
+        {
+            name: 'registeredProgram';
+            discriminator: [31, 251, 180, 235, 3, 116, 50, 4];
+        },
+        {
+            name: 'stateMerkleTreeAccount';
+            discriminator: [172, 43, 172, 186, 29, 73, 219, 84];
+        },
+    ];
+    errors: [
+        {
+            code: 6000;
+            name: 'integerOverflow';
+            msg: 'Integer overflow';
+        },
+        {
+            code: 6001;
+            name: 'invalidAuthority';
+            msg: 'invalidAuthority';
+        },
+        {
+            code: 6002;
+            name: 'numberOfLeavesMismatch';
+            msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
+        },
+        {
+            code: 6003;
+            name: 'invalidNoopPubkey';
+            msg: 'Provided noop program public key is invalid';
+        },
+        {
+            code: 6004;
+            name: 'numberOfChangeLogIndicesMismatch';
+            msg: 'Number of change log indices mismatch';
+        },
+        {
+            code: 6005;
+            name: 'numberOfIndicesMismatch';
+            msg: 'Number of indices mismatch';
+        },
+        {
+            code: 6006;
+            name: 'numberOfProofsMismatch';
+            msg: 'numberOfProofsMismatch';
+        },
+        {
+            code: 6007;
+            name: 'invalidMerkleProof';
+            msg: 'invalidMerkleProof';
+        },
+        {
+            code: 6008;
+            name: 'leafNotFound';
+            msg: 'Could not find the leaf in the queue';
+        },
+        {
+            code: 6009;
+            name: 'merkleTreeAndQueueNotAssociated';
+            msg: 'merkleTreeAndQueueNotAssociated';
+        },
+        {
+            code: 6010;
+            name: 'merkleTreeAlreadyRolledOver';
+            msg: 'merkleTreeAlreadyRolledOver';
+        },
+        {
+            code: 6011;
+            name: 'notReadyForRollover';
+            msg: 'notReadyForRollover';
+        },
+        {
+            code: 6012;
+            name: 'rolloverNotConfigured';
+            msg: 'rolloverNotConfigured';
+        },
+        {
+            code: 6013;
+            name: 'notAllLeavesProcessed';
+            msg: 'notAllLeavesProcessed';
+        },
+        {
+            code: 6014;
+            name: 'invalidQueueType';
+            msg: 'invalidQueueType';
+        },
+        {
+            code: 6015;
+            name: 'inputElementsEmpty';
+            msg: 'inputElementsEmpty';
+        },
+        {
+            code: 6016;
+            name: 'noLeavesForMerkleTree';
+            msg: 'noLeavesForMerkleTree';
+        },
+        {
+            code: 6017;
+            name: 'invalidAccountSize';
+            msg: 'invalidAccountSize';
+        },
+        {
+            code: 6018;
+            name: 'insufficientRolloverFee';
+            msg: 'insufficientRolloverFee';
+        },
+        {
+            code: 6019;
+            name: 'unsupportedHeight';
+            msg: 'Unsupported Merkle tree height';
+        },
+        {
+            code: 6020;
+            name: 'unsupportedCanopyDepth';
+            msg: 'Unsupported canopy depth';
+        },
+        {
+            code: 6021;
+            name: 'invalidSequenceThreshold';
+            msg: 'Invalid sequence threshold';
+        },
+        {
+            code: 6022;
+            name: 'unsupportedCloseThreshold';
+            msg: 'Unsupported close threshold';
+        },
+        {
+            code: 6023;
+            name: 'invalidAccountBalance';
+            msg: 'invalidAccountBalance';
+        },
+        {
+            code: 6024;
+            name: 'unsupportedAdditionalBytes';
+        },
+        {
+            code: 6025;
+            name: 'invalidGroup';
+        },
+        {
+            code: 6026;
+            name: 'proofLengthMismatch';
+        },
+    ];
+    types: [
+        {
             name: 'accessMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'owner';
                         docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'programOwner';
                         docs: [
                             'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'forester';
@@ -713,20 +738,72 @@ export type AccountCompression = {
                             'implements access control to prevent contention during forester. The',
                             'forester pubkey specified in this struct can bypass contention checks.',
                         ];
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                 ];
             };
         },
         {
             name: 'addressMerkleTreeAccount';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'metadata';
                         type: {
-                            defined: 'MerkleTreeMetadata';
+                            defined: {
+                                name: 'merkleTreeMetadata';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'addressMerkleTreeConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'addressChangelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
                         };
                     },
                 ];
@@ -739,55 +816,88 @@ export type AccountCompression = {
                 fields: [
                     {
                         name: 'authority';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'seed';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                 ];
             };
         },
         {
             name: 'merkleTreeMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'accessMetadata';
                         type: {
-                            defined: 'AccessMetadata';
+                            defined: {
+                                name: 'accessMetadata';
+                            };
                         };
                     },
                     {
                         name: 'rolloverMetadata';
                         type: {
-                            defined: 'RolloverMetadata';
+                            defined: {
+                                name: 'rolloverMetadata';
+                            };
                         };
                     },
                     {
                         name: 'associatedQueue';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'nextMerkleTree';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                 ];
             };
         },
         {
-            name: 'stateMerkleTreeAccount';
-            docs: [
-                'Concurrent state Merkle tree used for public compressed transactions.',
-            ];
+            name: 'nullifierQueueConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'capacity';
+                        type: 'u16';
+                    },
+                    {
+                        name: 'sequenceThreshold';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'queueAccount';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'metadata';
                         type: {
-                            defined: 'MerkleTreeMetadata';
+                            defined: {
+                                name: 'queueMetadata';
+                            };
                         };
                     },
                 ];
@@ -795,28 +905,36 @@ export type AccountCompression = {
         },
         {
             name: 'queueMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'accessMetadata';
                         type: {
-                            defined: 'AccessMetadata';
+                            defined: {
+                                name: 'accessMetadata';
+                            };
                         };
                     },
                     {
                         name: 'rolloverMetadata';
                         type: {
-                            defined: 'RolloverMetadata';
+                            defined: {
+                                name: 'rolloverMetadata';
+                            };
                         };
                     },
                     {
                         name: 'associatedMerkleTree';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'nextQueue';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'queueType';
@@ -826,21 +944,27 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'queueAccount';
+            name: 'registeredProgram';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'metadata';
-                        type: {
-                            defined: 'QueueMetadata';
-                        };
+                        name: 'registeredProgramId';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'groupAuthorityPda';
+                        type: 'pubkey';
                     },
                 ];
             };
         },
         {
             name: 'rolloverMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
                 kind: 'struct';
                 fields: [
@@ -896,1444 +1020,154 @@ export type AccountCompression = {
                 ];
             };
         },
-    ];
-    types: [
         {
-            name: 'AddressMerkleTreeConfig';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'changelogSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rootsSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'canopyDepth';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'addressChangelogSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'closeThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'StateMerkleTreeConfig';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'changelogSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rootsSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'canopyDepth';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'closeThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NullifierQueueConfig';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'capacity';
-                        type: 'u16';
-                    },
-                    {
-                        name: 'sequenceThreshold';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'QueueType';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'NullifierQueue';
-                    },
-                    {
-                        name: 'AddressQueue';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'AddressQueueConfig';
-            type: {
-                kind: 'alias';
-                value: {
-                    defined: 'NullifierQueueConfig';
-                };
-            };
-        },
-    ];
-    errors: [
-        {
-            code: 6000;
-            name: 'IntegerOverflow';
-            msg: 'Integer overflow';
-        },
-        {
-            code: 6001;
-            name: 'InvalidAuthority';
-            msg: 'InvalidAuthority';
-        },
-        {
-            code: 6002;
-            name: 'NumberOfLeavesMismatch';
-            msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
-        },
-        {
-            code: 6003;
-            name: 'InvalidNoopPubkey';
-            msg: 'Provided noop program public key is invalid';
-        },
-        {
-            code: 6004;
-            name: 'NumberOfChangeLogIndicesMismatch';
-            msg: 'Number of change log indices mismatch';
-        },
-        {
-            code: 6005;
-            name: 'NumberOfIndicesMismatch';
-            msg: 'Number of indices mismatch';
-        },
-        {
-            code: 6006;
-            name: 'NumberOfProofsMismatch';
-            msg: 'NumberOfProofsMismatch';
-        },
-        {
-            code: 6007;
-            name: 'InvalidMerkleProof';
-            msg: 'InvalidMerkleProof';
-        },
-        {
-            code: 6008;
-            name: 'LeafNotFound';
-            msg: 'Could not find the leaf in the queue';
-        },
-        {
-            code: 6009;
-            name: 'MerkleTreeAndQueueNotAssociated';
-            msg: 'MerkleTreeAndQueueNotAssociated';
-        },
-        {
-            code: 6010;
-            name: 'MerkleTreeAlreadyRolledOver';
-            msg: 'MerkleTreeAlreadyRolledOver';
-        },
-        {
-            code: 6011;
-            name: 'NotReadyForRollover';
-            msg: 'NotReadyForRollover';
-        },
-        {
-            code: 6012;
-            name: 'RolloverNotConfigured';
-            msg: 'RolloverNotConfigured';
-        },
-        {
-            code: 6013;
-            name: 'NotAllLeavesProcessed';
-            msg: 'NotAllLeavesProcessed';
-        },
-        {
-            code: 6014;
-            name: 'InvalidQueueType';
-            msg: 'InvalidQueueType';
-        },
-        {
-            code: 6015;
-            name: 'InputElementsEmpty';
-            msg: 'InputElementsEmpty';
-        },
-        {
-            code: 6016;
-            name: 'NoLeavesForMerkleTree';
-            msg: 'NoLeavesForMerkleTree';
-        },
-        {
-            code: 6017;
-            name: 'InvalidAccountSize';
-            msg: 'InvalidAccountSize';
-        },
-        {
-            code: 6018;
-            name: 'InsufficientRolloverFee';
-            msg: 'InsufficientRolloverFee';
-        },
-        {
-            code: 6019;
-            name: 'UnsupportedHeight';
-            msg: 'Unsupported Merkle tree height';
-        },
-        {
-            code: 6020;
-            name: 'UnsupportedCanopyDepth';
-            msg: 'Unsupported canopy depth';
-        },
-        {
-            code: 6021;
-            name: 'InvalidSequenceThreshold';
-            msg: 'Invalid sequence threshold';
-        },
-        {
-            code: 6022;
-            name: 'UnsupportedCloseThreshold';
-            msg: 'Unsupported close threshold';
-        },
-        {
-            code: 6023;
-            name: 'InvalidAccountBalance';
-            msg: 'InvalidAccountBalance';
-        },
-        {
-            code: 6024;
-            name: 'UnsupportedAdditionalBytes';
-        },
-        {
-            code: 6025;
-            name: 'InvalidGroup';
-        },
-        {
-            code: 6026;
-            name: 'ProofLengthMismatch';
-        },
-    ];
-};
-
-export const IDL: AccountCompression = {
-    version: '0.7.0',
-    name: 'account_compression',
-    constants: [
-        {
-            name: 'CPI_AUTHORITY_PDA_SEED',
-            type: 'bytes',
-            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
-        },
-        {
-            name: 'GROUP_AUTHORITY_SEED',
-            type: 'bytes',
-            value: '[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
-        },
-        {
-            name: 'STATE_MERKLE_TREE_HEIGHT',
-            type: 'u64',
-            value: '26',
-        },
-        {
-            name: 'STATE_MERKLE_TREE_CHANGELOG',
-            type: 'u64',
-            value: '1400',
-        },
-        {
-            name: 'STATE_MERKLE_TREE_ROOTS',
-            type: 'u64',
-            value: '2400',
-        },
-        {
-            name: 'STATE_MERKLE_TREE_CANOPY_DEPTH',
-            type: 'u64',
-            value: '10',
-        },
-        {
-            name: 'STATE_NULLIFIER_QUEUE_VALUES',
-            type: 'u16',
-            value: '28_807',
-        },
-        {
-            name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD',
-            type: 'u64',
-            value: '2400',
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_HEIGHT',
-            type: 'u64',
-            value: '26',
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_CHANGELOG',
-            type: 'u64',
-            value: '1400',
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_ROOTS',
-            type: 'u64',
-            value: '2400',
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_CANOPY_DEPTH',
-            type: 'u64',
-            value: '10',
-        },
-        {
-            name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG',
-            type: 'u64',
-            value: '1400',
-        },
-        {
-            name: 'ADDRESS_QUEUE_VALUES',
-            type: 'u16',
-            value: '28_807',
-        },
-        {
-            name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD',
-            type: 'u64',
-            value: '2400',
-        },
-        {
-            name: 'NOOP_PUBKEY',
-            type: {
-                array: ['u8', 32],
-            },
-            value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
-        },
-    ],
-    instructions: [
-        {
-            name: 'initializeAddressMerkleTreeAndQueue',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'queue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-            ],
-            args: [
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'programOwner',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'forester',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'addressMerkleTreeConfig',
-                    type: {
-                        defined: 'AddressMerkleTreeConfig',
-                    },
-                },
-                {
-                    name: 'addressQueueConfig',
-                    type: {
-                        defined: 'AddressQueueConfig',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'insertAddresses',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['Fee payer pays rollover fee.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'addresses',
-                    type: {
-                        vec: {
-                            array: ['u8', 32],
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            name: 'updateAddressMerkleTree',
-            docs: ['Updates the address Merkle tree with a new address.'],
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'queue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'logWrapper',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'changelogIndex',
-                    type: 'u16',
-                },
-                {
-                    name: 'indexedChangelogIndex',
-                    type: 'u16',
-                },
-                {
-                    name: 'value',
-                    type: 'u16',
-                },
-                {
-                    name: 'lowAddressIndex',
-                    type: 'u64',
-                },
-                {
-                    name: 'lowAddressValue',
-                    type: {
-                        array: ['u8', 32],
-                    },
-                },
-                {
-                    name: 'lowAddressNextIndex',
-                    type: 'u64',
-                },
-                {
-                    name: 'lowAddressNextValue',
-                    type: {
-                        array: ['u8', 32],
-                    },
-                },
-                {
-                    name: 'lowAddressProof',
-                    type: {
-                        array: [
-                            {
-                                array: ['u8', 32],
-                            },
-                            16,
-                        ],
-                    },
-                },
-            ],
-        },
-        {
-            name: 'rolloverAddressMerkleTreeAndQueue',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: [
-                        'Signer used to receive rollover accounts rentexemption reimbursement.',
-                    ],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'newAddressMerkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'newQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'oldAddressMerkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'oldQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'initializeGroupAuthority',
-            docs: [
-                'initialize group (a group can be used to give multiple programs access',
-                'to the same Merkle trees by registering the programs to the group)',
-            ],
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'seed',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Seed public key used to derive the group authority.',
-                    ],
-                },
-                {
-                    name: 'groupAuthority',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'authority',
-                    type: 'publicKey',
-                },
-            ],
-        },
-        {
-            name: 'updateGroupAuthority',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'groupAuthority',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'authority',
-                    type: 'publicKey',
-                },
-            ],
-        },
-        {
-            name: 'registerProgramToGroup',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'programToBeRegistered',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'groupAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'deregisterProgram',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'groupAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'closeRecipient',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'initializeStateMerkleTreeAndNullifierQueue',
-            docs: [
-                'Initializes a new Merkle tree from config bytes.',
-                'Index is an optional identifier and not checked by the program.',
-            ],
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'nullifierQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-            ],
-            args: [
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'programOwner',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'forester',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'stateMerkleTreeConfig',
-                    type: {
-                        defined: 'StateMerkleTreeConfig',
-                    },
-                },
-                {
-                    name: 'nullifierQueueConfig',
-                    type: {
-                        defined: 'NullifierQueueConfig',
-                    },
-                },
-                {
-                    name: 'additionalBytes',
-                    type: 'u64',
-                },
-            ],
-        },
-        {
-            name: 'appendLeavesToMerkleTrees',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['Fee payer pays rollover fee.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Checked whether instruction is accessed by a registered program or owner = authority.',
-                    ],
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                    docs: [
-                        'Some assumes that the Merkle trees are accessed by a registered program.',
-                        'None assumes that the Merkle trees are accessed by its owner.',
-                    ],
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'leaves',
-                    type: {
-                        vec: {
-                            defined: '(u8,[u8;32])',
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            name: 'nullifyLeaves',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'logWrapper',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'nullifierQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'changeLogIndices',
-                    type: {
-                        vec: 'u64',
-                    },
-                },
-                {
-                    name: 'leavesQueueIndices',
-                    type: {
-                        vec: 'u16',
-                    },
-                },
-                {
-                    name: 'leafIndices',
-                    type: {
-                        vec: 'u64',
-                    },
-                },
-                {
-                    name: 'proofs',
-                    type: {
-                        vec: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            name: 'insertIntoNullifierQueues',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['Fee payer pays rollover fee.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'nullifiers',
-                    type: {
-                        vec: {
-                            array: ['u8', 32],
-                        },
-                    },
-                },
-            ],
-        },
-        {
-            name: 'rolloverStateMerkleTreeAndNullifierQueue',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: [
-                        'Signer used to receive rollover accounts rentexemption reimbursement.',
-                    ],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'newStateMerkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'newNullifierQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'oldStateMerkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'oldNullifierQueue',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-    ],
-    accounts: [
-        {
-            name: 'registeredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'registeredProgramId',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'accessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'addressMerkleTreeAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'MerkleTreeMetadata',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'groupAuthority',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'authority',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seed',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'merkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'stateMerkleTreeAccount',
+            name: 'stateMerkleTreeAccount';
             docs: [
                 'Concurrent state Merkle tree used for public compressed transactions.',
-            ],
+            ];
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
             type: {
-                kind: 'struct',
+                kind: 'struct';
                 fields: [
                     {
-                        name: 'metadata',
+                        name: 'metadata';
                         type: {
-                            defined: 'MerkleTreeMetadata',
-                        },
+                            defined: {
+                                name: 'merkleTreeMetadata';
+                            };
+                        };
                     },
-                ],
-            },
+                ];
+            };
         },
         {
-            name: 'queueMetadata',
+            name: 'stateMerkleTreeConfig';
             type: {
-                kind: 'struct',
+                kind: 'struct';
                 fields: [
                     {
-                        name: 'accessMetadata',
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
                         type: {
-                            defined: 'AccessMetadata',
-                        },
+                            option: 'u64';
+                        };
                     },
                     {
-                        name: 'rolloverMetadata',
+                        name: 'rolloverThreshold';
                         type: {
-                            defined: 'RolloverMetadata',
-                        },
+                            option: 'u64';
+                        };
                     },
                     {
-                        name: 'associatedMerkleTree',
-                        type: 'publicKey',
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
                     },
-                    {
-                        name: 'nextQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'queueType',
-                        type: 'u64',
-                    },
-                ],
-            },
+                ];
+            };
+        },
+    ];
+    constants: [
+        {
+            name: 'addressMerkleTreeCanopyDepth';
+            type: 'u64';
+            value: '10';
         },
         {
-            name: 'queueAccount',
+            name: 'addressMerkleTreeChangelog';
+            type: 'u64';
+            value: '1400';
+        },
+        {
+            name: 'addressMerkleTreeHeight';
+            type: 'u64';
+            value: '26';
+        },
+        {
+            name: 'addressMerkleTreeIndexedChangelog';
+            type: 'u64';
+            value: '1400';
+        },
+        {
+            name: 'addressMerkleTreeRoots';
+            type: 'u64';
+            value: '2400';
+        },
+        {
+            name: 'addressQueueSequenceThreshold';
+            type: 'u64';
+            value: '2400';
+        },
+        {
+            name: 'addressQueueValues';
+            type: 'u16';
+            value: '28807';
+        },
+        {
+            name: 'cpiAuthorityPdaSeed';
+            type: 'bytes';
+            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
+        },
+        {
+            name: 'groupAuthoritySeed';
+            type: 'bytes';
+            value: '[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
+        },
+        {
+            name: 'noopPubkey';
             type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'QueueMetadata',
-                        },
-                    },
-                ],
-            },
+                array: ['u8', 32];
+            };
+            value: '[11, 188, 15, 192, 187, 71, 202, 47, 116, 196, 17, 46, 148, 171, 19, 207, 163, 198, 52, 229, 220, 23, 234, 203, 3, 205, 26, 35, 205, 126, 120, 124]';
         },
         {
-            name: 'rolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-    ],
-    types: [
-        {
-            name: 'AddressMerkleTreeConfig',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'changelogSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rootsSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'canopyDepth',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'addressChangelogSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'closeThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
+            name: 'stateMerkleTreeCanopyDepth';
+            type: 'u64';
+            value: '10';
         },
         {
-            name: 'StateMerkleTreeConfig',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'changelogSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rootsSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'canopyDepth',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'closeThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
+            name: 'stateMerkleTreeChangelog';
+            type: 'u64';
+            value: '1400';
         },
         {
-            name: 'NullifierQueueConfig',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'capacity',
-                        type: 'u16',
-                    },
-                    {
-                        name: 'sequenceThreshold',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
+            name: 'stateMerkleTreeHeight';
+            type: 'u64';
+            value: '26';
         },
         {
-            name: 'QueueType',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'NullifierQueue',
-                    },
-                    {
-                        name: 'AddressQueue',
-                    },
-                ],
-            },
+            name: 'stateMerkleTreeRoots';
+            type: 'u64';
+            value: '2400';
         },
         {
-            name: 'AddressQueueConfig',
-            type: {
-                kind: 'alias',
-                value: {
-                    defined: 'NullifierQueueConfig',
-                },
-            },
-        },
-    ],
-    errors: [
-        {
-            code: 6000,
-            name: 'IntegerOverflow',
-            msg: 'Integer overflow',
+            name: 'stateNullifierQueueSequenceThreshold';
+            type: 'u64';
+            value: '2400';
         },
         {
-            code: 6001,
-            name: 'InvalidAuthority',
-            msg: 'InvalidAuthority',
+            name: 'stateNullifierQueueValues';
+            type: 'u16';
+            value: '28807';
         },
-        {
-            code: 6002,
-            name: 'NumberOfLeavesMismatch',
-            msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.',
-        },
-        {
-            code: 6003,
-            name: 'InvalidNoopPubkey',
-            msg: 'Provided noop program public key is invalid',
-        },
-        {
-            code: 6004,
-            name: 'NumberOfChangeLogIndicesMismatch',
-            msg: 'Number of change log indices mismatch',
-        },
-        {
-            code: 6005,
-            name: 'NumberOfIndicesMismatch',
-            msg: 'Number of indices mismatch',
-        },
-        {
-            code: 6006,
-            name: 'NumberOfProofsMismatch',
-            msg: 'NumberOfProofsMismatch',
-        },
-        {
-            code: 6007,
-            name: 'InvalidMerkleProof',
-            msg: 'InvalidMerkleProof',
-        },
-        {
-            code: 6008,
-            name: 'LeafNotFound',
-            msg: 'Could not find the leaf in the queue',
-        },
-        {
-            code: 6009,
-            name: 'MerkleTreeAndQueueNotAssociated',
-            msg: 'MerkleTreeAndQueueNotAssociated',
-        },
-        {
-            code: 6010,
-            name: 'MerkleTreeAlreadyRolledOver',
-            msg: 'MerkleTreeAlreadyRolledOver',
-        },
-        {
-            code: 6011,
-            name: 'NotReadyForRollover',
-            msg: 'NotReadyForRollover',
-        },
-        {
-            code: 6012,
-            name: 'RolloverNotConfigured',
-            msg: 'RolloverNotConfigured',
-        },
-        {
-            code: 6013,
-            name: 'NotAllLeavesProcessed',
-            msg: 'NotAllLeavesProcessed',
-        },
-        {
-            code: 6014,
-            name: 'InvalidQueueType',
-            msg: 'InvalidQueueType',
-        },
-        {
-            code: 6015,
-            name: 'InputElementsEmpty',
-            msg: 'InputElementsEmpty',
-        },
-        {
-            code: 6016,
-            name: 'NoLeavesForMerkleTree',
-            msg: 'NoLeavesForMerkleTree',
-        },
-        {
-            code: 6017,
-            name: 'InvalidAccountSize',
-            msg: 'InvalidAccountSize',
-        },
-        {
-            code: 6018,
-            name: 'InsufficientRolloverFee',
-            msg: 'InsufficientRolloverFee',
-        },
-        {
-            code: 6019,
-            name: 'UnsupportedHeight',
-            msg: 'Unsupported Merkle tree height',
-        },
-        {
-            code: 6020,
-            name: 'UnsupportedCanopyDepth',
-            msg: 'Unsupported canopy depth',
-        },
-        {
-            code: 6021,
-            name: 'InvalidSequenceThreshold',
-            msg: 'Invalid sequence threshold',
-        },
-        {
-            code: 6022,
-            name: 'UnsupportedCloseThreshold',
-            msg: 'Unsupported close threshold',
-        },
-        {
-            code: 6023,
-            name: 'InvalidAccountBalance',
-            msg: 'InvalidAccountBalance',
-        },
-        {
-            code: 6024,
-            name: 'UnsupportedAdditionalBytes',
-        },
-        {
-            code: 6025,
-            name: 'InvalidGroup',
-        },
-        {
-            code: 6026,
-            name: 'ProofLengthMismatch',
-        },
-    ],
+    ];
 };

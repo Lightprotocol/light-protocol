@@ -7,14 +7,16 @@ url = "http://127.0.0.1:8899"
 [test]
 startup_wait = 10_000
 
+
+[programs.localnet]
+system = "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7"
+registry = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"
+compressed_token = "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"
+account-compression = "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq"
+
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
-# --resolveJsonModule ./tsconfig.json 
-
-# [workspace]
-# types = "./js/stateless.js/src/idls"
-# idls = "./js/stateless.js/src/idls"

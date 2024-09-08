@@ -1,0 +1,1235 @@
+{
+    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT",
+    "metadata": {
+        "name": "light_compressed_token",
+        "version": "0.7.0",
+        "spec": "0.1.0",
+        "description": "Generalized token compression on Solana",
+        "repository": "https://github.com/Lightprotocol/light-protocol"
+    },
+    "instructions": [
+        {
+            "name": "approve",
+            "docs": [
+                "Delegates an amount to a delegate. A compressed token account is either",
+                "completely delegated or not. Prior delegates are not preserved. Cannot",
+                "be called by a delegate.",
+                "The instruction creates two output accounts:",
+                "1. one account with delegated amount",
+                "2. one account with remaining(change) amount"
+            ],
+            "discriminator": [69, 74, 217, 36, 115, 117, 97, 76],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Authority is verified through proof since both owner and delegate",
+                        "are included in the token data hash, which is a public input to the",
+                        "validity proof."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "burn",
+            "docs": [
+                "Burns compressed tokens and spl tokens from the pool account. Delegates",
+                "can burn tokens. The output compressed token account remains delegated.",
+                "Creates one output compressed token account."
+            ],
+            "discriminator": [116, 110, 29, 56, 107, 219, 42, 93],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Authority is verified through proof since both owner and delegate",
+                        "are included in the token data hash, which is a public input to the",
+                        "validity proof."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "mint",
+                    "writable": true
+                },
+                {
+                    "name": "token_pool_pda",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [112, 111, 111, 108]
+                            },
+                            {
+                                "kind": "account",
+                                "path": "mint"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "token_program",
+                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                133, 110, 129, 246, 34, 115, 134, 36, 116, 170,
+                                124, 71, 118, 109, 243, 40, 228, 60, 79, 79,
+                                177, 82, 14, 121, 210, 121, 182, 180, 6, 232,
+                                141, 67
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "create_token_pool",
+            "docs": [
+                "This instruction creates a token pool for a given mint. Every spl mint",
+                "can have one token pool. When a token is compressed the tokens are",
+                "transferrred to the token pool, and their compressed equivalent is",
+                "minted into a Merkle tree."
+            ],
+            "discriminator": [23, 169, 27, 122, 147, 169, 209, 152],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "token_pool_pda",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [112, 111, 111, 108]
+                            },
+                            {
+                                "kind": "account",
+                                "path": "mint"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "mint",
+                    "writable": true
+                },
+                {
+                    "name": "token_program",
+                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ],
+            "args": []
+        },
+        {
+            "name": "freeze",
+            "docs": [
+                "Freezes compressed token accounts. Inputs must not be frozen. Creates as",
+                "many outputs as inputs. Balances and delegates are preserved."
+            ],
+            "discriminator": [255, 91, 207, 84, 251, 194, 254, 63],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                133, 110, 129, 246, 34, 115, 134, 36, 116, 170,
+                                124, 71, 118, 109, 243, 40, 228, 60, 79, 79,
+                                177, 82, 14, 121, 210, 121, 182, 180, 6, 232,
+                                141, 67
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["that this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "mint"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "mint_to",
+            "docs": [
+                "Mints tokens from an spl token mint to a list of compressed accounts.",
+                "Minted tokens are transferred to a pool account owned by the compressed",
+                "token program. The instruction creates one compressed output account for",
+                "every amount and pubkey input pair. A constant amount of lamports can be",
+                "transferred to each output account to enable. A use case to add lamports",
+                "to a compressed token account is to prevent spam. This is the only way",
+                "to add lamports to a compressed token account."
+            ],
+            "discriminator": [241, 34, 48, 186, 37, 179, 123, 192],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "mint",
+                    "writable": true
+                },
+                {
+                    "name": "token_pool_pda",
+                    "docs": [
+                        "account to a token account of a different mint will fail"
+                    ],
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [112, 111, 111, 108]
+                            },
+                            {
+                                "kind": "account",
+                                "path": "mint"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "token_program",
+                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program",
+                    "docs": ["programs"]
+                },
+                {
+                    "name": "account_compression_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                133, 110, 129, 246, 34, 115, 134, 36, 116, 170,
+                                124, 71, 118, 109, 243, 40, 228, 60, 79, 79,
+                                177, 82, 14, 121, 210, 121, 182, 180, 6, 232,
+                                141, 67
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "merkle_tree",
+                    "writable": true
+                },
+                {
+                    "name": "self_program",
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "sol_pool_pda",
+                    "writable": true,
+                    "optional": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "public_keys",
+                    "type": {
+                        "vec": "pubkey"
+                    }
+                },
+                {
+                    "name": "amounts",
+                    "type": {
+                        "vec": "u64"
+                    }
+                },
+                {
+                    "name": "lamports",
+                    "type": {
+                        "option": "u64"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "revoke",
+            "docs": [
+                "Revokes a delegation. The instruction merges all inputs into one output",
+                "account. Cannot be called by a delegate. Delegates are not preserved."
+            ],
+            "discriminator": [170, 23, 31, 34, 133, 173, 93, 242],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Authority is verified through proof since both owner and delegate",
+                        "are included in the token data hash, which is a public input to the",
+                        "validity proof."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "stub_idl_build",
+            "docs": [
+                "This function is a stub to allow Anchor to include the input types in",
+                "the IDL. It should not be included in production builds nor be called in",
+                "practice."
+            ],
+            "discriminator": [118, 99, 238, 243, 8, 167, 251, 168],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Authority is verified through proof since both owner and delegate",
+                        "are included in the token data hash, which is a public input to the",
+                        "validity proof."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "token_pool_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "compress_or_decompress_token_account",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "token_program",
+                    "optional": true,
+                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "_inputs1",
+                    "type": {
+                        "defined": {
+                            "name": "CompressedTokenInstructionDataTransfer"
+                        }
+                    }
+                },
+                {
+                    "name": "_inputs2",
+                    "type": {
+                        "defined": {
+                            "name": "TokenData"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "thaw",
+            "docs": [
+                "Thaws frozen compressed token accounts. Inputs must be frozen. Creates",
+                "as many outputs as inputs. Balances and delegates are preserved."
+            ],
+            "discriminator": [226, 249, 34, 57, 189, 21, 177, 101],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ],
+                        "program": {
+                            "kind": "const",
+                            "value": [
+                                133, 110, 129, 246, 34, 115, 134, 36, 116, 170,
+                                124, 71, 118, 109, 243, 40, 228, 60, 79, 79,
+                                177, 82, 14, 121, 210, 121, 182, 180, 6, 232,
+                                141, 67
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["that this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                },
+                {
+                    "name": "mint"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "transfer",
+            "docs": [
+                "Transfers compressed tokens from one account to another. All accounts",
+                "must be of the same mint. Additional spl tokens can be compressed or",
+                "decompressed. In one transaction only compression or decompression is",
+                "possible. Lamports can be transferred alongside tokens. If output token",
+                "accounts specify less lamports than inputs the remaining lamports are",
+                "transferred to an output compressed account. Signer must be owner or",
+                "delegate. If a delegated token account is transferred the delegate is",
+                "not preserved."
+            ],
+            "discriminator": [163, 52, 200, 231, 140, 3, 69, 186],
+            "accounts": [
+                {
+                    "name": "fee_payer",
+                    "docs": ["UNCHECKED: only pays fees."],
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "authority",
+                    "docs": [
+                        "Authority is verified through proof since both owner and delegate",
+                        "are included in the token data hash, which is a public input to the",
+                        "validity proof."
+                    ],
+                    "signer": true
+                },
+                {
+                    "name": "cpi_authority_pda",
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "light_system_program",
+                    "address": "9yrxXVGVs7bbnvPXta77RdLSubNzft49vQ7vpyyh1w8N"
+                },
+                {
+                    "name": "registered_program_pda"
+                },
+                {
+                    "name": "noop_program"
+                },
+                {
+                    "name": "account_compression_authority"
+                },
+                {
+                    "name": "account_compression_program",
+                    "address": "3syPfxf7UXUoHiC7H6W6jLVXAWhcWKGSxXMpNcUgTkS1"
+                },
+                {
+                    "name": "self_program",
+                    "docs": ["this program is the signer of the cpi."],
+                    "address": "JCSTtUQXhUrhroa5tk3g7vhW2LbR2b1L8jkB91oeypWT"
+                },
+                {
+                    "name": "token_pool_pda",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "compress_or_decompress_token_account",
+                    "writable": true,
+                    "optional": true
+                },
+                {
+                    "name": "token_program",
+                    "optional": true,
+                    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "inputs",
+                    "type": "bytes"
+                }
+            ]
+        }
+    ],
+    "errors": [
+        {
+            "code": 6000,
+            "name": "SignerCheckFailed",
+            "msg": "Signer check failed"
+        },
+        {
+            "code": 6001,
+            "name": "CreateTransferInstructionFailed",
+            "msg": "Create transfer instruction failed"
+        },
+        {
+            "code": 6002,
+            "name": "AccountNotFound",
+            "msg": "Account not found"
+        },
+        {
+            "code": 6003,
+            "name": "SerializationError",
+            "msg": "Serialization error"
+        }
+    ],
+    "types": [
+        {
+            "name": "AccountState",
+            "repr": {
+                "kind": "rust"
+            },
+            "type": {
+                "kind": "enum",
+                "variants": [
+                    {
+                        "name": "Initialized"
+                    },
+                    {
+                        "name": "Frozen"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedCpiContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "set_context",
+                        "docs": [
+                            "Is set by the program that is invoking the CPI to signal that is should",
+                            "set the cpi context."
+                        ],
+                        "type": "bool"
+                    },
+                    {
+                        "name": "first_set_context",
+                        "docs": [
+                            "Is set to wipe the cpi context since someone could have set it before",
+                            "with unrelated data."
+                        ],
+                        "type": "bool"
+                    },
+                    {
+                        "name": "cpi_context_account_index",
+                        "docs": [
+                            "Index of cpi context account in remaining accounts."
+                        ],
+                        "type": "u8"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedProof",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "a",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    },
+                    {
+                        "name": "b",
+                        "type": {
+                            "array": ["u8", 64]
+                        }
+                    },
+                    {
+                        "name": "c",
+                        "type": {
+                            "array": ["u8", 32]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "CompressedTokenInstructionDataTransfer",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "proof",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedProof"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "mint",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "delegated_transfer",
+                        "docs": [
+                            "Is required if the signer is delegate,",
+                            "-> delegate is authority account,",
+                            "owner = Some(owner) is the owner of the token account."
+                        ],
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "DelegatedTransfer"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "input_token_data_with_context",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "InputTokenDataWithContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "output_compressed_accounts",
+                        "type": {
+                            "vec": {
+                                "defined": {
+                                    "name": "PackedTokenTransferOutputData"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "is_compress",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "compress_or_decompress_amount",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "cpi_context",
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "CompressedCpiContext"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "lamports_change_account_merkle_tree_index",
+                        "type": {
+                            "option": "u8"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "DelegatedTransfer",
+            "docs": [
+                "Struct to provide the owner when the delegate is signer of the transaction."
+            ],
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "owner",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "delegate_change_account_index",
+                        "docs": [
+                            "Index of change compressed account in output compressed accounts. In",
+                            "case that the delegate didn't spend the complete delegated compressed",
+                            "account balance the change compressed account will be delegated to her",
+                            "as well."
+                        ],
+                        "type": {
+                            "option": "u8"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "InputTokenDataWithContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "amount",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "delegate_index",
+                        "type": {
+                            "option": "u8"
+                        }
+                    },
+                    {
+                        "name": "merkle_context",
+                        "type": {
+                            "defined": {
+                                "name": "PackedMerkleContext"
+                            }
+                        }
+                    },
+                    {
+                        "name": "root_index",
+                        "type": "u16"
+                    },
+                    {
+                        "name": "lamports",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "tlv",
+                        "docs": [
+                            "Placeholder for TokenExtension tlv data (unimplemented)"
+                        ],
+                        "type": {
+                            "option": "bytes"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PackedMerkleContext",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "merkle_tree_pubkey_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "nullifier_queue_pubkey_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "leaf_index",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "queue_index",
+                        "docs": [
+                            "Index of leaf in queue. Placeholder of batched Merkle tree updates",
+                            "currently unimplemented."
+                        ],
+                        "type": {
+                            "option": {
+                                "defined": {
+                                    "name": "QueueIndex"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PackedTokenTransferOutputData",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "owner",
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "lamports",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "merkle_tree_index",
+                        "type": "u8"
+                    },
+                    {
+                        "name": "tlv",
+                        "docs": [
+                            "Placeholder for TokenExtension tlv data (unimplemented)"
+                        ],
+                        "type": {
+                            "option": "bytes"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "QueueIndex",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "queue_id",
+                        "docs": ["Id of queue in queue account."],
+                        "type": "u8"
+                    },
+                    {
+                        "name": "index",
+                        "docs": ["Index of compressed account hash in queue."],
+                        "type": "u16"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "TokenData",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "mint",
+                        "docs": ["The mint associated with this account"],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "owner",
+                        "docs": ["The owner of this account."],
+                        "type": "pubkey"
+                    },
+                    {
+                        "name": "amount",
+                        "docs": ["The amount of tokens this account holds."],
+                        "type": "u64"
+                    },
+                    {
+                        "name": "delegate",
+                        "docs": [
+                            "If `delegate` is `Some` then `delegated_amount` represents",
+                            "the amount authorized by the delegate"
+                        ],
+                        "type": {
+                            "option": "pubkey"
+                        }
+                    },
+                    {
+                        "name": "state",
+                        "docs": ["The account's state"],
+                        "type": {
+                            "defined": {
+                                "name": "AccountState"
+                            }
+                        }
+                    },
+                    {
+                        "name": "tlv",
+                        "docs": [
+                            "Placeholder for TokenExtension tlv data (unimplemented)"
+                        ],
+                        "type": {
+                            "option": "bytes"
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

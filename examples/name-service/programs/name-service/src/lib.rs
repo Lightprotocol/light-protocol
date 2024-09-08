@@ -51,7 +51,7 @@ pub enum RData {
     CName(String),
 }
 
-impl anchor_lang::IdlBuild for RData {}
+// impl anchor_lang::IdlBuild for RData {}
 
 impl AsByteVec for RData {
     fn as_byte_vec(&self) -> Vec<Vec<u8>> {
