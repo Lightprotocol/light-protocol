@@ -7,7 +7,6 @@ use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts
 use forester_utils::registry::register_test_forester;
 use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
 use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
-use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
