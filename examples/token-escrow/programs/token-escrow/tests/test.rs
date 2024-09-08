@@ -162,7 +162,7 @@ async fn test_escrow_pda() {
 
     assert_rpc_error(result, 0, EscrowError::EscrowLocked.into()).unwrap();
 
-    rpc.warp_to_slot(1000).unwrap();
+    rpc.warp_to_slot(1000).await.unwrap();
     // try withdrawal with invalid signer
     let result = perform_withdrawal_failing(
         &mut rpc,

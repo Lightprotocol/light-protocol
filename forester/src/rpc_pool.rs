@@ -42,7 +42,7 @@ impl<R: RpcConnection> bb8::ManageConnection for SolanaConnectionManager<R> {
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
-        conn.health().map_err(PoolError::RpcRequest)
+        conn.health().await.map_err(PoolError::RpcRequest)
     }
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {

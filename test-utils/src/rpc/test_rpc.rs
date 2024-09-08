@@ -5,8 +5,11 @@ use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::AnchorDeserialize;
+use async_trait::async_trait;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::account::{Account, AccountSharedData};
+use solana_sdk::commitment_config::CommitmentConfig;
+use solana_sdk::epoch_info::EpochInfo;
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
@@ -26,8 +29,36 @@ impl Debug for ProgramTestRpcConnection {
     }
 }
 
+#[async_trait]
 impl RpcConnection for ProgramTestRpcConnection {
-    fn get_program_accounts(
+    fn new<U: ToString>(_url: U, _commitment_config: Option<CommitmentConfig>) -> Self
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
+
+    fn get_payer(&self) -> &Keypair {
+        &self.context.payer
+    }
+
+    fn get_url(&self) -> String {
+        unimplemented!("get_url doesn't make sense for ProgramTestRpcConnection")
+    }
+
+    async fn health(&self) -> Result<(), RpcError> {
+        unimplemented!()
+    }
+
+    async fn get_block_time(&self, _slot: u64) -> Result<i64, RpcError> {
+        unimplemented!()
+    }
+
+    async fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
+        unimplemented!()
+    }
+
+    async fn get_program_accounts(
         &self,
         _program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
@@ -73,7 +104,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(T, Signature, Slot)>, RpcError>
     where
-        T: AnchorDeserialize,
+        T: AnchorDeserialize + Send + Debug,
     {
         let pre_balance = self
             .context
@@ -187,10 +218,6 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(true)
     }
 
-    fn get_payer(&self) -> &Keypair {
-        &self.context.payer
-    }
-
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
         self.context
             .banks_client
@@ -267,19 +294,11 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(RpcError::from)
     }
 
-    fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
+    async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
         self.context.warp_to_slot(slot).map_err(RpcError::from)
     }
 
-    #[allow(clippy::manual_async_fn)]
-    fn send_transaction(
-        &self,
-        _transaction: &Transaction,
-    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send {
-        async { unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection") }
-    }
-
-    fn get_url(&self) -> String {
-        unimplemented!("get_url doesn't make sense for ProgramTestRpcConnection")
+    async fn send_transaction(&self, _transaction: &Transaction) -> Result<Signature, RpcError> {
+        unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection")
     }
 }

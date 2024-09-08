@@ -713,6 +713,7 @@ async fn test_register_and_update_forester_pda() {
 
     // advance epoch to active phase
     rpc.warp_to_slot(registered_epoch.phases.active.start)
+        .await
         .unwrap();
     // finalize registration
     {
@@ -778,6 +779,7 @@ async fn test_register_and_update_forester_pda() {
     rpc.warp_to_slot(
         registered_epoch.phases.report_work.start - protocol_config.registration_phase_length,
     )
+    .await
     .unwrap();
     // register for next epoch
     let next_registered_epoch = Epoch::register(&mut rpc, &protocol_config, &forester_keypair)
@@ -795,6 +797,7 @@ async fn test_register_and_update_forester_pda() {
     )
     .await;
     rpc.warp_to_slot(registered_epoch.phases.report_work.start)
+        .await
         .unwrap();
     // report work
     {
