@@ -797,6 +797,25 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         info!("Reporting work");
         let mut rpc = self.rpc_pool.get_connection().await?;
 
+        let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
+            &self.config.payer_keypair.pubkey(),
+            epoch_info.epoch.epoch,
+        )
+        .0;
+        if let Some(forester_epoch_pda) = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await?
+        {
+            if forester_epoch_pda.has_reported_work {
+                return Ok(());
+            }
+        }
+
+        let forester_epoch_pda = &epoch_info.forester_epoch_pda;
+        if forester_epoch_pda.has_reported_work {
+            return Ok(());
+        }
+
         let ix = create_report_work_instruction(
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
