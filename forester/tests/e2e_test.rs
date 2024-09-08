@@ -7,6 +7,7 @@ use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts
 use forester_utils::registry::register_test_forester;
 use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
 use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
@@ -228,7 +229,7 @@ pub async fn assert_queue_len(
 
 // TODO: add test which asserts epoch registration over many epochs (we need a different protocol config for that)
 // TODO: add test with photon indexer for an infinite local test which performs work over many epochs
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
@@ -528,7 +529,7 @@ async fn assert_foresters_registered(
     Ok(performed_work)
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_double_registration() {
     println!("*****************************************************************");
     init(Some(LightValidatorConfig {
@@ -585,54 +586,31 @@ async fn test_epoch_double_registration() {
 
     let indexer = Arc::new(Mutex::new(indexer));
 
-    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-    let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
+    for _ in 0..10 {
+        let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+        let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
 
-    // Run the forester pipeline for the first time
-    let service_handle = tokio::spawn(run_pipeline(
-        config.clone(),
-        indexer.clone(),
-        shutdown_receiver,
-        work_report_sender,
-    ));
+        // Run the forester pipeline
+        let service_handle = tokio::spawn(run_pipeline(
+            config.clone(),
+            indexer.clone(),
+            shutdown_receiver,
+            work_report_sender.clone(),
+        ));
+
+        sleep(Duration::from_secs(2)).await;
+
+        shutdown_sender
+            .send(())
+            .expect("Failed to send shutdown signal");
+        let result = service_handle.await.unwrap();
+        assert!(result.is_ok(), "Registration should succeed");
+    }
 
     let mut rpc = pool.get_connection().await.unwrap();
     let protocol_config = get_protocol_config(&mut *rpc).await;
     let solana_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(solana_slot);
-
-    // Attempt to register for the same epoch again
-    let (shutdown_sender2, shutdown_receiver2) = oneshot::channel();
-    let (work_report_sender2, _work_report_receiver2) = mpsc::channel(100);
-
-    let service_handle2 = tokio::spawn(run_pipeline(
-        config.clone(),
-        indexer.clone(),
-        shutdown_receiver2,
-        work_report_sender2,
-    ));
-
-    // Wait for a short duration to allow both services to run
-    sleep(Duration::from_secs(3)).await;
-
-    // Send shutdown signals to both services
-    shutdown_sender
-        .send(())
-        .expect("Failed to send shutdown signal");
-    shutdown_sender2
-        .send(())
-        .expect("Failed to send shutdown signal");
-
-    // Wait for both services to complete
-    let result1 = service_handle.await.unwrap();
-    let result2 = service_handle2.await.unwrap();
-
-    // Check if the second registration attempt was handled gracefully
-    assert!(result1.is_ok(), "First registration should succeed");
-    assert!(
-        result2.is_ok(),
-        "Second registration should be handled gracefully"
-    );
 
     let forester_epoch_pda_address =
         get_forester_epoch_pda_from_authority(&config.payer_keypair.pubkey(), current_epoch).0;

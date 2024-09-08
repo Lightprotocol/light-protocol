@@ -291,8 +291,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         debug!("Recovered registration info for epoch {}", epoch);
 
         // Wait for active phase
-        registration_info = self.wait_for_active_phase(&registration_info).await?;
-
+        if self.sync_slot().await? < phases.active.start {
+            registration_info = self.wait_for_active_phase(&registration_info).await?;
+        }
         // Perform work
         if self.sync_slot().await? < phases.active.end {
             self.perform_active_work(&registration_info).await?;

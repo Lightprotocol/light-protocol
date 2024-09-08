@@ -53,6 +53,7 @@ lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
+log = "0.4.22"
 
 [dev-dependencies]
 function_name = "0.3.0"
