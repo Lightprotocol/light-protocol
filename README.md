@@ -22,18 +22,6 @@ To work with this Monorepo, read below:
 
 The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs.
 
-## Verifiable Build
-
-Prerequisites:
-- solana-verify
-- docker
-Install `solana-verify` with `cargo-install solana-verify` or see [github](https://github.com/Ellipsis-Labs/solana-verifiable-build) for alternative install instructions.
-See https://docs.docker.com/engine/install/ for `docker` install instructions.
-
-```
-./scripts/build-verifiable.sh
-```
-
 ## Development environment
 
 There are three ways of setting up the development environment:
