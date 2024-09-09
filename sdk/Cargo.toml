@@ -1,6 +1,6 @@
 [package]
 name = "light-sdk"
-version = "1.0.0"
+version = "0.8.0"
 description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -24,6 +24,7 @@ bench-sbf = []
 [dependencies]
 aligned-sized = { version = "1.0.0", path = "../macros/aligned-sized" }
 light-macros = { version = "1.0.0", path = "../macros/light" }
+light-sdk-macros = { version = "0.1.0", path = "../macros/light-sdk-macros" }
 anchor-lang = { workspace = true }
 bytemuck = "1.17"
 light-hasher = { version = "1.0.0", path = "../merkle-tree/hasher" }

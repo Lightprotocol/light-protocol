@@ -1,6 +1,6 @@
 [package]
 name = "token-escrow"
-version = "1.0.0"
+version = "0.8.0"
 description = "Solana escrow implementation using account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -26,7 +26,7 @@ light-system-program = { path = "../../../../programs/system", version = "1.0.0"
 account-compression = { path = "../../../../programs/account-compression", version = "1.0.0",  features = ["cpi"] }
 light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.0.0" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.0.0" }
-light-sdk = { path = "../../../../sdk", version = "1.0.0", features = ["cpi"] }
+light-sdk = { path = "../../../../sdk", version = "0.8.0", features = ["cpi"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

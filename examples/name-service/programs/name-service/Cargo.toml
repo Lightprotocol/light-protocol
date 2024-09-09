@@ -1,6 +1,6 @@
 [package]
 name = "name-service"
-version = "1.0.0"
+version = "0.6.0"
 description = "Created with Anchor"
 edition = "2021"
 rust-version = "1.75.0" 
@@ -29,7 +29,8 @@ account-compression = { path = "../../../../programs/account-compression", versi
 light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.0.0" }
 light-heap = { path = "../../../../heap", version = "1.0.0", optional = true }
 light-macros = { path = "../../../../macros/light", version = "1.0.0" }
-light-sdk = { path = "../../../../sdk", version = "1.0.0" }
+light-sdk-macros = { path = "../../../../macros/light-sdk-macros", version = "0.1.0" }
+light-sdk = { path = "../../../../sdk", version = "0.8.0" }
 light-utils = { path = "../../../../utils", version = "1.0.0" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.0.0" }
 

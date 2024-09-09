@@ -1,7 +1,7 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use light_hasher::{DataHasher, Poseidon};
-use light_macros::LightHasher;
+use light_sdk_macros::LightHasher;
 
 #[derive(LightHasher)]
 pub struct MyAccount {
