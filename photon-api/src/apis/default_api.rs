@@ -1092,11 +1092,6 @@ pub async fn get_multiple_new_address_proofs_post(
     );
     let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
 
-    info!(
-        "get_multiple_new_address_proofs_post uri: {}",
-        local_var_uri_str
-    );
-
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1108,12 +1103,6 @@ pub async fn get_multiple_new_address_proofs_post(
         local_var_req_builder.json(&get_multiple_new_address_proofs_post_request);
 
     let local_var_req = local_var_req_builder.build()?;
-
-    info!(
-        "get_multiple_new_address_proofs_post request: {:?}",
-        local_var_req
-    );
-
     let local_var_resp = local_var_client.execute(local_var_req).await?;
 
     let local_var_status = local_var_resp.status();
