@@ -1,6 +1,6 @@
 # Light SDK
 
-Rust SDK to interact with the Light Protocol system program, usable for ZK Compression on Solana.
+Rust SDK with helpers to interact with ZK Compression on Solana.
 
 Documentation is available at https://zkcompression.com
 
