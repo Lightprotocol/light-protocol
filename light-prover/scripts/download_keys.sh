@@ -7,7 +7,7 @@ if [ ! -d "$KEYS_DIR" ]; then
   mkdir -p "$KEYS_DIR"
 fi
 
-BUCKET="bafybeibir7au5eu4dtfuprigqx7tcbrqpe5c6wrsu5npzm2s34kioeshku"
+BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 FILES=(
   "inclusion_26_1.key"
   "inclusion_26_1.vkey"
