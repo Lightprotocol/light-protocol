@@ -1,4 +1,5 @@
 pub use light_macros::*;
+pub use light_sdk_macros::*;
 
 pub mod address;
 pub mod compressed_account;

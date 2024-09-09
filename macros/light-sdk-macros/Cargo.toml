@@ -1,7 +1,7 @@
 [package]
-name = "light-macros"
-version = "1.0.0"
-description = "Macros used in Light Protocol on-chain programs"
+name = "light-sdk-macros"
+version = "0.1.0"
+description = "Macros for Programs using the Light SDK for ZK Compression "
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
