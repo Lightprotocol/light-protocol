@@ -129,7 +129,7 @@ func runCli() {
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
-					
+
 					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
 						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
 					}
@@ -146,7 +146,6 @@ func runCli() {
 							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
 						}
 					}
-
 
 					logging.Logger().Info().Msg("Building R1CS")
 
@@ -237,7 +236,7 @@ func runCli() {
 						system, err = prover.ImportInclusionSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, pk, vk)
 					} else if circuit == "non-inclusion" {
 						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
-					} else if circuit == "combined " {
+					} else if circuit == "combined" {
 						system, err = prover.ImportCombinedSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
