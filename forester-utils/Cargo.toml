@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/lightprotocol/light-protocol"
+description = "Utility library for Light's Forester node implementation"
 
 [dependencies]
 account-compression = { path = "../programs/account-compression", version = "1.0.0", features = ["cpi"] }
