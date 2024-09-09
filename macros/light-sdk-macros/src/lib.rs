@@ -11,7 +11,6 @@ mod hasher;
 mod program;
 mod traits;
 
-
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
 ///

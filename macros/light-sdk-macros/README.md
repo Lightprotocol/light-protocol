@@ -1,2 +1,2 @@
-# light-macros
-Set of proc-macros used in Light Protocol
+# light-sdk-macros
+Set of proc-macros for programs using the Light SDK for ZK Compression
