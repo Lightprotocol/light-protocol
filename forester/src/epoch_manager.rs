@@ -670,8 +670,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
+        debug!(
+            "Estimated slot: {}, epoch end: {}",
+            estimated_slot, epoch_info.phases.active.end
+        );
         while estimated_slot < epoch_info.phases.active.end {
-            debug!("Processing queue");
+            debug!("Searching for next eligible slot");
             // search for next eligible slot
             let index_and_forester_slot = tree
                 .slots
@@ -679,8 +683,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .enumerate()
                 .find(|(_, slot)| slot.is_some());
 
-            debug!("Result: {:?}", index_and_forester_slot);
             if let Some((index, forester_slot)) = index_and_forester_slot {
+                debug!("Found eligible slot");
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
 
@@ -719,8 +723,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     phantom: std::marker::PhantomData::<R>,
                 };
 
+                debug!("Sending transactions...");
                 let start_time = Instant::now();
-                let num_tx_sent = send_batched_transactions(
+                let batch_tx_future = send_batched_transactions(
                     &self.config.payer_keypair,
                     self.rpc_pool.clone(),
                     config, // TODO: define config in epoch manager
@@ -728,33 +733,32 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &transaction_builder,
                     epoch_pda.epoch,
                 );
+
                 // Check whether the tree is ready for rollover once per slot.
-                // Check in parallel with sending transactions.
-                if is_tree_ready_for_rollover(
-                    &mut *rpc,
-                    tree.tree_accounts.merkle_tree,
-                    tree.tree_accounts.tree_type,
-                )
-                .await?
-                {
-                    info!("Starting {} rollover.", tree.tree_accounts.merkle_tree);
-                    self.perform_rollover(&tree.tree_accounts).await?;
+                let future = self.rollover_if_needed(&tree.tree_accounts);
+
+                // Wait for both operations to complete
+                let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
+                rollover_result?;
+
+                match num_tx_sent {
+                    Ok(num_tx_sent) => {
+                        debug!("Transactions sent successfully");
+                        let chunk_duration = start_time.elapsed();
+                        queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
+                        self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
+                            .await;
+                    }
+                    Err(e) => {
+                        error!("Failed to send transactions: {:?}", e);
+                    }
                 }
-                // Await the result of the batch transactions after the
-                // potential rollover.
-                let num_tx_sent = num_tx_sent.await?;
-                // Prometheus metrics
-                let chunk_duration = start_time.elapsed();
-                if self.config.enable_metrics {
-                    queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
-                }
-                // TODO: consider do we really need WorkReport
-                self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
-                    .await;
             } else {
+                debug!("No eligible slot found");
                 // The forester is not eligible for any more slots in the current epoch
                 break;
             }
+
             if self.config.enable_metrics {
                 process_queued_metrics().await;
                 if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
@@ -762,7 +766,26 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 }
             }
 
+            // Yield to allow other tasks to run
+            tokio::task::yield_now().await;
+
             estimated_slot = self.slot_tracker.estimated_current_slot();
+
+            debug!(
+                "Estimated slot: {}, epoch end: {}",
+                estimated_slot, epoch_info.phases.active.end
+            );
+        }
+        Ok(())
+    }
+
+    async fn rollover_if_needed(&self, tree_account: &TreeAccounts) -> Result<()> {
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        if is_tree_ready_for_rollover(&mut *rpc, tree_account.merkle_tree, tree_account.tree_type)
+            .await?
+        {
+            info!("Starting {} rollover.", tree_account.merkle_tree);
+            self.perform_rollover(tree_account).await?;
         }
         Ok(())
     }

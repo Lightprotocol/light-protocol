@@ -93,6 +93,11 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
             slot_duration()
         };
 
+        debug!(
+            "Estimated slot: {}, waiting for {} seconds",
+            current_estimated_slot,
+            sleep_duration.as_secs_f64()
+        );
         sleep(sleep_duration).await;
     }
 
