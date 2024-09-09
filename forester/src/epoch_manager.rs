@@ -738,8 +738,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let future = self.rollover_if_needed(&tree.tree_accounts);
 
                 // Wait for both operations to complete
-                let (num_tx_sent, rollover_result) =
-                    tokio::join!(batch_tx_future, future);
+                let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
                 rollover_result?;
 
                 match num_tx_sent {
