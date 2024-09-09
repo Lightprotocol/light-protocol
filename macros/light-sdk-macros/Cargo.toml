@@ -1,0 +1,21 @@
+[package]
+name = "light-sdk-macros"
+version = "0.1.0"
+description = "Macros for Programs using the Light SDK for ZK Compression "
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
+bs58 = "0.4"
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+
+light-hasher = { path = "../../merkle-tree/hasher", version = "1.0.0" }
+
+[dev-dependencies]
+light-utils = { path = "../../utils", version = "1.0.0" }
+
+[lib]
+proc-macro = true

@@ -3672,7 +3672,6 @@ dependencies = [
  "bytemuck",
  "light-hasher",
  "light-heap",
- "light-macros",
  "light-system-program",
  "light-utils",
  "num-bigint 0.4.6",
@@ -3685,7 +3684,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "1.0.0"
+version = "0.8.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3702,6 +3701,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-reference",
  "light-prover-client",
+ "light-sdk-macros",
  "light-system-program",
  "light-utils",
  "light-verifier",
@@ -3715,6 +3715,18 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "tokio",
+]
+
+[[package]]
+name = "light-sdk-macros"
+version = "0.1.0"
+dependencies = [
+ "bs58 0.4.0",
+ "light-hasher",
+ "light-utils",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4072,7 +4084,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "name-service"
-version = "1.0.0"
+version = "0.6.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -4082,6 +4094,7 @@ dependencies = [
  "light-heap",
  "light-macros",
  "light-sdk",
+ "light-sdk-macros",
  "light-system-program",
  "light-test-utils",
  "light-utils",
@@ -4687,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "1.0.0"
+version = "0.44.0"
 dependencies = [
  "log",
  "reqwest 0.11.27",
@@ -8273,7 +8286,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token-escrow"
-version = "1.0.0"
+version = "0.8.0"
 dependencies = [
  "account-compression",
  "anchor-lang",

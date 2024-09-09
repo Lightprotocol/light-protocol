@@ -24,7 +24,6 @@ sdk = []
 
 [dependencies]
 aligned-sized = { version = "1.0.0", path = "../../macros/aligned-sized" }
-light-macros= { version = "1.0.0", path = "../../macros/light" }
 anchor-lang = { workspace = true , features = ["init-if-needed"]}
 anchor-spl = { workspace = true }
 bytemuck = "1.17"
@@ -42,4 +41,3 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 solana-program-test = { workspace = true }
 tokio = { workspace = true }
-light-macros= { version = "1.0.0", path = "../../macros/light" }

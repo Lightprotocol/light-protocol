@@ -16,7 +16,7 @@ light-registry = { path = "../programs/registry", version = "1.0.0", features = 
 light-system-program = { path = "../programs/system", version = "1.0.0", features = ["cpi"] }
 light-utils = { path = "../utils", version = "1.0.0" }
 
-photon-api = { path = "../photon-api", version = "1.0.0" }
+photon-api = { path = "../photon-api", version = "0.44.0" }
 
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
