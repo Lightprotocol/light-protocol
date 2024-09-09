@@ -40,10 +40,10 @@ release_packages() {
         echo "Creating tag for Rust package: $PACKAGE v$VERSION"
         git tag "${PACKAGE}-v${VERSION}"
         git push origin "${PACKAGE}-v${VERSION}"
-        for attempt in {1..3}; do
+        for attempt in {1..2}; do
             echo "Attempt $attempt: Publishing $PACKAGE..."
-            cargo release publish --package "$PACKAGE" --execute --no-confirm && break || echo "Attempt $attempt failed, retrying in 20..."
-            sleep 13
+            cargo release publish --package "$PACKAGE" --execute --no-confirm && break || echo "Attempt $attempt failed, retrying in 10..."
+            sleep 10
         done
     done
 }
