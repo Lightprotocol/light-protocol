@@ -708,7 +708,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     build_transaction_batch_config: BuildTransactionBatchConfig {
                         batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
                         compute_unit_price: None, // Make dynamic based on queue usage
-                        compute_unit_limit: None,
+                        compute_unit_limit: Some(1_000_000),
                     },
                     retry_config: RetryConfig {
                         max_retries: 10,          // TODO: make configurable
