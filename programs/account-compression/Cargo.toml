@@ -1,6 +1,6 @@
 [package]
 name = "account-compression"
-version = "0.8.0"
+version = "0.9.0"
 description = "Solana account compression program"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -24,16 +24,16 @@ bench-sbf = []
 
 
 [dependencies]
-aligned-sized = { version = "0.6.0", path = "../../macros/aligned-sized" }
+aligned-sized = { version = "0.7.0", path = "../../macros/aligned-sized" }
 anchor-lang = { workspace = true }
 bytemuck = { version = "1.17", features = ["min_const_generics"] }
-light-bounded-vec = { version = "0.6.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
-light-hash-set = { version = "0.6.0", path = "../../merkle-tree/hash-set", features = ["solana"] }
-light-hasher = { version = "0.6.0", path = "../../merkle-tree/hasher", features = ["solana"] }
-light-heap = { version = "0.6.0", path = "../../heap", optional = true }
-light-concurrent-merkle-tree = { version = "0.6.0", path = "../../merkle-tree/concurrent", features = ["solana"] }
-light-indexed-merkle-tree = { version = "0.6.0", path = "../../merkle-tree/indexed", features = ["solana"] }
-light-utils = { version = "0.6.0", path = "../../utils" }
+light-bounded-vec = { version = "0.7.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
+light-hash-set = { version = "0.7.0", path = "../../merkle-tree/hash-set", features = ["solana"] }
+light-hasher = { version = "0.7.0", path = "../../merkle-tree/hasher", features = ["solana"] }
+light-heap = { version = "0.7.0", path = "../../heap", optional = true }
+light-concurrent-merkle-tree = { version = "0.7.0", path = "../../merkle-tree/concurrent", features = ["solana"] }
+light-indexed-merkle-tree = { version = "0.7.0", path = "../../merkle-tree/indexed", features = ["solana"] }
+light-utils = { version = "0.7.0", path = "../../utils" }
 num-bigint = "0.4"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
