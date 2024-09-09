@@ -726,7 +726,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &config, // TODO: define config in epoch manager
                     tree.tree_accounts,
                     &transaction_builder,
-                    // epoch_pda.epoch,
                 );
 
                 // Check whether the tree is ready for rollover once per slot.
