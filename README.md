@@ -34,6 +34,14 @@ See https://docs.docker.com/engine/install/ for `docker` install instructions.
 ./scripts/build-verifiable.sh
 ```
 
+## Security
+
+Light Protocol programs have been audited, and Light protocol circuits are formally verified:
+- OtterSec (Programs audit): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/ottersec_v1_audit.pdf)
+- Neodyme (Programs audit): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/neodyme_v1_audit.pdf)
+- Reilabs (Circuits Formal verification): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/reilabs_circuits_formal_verification_report.pdf)
+
+
 ## Development environment
 
 There are three ways of setting up the development environment:
@@ -90,8 +98,8 @@ provided by the following IDEs and editors:
 If you still want to setup dependencies manually, these are the requirements:
 
 - [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
-- [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
-- [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+- [NodeJS](https://nodejs.org/) [(20.9.0 LTS)](https://nodejs.org/en/blog/release/v20.9.0)
+- [Anchor](https://www.anchor-lang.com/) [(0.29.0)](https://crates.io/crates/anchor-cli/0.29.0)
 
 If you are using Ubuntu and encounter errors during the build process, you may need to install additional dependencies. Use the following command:
 
@@ -124,11 +132,14 @@ solana-keygen new -o ~/.config/solana/id.json
 ./scripts/test.sh
 ```
 
-### Rust tests
+### Program tests
+
+Program tests are located in test-programs.
+Many tests start a local prover server.
+To avoid conflicts between local prover servers run program tests with `--test-threads=1` so that tests are executed in sequence.
 
 ```bash
-cd light-verifier-sdk/
-RUST_MIN_STACK=8388608 cargo test
+cargo test-sbf -p account-compression-test -- --test-threads=1
 ```
 
 ### SDK tests
@@ -138,33 +149,10 @@ cd js/stateless.js
 pnpm test
 ```
 
-### Circuit tests
-
 ```bash
-cd light-circuits
+cd js/compressed-token.js
 pnpm test
 ```
-
-### Anchor tests
-
-Tests are located in `tests/` directory.
-
-The default test is a functional test, setting up a test environment with a
-Merkle tree and an spl token, conducting two compressions and decompressions.
-
-Tests can be executed in bulk or one by one.
-
-```bash
-anchor test
-```
-
-## Common errors
-
-If you're seeing this error:
-
-- ``error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev``
-
-update your solana-cli version to >=1.16.4.
 
 For more support from the community and core developers, open a GitHub issue or join the Light Protocol
 Discord: [https://discord.gg/x4nyjT8fK5](https://discord.gg/x4nyjT8fK5)
