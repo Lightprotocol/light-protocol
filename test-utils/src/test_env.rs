@@ -405,7 +405,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
             context,
             &keypairs.governance_authority,
             &group_pda,
-            &light_system_program::ID, //keypairs.system_program,
+            &keypairs.system_program,
         )
         .await
         .unwrap();
@@ -413,7 +413,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
             context,
             &keypairs.governance_authority,
             &group_pda,
-            &light_registry::ID, //keypairs.registry_program,
+            &keypairs.registry_program,
         )
         .await
         .unwrap();
@@ -868,14 +868,14 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     rpc: &mut R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,
-    program_id_keypair: &Pubkey,
+    program_id_keypair: &Keypair,
 ) -> Result<Pubkey, RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
         governance_authority.pubkey(),
         governance_authority_pda,
         *group_pda,
-        *program_id_keypair,
+        program_id_keypair.pubkey(),
     );
     let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
@@ -889,7 +889,7 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     rpc.create_and_send_transaction(
         &[transfer_instruction, instruction],
         &governance_authority.pubkey(),
-        &[governance_authority],
+        &[governance_authority, program_id_keypair],
     )
     .await?;
     Ok(token_program_registered_program_pda)

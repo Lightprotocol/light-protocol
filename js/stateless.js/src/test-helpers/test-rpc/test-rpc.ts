@@ -337,7 +337,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         owner: PublicKey,
         _config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
-        
         // TODO(swen): revisit
         // if (_config) {
         //     throw new Error(
