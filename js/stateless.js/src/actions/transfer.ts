@@ -17,7 +17,6 @@ import { bn, CompressedAccountWithMerkleContext } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
-
 /**
  * Transfer compressed lamports from one owner to another
  *

@@ -1,5 +1,6 @@
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
+use crate::env_accounts;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
@@ -54,6 +55,16 @@ pub async fn setup_test_programs(
     program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
     program_test.add_program("light_system_program", light_system_program::ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    let registered_program = env_accounts::get_registered_program_pda();
+    program_test.add_account(
+        get_registered_program_pda(&light_system_program::ID),
+        registered_program,
+    );
+    let registered_program = env_accounts::get_registered_registry_program_pda();
+    program_test.add_account(
+        get_registered_program_pda(&light_registry::ID),
+        registered_program,
+    );
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
             program_test.add_program(&name, id, None);
@@ -143,8 +154,11 @@ impl EnvAccountKeypairs {
             "../../../light-keypairs/nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148.json",
         )
         .unwrap();
-        let governance_authority =
-            read_keypair_file(format!("{}gov-authority-keypair.json", target_prefix)).unwrap();
+        let governance_authority = read_keypair_file(format!(
+            "{}governance-authority-keypair.json",
+            target_prefix
+        ))
+        .unwrap();
         let forester =
             read_keypair_file(format!("{}forester-keypair.json", target_prefix)).unwrap();
         let address_merkle_tree = read_keypair_file(format!(
@@ -316,6 +330,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
         keypairs,
         protocol_config,
         register_forester_and_advance_to_active_phase,
+        true,
     )
     .await;
     (context, env_accounts)
@@ -324,7 +339,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
 pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> EnvAccounts {
     let mut rpc = SolanaRpcConnection::new(url, None);
 
-    initialize_accounts(&mut rpc, keypairs, ProtocolConfig::default(), false).await
+    initialize_accounts(&mut rpc, keypairs, ProtocolConfig::default(), false, false).await
 }
 
 pub async fn initialize_accounts<R: RpcConnection>(
@@ -332,6 +347,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     keypairs: EnvAccountKeypairs,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
+    skip_register_programs: bool,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
     let protocol_config_pda = get_protocol_config_pda_address();
@@ -384,22 +400,24 @@ pub async fn initialize_accounts<R: RpcConnection>(
     .unwrap();
     println!("Registered register_test_forester ");
 
-    register_program_with_registry_program(
-        context,
-        &keypairs.governance_authority,
-        &group_pda,
-        &light_system_program::ID, //keypairs.system_program,
-    )
-    .await
-    .unwrap();
-    register_program_with_registry_program(
-        context,
-        &keypairs.governance_authority,
-        &group_pda,
-        &light_registry::ID, //keypairs.registry_program,
-    )
-    .await
-    .unwrap();
+    if !skip_register_programs {
+        register_program_with_registry_program(
+            context,
+            &keypairs.governance_authority,
+            &group_pda,
+            &keypairs.system_program,
+        )
+        .await
+        .unwrap();
+        register_program_with_registry_program(
+            context,
+            &keypairs.governance_authority,
+            &group_pda,
+            &keypairs.registry_program,
+        )
+        .await
+        .unwrap();
+    }
     println!("Registered system program");
     let merkle_tree_pubkey = keypairs.state_merkle_tree.pubkey();
     let nullifier_queue_pubkey = keypairs.nullifier_queue.pubkey();
@@ -850,14 +868,14 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     rpc: &mut R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,
-    program_id_keypair: &Pubkey,
+    program_id_keypair: &Keypair,
 ) -> Result<Pubkey, RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
         governance_authority.pubkey(),
         governance_authority_pda,
         *group_pda,
-        *program_id_keypair,
+        program_id_keypair.pubkey(),
     );
     let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
@@ -871,7 +889,7 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     rpc.create_and_send_transaction(
         &[transfer_instruction, instruction],
         &governance_authority.pubkey(),
-        &[governance_authority],
+        &[governance_authority, program_id_keypair],
     )
     .await?;
     Ok(token_program_registered_program_pda)

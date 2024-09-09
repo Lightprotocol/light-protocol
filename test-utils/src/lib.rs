@@ -9,6 +9,7 @@ pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
 pub mod e2e_test_env;
+pub mod env_accounts;
 #[allow(unused)]
 pub mod indexer;
 pub mod rpc;
