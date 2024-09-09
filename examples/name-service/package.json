@@ -16,5 +16,6 @@
     "@types/mocha": "^9.0.0",
     "typescript": "^5.5.4",
     "prettier": "^2.6.2"
-  }
+  },
+  "version": "0.1.0"
 }

@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/forester",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "GPL-3.0",
   "scripts": {
     "restart-db": "docker compose down -v && docker compose up -d db",

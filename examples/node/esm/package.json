@@ -1,7 +1,7 @@
 {
   "name": "stateless.js-node-client",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Example node client for stateless.js",
   "main": "index.js",
   "scripts": {
