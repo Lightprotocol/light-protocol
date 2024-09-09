@@ -1,5 +1,5 @@
 export type AccountCompression = {
-    version: '0.7.0';
+    version: '0.8.0';
     name: 'account_compression';
     constants: [
         {
@@ -371,7 +371,7 @@ export type AccountCompression = {
                 {
                     name: 'programToBeRegistered';
                     isMut: false;
-                    isSigner: false;
+                    isSigner: true;
                 },
                 {
                     name: 'registeredProgramPda';
@@ -1169,7 +1169,7 @@ export type AccountCompression = {
 };
 
 export const IDL: AccountCompression = {
-    version: '0.7.0',
+    version: '0.8.0',
     name: 'account_compression',
     constants: [
         {
@@ -1541,7 +1541,7 @@ export const IDL: AccountCompression = {
                 {
                     name: 'programToBeRegistered',
                     isMut: false,
-                    isSigner: false,
+                    isSigner: true,
                 },
                 {
                     name: 'registeredProgramPda',
