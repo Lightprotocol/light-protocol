@@ -5,12 +5,11 @@ use crate::rollover::{
 };
 use crate::rpc_pool::SolanaRpcPool;
 use crate::send_transaction::{
-    send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions, RetryConfig,
+    send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
     SendBatchedTransactionsConfig,
 };
-use crate::slot_tracker::{wait_until_slot_reached, SlotTracker};
+use crate::slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker};
 use crate::tree_data_sync::fetch_trees;
-use crate::utils::get_current_system_time_ms;
 use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 
@@ -20,7 +19,7 @@ use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
 use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
-use forester_utils::rpc::{RpcConnection, RpcError};
+use forester_utils::rpc::{RetryConfig, RpcConnection, RpcError};
 use futures::future::join_all;
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::ProtocolConfig;
@@ -699,22 +698,18 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
                 // TODO: measure accuracy
                 // Optional replace with shutdown signal for all child processes
-                let solana_slot_len = 500;
-                let global_timeout = get_current_system_time_ms()
-                    + epoch_pda.protocol_config.slot_length as u128 * solana_slot_len;
                 let config = SendBatchedTransactionsConfig {
                     num_batches: 10,
-                    batch_time_ms: 1000, // TODO: make batch size configurable and or dynamic based on queue usage
                     build_transaction_batch_config: BuildTransactionBatchConfig {
                         batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
                         compute_unit_price: None, // Make dynamic based on queue usage
                         compute_unit_limit: Some(1_000_000),
                     },
                     retry_config: RetryConfig {
-                        max_retries: 10,          // TODO: make configurable
-                        retry_wait_time_ms: 1000, // TODO: make configurable
-                        global_timeout,
+                        timeout: slot_duration() * epoch_pda.protocol_config.slot_length as u32,
+                        ..self.config.retry_config
                     },
+                    light_slot_length: epoch_pda.protocol_config.slot_length,
                 };
 
                 let transaction_builder = EpochManagerTransactions {
@@ -728,10 +723,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let batch_tx_future = send_batched_transactions(
                     &self.config.payer_keypair,
                     self.rpc_pool.clone(),
-                    config, // TODO: define config in epoch manager
+                    &config, // TODO: define config in epoch manager
                     tree.tree_accounts,
                     &transaction_builder,
-                    epoch_pda.epoch,
+                    // epoch_pda.epoch,
                 );
 
                 // Check whether the tree is ready for rollover once per slot.
@@ -962,7 +957,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                 fetch_trees(&*rpc).await
             };
             info!("Fetched trees: {:?}", trees);
-            while retry_count < config.max_retries {
+            while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
                 match EpochManager::new(
                     config.clone(),
@@ -997,19 +992,19 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                             e
                         );
                         retry_count += 1;
-                        if retry_count < config.max_retries {
+                        if retry_count < config.retry_config.max_retries {
                             debug!("Retrying in {:?}", retry_delay);
                             sleep(retry_delay).await;
                             retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                         } else {
                             error!(
                                 "Failed to start forester after {} attempts over {:?}",
-                                config.max_retries,
+                                config.retry_config.max_retries,
                                 start_time.elapsed()
                             );
                             return Err(ForesterError::Custom(format!(
                                 "Failed to start forester after {} attempts: {:?}",
-                                config.max_retries, e
+                                config.retry_config.max_retries, e
                             )));
                         }
                     }

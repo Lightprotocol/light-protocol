@@ -1,4 +1,5 @@
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
+use forester_utils::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -38,6 +39,7 @@ impl ForesterEpochInfo {
 #[derive(Debug)]
 pub struct ForesterConfig {
     pub external_services: ExternalServicesConfig,
+    pub retry_config: RetryConfig,
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
     pub cu_limit: u32,
@@ -45,7 +47,6 @@ pub struct ForesterConfig {
     pub indexer_max_concurrent_batches: usize,
     pub transaction_batch_size: usize,
     pub transaction_max_concurrent_batches: usize,
-    pub max_retries: usize,
     pub rpc_pool_size: usize,
     pub slot_update_interval_seconds: u64,
     pub address_tree_data: Vec<TreeAccounts>,
@@ -57,6 +58,7 @@ impl Clone for ForesterConfig {
     fn clone(&self) -> Self {
         Self {
             external_services: self.external_services.clone(),
+            retry_config: self.retry_config,
             registry_pubkey: self.registry_pubkey,
             payer_keypair: Keypair::from_bytes(&self.payer_keypair.to_bytes()).unwrap(),
             cu_limit: self.cu_limit,
@@ -64,7 +66,6 @@ impl Clone for ForesterConfig {
             indexer_max_concurrent_batches: self.indexer_max_concurrent_batches,
             transaction_batch_size: self.transaction_batch_size,
             transaction_max_concurrent_batches: self.transaction_max_concurrent_batches,
-            max_retries: self.max_retries,
             rpc_pool_size: self.rpc_pool_size,
             state_tree_data: self.state_tree_data.clone(),
             address_tree_data: self.address_tree_data.clone(),
