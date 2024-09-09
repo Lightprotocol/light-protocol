@@ -2,7 +2,6 @@ use crate::epoch_manager::{MerkleProofType, WorkItem};
 use crate::errors::ForesterError;
 use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
-use crate::utils::get_current_system_time_ms;
 use crate::Result;
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
@@ -11,7 +10,7 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
-use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
+use forester_utils::rpc::{RetryConfig, RpcConnection, SolanaRpcConnection};
 use futures::future::join_all;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -23,13 +22,13 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{
     hash::Hash,
-    signature::{Keypair, Signature, Signer},
+    signature::{Keypair, Signer},
 };
 use std::sync::Arc;
 use std::{time::Duration, vec};
 use tokio::join;
 use tokio::sync::Mutex;
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 use tracing::{debug, warn};
 
 #[async_trait]
@@ -51,16 +50,17 @@ pub trait TransactionBuilder {
 /// 1. Execute transaction batches until max number of batches is
 /// reached or light slot ended (global timeout).
 /// 2. Fetch queue items.
-/// 3. Fetch recent blockhash.
-/// 4. Iterate over work items in chunks of batch size.
-/// 5. Check if we have reached the max number of batches or the global timeout.
-/// 6. Spawn new thread to build and send transactions.
-/// 7. Await minimum batch time.
-/// 8. If work items is empty, await minimum batch time.
+/// 3. If work items is empty, await minimum batch time.
+/// 4. Fetch recent blockhash.
+/// 5. Iterate over work items in chunks of batch size.
+/// 6. Check if we reached the end of the light slot.
+/// 7. Asynchronously send all transactions in the batch
+/// 8. Await minimum batch time.
+/// 9. Check if we reached max number of batches.
 ///
 /// Questions:
 /// - How do we make sure that we have send all the transactions?
-/// - How can we montinor how many tx have been dropped?
+/// - How can we monitor how many txs have been dropped?
 ///
 /// TODO:
 /// - return number of sent transactions
@@ -71,53 +71,55 @@ pub trait TransactionBuilder {
 pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     payer: &Keypair,
     pool: Arc<SolanaRpcPool<R>>,
-    config: SendBatchedTransactionsConfig,
+    config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
     transaction_builder: &T,
-    epoch: u64,
 ) -> Result<usize> {
+    let start_time = Instant::now();
+
     let mut rpc = pool.get_connection().await?;
     let mut num_batches = 0;
     let mut num_sent_transactions: usize = 0;
     // 1. Execute batches until max number of batches is reached or light slot
-    //    ended (global timeout)
-    while num_batches < config.num_batches
-        && get_current_system_time_ms() < config.retry_config.global_timeout
-    {
+    //    ended (light_slot_duration)
+    while num_batches < config.num_batches && start_time.elapsed() < config.retry_config.timeout {
+        debug!("Sending batch: {}", num_batches);
         // 2. Fetch queue items.
         let queue_item_data = fetch_queue_item_data(&mut *rpc, &tree_accounts.queue).await?;
-        let mut work_items = Vec::new();
-        for data in queue_item_data {
-            work_items.push(WorkItem {
+        let work_items: Vec<WorkItem> = queue_item_data
+            .into_iter()
+            .map(|data| WorkItem {
                 tree_account: tree_accounts,
                 queue_item_data: data,
-            });
+            })
+            .collect();
+
+        // 3. If work items is empty, await minimum batch time.
+        // If this is triggered we could switch to subscribing to the queue
+        if work_items.is_empty() {
+            debug!("No work items found, waiting for next batch");
+            sleep(config.retry_config.retry_delay).await;
+            continue;
         }
-        let batch_time = Duration::from_millis(config.batch_time_ms);
-        // 3. Fetch recent blockhash.
+
+        // 4. Fetch recent blockhash.
         // A recent blockhash is valid for 2 mins we only need one per batch. We
         // use a new one per batch in case that we want to retry these same
         // transactions and identical transactions might be dropped.
-        let recent_blockhash = (*rpc)
-            .get_latest_blockhash()
-            .await
-            .map_err(RpcError::from)?;
-        // 4. Iterate over work items in chunks of batch size.
+        let recent_blockhash = rpc.get_latest_blockhash().await?;
+        // 5. Iterate over work items in chunks of batch size.
         for work_items in
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
         {
-            // 5. Check if we have reached the max number of batches or the global timeout.
-            if num_batches > config.num_batches
-                || get_current_system_time_ms() >= config.retry_config.global_timeout
-            {
+            // 6. Check if we reached the end of the light slot.
+            if (config.retry_config.timeout - start_time.elapsed()) < Duration::from_millis(20) {
+                debug!("Reached end of light slot");
                 break;
             }
-            num_batches += 1;
 
             // Minimum time to wait for the next batch of transactions.
             // Can be used to avoid rate limits.
-            let batch_min_time = tokio::time::sleep(batch_time);
-            let start_time = tokio::time::Instant::now();
+            let transaction_build_time_start = Instant::now();
             let transactions: Vec<Transaction> = transaction_builder
                 .build_signed_transaction_batch(
                     payer,
@@ -126,52 +128,72 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                     config.build_transaction_batch_config,
                 )
                 .await;
-            num_sent_transactions += transactions.len();
-
-            debug!("build transaction time {:?}", start_time.elapsed());
-            let start_time_get_connections = tokio::time::Instant::now();
             debug!(
-                "get get connections txs time {:?}",
-                start_time_get_connections.elapsed()
+                "build transaction time {:?}",
+                transaction_build_time_start.elapsed()
             );
-            let url = (*rpc).get_url().to_string();
-            // 6. Spawn new thread to build and send transactions.
-            // Will time out with retry_config.max_retries or retry_config.global_timeout.
-            tokio::spawn(async move {
-                let rpc = SolanaRpcConnection::new(url, None);
-                let mut results = vec![];
-                for transaction in transactions.iter() {
-                    let res = send_signed_transaction(transaction, &rpc, config.retry_config);
-                    results.push(res);
-                }
-                let all_results = join_all(results);
-                all_results.await;
+
+            let batch_start = Instant::now();
+            let url = rpc.get_url().to_string();
+            let remaining_time = config
+                .retry_config
+                .timeout
+                .saturating_sub(start_time.elapsed());
+            // Asynchronously send all transactions in the batch
+            let send_futures = transactions.into_iter().map(move |tx| {
+                let url = url.clone();
+                let retry_config = RetryConfig {
+                    timeout: remaining_time,
+                    ..config.retry_config
+                };
+                tokio::spawn(async move {
+                    let mut rpc =
+                        SolanaRpcConnection::new_with_retry(url, None, Some(retry_config));
+                    rpc.process_transaction(tx).await
+                })
             });
 
-            debug!(
-                "get send txs time {:?}",
-                start_time_get_connections.elapsed()
-            );
-            // 7. Await minimum batch time.
-            batch_min_time.await;
-        }
+            let results = join_all(send_futures).await;
 
-        // 8. If work items is empty, await minimum batch time.
-        // If this is triggered we could switch to subscribing to the queue
-        if work_items.is_empty() {
-            debug!("Work items empty, waiting for next batch epoch {:?}", epoch);
-            tokio::time::sleep(batch_time).await;
+            // Process results
+            for result in results {
+                match result {
+                    Ok(Ok(_)) => num_sent_transactions += 1,
+                    Ok(Err(e)) => warn!("Transaction failed: {:?}", e),
+                    Err(e) => warn!("Task failed: {:?}", e),
+                }
+            }
+
+            num_batches += 1;
+            let batch_duration = batch_start.elapsed();
+            debug!("Batch duration: {:?}", batch_duration);
+
+            // 8. Await minimum batch time.
+            if start_time.elapsed() + config.retry_config.retry_delay < config.retry_config.timeout
+            {
+                sleep(config.retry_config.retry_delay).await;
+            } else {
+                break;
+            }
+
+            // 9. Check if we reached max number of batches.
+            if num_batches >= config.num_batches {
+                debug!("Reached max number of batches");
+                break;
+            }
         }
     }
+
+    debug!("Sent {} transactions", num_sent_transactions);
     Ok(num_sent_transactions)
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct SendBatchedTransactionsConfig {
     pub num_batches: u64,
-    pub batch_time_ms: u64,
     pub build_transaction_batch_config: BuildTransactionBatchConfig,
     pub retry_config: RetryConfig,
+    pub light_slot_length: u64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -179,63 +201,6 @@ pub struct BuildTransactionBatchConfig {
     pub batch_size: u64,
     pub compute_unit_price: Option<u64>,
     pub compute_unit_limit: Option<u32>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct RetryConfig {
-    pub max_retries: u8,
-    pub retry_wait_time_ms: u64,
-    pub global_timeout: u128,
-}
-
-// TODO: We have retry logic for send_transaction in solana_rpc. We should use that,
-// otherwise we'd do unnecessary retries.
-/// Sends a transaction and retries if not confirmed after retry wait time.
-/// Stops retrying at the global timeout (end of light slot).
-pub async fn send_signed_transaction(
-    transaction: &Transaction,
-    connection: &SolanaRpcConnection,
-    config: RetryConfig,
-) -> Result<Signature> {
-    let mut retries = 0;
-    let retry_wait_time = Duration::from_millis(config.retry_wait_time_ms);
-    let txid = transaction.signatures[0];
-    while retries < config.max_retries && get_current_system_time_ms() < config.global_timeout {
-        match connection.send_transaction(transaction).await {
-            Ok(_signature) => {
-                // info!("Transaction sent: {}", signature);
-            }
-            Err(e) => {
-                warn!("Error sending transaction: {:?}", e);
-                return Err(ForesterError::from(e));
-            }
-        }
-        sleep(retry_wait_time).await;
-        // TODO: find a way to get failed transactions and handle errors
-        // The current confirm does not expose errors.
-        // For example:
-        // let response = connection
-        //     .client
-        //     .get_transaction_with_config(
-        //         &txid,
-        //         RpcTransactionConfig {
-        //             encoding: None,
-        //             commitment: Some(CommitmentConfig::confirmed()),
-        //             max_supported_transaction_version: None,
-        //         },
-        //     )
-        //     .unwrap(); // confirm_transaction(txid).await?;
-        // info!("Retrying transaction: {}", txid);
-        // if response.transaction.meta.unwrap().status.is_ok() {
-        //     return Ok(txid);
-        // }
-        let response = connection.confirm_transaction(txid).await?;
-        if response {
-            return Ok(txid);
-        }
-        retries += 1;
-    }
-    Ok(txid)
 }
 
 pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {

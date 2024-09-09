@@ -4,10 +4,12 @@ use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::Id;
 use config::{Config, Environment};
+use forester_utils::rpc::RetryConfig;
 use solana_sdk::signature::{Keypair, Signer};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
+use std::time::Duration;
 use std::{env, fmt};
 use tracing::debug;
 
@@ -24,6 +26,8 @@ pub enum SettingsKey {
     TransactionBatchSize,
     TransactionMaxConcurrentBatches,
     MaxRetries,
+    RetryDelay,
+    Timeout,
     CULimit,
     RpcPoolSize,
     SlotUpdateIntervalSeconds,
@@ -48,6 +52,8 @@ impl Display for SettingsKey {
                 SettingsKey::TransactionMaxConcurrentBatches =>
                     "TRANSACTION_MAX_CONCURRENT_BATCHES",
                 SettingsKey::MaxRetries => "MAX_RETRIES",
+                SettingsKey::RetryDelay => "RETRY_DELAY",
+                SettingsKey::Timeout => "RETRY_TIMEOUT",
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
                 SettingsKey::SlotUpdateIntervalSeconds => "SLOT_UPDATE_INTERVAL_SECONDS",
@@ -115,6 +121,15 @@ pub fn init_config(enable_metrics: bool) -> Result<ForesterConfig, ForesterError
                 settings.get_string(&SettingsKey::PushGatewayUrl.to_string())?,
             ),
         },
+        retry_config: RetryConfig {
+            max_retries: settings.get_int(&SettingsKey::MaxRetries.to_string())? as u32,
+            retry_delay: Duration::from_millis(
+                settings.get_int(&SettingsKey::RetryDelay.to_string())? as u64,
+            ),
+            timeout: Duration::from_millis(
+                settings.get_int(&SettingsKey::Timeout.to_string())? as u64
+            ),
+        },
         registry_pubkey: Pubkey::from_str(&registry_pubkey)
             .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
         payer_keypair: payer,
@@ -127,7 +142,6 @@ pub fn init_config(enable_metrics: bool) -> Result<ForesterConfig, ForesterError
         transaction_max_concurrent_batches: settings
             .get_int(&SettingsKey::TransactionMaxConcurrentBatches.to_string())?
             as usize,
-        max_retries: settings.get_int(&SettingsKey::MaxRetries.to_string())? as usize,
         cu_limit: settings.get_int(&SettingsKey::CULimit.to_string())? as u32,
         rpc_pool_size: settings.get_int(&SettingsKey::RpcPoolSize.to_string())? as usize,
         slot_update_interval_seconds: settings

@@ -22,7 +22,7 @@ use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 
 pub enum SolanaRpcUrl {
     Testnet,
@@ -45,10 +45,11 @@ impl Display for SolanaRpcUrl {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct RetryConfig {
-    max_retries: u32,
-    retry_delay: Duration,
+    pub max_retries: u32,
+    pub retry_delay: Duration,
+    pub timeout: Duration,
 }
 
 impl Default for RetryConfig {
@@ -56,6 +57,7 @@ impl Default for RetryConfig {
         RetryConfig {
             max_retries: 10,
             retry_delay: Duration::from_millis(100),
+            timeout: Duration::from_secs(60),
         }
     }
 }
@@ -100,17 +102,20 @@ impl SolanaRpcConnection {
         Fut: std::future::Future<Output = Result<T, RpcError>>,
     {
         let mut attempts = 0;
+        let start_time = Instant::now();
         loop {
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
                     attempts += 1;
-                    if attempts >= self.retry_config.max_retries {
+                    if attempts >= self.retry_config.max_retries
+                        || start_time.elapsed() >= self.retry_config.timeout
+                    {
                         return Err(e);
                     }
                     warn!(
-                        "Operation failed, retrying in {:?}: {:?}",
-                        self.retry_config.retry_delay, e
+                        "Operation failed, retrying in {:?} (attempt {}/{}): {:?}",
+                        self.retry_config.retry_delay, attempts, self.retry_config.max_retries, e
                     );
                     sleep(self.retry_config.retry_delay).await;
                 }
