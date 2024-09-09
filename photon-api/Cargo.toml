@@ -1,6 +1,6 @@
 [package]
 name = "photon-api"
-version = "0.33.0"
+version = "1.0.0"
 authors = ["OpenAPI Generator team and contributors"]
 description = "Solana indexer for general compression"
 license = "Apache-2.0"
