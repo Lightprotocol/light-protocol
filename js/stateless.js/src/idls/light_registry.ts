@@ -1,5 +1,5 @@
 export type LightRegistry = {
-    version: '0.7.0';
+    version: '0.8.0';
     name: 'light_registry';
     constants: [
         {
@@ -35,10 +35,6 @@ export type LightRegistry = {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
-                    docs: [
-                        'The authority should be updated to a different keypair after',
-                        'initialization.',
-                    ];
                 },
                 {
                     name: 'protocolConfigPda';
@@ -146,7 +142,7 @@ export type LightRegistry = {
                 {
                     name: 'programToBeRegistered';
                     isMut: false;
-                    isSigner: false;
+                    isSigner: true;
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ];
@@ -1278,11 +1274,11 @@ export type LightRegistry = {
         },
         {
             code: 6021;
-            name: 'GetLatestedRegisterEpochFailed';
+            name: 'GetLatestRegisterEpochFailed';
         },
         {
             code: 6022;
-            name: 'GetLatestActiveEpochFailed';
+            name: 'GetCurrentActiveEpochFailed';
         },
         {
             code: 6023;
@@ -1296,7 +1292,7 @@ export type LightRegistry = {
 };
 
 export const IDL: LightRegistry = {
-    version: '0.7.0',
+    version: '0.8.0',
     name: 'light_registry',
     constants: [
         {
@@ -1332,10 +1328,6 @@ export const IDL: LightRegistry = {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
-                    docs: [
-                        'The authority should be updated to a different keypair after',
-                        'initialization.',
-                    ],
                 },
                 {
                     name: 'protocolConfigPda',
@@ -1443,7 +1435,7 @@ export const IDL: LightRegistry = {
                 {
                     name: 'programToBeRegistered',
                     isMut: false,
-                    isSigner: false,
+                    isSigner: true,
                     docs: [
                         '- is signer so that only the program deployer can register a program.',
                     ],
@@ -2575,11 +2567,11 @@ export const IDL: LightRegistry = {
         },
         {
             code: 6021,
-            name: 'GetLatestedRegisterEpochFailed',
+            name: 'GetLatestRegisterEpochFailed',
         },
         {
             code: 6022,
-            name: 'GetLatestActiveEpochFailed',
+            name: 'GetCurrentActiveEpochFailed',
         },
         {
             code: 6023,
