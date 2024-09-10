@@ -759,7 +759,7 @@ where
         }
     }
 
-    pub async fn create_state_tree(&mut self, rollover_threshold: Option<u64>) {
+    pub async fn create_state_tree(&mut self, rollover_threshold: Option<u64>) -> Pubkey {
         let merkle_tree_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         let cpi_context_keypair = Keypair::new();
@@ -839,9 +839,10 @@ where
                 merkle_tree,
             });
         // TODO: Add assert
+        merkle_tree_keypair.pubkey()
     }
 
-    pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) {
+    pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) -> Pubkey {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
@@ -926,6 +927,7 @@ where
                 indexed_array,
             });
         // TODO: Add assert
+        merkle_tree_keypair.pubkey()
     }
 
     pub fn safe_gen_range<T, RR>(rng: &mut StdRng, range: RR, empty_fallback: T) -> T
@@ -1082,7 +1084,7 @@ where
         to: &Pubkey,
         tree_index: Option<usize>,
     ) -> Result<Signature, RpcError> {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey()).await;
         let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
             .accounts
             .merkle_tree;
@@ -1111,7 +1113,7 @@ where
     }
 
     pub async fn transfer_sol(&mut self, user_index: usize) {
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
 
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Transfer Sol\n --------------------------------------------------");
@@ -1162,7 +1164,7 @@ where
     }
 
     pub async fn decompress_sol(&mut self, user_index: usize) {
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
 
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Decompress Sol\n --------------------------------------------------");
@@ -1209,7 +1211,7 @@ where
         amount: u64,
         tree_index: Option<usize>,
     ) {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey()).await;
         let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
             .accounts
             .merkle_tree;
@@ -1243,7 +1245,7 @@ where
         // Limit max compress amount to 1 sol so that context.payer doesn't get depleted by airdrops.
         let max_amount = std::cmp::min(balance, 1_000_000_000);
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
         let create_output_compressed_accounts_for_input_accounts = false;
         // TODO: debug Merkle trees in wrong order
         // if input_compressed_accounts.is_empty() {
@@ -1931,23 +1933,24 @@ where
         Ok(())
     }
 
-    pub fn get_random_compressed_sol_accounts(
+    pub async fn get_random_compressed_sol_accounts(
         &mut self,
         user_index: usize,
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey())
+            .await;
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
 
-    pub fn get_compressed_sol_accounts(
+    pub async fn get_compressed_sol_accounts(
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_by_owner(pubkey)
+        self.indexer.get_compressed_accounts_by_owner(pubkey).await
     }
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {

@@ -2,6 +2,9 @@ use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use forester_utils::rpc::RpcConnection;
+use light_system_program::sdk::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+};
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
@@ -177,5 +180,77 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
 
         Ok(proofs)
+    }
+
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        let params = GetCompressedAccountsByOwnerPostRequestParams {
+            cursor: None,
+            limit: None,
+            owner: owner.to_string(),
+        };
+        let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+            params: Box::from(params),
+            ..Default::default()
+        };
+
+        let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+            &self.configuration,
+            request,
+        )
+        .await;
+        // let env_accounts = EnvAccounts::get_local_test_validator_accounts();
+        match result {
+            Ok(response) => match response.result {
+                Some(result) => {
+                    let accounts = result
+                        .value
+                        .items
+                        .iter()
+                        .map(|x| {
+                            let address = if let Some(address) = x.address.as_ref() {
+                                Some(decode_hash(address))
+                            } else {
+                                None
+                            };
+                            let data = if let Some(data) = x.data.as_ref() {
+                                Some(CompressedAccountData {
+                                    data: bs58::decode(data.data.clone()).into_vec().unwrap(),
+                                    discriminator: data.discriminator.to_le_bytes(),
+                                    data_hash: decode_hash(&data.data_hash),
+                                })
+                            } else {
+                                None
+                            };
+                            use std::str::FromStr;
+                            let compressed_account = CompressedAccount {
+                                address,
+                                owner: Pubkey::from_str(x.owner.as_str()).unwrap(),
+                                data,
+                                lamports: x.lamports.try_into().unwrap(),
+                            };
+                            let merkle_context = MerkleContext {
+                                merkle_tree_pubkey: Pubkey::new_from_array(decode_hash(&x.tree)),
+                                leaf_index: x.leaf_index.try_into().unwrap(),
+                                queue_index: None,
+                                nullifier_queue_pubkey: Pubkey::default(), //env_accounts.nullifier_queue_pubkey, // TODO: make dynamic. Why don't we get this value from the rpc call?
+                            };
+                            CompressedAccountWithMerkleContext {
+                                compressed_account,
+                                merkle_context,
+                            }
+                        })
+                        .collect();
+                    accounts
+                }
+                None => panic!("get_compressed_accounts_by_owner No result found"),
+            },
+            Err(e) => {
+                tracing::info!("Error: {:?}", e);
+                panic!("get_compressed_accounts_by_owner failed")
+            }
+        }
     }
 }
