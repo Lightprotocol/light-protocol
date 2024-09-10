@@ -37,9 +37,9 @@ See https://docs.docker.com/engine/install/ for `docker` install instructions.
 ## Security
 
 Light Protocol programs have been audited, and Light protocol circuits are formally verified:
-- OtterSec (Programs audit): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/ottersec_v1_audit.pdf)
-- Neodyme (Programs audit): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/neodyme_v1_audit.pdf)
-- Reilabs (Circuits Formal verification): [View Full Report](https://github.com/Lightprotocol/developer-content/tree/main/audits/reilabs_circuits_formal_verification_report.pdf)
+- OtterSec (Programs audit): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/ottersec_v1_audit.pdf)
+- Neodyme (Programs audit): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/neodyme_v1_audit.pdf)
+- Reilabs (Circuits Formal verification): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/reilabs_circuits_formal_verification_report.pdf)
 
 
 ## Development environment
