@@ -1,5 +1,6 @@
 use std::sync::Arc;
-
+use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
     CreateRolloverMerkleTreeInstructionInputs,
@@ -188,7 +189,13 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
         ],
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, CommitmentConfig::confirmed(), RpcSendTransactionConfig {
+        skip_preflight: true,
+        preflight_commitment: None,
+        encoding: None,
+        max_retries: None,
+        min_context_slot: None,
+    }).await
 }
 
 pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
@@ -242,7 +249,13 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
         &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, CommitmentConfig::confirmed(), RpcSendTransactionConfig {
+        skip_preflight: true,
+        preflight_commitment: None,
+        encoding: None,
+        max_retries: None,
+        min_context_slot: None,
+    }).await
 }
 
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(

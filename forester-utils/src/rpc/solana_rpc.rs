@@ -236,10 +236,12 @@ impl RpcConnection for SolanaRpcConnection {
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+        commitment: CommitmentConfig,
+        config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
         self.retry(|| async {
             self.client
-                .send_and_confirm_transaction(&transaction)
+                .send_and_confirm_transaction_with_spinner_and_config(&transaction, commitment, config)
                 .map_err(RpcError::from)
         })
         .await

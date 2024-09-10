@@ -286,7 +286,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             Err(e) => {
                 warn!("Failed to recover registration info: {:?}", e);
                 // If recovery fails, attempt to register
-                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200))
+                self.register_for_epoch_with_retry(epoch, 20, Duration::from_millis(400))
                     .await?
             }
         };
@@ -710,11 +710,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 // TODO: measure accuracy
                 // Optional replace with shutdown signal for all child processes
                 let config = SendBatchedTransactionsConfig {
-                    num_batches: 10,
+                    num_batches: 8,
                     build_transaction_batch_config: BuildTransactionBatchConfig {
                         batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
                         compute_unit_price: None, // Make dynamic based on queue usage
-                        compute_unit_limit: Some(1_000_000),
+                        compute_unit_limit: Some(400_000),
                     },
                     retry_config: RetryConfig {
                         timeout: light_slot_timeout,

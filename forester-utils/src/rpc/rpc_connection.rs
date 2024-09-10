@@ -12,6 +12,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;
+use solana_client::rpc_config::RpcSendTransactionConfig;
 
 #[async_trait]
 pub trait RpcConnection: Send + Sync + Debug + 'static {
@@ -33,6 +34,8 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+        commitment: CommitmentConfig,
+        config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError>;
     async fn process_transaction_with_context(
         &mut self,
@@ -58,7 +61,15 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         let blockhash = self.get_latest_blockhash().await?;
         let transaction =
             Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
-        self.process_transaction(transaction).await
+        let commitment = CommitmentConfig::confirmed();
+        let config = RpcSendTransactionConfig {
+            skip_preflight: true,
+            preflight_commitment: None,
+            encoding: None,
+            max_retries: None,
+            min_context_slot: None,
+        };
+        self.process_transaction(transaction, commitment, config).await
     }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError>;

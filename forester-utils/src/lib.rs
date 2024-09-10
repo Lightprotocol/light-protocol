@@ -13,6 +13,8 @@ use solana_sdk::transaction::Transaction;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::{fmt, mem};
+use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
 
 pub mod address_merkle_tree_config;
 pub mod forester_epoch;
@@ -136,6 +138,16 @@ pub async fn airdrop_lamports<R: RpcConnection>(
     );
 
     // Send the transaction
-    rpc.process_transaction(transaction).await?;
+    rpc.process_transaction(
+        transaction,
+        CommitmentConfig::confirmed(),
+        RpcSendTransactionConfig {
+            skip_preflight: true,
+            preflight_commitment: None,
+            encoding: None,
+            max_retries: None,
+            min_context_slot: None,
+        }
+    ).await?;
     Ok(())
 }
