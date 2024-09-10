@@ -18,7 +18,9 @@ create_buffer_account() {
     while (( attempt <= max_retries )); do
         echo "Attempt $attempt of $max_retries..."
         echo "$BUFFER_KEYPAIR_PATH-$program_name_keypair.json"
-        if solana program deploy target/deploy/"$program_name".so --buffer "$BUFFER_KEYPAIR_PATH-$program_name_keypair-keypair.json" --upgrade-authority ../../Downloads/87-id.json; then
+        buffer_pubkey=$(solana-keygen pubkey "target/deploy/$program_name-keypair.json")
+        echo "Buffer pubkey for $program_name: $buffer_pubkey"
+        if solana program deploy target/deploy/"$program_name".so --program-id $buffer_pubkey --buffer "$BUFFER_KEYPAIR_PATH-$program_name_keypair-keypair.json" --upgrade-authority ../../Downloads/87-id.json; then
             echo "Command succeeded on attempt $attempt."
             return 0
         else

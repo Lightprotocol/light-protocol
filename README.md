@@ -34,6 +34,26 @@ See https://docs.docker.com/engine/install/ for `docker` install instructions.
 ./scripts/build-verifiable.sh
 ```
 
+## Verify Deployment
+
+Release 1.0 commit hash: 1cb0f067b3d2d4e012e76507c077fc348eb88091
+
+```
+$ solana-verify verify-from-repo --program-id Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX -u main --library-name light_registry --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+```
+
+```
+$ solana-verify verify-from-repo --program-id compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq -u main --library-name account_compression --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+```
+
+```
+$ solana-verify verify-from-repo --program-id SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7 -u main --library-name light_system_program --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+```
+
+```
+$ solana-verify verify-from-repo --program-id cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m -u main --library-name light_compressed_token --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+```
+
 ## Security
 
 Light Protocol programs have been audited, and Light protocol circuits are formally verified:
