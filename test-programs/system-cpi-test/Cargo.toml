@@ -27,6 +27,7 @@ light-system-program = { path = "../../programs/system", version = "1.0.0", feat
 light-registry = { path = "../../programs/registry", version = "1.0.0", features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression", version = "1.0.0", features = ["cpi"] }
 light-hasher = { path = "../../merkle-tree/hasher", version = "1.0.0" }
+light-sdk = { path = "../../sdk", version = "0.8.0" }
 light-utils = { path = "../../utils", version = "1.0.0" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

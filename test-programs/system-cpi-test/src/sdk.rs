@@ -1,24 +1,18 @@
 #![cfg(not(target_os = "solana"))]
 
-use std::collections::HashMap;
-
 use account_compression::{
     utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::{
-    get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
+use light_compressed_token::get_token_pool_pda;
+use light_sdk::{
+    address::{pack_new_address_params, NewAddressParams},
+    compressed_account::PackedCompressedAccountWithMerkleContext,
+    merkle_context::RemainingAccounts,
+    proof::CompressedProof,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::pack_new_address_params,
-        compressed_account::PackedCompressedAccountWithMerkleContext,
-    },
-    utils::get_registered_program_pda,
-    NewAddressParams,
-};
+use light_system_program::utils::get_registered_program_pda;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;
@@ -38,18 +32,30 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
     let (cpi_signer, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::id());
-    let mut remaining_accounts = HashMap::new();
-    remaining_accounts.insert(
-        *input_params.output_compressed_account_merkle_tree_pubkey,
-        0,
-    );
+    let mut remaining_accounts = RemainingAccounts::default();
+    remaining_accounts.insert_or_get(*input_params.output_compressed_account_merkle_tree_pubkey);
     let new_address_params =
-        pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
+        pack_new_address_params(input_params.new_address_params, &mut remaining_accounts);
+
+    // TODO(vadorovsky): Instead of doing these conversions, do the instruction
+    // call without relying on the Anchor types.
+    let new_address_params = light_system_program::invoke::instruction::NewAddressParamsPacked {
+        seed: new_address_params.seed,
+        address_queue_account_index: new_address_params.address_queue_account_index,
+        address_merkle_tree_account_index: new_address_params.address_merkle_tree_account_index,
+        address_merkle_tree_root_index: new_address_params.address_merkle_tree_root_index,
+    };
+    let proof = &input_params.proof;
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
 
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
-        proof: Some(input_params.proof.clone()),
-        new_address_parameters: new_address_params[0],
+        proof: Some(proof),
+        new_address_parameters: new_address_params,
         owner_program: *input_params.owner_program,
         bump,
         signer_is_program: input_params.signer_is_program,
@@ -72,7 +78,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
-    let remaining_accounts = to_account_metas(remaining_accounts);
+    let remaining_accounts = remaining_accounts.to_account_metas();
 
     Instruction {
         program_id: crate::ID,
@@ -102,15 +108,67 @@ pub fn create_invalidate_not_owned_account_instruction(
     let (cpi_signer, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::id());
     let cpi_context = input_params.cpi_context;
 
-    let mut remaining_accounts = HashMap::new();
-    remaining_accounts.insert(*input_params.input_merkle_tree_pubkey, 0);
-    remaining_accounts.insert(*input_params.input_nullifier_pubkey, 1);
-    remaining_accounts.insert(*input_params.cpi_context_account, 2);
-    remaining_accounts.insert(*input_params.invalid_fee_payer, 3);
+    let mut remaining_accounts = RemainingAccounts::default();
+    remaining_accounts.insert_or_get(*input_params.input_merkle_tree_pubkey);
+    remaining_accounts.insert_or_get(*input_params.input_nullifier_pubkey);
+    remaining_accounts.insert_or_get(*input_params.cpi_context_account);
+    remaining_accounts.insert_or_get(*input_params.invalid_fee_payer);
+
+    // TODO(vadorovsky): Instead of doing these conversions, do the instruction
+    // call without relying on the Anchor types.
+    let proof = &input_params.proof;
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
+    let compressed_account =
+        light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext {
+            compressed_account: light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: input_params.compressed_account.compressed_account.owner,
+                lamports: input_params.compressed_account.compressed_account.lamports,
+                address: input_params.compressed_account.compressed_account.address,
+                data: input_params
+                    .compressed_account
+                    .compressed_account
+                    .data
+                    .as_ref()
+                    .map(|data| {
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            discriminator: data.discriminator,
+                            data: data.data.clone(),
+                            data_hash: data.data_hash,
+                        }
+                    }),
+            },
+            merkle_context: light_system_program::sdk::compressed_account::PackedMerkleContext {
+                merkle_tree_pubkey_index: input_params
+                    .compressed_account
+                    .merkle_context
+                    .merkle_tree_pubkey_index,
+                nullifier_queue_pubkey_index: input_params
+                    .compressed_account
+                    .merkle_context
+                    .nullifier_queue_pubkey_index,
+                leaf_index: input_params.compressed_account.merkle_context.leaf_index,
+                queue_index: input_params
+                    .compressed_account
+                    .merkle_context
+                    .queue_index
+                    .map(
+                        |queue_index| light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        },
+                    ),
+            },
+            root_index: input_params.compressed_account.root_index,
+            read_only: input_params.compressed_account.read_only,
+        };
 
     let instruction_data = crate::instruction::WithInputAccounts {
-        proof: Some(input_params.proof.clone()),
-        compressed_account: input_params.compressed_account.clone(),
+        proof: Some(proof),
+        compressed_account,
         bump,
         mode,
         cpi_context,
@@ -148,7 +206,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         mint,
         token_program: anchor_spl::token::ID,
     };
-    let remaining_accounts = to_account_metas(remaining_accounts);
+    let remaining_accounts = remaining_accounts.to_account_metas();
 
     Instruction {
         program_id: crate::ID,

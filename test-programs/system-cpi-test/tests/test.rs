@@ -4,15 +4,17 @@ use anchor_lang::AnchorDeserialize;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
+use light_sdk::{
+    address::NewAddressParams,
+    compressed_account::{
+        CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+    },
+    event::PublicTransactionEvent,
+    merkle_context::PackedMerkleContext,
+};
 use light_system_program::errors::SystemProgramError;
 use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
-    PackedMerkleContext,
-};
-use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::CompressedCpiContext;
-use light_system_program::NewAddressParams;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::system_program::transfer_compressed_sol_test;
