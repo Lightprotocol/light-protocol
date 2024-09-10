@@ -10,7 +10,7 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
-use forester_utils::rpc::{RetryConfig, RpcConnection, SolanaRpcConnection};
+use forester_utils::rpc::{RetryConfig, RpcConnection};
 use futures::future::join_all;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -27,10 +27,13 @@ use solana_sdk::{
 use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
+use helius::types::CreateSmartTransactionSeedConfig;
+use solana_client::rpc_config::RpcSendTransactionConfig;
 use tokio::join;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Instant};
 use tracing::{debug, warn};
+use helius::Helius;
 
 #[async_trait]
 pub trait TransactionBuilder {
@@ -41,6 +44,12 @@ pub trait TransactionBuilder {
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
     ) -> Result<Vec<Transaction>>;
+
+    async fn build_instructions(
+        &self,
+        payer: &Keypair,
+        work_items: &[WorkItem],
+    ) -> Result<Vec<Instruction>>;
 }
 
 // We're assuming that:
@@ -82,6 +91,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
     transaction_builder: &T,
+    helius: Arc<Helius>,
 ) -> Result<usize> {
     let start_time = Instant::now();
 
@@ -114,7 +124,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         // A recent blockhash is valid for 2 mins we only need one per batch. We
         // use a new one per batch in case that we want to retry these same
         // transactions and identical transactions might be dropped.
-        let recent_blockhash = rpc.get_latest_blockhash().await?;
+
+
         // 5. Iterate over work items in chunks of batch size.
         for work_items in
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
@@ -137,65 +148,50 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 break;
             }
 
-            // Minimum time to wait for the next batch of transactions.
-            // Can be used to avoid rate limits.
-            let transaction_build_time_start = Instant::now();
-            let transactions: Vec<Transaction> = transaction_builder
-                .build_signed_transaction_batch(
-                    payer,
-                    &recent_blockhash,
-                    work_items,
-                    config.build_transaction_batch_config,
-                )
-                .await?;
-            debug!(
-                "build transaction time {:?}",
-                transaction_build_time_start.elapsed()
-            );
 
-            let batch_start = Instant::now();
-            let url = rpc.get_url().to_string();
-            let remaining_time = config
-                .retry_config
-                .timeout
-                .saturating_sub(start_time.elapsed());
+            let instructions = transaction_builder.build_instructions(payer, work_items).await?;
+            let mut tasks = Vec::new();
 
-            if remaining_time < LATENCY {
-                debug!("Reached end of light slot");
-                break;
+            for instruction in instructions {
+                let remaining_time = config.retry_config.timeout.saturating_sub(start_time.elapsed());
+                if remaining_time < LATENCY {
+                    break;
+                }
+
+                let keypair_bytes = payer.secret().to_bytes();
+
+                let helius = Arc::clone(&helius);
+
+                let create_config = CreateSmartTransactionSeedConfig {
+                    instructions: vec![instruction],
+                    signer_seeds: vec![keypair_bytes],
+                    fee_payer_seed: Some(keypair_bytes),
+                    lookup_tables: None,
+                };
+
+                let send_options = RpcSendTransactionConfig {
+                    skip_preflight: true,
+                    ..Default::default()
+                };
+
+                let task = tokio::spawn(async move {
+                    helius.send_smart_transaction_with_seeds(create_config, Some(send_options)).await
+                });
+
+                tasks.push(task);
             }
 
-            // Asynchronously send all transactions in the batch
-            let send_futures = transactions.into_iter().map(move |tx| {
-                let url = url.clone();
-                let retry_config = RetryConfig {
-                    timeout: remaining_time,
-                    ..config.retry_config
-                };
-                tokio::spawn(async move {
-                    let rpc = SolanaRpcConnection::new_with_retry(url, None, Some(retry_config));
-                    rpc.send_transaction(&tx).await
-                })
-            });
-
-            let results = join_all(send_futures).await;
-
-            // Process results
+            let results = join_all(tasks).await;
             for result in results {
                 match result {
                     Ok(Ok(_)) => num_sent_transactions += 1,
                     Ok(Err(e)) => warn!("Transaction failed: {:?}", e),
-                    Err(e) => warn!("Task failed: {:?}", e),
+                    Err(e) => warn!("Task panicked: {:?}", e),
                 }
             }
 
             num_batches += 1;
-            let batch_duration = batch_start.elapsed();
-            debug!("Batch duration: {:?}", batch_duration);
-
-            // 8. Await minimum batch time.
-            if start_time.elapsed() + config.retry_config.retry_delay < config.retry_config.timeout
-            {
+            if start_time.elapsed() + config.retry_config.retry_delay < config.retry_config.timeout {
                 sleep(config.retry_config.retry_delay).await;
             } else {
                 break;
@@ -264,6 +260,18 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             transactions.push(transaction);
         }
         Ok(transactions)
+    }
+
+    async fn build_instructions(&self, payer: &Keypair, work_items: &[WorkItem]) -> Result<Vec<Instruction>> {
+        let (_, all_instructions) = fetch_proofs_and_create_instructions(
+            payer.pubkey(),
+            payer.pubkey(),
+            self.indexer.clone(),
+            self.epoch,
+            work_items,
+        )
+            .await?;
+        Ok(all_instructions)
     }
 }
 

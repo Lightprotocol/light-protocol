@@ -36,6 +36,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use helius::Helius;
+use helius::types::Cluster;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Instant};
@@ -729,6 +731,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     phantom: std::marker::PhantomData::<R>,
                 };
 
+                let cluster: Cluster = Cluster::MainnetBeta;
+                let helius: Helius = Helius::new(api_key, cluster).unwrap();
+
+
                 debug!("Sending transactions...");
                 let start_time = Instant::now();
                 let batch_tx_future = send_batched_transactions(
@@ -737,6 +743,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &config, // TODO: define config in epoch manager
                     tree.tree_accounts,
                     &transaction_builder,
+                    Arc::new(helius),
                 );
 
                 // Check whether the tree is ready for rollover once per slot.

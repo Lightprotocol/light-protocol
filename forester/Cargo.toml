@@ -53,6 +53,7 @@ lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
+helius = { git = "https://github.com/lightprotocol/helius-rust-sdk.git", branch = "light-solana-deps" }
 
 [dev-dependencies]
 function_name = "0.3.0"
