@@ -11,10 +11,9 @@ use light_compressed_token::{
         TokenTransferOutputData,
     },
 };
-use light_sdk::proof::CompressedProof;
+use light_sdk::{compressed_account::CompressedAccount, proof::CompressedProof};
 use light_system_program::sdk::{
-    address::add_and_get_remaining_account_indices,
-    compressed_account::{CompressedAccount, MerkleContext},
+    address::add_and_get_remaining_account_indices, compressed_account::MerkleContext,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -47,6 +46,24 @@ pub fn create_escrow_instruction(
 
     // TODO(vadorovsky): Instead of doing this conversion, move all necessary
     // types from light-compressed-token into a separate crate.
+    let input_compressed_accounts = input_params
+        .input_compressed_accounts
+        .iter()
+        .map(
+            |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: x.owner,
+                lamports: x.lamports,
+                address: x.address,
+                data: x.data.as_ref().map(|data| {
+                    light_system_program::sdk::compressed_account::CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
     let proof = input_params.proof.as_ref().map(|proof| {
         light_system_program::invoke::processor::CompressedProof {
             a: proof.a,
@@ -58,7 +75,7 @@ pub fn create_escrow_instruction(
     // TODO: separate the creation of inputs and remaining accounts
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
-        input_params.input_compressed_accounts,
+        input_compressed_accounts.as_slice(),
         input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
@@ -136,6 +153,24 @@ pub fn create_withdrawal_escrow_instruction(
 
     // TODO(vadorovsky): Instead of doing this conversion, move all necessary
     // types from light-compressed-token into a separate crate.
+    let input_compressed_accounts = input_params
+        .input_compressed_accounts
+        .iter()
+        .map(
+            |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: x.owner,
+                lamports: x.lamports,
+                address: x.address,
+                data: x.data.as_ref().map(|data| {
+                    light_system_program::sdk::compressed_account::CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
     let proof = input_params.proof.as_ref().map(|proof| {
         light_system_program::invoke::processor::CompressedProof {
             a: proof.a,
@@ -149,7 +184,7 @@ pub fn create_withdrawal_escrow_instruction(
     // We use unchecked here to perform a failing test with an invalid signer.
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_token_data,
-        input_params.input_compressed_accounts,
+        input_compressed_accounts.as_slice(),
         input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,

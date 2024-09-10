@@ -15,10 +15,10 @@
 
 use anchor_lang::AnchorDeserialize;
 use light_hasher::{Hasher, Poseidon};
+use light_sdk::{
+    address::NewAddressParams, event::PublicTransactionEvent, merkle_context::MerkleContext,
+};
 use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::MerkleContext;
-use light_system_program::sdk::event::PublicTransactionEvent;
-use light_system_program::NewAddressParams;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};

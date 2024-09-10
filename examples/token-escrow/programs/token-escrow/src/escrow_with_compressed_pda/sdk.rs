@@ -9,13 +9,14 @@ use light_compressed_token::process_transfer::{
 };
 use light_sdk::{
     address::{NewAddressParams, NewAddressParamsPacked},
+    compressed_account::CompressedAccount,
     merkle_context::{MerkleContext, PackedMerkleContext, QueueIndex},
     proof::CompressedProof,
     verify::CompressedCpiContext,
 };
 use light_system_program::sdk::{
     address::{add_and_get_remaining_account_indices, pack_new_address_params},
-    compressed_account::{pack_merkle_context, CompressedAccount},
+    compressed_account::pack_merkle_context,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -39,8 +40,28 @@ pub fn create_escrow_instruction(
     input_params: CreateCompressedPdaEscrowInstructionInputs,
     escrow_amount: u64,
 ) -> Instruction {
-    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    let token_owner_pda = get_token_owner_pda(input_params.signer);
+
+    // TODO(vadorovsky): Instead of doing these conversions, move all necessary
     // types from light-compressed-token into a separate crate.
+    let input_compressed_accounts = input_params
+        .input_compressed_accounts
+        .iter()
+        .map(
+            |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: x.owner,
+                lamports: x.lamports,
+                address: x.address,
+                data: x.data.as_ref().map(|data| {
+                    light_system_program::sdk::compressed_account::CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
     let input_merkle_context = input_params
         .input_merkle_context
         .iter()
@@ -58,11 +79,6 @@ pub fn create_escrow_instruction(
             },
         )
         .collect::<Vec<_>>();
-
-    let token_owner_pda = get_token_owner_pda(input_params.signer);
-
-    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
-    // types from light-compressed-token into a separate crate.
     let proof = input_params.proof.as_ref().map(|proof| {
         light_system_program::invoke::processor::CompressedProof {
             a: proof.a,
@@ -73,7 +89,7 @@ pub fn create_escrow_instruction(
 
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
-        input_params.input_compressed_accounts,
+        input_compressed_accounts.as_slice(),
         input_merkle_context.as_slice(),
         None,
         input_params.output_compressed_accounts,
@@ -205,6 +221,24 @@ pub fn create_withdrawal_instruction(
 
     // TODO(vadorovsky): Instead of doing these conversions, move all necessary
     // types from light-compressed-token into a separate crate.
+    let input_compressed_accounts = input_params
+        .input_compressed_accounts
+        .iter()
+        .map(
+            |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: x.owner,
+                lamports: x.lamports,
+                address: x.address,
+                data: x.data.as_ref().map(|data| {
+                    light_system_program::sdk::compressed_account::CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }
+                }),
+            },
+        )
+        .collect::<Vec<_>>();
     let input_cpda_merkle_context = light_system_program::sdk::compressed_account::MerkleContext {
         merkle_tree_pubkey: input_params.input_cpda_merkle_context.merkle_tree_pubkey,
         nullifier_queue_pubkey: input_params
@@ -250,7 +284,7 @@ pub fn create_withdrawal_instruction(
 
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
-        input_params.input_compressed_accounts,
+        input_compressed_accounts.as_slice(),
         &[input_token_escrow_merkle_context],
         None,
         input_params.output_compressed_accounts,
