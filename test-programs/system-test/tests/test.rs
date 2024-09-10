@@ -261,15 +261,54 @@ pub async fn failing_transaction_inputs(
     } else {
         (Vec::new(), Vec::new())
     };
+
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof =
+        proof.as_ref().map(
+            |proof| light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            },
+        );
+
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
         &new_address_params,
+        // TODO(vadorovsky): Instead of doing these conversions, move all necessary
+        // types from light-compressed-token into a separate crate.
         &input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context)
+            .map(
+                |x| light_system_program::sdk::compressed_account::MerkleContext {
+                    merkle_tree_pubkey: x.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: x.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: x.merkle_context.leaf_index,
+                    queue_index: x.merkle_context.queue_index.map(|queue_index| {
+                        light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        }
+                    }),
+                },
+            )
             .collect::<Vec<_>>(),
         &input_compressed_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(
+                |x| light_system_program::sdk::compressed_account::CompressedAccount {
+                    owner: x.compressed_account.owner,
+                    lamports: x.compressed_account.lamports,
+                    address: x.compressed_account.address,
+                    data: x.compressed_account.data.as_ref().map(|y| {
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            discriminator: y.discriminator,
+                            data: y.data.clone(),
+                            data_hash: y.data_hash,
+                        }
+                    }),
+                },
+            )
             .collect::<Vec<_>>(),
         &root_indices,
         &output_merkle_tree_pubkeys,
@@ -931,6 +970,37 @@ async fn invoke_test() {
         .unwrap()
         .unwrap();
     let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event.0);
+    let created_compressed_accounts = created_compressed_accounts
+        .iter()
+        .map(|x| {
+            light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext {
+                compressed_account:
+                    light_system_program::sdk::compressed_account::CompressedAccount {
+                        owner: x.compressed_account.owner,
+                        lamports: x.compressed_account.lamports,
+                        address: x.compressed_account.address,
+                        data: x.compressed_account.data.as_ref().map(|y| {
+                            light_system_program::sdk::compressed_account::CompressedAccountData {
+                                discriminator: y.discriminator,
+                                data: y.data.clone(),
+                                data_hash: y.data_hash,
+                            }
+                        }),
+                    },
+                merkle_context: light_system_program::sdk::compressed_account::MerkleContext {
+                    merkle_tree_pubkey: x.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: x.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: x.merkle_context.leaf_index,
+                    queue_index: x.merkle_context.queue_index.map(|queue_index| {
+                        light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        }
+                    }),
+                },
+            }
+        })
+        .collect::<Vec<_>>();
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -1008,7 +1078,47 @@ async fn invoke_test() {
     // create Merkle proof
     // get zkp from server
     // create instruction as usual with correct zkp
-    let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let compressed_account_with_context = &test_indexer.compressed_accounts[0];
+    let compressed_account_with_context =
+        light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext {
+            compressed_account: light_system_program::sdk::compressed_account::CompressedAccount {
+                owner: compressed_account_with_context.compressed_account.owner,
+                lamports: compressed_account_with_context.compressed_account.lamports,
+                address: compressed_account_with_context.compressed_account.address,
+                data: compressed_account_with_context
+                    .compressed_account
+                    .data
+                    .as_ref()
+                    .map(|data| {
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            discriminator: data.discriminator,
+                            data: data.data.clone(),
+                            data_hash: data.data_hash,
+                        }
+                    }),
+            },
+            merkle_context: light_system_program::sdk::compressed_account::MerkleContext {
+                merkle_tree_pubkey: compressed_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+                nullifier_queue_pubkey: compressed_account_with_context
+                    .merkle_context
+                    .nullifier_queue_pubkey,
+                leaf_index: compressed_account_with_context.merkle_context.leaf_index,
+                queue_index: compressed_account_with_context
+                    .merkle_context
+                    .queue_index
+                    .map(
+                        |queue_index| light_system_program::sdk::compressed_account::QueueIndex {
+                            queue_id: queue_index.queue_id,
+                            index: queue_index.index,
+                        },
+                    ),
+            },
+        };
+
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
@@ -1027,6 +1137,15 @@ async fn invoke_test() {
         )
         .await;
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+
+    // TODO(vadorovsky): Instead of doing this conversion, move all necessary
+    // types from light-compressed-token into a separate crate.
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof_rpc_res.proof.a,
+        b: proof_rpc_res.proof.b,
+        c: proof_rpc_res.proof.c,
+    };
+
     let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
@@ -1041,7 +1160,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        Some(proof_rpc_res.proof.clone()),
+        Some(proof.clone()),
         None,
         false,
         None,
@@ -1089,7 +1208,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        Some(proof_rpc_res.proof.clone()),
+        Some(proof.clone()),
         None,
         false,
         None,
@@ -1120,7 +1239,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        Some(proof_rpc_res.proof.clone()),
+        Some(proof),
         None,
         false,
         None,
@@ -1430,8 +1549,30 @@ async fn test_with_compression() {
             &mut context,
         )
         .await;
-    let input_compressed_accounts =
-        vec![compressed_account_with_context.clone().compressed_account];
+
+    // TODO(vadorovsky): Instead of doing these conversions , move all necessary
+    // types from light-compressed-token into a separate crate.
+    let input_compressed_account = &compressed_account_with_context.compressed_account;
+    let input_compressed_account =
+        light_system_program::sdk::compressed_account::CompressedAccount {
+            owner: input_compressed_account.owner,
+            lamports: input_compressed_account.lamports,
+            address: input_compressed_account.address,
+            data: input_compressed_account.data.as_ref().map(|y| {
+                light_system_program::sdk::compressed_account::CompressedAccountData {
+                    discriminator: y.discriminator,
+                    data: y.data.clone(),
+                    data_hash: y.data_hash,
+                }
+            }),
+        };
+    let input_compressed_accounts = &[input_compressed_account];
+    let proof = light_system_program::invoke::processor::CompressedProof {
+        a: proof_rpc_res.proof.a,
+        b: proof_rpc_res.proof.b,
+        c: proof_rpc_res.proof.c,
+    };
+
     let recipient_pubkey = Keypair::new().pubkey();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -1443,7 +1584,7 @@ async fn test_with_compression() {
     let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
-        &input_compressed_accounts,
+        input_compressed_accounts,
         &output_compressed_accounts,
         &[MerkleContext {
             merkle_tree_pubkey,
@@ -1454,7 +1595,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        Some(proof_rpc_res.proof.clone()),
+        Some(proof),
         Some(compress_amount),
         true,
         Some(recipient),
