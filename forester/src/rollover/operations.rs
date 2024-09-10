@@ -53,7 +53,6 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await?
                 .unwrap();
             // let account_info = rpc.get_account(tree_pubkey).await?.unwrap();
-
             let is_already_rolled_over =
                 account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
             if is_already_rolled_over {
@@ -65,6 +64,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                     tree_pubkey,
                 )
                 .await;
+
             let height = 26;
             let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
@@ -72,7 +72,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
             //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
             // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
             //     > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold)
+            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 10)
         }
         TreeType::Address => {
             let account = rpc
@@ -109,7 +109,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
             //  current implementation is returns always true
             // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
             // > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold)
+            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 10)
         }
     }
 }
