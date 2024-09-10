@@ -45,8 +45,8 @@
         "tweetnacl": "^1.0.3"
     },
     "devDependencies": {
-        "@lightprotocol/hasher.rs": "workspace:*",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@lightprotocol/hasher.rs": "workspace:*",
         "@lightprotocol/programs": "workspace:*",
         "@playwright/test": "^1.43.1",
         "@rollup/plugin-babel": "^6.0.4",
@@ -59,6 +59,7 @@
         "@types/bn.js": "^5.1.5",
         "@types/node": "^20.12.8",
         "@typescript-eslint/eslint-plugin": "^7.6.0",
+        "borsh": "^2.0.0",
         "eslint": "8.57.0",
         "eslint-plugin-n": "^15.0.0 || ^16.0.0",
         "eslint-plugin-promise": "^6.0.0",
