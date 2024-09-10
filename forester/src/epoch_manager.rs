@@ -696,6 +696,17 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 )
                 .await?;
 
+                let light_slot_timeout = {
+                    let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
+                        .map_err(|_| ForesterError::Custom("Slot length overflow".into()))?;
+
+                    slot_duration()
+                        .checked_mul(slot_length_u32)
+                        .ok_or_else(|| {
+                            ForesterError::Custom("Timeout calculation overflow".into())
+                        })?
+                };
+
                 // TODO: measure accuracy
                 // Optional replace with shutdown signal for all child processes
                 let config = SendBatchedTransactionsConfig {
@@ -706,7 +717,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         compute_unit_limit: Some(1_000_000),
                     },
                     retry_config: RetryConfig {
-                        timeout: slot_duration() * epoch_pda.protocol_config.slot_length as u32,
+                        timeout: light_slot_timeout,
                         ..self.config.retry_config
                     },
                     light_slot_length: epoch_pda.protocol_config.slot_length,
