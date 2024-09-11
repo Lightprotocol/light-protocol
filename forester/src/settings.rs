@@ -1,4 +1,4 @@
-use crate::config::ExternalServicesConfig;
+use crate::config::{ExternalServicesConfig, QueueConfig};
 use crate::errors::ForesterError;
 use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
@@ -31,6 +31,10 @@ pub enum SettingsKey {
     CULimit,
     RpcPoolSize,
     SlotUpdateIntervalSeconds,
+    StateQueueStartIndex,
+    StateQueueLength,
+    AddressQueueStartIndex,
+    AddressQueueLength,
 }
 
 impl Display for SettingsKey {
@@ -57,6 +61,10 @@ impl Display for SettingsKey {
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
                 SettingsKey::SlotUpdateIntervalSeconds => "SLOT_UPDATE_INTERVAL_SECONDS",
+                SettingsKey::StateQueueStartIndex => "STATE_QUEUE_START_INDEX",
+                SettingsKey::StateQueueLength => "STATE_QUEUE_LENGTH",
+                SettingsKey::AddressQueueStartIndex => "ADDRESS_QUEUE_START_INDEX",
+                SettingsKey::AddressQueueLength => "ADDRESS_QUEUE_LENGTH",
             }
         )
     }
@@ -129,6 +137,18 @@ pub fn init_config(enable_metrics: bool) -> Result<ForesterConfig, ForesterError
             timeout: Duration::from_millis(
                 settings.get_int(&SettingsKey::Timeout.to_string())? as u64
             ),
+        },
+        queue_config: QueueConfig {
+            state_queue_start_index: settings
+                .get_int(&SettingsKey::StateQueueStartIndex.to_string())?
+                as u16,
+            state_queue_length: settings.get_int(&SettingsKey::StateQueueLength.to_string())?
+                as u16,
+            address_queue_start_index: settings
+                .get_int(&SettingsKey::AddressQueueStartIndex.to_string())?
+                as u16,
+            address_queue_length: settings.get_int(&SettingsKey::AddressQueueLength.to_string())?
+                as u16,
         },
         registry_pubkey: Pubkey::from_str(&registry_pubkey)
             .map_err(|e| ForesterError::ConfigError(e.to_string()))?,

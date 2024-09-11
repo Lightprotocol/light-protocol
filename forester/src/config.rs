@@ -1,3 +1,4 @@
+use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use forester_utils::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
@@ -40,6 +41,7 @@ impl ForesterEpochInfo {
 pub struct ForesterConfig {
     pub external_services: ExternalServicesConfig,
     pub retry_config: RetryConfig,
+    pub queue_config: QueueConfig,
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
     pub cu_limit: u32,
@@ -59,6 +61,7 @@ impl Clone for ForesterConfig {
         Self {
             external_services: self.external_services.clone(),
             retry_config: self.retry_config,
+            queue_config: self.queue_config,
             registry_pubkey: self.registry_pubkey,
             payer_keypair: Keypair::from_bytes(&self.payer_keypair.to_bytes()).unwrap(),
             cu_limit: self.cu_limit,
@@ -84,4 +87,23 @@ pub struct ExternalServicesConfig {
     pub photon_api_key: Option<String>,
     pub derivation: String,
     pub pushgateway_url: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct QueueConfig {
+    pub state_queue_start_index: u16,
+    pub state_queue_length: u16,
+    pub address_queue_start_index: u16,
+    pub address_queue_length: u16,
+}
+
+impl Default for QueueConfig {
+    fn default() -> Self {
+        QueueConfig {
+            state_queue_start_index: 0,
+            state_queue_length: STATE_NULLIFIER_QUEUE_VALUES,
+            address_queue_start_index: 0,
+            address_queue_length: ADDRESS_QUEUE_VALUES,
+        }
+    }
 }

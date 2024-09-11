@@ -1,3 +1,4 @@
+use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::rpc_pool::SolanaRpcPool;
@@ -199,10 +200,16 @@ pub async fn assert_queue_len(
 ) {
     for tree in state_trees.iter() {
         let mut rpc = pool.get_connection().await.unwrap();
-        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.nullifier_queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length = fetch_queue_item_data(
+            &mut *rpc,
+            &tree.nullifier_queue,
+            0,
+            STATE_NULLIFIER_QUEUE_VALUES,
+            STATE_NULLIFIER_QUEUE_VALUES,
+        )
+        .await
+        .unwrap()
+        .len();
         if not_empty {
             assert_ne!(queue_length, 0);
         } else {
@@ -213,10 +220,16 @@ pub async fn assert_queue_len(
 
     for tree in address_trees.iter() {
         let mut rpc = pool.get_connection().await.unwrap();
-        let queue_length = fetch_queue_item_data(&mut *rpc, &tree.queue)
-            .await
-            .unwrap()
-            .len();
+        let queue_length = fetch_queue_item_data(
+            &mut *rpc,
+            &tree.queue,
+            0,
+            ADDRESS_QUEUE_VALUES,
+            ADDRESS_QUEUE_VALUES,
+        )
+        .await
+        .unwrap()
+        .len();
         if not_empty {
             assert_ne!(queue_length, 0);
         } else {

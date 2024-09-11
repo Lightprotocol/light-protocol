@@ -86,6 +86,7 @@ pub fn forester_config() -> ForesterConfig {
             pushgateway_url: "http://localhost:9092/metrics/job/forester".to_string(),
         },
         retry_config: Default::default(),
+        queue_config: Default::default(),
         registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),
         indexer_batch_size: 50,

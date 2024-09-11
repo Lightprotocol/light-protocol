@@ -24,6 +24,7 @@ use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
 use crate::slot_tracker::SlotTracker;
 use crate::utils::get_protocol_config;
+use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
@@ -48,7 +49,13 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
-        let queue_length = fetch_queue_item_data(&mut rpc, &tree_data.queue)
+        let length = if tree_data.tree_type == TreeType::State {
+            STATE_NULLIFIER_QUEUE_VALUES
+        } else {
+            ADDRESS_QUEUE_VALUES
+        };
+
+        let queue_length = fetch_queue_item_data(&mut rpc, &tree_data.queue, 0, length, length)
             .await
             .unwrap()
             .len();

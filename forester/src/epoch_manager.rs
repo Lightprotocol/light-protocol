@@ -709,17 +709,19 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
                 // TODO: measure accuracy
                 // Optional replace with shutdown signal for all child processes
-                let config = SendBatchedTransactionsConfig {
+                let batched_tx_config = SendBatchedTransactionsConfig {
                     num_batches: 10,
                     build_transaction_batch_config: BuildTransactionBatchConfig {
                         batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
                         compute_unit_price: None, // Make dynamic based on queue usage
                         compute_unit_limit: Some(1_000_000),
                     },
+                    queue_config: self.config.queue_config,
                     retry_config: RetryConfig {
                         timeout: light_slot_timeout,
                         ..self.config.retry_config
                     },
+
                     light_slot_length: epoch_pda.protocol_config.slot_length,
                 };
 
@@ -734,7 +736,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let batch_tx_future = send_batched_transactions(
                     &self.config.payer_keypair,
                     self.rpc_pool.clone(),
-                    &config, // TODO: define config in epoch manager
+                    &batched_tx_config, // TODO: define config in epoch manager
                     tree.tree_accounts,
                     &transaction_builder,
                 );
