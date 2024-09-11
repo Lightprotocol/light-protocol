@@ -675,6 +675,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         info!("Performing active work");
 
         let current_slot = self.slot_tracker.estimated_current_slot();
+        info!(
+            "epoch_info.epoch.phases.active.start {}",
+            epoch_info.epoch.phases.active.start
+        );
         let active_phase_end = epoch_info.epoch.phases.active.end;
 
         if !self.is_in_active_phase(current_slot, epoch_info)? {

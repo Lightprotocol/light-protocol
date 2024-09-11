@@ -85,6 +85,7 @@ pub fn forester_config() -> ForesterConfig {
             derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
             pushgateway_url: "http://localhost:9092/metrics/job/forester".to_string(),
         },
+        tree_discovery_interval_seconds: 5,
         retry_config: Default::default(),
         queue_config: Default::default(),
         registry_pubkey: light_registry::ID,

@@ -1297,8 +1297,42 @@ where
         address_tree_index: Option<usize>,
     ) -> Vec<Pubkey> {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
+
+        let mut address_seeds = Vec::new();
+        let mut created_addresses = Vec::new();
+
+        let num_addresses = if let Some(addresses) = optional_addresses {
+            for address in addresses.iter() {
+                let address_seed: [u8; 32] = address.to_bytes();
+                address_seeds.push(address_seed);
+                created_addresses.push(*address);
+            }
+            addresses.len() as u64
+        } else {
+            let num_addresses = self.rng.gen_range(1..=2);
+
+            for _ in 0..num_addresses {
+                let address_seed: [u8; 32] =
+                    bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
+                address_seeds.push(address_seed);
+                created_addresses.push(Pubkey::from(address_seed));
+            }
+            num_addresses
+        };
+
+        let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
+            Some(TransactionParams {
+                num_new_addresses: num_addresses as u8,
+                num_input_compressed_accounts: 0u8,
+                num_output_compressed_accounts: num_addresses as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            })
+        } else {
+            None
+        };
         // select number of addresses to create
-        let num_addresses = self.rng.gen_range(1..=2);
         let (address_merkle_tree_pubkeys, address_queue_pubkeys) =
             if let Some(address_tree_index) = address_tree_index {
                 (
@@ -1319,36 +1353,6 @@ where
                 // select random address Merkle tree(s)
                 self.get_address_merkle_tree_pubkeys(num_addresses)
             };
-        let mut address_seeds = Vec::new();
-        let mut created_addresses = Vec::new();
-
-        if let Some(addresses) = optional_addresses {
-            for address in addresses {
-                let address_seed: [u8; 32] = address.to_bytes();
-                address_seeds.push(address_seed);
-                created_addresses.push(address);
-            }
-        } else {
-            for _ in 0..num_addresses {
-                let address_seed: [u8; 32] =
-                    bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
-                address_seeds.push(address_seed);
-                created_addresses.push(Pubkey::from(address_seed));
-            }
-        }
-
-        let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
-        let transaction_parameters = if self.keypair_action_config.fee_assert {
-            Some(TransactionParams {
-                num_new_addresses: num_addresses as u8,
-                num_input_compressed_accounts: 0u8,
-                num_output_compressed_accounts: num_addresses as u8,
-                compress: 0,
-                fee_config: FeeConfig::default(),
-            })
-        } else {
-            None
-        };
         // TODO: add other input compressed accounts
         // (to test whether the address generation degrades performance)
         create_addresses_test(

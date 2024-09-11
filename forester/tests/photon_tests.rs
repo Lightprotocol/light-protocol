@@ -15,7 +15,6 @@ use tokio::time::sleep;
 mod test_utils;
 use forester::run_pipeline;
 use forester_utils::indexer::Indexer;
-use solana_sdk::commitment_config::CommitmentConfig;
 use std::sync::Arc;
 use test_utils::*;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -134,11 +133,18 @@ async fn test_multiple_address_trees_with_photon() {
         Some(0),
     )
     .await;
-    // env.rpc.warp_to_slot(1000).await.unwrap();
 
     for i in 0..10 {
         let address_tree_accounts = env.create_address_tree(Some(95)).await;
-
+        info!("address_tree_accounts {:?}", address_tree_accounts);
+        info!(
+            "address_tree_accounts.merkle_tree {:?}",
+            address_tree_accounts.merkle_tree.to_bytes()
+        );
+        info!(
+            "address_tree_accounts.queue {:?}",
+            address_tree_accounts.queue
+        );
         let init_seed = Pubkey::new_unique();
         let init_address_proof = photon_indexer
             .get_multiple_new_address_proofs(
@@ -162,7 +168,6 @@ async fn test_multiple_address_trees_with_photon() {
             .await
             .unwrap();
         assert_ne!(init_address_proof, address_proof);
-        info!("address proof {:?}", address_proof);
     }
     shutdown_sender
         .send(())

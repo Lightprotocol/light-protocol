@@ -129,17 +129,20 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
         let addresses_bs58 = addresses
             .iter()
-            .map(|x| bs58::encode(x).into_string())
+            .map(|x| photon_api::models::AddressWithTree {
+                address: bs58::encode(x).into_string(),
+                tree: bs58::encode(&_merkle_tree_pubkey).into_string(),
+            })
             .collect();
 
-        let request = photon_api::models::GetMultipleNewAddressProofsPostRequest {
+        let request = photon_api::models::GetMultipleNewAddressProofsV2PostRequest {
             params: addresses_bs58,
             ..Default::default()
         };
 
         debug!("Request: {:?}", request);
 
-        let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
+        let result = photon_api::apis::default_api::get_multiple_new_address_proofs_v2_post(
             &self.configuration,
             request,
         )
@@ -192,6 +195,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             cursor: None,
             limit: None,
             owner: owner.to_string(),
+            ..Default::default()
         };
         let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
             params: Box::from(params),
@@ -220,7 +224,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                             let data = if let Some(data) = x.data.as_ref() {
                                 Some(CompressedAccountData {
                                     data: bs58::decode(data.data.clone()).into_vec().unwrap(),
-                                    discriminator: data.discriminator.to_le_bytes(),
+                                    discriminator: (data.discriminator as u64).to_le_bytes(),
                                     data_hash: decode_hash(&data.data_hash),
                                 })
                             } else {
