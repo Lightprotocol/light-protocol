@@ -238,6 +238,7 @@ export const rpcRequest = async (
     method: string,
     params: any = [],
     convertToCamelCase = true,
+    debug = false,
 ): Promise<any> => {
     const body = JSON.stringify({
         jsonrpc: '2.0',
@@ -245,6 +246,21 @@ export const rpcRequest = async (
         method: method,
         params: params,
     });
+
+    if (debug) {
+        const generateCurlSnippet = () => {
+            const escapedBody = body.replace(/"/g, '\\"');
+            return `curl -X POST ${rpcEndpoint} \\
+     -H "Content-Type: application/json" \\
+     -d "${escapedBody}"`;
+        };
+
+        console.log('Debug: Stack trace:');
+        console.log(new Error().stack);
+        console.log('\nDebug: curl:');
+        console.log(generateCurlSnippet());
+        console.log('\n');
+    }
 
     const response = await fetch(rpcEndpoint, {
         method: 'POST',
@@ -390,6 +406,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
 /// TODO: replace with dynamic nullifierQueue
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
 const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
+
 /**
  *
  */
@@ -1136,6 +1153,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
         return res.result;
     }
+
     /**
      * Fetch all non-voting signatures
      */
@@ -1369,30 +1387,42 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getValidityProof(
         hashes: BN254[] = [],
-        newAddresses: BN254[] = []
+        newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        const defaultAddressTreePublicKey = defaultTestStateTreeAccounts().addressTree;
-        const defaultAddressQueuePublicKey = defaultTestStateTreeAccounts().addressQueue;
-        const defaultStateTreePublicKey = defaultTestStateTreeAccounts().merkleTree;
-        const defaultStateQueuePublicKey = defaultTestStateTreeAccounts().nullifierQueue;
+        const defaultAddressTreePublicKey =
+            defaultTestStateTreeAccounts().addressTree;
+        const defaultAddressQueuePublicKey =
+            defaultTestStateTreeAccounts().addressQueue;
+        const defaultStateTreePublicKey =
+            defaultTestStateTreeAccounts().merkleTree;
+        const defaultStateQueuePublicKey =
+            defaultTestStateTreeAccounts().nullifierQueue;
         const formattedHashes = hashes.map(item => {
             if (item instanceof BN) {
-                return { hash: item, tree: defaultStateTreePublicKey, queue: defaultStateQueuePublicKey };
+                return {
+                    hash: item,
+                    tree: defaultStateTreePublicKey,
+                    queue: defaultStateQueuePublicKey,
+                };
             }
             return item;
         });
 
         const formattedNewAddresses = newAddresses.map(item => {
             if (item instanceof BN) {
-                return { address: item, tree: defaultAddressTreePublicKey, queue: defaultAddressQueuePublicKey };
+                return {
+                    address: item,
+                    tree: defaultAddressTreePublicKey,
+                    queue: defaultAddressQueuePublicKey,
+                };
             }
             return item;
         });
-        
+
         return this.getValidityProofV0(formattedHashes, formattedNewAddresses);
     }
 
-     /**
+    /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses.
@@ -1408,13 +1438,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getValidityProofV0(
         hashes: HashWithTree[] = [],
-        newAddresses: AddressWithTree[] = []
+        newAddresses: AddressWithTree[] = [],
     ): Promise<CompressedProofWithContext> {
-        const { value } = await this.getValidityProofAndRpcContext(hashes, newAddresses);
+        const { value } = await this.getValidityProofAndRpcContext(
+            hashes,
+            newAddresses,
+        );
         return value;
     }
 
-   /**
+    /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses. Returns with context slot.
@@ -1432,18 +1465,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getValidityProofAndRpcContext(
         hashes: HashWithTree[] = [],
-        newAddresses: AddressWithTree[] = []
+        newAddresses: AddressWithTree[] = [],
     ): Promise<WithContext<CompressedProofWithContext>> {
-       
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
             {
                 hashes: hashes.map(({ hash }) => encodeBN254toBase58(hash)),
-                newAddressesWithTrees: newAddresses.map(({ address, tree }) => ({
-                    address: encodeBN254toBase58(address),
-                    tree: tree.toBase58(),
-                })),
+                newAddressesWithTrees: newAddresses.map(
+                    ({ address, tree }) => ({
+                        address: encodeBN254toBase58(address),
+                        tree: tree.toBase58(),
+                    }),
+                ),
             },
         );
 
