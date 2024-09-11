@@ -3,7 +3,7 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use forester_utils::rpc::RpcConnection;
 use photon_api::apis::configuration::{ApiKey, Configuration};
-use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
+use photon_api::models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams};
 use solana_sdk::bs58;
 use std::fmt::Debug;
 use tracing::debug;
@@ -121,22 +121,25 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
     async fn get_multiple_new_address_proofs(
         &self,
-        _merkle_tree_pubkey: [u8; 32],
+        merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
-        let addresses_bs58 = addresses
+        let params: Vec<AddressWithTree> = addresses
             .iter()
-            .map(|x| bs58::encode(x).into_string())
+            .map(|x| AddressWithTree {
+                address: bs58::encode(x).into_string(),
+                tree: bs58::encode(&merkle_tree_pubkey).into_string(),
+            })
             .collect();
 
-        let request = photon_api::models::GetMultipleNewAddressProofsPostRequest {
-            params: addresses_bs58,
+        let request = photon_api::models::GetMultipleNewAddressProofsV2PostRequest {
+            params,
             ..Default::default()
         };
 
         debug!("Request: {:?}", request);
 
-        let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
+        let result = photon_api::apis::default_api::get_multiple_new_address_proofs_v2_post(
             &self.configuration,
             request,
         )
