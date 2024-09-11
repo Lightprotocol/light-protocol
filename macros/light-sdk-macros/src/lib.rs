@@ -108,12 +108,12 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
 ///     #[authority]
 ///     pub user: AccountInfo<'info>,
 ///     #[cpi_context]
-///     pub cpi_context_account: Account<'info, CpiContextAccount>,
-///     pub light_system_program: Program<'info, LightSystemProgram>,
-///     pub registered_program_pda: Account<'info, RegisteredProgram>,
+///     pub cpi_context_account: AccountInfo<'info>,
+///     pub light_system_program: AccountInfo<'info>,
+///     pub registered_program_pda: AccountInfo<'info>,
 ///     pub noop_program: AccountInfo<'info>,
 ///     pub account_compression_authority: AccountInfo<'info>,
-///     pub account_compression_program: Program<'info, AccountCompression>,
+///     pub account_compression_program: AccountInfo<'info>,
 ///     pub system_program: Program<'info, System>,
 /// }
 /// ```

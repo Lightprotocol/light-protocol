@@ -212,20 +212,14 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 }
             }
             impl<'info> ::light_sdk::traits::LightSystemAccount<'info> for #name<'info> {
-                fn get_light_system_program(&self) -> &::anchor_lang::prelude::Program<
-                    'info,
-                    ::light_system_program::program::LightSystemProgram
-                > {
+                fn get_light_system_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#light_system_program_field
                 }
             }
         };
         let invoke_accounts_impl = quote! {
             impl<'info> ::light_sdk::traits::InvokeAccounts<'info> for #name<'info> {
-                fn get_registered_program_pda(&self) -> &::anchor_lang::prelude::Account<
-                    'info,
-                    ::account_compression::RegisteredProgram
-                > {
+                fn get_registered_program_pda(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#registered_program_pda_field
                 }
                 fn get_noop_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
@@ -234,10 +228,7 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 fn get_account_compression_authority(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#account_compression_authority_field
                 }
-                fn get_account_compression_program(&self) -> &::anchor_lang::prelude::Program<
-                    'info,
-                    ::account_compression::program::AccountCompression
-                > {
+                fn get_account_compression_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#account_compression_program_field
                 }
                 fn get_system_program(&self) -> &::anchor_lang::prelude::Program<'info, System> {
@@ -257,10 +248,7 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 #invoke_accounts_impl
                 impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
                     fn get_cpi_context_account(&self) -> Option<
-                        &::anchor_lang::prelude::Account<
-                            'info,
-                            ::light_system_program::invoke_cpi::account::CpiContextAccount
-                        >
+                        &::anchor_lang::prelude::AccountInfo<'info>
                     > {
                         None
                     }
@@ -272,10 +260,7 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 #invoke_accounts_impl
                 impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
                     fn get_cpi_context_account(&self) -> Option<
-                        &::anchor_lang::prelude::Account<
-                            'info,
-                            ::light_system_program::invoke_cpi::account::CpiContextAccount
-                        >
+                        &::anchor_lang::prelude::AccountInfo<'info>
                     > {
                         Some(&self.#cpi_context_account_field)
                     }
@@ -300,11 +285,11 @@ mod tests {
                 pub payer: Signer<'info>,
                 #[authority]
                 pub user: AccountInfo<'info>,
-                pub light_system_program: Program<'info, LightSystemProgram>,
-                pub registered_program_pda: Account<'info, RegisteredProgram>,
+                pub light_system_program: AccountInfo<'info>,
+                pub registered_program_pda: AccountInfo<'info>,
                 pub noop_program: AccountInfo<'info>,
                 pub account_compression_authority: AccountInfo<'info>,
-                pub account_compression_program: Program<'info, AccountCompression>,
+                pub account_compression_program: AccountInfo<'info>,
                 pub system_program: Program<'info, System>,
             }
         };
@@ -329,11 +314,11 @@ mod tests {
                 pub payer: Signer<'info>,
                 #[authority]
                 pub user: AccountInfo<'info>,
-                pub light_system_program: Program<'info, LightSystemProgram>,
-                pub registered_program_pda: Account<'info, RegisteredProgram>,
+                pub light_system_program: AccountInfo<'info>,
+                pub registered_program_pda: AccountInfo<'info>,
                 pub noop_program: AccountInfo<'info>,
                 pub account_compression_authority: AccountInfo<'info>,
-                pub account_compression_program: Program<'info, AccountCompression>,
+                pub account_compression_program: AccountInfo<'info>,
                 pub system_program: Program<'info, System>,
             }
         };
@@ -377,11 +362,11 @@ mod tests {
                 pub my_program: Program<'info, MyProgram>, // Missing #[self_program]
                 pub payer: Signer<'info>, // Missing #[fee_payer]
                 pub user: AccountInfo<'info>, // Missing #[authority]
-                pub light_system_program: Program<'info, LightSystemProgram>,
-                pub registered_program_pda: Account<'info, RegisteredProgram>,
+                pub light_system_program: AccountInfo<'info>,
+                pub registered_program_pda: AccountInfo<'info>,
                 pub noop_program: AccountInfo<'info>,
                 pub account_compression_authority: AccountInfo<'info>,
-                pub account_compression_program: Program<'info, AccountCompression>,
+                pub account_compression_program: AccountInfo<'info>,
                 pub system_program: Program<'info, System>,
             }
         };

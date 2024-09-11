@@ -15,29 +15,26 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap"]
-default = ["custom-heap"]
+default = ["idl-build"]
 test-sbf = []
 bench-sbf = []
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
-borsh = "0.10"
-light-compressed-token = { path = "../../../../programs/compressed-token", version = "1.0.0", features = ["cpi"] }
-light-system-program = { path = "../../../../programs/system", version = "1.0.0", features = ["cpi"]}
-account-compression = { path = "../../../../programs/account-compression", version = "1.0.0",  features = ["cpi"] }
-light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.0.0" }
-light-heap = { path = "../../../../heap", version = "1.0.0", optional = true }
-light-macros = { path = "../../../../macros/light", version = "1.0.0" }
-light-sdk-macros = { path = "../../../../macros/light-sdk-macros", version = "0.1.0" }
-light-sdk = { path = "../../../../sdk", version = "0.8.0" }
-light-utils = { path = "../../../../utils", version = "1.0.0" }
-light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.0.0" }
+borsh = { workspace = true }
+light-hasher = { workspace = true, features = ["solana"] }
+light-macros = { workspace = true }
+light-sdk = { workspace = true }
+light-sdk-macros = { workspace = true }
+light-utils = { workspace = true }
+light-verifier = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
+light-client = { workspace = true }
 light-test-utils = { path = "../../../../test-utils", version = "1.0.0" }
 solana-program-test = { workspace = true }
 tokio = "1.36.0"
