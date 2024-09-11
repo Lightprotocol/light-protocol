@@ -1,0 +1,20 @@
+[package]
+name = "light-test-sdk"
+version = "0.8.0"
+edition = "2021"
+
+[dependencies]
+anchor-lang = { workspace = true }
+
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+
+tokio = { workspace = true, features = ["process"] }
+async-trait = { workspace = true }
+async-dropper = { workspace = true }
+
+light-macros = { path = "../macros/light", version = "1.0.0" }
+light-sdk = { path = "../sdk", version = "0.8.0" }
+photon-api = { path = "../photon-api", version = "0.44.0" }
+
+cargo_metadata = { workspace = true }

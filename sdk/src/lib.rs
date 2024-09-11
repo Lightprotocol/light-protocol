@@ -7,7 +7,6 @@ pub mod constants;
 pub use constants::*;
 pub mod context;
 pub mod event;
-pub mod legacy;
 pub mod merkle_context;
 pub mod program_merkle_context;
 pub mod proof;

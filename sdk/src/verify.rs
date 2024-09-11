@@ -12,9 +12,6 @@ use crate::{
         SignerAccounts,
     },
 };
-use light_system_program::{
-    cpi::accounts::InvokeCpiInstruction, errors::SystemProgramError::CpiContextAccountUndefined,
-};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompressedCpiContext {
@@ -41,30 +38,32 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
+// NOTE(vadorovsky): 'Not sure whether this function even makes sense now in
+// the first place.
 // TODO: properly document compressed-cpi-context
 // TODO: turn into a simple check!
 // TOOD: CHECK needed bc can be different from own, if called from another program.
-pub fn get_compressed_cpi_context_account<'info>(
-    ctx: &Context<
-        '_,
-        '_,
-        '_,
-        'info,
-        impl InvokeAccounts<'info>
-            + LightSystemAccount<'info>
-            + InvokeCpiAccounts<'info>
-            + SignerAccounts<'info>
-            + Bumps,
-    >,
-    compressed_cpi_context: &CompressedCpiContext,
-) -> Result<AccountInfo<'info>> {
-    let cpi_context_account = ctx
-        .remaining_accounts
-        .get(compressed_cpi_context.cpi_context_account_index as usize)
-        .map(|account| account.to_account_info())
-        .ok_or_else(|| Error::from(CpiContextAccountUndefined))?;
-    Ok(cpi_context_account)
-}
+// pub fn get_compressed_cpi_context_account<'info>(
+//     ctx: &Context<
+//         '_,
+//         '_,
+//         '_,
+//         'info,
+//         impl InvokeAccounts<'info>
+//             + LightSystemAccount<'info>
+//             + InvokeCpiAccounts<'info>
+//             + SignerAccounts<'info>
+//             + Bumps,
+//     >,
+//     compressed_cpi_context: &CompressedCpiContext,
+// ) -> Result<AccountInfo<'info>> {
+//     let cpi_context_account = ctx
+//         .remaining_accounts
+//         .get(compressed_cpi_context.cpi_context_account_index as usize)
+//         .map(|account| account.to_account_info())
+//         .ok_or_else(|| Error::from(CpiContextAccountUndefined))?;
+//     Ok(cpi_context_account)
+// }
 
 #[inline(always)]
 pub fn setup_cpi_accounts<'info>(

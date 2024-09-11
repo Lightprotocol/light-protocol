@@ -93,7 +93,7 @@ where
         })
     }
 
-    pub fn verify(&mut self, proof: crate::legacy::CompressedProof) -> Result<()> {
+    pub fn verify(&mut self, proof: CompressedProof) -> Result<()> {
         let bump = Pubkey::find_program_address(
             &[CPI_AUTHORITY_PDA_SEED],
             &self.anchor_context.accounts.get_invoking_program().key(),
@@ -112,7 +112,7 @@ where
             .light_accounts
             .output_accounts(self.anchor_context.remaining_accounts)?;
 
-        let instruction = crate::legacy::InstructionDataInvokeCpi {
+        let instruction = InstructionDataInvokeCpi {
             proof: Some(proof),
             new_address_params,
             relay_fee: None,

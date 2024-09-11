@@ -596,15 +596,13 @@ where
     Ok(
         light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext {
             compressed_account,
-            merkle_context: crate::legacy::PackedMerkleContext {
+            merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
                 nullifier_queue_pubkey_index: merkle_context.nullifier_queue_pubkey_index,
                 leaf_index: merkle_context.leaf_index,
-                queue_index: merkle_context.queue_index.map(|queue_index| {
-                    crate::legacy::QueueIndex {
-                        queue_id: queue_index.queue_id,
-                        index: queue_index.index,
-                    }
+                queue_index: merkle_context.queue_index.map(|queue_index| QueueIndex {
+                    queue_id: queue_index.queue_id,
+                    index: queue_index.index,
                 }),
             },
             root_index: merkle_tree_root_index,
