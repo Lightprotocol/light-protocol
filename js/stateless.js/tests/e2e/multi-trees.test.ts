@@ -19,7 +19,7 @@ describe('create-state-tree', () => {
         rpc = createRpc(RPC_ENDPOINT, RPC_ENDPOINT);
 
 
-        payer = await newAccountWithLamports(rpc, 6e9, 231);
+        payer = await newAccountWithLamports(rpc, 1e9, 231);
         console.log(payer.publicKey.toBase58());
         console.log(payer.secretKey);
         

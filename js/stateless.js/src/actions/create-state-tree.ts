@@ -8,33 +8,26 @@ import { buildAndSignTx, sendAndConfirmTx } from '../utils';
  *
  * @param rpc          Rpc to use
  * @param payer        Payer of transaction fees
- * @param index        Index for the state tree
- * @param programOwner Owner of the program (optional)
- * @param forester     Forester public key (optional)
- *
+ * @param index        Index for the state tree *
  * @return Signature of the confirmed transaction
  */
 export async function createStateTreeAndNullifierQueue(
     rpc: Rpc,
     payer: Keypair,
     index: number
-    // programOwner: PublicKey | null,
-    // forester: PublicKey | null,
 ): Promise<TransactionSignature> {
     const merkleTreeKeypair = Keypair.generate();
     const queueKeypair = Keypair.generate();
     const cpiContextKeypair = Keypair.generate();
-    const cpiAuthorityKeypair = Keypair.generate();
 
     console.log("merkleTreeKeypair address", merkleTreeKeypair.publicKey.toBase58());
     console.log("queueKeypair address", queueKeypair.publicKey.toBase58());
     console.log("cpiContextKeypair address", cpiContextKeypair.publicKey.toBase58());
-    console.log("cpiAuthorityKeypair address", cpiAuthorityKeypair.publicKey.toBase58());
 
     console.log("merkleTreeKeypair secret key", merkleTreeKeypair.secretKey);
     console.log("queueKeypair secret key", queueKeypair.secretKey);
     console.log("cpiContextKeypair secret key", cpiContextKeypair.secretKey);
-    console.log("cpiAuthorityKeypair secret key", cpiAuthorityKeypair.secretKey);
+
 
 
     const instructions = await LightRegistryProgram.createStateTreeAndNullifierQueueInstructions(
@@ -43,7 +36,6 @@ export async function createStateTreeAndNullifierQueue(
         merkleTreeKeypair,
         queueKeypair,
         cpiContextKeypair,
-        cpiAuthorityKeypair,
         null,
         null,
         index
@@ -54,9 +46,12 @@ export async function createStateTreeAndNullifierQueue(
         [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ...instructions],
         payer,
         blockhash,
-        [merkleTreeKeypair, queueKeypair, cpiContextKeypair, cpiAuthorityKeypair]
+        [merkleTreeKeypair, queueKeypair, cpiContextKeypair]
     );
 
-    const txId = await sendAndConfirmTx(rpc, signedTx);
+    console.log("signedTx", signedTx);
+
+    const txId = await sendAndConfirmTx(rpc, signedTx, { skipPreflight: false});
+    console.log("txId", txId);
     return txId;
 }
