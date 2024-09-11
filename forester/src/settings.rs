@@ -31,6 +31,7 @@ pub enum SettingsKey {
     CULimit,
     RpcPoolSize,
     SlotUpdateIntervalSeconds,
+    TreeDiscoveryIntervalSeconds,
     StateQueueStartIndex,
     StateQueueLength,
     AddressQueueStartIndex,
@@ -61,6 +62,7 @@ impl Display for SettingsKey {
                 SettingsKey::CULimit => "CU_LIMIT",
                 SettingsKey::RpcPoolSize => "RPC_POOL_SIZE",
                 SettingsKey::SlotUpdateIntervalSeconds => "SLOT_UPDATE_INTERVAL_SECONDS",
+                SettingsKey::TreeDiscoveryIntervalSeconds => "TREE_DISCOVERY_INTERVAL_SECONDS",
                 SettingsKey::StateQueueStartIndex => "STATE_QUEUE_START_INDEX",
                 SettingsKey::StateQueueLength => "STATE_QUEUE_LENGTH",
                 SettingsKey::AddressQueueStartIndex => "ADDRESS_QUEUE_START_INDEX",
@@ -166,6 +168,9 @@ pub fn init_config(enable_metrics: bool) -> Result<ForesterConfig, ForesterError
         rpc_pool_size: settings.get_int(&SettingsKey::RpcPoolSize.to_string())? as usize,
         slot_update_interval_seconds: settings
             .get_int(&SettingsKey::SlotUpdateIntervalSeconds.to_string())?
+            as u64,
+        tree_discovery_interval_seconds: settings
+            .get_int(&SettingsKey::TreeDiscoveryIntervalSeconds.to_string())?
             as u64,
         address_tree_data: vec![],
         state_tree_data: vec![],
