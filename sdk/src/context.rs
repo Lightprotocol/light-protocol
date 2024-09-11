@@ -1,11 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{context::Context, prelude::Pubkey, Bumps, Key, Result};
-use light_system_program::{invoke::processor::CompressedProof, InstructionDataInvokeCpi};
 
 use crate::{
     compressed_account::LightAccounts,
+    constants::CPI_AUTHORITY_PDA_SEED,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
@@ -94,7 +93,7 @@ where
         })
     }
 
-    pub fn verify(&mut self, proof: CompressedProof) -> Result<()> {
+    pub fn verify(&mut self, proof: crate::legacy::CompressedProof) -> Result<()> {
         let bump = Pubkey::find_program_address(
             &[CPI_AUTHORITY_PDA_SEED],
             &self.anchor_context.accounts.get_invoking_program().key(),
@@ -113,7 +112,7 @@ where
             .light_accounts
             .output_accounts(self.anchor_context.remaining_accounts)?;
 
-        let instruction = InstructionDataInvokeCpi {
+        let instruction = crate::legacy::InstructionDataInvokeCpi {
             proof: Some(proof),
             new_address_params,
             relay_fee: None,

@@ -1,12 +1,45 @@
 use anchor_lang::{error::Error, prelude::*, Bumps};
+use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::traits::{
-    InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount, SignerAccounts,
+use crate::{
+    address::NewAddressParamsPacked,
+    compressed_account::{
+        OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
+    },
+    proof::CompressedProof,
+    traits::{
+        InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
+        SignerAccounts,
+    },
 };
 use light_system_program::{
     cpi::accounts::InvokeCpiInstruction, errors::SystemProgramError::CpiContextAccountUndefined,
-    sdk::CompressedCpiContext, InstructionDataInvokeCpi,
 };
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CompressedCpiContext {
+    /// Is set by the program that is invoking the CPI to signal that is should
+    /// set the cpi context.
+    pub set_context: bool,
+    /// Is set to wipe the cpi context since someone could have set it before
+    /// with unrelated data.
+    pub first_set_context: bool,
+    /// Index of cpi context account in remaining accounts.
+    pub cpi_context_account_index: u8,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct InstructionDataInvokeCpi {
+    pub proof: Option<CompressedProof>,
+    pub new_address_params: Vec<NewAddressParamsPacked>,
+    pub input_compressed_accounts_with_merkle_context:
+        Vec<PackedCompressedAccountWithMerkleContext>,
+    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+    pub relay_fee: Option<u64>,
+    pub compress_or_decompress_lamports: Option<u64>,
+    pub is_compress: bool,
+    pub cpi_context: Option<CompressedCpiContext>,
+}
 
 // TODO: properly document compressed-cpi-context
 // TODO: turn into a simple check!
@@ -117,11 +150,11 @@ pub fn verify<'info, 'a, 'b, 'c>(
             + InvokeCpiContextAccount<'info>
             + Bumps,
     >,
-    inputs_struct: &InstructionDataInvokeCpi,
+    inputs_struct: &light_system_program::InstructionDataInvokeCpi,
     signer_seeds: &'a [&'b [&'c [u8]]],
 ) -> Result<()> {
     let mut inputs: Vec<u8> = Vec::new();
-    InstructionDataInvokeCpi::serialize(inputs_struct, &mut inputs).unwrap();
+    light_system_program::InstructionDataInvokeCpi::serialize(inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = setup_cpi_accounts(ctx);
     invoke_cpi(ctx, cpi_accounts, inputs, signer_seeds)
