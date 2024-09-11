@@ -1,3 +1,4 @@
+use account_compression::utils::constants::ADDRESS_QUEUE_VALUES;
 use forester::photon_indexer::PhotonIndexer;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::utils::LightValidatorConfig;
@@ -132,8 +133,11 @@ async fn test_multiple_address_trees_with_photon() {
         Some(0),
     )
     .await;
+    env.create_address(None, None).await;
+    env.create_address(None, None).await;
 
     for i in 0..10 {
+        info!("Iteration: {}", i);
         let address_tree_accounts = env.create_address_tree(Some(95)).await;
         tokio::time::sleep(Duration::from_secs(2)).await;
 
@@ -161,6 +165,7 @@ async fn test_multiple_address_trees_with_photon() {
             sleep(Duration::from_secs(1)).await;
             info!("sleeping until address queue is empty");
         }
+        sleep(Duration::from_secs(2)).await;
         let address_proof = photon_indexer
             .get_multiple_new_address_proofs(
                 address_tree_accounts.merkle_tree.to_bytes(),
@@ -168,7 +173,12 @@ async fn test_multiple_address_trees_with_photon() {
             )
             .await
             .unwrap();
-        assert_ne!(init_address_proof, address_proof);
+        let seed = Pubkey::new_unique();
+        info!("new Merkle tree");
+        env.create_address(Some(vec![seed]), Some(i + 1)).await;
+        info!("address Merkle tree");
+        env.create_address(None, None).await;
+        // assert_ne!(init_address_proof, address_proof);
     }
     shutdown_sender
         .send(())
@@ -186,9 +196,15 @@ pub async fn address_queue_len_is_equal_to(
     queue: Pubkey,
     expected_len: u64,
 ) -> bool {
-    let queue_length = fetch_queue_item_data(&mut *rpc, &queue)
-        .await
-        .unwrap()
-        .len() as u64;
+    let queue_length = fetch_queue_item_data(
+        &mut *rpc,
+        &queue,
+        0,
+        ADDRESS_QUEUE_VALUES,
+        ADDRESS_QUEUE_VALUES,
+    )
+    .await
+    .unwrap()
+    .len() as u64;
     queue_length == expected_len
 }

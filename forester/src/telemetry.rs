@@ -15,7 +15,7 @@ pub fn setup_telemetry() {
 
         let file_env_filter = EnvFilter::new("info,forester=debug");
         let stdout_env_filter =
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,forester=debug"));
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")); // forester=debug
 
         let stdout_layer = fmt::Layer::new()
             .with_writer(std::io::stdout)

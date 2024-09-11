@@ -157,6 +157,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
             let self_clone = Arc::clone(&self);
+            info!("self clone trees {:?}", self_clone.trees.lock().await);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
                     error!("Error processing epoch {}: {:?}", epoch, e);
