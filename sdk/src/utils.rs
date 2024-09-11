@@ -1,14 +1,18 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
-pub use light_system_program::{invoke::processor::CompressedProof, InstructionDataInvokeCpi};
-use light_system_program::{
-    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+
+use crate::{
+    compressed_account::{
+        OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
+    },
+    proof::CompressedProof,
+    verify::{CompressedCpiContext, InstructionDataInvokeCpi},
+    PROGRAM_ID_ACCOUNT_COMPRESSION,
 };
 
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[program_id.to_bytes().as_slice()],
-        &account_compression::ID,
+        &PROGRAM_ID_ACCOUNT_COMPRESSION,
     )
     .0
 }
@@ -19,12 +23,12 @@ pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
 
 /// Helper function to create data for creating a single PDA.
 pub fn create_cpi_inputs_for_new_account(
-    proof: CompressedProof,
-    new_address_params: NewAddressParamsPacked,
-    compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: Option<CompressedCpiContext>,
-) -> InstructionDataInvokeCpi {
-    InstructionDataInvokeCpi {
+    proof: crate::legacy::CompressedProof,
+    new_address_params: crate::legacy::NewAddressParamsPacked,
+    compressed_pda: crate::legacy::OutputCompressedAccountWithPackedContext,
+    cpi_context: Option<crate::legacy::CompressedCpiContext>,
+) -> crate::legacy::InstructionDataInvokeCpi {
+    crate::legacy::InstructionDataInvokeCpi {
         proof: Some(proof),
         new_address_params: vec![new_address_params],
         relay_fee: None,

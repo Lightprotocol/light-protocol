@@ -582,19 +582,19 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
                 })
             }
 
-            fn new_address_params(&self) -> Vec<::light_sdk::compressed_account::NewAddressParamsPacked> {
+            fn new_address_params(&self) -> Vec<::light_sdk::legacy::NewAddressParamsPacked> {
                 let mut new_address_params = Vec::new();
                 #(#new_address_params_calls)*
                 new_address_params
             }
 
-            fn input_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::PackedCompressedAccountWithMerkleContext>> {
+            fn input_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::legacy::PackedCompressedAccountWithMerkleContext>> {
                 let mut accounts = Vec::new();
                 #(#input_account_calls)*
                 Ok(accounts)
             }
 
-            fn output_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::OutputCompressedAccountWithPackedContext>> {
+            fn output_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::legacy::OutputCompressedAccountWithPackedContext>> {
                 let mut accounts = Vec::new();
                 #(#output_account_calls)*
                 Ok(accounts)

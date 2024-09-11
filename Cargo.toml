@@ -71,7 +71,11 @@ thiserror = "1.0"
 
 # Light Protocol
 light-client = { path = "client", version = "0.8.0" }
+light-indexed-merkle-tree = { path = "merkle-tree/indexed", version = "1.0.0" }
 photon-api = { path = "photon-api" }
+
+# Math and crypto
+num-bigint = "0.4.6"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
