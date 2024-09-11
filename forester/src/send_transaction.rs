@@ -1,11 +1,12 @@
+use crate::config::QueueConfig;
 use crate::epoch_manager::{MerkleProofType, WorkItem};
 use crate::errors::ForesterError;
 use crate::queue_helpers::fetch_queue_item_data;
 use crate::rpc_pool::SolanaRpcPool;
 use crate::Result;
 use account_compression::utils::constants::{
-    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-    STATE_MERKLE_TREE_CHANGELOG,
+    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG, ADDRESS_QUEUE_VALUES,
+    STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
@@ -93,7 +94,29 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     while num_batches < config.num_batches && start_time.elapsed() < config.retry_config.timeout {
         debug!("Sending batch: {}", num_batches);
         // 2. Fetch queue items.
-        let queue_item_data = fetch_queue_item_data(&mut *rpc, &tree_accounts.queue).await?;
+        let queue_length = if tree_accounts.tree_type == TreeType::State {
+            STATE_NULLIFIER_QUEUE_VALUES
+        } else {
+            ADDRESS_QUEUE_VALUES
+        };
+        let start_index = if tree_accounts.tree_type == TreeType::State {
+            config.queue_config.state_queue_start_index
+        } else {
+            config.queue_config.address_queue_start_index
+        };
+        let length = if tree_accounts.tree_type == TreeType::State {
+            config.queue_config.state_queue_length
+        } else {
+            config.queue_config.address_queue_length
+        };
+        let queue_item_data = fetch_queue_item_data(
+            &mut *rpc,
+            &tree_accounts.queue,
+            start_index,
+            length,
+            queue_length,
+        )
+        .await?;
         let work_items: Vec<WorkItem> = queue_item_data
             .into_iter()
             .map(|data| WorkItem {
@@ -217,6 +240,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 pub struct SendBatchedTransactionsConfig {
     pub num_batches: u64,
     pub build_transaction_batch_config: BuildTransactionBatchConfig,
+    pub queue_config: QueueConfig,
     pub retry_config: RetryConfig,
     pub light_slot_length: u64,
 }
