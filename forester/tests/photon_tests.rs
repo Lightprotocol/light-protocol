@@ -88,6 +88,68 @@ async fn test_multiple_state_trees_with_photon() {
     }
 }
 
+/// Spwans a local validator and tests the photon indexer and forester.
+/// Tries to create addresses.
+/// Address creation fails on 6th iteration.
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+async fn photon_bug_reproducer() {
+    init(Some(LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: true,
+        enable_forester: false,
+        wait_time: 20,
+        ..LightValidatorConfig::default()
+    }))
+    .await;
+    let photon_indexer = create_local_photon_indexer();
+    let forester_photon_indexer = create_local_photon_indexer();
+    let env_accounts = EnvAccounts::get_local_test_validator_accounts();
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), 10_000_000_000_000)
+        .await
+        .unwrap();
+    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+    let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
+
+    let mut config = forester_config();
+    config.payer_keypair = env_accounts.forester.insecure_clone();
+
+    let config = Arc::new(config);
+    // Run the forester as pipeline
+    let service_handle = tokio::spawn(run_pipeline(
+        config.clone(),
+        Arc::new(Mutex::new(forester_photon_indexer)),
+        shutdown_receiver,
+        work_report_sender,
+    ));
+
+    let indexer: TestIndexer<SolanaRpcConnection> =
+        TestIndexer::init_from_env(&rpc.get_payer(), &env_accounts, false, false).await;
+
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
+        rpc,
+        indexer,
+        &env_accounts,
+        keypair_action_config(),
+        general_action_config(),
+        0,
+        Some(0),
+    )
+    .await;
+    env.create_address(None, None).await;
+    env.create_address(None, None).await;
+
+    for i in 0..10 {
+        info!("Iteration: {}", i);
+        sleep(Duration::from_secs(2)).await;
+        env.create_address(None, None).await;
+    }
+    shutdown_sender
+        .send(())
+        .expect("Failed to send shutdown signal");
+    service_handle.await.unwrap().unwrap();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_multiple_address_trees_with_photon() {
     init(Some(LightValidatorConfig {
@@ -178,7 +240,7 @@ async fn test_multiple_address_trees_with_photon() {
         env.create_address(Some(vec![seed]), Some(i + 1)).await;
         info!("address Merkle tree");
         env.create_address(None, None).await;
-        // assert_ne!(init_address_proof, address_proof);
+        assert_ne!(init_address_proof, address_proof);
     }
     shutdown_sender
         .send(())
