@@ -37,6 +37,8 @@ import {
     WithContext,
     GetCompressedAccountsByOwnerConfig,
     WithCursor,
+    AddressWithTree,
+    HashWithTree,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -1367,15 +1369,52 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getValidityProof(
         hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
+        newAddresses: BN254[] = []
     ): Promise<CompressedProofWithContext> {
-        const { value } = await this.getValidityProofAndRpcContext(
-            hashes,
-            newAddresses,
-        );
+        const defaultAddressTreePublicKey = defaultTestStateTreeAccounts().addressTree;
+        const defaultAddressQueuePublicKey = defaultTestStateTreeAccounts().addressQueue;
+        const defaultStateTreePublicKey = defaultTestStateTreeAccounts().merkleTree;
+        const defaultStateQueuePublicKey = defaultTestStateTreeAccounts().nullifierQueue;
+        const formattedHashes = hashes.map(item => {
+            if (item instanceof BN) {
+                return { hash: item, tree: defaultStateTreePublicKey, queue: defaultStateQueuePublicKey };
+            }
+            return item;
+        });
+
+        const formattedNewAddresses = newAddresses.map(item => {
+            if (item instanceof BN) {
+                return { address: item, tree: defaultAddressTreePublicKey, queue: defaultAddressQueuePublicKey };
+            }
+            return item;
+        });
+        
+        return this.getValidityProofV0(formattedHashes, formattedNewAddresses);
+    }
+
+     /**
+     * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account hashes. (2) new unique addresses specified by an
+     * array of addresses.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     *
+     * @param hashes        Array of { hash: BN254, tree: PublicKey, queue: PublicKey }.
+     * @param newAddresses  Array of { address: BN254, tree: PublicKey, queue: PublicKey }.
+     * @returns             validity proof with context
+     */
+    async getValidityProofV0(
+        hashes: HashWithTree[] = [],
+        newAddresses: AddressWithTree[] = []
+    ): Promise<CompressedProofWithContext> {
+        const { value } = await this.getValidityProofAndRpcContext(hashes, newAddresses);
         return value;
     }
-    /**
+
+   /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses. Returns with context slot.
@@ -1386,21 +1425,25 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * lowering verification and data costs.
      *
      * @param hashes        Array of BN254 hashes.
-     * @param newAddresses  Array of BN254 new addresses.
+     * @param newAddresses  Array of BN254 new addresses. Optionally specify the
+     *                      tree and queue for each address. Default to public
+     *                      state tree/queue.
      * @returns             validity proof with context
      */
     async getValidityProofAndRpcContext(
-        hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
+        hashes: HashWithTree[] = [],
+        newAddresses: AddressWithTree[] = []
     ): Promise<WithContext<CompressedProofWithContext>> {
+       
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
             {
-                hashes: hashes.map(hash => encodeBN254toBase58(hash)),
-                newAddresses: newAddresses.map(address =>
-                    encodeBN254toBase58(address),
-                ),
+                hashes: hashes.map(({ hash }) => encodeBN254toBase58(hash)),
+                newAddressesWithTrees: newAddresses.map(({ address, tree }) => ({
+                    address: encodeBN254toBase58(address),
+                    tree: tree.toBase58(),
+                })),
             },
         );
 
@@ -1428,8 +1471,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             merkleTrees: result.merkleTrees,
             leafIndices: result.leafIndices,
             nullifierQueues: [
-                ...hashes.map(() => mockNullifierQueue),
-                ...newAddresses.map(() => mockAddressQueue),
+                ...hashes.map(({ queue }) => queue),
+                ...newAddresses.map(({ queue }) => queue),
             ],
             rootIndices: result.rootIndices,
             roots: result.roots,

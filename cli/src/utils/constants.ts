@@ -21,7 +21,7 @@ export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
 export const FORESTER_PROCESS_NAME = "forester";
 
-export const PHOTON_VERSION = "0.44.0";
+export const PHOTON_VERSION = "0.45.0";
 
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 export const BASE_PATH = "../../bin/";
