@@ -25,8 +25,8 @@ use forester_utils::registry::{
     create_rollover_address_merkle_tree_instructions,
     create_rollover_state_merkle_tree_instructions,
 };
-use forester_utils::rpc::{RpcConnection, RpcError};
 use forester_utils::{create_account_instruction, get_hash_set, get_indexed_merkle_tree};
+use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 

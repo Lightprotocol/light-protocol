@@ -1,4 +1,4 @@
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
 use std::{sync::Arc, time::SystemTime};

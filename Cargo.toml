@@ -13,6 +13,7 @@ members = [
     "programs/system",
     "programs/compressed-token",
     "programs/registry",
+    "client",
     "sdk",
     "test-utils",
     "utils",
@@ -23,7 +24,7 @@ members = [
     "forester-utils",
     "forester",
     "photon-api",
-    "sdk"]
+]
 
 [profile.release]
 overflow-checks = true
@@ -32,6 +33,8 @@ overflow-checks = true
 opt-level = 2
 
 [workspace.dependencies]
+# Solana
+solana-banks-client = "=1.18.22"
 solana-banks-interface = "=1.18.22"
 solana-program = "=1.18.22"
 solana-sdk = "=1.18.22"
@@ -41,19 +44,31 @@ solana-cli-output = "=1.18.22"
 solana-transaction-status = "=1.18.22"
 solana-account-decoder = "=1.18.22"
 solana-rpc = "=1.18.22"
+spl-token = "=4.0.0"
 
-photon-api = { path = "photon-api" }
-
+# Anchor
 anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
 
-spl-token = "=4.0.0"
-
+# Macro helpers
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["visit-mut", "full"] }
 
+# Async ecosystem
 tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
+async-trait = "0.1.82"
+bb8 = "0.8.5"
+
+# Logging
+log = "0.4"
+
+# Error handling
+thiserror = "1.0"
+
+# Light Protocol
+light-client = { path = "client", version = "0.8.0" }
+photon-api = { path = "photon-api" }
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }

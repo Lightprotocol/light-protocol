@@ -132,9 +132,9 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 
 use crate::indexer::TestIndexer;
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
-use forester_utils::transaction_params::{FeeConfig, TransactionParams};
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::{FeeConfig, TransactionParams};
 
 pub struct User {
     pub keypair: Keypair,

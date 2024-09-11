@@ -8,8 +8,8 @@ use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, 
 use account_compression::{AddressMerkleTreeAccount, SAFETY_MARGIN};
 use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;

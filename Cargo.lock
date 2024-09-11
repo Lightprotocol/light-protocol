@@ -2294,7 +2294,6 @@ dependencies = [
  "anchor-lang",
  "async-trait",
  "base64 0.22.1",
- "bb8",
  "bincode",
  "borsh 0.10.3",
  "bs58 0.4.0",
@@ -2310,6 +2309,7 @@ dependencies = [
  "futures 0.3.30",
  "lazy_static",
  "light-bounded-vec",
+ "light-client",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
@@ -2358,6 +2358,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "async-trait",
+ "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -3494,6 +3495,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-client"
+version = "0.8.0"
+dependencies = [
+ "anchor-lang",
+ "async-trait",
+ "bb8",
+ "log",
+ "solana-banks-client",
+ "solana-client",
+ "solana-sdk",
+ "solana-transaction-status",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "light-compressed-token"
 version = "1.0.0"
 dependencies = [
@@ -3637,7 +3654,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -3760,6 +3777,7 @@ dependencies = [
  "ark-ff",
  "async-trait",
  "forester-utils",
+ "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hash-set",

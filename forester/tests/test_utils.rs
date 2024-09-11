@@ -6,7 +6,7 @@ use forester::telemetry::setup_telemetry;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::ForesterConfig;
 use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
-use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::test_env::get_test_env_accounts;

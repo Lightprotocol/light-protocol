@@ -30,10 +30,10 @@ use forester_utils::indexer::{
     AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
 };
 use forester_utils::registry::RentExemption;
-use forester_utils::rpc::{RpcConnection, RpcError};
 use forester_utils::{
     create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
 };
+use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
 

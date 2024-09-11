@@ -1,6 +1,6 @@
 use account_compression::{QueueAccount, QueueMetadata, QueueType, RolloverMetadata};
-use forester_utils::rpc::RpcConnection;
 use forester_utils::{get_hash_set, AccountZeroCopy};
+use light_client::rpc::RpcConnection;
 use light_utils::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 

@@ -9,15 +9,14 @@ use async_trait::async_trait;
 use log::warn;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig};
-use solana_program_test::BanksClientError;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
 use solana_sdk::clock::UnixTimestamp;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::epoch_info::EpochInfo;
-use solana_sdk::instruction::{Instruction, InstructionError};
+use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::{Keypair, Signature};
-use solana_sdk::transaction::{Transaction, TransactionError};
+use solana_sdk::transaction::Transaction;
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
 use std::fmt::{Debug, Display, Formatter};
@@ -327,18 +326,7 @@ impl RpcConnection for SolanaRpcConnection {
                 - 5000 * deduped_signers.len() as i64
                 - network_fee;
             if post_balance as i64 != expected_post_balance {
-                println!("transaction_params: {:?}", transaction_params);
-                println!("pre_balance: {}", pre_balance);
-                println!("post_balance: {}", post_balance);
-                println!("expected post_balance: {}", expected_post_balance);
-                println!(
-                    "diff post_balance: {}",
-                    post_balance as i64 - expected_post_balance
-                );
-                println!("network_fee: {}", network_fee);
-                return Err(RpcError::from(BanksClientError::TransactionError(
-                    TransactionError::InstructionError(0, InstructionError::Custom(11111)),
-                )));
+                return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
         }
 

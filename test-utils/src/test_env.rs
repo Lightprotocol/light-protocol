@@ -11,10 +11,10 @@ use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueType
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
 use forester_utils::registry::register_test_forester;
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
-use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
 use forester_utils::{airdrop_lamports, create_account_instruction};
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::solana_rpc::SolanaRpcUrl;
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_hasher::Poseidon;
 use light_macros::pubkey;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
@@ -900,7 +900,7 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,
-) -> Result<Pubkey, forester_utils::rpc::errors::RpcError> {
+) -> Result<Pubkey, light_client::rpc::errors::RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_deregister_program_instruction(
         governance_authority.pubkey(),

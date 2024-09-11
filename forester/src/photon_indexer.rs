@@ -1,7 +1,7 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams};
 use solana_sdk::bs58;

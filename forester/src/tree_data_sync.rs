@@ -3,7 +3,7 @@ use account_compression::utils::check_discrimininator::check_discriminator;
 use account_compression::{AddressMerkleTreeAccount, MerkleTreeMetadata, StateMerkleTreeAccount};
 use borsh::BorshDeserialize;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
 use solana_sdk::account::Account;
 use solana_sdk::pubkey::Pubkey;
 use tracing::debug;

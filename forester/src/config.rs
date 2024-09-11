@@ -1,6 +1,6 @@
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
-use forester_utils::rpc::RetryConfig;
+use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;

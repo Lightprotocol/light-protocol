@@ -1,8 +1,8 @@
-use crate::rpc_pool::PoolError;
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
 use config::ConfigError;
 use forester_utils::indexer::IndexerError;
-use forester_utils::rpc::errors::RpcError;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc_pool::PoolError;
 use light_hash_set::HashSetError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use prometheus::Error as PrometheusError;

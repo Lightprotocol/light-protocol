@@ -17,9 +17,9 @@ use forester_utils::indexer::{
     NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     TokenDataWithContext,
 };
-use forester_utils::rpc::RpcConnection;
-use forester_utils::transaction_params::FeeConfig;
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};

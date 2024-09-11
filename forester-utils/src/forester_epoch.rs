@@ -1,9 +1,9 @@
 use std::fmt::Display;
 // TODO: move into separate forester utils crate
-use crate::rpc::{RpcConnection, RpcError};
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
+use light_client::rpc::{RpcConnection, RpcError};
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},

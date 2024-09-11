@@ -1,4 +1,3 @@
-use crate::rpc::RpcConnection;
 use crate::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
@@ -8,6 +7,7 @@ use account_compression::{
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
+use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;

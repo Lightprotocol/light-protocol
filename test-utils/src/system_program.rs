@@ -20,9 +20,9 @@ use solana_sdk::{
 use crate::assert_compressed_tx::{
     assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
 };
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
-use forester_utils::transaction_params::TransactionParams;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(

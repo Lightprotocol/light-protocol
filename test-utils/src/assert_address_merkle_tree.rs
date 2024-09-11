@@ -1,5 +1,5 @@
-use forester_utils::rpc::RpcConnection;
 use forester_utils::{get_indexed_merkle_tree, AccountZeroCopy};
+use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
 use solana_sdk::pubkey::Pubkey;
 

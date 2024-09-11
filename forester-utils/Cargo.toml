@@ -7,6 +7,7 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Utility library for Light's Forester node implementation"
 
 [dependencies]
+# Light Protocol
 account-compression = { path = "../programs/account-compression", version = "1.0.0", features = ["cpi"] }
 light-compressed-token = { path = "../programs/compressed-token", version = "1.0.0", features = ["cpi"] }
 light-hash-set = { path = "../merkle-tree/hash-set", version = "1.0.0" }
@@ -20,21 +21,33 @@ light-system-program = { path = "../programs/system", version = "1.0.0", feature
 light-utils = { path = "../utils", version = "1.0.0" }
 
 photon-api = { workspace = true }
+light-client = { workspace = true }
 
+# Anchor
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 
+# Solana
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }
 
+# Async ecosystem
 tokio = { workspace = true }
+async-trait = { workspace = true }
 
+# Error handling
 thiserror = "1.0"
+
+# Logging
 log = "0.4"
+
+# Big numbers
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
+
+# HTTP client
 reqwest = "0.11.26"
-async-trait = "0.1.82"
+
