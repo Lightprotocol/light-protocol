@@ -95,6 +95,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
             params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
                 cursor: None,
+                data_slice: None,
+                filters: None,
                 limit: None,
                 owner: owner.to_string(),
             }),
