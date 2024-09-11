@@ -87,14 +87,13 @@ async fn test_multiple_state_trees_with_photon() {
     }
 }
 
-#[ignore = "Test fails possibly because of photon"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_multiple_address_trees_with_photon() {
     init(Some(LightValidatorConfig {
         enable_indexer: true,
         enable_prover: true,
         enable_forester: false,
-        wait_time: 10,
+        wait_time: 20,
         ..LightValidatorConfig::default()
     }))
     .await;
@@ -136,6 +135,8 @@ async fn test_multiple_address_trees_with_photon() {
 
     for i in 0..10 {
         let address_tree_accounts = env.create_address_tree(Some(95)).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
         info!("address_tree_accounts {:?}", address_tree_accounts);
         info!(
             "address_tree_accounts.merkle_tree {:?}",
