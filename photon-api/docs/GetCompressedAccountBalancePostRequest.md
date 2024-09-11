@@ -1,4 +1,4 @@
-# GetCompressedBalancePostRequest
+# GetCompressedAccountBalancePostRequest
 
 ## Properties
 

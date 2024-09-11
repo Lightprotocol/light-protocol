@@ -4,12 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**compressed_proof** | [**models::CompressedProof**](CompressedProof.md) |  | 
-**leaf_indices** | **Vec<i32>** |  | 
-**leaves** | **Vec<String>** |  | 
-**merkle_trees** | **Vec<String>** |  | 
-**root_indices** | **Vec<i32>** |  | 
-**roots** | **Vec<String>** |  | 
+**context** | [**models::Context**](Context.md) |  | 
+**value** | [**models::CompressedProofWithContext**](CompressedProofWithContext.md) |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

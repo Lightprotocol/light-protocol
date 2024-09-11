@@ -42,6 +42,8 @@ solana-transaction-status = "=1.18.22"
 solana-account-decoder = "=1.18.22"
 solana-rpc = "=1.18.22"
 
+photon-api = { path = "photon-api" }
+
 anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
 

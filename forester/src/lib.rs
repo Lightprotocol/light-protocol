@@ -15,6 +15,7 @@ pub mod settings;
 mod slot_tracker;
 pub mod telemetry;
 pub mod tree_data_sync;
+pub mod tree_finder;
 pub mod utils;
 
 use crate::epoch_manager::{run_service, WorkReport};

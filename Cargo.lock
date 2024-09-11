@@ -4700,9 +4700,8 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.44.0"
+version = "0.45.0"
 dependencies = [
- "log",
  "reqwest 0.11.27",
  "serde",
  "serde_derive",

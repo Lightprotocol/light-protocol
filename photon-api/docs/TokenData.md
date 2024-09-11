@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **mint** | **String** | A Solana public key represented as a base58 string. | [default to 11111112D1oxKts8YPdTJRG5FzxTNpMtWmq8hkVx3]
 **owner** | **String** | A Solana public key represented as a base58 string. | [default to 11111112D1oxKts8YPdTJRG5FzxTNpMtWmq8hkVx3]
 **state** | [**models::AccountState**](AccountState.md) |  | 
+**tlv** | Option<**String**> | A base 64 encoded string. | [optional][default to SGVsbG8sIFdvcmxkIQ==]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

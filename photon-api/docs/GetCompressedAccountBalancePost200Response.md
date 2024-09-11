@@ -1,4 +1,4 @@
-# GetCompressedBalancePost200Response
+# GetCompressedAccountBalancePost200Response
 
 ## Properties
 
@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 **error** | Option<[**models::GetCompressedAccountPost200ResponseError**](_getCompressedAccount_post_200_response_error.md)> |  | [optional]
 **id** | **String** | An ID to identify the response. | 
 **jsonrpc** | **String** | The version of the JSON-RPC protocol. | 
-**result** | Option<[**models::GetCompressedBalancePost200ResponseResult**](_getCompressedBalance_post_200_response_result.md)> |  | [optional]
+**result** | Option<[**models::GetCompressedAccountBalancePost200ResponseResult**](_getCompressedAccountBalance_post_200_response_result.md)> |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 
