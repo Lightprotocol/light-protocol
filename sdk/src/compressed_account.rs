@@ -1,19 +1,17 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::prelude::{AccountInfo, Key, ProgramError, Pubkey, Result};
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{DataHasher, Discriminator, Poseidon};
-use light_system_program::sdk::address::derive_address;
-pub use light_system_program::{
-    sdk::compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-        PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
-    },
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+use anchor_lang::{
+    prelude::{AccountInfo, ProgramError, Pubkey, Result},
+    Key,
 };
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
+use light_system_program::sdk::address::derive_address;
+use light_utils::hash_to_bn254_field_size_be;
 
 use crate::merkle_context::{
-    pack_merkle_context, PackedAddressMerkleContext, PackedMerkleOutputContext, RemainingAccounts,
+    pack_merkle_context, MerkleContext, PackedAddressMerkleContext, PackedMerkleContext,
+    RemainingAccounts,
 };
 
 pub trait LightAccounts: Sized {
@@ -25,15 +23,19 @@ pub trait LightAccounts: Sized {
         address_merkle_tree_root_index: u16,
         remaining_accounts: &[AccountInfo],
     ) -> Result<Self>;
-    fn new_address_params(&self) -> Vec<NewAddressParamsPacked>;
+    fn new_address_params(&self) -> Vec<light_system_program::NewAddressParamsPacked>;
     fn input_accounts(
         &self,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<Vec<PackedCompressedAccountWithMerkleContext>>;
+    ) -> Result<
+        Vec<
+            light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+        >,
+    >;
     fn output_accounts(
         &self,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<Vec<OutputCompressedAccountWithPackedContext>>;
+    ) -> Result<Vec<light_system_program::OutputCompressedAccountWithPackedContext>>;
 }
 
 /// A wrapper which abstracts away the UTXO model.
@@ -98,7 +100,7 @@ where
         }
     }
 
-    pub fn new_address_params(&self) -> Option<NewAddressParamsPacked> {
+    pub fn new_address_params(&self) -> Option<light_system_program::NewAddressParamsPacked> {
         match self {
             Self::Init(self_init) => Some(self_init.new_address_params()),
             Self::Mut(_) => None,
@@ -110,7 +112,11 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+    ) -> Result<
+        Option<
+            light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+        >,
+    > {
         match self {
             Self::Init(_) => Ok(None),
             Self::Mut(light_mut_account) => {
@@ -130,7 +136,7 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
+    ) -> Result<Option<light_system_program::OutputCompressedAccountWithPackedContext>> {
         match self {
             Self::Init(light_init_account) => {
                 let account =
@@ -210,8 +216,8 @@ where
         self.address_seed = Some(address_seed);
     }
 
-    pub fn new_address_params(&self) -> NewAddressParamsPacked {
-        NewAddressParamsPacked {
+    pub fn new_address_params(&self) -> light_system_program::NewAddressParamsPacked {
+        light_system_program::NewAddressParamsPacked {
             seed: self.address_seed.unwrap(),
             address_merkle_tree_account_index: self
                 .address_merkle_context
@@ -225,7 +231,7 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
+    ) -> Result<light_system_program::OutputCompressedAccountWithPackedContext> {
         output_compressed_account(
             &self.output_account,
             &self.address_seed.unwrap(),
@@ -299,7 +305,9 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
+    ) -> Result<
+        light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+    > {
         input_compressed_account(
             &self.input_account,
             &self.address_seed.unwrap(),
@@ -315,7 +323,7 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
+    ) -> Result<light_system_program::OutputCompressedAccountWithPackedContext> {
         output_compressed_account(
             &self.output_account,
             &self.address_seed.unwrap(),
@@ -387,7 +395,9 @@ where
         &self,
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
+    ) -> Result<
+        light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+    > {
         input_compressed_account(
             &self.input_account,
             &self.address_seed.unwrap(),
@@ -420,23 +430,132 @@ where
     }
 }
 
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct CompressedAccount {
+    pub owner: Pubkey,
+    pub lamports: u64,
+    pub address: Option<[u8; 32]>,
+    pub data: Option<CompressedAccountData>,
+}
+
+/// Hashing scheme:
+/// H(owner || leaf_index || merkle_tree_pubkey || lamports || address || data.discriminator || data.data_hash)
+impl CompressedAccount {
+    pub fn hash_with_hashed_values<H: Hasher>(
+        &self,
+        &owner_hashed: &[u8; 32],
+        &merkle_tree_hashed: &[u8; 32],
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        let capacity = 3
+            + std::cmp::min(self.lamports, 1) as usize
+            + self.address.is_some() as usize
+            + self.data.is_some() as usize * 2;
+        let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
+        vec.push(owner_hashed.as_slice());
+
+        // leaf index and merkle tree pubkey are used to make every compressed account hash unique
+        let leaf_index = leaf_index.to_le_bytes();
+        vec.push(leaf_index.as_slice());
+
+        vec.push(merkle_tree_hashed.as_slice());
+
+        // Lamports are only hashed if non-zero to safe CU
+        // For safety we prefix the lamports with 1 in 1 byte.
+        // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+        let mut lamports_bytes = [1, 0, 0, 0, 0, 0, 0, 0, 0];
+        if self.lamports != 0 {
+            lamports_bytes[1..].copy_from_slice(&self.lamports.to_le_bytes());
+            vec.push(lamports_bytes.as_slice());
+        }
+
+        if self.address.is_some() {
+            vec.push(self.address.as_ref().unwrap().as_slice());
+        }
+
+        let mut discriminator_bytes = [2, 0, 0, 0, 0, 0, 0, 0, 0];
+        if let Some(data) = &self.data {
+            discriminator_bytes[1..].copy_from_slice(&data.discriminator);
+            vec.push(&discriminator_bytes);
+            vec.push(&data.data_hash);
+        }
+        let hash = H::hashv(&vec).map_err(ProgramError::from)?;
+        Ok(hash)
+    }
+
+    pub fn hash<H: Hasher>(
+        &self,
+        &merkle_tree_pubkey: &Pubkey,
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        self.hash_with_hashed_values::<H>(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes())
+                .unwrap()
+                .0,
+            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0,
+            leaf_index,
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct CompressedAccountData {
+    pub discriminator: [u8; 8],
+    pub data: Vec<u8>,
+    pub data_hash: [u8; 32],
+}
+
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct CompressedAccountWithMerkleContext {
+    pub compressed_account: CompressedAccount,
+    pub merkle_context: MerkleContext,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct PackedCompressedAccountWithMerkleContext {
+    pub compressed_account: CompressedAccount,
+    pub merkle_context: PackedMerkleContext,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
+    /// Placeholder to mark accounts read-only unimplemented set to false.
+    pub read_only: bool,
+}
+
+impl CompressedAccountWithMerkleContext {
+    pub fn hash(&self) -> Result<[u8; 32]> {
+        self.compressed_account.hash::<Poseidon>(
+            &self.merkle_context.merkle_tree_pubkey,
+            &self.merkle_context.leaf_index,
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+pub struct OutputCompressedAccountWithPackedContext {
+    pub compressed_account: CompressedAccount,
+    pub merkle_tree_index: u8,
+}
+
 pub fn serialize_and_hash_account<T>(
     account: &T,
     address_seed: &[u8; 32],
     program_id: &Pubkey,
     address_merkle_context: &PackedAddressMerkleContext,
     remaining_accounts: &[AccountInfo],
-) -> Result<CompressedAccount>
+) -> Result<light_system_program::sdk::compressed_account::CompressedAccount>
 where
     T: BorshSerialize + DataHasher + Discriminator,
 {
     let data = account.try_to_vec()?;
     let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
-    let compressed_account_data = CompressedAccountData {
-        discriminator: T::discriminator(),
-        data,
-        data_hash,
-    };
+    let compressed_account_data =
+        light_system_program::sdk::compressed_account::CompressedAccountData {
+            discriminator: T::discriminator(),
+            data,
+            data_hash,
+        };
 
     let address = derive_address(
         &remaining_accounts[address_merkle_context.address_merkle_tree_pubkey_index as usize].key(),
@@ -444,7 +563,7 @@ where
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
 
-    let compressed_account = CompressedAccount {
+    let compressed_account = light_system_program::sdk::compressed_account::CompressedAccount {
         owner: *program_id,
         lamports: 0,
         address: Some(address),
@@ -452,44 +571,6 @@ where
     };
 
     Ok(compressed_account)
-}
-
-pub fn new_compressed_account<T>(
-    account: &T,
-    address_seed: &[u8; 32],
-    program_id: &Pubkey,
-    merkle_output_context: &PackedMerkleOutputContext,
-    address_merkle_context: &PackedAddressMerkleContext,
-    address_merkle_tree_root_index: u16,
-    remaining_accounts: &[AccountInfo],
-) -> Result<(
-    OutputCompressedAccountWithPackedContext,
-    NewAddressParamsPacked,
-)>
-where
-    T: BorshSerialize + DataHasher + Discriminator,
-{
-    let compressed_account = serialize_and_hash_account(
-        account,
-        address_seed,
-        program_id,
-        address_merkle_context,
-        remaining_accounts,
-    )?;
-
-    let compressed_account = OutputCompressedAccountWithPackedContext {
-        compressed_account,
-        merkle_tree_index: merkle_output_context.merkle_tree_pubkey_index,
-    };
-
-    let new_address_params = NewAddressParamsPacked {
-        seed: *address_seed,
-        address_merkle_tree_account_index: address_merkle_context.address_merkle_tree_pubkey_index,
-        address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-        address_merkle_tree_root_index,
-    };
-
-    Ok((compressed_account, new_address_params))
 }
 
 pub fn input_compressed_account<T>(
@@ -500,7 +581,7 @@ pub fn input_compressed_account<T>(
     merkle_tree_root_index: u16,
     address_merkle_context: &PackedAddressMerkleContext,
     remaining_accounts: &[AccountInfo],
-) -> Result<PackedCompressedAccountWithMerkleContext>
+) -> Result<light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext>
 where
     T: BorshSerialize + DataHasher + Discriminator,
 {
@@ -512,12 +593,24 @@ where
         remaining_accounts,
     )?;
 
-    Ok(PackedCompressedAccountWithMerkleContext {
-        compressed_account,
-        merkle_context: *merkle_context,
-        root_index: merkle_tree_root_index,
-        read_only: false,
-    })
+    Ok(
+        light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext {
+            compressed_account,
+            merkle_context: crate::legacy::PackedMerkleContext {
+                merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
+                nullifier_queue_pubkey_index: merkle_context.nullifier_queue_pubkey_index,
+                leaf_index: merkle_context.leaf_index,
+                queue_index: merkle_context.queue_index.map(|queue_index| {
+                    crate::legacy::QueueIndex {
+                        queue_id: queue_index.queue_id,
+                        index: queue_index.index,
+                    }
+                }),
+            },
+            root_index: merkle_tree_root_index,
+            read_only: false,
+        },
+    )
 }
 
 pub fn output_compressed_account<T>(
@@ -527,7 +620,7 @@ pub fn output_compressed_account<T>(
     merkle_context: &PackedMerkleContext,
     address_merkle_context: &PackedAddressMerkleContext,
     remaining_accounts: &[AccountInfo],
-) -> Result<OutputCompressedAccountWithPackedContext>
+) -> Result<light_system_program::OutputCompressedAccountWithPackedContext>
 where
     T: BorshSerialize + DataHasher + Discriminator,
 {
@@ -539,10 +632,12 @@ where
         remaining_accounts,
     )?;
 
-    Ok(OutputCompressedAccountWithPackedContext {
-        compressed_account,
-        merkle_tree_index: merkle_context.merkle_tree_pubkey_index,
-    })
+    Ok(
+        light_system_program::OutputCompressedAccountWithPackedContext {
+            compressed_account,
+            merkle_tree_index: merkle_context.merkle_tree_pubkey_index,
+        },
+    )
 }
 
 pub fn pack_compressed_accounts(
