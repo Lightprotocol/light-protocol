@@ -237,9 +237,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 });
 
                 info!(
-                        "Injected new tree into current epoch {}: {:?}",
-                        current_epoch, new_tree
-                    );
+                    "Injected new tree into current epoch {}: {:?}",
+                    current_epoch, new_tree
+                );
             } else {
                 warn!("Failed to retrieve current epoch info for processing new tree");
             }
@@ -286,7 +286,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 &self.slot_tracker,
                 next_phases.registration.start,
             )
-                .await
+            .await
             {
                 error!("Error waiting for next registration phase: {:?}", e);
                 continue;
@@ -499,7 +499,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &self.protocol_config,
                     &self.config.payer_keypair,
                 )
-                    .await
+                .await
                 {
                     Ok(Some(epoch)) => {
                         debug!("Registered epoch: {:?}", epoch);
@@ -634,7 +634,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
         )
-            .0;
+        .0;
         let existing_registration = rpc
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?;
@@ -651,7 +651,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &self.config.payer_keypair.pubkey(),
                     &[&self.config.payer_keypair],
                 )
-                    .await?;
+                .await?;
             }
         }
 
@@ -791,7 +791,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &self.slot_tracker,
                     forester_slot.start_solana_slot,
                 )
-                    .await?;
+                .await?;
 
                 let light_slot_timeout = {
                     let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
@@ -928,7 +928,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             &self.config.payer_keypair.pubkey(),
             epoch_info.epoch.epoch,
         )
-            .0;
+        .0;
         if let Some(forester_epoch_pda) = rpc
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?
@@ -961,9 +961,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             Err(e) => {
                 if let RpcError::ClientError(client_error) = &e {
                     if let Some(TransactionError::InstructionError(
-                                    _,
-                                    InstructionError::Custom(error_code),
-                                )) = client_error.get_transaction_error()
+                        _,
+                        InstructionError::Custom(error_code),
+                    )) = client_error.get_transaction_error()
                     {
                         let reported_work_code = RegistryError::ForesterAlreadyReportedWork as u32;
                         let not_in_report_work_phase_code =
@@ -1009,7 +1009,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     self.indexer.clone(),
                     tree_account,
                 )
-                    .await
+                .await
             }
             TreeType::State => {
                 rollover_state_merkle_tree(
@@ -1018,7 +1018,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     self.indexer.clone(),
                     tree_account,
                 )
-                    .await
+                .await
             }
         };
 
@@ -1094,7 +1094,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                     slot_tracker.clone(),
                     new_tree_sender.clone(),
                 )
-                    .await
+                .await
                 {
                     Ok(epoch_manager) => {
                         let epoch_manager: Arc<EpochManager<R, I>> = Arc::new(epoch_manager);

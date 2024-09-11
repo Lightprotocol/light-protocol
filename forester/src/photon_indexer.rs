@@ -216,20 +216,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         .items
                         .iter()
                         .map(|x| {
-                            let address = if let Some(address) = x.address.as_ref() {
-                                Some(decode_hash(address))
-                            } else {
-                                None
-                            };
-                            let data = if let Some(data) = x.data.as_ref() {
-                                Some(CompressedAccountData {
-                                    data: bs58::decode(data.data.clone()).into_vec().unwrap(),
-                                    discriminator: (data.discriminator as u64).to_le_bytes(),
-                                    data_hash: decode_hash(&data.data_hash),
-                                })
-                            } else {
-                                None
-                            };
+                            let address = x.address.as_ref().map(|address| decode_hash(address));
+                            let data = x.data.as_ref().map(|data| CompressedAccountData {
+                                data: bs58::decode(data.data.clone()).into_vec().unwrap(),
+                                discriminator: (data.discriminator as u64).to_le_bytes(),
+                                data_hash: decode_hash(&data.data_hash),
+                            });
                             use std::str::FromStr;
                             let compressed_account = CompressedAccount {
                                 address,
