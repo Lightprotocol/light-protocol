@@ -7,6 +7,7 @@ use photon_api::models::{AddressWithTree, GetCompressedAccountsByOwnerPostReques
 use solana_sdk::bs58;
 use std::fmt::Debug;
 use tracing::debug;
+use light_system_program::sdk::compressed_account::{CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext};
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
@@ -52,7 +53,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             &self.configuration,
             request,
         )
-        .await;
+            .await;
 
         match result {
             Ok(response) => {
@@ -107,8 +108,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             &self.configuration,
             request,
         )
-        .await
-        .unwrap();
+            .await
+            .unwrap();
 
         let accs = result.result.unwrap().value;
         let mut hashes = Vec::new();
@@ -143,7 +144,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             &self.configuration,
             request,
         )
-        .await;
+            .await;
+
+        debug!("Response: {:?}", result);
 
         if result.is_err() {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
@@ -182,5 +185,69 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
 
         Ok(proofs)
+    }
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        let params = GetCompressedAccountsByOwnerPostRequestParams {
+            cursor: None,
+            limit: None,
+            owner: owner.to_string(),
+            ..Default::default()
+        };
+        let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+            params: Box::from(params),
+            ..Default::default()
+        };
+
+        let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+            &self.configuration,
+            request,
+        )
+            .await;
+        // let env_accounts = EnvAccounts::get_local_test_validator_accounts();
+        match result {
+            Ok(response) => match response.result {
+                Some(result) => {
+                    let accounts = result
+                        .value
+                        .items
+                        .iter()
+                        .map(|x| {
+                            let address = x.address.as_ref().map(|address| decode_hash(address));
+                            let data = x.data.as_ref().map(|data| CompressedAccountData {
+                                data: bs58::decode(data.data.clone()).into_vec().unwrap(),
+                                discriminator: (data.discriminator as u64).to_le_bytes(),
+                                data_hash: decode_hash(&data.data_hash),
+                            });
+                            use std::str::FromStr;
+                            let compressed_account = CompressedAccount {
+                                address,
+                                owner: Pubkey::from_str(x.owner.as_str()).unwrap(),
+                                data,
+                                lamports: x.lamports.try_into().unwrap(),
+                            };
+                            let merkle_context = MerkleContext {
+                                merkle_tree_pubkey: Pubkey::new_from_array(decode_hash(&x.tree)),
+                                leaf_index: x.leaf_index.try_into().unwrap(),
+                                queue_index: None,
+                                nullifier_queue_pubkey: Pubkey::default(), //env_accounts.nullifier_queue_pubkey, // TODO: make dynamic. Why don't we get this value from the rpc call?
+                            };
+                            CompressedAccountWithMerkleContext {
+                                compressed_account,
+                                merkle_context,
+                            }
+                        })
+                        .collect();
+                    accounts
+                }
+                None => panic!("get_compressed_accounts_by_owner No result found"),
+            },
+            Err(e) => {
+                tracing::info!("Error: {:?}", e);
+                panic!("get_compressed_accounts_by_owner failed")
+            }
+        }
     }
 }

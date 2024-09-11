@@ -150,7 +150,9 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    fn get_compressed_accounts_by_owner(
+
+    #[allow(async_fn_in_trait)]
+    async fn get_compressed_accounts_by_owner(
         &self,
         _owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {

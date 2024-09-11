@@ -122,7 +122,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {
-        let result = self.get_compressed_accounts_by_owner(owner);
+        let result = self.get_compressed_accounts_by_owner(owner).await;
         let mut hashes: Vec<String> = Vec::new();
         for account in result.iter() {
             let hash = account.hash().unwrap();
@@ -550,7 +550,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
     /// returns compressed_accounts with the owner pubkey
     /// does not return token accounts.
-    fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
