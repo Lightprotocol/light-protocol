@@ -14,6 +14,7 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 
 use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
+use crate::tree_finder::TreeFinder;
 use dashmap::DashMap;
 use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
@@ -36,7 +37,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, info_span, instrument, warn};
@@ -77,9 +79,10 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     indexer: Arc<Mutex<I>>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
-    trees: Vec<TreeAccounts>,
+    trees: Arc<Mutex<Vec<TreeAccounts>>>,
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
+    new_tree_sender: broadcast::Sender<TreeAccounts>,
 }
 
 impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
@@ -94,11 +97,13 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
             trees: self.trees.clone(),
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
+            new_tree_sender: self.new_tree_sender.clone(),
         }
     }
 }
 
 impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
         protocol_config: Arc<ProtocolConfig>,
@@ -107,6 +112,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         work_report_sender: mpsc::Sender<WorkReport>,
         trees: Vec<TreeAccounts>,
         slot_tracker: Arc<SlotTracker>,
+        new_tree_sender: broadcast::Sender<TreeAccounts>,
     ) -> Result<Self> {
         Ok(Self {
             config,
@@ -115,9 +121,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             indexer,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
-            trees,
+            trees: Arc::new(Mutex::new(trees)),
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
+            new_tree_sender,
         })
     }
 
@@ -142,6 +149,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             }
         });
 
+        let new_tree_handle = tokio::spawn({
+            let self_clone = Arc::clone(&self);
+            async move { self_clone.handle_new_trees().await }
+        });
+
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
             let self_clone = Arc::clone(&self);
@@ -154,6 +166,86 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         monitor_handle.await??;
         current_previous_handle.await??;
+        new_tree_handle.await??;
+
+        Ok(())
+    }
+
+    async fn handle_new_trees(self: Arc<Self>) -> Result<()> {
+        let mut receiver = self.new_tree_sender.subscribe();
+        loop {
+            match receiver.recv().await {
+                Ok(new_tree) => {
+                    info!("Received new tree: {:?}", new_tree);
+                    self.add_new_tree(new_tree).await?;
+                }
+                Err(e) => match e {
+                    RecvError::Lagged(lag) => {
+                        warn!("Lagged in receiving new trees: {:?}", lag);
+                    }
+                    RecvError::Closed => {
+                        info!("New tree receiver closed");
+                        break;
+                    }
+                },
+            }
+        }
+        Ok(())
+    }
+
+    async fn add_new_tree(&self, new_tree: TreeAccounts) -> Result<()> {
+        info!("Adding new tree: {:?}", new_tree);
+        let mut trees = self.trees.lock().await;
+        trees.push(new_tree);
+        drop(trees);
+
+        info!("New tree added to the list of trees");
+
+        let (current_slot, current_epoch) = self.get_current_slot_and_epoch().await?;
+        let phases = get_epoch_phases(&self.protocol_config, current_epoch);
+
+        // Check if we're currently in the active phase
+        if current_slot >= phases.active.start && current_slot < phases.active.end {
+            info!("Currently in active phase. Attempting to process the new tree immediately.");
+            info!("Recovering regitration info...");
+            if let Ok(mut epoch_info) = self.recover_registration_info(current_epoch).await {
+                info!("Recovered registration info for current epoch");
+                let tree_schedule = TreeForesterSchedule::new_with_schedule(
+                    &new_tree,
+                    current_slot,
+                    &epoch_info.forester_epoch_pda,
+                    &epoch_info.epoch_pda,
+                );
+                epoch_info.trees.push(tree_schedule.clone());
+
+                let self_clone = Arc::new(self.clone());
+
+                info!("Spawning task to process new tree in current epoch");
+                tokio::spawn(async move {
+                    if let Err(e) = self_clone
+                        .process_queue(
+                            &epoch_info.epoch,
+                            &epoch_info.forester_epoch_pda,
+                            tree_schedule,
+                        )
+                        .await
+                    {
+                        error!("Error processing queue for new tree: {:?}", e);
+                    } else {
+                        info!("Successfully processed new tree in current epoch");
+                    }
+                });
+
+                info!(
+                    "Injected new tree into current epoch {}: {:?}",
+                    current_epoch, new_tree
+                );
+            } else {
+                warn!("Failed to retrieve current epoch info for processing new tree");
+            }
+        } else {
+            info!("Not in active phase. New tree will be processed in the next active phase");
+        }
 
         Ok(())
     }
@@ -570,7 +662,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .ok_or_else(|| ForesterError::Custom("Failed to get ForesterEpochPda".to_string()))?;
 
         let slot = rpc.get_slot().await?;
-        epoch_info.add_trees_with_schedule(&self.trees, slot);
+        let trees = self.trees.lock().await;
+        epoch_info.add_trees_with_schedule(&trees, slot);
         info!("Finished waiting for active phase");
         Ok(epoch_info)
     }
@@ -968,7 +1061,23 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                 let rpc = rpc_pool.get_connection().await?;
                 fetch_trees(&*rpc).await
             };
-            info!("Fetched trees: {:?}", trees);
+            info!("Fetched initial trees: {:?}", trees);
+
+            let (new_tree_sender, _) = broadcast::channel(100);
+
+            let mut tree_finder = TreeFinder::new(
+                rpc_pool.clone(),
+                trees.clone(),
+                new_tree_sender.clone(),
+                Duration::from_secs(config.tree_discovery_interval_seconds),
+            );
+
+            let _tree_finder_handle = tokio::spawn(async move {
+                if let Err(e) = tree_finder.run().await {
+                    error!("Tree finder error: {:?}", e);
+                }
+            });
+
             while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
                 match EpochManager::new(
@@ -979,6 +1088,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                     work_report_sender.clone(),
                     trees.clone(),
                     slot_tracker.clone(),
+                    new_tree_sender.clone(),
                 )
                 .await
                 {
