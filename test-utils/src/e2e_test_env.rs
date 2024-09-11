@@ -842,7 +842,10 @@ where
         merkle_tree_keypair.pubkey()
     }
 
-    pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) -> Pubkey {
+    pub async fn create_address_tree(
+        &mut self,
+        rollover_threshold: Option<u64>,
+    ) -> AddressMerkleTreeAccounts {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
         let rollover_threshold = if let Some(rollover_threshold) = rollover_threshold {
@@ -911,6 +914,10 @@ where
             nullifier_queue_keypair.pubkey(),
         )
         .await;
+        let accounts = AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: nullifier_queue_keypair.pubkey(),
+        };
         self.indexer
             .get_address_merkle_trees_mut()
             .push(AddressMerkleTreeBundle {
@@ -919,15 +926,12 @@ where
                     .metadata
                     .rollover_metadata
                     .rollover_fee as i64,
-                accounts: AddressMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    queue: nullifier_queue_keypair.pubkey(),
-                },
+                accounts,
                 merkle_tree,
                 indexed_array,
             });
         // TODO: Add assert
-        merkle_tree_keypair.pubkey()
+        accounts
     }
 
     pub fn safe_gen_range<T, RR>(rng: &mut StdRng, range: RR, empty_fallback: T) -> T
