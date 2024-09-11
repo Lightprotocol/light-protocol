@@ -1,14 +1,14 @@
 # \DefaultApi
 
-All URIs are relative to *http://127.0.0.1*
+All URIs are relative to *https://devnet.helius-rpc.com?api-key=<api_key>*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**get_compressed_account_balance_post**](DefaultApi.md#get_compressed_account_balance_post) | **POST** /getCompressedAccountBalance | 
 [**get_compressed_account_post**](DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 [**get_compressed_account_proof_post**](DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
 [**get_compressed_accounts_by_owner_post**](DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
 [**get_compressed_balance_by_owner_post**](DefaultApi.md#get_compressed_balance_by_owner_post) | **POST** /getCompressedBalanceByOwner | 
-[**get_compressed_balance_post**](DefaultApi.md#get_compressed_balance_post) | **POST** /getCompressedBalance | 
 [**get_compressed_token_account_balance_post**](DefaultApi.md#get_compressed_token_account_balance_post) | **POST** /getCompressedTokenAccountBalance | 
 [**get_compressed_token_accounts_by_delegate_post**](DefaultApi.md#get_compressed_token_accounts_by_delegate_post) | **POST** /getCompressedTokenAccountsByDelegate | 
 [**get_compressed_token_accounts_by_owner_post**](DefaultApi.md#get_compressed_token_accounts_by_owner_post) | **POST** /getCompressedTokenAccountsByOwner | 
@@ -24,9 +24,38 @@ Method | HTTP request | Description
 [**get_multiple_compressed_account_proofs_post**](DefaultApi.md#get_multiple_compressed_account_proofs_post) | **POST** /getMultipleCompressedAccountProofs | 
 [**get_multiple_compressed_accounts_post**](DefaultApi.md#get_multiple_compressed_accounts_post) | **POST** /getMultipleCompressedAccounts | 
 [**get_multiple_new_address_proofs_post**](DefaultApi.md#get_multiple_new_address_proofs_post) | **POST** /getMultipleNewAddressProofs | 
+[**get_multiple_new_address_proofs_v2_post**](DefaultApi.md#get_multiple_new_address_proofs_v2_post) | **POST** /getMultipleNewAddressProofsV2 | 
 [**get_transaction_with_compression_info_post**](DefaultApi.md#get_transaction_with_compression_info_post) | **POST** /getTransactionWithCompressionInfo | 
 [**get_validity_proof_post**](DefaultApi.md#get_validity_proof_post) | **POST** /getValidityProof | 
 
+
+
+## get_compressed_account_balance_post
+
+> models::GetCompressedAccountBalancePost200Response get_compressed_account_balance_post(get_compressed_account_balance_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_account_balance_post_request** | [**GetCompressedAccountBalancePostRequest**](GetCompressedAccountBalancePostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedAccountBalancePost200Response**](_getCompressedAccountBalance_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
 ## get_compressed_account_post
@@ -115,7 +144,7 @@ No authorization required
 
 ## get_compressed_balance_by_owner_post
 
-> models::GetCompressedBalancePost200Response get_compressed_balance_by_owner_post(get_compressed_balance_by_owner_post_request)
+> models::GetCompressedAccountBalancePost200Response get_compressed_balance_by_owner_post(get_compressed_balance_by_owner_post_request)
 
 
 ### Parameters
@@ -127,35 +156,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetCompressedBalancePost200Response**](_getCompressedBalance_post_200_response.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
-- **Content-Type**: application/json
-- **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-
-## get_compressed_balance_post
-
-> models::GetCompressedBalancePost200Response get_compressed_balance_post(get_compressed_balance_post_request)
-
-
-### Parameters
-
-
-Name | Type | Description  | Required | Notes
-------------- | ------------- | ------------- | ------------- | -------------
-**get_compressed_balance_post_request** | [**GetCompressedBalancePostRequest**](GetCompressedBalancePostRequest.md) |  | [required] |
-
-### Return type
-
-[**models::GetCompressedBalancePost200Response**](_getCompressedBalance_post_200_response.md)
+[**models::GetCompressedAccountBalancePost200Response**](_getCompressedAccountBalance_post_200_response.md)
 
 ### Authorization
 
@@ -479,7 +480,7 @@ No authorization required
 
 ## get_latest_non_voting_signatures_post
 
-> models::GetCompressionSignaturesForAccountPost200Response get_latest_non_voting_signatures_post(get_latest_non_voting_signatures_post_request)
+> models::GetLatestNonVotingSignaturesPost200Response get_latest_non_voting_signatures_post(get_latest_non_voting_signatures_post_request)
 
 
 ### Parameters
@@ -491,7 +492,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetCompressionSignaturesForAccountPost200Response**](_getCompressionSignaturesForAccount_post_200_response.md)
+[**models::GetLatestNonVotingSignaturesPost200Response**](_getLatestNonVotingSignatures_post_200_response.md)
 
 ### Authorization
 
@@ -572,6 +573,34 @@ No authorization required
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **get_multiple_new_address_proofs_post_request** | [**GetMultipleNewAddressProofsPostRequest**](GetMultipleNewAddressProofsPostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetMultipleNewAddressProofsPost200Response**](_getMultipleNewAddressProofs_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_multiple_new_address_proofs_v2_post
+
+> models::GetMultipleNewAddressProofsPost200Response get_multiple_new_address_proofs_v2_post(get_multiple_new_address_proofs_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_multiple_new_address_proofs_v2_post_request** | [**GetMultipleNewAddressProofsV2PostRequest**](GetMultipleNewAddressProofsV2PostRequest.md) |  | [required] |
 
 ### Return type
 
