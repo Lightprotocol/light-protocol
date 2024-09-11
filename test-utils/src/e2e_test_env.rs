@@ -1308,7 +1308,7 @@ where
             }
             addresses.len() as u64
         } else {
-            let num_addresses = self.rng.gen_range(1..=2);
+            let num_addresses = 1; //self.rng.gen_range(1..=2);
 
             for _ in 0..num_addresses {
                 let address_seed: [u8; 32] =

@@ -52,6 +52,8 @@ impl<R: RpcConnection> TreeFinder<R> {
                     error!("Error checking for new trees: {:?}", e);
                 }
             }
+
+            tokio::task::yield_now().await;
         }
     }
 

@@ -337,6 +337,9 @@ importers:
       borsh:
         specifier: ^2.0.0
         version: 2.0.0
+      bs58:
+        specifier: ^6.0.0
+        version: 6.0.0
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -9202,7 +9205,7 @@ snapshots:
 
   '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.95.0)
       '@noble/hashes': 1.4.0
       '@solana/web3.js': 1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -9264,7 +9267,7 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.95.0)':
     dependencies:
       '@solana/web3.js': 1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -11504,6 +11507,16 @@ snapshots:
       vitest: 1.6.0(@types/node@22.4.1)(@vitest/browser@1.6.0)(terser@5.31.0)
     optionalDependencies:
       playwright: 1.45.1
+
+  '@vitest/browser@1.6.0(playwright@1.46.1)(vitest@1.6.0)':
+    dependencies:
+      '@vitest/utils': 1.6.0
+      magic-string: 0.30.5
+      sirv: 2.0.4
+      vitest: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
+    optionalDependencies:
+      playwright: 1.46.1
+    optional: true
 
   '@vitest/expect@1.6.0':
     dependencies:
@@ -16605,7 +16618,7 @@ snapshots:
       why-is-node-running: 2.2.2
     optionalDependencies:
       '@types/node': 20.12.11
-      '@vitest/browser': 1.6.0(playwright@1.45.1)(vitest@1.6.0)
+      '@vitest/browser': 1.6.0(playwright@1.46.1)(vitest@1.6.0)
     transitivePeerDependencies:
       - less
       - lightningcss
