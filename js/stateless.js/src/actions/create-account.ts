@@ -55,9 +55,8 @@ export async function createAccount(
     /// TODO: enforce program-derived
     const address = await deriveAddress(seed, addressTree);
 
-    /// TODO: pass trees
-    const proof = await rpc.getValidityProof(undefined, [
-        bn(address.toBytes()),
+    const proof = await rpc.getValidityProofV0(undefined, [
+        { address: bn(address.toBytes()), tree: addressTree, queue: addressQueue },
     ]);
 
     const params: NewAddressParams = {

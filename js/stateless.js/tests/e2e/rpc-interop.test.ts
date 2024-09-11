@@ -641,9 +641,10 @@ describe('rpc-interop', () => {
     it('getCompressedAccount with address param should work ', async () => {
         const seed = new Uint8Array(randomBytes(32));
         const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const addressQueue = defaultTestStateTreeAccounts().addressQueue;
         const address = await deriveAddress(seed, addressTree);
 
-        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+        await createAccount(rpc, payer, seed, LightSystemProgram.programId, addressTree, addressQueue);
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(

@@ -15,8 +15,10 @@ import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import {
+    AddressWithTree,
     CompressedTransaction,
     GetCompressedAccountsByOwnerConfig,
+    HashWithTree,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
     SignatureWithMetadata,
@@ -589,11 +591,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * {@link getValidityProof} instead.
      */
     async getValidityProofAndRpcContext(
-        hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
+        hashes: HashWithTree[] = [],
+        newAddresses: AddressWithTree[] = [],
     ): Promise<WithContext<CompressedProofWithContext>> {
+        if (newAddresses.some(address => !(address instanceof BN))) {
+            throw new Error('AddressWithTree is not supported in test-rpc');
+        }
         return {
-            value: await this.getValidityProof(hashes, newAddresses),
+            value: await this.getValidityProofV0(hashes, newAddresses),
             context: { slot: 1 },
         };
     }
@@ -615,6 +620,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
+
+        if (newAddresses.some(address => !(address instanceof BN))) {
+            throw new Error('AddressWithTree is not supported in test-rpc');
+        }
         let validityProof: CompressedProofWithContext;
 
         if (hashes.length === 0 && newAddresses.length === 0) {
@@ -736,5 +745,16 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         } else throw new Error('Invalid input');
 
         return validityProof;
+    }
+
+    async getValidityProofV0(
+        hashes: HashWithTree[] = [],
+        newAddresses: AddressWithTree[] = [],
+    ): Promise<CompressedProofWithContext> {
+        /// TODO(swen): add support for custom trees
+        return this.getValidityProof(
+            hashes.map(hash => hash.hash),
+            newAddresses.map(address => address.address),
+        );
     }
 }

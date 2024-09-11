@@ -62,6 +62,18 @@ export interface SignatureWithMetadata {
     slot: number;
 }
 
+export interface HashWithTree {
+    hash: BN254;
+    tree: PublicKey;
+    queue: PublicKey;
+}
+
+export interface AddressWithTree {
+    address: BN254;
+    tree: PublicKey;
+    queue: PublicKey;
+}
+
 export interface CompressedTransaction {
     compressionInfo: {
         closedAccounts: {
@@ -497,9 +509,14 @@ export interface CompressionApiInterface {
         newAddresses: BN254[],
     ): Promise<CompressedProofWithContext>;
 
+    getValidityProofV0(
+        hashes: HashWithTree[],
+        newAddresses: AddressWithTree[],
+    ): Promise<CompressedProofWithContext>;
+
     getValidityProofAndRpcContext(
-        hashes: BN254[],
-        newAddresses: BN254[],
+        hashes: HashWithTree[],
+        newAddresses: AddressWithTree[],
     ): Promise<WithContext<CompressedProofWithContext>>;
 
     getCompressedAccountsByOwner(
