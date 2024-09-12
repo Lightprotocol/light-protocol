@@ -145,6 +145,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         )
         .await;
 
+        debug!("Response: {:?}", result);
+
         if result.is_err() {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
         }

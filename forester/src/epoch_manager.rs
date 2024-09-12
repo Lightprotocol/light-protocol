@@ -404,7 +404,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             Err(e) => {
                 warn!("Failed to recover registration info: {:?}", e);
                 // If recovery fails, attempt to register
-                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(200))
+                self.register_for_epoch_with_retry(epoch, 20, Duration::from_millis(1000))
                     .await?
             }
         };
