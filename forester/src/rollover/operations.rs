@@ -70,9 +70,8 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 / 100) as usize;
 
             //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
-            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
-            //     > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold)
+            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports > account.metadata.rollover_metadata.rollover_fee * (1 << height);
+            Ok(merkle_tree.next_index() >= threshold && threshold > 0)
         }
         TreeType::Address => {
             let account = rpc
