@@ -32,6 +32,9 @@ pub mod name_service {
         ctx: LightContext<'_, '_, '_, 'info, UpdateRecord<'info>>,
         new_rdata: RData,
     ) -> Result<()> {
+        if ctx.light_accounts.record.owner != ctx.accounts.signer.key() {
+            return Err(CustomError::Unauthorized.into());
+        }
         ctx.light_accounts.record.rdata = new_rdata;
 
         Ok(())
@@ -40,6 +43,9 @@ pub mod name_service {
     pub fn delete_record<'info>(
         ctx: LightContext<'_, '_, '_, 'info, DeleteRecord<'info>>,
     ) -> Result<()> {
+        if ctx.light_accounts.record.owner != ctx.accounts.signer.key() {
+            return Err(CustomError::Unauthorized.into());
+        }
         Ok(())
     }
 }
