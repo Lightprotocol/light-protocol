@@ -341,6 +341,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         .map(|x| x.accounts)
         .collect();
 
+    println!("Address trees: {:?}", address_trees);
+
     // Two rollovers plus other work
     let mut total_expected_work = 2;
     {
