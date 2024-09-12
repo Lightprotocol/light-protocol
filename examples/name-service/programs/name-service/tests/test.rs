@@ -14,12 +14,13 @@ use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleCo
 use light_test_utils::indexer::test_indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
-use light_test_utils::{Indexer, RpcConnection};
-use name_service::{NameRecord, RData};
-use solana_sdk::instruction::Instruction;
+use light_test_utils::{Indexer, RpcConnection, RpcError};
+use name_service::{CustomError, NameRecord, RData};
+use solana_sdk::instruction::{Instruction, InstructionError};
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
-use solana_sdk::transaction::Transaction;
+use solana_sdk::transaction::{Transaction, TransactionError};
 
 fn find_cpi_signer() -> (Pubkey, u8) {
     Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), &name_service::ID)
@@ -109,7 +110,34 @@ async fn test_name_service() {
         &account_compression_authority,
         &registered_program_pda,
     )
-    .await;
+    .await
+    .unwrap();
+
+    // Update with invalid owner should not succeed.
+    {
+        let invalid_signer = Keypair::new();
+        rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
+            .await
+            .unwrap();
+        let result = update_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &rdata_2,
+            &invalid_signer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
 
     // Check that it was updated correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
@@ -125,6 +153,31 @@ async fn test_name_service() {
     assert_eq!(record.name, "example.io");
     assert_eq!(record.rdata, rdata_2);
 
+    // Delete with invalid owner should not succeed.
+    {
+        let invalid_signer = Keypair::new();
+        rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
+            .await
+            .unwrap();
+        let result = delete_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &invalid_signer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
+
     // Delete the example.io record.
     delete_record(
         &mut rpc,
@@ -136,7 +189,8 @@ async fn test_name_service() {
         &account_compression_authority,
         &registered_program_pda,
     )
-    .await;
+    .await
+    .unwrap();
 }
 
 async fn create_record<R: RpcConnection>(
@@ -221,7 +275,7 @@ async fn update_record<R: RpcConnection>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) {
+) -> Result<(), RpcError> {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -280,10 +334,9 @@ async fn update_record<R: RpcConnection>(
 
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
-        .await
-        .unwrap()
-        .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+        .await?;
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    Ok(())
 }
 
 async fn delete_record<R: RpcConnection>(
@@ -295,7 +348,7 @@ async fn delete_record<R: RpcConnection>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) {
+) -> Result<(), RpcError> {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -357,5 +410,6 @@ async fn delete_record<R: RpcConnection>(
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction(transaction).await.unwrap();
+    rpc.process_transaction(transaction).await?;
+    Ok(())
 }
