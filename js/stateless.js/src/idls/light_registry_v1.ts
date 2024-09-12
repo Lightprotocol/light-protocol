@@ -1,3 +1,4 @@
+// Manual backup file. do not edit.
 export type LightRegistry = {
     version: '1.0.0';
     name: 'light_registry';
