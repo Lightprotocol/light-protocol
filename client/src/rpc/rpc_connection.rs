@@ -1,9 +1,9 @@
 use crate::rpc::errors::RpcError;
 use crate::transaction_params::TransactionParams;
-use anchor_lang::solana_program::clock::Slot;
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_lang::AnchorDeserialize;
 use async_trait::async_trait;
+use borsh::BorshDeserialize;
+use solana_program::clock::Slot;
+use solana_program::instruction::Instruction;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::epoch_info::EpochInfo;
@@ -47,7 +47,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(T, Signature, Slot)>, RpcError>
     where
-        T: AnchorDeserialize + Send + Debug;
+        T: BorshDeserialize + Send + Debug;
 
     async fn create_and_send_transaction<'a>(
         &'a mut self,
@@ -71,7 +71,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn airdrop_lamports(&mut self, to: &Pubkey, lamports: u64)
         -> Result<Signature, RpcError>;
 
-    async fn get_anchor_account<T: AnchorDeserialize>(
+    async fn get_anchor_account<T: BorshDeserialize>(
         &mut self,
         pubkey: &Pubkey,
     ) -> Result<Option<T>, RpcError> {

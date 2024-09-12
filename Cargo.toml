@@ -50,6 +50,9 @@ spl-token = "=4.0.0"
 anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
 
+# Anchor compatibility
+borsh = "0.10.0"
+
 # Macro helpers
 proc-macro2 = "1.0"
 quote = "1.0"

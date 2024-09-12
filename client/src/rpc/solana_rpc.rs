@@ -1,14 +1,14 @@
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::solana_program::clock::Slot;
-use anchor_lang::solana_program::hash::Hash;
-use anchor_lang::AnchorDeserialize;
 use async_trait::async_trait;
+use borsh::BorshDeserialize;
 use log::warn;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig};
+use solana_program::clock::Slot;
+use solana_program::hash::Hash;
+use solana_program::pubkey::Pubkey;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
 use solana_sdk::clock::UnixTimestamp;
@@ -124,7 +124,7 @@ impl SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    fn parse_inner_instructions<T: AnchorDeserialize>(
+    fn parse_inner_instructions<T: BorshDeserialize>(
         &self,
         signature: Signature,
     ) -> Result<T, RpcError> {
@@ -270,7 +270,7 @@ impl RpcConnection for SolanaRpcConnection {
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(T, Signature, u64)>, RpcError>
     where
-        T: AnchorDeserialize + Send + Debug,
+        T: BorshDeserialize + Send + Debug,
     {
         let pre_balance = self.client.get_balance(payer)?;
         let latest_blockhash = self.client.get_latest_blockhash()?;

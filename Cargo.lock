@@ -3498,12 +3498,13 @@ dependencies = [
 name = "light-client"
 version = "0.8.0"
 dependencies = [
- "anchor-lang",
  "async-trait",
  "bb8",
+ "borsh 0.10.3",
  "log",
  "solana-banks-client",
  "solana-client",
+ "solana-program",
  "solana-sdk",
  "solana-transaction-status",
  "thiserror",

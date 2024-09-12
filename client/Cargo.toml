@@ -10,11 +10,12 @@ description = "Client library for Light Protocol"
 # Solana
 solana-banks-client = { workspace = true }
 solana-client = { workspace = true }
+solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
 
-# Anchor
-anchor-lang = { workspace = true }
+# Anchor compatibility
+borsh = { workspace = true }
 
 # Async ecosystem
 tokio = { workspace = true }
