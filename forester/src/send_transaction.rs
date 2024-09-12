@@ -2,7 +2,6 @@ use crate::config::QueueConfig;
 use crate::epoch_manager::{MerkleProofType, WorkItem};
 use crate::errors::ForesterError;
 use crate::queue_helpers::fetch_queue_item_data;
-use crate::rpc_pool::SolanaRpcPool;
 use crate::Result;
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG, ADDRESS_QUEUE_VALUES,
@@ -11,8 +10,9 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
-use forester_utils::rpc::{RetryConfig, RpcConnection, SolanaRpcConnection};
 use futures::future::join_all;
+use light_client::rpc::{RetryConfig, RpcConnection, SolanaRpcConnection};
+use light_client::rpc_pool::SolanaRpcPool;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,

@@ -15,9 +15,9 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
 
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
-use forester_utils::transaction_params::TransactionParams;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
@@ -295,7 +295,9 @@ impl RpcConnection for ProgramTestRpcConnection {
     }
 
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
-        self.context.warp_to_slot(slot).map_err(RpcError::from)
+        self.context
+            .warp_to_slot(slot)
+            .map_err(|_| RpcError::InvalidWarpSlot)
     }
 
     async fn send_transaction(&self, _transaction: &Transaction) -> Result<Signature, RpcError> {

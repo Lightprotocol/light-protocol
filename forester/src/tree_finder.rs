@@ -1,8 +1,8 @@
 use crate::errors::ForesterError;
-use crate::rpc_pool::SolanaRpcPool;
 use crate::tree_data_sync::fetch_trees;
 use forester_utils::forester_epoch::TreeAccounts;
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
+use light_client::rpc_pool::SolanaRpcPool;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::time::{interval, Duration};

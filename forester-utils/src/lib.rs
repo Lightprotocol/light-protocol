@@ -1,7 +1,7 @@
-use crate::rpc::{RpcConnection, RpcError};
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::instruction::Instruction;
 use anchor_lang::solana_program::system_instruction;
+use light_client::rpc::{RpcConnection, RpcError};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
@@ -18,8 +18,6 @@ pub mod address_merkle_tree_config;
 pub mod forester_epoch;
 pub mod indexer;
 pub mod registry;
-pub mod rpc;
-pub mod transaction_params;
 
 pub fn create_account_instruction(
     payer: &Pubkey,

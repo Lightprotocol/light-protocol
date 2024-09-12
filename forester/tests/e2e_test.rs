@@ -1,13 +1,13 @@
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
-use forester::rpc_pool::SolanaRpcPool;
 use forester::run_pipeline;
 use forester::utils::{get_protocol_config, LightValidatorConfig};
 use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use forester_utils::registry::register_test_forester;
-use forester_utils::rpc::solana_rpc::SolanaRpcUrl;
-use forester_utils::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
+use light_client::rpc::solana_rpc::SolanaRpcUrl;
+use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
+use light_client::rpc_pool::SolanaRpcPool;
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;

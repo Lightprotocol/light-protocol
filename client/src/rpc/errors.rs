@@ -1,6 +1,6 @@
-use anchor_lang::solana_program::instruction::InstructionError;
+use solana_banks_client::BanksClientError;
 use solana_client::client_error::ClientError;
-use solana_program_test::BanksClientError;
+use solana_program::instruction::InstructionError;
 use solana_sdk::transaction::TransactionError;
 use std::io;
 use thiserror::Error;
@@ -9,9 +9,6 @@ use thiserror::Error;
 pub enum RpcError {
     #[error("BanksError: {0}")]
     BanksError(#[from] BanksClientError),
-
-    #[error("ProgramTestError: {0}")]
-    ProgramTestError(#[from] solana_program_test::ProgramTestError),
 
     #[error("TransactionError: {0}")]
     TransactionError(#[from] TransactionError),
@@ -24,8 +21,13 @@ pub enum RpcError {
 
     #[error("Error: `{0}`")]
     CustomError(String),
+
     #[error("Assert Rpc Error: {0}")]
     AssertRpcError(String),
+
+    /// The chosen warp slot is not in the future, so warp is not performed
+    #[error("Warp slot not in the future")]
+    InvalidWarpSlot,
 }
 
 pub fn assert_rpc_error<T>(

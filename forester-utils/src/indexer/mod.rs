@@ -2,10 +2,10 @@ use num_bigint::BigUint;
 use solana_sdk::signature::Keypair;
 use std::fmt::Debug;
 
-use crate::rpc::RpcConnection;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
+use light_client::rpc::RpcConnection;
 use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
 use light_hasher::Poseidon;

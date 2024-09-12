@@ -3,7 +3,6 @@ use crate::queue_helpers::QueueItemData;
 use crate::rollover::{
     is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
 };
-use crate::rpc_pool::SolanaRpcPool;
 use crate::send_transaction::{
     send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
     SendBatchedTransactionsConfig,
@@ -12,6 +11,7 @@ use crate::slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker};
 use crate::tree_data_sync::fetch_trees;
 use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
+use light_client::rpc_pool::SolanaRpcPool;
 
 use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
 use crate::tree_finder::TreeFinder;
@@ -20,8 +20,8 @@ use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
 use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
-use forester_utils::rpc::{RetryConfig, RpcConnection, RpcError};
 use futures::future::join_all;
+use light_client::rpc::{RetryConfig, RpcConnection, RpcError};
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{

@@ -4,7 +4,7 @@ use crate::ForesterConfig;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::Id;
 use config::{Config, Environment};
-use forester_utils::rpc::RetryConfig;
+use light_client::rpc::RetryConfig;
 use solana_sdk::signature::{Keypair, Signer};
 use std::fmt::{Display, Formatter};
 use std::path::Path;

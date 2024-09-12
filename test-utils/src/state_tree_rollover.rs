@@ -10,9 +10,9 @@ use account_compression::{
     StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
 use forester_utils::{create_account_instruction, get_hash_set};
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };

@@ -1,4 +1,4 @@
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::utils::get_protocol_config_pda_address;
 use std::process::Command;

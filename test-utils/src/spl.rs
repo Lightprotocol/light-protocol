@@ -32,9 +32,9 @@ use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
 };
-use forester_utils::rpc::errors::RpcError;
-use forester_utils::rpc::RpcConnection;
-use forester_utils::transaction_params::TransactionParams;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 
 pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,

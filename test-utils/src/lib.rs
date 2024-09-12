@@ -30,10 +30,13 @@ pub use forester_utils::{
         create_rollover_state_merkle_tree_instructions, register_test_forester,
         update_test_forester,
     },
-    rpc::solana_rpc::SolanaRpcUrl,
-    rpc::{assert_rpc_error, RpcConnection, RpcError, SolanaRpcConnection},
-    transaction_params::{FeeConfig, TransactionParams},
     AccountZeroCopy,
+};
+pub use light_client::{
+    rpc::{
+        assert_rpc_error, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection,
+    },
+    transaction_params::{FeeConfig, TransactionParams},
 };
 
 /// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code

@@ -1,10 +1,10 @@
-use crate::RpcConnection;
 use bb8::{Pool, PooledConnection};
-use forester_utils::rpc::RpcError;
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::time::sleep;
+
+use crate::rpc::{RpcConnection, RpcError};
 
 #[derive(Error, Debug)]
 pub enum PoolError {

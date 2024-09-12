@@ -7,7 +7,7 @@ use forester::telemetry::setup_telemetry;
 use forester::tree_data_sync::fetch_trees;
 use forester::{init_config, run_pipeline, run_queue_info};
 use forester_utils::forester_epoch::TreeType;
-use forester_utils::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 use tokio::sync::{mpsc, oneshot};

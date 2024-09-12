@@ -4,7 +4,7 @@ use crate::assert_compressed_tx::{
 };
 use anchor_lang::AnchorSerialize;
 use forester_utils::indexer::{Indexer, TokenDataWithContext};
-use forester_utils::rpc::RpcConnection;
+use light_client::rpc::RpcConnection;
 use light_compressed_token::{
     get_token_pool_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},

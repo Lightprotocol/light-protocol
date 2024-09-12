@@ -44,7 +44,6 @@ crossbeam-channel = "0.5.12"
 tokio-stream = "0.1.14"
 base64 = "0.22.0"
 async-trait = "0.1.81"
-bb8 = "0.8.5"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 tracing-appender = "0.2.3"
@@ -53,6 +52,7 @@ lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
+light-client = { workspace = true }
 
 [dev-dependencies]
 function_name = "0.3.0"
