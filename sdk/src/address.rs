@@ -20,6 +20,11 @@ pub struct NewAddressParamsPacked {
     pub address_merkle_tree_root_index: u16,
 }
 
+pub struct AddressWithMerkleContext {
+    pub address: [u8; 32],
+    pub address_merkle_context: AddressMerkleContext,
+}
+
 #[cfg(feature = "idl-build")]
 impl anchor_lang::IdlBuild for NewAddressParamsPacked {}
 
