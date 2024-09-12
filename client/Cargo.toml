@@ -17,10 +17,17 @@ solana-transaction-status = { workspace = true }
 # Anchor compatibility
 borsh = { workspace = true }
 
+# Light Protocol
+light-sdk = { workspace = true }
+photon-api = { workspace = true }
+
 # Async ecosystem
 tokio = { workspace = true }
 async-trait = { workspace = true }
 bb8 = { workspace = true }
+
+# Math and crypto
+bs58 = { workspace = true }
 
 log = { workspace = true }
 thiserror = { workspace = true }

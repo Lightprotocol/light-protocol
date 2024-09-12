@@ -72,9 +72,11 @@ thiserror = "1.0"
 # Light Protocol
 light-client = { path = "client", version = "0.8.0" }
 light-indexed-merkle-tree = { path = "merkle-tree/indexed", version = "1.0.0" }
+light-sdk = { path = "sdk", version = "0.8.0" }
 photon-api = { path = "photon-api" }
 
 # Math and crypto
+bs58 = "0.4.0"
 num-bigint = "0.4.6"
 
 [patch.crates-io]
