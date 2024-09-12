@@ -16,6 +16,9 @@ export async function deriveAddress(
     seed: Uint8Array,
     merkleTreePubkey: PublicKey = defaultTestStateTreeAccounts().merkleTree,
 ): Promise<PublicKey> {
+    if (seed.length != 32) {
+        throw new Error('Seed length is not 32 bytes.');
+    }
     const bytes = merkleTreePubkey.toBytes();
     const combined = Buffer.from([...bytes, ...seed]);
     const hash = await hashToBn254FieldSizeBe(combined);
@@ -117,7 +120,11 @@ if (import.meta.vitest) {
 
     describe('deriveAddress function', () => {
         it('should derive a valid address from a seed and a merkle tree public key', async () => {
-            const seed = new Uint8Array([1, 2, 3, 4]);
+            let seed = new Uint8Array(32);
+            seed[0] = 1;
+            seed[1] = 2;
+            seed[2] = 3;
+            seed[3] = 4;
             const merkleTreePubkey = new PublicKey(
                 '11111111111111111111111111111111',
             );
