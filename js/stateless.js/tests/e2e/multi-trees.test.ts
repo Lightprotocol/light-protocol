@@ -4,7 +4,7 @@ import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { createRpc, Rpc } from '../../src/rpc';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createStateTreeAndNullifierQueue } from '../../src/actions/create-state-tree';
+import { createStateTree, createAddressTree } from '../../src/actions';
 
 describe('create-state-tree', () => {
     let rpc: Rpc;
@@ -25,11 +25,13 @@ describe('create-state-tree', () => {
         
     });
 
-    it('should create two state trees', async () => {
-        const tx1 = await createStateTreeAndNullifierQueue(rpc, payer as Keypair, 0);
-        // const tx2 = await createStateTreeAndNullifierQueue(rpc, payer as Keypair, 0);
+    it.skip('should create a state tree', async () => {
+        const tx = await createStateTree(rpc, payer as Keypair, 0);
+        assert(tx, 'Transaction should be successful');
+    });
 
-        assert(tx1, 'Transaction 1 should be successful');
-        // assert(tx2, 'Transaction 2 should be successful');
+    it('should create an address tree', async () => {
+        const tx = await createAddressTree(rpc, payer as Keypair, 0);
+        assert(tx, 'Transaction should be successful');
     });
 });

@@ -83,6 +83,7 @@
         "test-validator": "./../../cli/test_bin/run test-validator",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",
+        "test:e2e:multi-trees": "pnpm test-validator && vitest run tests/e2e/multi-trees.test.ts --reporter=verbose",
         "test:e2e:test-rpc": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts",
         "test:e2e:rpc-interop": "pnpm test-validator && vitest run tests/e2e/rpc-interop.test.ts",
         "test:e2e:browser": "pnpm playwright test",

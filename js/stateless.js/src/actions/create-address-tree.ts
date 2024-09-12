@@ -4,14 +4,14 @@ import { Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 
 /**
- * Create a new state tree and nullifier queue
+ * Create a new address tree and address queue
  *
  * @param rpc          Rpc to use
  * @param payer        Payer of transaction fees
- * @param index        Index for the state tree *
+ * @param index        Index for the address tree
  * @return Signature of the confirmed transaction
  */
-export async function createStateTree(
+export async function createAddressTree(
     rpc: Rpc,
     payer: Keypair,
     index: number

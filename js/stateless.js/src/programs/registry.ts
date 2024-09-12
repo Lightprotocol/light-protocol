@@ -92,7 +92,7 @@ export class LightRegistryProgram {
             networkFee: new BN(5000),
         };
 
-        const merkleTreeSize =1364288;
+        const merkleTreeSize = 1364288;
         const queueSize = 1382992;
         const merkleTreeAccountCreateIx = SystemProgram.createAccount({
             fromPubkey: payer.publicKey,
@@ -148,6 +148,86 @@ export class LightRegistryProgram {
 
         return [
             cpiContextAccountCreateIx,
+            merkleTreeAccountCreateIx,
+            queueAccountCreateIx,
+            initializeInstruction
+        ];
+    }
+
+    /**
+     * Creates instructions to initialize a new address tree and address queue.
+     */
+    static async createAddressTreeAndAddressQueueInstructions(
+        rpc: Rpc,
+        payer: Keypair,
+        addressMerkleTreeKeypair: Keypair,
+        addressQueueKeypair: Keypair,
+        programOwner: PublicKey | null,
+        forester: PublicKey | null,
+        index: number
+    ): Promise<TransactionInstruction[]> {
+        const addressMerkleTreeConfig = {
+            height: 26,
+            changelogSize: bn(1400),
+            rootsSize: bn(2400),
+            canopyDepth: bn(10),
+            addressChangelogSize: bn(1400),
+            networkFee: bn(5000),
+            rolloverThreshold: bn(0),
+            closeThreshold: null,
+        };
+        const addressQueueConfig = {
+            capacity: 28807,
+            sequenceThreshold: new BN(2400),
+            networkFee: new BN(5000),
+        };
+
+        const addressTreeSize = 2204320;
+        const addressQueueSize = 1382992;
+        const merkleTreeAccountCreateIx = SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: addressMerkleTreeKeypair.publicKey,
+            lamports: await rpc.getMinimumBalanceForRentExemption(addressTreeSize),
+            space: addressTreeSize,
+            programId: accountCompressionProgram,
+        });
+
+        const queueAccountCreateIx = SystemProgram.createAccount({
+            fromPubkey: payer.publicKey,
+            newAccountPubkey: addressQueueKeypair.publicKey,
+            lamports: await rpc.getMinimumBalanceForRentExemption(addressQueueSize),
+            space: addressQueueSize,
+            programId: accountCompressionProgram,
+        });
+
+        const registeredProgramPda = getRegisteredProgramPda(this.programId);
+      
+        const [cpiAuthorityPda, bump] = PublicKey.findProgramAddressSync([Buffer.from("cpi_authority")], this.programId);
+
+        const protocolConfigPda = PublicKey.findProgramAddressSync([Buffer.from("authority")], this.programId)[0];
+
+        const initializeInstruction = await this.program.methods
+            .initializeAddressMerkleTree(
+                bump,
+                programOwner,
+                forester,
+                addressMerkleTreeConfig,
+                addressQueueConfig
+            )
+            .accounts({
+                authority: payer.publicKey,
+                registeredProgramPda,
+                merkleTree: addressMerkleTreeKeypair.publicKey,
+                queue: addressQueueKeypair.publicKey,
+                cpiAuthority: cpiAuthorityPda,
+                accountCompressionProgram,
+                protocolConfigPda,
+                cpiContextAccount: null,
+                lightSystemProgram: null,
+            })
+            .instruction();
+
+        return [
             merkleTreeAccountCreateIx,
             queueAccountCreateIx,
             initializeInstruction
