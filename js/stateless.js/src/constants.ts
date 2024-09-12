@@ -15,8 +15,13 @@ export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
 export const accountCompressionProgram = // also: merkletree program
     'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
-export const getRegisteredProgramPda = () =>
-    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
+export function getRegisteredProgramPda(programId: PublicKey = new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh')): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+        [programId.toBuffer()],
+        new PublicKey(accountCompressionProgram)
+    );
+    return pda;
+}
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(

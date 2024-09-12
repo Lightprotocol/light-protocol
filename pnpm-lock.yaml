@@ -595,6 +595,9 @@ importers:
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.6.0
         version: 7.6.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.5.3))(eslint@8.57.0)(typescript@5.5.3)
+      borsh:
+        specifier: ^2.0.0
+        version: 2.0.0
       eslint:
         specifier: 8.57.0
         version: 8.57.0
@@ -9183,7 +9186,7 @@ snapshots:
 
   '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.95.0)
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@noble/hashes': 1.4.0
       '@solana/web3.js': 1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -9223,7 +9226,7 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.95.0)':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
       '@solana/web3.js': 1.95.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -11454,19 +11457,9 @@ snapshots:
       '@vitest/utils': 1.6.0
       magic-string: 0.30.5
       sirv: 2.0.4
-      vitest: 1.6.0(@types/node@22.4.1)(@vitest/browser@1.6.0)(terser@5.31.0)
-    optionalDependencies:
-      playwright: 1.45.1
-
-  '@vitest/browser@1.6.0(playwright@1.46.1)(vitest@1.6.0)':
-    dependencies:
-      '@vitest/utils': 1.6.0
-      magic-string: 0.30.5
-      sirv: 2.0.4
       vitest: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
     optionalDependencies:
-      playwright: 1.46.1
-    optional: true
+      playwright: 1.45.1
 
   '@vitest/expect@1.6.0':
     dependencies:
@@ -14013,7 +14006,7 @@ snapshots:
 
   isobject@3.0.1: {}
 
-  isomorphic-ws@4.0.1(ws@7.5.9):
+  isomorphic-ws@4.0.1(ws@7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)):
     dependencies:
       ws: 7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
@@ -14048,7 +14041,7 @@ snapshots:
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
-      isomorphic-ws: 4.0.1(ws@7.5.9)
+      isomorphic-ws: 4.0.1(ws@7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       json-stringify-safe: 5.0.1
       uuid: 8.3.2
       ws: 7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
@@ -16568,7 +16561,7 @@ snapshots:
       why-is-node-running: 2.2.2
     optionalDependencies:
       '@types/node': 20.12.11
-      '@vitest/browser': 1.6.0(playwright@1.46.1)(vitest@1.6.0)
+      '@vitest/browser': 1.6.0(playwright@1.45.1)(vitest@1.6.0)
     transitivePeerDependencies:
       - less
       - lightningcss

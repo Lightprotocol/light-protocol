@@ -1,3 +1,4 @@
+// Manual backup file. do not edit.
 export type LightRegistry = {
     version: '1.0.0';
     name: 'light_registry';
@@ -106,139 +107,8 @@ export type LightRegistry = {
                 },
             ];
         },
-        {
-            name: 'initializeAddressMerkleTree';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ];
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'queue';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiAuthority';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'protocolConfigPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiContextAccount';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-            ];
-            args: [
-                {
-                    name: 'bump';
-                    type: 'u8';
-                },
-                {
-                    name: 'programOwner';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'forester';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'merkleTreeConfig';
-                    type: {
-                        defined: 'AddressMerkleTreeConfig';
-                    };
-                },
-                {
-                    name: 'queueConfig';
-                    type: {
-                        defined: 'AddressQueueConfig';
-                    };
-                },
-            ];
-        },
     ];
     types: [
-        {
-            name: 'AddressMerkleTreeConfig';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'changelogSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rootsSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'canopyDepth';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'addressChangelogSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'closeThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
         {
             name: 'StateMerkleTreeConfig';
             type: {
@@ -283,28 +153,6 @@ export type LightRegistry = {
         },
         {
             name: 'NullifierQueueConfig';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'capacity';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'sequenceThreshold';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'AddressQueueConfig';
             type: {
                 kind: 'struct';
                 fields: [
@@ -428,7 +276,6 @@ export const IDL: LightRegistry = {
           },
     ],
     instructions: [
-        
         {
             name: 'initializeStateMerkleTree',
             accounts: [
@@ -509,139 +356,8 @@ export const IDL: LightRegistry = {
                 },
             ],
         },
-        {
-            name: 'initializeAddressMerkleTree',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                    docs: [
-                        'Anyone can create new trees just the fees cannot be set arbitrarily.',
-                    ],
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'queue',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthority',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'protocolConfigPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiContextAccount',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-            ],
-            args: [
-                {
-                    name: 'bump',
-                    type: 'u8',
-                },
-                {
-                    name: 'programOwner',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'forester',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'merkleTreeConfig',
-                    type: {
-                        defined: 'AddressMerkleTreeConfig',
-                    },
-                },
-                {
-                    name: 'queueConfig',
-                    type: {
-                        defined: 'AddressQueueConfig',
-                    },
-                },
-            ],
-        },
     ],
     types: [
-        {
-            name: 'AddressMerkleTreeConfig',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'changelogSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rootsSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'canopyDepth',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'addressChangelogSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'closeThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
-        },
         {
             name: 'StateMerkleTreeConfig',
             type: {
@@ -686,28 +402,6 @@ export const IDL: LightRegistry = {
         },
         {
             name: 'NullifierQueueConfig',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'capacity',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'sequenceThreshold',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'AddressQueueConfig',
             type: {
                 kind: 'struct',
                 fields: [
