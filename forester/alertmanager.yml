@@ -12,8 +12,8 @@ route:
     - match:
         alertname: ForesterQueueNearlyFull
       receiver: 'pagerduty-notifications'
-      group_wait: 45s
-      repeat_interval: 15m
+      group_wait: 5s
+      repeat_interval: 3m
 
 receivers:
   - name: 'pagerduty-notifications'
