@@ -13,7 +13,9 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 use light_client::rpc_pool::SolanaRpcPool;
 
-use crate::metrics::{process_queued_metrics, push_metrics, queue_metric_update};
+use crate::metrics::{
+    process_queued_metrics, push_metrics, queue_metric_update, update_forester_sol_balance,
+};
 use crate::tree_finder::TreeFinder;
 use dashmap::DashMap;
 use forester_utils::forester_epoch::{
@@ -154,6 +156,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             async move { self_clone.handle_new_trees().await }
         });
 
+        let balance_check_handle = tokio::spawn({
+            let self_clone = Arc::clone(&self);
+            async move { self_clone.check_sol_balance_periodically().await }
+        });
+
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
             let self_clone = Arc::clone(&self);
@@ -167,8 +174,27 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         monitor_handle.await??;
         current_previous_handle.await??;
         new_tree_handle.await??;
+        balance_check_handle.await??;
 
         Ok(())
+    }
+
+    async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
+        let interval = Duration::from_secs(60);
+        let mut interval_timer = tokio::time::interval(interval);
+
+        loop {
+            interval_timer.tick().await;
+            let mut rpc = self.rpc_pool.get_connection().await?;
+            let balance = rpc.get_balance(&self.config.payer_keypair.pubkey()).await?;
+            let balance_in_sol = balance as f64 / 1e9;
+            update_forester_sol_balance(
+                &self.config.payer_keypair.pubkey().to_string(),
+                balance_in_sol,
+            );
+            info!("Current SOL balance: {} SOL", balance_in_sol);
+            tokio::task::yield_now().await;
+        }
     }
 
     async fn handle_new_trees(self: Arc<Self>) -> Result<()> {

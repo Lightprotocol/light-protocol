@@ -43,6 +43,14 @@ lazy_static! {
         &["epoch"]
     )
     .expect("metric can be created");
+    pub static ref FORESTER_SOL_BALANCE: GaugeVec = GaugeVec::new(
+        prometheus::opts!(
+            "forester_sol_balance",
+            "Current SOL balance of the forester"
+        ),
+        &["pubkey"]
+    )
+    .expect("metric can be created");
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -64,6 +72,9 @@ pub fn register_metrics() {
             .expect("collector can be registered");
         REGISTRY
             .register(Box::new(TRANSACTION_RATE.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(FORESTER_SOL_BALANCE.clone()))
             .expect("collector can be registered");
     });
 }
@@ -110,6 +121,16 @@ pub async fn process_queued_metrics() {
     for (epoch, count, duration) in updates.drain(..) {
         update_transactions_processed(epoch, count, duration);
     }
+}
+
+pub fn update_forester_sol_balance(pubkey: &str, balance: f64) {
+    FORESTER_SOL_BALANCE
+        .with_label_values(&[pubkey])
+        .set(balance);
+    debug!(
+        "Updated SOL balance for forester {}: {} SOL",
+        pubkey, balance
+    );
 }
 
 pub async fn push_metrics(url: &str) -> Result<()> {
