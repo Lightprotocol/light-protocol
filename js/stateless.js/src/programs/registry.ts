@@ -6,17 +6,17 @@ import {
     TransactionInstruction,
     SystemProgram,
 } from '@solana/web3.js';
-
 import {
     IDL,
     LightRegistry as LightRegistryIDL,
 } from '../idls/light_registry';
 import { useWallet } from '../wallet';
 import { Rpc } from '../rpc';
-import { confirmConfig, getRegisteredProgramPda } from '../constants';
 import { bn } from '../state';
+import { LightSystemProgram } from './system';
+import { defaultStaticAccountsStruct, getRegisteredProgramPda } from '../constants';
 
-const ACCOUNT_COMPRESSION_PROGRAM_ID = new PublicKey("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+const {accountCompressionProgram} = defaultStaticAccountsStruct()
 
 
 export class LightRegistryProgram {
@@ -86,9 +86,6 @@ export class LightRegistryProgram {
             rolloverThreshold: bn(0),
             closeThreshold: null,
         };
-
-        
-
         const nullifierQueueConfig = {
             capacity: 28807,
             sequenceThreshold: new BN(2400),
@@ -102,7 +99,7 @@ export class LightRegistryProgram {
             newAccountPubkey: merkleTreeKeypair.publicKey,
             lamports: await rpc.getMinimumBalanceForRentExemption(merkleTreeSize),
             space: merkleTreeSize,
-            programId: ACCOUNT_COMPRESSION_PROGRAM_ID,
+            programId: accountCompressionProgram,
         });
 
         const queueAccountCreateIx = SystemProgram.createAccount({
@@ -110,7 +107,7 @@ export class LightRegistryProgram {
             newAccountPubkey: queueKeypair.publicKey,
             lamports: await rpc.getMinimumBalanceForRentExemption(queueSize),
             space: queueSize,
-            programId: ACCOUNT_COMPRESSION_PROGRAM_ID,
+            programId: accountCompressionProgram,
         });
 
         const cpiContextSize = 20 * 1024 + 8; 
@@ -119,34 +116,18 @@ export class LightRegistryProgram {
             newAccountPubkey: cpiContextKeypair.publicKey,
             lamports: await rpc.getMinimumBalanceForRentExemption(cpiContextSize),
             space: cpiContextSize,
-            programId: SystemProgram.programId,
+            programId: LightSystemProgram.programId,
         });
 
-        const cpiAuthorityPda = PublicKey.findProgramAddressSync([Buffer.from("cpi_authority")], this.programId);
-        console.log("cpiAuthorityPda address:", cpiAuthorityPda[0].toBase58());
-  
-        const protocolConfigPda = PublicKey.findProgramAddressSync([Buffer.from([97, 117, 116, 104, 111, 114, 105, 116, 121])], this.programId)[0];
-        console.log("protocolconfigPda address:", protocolConfigPda.toBase58());
-        
-        console.log("rpc conn", rpc.rpcEndpoint)
-        const protocolConfigAccountInfo = await this.program.provider.connection.getAccountInfo(protocolConfigPda);
-        const protocolConfigData = this.program.coder.accounts.decode('ProtocolConfigPda', protocolConfigAccountInfo!.data);
-        console.log("Protocol configpda, ", protocolConfigData.config.networkFee.toNumber(), "conf", protocolConfigData.config);
-       
-        
-        const registeredProgramPda = getRegisteredProgramPda();
-       
-    
-        console.log("data programOwner", programOwner?.toBase58());
-        console.log("data forester", forester?.toBase58());
-        console.log("data stateMerkleTreeConfig", stateMerkleTreeConfig);
-        console.log("data nullifierQueueConfig", nullifierQueueConfig);
+        const registeredProgramPda = getRegisteredProgramPda(this.programId);
+      
+        const [cpiAuthorityPda, bump] = PublicKey.findProgramAddressSync([Buffer.from("cpi_authority")], this.programId);
 
+        const protocolConfigPda = PublicKey.findProgramAddressSync([Buffer.from("authority")], this.programId)[0];
 
-        
         const initializeInstruction = await this.program.methods
             .initializeStateMerkleTree(
-                cpiAuthorityPda[1],
+                bump,
                 programOwner,
                 forester,
                 stateMerkleTreeConfig,
@@ -154,21 +135,16 @@ export class LightRegistryProgram {
             )
             .accounts({
                 authority: payer.publicKey,
+                registeredProgramPda,
                 merkleTree: merkleTreeKeypair.publicKey,
                 queue: queueKeypair.publicKey,
-                registeredProgramPda,
-                cpiAuthority: cpiAuthorityPda[0],
-                accountCompressionProgram: ACCOUNT_COMPRESSION_PROGRAM_ID,
-                protocolConfigPda: protocolConfigPda,
+                cpiAuthority: cpiAuthorityPda,
+                accountCompressionProgram,
+                protocolConfigPda,
+                lightSystemProgram: LightSystemProgram.programId,
                 cpiContextAccount: cpiContextKeypair.publicKey,
-                lightSystemProgram: this.programId,
             })
             .instruction();
-
-        const encConf = this.program.coder.types.encode('StateMerkleTreeConfig', stateMerkleTreeConfig);
-        console.log("encoded config", encConf);
-        const decConf = this.program.coder.types.decode('StateMerkleTreeConfig', encConf);
-        console.log("decoded config", decConf);
 
         return [
             cpiContextAccountCreateIx,
