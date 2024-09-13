@@ -72,7 +72,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
             //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
             // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
             //     > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold)
+            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 1)
         }
         TreeType::Address => {
             let account = rpc
@@ -109,7 +109,11 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
             //  current implementation is returns always true
             // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
             // > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold)
+
+            // Address Merkle trees are initialized with 2 leaves and with 3 as the next index.
+            // To make sure we roll over them after they have processed some transactions, we check
+            // if the next index is greater than 3.
+            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 3)
         }
     }
 }
