@@ -2,6 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
+    parse_quote,
     punctuated::Punctuated,
     token::PathSep,
     Error, Expr, Fields, Ident, ItemStruct, Meta, Path, PathSegment, Result, Token, Type, TypePath,
@@ -96,6 +97,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     let mut anchor_fields = Punctuated::new();
     let mut anchor_field_idents = Vec::new();
     let mut light_field_idents = Vec::new();
+    let mut constraint_calls = Vec::new();
     let mut derive_address_seed_calls = Vec::new();
 
     for field in fields.named.iter() {
@@ -133,8 +135,22 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
                 }
             };
 
-            let seeds = account_args.seeds;
+            if let Some(constraint) = account_args.constraint {
+                let Constraint { expr, error } = constraint;
+                let error = match error {
+                    Some(error) => error,
+                    None => parse_quote! {
+                        ::light_sdk::error::LightSdkError::ConstraintViolation
+                    },
+                };
+                constraint_calls.push(quote! {
+                    if ! ( #expr ) {
+                        return ::anchor_lang::prelude::err!(#error);
+                    }
+                });
+            }
 
+            let seeds = account_args.seeds;
             derive_address_seed_calls.push(quote! {
                 let address_seed = ::light_sdk::address::derive_address_seed(
                     &#seeds,
@@ -175,6 +191,17 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
         impl<'a, 'b, 'c, 'info> LightContextExt for ::light_sdk::context::LightContext<
             'a, 'b, 'c, 'info, #anchor_accounts_name #type_gen, #light_accounts_name,
         > {
+            #[allow(unused_parens)]
+            #[allow(unused_variables)]
+            fn check_constraints(&self) -> Result<()> {
+                let #anchor_accounts_name { #(#anchor_field_idents),*, .. } = &self.anchor_context.accounts;
+                let #light_accounts_name { #(#light_field_idents),* } = &self.light_accounts;
+
+                #(#constraint_calls)*
+
+                Ok(())
+            }
+
             #[allow(unused_variables)]
             fn derive_address_seeds(
                 &mut self,
@@ -195,46 +222,102 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     Ok(expanded)
 }
 
+mod kw {
+    // Action
+    syn::custom_keyword!(init);
+    syn::custom_keyword!(close);
+    // Constraint
+    syn::custom_keyword!(constraint);
+    // Seeds
+    syn::custom_keyword!(seeds);
+}
+
 pub(crate) enum LightAccountAction {
     Init,
     Mut,
     Close,
 }
 
+pub(crate) struct Constraint {
+    /// Expression of the constraint, e.g.
+    /// `my_compressed_acc.owner == signer.key()`.
+    expr: Expr,
+    /// Optional error to return. If not specified, the default
+    /// `LightSdkError::ConstraintViolation` will be used.
+    error: Option<Expr>,
+}
+
 pub(crate) struct LightAccountArgs {
     action: LightAccountAction,
-    seeds: Expr,
+    constraint: Option<Constraint>,
+    seeds: Option<Expr>,
 }
 
 impl Parse for LightAccountArgs {
     fn parse(input: ParseStream) -> Result<Self> {
-        let action = match input.parse::<Token![mut]>() {
-            Ok(_) => LightAccountAction::Mut,
-            Err(_) => {
-                let action_ident: Ident = input.parse()?;
-                match action_ident.to_string().as_str() {
-                    "init" => LightAccountAction::Init,
-                    "mut" => LightAccountAction::Mut,
-                    "close" => LightAccountAction::Close,
-                    _ => {
-                        return Err(Error::new(
-                            Span::call_site(),
-                            "unsupported light account action type",
-                        ))
-                    }
+        let mut action = None;
+        let mut constraint = None;
+        let mut seeds = None;
+
+        while !input.is_empty() {
+            let lookahead = input.lookahead1();
+
+            // Actions
+            if lookahead.peek(kw::init) {
+                input.parse::<kw::init>()?;
+                action = Some(LightAccountAction::Init);
+            } else if lookahead.peek(Token![mut]) {
+                input.parse::<Token![mut]>()?;
+                action = Some(LightAccountAction::Mut);
+            } else if lookahead.peek(kw::close) {
+                input.parse::<kw::close>()?;
+                action = Some(LightAccountAction::Close);
+            }
+            // Constraint
+            else if lookahead.peek(kw::constraint) {
+                // Parse the constraint.
+                input.parse::<kw::constraint>()?;
+                input.parse::<Token![=]>()?;
+                let expr: Expr = input.parse()?;
+
+                // Parse an optional error.
+                let mut error = None;
+                if input.peek(Token![@]) {
+                    input.parse::<Token![@]>()?;
+                    error = Some(input.parse::<Expr>()?);
                 }
+
+                constraint = Some(Constraint { expr, error });
+            }
+            // Seeds
+            else if lookahead.peek(kw::seeds) {
+                input.parse::<kw::seeds>()?;
+                input.parse::<Token![=]>()?;
+                seeds = Some(input.parse::<Expr>()?);
+            } else {
+                return Err(lookahead.error());
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        let action = match action {
+            Some(action) => action,
+            None => {
+                return Err(Error::new(
+                    Span::call_site(),
+                    "Expected an action for the account (`init`, `mut` or `close`)",
+                ))
             }
         };
 
-        input.parse::<Token![,]>()?;
-
-        let _seeds_ident: Ident = input.parse()?;
-
-        input.parse::<Token![=]>()?;
-
-        let seeds: Expr = input.parse()?;
-
-        Ok(Self { action, seeds })
+        Ok(Self {
+            action,
+            constraint,
+            seeds,
+        })
     }
 }
 

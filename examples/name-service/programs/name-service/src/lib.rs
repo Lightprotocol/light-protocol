@@ -32,9 +32,6 @@ pub mod name_service {
         ctx: LightContext<'_, '_, '_, 'info, UpdateRecord<'info>>,
         new_rdata: RData,
     ) -> Result<()> {
-        if ctx.light_accounts.record.owner != ctx.accounts.signer.key() {
-            return err!(CustomError::Unauthorized);
-        }
         ctx.light_accounts.record.rdata = new_rdata;
 
         Ok(())
@@ -43,9 +40,6 @@ pub mod name_service {
     pub fn delete_record<'info>(
         ctx: LightContext<'_, '_, '_, 'info, DeleteRecord<'info>>,
     ) -> Result<()> {
-        if ctx.light_accounts.record.owner != ctx.accounts.signer.key() {
-            return err!(CustomError::Unauthorized);
-        }
         Ok(())
     }
 }
@@ -89,10 +83,6 @@ pub struct NameRecord {
 pub enum CustomError {
     #[msg("No authority to perform this action")]
     Unauthorized,
-    #[msg("Record account has no data")]
-    NoData,
-    #[msg("Provided data hash does not match the computed hash")]
-    InvalidDataHash,
 }
 
 #[light_accounts]
@@ -121,7 +111,11 @@ pub struct UpdateRecord<'info> {
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
 
-    #[light_account(mut, seeds = [b"name-service", record.name.as_bytes()])]
+    #[light_account(
+        mut,
+        seeds = [b"name-service", record.name.as_bytes()],
+        constraint = record.owner == signer.key() @ CustomError::Unauthorized
+    )]
     pub record: LightAccount<NameRecord>,
 }
 
@@ -136,6 +130,10 @@ pub struct DeleteRecord<'info> {
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
 
-    #[light_account(close, seeds = [b"name-service", record.name.as_bytes()])]
+    #[light_account(
+        close,
+        seeds = [b"name-service", record.name.as_bytes()],
+        constraint = record.owner == signer.key() @ CustomError::Unauthorized
+    )]
     pub record: LightAccount<NameRecord>,
 }
