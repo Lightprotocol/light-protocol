@@ -40,7 +40,7 @@ impl Forester {
 
     pub async fn report_work(
         &mut self,
-        rpc: &mut impl RpcConnection,
+        rpc: &impl RpcConnection,
         forester_keypair: &Keypair,
     ) -> Result<Signature, RpcError> {
         let ix = create_report_work_instruction(&forester_keypair.pubkey(), self.report_work.epoch);
@@ -286,7 +286,7 @@ impl Epoch {
     /// returns slots until next epoch and that epoch
     /// registration is open if
     pub async fn slots_until_next_epoch_registration<R: RpcConnection>(
-        rpc: &mut R,
+        rpc: &R,
         protocol_config: &ProtocolConfig,
     ) -> Result<EpochRegistration, RpcError> {
         let current_solana_slot = rpc.get_slot().await?;
@@ -319,7 +319,7 @@ impl Epoch {
 
     /// creates forester account and fetches epoch account
     pub async fn register<R: RpcConnection>(
-        rpc: &mut R,
+        rpc: &R,
         protocol_config: &ProtocolConfig,
         authority: &Keypair,
     ) -> Result<Option<Epoch>, RpcError> {
@@ -365,7 +365,7 @@ impl Epoch {
 
     pub async fn fetch_account_and_add_trees_with_schedule<R: RpcConnection>(
         &mut self,
-        rpc: &mut R,
+        rpc: &R,
         trees: &[TreeAccounts],
     ) -> Result<(), RpcError> {
         let current_solana_slot = rpc.get_slot().await?;

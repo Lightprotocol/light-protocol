@@ -41,7 +41,7 @@ pub struct AccountZeroCopy<'a, T> {
 }
 
 impl<'a, T> AccountZeroCopy<'a, T> {
-    pub async fn new<R: RpcConnection>(rpc: &mut R, address: Pubkey) -> AccountZeroCopy<'a, T> {
+    pub async fn new<R: RpcConnection>(rpc: &R, address: Pubkey) -> AccountZeroCopy<'a, T> {
         let account = Box::pin(rpc.get_account(address).await.unwrap().unwrap());
         let deserialized = account.data[8..].as_ptr() as *const T;
 
@@ -70,16 +70,16 @@ impl<'a, T> AccountZeroCopy<'a, T> {
 /// * The account data is aligned.
 ///
 /// Is the caller's responsibility.
-pub async unsafe fn get_hash_set<T, R: RpcConnection>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
+pub async unsafe fn get_hash_set<T, R: RpcConnection>(rpc: &R, pubkey: Pubkey) -> HashSet {
     let mut account = rpc.get_account(pubkey).await.unwrap().unwrap();
 
     HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<T>()..]).unwrap()
 }
 
-/// Fetches the fiven account, then copies and serializes it as a
+/// Fetches the given account, then copies and serializes it as a
 /// `ConcurrentMerkleTree`.
 pub async fn get_concurrent_merkle_tree<T, R, H, const HEIGHT: usize>(
-    rpc: &mut R,
+    rpc: &R,
     pubkey: Pubkey,
 ) -> ConcurrentMerkleTreeCopy<H, HEIGHT>
 where
@@ -94,7 +94,7 @@ where
 /// Fetches the fiven account, then copies and serializes it as an
 /// `IndexedMerkleTree`.
 pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
-    rpc: &mut R,
+    rpc: &R,
     pubkey: Pubkey,
 ) -> IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
 where
@@ -117,19 +117,20 @@ where
 }
 
 pub async fn airdrop_lamports<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     destination_pubkey: &Pubkey,
     lamports: u64,
 ) -> Result<(), RpcError> {
+    let payer = rpc.get_payer().await;
     // Create a transfer instruction
     let transfer_instruction =
-        system_instruction::transfer(&rpc.get_payer().pubkey(), destination_pubkey, lamports);
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+        system_instruction::transfer(&payer.pubkey(), destination_pubkey, lamports);
+    let latest_blockhash = rpc.get_latest_blockhash().await?;
     // Create and sign a transaction
     let transaction = Transaction::new_signed_with_payer(
         &[transfer_instruction],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer()],
+        Some(&payer.pubkey()),
+        &vec![&payer],
         latest_blockhash,
     );
 

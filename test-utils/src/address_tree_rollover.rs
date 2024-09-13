@@ -47,7 +47,8 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    rpc.set_account(merkle_tree_pubkey, &account_share_data)
+        .await;
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26, 16>::from_bytes_zero_copy_mut(
@@ -66,15 +67,12 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_config: &AddressMerkleTreeConfig,
     queue_config: &AddressQueueConfig,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    let payer = context.get_payer().insecure_clone();
+    let payer = context.get_payer().await;
     let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        context.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(new_queue_keypair),
     );
@@ -89,17 +87,14 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        context.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(new_address_merkle_tree_keypair),
     );
     let instruction_data = instruction::RolloverAddressMerkleTreeAndQueue {};
     let accounts = accounts::RolloverAddressMerkleTreeAndQueue {
-        fee_payer: context.get_payer().pubkey(),
-        authority: context.get_payer().pubkey(),
+        fee_payer: payer.pubkey(),
+        authority: payer.pubkey(),
         registered_program_pda: None,
         new_address_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
         new_queue: new_queue_keypair.pubkey(),
@@ -111,15 +106,11 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true))].concat(),
         data: instruction_data.data(),
     };
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, mt_account_create_ix, instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![
-            &context.get_payer(),
-            &new_queue_keypair,
-            &new_address_merkle_tree_keypair,
-        ],
+        Some(&payer.pubkey()),
+        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
         blockhash,
     );
     context.process_transaction(transaction).await
@@ -296,7 +287,7 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
         is_metadata_forester,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
@@ -330,7 +321,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
         is_metadata_forester,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),

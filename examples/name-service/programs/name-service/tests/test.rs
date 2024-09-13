@@ -28,12 +28,12 @@ use solana_sdk::transaction::{Transaction, TransactionError};
 
 #[tokio::test]
 async fn test_name_service() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
+    let (rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
         String::from("name_service"),
         name_service::ID,
     )]))
     .await;
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await.insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
         &[StateMerkleTreeAccounts {
@@ -89,7 +89,7 @@ async fn test_name_service() {
     create_record(
         &name,
         &rdata_1,
-        &mut rpc,
+        &rpc,
         &mut test_indexer,
         &env,
         &mut remaining_accounts,
@@ -109,7 +109,7 @@ async fn test_name_service() {
         let result = create_record(
             &name,
             &rdata_1,
-            &mut rpc,
+            &rpc,
             &mut test_indexer,
             &env,
             &mut remaining_accounts,
@@ -147,7 +147,7 @@ async fn test_name_service() {
     // Update the record to example.io -> 2001:db8::1.
     let rdata_2 = RData::AAAA(Ipv6Addr::new(8193, 3512, 0, 0, 0, 0, 0, 1));
     update_record(
-        &mut rpc,
+        &rpc,
         &mut test_indexer,
         &mut remaining_accounts,
         &rdata_2,
@@ -168,7 +168,7 @@ async fn test_name_service() {
             .await
             .unwrap();
         let result = update_record(
-            &mut rpc,
+            &rpc,
             &mut test_indexer,
             &mut remaining_accounts,
             &rdata_2,
@@ -190,7 +190,7 @@ async fn test_name_service() {
     // Update with invalid light-system-program ID, should not succeed.
     {
         let result = update_record(
-            &mut rpc,
+            &rpc,
             &mut test_indexer,
             &mut remaining_accounts,
             &rdata_2,
@@ -231,7 +231,7 @@ async fn test_name_service() {
             .await
             .unwrap();
         let result = delete_record(
-            &mut rpc,
+            &rpc,
             &mut test_indexer,
             &mut remaining_accounts,
             &invalid_signer,
@@ -252,7 +252,7 @@ async fn test_name_service() {
     // Delete with invalid light-system-program ID, should not succeed.
     {
         let result = delete_record(
-            &mut rpc,
+            &rpc,
             &mut test_indexer,
             &mut remaining_accounts,
             &payer,
@@ -273,7 +273,7 @@ async fn test_name_service() {
 
     // Delete the example.io record.
     delete_record(
-        &mut rpc,
+        &rpc,
         &mut test_indexer,
         &mut remaining_accounts,
         &payer,
@@ -290,7 +290,7 @@ async fn test_name_service() {
 async fn create_record<R>(
     name: &str,
     rdata: &RData,
-    rpc: &mut R,
+    rpc: &R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     remaining_accounts: &mut RemainingAccounts,
@@ -356,7 +356,7 @@ where
 }
 
 async fn update_record<R>(
-    rpc: &mut R,
+    rpc: &R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
     new_rdata: &RData,
@@ -434,7 +434,7 @@ where
 }
 
 async fn delete_record<R>(
-    rpc: &mut R,
+    rpc: &R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,

@@ -24,8 +24,8 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
-    context: &mut R,
-    test_indexer: &mut I,
+    context: &R,
+    test_indexer: &I,
     out_compressed_accounts: &[TokenTransferOutputData],
     created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
     lamports: Option<Vec<Option<u64>>>,
@@ -42,7 +42,8 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
         lamports,
         output_merkle_tree_snapshots,
         delegates,
-    );
+    )
+    .await;
     // CHECK 2
     assert_nullifiers_exist_in_hash_sets(
         context,
@@ -80,8 +81,8 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     );
 }
 
-pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
-    test_indexer: &mut I,
+pub async fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
+    test_indexer: &I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
@@ -102,6 +103,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
         }
         let pos = test_indexer
             .get_token_compressed_accounts()
+            .await
             .iter()
             .position(|x| {
                 x.token_data.owner == out_compressed_account.owner
@@ -110,7 +112,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
             })
             .expect("transfer recipient compressed account not found in mock indexer");
         let transfer_recipient_token_compressed_account =
-            test_indexer.get_token_compressed_accounts()[pos].clone();
+            test_indexer.get_token_compressed_accounts().await[pos].clone();
         assert_eq!(
             transfer_recipient_token_compressed_account
                 .token_data
@@ -172,6 +174,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
 
         if !test_indexer
             .get_token_compressed_accounts()
+            .await
             .iter()
             .any(|x| {
                 x.compressed_account.merkle_context.leaf_index as usize
@@ -180,7 +183,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
         {
             println!(
                 "token_compressed_accounts {:?}",
-                test_indexer.get_token_compressed_accounts()
+                test_indexer.get_token_compressed_accounts().await
             );
             println!("snapshot {:?}", output_merkle_tree_snapshots[i]);
             println!("index {:?}", index);
@@ -190,9 +193,9 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
-    test_indexer: &'a mut I,
+pub async fn assert_mint_to<R: RpcConnection, I: Indexer<R>>(
+    rpc: &R,
+    test_indexer: &I,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],
@@ -229,7 +232,7 @@ pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
 }
 
 pub async fn assert_create_mint<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     authority: &Pubkey,
     mint: &Pubkey,
     pool: &Pubkey,

@@ -28,7 +28,7 @@ pub enum MerkleTreeExtError {
 #[async_trait]
 pub trait MerkleTreeExt: RpcConnection {
     async fn get_state_merkle_tree(
-        &mut self,
+        &self,
         pubkey: Pubkey,
     ) -> Result<ConcurrentMerkleTreeCopy<Poseidon, 26>, MerkleTreeExtError> {
         let account = self.get_account(pubkey).await?.unwrap();
@@ -40,7 +40,7 @@ pub trait MerkleTreeExt: RpcConnection {
     }
 
     async fn get_address_merkle_tree(
-        &mut self,
+        &self,
         pubkey: Pubkey,
     ) -> Result<IndexedMerkleTreeCopy<Poseidon, usize, 26, 16>, MerkleTreeExtError> {
         let account = self.get_account(pubkey).await?.unwrap();

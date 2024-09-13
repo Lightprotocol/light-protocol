@@ -6,7 +6,7 @@ use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_queue_initialized<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
     associated_merkle_tree_pubkey: &Pubkey,
@@ -36,7 +36,7 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::NullifierQueueConfig,
     associated_merkle_tree_pubkey: &Pubkey,
@@ -80,7 +80,7 @@ pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
     associated_merkle_tree_pubkey: &Pubkey,
@@ -137,7 +137,7 @@ pub async fn assert_address_queue<R: RpcConnection>(
 }
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
     associated_merkle_tree_pubkey: &Pubkey,

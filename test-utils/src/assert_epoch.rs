@@ -7,7 +7,7 @@ use light_registry::{
 use solana_sdk::pubkey::Pubkey;
 
 pub async fn assert_finalized_epoch_registration<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester_epoch_pda_pubkey: &Pubkey,
     epoch_pda_pubkey: &Pubkey,
 ) {
@@ -30,7 +30,7 @@ pub async fn assert_finalized_epoch_registration<R: RpcConnection>(
 }
 
 pub async fn assert_epoch_pda<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     epoch: u64,
     expected_registered_weight: u64,
 ) {
@@ -54,7 +54,7 @@ pub async fn assert_epoch_pda<R: RpcConnection>(
 /// Helper function to fetch the forester epoch and epoch account to assert diff
 /// after transaction.
 pub async fn fetch_epoch_and_forester_pdas<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester_epoch_pda: &Pubkey,
     epoch_pda: &Pubkey,
 ) -> (ForesterEpochPda, EpochPda) {
@@ -78,7 +78,7 @@ pub async fn fetch_epoch_and_forester_pdas<R: RpcConnection>(
 /// 1. ForesterEpochPda has reported work
 /// 2. EpochPda has updated total work by forester work counter
 pub async fn assert_report_work<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester_epoch_pda_pubkey: &Pubkey,
     epoch_pda_pubkey: &Pubkey,
     mut pre_forester_epoch_pda: ForesterEpochPda,
@@ -102,7 +102,7 @@ pub async fn assert_report_work<R: RpcConnection>(
 
 /// Asserts the correct creation of a ForesterEpochPda.
 pub async fn assert_registered_forester_pda<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester_epoch_pda_pubkey: &Pubkey,
     forester_derivation_pubkey: &Pubkey,
     epoch: u64,

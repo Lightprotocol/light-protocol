@@ -21,13 +21,94 @@ use solana_sdk::signer::Signer;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{sleep, timeout};
 
 mod test_utils;
 use test_utils::*;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+//
+// #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+// async fn test_epoch_explorer() {
+//     let mut rpc = SolanaRpcConnection::new(
+//         "https://devnet.helius-rpc.com/?api-key=27c42b89-12ac-41d0-8fa7-6341caa5737d",
+//         None,
+//     );
+//
+//     let trees = fetch_trees(&rpc).await;
+//     for tree_data in trees {
+//         let length = if tree_data.tree_type == TreeType::State {
+//             STATE_NULLIFIER_QUEUE_VALUES
+//         } else {
+//             ADDRESS_QUEUE_VALUES
+//         };
+//
+//         let mut account = rpc
+//             .get_anchor_account
+//             ::<AddressMerkleTreeAccount>
+//             ()
+//             .get_account(tree_data.merkle_tree)
+//             .await
+//             .unwrap();
+//     }
+//
+//     let protocol_config = get_protocol_config(&mut rpc).await;
+//     let solana_slot = rpc.get_slot().await.unwrap();
+//
+//     let epoch = protocol_config.get_current_epoch(solana_slot) - 1;
+//
+//     println!("Current solana slot: {}", solana_slot);
+//     println!("Protocol config: {:?}", protocol_config);
+//
+//     println!("Current light epoch: {}", epoch);
+//
+//     let progress = protocol_config.get_current_active_epoch_progress(solana_slot);
+//
+//     let slots_left = protocol_config.active_phase_length - progress;
+//     let slot_time = 0.43;
+//     let time_left_seconds = slots_left as f64 * slot_time;
+//     println!("Progress: {}", progress);
+//     println!("Slots left: {}", slots_left);
+//
+//     let minutes = (time_left_seconds / 60.0).floor();
+//     let hours = (minutes / 60.0).floor();
+//     let remaining_minutes = minutes % 60.0;
+//
+//     if hours > 0.0 {
+//         println!("Time left: {:.0} hours and {:.0} minutes", hours, remaining_minutes);
+//     } else {
+//         println!("Time left: {:.0} minutes", minutes);
+//     }
+//
+//     let epoch_pda_address = get_epoch_pda_address(epoch);
+//     let epoch_pda = rpc
+//         .get_anchor_account::<EpochPda>(&epoch_pda_address)
+//         .await
+//         .unwrap().unwrap();
+//
+//     println!("Epoch PDA: {:?}", epoch_pda);
+//
+//
+//     for keypair in mainnet_forester_keypairs {
+//         let forester_keypair = Keypair::from_bytes(&keypair).unwrap();
+//         let forester_epoch_pda_pubkey =  get_forester_epoch_pda_from_authority(&forester_keypair.pubkey(), epoch).0;
+//         let existing_pda = rpc
+//             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+//             .await
+//             .unwrap();
+//
+//         match existing_pda {
+//             Some(pda) => {
+//                 println!("Forester {} PDA: {:?}", forester_keypair.pubkey(), pda);
+//             }
+//             None => {
+//                 println!("Forester {} PDA not found.", forester_keypair.pubkey());
+//             },
+//         }
+//     }
+// }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[ignore]
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
@@ -55,8 +136,12 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.payer = forester_keypair.insecure_clone();
+    let rpc = SolanaRpcConnection::new_with_retry(
+        SolanaRpcUrl::Localnet,
+        None,
+        None,
+        Some(forester_keypair.insecure_clone()),
+    );
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
@@ -70,7 +155,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     .unwrap();
 
     register_test_forester(
-        &mut rpc,
+        &rpc,
         &env_accounts.governance_authority,
         &forester_keypair.pubkey(),
         light_registry::ForesterConfig::default(),
@@ -99,18 +184,16 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    let state_trees: Vec<StateMerkleTreeAccounts> = env
-        .indexer
-        .state_merkle_trees
-        .iter()
-        .map(|x| x.accounts)
-        .collect();
-    let address_trees: Vec<AddressMerkleTreeAccounts> = env
-        .indexer
-        .address_merkle_trees
-        .iter()
-        .map(|x| x.accounts)
-        .collect();
+
+    let state_trees: Vec<StateMerkleTreeAccounts> = {
+        let state_merkle_trees = env.indexer.state.state_merkle_trees.read().await;
+        state_merkle_trees.iter().map(|x| x.accounts).collect()
+    };
+
+    let address_trees: Vec<AddressMerkleTreeAccounts> = {
+        let address_merkle_trees = env.indexer.state.address_merkle_trees.read().await;
+        address_merkle_trees.iter().map(|x| x.accounts).collect()
+    };
 
     let iterations = 1;
     let mut total_expected_work = 0;
@@ -139,7 +222,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     // Run the forester as pipeline
     let service_handle = tokio::spawn(run_pipeline(
         config.clone(),
-        Arc::new(Mutex::new(env.indexer)),
+        Arc::new(env.indexer),
         shutdown_receiver,
         work_report_sender,
     ));
@@ -147,7 +230,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     if work_report_receiver.recv().await.is_some() {
         println!("work_reported");
     };
-    let mut rpc = pool.get_connection().await.unwrap();
+    let rpc = pool.get_connection().await.unwrap();
     let epoch_pda_address = get_epoch_pda_address(0);
     let epoch_pda = (*rpc)
         .get_anchor_account::<EpochPda>(&epoch_pda_address)
@@ -198,9 +281,9 @@ pub async fn assert_queue_len(
     not_empty: bool,
 ) {
     for tree in state_trees.iter() {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
         let queue_length = fetch_queue_item_data(
-            &mut *rpc,
+            &*rpc,
             &tree.nullifier_queue,
             0,
             STATE_NULLIFIER_QUEUE_VALUES,
@@ -218,9 +301,9 @@ pub async fn assert_queue_len(
     }
 
     for tree in address_trees.iter() {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
         let queue_length = fetch_queue_item_data(
-            &mut *rpc,
+            &*rpc,
             &tree.queue,
             0,
             ADDRESS_QUEUE_VALUES,
@@ -271,8 +354,12 @@ async fn test_epoch_monitor_with_2_foresters() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.payer = forester_keypair1.insecure_clone();
+    let rpc = SolanaRpcConnection::new_with_retry(
+        SolanaRpcUrl::Localnet,
+        None,
+        None,
+        Some(forester_keypair1.insecure_clone()),
+    );
 
     // Airdrop to both foresters and governance authority
     for keypair in [
@@ -288,7 +375,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     // Register both foresters
     for forester_keypair in [&forester_keypair1, &forester_keypair2] {
         register_test_forester(
-            &mut rpc,
+            &rpc,
             &env_accounts.governance_authority,
             &forester_keypair.pubkey(),
             light_registry::ForesterConfig::default(),
@@ -321,23 +408,22 @@ async fn test_epoch_monitor_with_2_foresters() {
     // Create state and address trees which can be rolled over
     env.create_address_tree(Some(0)).await;
     env.create_state_tree(Some(0)).await;
-    let state_tree_with_rollover_threshold_0 =
-        env.indexer.state_merkle_trees[1].accounts.merkle_tree;
-    let address_tree_with_rollover_threshold_0 =
-        env.indexer.address_merkle_trees[1].accounts.merkle_tree;
-
-    let state_trees: Vec<StateMerkleTreeAccounts> = env
-        .indexer
-        .state_merkle_trees
-        .iter()
-        .map(|x| x.accounts)
-        .collect();
-    let address_trees: Vec<AddressMerkleTreeAccounts> = env
-        .indexer
-        .address_merkle_trees
-        .iter()
-        .map(|x| x.accounts)
-        .collect();
+    let state_tree_with_rollover_threshold_0 = {
+        let state_merkle_trees = env.indexer.state.state_merkle_trees.read().await;
+        state_merkle_trees[1].accounts.merkle_tree
+    };
+    let address_tree_with_rollover_threshold_0 = {
+        let address_merkle_trees = env.indexer.state.address_merkle_trees.read().await;
+        address_merkle_trees[1].accounts.merkle_tree
+    };
+    let state_trees: Vec<StateMerkleTreeAccounts> = {
+        let state_merkle_trees = env.indexer.state.state_merkle_trees.read().await;
+        state_merkle_trees.iter().map(|x| x.accounts).collect()
+    };
+    let address_trees: Vec<AddressMerkleTreeAccounts> = {
+        let address_merkle_trees = env.indexer.state.address_merkle_trees.read().await;
+        address_merkle_trees.iter().map(|x| x.accounts).collect()
+    };
 
     println!("Address trees: {:?}", address_trees);
 
@@ -374,7 +460,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     let (work_report_sender1, mut work_report_receiver1) = mpsc::channel(100);
     let (work_report_sender2, mut work_report_receiver2) = mpsc::channel(100);
 
-    let indexer = Arc::new(Mutex::new(env.indexer));
+    let indexer = Arc::new(env.indexer);
 
     let service_handle1 = tokio::spawn(run_pipeline(
         config1.clone(),
@@ -442,7 +528,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     .await;
     // assert queues have been emptied
     assert_queue_len(&pool, &state_trees, &address_trees, &mut 0, 0, false).await;
-    let mut rpc = pool.get_connection().await.unwrap();
+    let rpc = pool.get_connection().await.unwrap();
     let forester_pubkeys = [
         config1.payer_keypair.pubkey(),
         config2.payer_keypair.pubkey(),
@@ -451,10 +537,9 @@ async fn test_epoch_monitor_with_2_foresters() {
     // assert that foresters registered for epoch 1 and 2 (no new work is emitted after epoch 0)
     // Assert that foresters have registered all processed epochs and the next epoch (+1)
     for epoch in 0..=EXPECTED_EPOCHS {
-        let total_processed_work =
-            assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
-                .await
-                .unwrap();
+        let total_processed_work = assert_foresters_registered(&forester_pubkeys[..], &rpc, epoch)
+            .await
+            .unwrap();
         if epoch == 0 {
             assert_eq!(
                 total_processed_work, total_expected_work,
@@ -477,12 +562,13 @@ async fn test_epoch_monitor_with_2_foresters() {
     service_handle1.await.unwrap().unwrap();
     service_handle2.await.unwrap().unwrap();
 }
+
 pub async fn assert_trees_are_rollledover(
     pool: &SolanaRpcPool<SolanaRpcConnection>,
     state_tree_with_rollover_threshold_0: &Pubkey,
     address_tree_with_rollover_threshold_0: &Pubkey,
 ) {
-    let mut rpc = pool.get_connection().await.unwrap();
+    let rpc = pool.get_connection().await.unwrap();
     let address_merkle_tree = rpc
         .get_anchor_account::<AddressMerkleTreeAccount>(address_tree_with_rollover_threshold_0)
         .await
@@ -511,7 +597,7 @@ pub async fn assert_trees_are_rollledover(
 }
 async fn assert_foresters_registered(
     foresters: &[Pubkey],
-    rpc: &mut SolanaRpcConnection,
+    rpc: &SolanaRpcConnection,
     epoch: u64,
 ) -> Result<u64, RpcError> {
     let mut performed_work = 0;
@@ -569,8 +655,12 @@ async fn test_epoch_double_registration() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.payer = forester_keypair.insecure_clone();
+    let rpc = SolanaRpcConnection::new_with_retry(
+        SolanaRpcUrl::Localnet,
+        None,
+        None,
+        Some(forester_keypair.insecure_clone()),
+    );
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
         .await
@@ -584,7 +674,7 @@ async fn test_epoch_double_registration() {
     .unwrap();
 
     register_test_forester(
-        &mut rpc,
+        &rpc,
         &env_accounts.governance_authority,
         &forester_keypair.pubkey(),
         light_registry::ForesterConfig::default(),
@@ -595,7 +685,7 @@ async fn test_epoch_double_registration() {
     let indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, false, false).await;
 
-    let indexer = Arc::new(Mutex::new(indexer));
+    let indexer = Arc::new(indexer);
 
     for _ in 0..10 {
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
@@ -618,8 +708,8 @@ async fn test_epoch_double_registration() {
         assert!(result.is_ok(), "Registration should succeed");
     }
 
-    let mut rpc = pool.get_connection().await.unwrap();
-    let protocol_config = get_protocol_config(&mut *rpc).await;
+    let rpc = pool.get_connection().await.unwrap();
+    let protocol_config = get_protocol_config(&*rpc).await;
     let solana_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(solana_slot);
 

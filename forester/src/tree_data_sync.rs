@@ -41,6 +41,7 @@ fn process_address_account(
 ) -> Result<TreeAccounts, ProgramError> {
     check_discriminator::<AddressMerkleTreeAccount>(&account.data)?;
     let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
+
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,

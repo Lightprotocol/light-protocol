@@ -16,8 +16,8 @@ use solana_sdk::account::ReadableAccount;
 use solana_sdk::pubkey::Pubkey;
 
 pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>> {
-    pub rpc: &'a mut R,
-    pub test_indexer: &'a mut I,
+    pub rpc: &'a R,
+    pub test_indexer: &'a I,
     pub output_compressed_accounts: &'a [CompressedAccount],
     pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
@@ -118,7 +118,7 @@ pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R>>(
 }
 
 pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     snapshots: &[MerkleTreeTestSnapShot],
     input_compressed_account_hashes: &[[u8; 32]],
 ) {
@@ -133,7 +133,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
 }
 
 pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     address_queue_pubkeys: &[Pubkey],
     created_addresses: &[[u8; 32]],
 ) {
@@ -245,14 +245,17 @@ pub struct MerkleTreeTestSnapShot {
 /// 1. The root has been updated
 /// 2. The next index has been updated
 pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
+    rpc: &R,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut I,
+    test_indexer: &I,
 ) -> Vec<MerkleTreeSequenceNumber> {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
     deduped_snapshots.dedup();
     let mut sequence_numbers = Vec::new();
+
+    let state_merkle_trees = test_indexer.get_state_merkle_trees().await;
+
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
         let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
             rpc,
@@ -275,9 +278,8 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
             merkle_tree.next_index(),
             snapshot.next_index + snapshot.num_added_accounts
         );
-        let test_indexer_merkle_tree = test_indexer
-            .get_state_merkle_trees_mut()
-            .iter_mut()
+        let test_indexer_merkle_tree = state_merkle_trees
+            .iter()
             .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
             .expect("merkle tree not found in test indexer");
 
@@ -307,7 +309,7 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
 /// 3. num_added_accounts // so that we can assert the expected next index after tx
 /// 4. lamports of all bundle accounts
 pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     accounts: &[StateMerkleTreeAccounts],
 ) -> Vec<MerkleTreeTestSnapShot> {
     let mut snapshots = Vec::new();
@@ -350,7 +352,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
 }
 
 pub async fn assert_compression<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     compress_amount: u64,
     compressed_sol_pda_balance_pre: u64,
     recipient_balance_pre: u64,

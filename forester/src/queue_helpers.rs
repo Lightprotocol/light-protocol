@@ -13,7 +13,7 @@ pub struct QueueItemData {
 }
 
 pub async fn fetch_queue_item_data<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     queue_pubkey: &Pubkey,
     start_index: u16,
     processing_length: u16,

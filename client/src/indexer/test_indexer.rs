@@ -218,7 +218,7 @@ where
         state_merkle_tree_pubkeys: Option<&[solana_sdk::pubkey::Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<solana_sdk::pubkey::Pubkey>>,
-        rpc: &mut R,
+        rpc: &R,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
@@ -401,7 +401,7 @@ where
         &self,
         merkle_tree_pubkeys: &[Pubkey],
         accounts: &[[u8; 32]],
-        rpc: &mut R,
+        rpc: &R,
     ) -> (BatchInclusionJsonStruct, Vec<u16>) {
         let mut inclusion_proofs = Vec::new();
         let mut root_indices = Vec::new();
@@ -440,7 +440,7 @@ where
         &self,
         address_merkle_tree_pubkeys: &[Pubkey],
         addresses: &[[u8; 32]],
-        rpc: &mut R,
+        rpc: &R,
     ) -> (BatchNonInclusionJsonStruct, Vec<u16>) {
         let mut non_inclusion_proofs = Vec::new();
         let mut address_root_indices = Vec::new();

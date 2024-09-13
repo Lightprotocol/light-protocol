@@ -259,21 +259,21 @@ where
     I: Indexer<R>,
 {
     pub async fn new(
-        mut rpc: R,
-        mut indexer: I,
+        rpc: R,
+        indexer: I,
         env_accounts: &EnvAccounts,
         keypair_action_config: KeypairActionConfig,
         general_action_config: GeneralActionConfig,
         rounds: u64,
         seed: Option<u64>,
     ) -> Self {
-        let payer = rpc.get_payer().insecure_clone();
+        let payer = rpc.get_payer().await;
 
-        airdrop_lamports(&mut rpc, &payer.pubkey(), 1_000_000_000_000)
+        airdrop_lamports(&rpc, &payer.pubkey(), 1_000_000_000_000)
             .await
             .unwrap();
 
-        airdrop_lamports(&mut rpc, &env_accounts.forester.pubkey(), 1_000_000_000_000)
+        airdrop_lamports(&rpc, &env_accounts.forester.pubkey(), 1_000_000_000_000)
             .await
             .unwrap();
         let mut thread_rng = ThreadRng::default();
@@ -283,11 +283,11 @@ where
         // we can use the seed to reproduce the error.
         println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
-        let user = Self::create_user(&mut rng, &mut rpc).await;
-        let mint = create_mint_helper(&mut rpc, &payer).await;
+        let user = Self::create_user(&mut rng, &rpc).await;
+        let mint = create_mint_helper(&rpc, &payer).await;
         mint_tokens_helper(
-            &mut rpc,
-            &mut indexer,
+            &rpc,
+            &indexer,
             &env_accounts.merkle_tree_pubkey,
             &payer,
             &mint,
@@ -345,7 +345,7 @@ where
     }
 
     /// Creates a new user with a random keypair and 100 sol
-    pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
+    pub async fn create_user(rng: &mut StdRng, rpc: &R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
 
         rpc.airdrop_lamports(&keypair.pubkey(), LAMPORTS_PER_SOL * 5000)
@@ -395,7 +395,7 @@ where
             .rng
             .gen_bool(self.general_action_config.add_keypair.unwrap_or_default())
         {
-            let user = Self::create_user(&mut self.rng, &mut self.rpc).await;
+            let user = Self::create_user(&mut self.rng, &self.rpc).await;
             self.users.push(user);
         }
 
@@ -422,7 +422,7 @@ where
                 .nullify_compressed_accounts
                 .unwrap_or_default(),
         ) {
-            for state_tree_bundle in self.indexer.get_state_merkle_trees_mut().iter_mut() {
+            for state_tree_bundle in self.indexer.get_state_merkle_trees().await.iter_mut() {
                 println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
@@ -430,9 +430,9 @@ where
                     &self.foresters,
                     self.slot,
                 ) {
-                    // TODO: add newly addeded trees to foresters
+                    // TODO: add newly added trees to foresters
                     nullify_compressed_accounts(
-                        &mut self.rpc,
+                        &self.rpc,
                         &payer,
                         state_tree_bundle,
                         self.epoch,
@@ -451,7 +451,8 @@ where
                 .empty_address_queue
                 .unwrap_or_default(),
         ) {
-            for address_merkle_tree_bundle in self.indexer.get_address_merkle_trees_mut().iter_mut()
+            for address_merkle_tree_bundle in
+                self.indexer.get_address_merkle_trees().await.iter_mut()
             {
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
@@ -465,7 +466,7 @@ where
                     // TODO: add newly addeded trees to foresters
                     empty_address_queue_test(
                         &payer,
-                        &mut self.rpc,
+                        &self.rpc,
                         address_merkle_tree_bundle,
                         false,
                         self.epoch,
@@ -479,10 +480,10 @@ where
             }
         }
 
-        for index in 0..self.indexer.get_state_merkle_trees().len() {
+        for index in 0..self.indexer.get_state_merkle_trees().await.len() {
             let is_read_for_rollover = state_tree_ready_for_rollover(
-                &mut self.rpc,
-                self.indexer.get_state_merkle_trees()[index]
+                &self.rpc,
+                self.indexer.get_state_merkle_trees().await[index]
                     .accounts
                     .merkle_tree,
             )
@@ -495,7 +496,7 @@ where
                 println!("\n --------------------------------------------------\n\t\t Rollover State Merkle Tree\n --------------------------------------------------");
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
-                    &self.indexer.get_state_merkle_trees()[index]
+                    &self.indexer.get_state_merkle_trees().await[index]
                         .accounts
                         .nullifier_queue,
                     &self.foresters,
@@ -509,10 +510,10 @@ where
             }
         }
 
-        for index in 0..self.indexer.get_address_merkle_trees().len() {
+        for index in 0..self.indexer.get_address_merkle_trees().await.len() {
             let is_read_for_rollover = address_tree_ready_for_rollover(
-                &mut self.rpc,
-                self.indexer.get_address_merkle_trees()[index]
+                &self.rpc,
+                self.indexer.get_address_merkle_trees().await[index]
                     .accounts
                     .merkle_tree,
             )
@@ -524,7 +525,7 @@ where
             {
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
-                    &self.indexer.get_address_merkle_trees()[index]
+                    &self.indexer.get_address_merkle_trees().await[index]
                         .accounts
                         .queue,
                     &self.foresters,
@@ -553,7 +554,7 @@ where
                 fee: self.rng.gen_range(0..=100),
             };
             register_test_forester(
-                &mut self.rpc,
+                &self.rpc,
                 &self.governance_keypair,
                 &forester.keypair.pubkey(),
                 forester_config,
@@ -603,7 +604,7 @@ where
                     );
 
                     let registered_epoch =
-                        Epoch::register(&mut self.rpc, &self.protocol_config, &forester.keypair)
+                        Epoch::register(&self.rpc, &self.protocol_config, &forester.keypair)
                             .await
                             .unwrap()
                             .unwrap();
@@ -653,19 +654,19 @@ where
                     );
 
                     let (pre_forester_epoch_pda, pre_epoch_pda) = fetch_epoch_and_forester_pdas(
-                        &mut self.rpc,
+                        &self.rpc,
                         &forester.forester.report_work.forester_epoch_pda,
                         &forester.forester.report_work.epoch_pda,
                     )
                     .await;
                     forester
                         .forester
-                        .report_work(&mut self.rpc, &forester.keypair)
+                        .report_work(&self.rpc, &forester.keypair)
                         .await
                         .unwrap();
                     println!("reported work");
                     assert_report_work(
-                        &mut self.rpc,
+                        &self.rpc,
                         &forester.forester.report_work.forester_epoch_pda,
                         &forester.forester.report_work.epoch_pda,
                         pre_forester_epoch_pda,
@@ -683,6 +684,7 @@ where
                 let mut tree_accounts = self
                     .indexer
                     .get_state_merkle_trees()
+                    .await
                     .iter()
                     .map(|state_merkle_tree_bundle| TreeAccounts {
                         tree_type: TreeType::State,
@@ -691,16 +693,18 @@ where
                         is_rolledover: false,
                     })
                     .collect::<Vec<TreeAccounts>>();
-                self.indexer.get_address_merkle_trees().iter().for_each(
-                    |address_merkle_tree_bundle| {
+                self.indexer
+                    .get_address_merkle_trees()
+                    .await
+                    .iter()
+                    .for_each(|address_merkle_tree_bundle| {
                         tree_accounts.push(TreeAccounts {
                             tree_type: TreeType::Address,
                             merkle_tree: address_merkle_tree_bundle.accounts.merkle_tree,
                             queue: address_merkle_tree_bundle.accounts.queue,
                             is_rolledover: false,
                         });
-                    },
-                );
+                    });
                 // 3.2 finalize registration for every forester
                 for forester in self.foresters.iter_mut() {
                     if forester.is_registered.is_none() {
@@ -727,7 +731,7 @@ where
                     forester
                         .forester
                         .active
-                        .fetch_account_and_add_trees_with_schedule(&mut self.rpc, &tree_accounts)
+                        .fetch_account_and_add_trees_with_schedule(&self.rpc, &tree_accounts)
                         .await
                         .unwrap();
                     let ix = create_finalize_registration_instruction(
@@ -743,7 +747,7 @@ where
                         .await
                         .unwrap();
                     assert_finalized_epoch_registration(
-                        &mut self.rpc,
+                        &self.rpc,
                         &forester.forester.active.forester_epoch_pda,
                         &forester.forester.active.epoch_pda,
                     )
@@ -801,7 +805,7 @@ where
         create_state_merkle_tree_and_queue_account(
             &self.payer,
             true,
-            &mut self.rpc,
+            &self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             Some(&cpi_context_keypair),
@@ -819,25 +823,25 @@ where
         ));
         let state_tree_account =
             AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-                &mut self.rpc,
+                &self.rpc,
                 nullifier_queue_keypair.pubkey(),
             )
             .await;
-        self.indexer
-            .get_state_merkle_trees_mut()
-            .push(StateMerkleTreeBundle {
-                rollover_fee: state_tree_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: StateMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    nullifier_queue: nullifier_queue_keypair.pubkey(),
-                    cpi_context: cpi_context_keypair.pubkey(),
-                },
-                merkle_tree,
-            });
+
+        let state_bundle = StateMerkleTreeBundle {
+            rollover_fee: state_tree_account
+                .deserialized()
+                .metadata
+                .rollover_metadata
+                .rollover_fee as i64,
+            accounts: StateMerkleTreeAccounts {
+                merkle_tree: merkle_tree_keypair.pubkey(),
+                nullifier_queue: nullifier_queue_keypair.pubkey(),
+                cpi_context: cpi_context_keypair.pubkey(),
+            },
+            merkle_tree,
+        };
+        self.indexer.add_state_bundle(state_bundle).await;
         // TODO: Add assert
     }
 
@@ -883,7 +887,7 @@ where
         create_address_merkle_tree_and_queue_account(
             &self.payer,
             true,
-            &mut self.rpc,
+            &self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
@@ -906,25 +910,26 @@ where
         merkle_tree.append(&init_value, &mut indexed_array).unwrap();
 
         let queue_account = AccountZeroCopy::<account_compression::QueueAccount>::new(
-            &mut self.rpc,
+            &self.rpc,
             nullifier_queue_keypair.pubkey(),
         )
         .await;
-        self.indexer
-            .get_address_merkle_trees_mut()
-            .push(AddressMerkleTreeBundle {
-                rollover_fee: queue_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: AddressMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    queue: nullifier_queue_keypair.pubkey(),
-                },
-                merkle_tree,
-                indexed_array,
-            });
+
+        let address_tree_bundle = AddressMerkleTreeBundle {
+            rollover_fee: queue_account
+                .deserialized()
+                .metadata
+                .rollover_metadata
+                .rollover_fee as i64,
+            accounts: AddressMerkleTreeAccounts {
+                merkle_tree: merkle_tree_keypair.pubkey(),
+                queue: nullifier_queue_keypair.pubkey(),
+            },
+            merkle_tree,
+            indexed_array,
+        };
+
+        self.indexer.add_address_bundle(address_tree_bundle).await;
         // TODO: Add assert
     }
 
@@ -1082,10 +1087,11 @@ where
         to: &Pubkey,
         tree_index: Option<usize>,
     ) -> Result<Signature, RpcError> {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
-            .accounts
-            .merkle_tree;
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey()).await;
+        let output_merkle_tree = self.indexer.get_state_merkle_trees().await
+            [tree_index.unwrap_or(0)]
+        .accounts
+        .merkle_tree;
         let recipients = vec![*to];
         let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
@@ -1099,8 +1105,8 @@ where
             None
         };
         transfer_compressed_sol_test(
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             from,
             input_compressed_accounts.as_slice(),
             recipients.as_slice(),
@@ -1111,7 +1117,7 @@ where
     }
 
     pub async fn transfer_sol(&mut self, user_index: usize) {
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
 
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Transfer Sol\n --------------------------------------------------");
@@ -1134,7 +1140,7 @@ where
                 .choose_multiple(&mut self.rng, num_output_merkle_trees as usize)
                 .copied()
                 .collect::<Vec<_>>();
-            let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees);
+            let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees).await;
             let transaction_parameters = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
@@ -1147,8 +1153,8 @@ where
                 None
             };
             transfer_compressed_sol_test(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &self.users[user_index].keypair,
                 input_compressed_accounts.as_slice(),
                 recipients.as_slice(),
@@ -1162,11 +1168,11 @@ where
     }
 
     pub async fn decompress_sol(&mut self, user_index: usize) {
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
 
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Decompress Sol\n --------------------------------------------------");
-            let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
+            let output_merkle_tree = self.get_merkle_tree_pubkeys(1).await[0];
             let recipient = self.users
                 [Self::safe_gen_range(&mut self.rng, 0..std::cmp::min(self.users.len(), 6), 0)]
             .keypair
@@ -1176,7 +1182,7 @@ where
                 .map(|x| x.compressed_account.lamports)
                 .sum::<u64>();
             let decompress_amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            let transaction_paramets = if self.keypair_action_config.fee_assert {
+            let transaction_parameters = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
                     num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -1188,14 +1194,14 @@ where
                 None
             };
             decompress_sol_test(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &self.users[user_index].keypair,
                 &input_compressed_accounts,
                 &recipient,
                 decompress_amount,
                 &output_merkle_tree,
-                transaction_paramets,
+                transaction_parameters,
             )
             .await
             .unwrap();
@@ -1209,10 +1215,11 @@ where
         amount: u64,
         tree_index: Option<usize>,
     ) {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
-            .accounts
-            .merkle_tree;
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey()).await;
+        let output_merkle_tree = self.indexer.get_state_merkle_trees().await
+            [tree_index.unwrap_or(0)]
+        .accounts
+        .merkle_tree;
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
@@ -1225,8 +1232,8 @@ where
             None
         };
         compress_sol_test(
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             from,
             input_compressed_accounts.as_slice(),
             false,
@@ -1243,7 +1250,7 @@ where
         // Limit max compress amount to 1 sol so that context.payer doesn't get depleted by airdrops.
         let max_amount = std::cmp::min(balance, 1_000_000_000);
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
-        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
+        let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index).await;
         let create_output_compressed_accounts_for_input_accounts = false;
         // TODO: debug Merkle trees in wrong order
         // if input_compressed_accounts.is_empty() {
@@ -1251,7 +1258,7 @@ where
         // } else {
         //     self.rng.gen_bool(0.5)
         // };
-        let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
+        let output_merkle_tree = self.get_merkle_tree_pubkeys(1).await[0];
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
@@ -1264,8 +1271,8 @@ where
             None
         };
         compress_sol_test(
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             &self.users[user_index].keypair,
             input_compressed_accounts.as_slice(),
             create_output_compressed_accounts_for_input_accounts,
@@ -1275,13 +1282,9 @@ where
         )
         .await
         .unwrap();
-        airdrop_lamports(
-            &mut self.rpc,
-            &self.users[user_index].keypair.pubkey(),
-            amount,
-        )
-        .await
-        .unwrap();
+        airdrop_lamports(&self.rpc, &self.users[user_index].keypair.pubkey(), amount)
+            .await
+            .unwrap();
         self.stats.sol_compress += 1;
     }
 
@@ -1297,13 +1300,13 @@ where
             if let Some(address_tree_index) = address_tree_index {
                 (
                     vec![
-                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                        self.indexer.get_address_merkle_trees().await[address_tree_index]
                             .accounts
                             .merkle_tree;
                         num_addresses as usize
                     ],
                     vec![
-                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                        self.indexer.get_address_merkle_trees().await[address_tree_index]
                             .accounts
                             .queue;
                         num_addresses as usize
@@ -1311,7 +1314,7 @@ where
                 )
             } else {
                 // select random address Merkle tree(s)
-                self.get_address_merkle_tree_pubkeys(num_addresses)
+                self.get_address_merkle_tree_pubkeys(num_addresses).await
             };
         let mut address_seeds = Vec::new();
         let mut created_addresses = Vec::new();
@@ -1331,7 +1334,7 @@ where
             }
         }
 
-        let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
+        let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses).await;
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: num_addresses as u8,
@@ -1346,8 +1349,8 @@ where
         // TODO: add other input compressed accounts
         // (to test whether the address generation degrades performance)
         create_addresses_test(
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             address_merkle_tree_pubkeys.as_slice(),
             address_queue_pubkeys.as_slice(),
             output_compressed_accounts,
@@ -1367,10 +1370,10 @@ where
         println!("\n --------------------------------------------------\n\t\t Tranfer Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1409,9 +1412,10 @@ where
             .map(|(i, _)| equal_amount - i as u64)
             .collect::<Vec<u64>>();
 
-        let output_merkle_tree_pubkeys =
-            self.get_merkle_tree_pubkeys(num_output_compressed_accounts as u64);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self
+            .get_merkle_tree_pubkeys(num_output_compressed_accounts as u64)
+            .await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1422,10 +1426,11 @@ where
         } else {
             None
         };
+        let payer = self.rpc.get_payer().await;
         compressed_transfer_test(
-            &self.rpc.get_payer().insecure_clone(),
-            &mut self.rpc,
-            &mut self.indexer,
+            &payer,
+            &self.rpc,
+            &self.indexer,
             &mint,
             &self.users[user_index].keypair.insecure_clone(),
             &recipients,
@@ -1435,7 +1440,7 @@ where
             &output_merkle_tree_pubkeys,
             None,
             false,
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_transfers += 1;
@@ -1446,10 +1451,10 @@ where
         println!("\n --------------------------------------------------\n\t\t Approve Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1469,8 +1474,8 @@ where
             .sum::<u64>();
         let delegate_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if delegate_amount != max_amount { 2 } else { 1 };
-        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(2);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(2).await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1483,15 +1488,15 @@ where
         };
         approve_test(
             &self.users[user_index].keypair,
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             token_accounts,
             delegate_amount,
             None,
             &delegate,
             &output_merkle_tree_pubkeys[0],
             &output_merkle_tree_pubkeys[1],
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_approved += 1;
@@ -1504,10 +1509,10 @@ where
             .select_random_compressed_token_accounts_delegated(user, true, None, false)
             .await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1522,8 +1527,8 @@ where
             token_accounts = _token_accounts;
         }
         let num_output_compressed_accounts = 1;
-        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1).await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1536,11 +1541,11 @@ where
         };
         revoke_test(
             &self.users[user_index].keypair,
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_revoked += 1;
@@ -1551,10 +1556,10 @@ where
         println!("\n --------------------------------------------------\n\t\t Burn Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1571,8 +1576,8 @@ where
             .sum::<u64>();
         let burn_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if burn_amount != max_amount { 1 } else { 0 };
-        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1).await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1586,13 +1591,13 @@ where
 
         burn_test(
             &self.users[user_index].keypair,
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
             burn_amount,
             false,
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_burned += 1;
@@ -1603,10 +1608,10 @@ where
         println!("\n --------------------------------------------------\n\t\t Freeze Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1619,8 +1624,8 @@ where
                 .await;
             token_accounts = _token_accounts;
         }
-        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1).await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1631,13 +1636,14 @@ where
         } else {
             None
         };
+        let payer = self.rpc.get_payer().await;
         freeze_test(
-            &self.rpc.get_payer().insecure_clone(),
-            &mut self.rpc,
-            &mut self.indexer,
+            &payer.insecure_clone(),
+            &self.rpc,
+            &self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_frozen += 1;
@@ -1657,8 +1663,8 @@ where
                 .await;
             token_accounts = _token_accounts;
         }
-        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1).await;
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1670,13 +1676,14 @@ where
             None
         };
 
+        let payer = self.rpc.get_payer().await;
         thaw_test(
-            &self.rpc.get_payer().insecure_clone(),
-            &mut self.rpc,
-            &mut self.indexer,
+            &payer.insecure_clone(),
+            &self.rpc,
+            &self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_thawed += 1;
@@ -1714,10 +1721,10 @@ where
             self.users[user_index]
                 .token_accounts
                 .push((mint, token_account));
-            let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
+            let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1).await;
 
             let amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            let transaction_paramets = if self.keypair_action_config.fee_assert {
+            let transaction_parameters = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0u8,
                     num_input_compressed_accounts: 0u8,
@@ -1730,13 +1737,13 @@ where
             };
             compress_test(
                 &self.users[user_index].keypair,
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 amount,
                 &mint,
                 &output_merkle_tree_account[0],
                 &token_account,
-                transaction_paramets,
+                transaction_parameters,
             )
             .await;
             self.stats.spl_compress += 1;
@@ -1748,10 +1755,10 @@ where
         println!("\n --------------------------------------------------\n\t\t Decompress Spl\n --------------------------------------------------");
         let (mint, mut token_accounts) = self.select_random_compressed_token_accounts(user).await;
         if token_accounts.is_empty() {
-            let mt_pubkeys = self.get_merkle_tree_pubkeys(1);
+            let mt_pubkeys = self.get_merkle_tree_pubkeys(1).await;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkeys[0],
                 &self.payer,
                 &mint,
@@ -1771,7 +1778,7 @@ where
             None => {
                 let token_account_keypair = Keypair::new();
                 create_token_account(
-                    &mut self.rpc,
+                    &self.rpc,
                     &mint,
                     &token_account_keypair,
                     &self.users[user_index].keypair,
@@ -1786,7 +1793,7 @@ where
         self.users[user_index]
             .token_accounts
             .push((mint, token_account));
-        let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
+        let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1).await;
         let max_amount = token_accounts
             .iter()
             .map(|token_account| token_account.token_data.amount)
@@ -1806,8 +1813,8 @@ where
         // decompress
         decompress_test(
             &self.users[user_index].keypair,
-            &mut self.rpc,
-            &mut self.indexer,
+            &self.rpc,
+            &self.indexer,
             token_accounts.clone(),
             amount,
             &output_merkle_tree_account[0],
@@ -1824,7 +1831,7 @@ where
         payer: &Keypair,
         epoch: u64,
     ) -> Result<(), RpcError> {
-        let bundle = self.indexer.get_state_merkle_trees()[index].accounts;
+        let bundle = self.indexer.get_state_merkle_trees().await[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         // TODO: move into registry program
@@ -1832,8 +1839,7 @@ where
         let fee_payer_balance = self
             .rpc
             .get_balance(&self.indexer.get_payer().pubkey())
-            .await
-            .unwrap();
+            .await?;
         let rollover_signature_and_slot = perform_state_merkle_tree_roll_over_forester(
             payer,
             &mut self.rpc,
@@ -1853,12 +1859,11 @@ where
             .get_minimum_balance_for_rent_exemption(
                 ProtocolConfig::default().cpi_context_size as usize,
             )
-            .await
-            .unwrap();
+            .await?;
         info!("additional_rent: {:?}", additional_rent);
         assert_rolled_over_pair(
             &self.indexer.get_payer().pubkey(),
-            &mut self.rpc,
+            &self.rpc,
             &fee_payer_balance,
             &bundle.merkle_tree,
             &bundle.nullifier_queue,
@@ -1870,7 +1875,8 @@ where
         )
         .await;
         self.indexer
-            .get_state_merkle_trees_mut()
+            .get_state_merkle_trees()
+            .await
             .push(StateMerkleTreeBundle {
                 // TODO: fetch correct fee when this property is used
                 rollover_fee: 0,
@@ -1893,14 +1899,13 @@ where
         payer: &Keypair,
         epoch: u64,
     ) -> Result<(), RpcError> {
-        let bundle = self.indexer.get_address_merkle_trees()[index].accounts;
+        let bundle = self.indexer.get_address_merkle_trees().await[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         let fee_payer_balance = self
             .rpc
             .get_balance(&self.indexer.get_payer().pubkey())
-            .await
-            .unwrap();
+            .await?;
         println!("prior balance {}", fee_payer_balance);
         perform_address_merkle_tree_roll_over_forester(
             payer,
@@ -1923,46 +1928,49 @@ where
             &new_nullifier_queue_keypair.pubkey(),
         )
         .await;
-        self.indexer.add_address_merkle_tree_accounts(
-            &new_merkle_tree_keypair,
-            &new_nullifier_queue_keypair,
-            None,
-        );
+        self.indexer
+            .add_address_merkle_tree_accounts(
+                &new_merkle_tree_keypair,
+                &new_nullifier_queue_keypair,
+                None,
+            )
+            .await;
         Ok(())
     }
 
-    pub fn get_random_compressed_sol_accounts(
+    pub async fn get_random_compressed_sol_accounts(
         &mut self,
         user_index: usize,
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey())
+            .await;
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
 
-    pub fn get_compressed_sol_accounts(
+    pub async fn get_compressed_sol_accounts(
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_by_owner(pubkey)
+        self.indexer.get_compressed_accounts_by_owner(pubkey).await
     }
 
-    pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
+    pub async fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
         for _ in 0..num {
             let range_max: usize = std::cmp::min(
                 self.keypair_action_config
                     .max_output_accounts
-                    .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
-                self.indexer.get_state_merkle_trees().len() as u64,
+                    .unwrap_or(self.indexer.get_state_merkle_trees().await.len() as u64),
+                self.indexer.get_state_merkle_trees().await.len() as u64,
             ) as usize;
 
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);
             pubkeys.push(
-                self.indexer.get_state_merkle_trees()[index]
+                self.indexer.get_state_merkle_trees().await[index]
                     .accounts
                     .merkle_tree,
             );
@@ -1971,22 +1979,25 @@ where
         pubkeys
     }
 
-    pub fn get_address_merkle_tree_pubkeys(&mut self, num: u64) -> (Vec<Pubkey>, Vec<Pubkey>) {
+    pub async fn get_address_merkle_tree_pubkeys(
+        &mut self,
+        num: u64,
+    ) -> (Vec<Pubkey>, Vec<Pubkey>) {
         let mut pubkeys = vec![];
         let mut queue_pubkeys = vec![];
         for _ in 0..num {
             let index = Self::safe_gen_range(
                 &mut self.rng,
-                0..self.indexer.get_address_merkle_trees().len(),
+                0..self.indexer.get_address_merkle_trees().await.len(),
                 0,
             );
             pubkeys.push(
-                self.indexer.get_address_merkle_trees()[index]
+                self.indexer.get_address_merkle_trees().await[index]
                     .accounts
                     .merkle_tree,
             );
             queue_pubkeys.push(
-                self.indexer.get_address_merkle_trees()[index]
+                self.indexer.get_address_merkle_trees().await[index]
                     .accounts
                     .queue,
             );
@@ -2017,24 +2028,27 @@ where
         delegate: Option<Pubkey>,
         frozen: bool,
     ) -> (Pubkey, Vec<TokenDataWithContext>) {
-        let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
+        let user_token_accounts = &mut self
+            .indexer
+            .get_compressed_token_accounts_by_owner(user)
+            .await;
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
         let mut token_accounts_with_mint;
         let mint;
         if user_token_accounts.is_empty() {
-            mint = self.indexer.get_token_compressed_accounts()[self
+            mint = self.indexer.get_token_compressed_accounts().await[self
                 .rng
-                .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
+                .gen_range(0..self.indexer.get_token_compressed_accounts().await.len())]
             .token_data
             .mint;
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
-            let mt_pubkey = self.indexer.get_state_merkle_trees()[0]
+            let mt_pubkey = self.indexer.get_state_merkle_trees().await[0]
                 .accounts
                 .merkle_tree;
             mint_tokens_helper(
-                &mut self.rpc,
-                &mut self.indexer,
+                &self.rpc,
+                &self.indexer,
                 &mt_pubkey,
                 &self.payer,
                 &mint,
@@ -2048,6 +2062,7 @@ where
             token_accounts_with_mint = self
                 .indexer
                 .get_compressed_token_accounts_by_owner(user)
+                .await
                 .iter()
                 .filter(|token_account| token_account.token_data.mint == mint)
                 .cloned()

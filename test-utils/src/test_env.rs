@@ -36,6 +36,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::cmp;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
@@ -351,20 +353,21 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = ProgramTestRpcConnection { context };
+    let context = Arc::new(RwLock::new(context));
+    let context = ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
-        &mut context,
+        &context,
         &keypairs.governance_authority.pubkey(),
         100_000_000_000,
     )
     .await
     .unwrap();
-    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+    airdrop_lamports(&context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
     let env_accounts = initialize_accounts(
-        &mut context,
+        &context,
         keypairs,
         protocol_config,
         register_forester_and_advance_to_active_phase,
@@ -384,20 +387,21 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     EnvAccounts,
 ) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = light_client::rpc::test_rpc::ProgramTestRpcConnection { context };
+    let context = Arc::new(RwLock::new(context));
+    let context = light_client::rpc::test_rpc::ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
-        &mut context,
+        &context,
         &keypairs.governance_authority.pubkey(),
         100_000_000_000,
     )
     .await
     .unwrap();
-    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+    airdrop_lamports(&context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
     let env_accounts = initialize_accounts(
-        &mut context,
+        &context,
         keypairs,
         protocol_config,
         register_forester_and_advance_to_active_phase,
@@ -408,13 +412,12 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
 }
 
 pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> EnvAccounts {
-    let mut rpc = SolanaRpcConnection::new(url, None);
-
-    initialize_accounts(&mut rpc, keypairs, ProtocolConfig::default(), false, false).await
+    let rpc = SolanaRpcConnection::new(url, None);
+    initialize_accounts(&rpc, keypairs, ProtocolConfig::default(), false, false).await
 }
 
 pub async fn initialize_accounts<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     keypairs: EnvAccountKeypairs,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
@@ -589,7 +592,7 @@ pub fn get_group_pda(seed: Pubkey) -> Pubkey {
 pub async fn initialize_new_group<R: RpcConnection>(
     group_seed_keypair: &Keypair,
     payer: &Keypair,
-    context: &mut R,
+    context: &R,
     authority: Pubkey,
 ) -> Pubkey {
     let group_pda = Pubkey::find_program_address(
@@ -673,7 +676,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
 pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
     registry: bool,
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
     cpi_context_keypair: Option<&Keypair>,
@@ -787,7 +790,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
 pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
     registry: bool,
-    context: &mut R,
+    context: &R,
     address_merkle_tree_keypair: &Keypair,
     address_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
@@ -936,7 +939,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
 }
 
 pub async fn register_program_with_registry_program<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,
@@ -967,7 +970,7 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
 }
 
 pub async fn deregister_program_with_registry_program<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,

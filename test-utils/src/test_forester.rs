@@ -48,7 +48,7 @@ use thiserror::Error;
 /// 3. TODO: add event is emitted (after rebase)
 ///     optional: assert that the Merkle tree doesn't change except the updated leaf
 pub async fn nullify_compressed_accounts<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     epoch: u64,
@@ -218,7 +218,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
 }
 
 async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,
     compressed_account: &[u8; 32],
@@ -248,7 +248,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
 }
 
 pub async fn assert_forester_counter<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     pubkey: &Pubkey,
     pre: u64,
     num_nullified: u64,
@@ -284,7 +284,7 @@ pub enum RelayerUpdateError {
 /// TODO: Event has been emitted, event doesn't exist yet
 pub async fn empty_address_queue_test<R: RpcConnection>(
     forester: &Keypair,
-    rpc: &mut R,
+    rpc: &R,
     address_tree_bundle: &mut AddressMerkleTreeBundle,
     signer_is_owner: bool,
     epoch: u64,
@@ -556,7 +556,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn update_merkle_tree<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester: &Keypair,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
@@ -650,16 +650,17 @@ pub async fn update_merkle_tree<R: RpcConnection>(
 }
 
 pub async fn insert_addresses<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
 ) -> Result<Signature, RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
+    let payer = context.get_payer().await;
     let accounts = account_compression::accounts::InsertIntoQueues {
-        fee_payer: context.get_payer().pubkey(),
-        authority: context.get_payer().pubkey(),
+        fee_payer: payer.pubkey(),
+        authority: payer.pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,
     };
@@ -681,11 +682,11 @@ pub async fn insert_addresses<R: RpcConnection>(
         .concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
-        Some(&context.get_payer().pubkey()),
-        &[&context.get_payer()],
+        Some(&payer.pubkey()),
+        &[&payer],
         latest_blockhash,
     );
     context.process_transaction(transaction).await

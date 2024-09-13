@@ -7,7 +7,7 @@ use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_pubkey: &Pubkey,
     queue_pubkey: &Pubkey,
     height: usize,

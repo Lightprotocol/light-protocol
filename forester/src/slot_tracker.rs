@@ -55,7 +55,7 @@ impl SlotTracker {
         estimated_slot
     }
 
-    pub async fn run<R: RpcConnection + Send + 'static>(self: Arc<Self>, rpc: &mut R) {
+    pub async fn run<R: RpcConnection + Send + 'static>(self: Arc<Self>, rpc: &R) {
         loop {
             match rpc.get_slot().await {
                 Ok(slot) => {
@@ -69,7 +69,7 @@ impl SlotTracker {
 }
 
 pub async fn wait_until_slot_reached<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     slot_tracker: &Arc<SlotTracker>,
     target_slot: u64,
 ) -> crate::Result<()> {

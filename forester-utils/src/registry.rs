@@ -24,7 +24,7 @@ use solana_sdk::{
 
 /// Creates and asserts forester account creation.
 pub async fn register_test_forester<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     governance_authority: &Keypair,
     forester_authority: &Pubkey,
     config: ForesterConfig,
@@ -55,7 +55,7 @@ pub async fn register_test_forester<R: RpcConnection>(
 }
 
 pub async fn update_test_forester<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester_authority: &Keypair,
     derivation_key: &Pubkey,
     new_forester_authority: Option<&Keypair>,
@@ -90,7 +90,7 @@ pub async fn update_test_forester<R: RpcConnection>(
 }
 
 pub async fn assert_registered_forester<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     forester: &Pubkey,
     expected_account: ForesterPda,
 ) -> Result<(), RpcError> {
@@ -111,7 +111,7 @@ pub struct RentExemption {
 }
 
 pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     address_merkle_tree_config: &AddressMerkleTreeConfig,
     address_queue_config: &AddressQueueConfig,
 ) -> (RentExemption, RentExemption) {
@@ -145,7 +145,7 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnecti
 }
 
 pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) -> (RentExemption, RentExemption) {
@@ -179,7 +179,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     authority: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
@@ -237,7 +237,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     authority: &Keypair,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
@@ -271,7 +271,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
 }
 #[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     authority: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,

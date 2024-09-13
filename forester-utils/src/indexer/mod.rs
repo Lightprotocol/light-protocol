@@ -1,10 +1,7 @@
-use num_bigint::BigUint;
-use solana_sdk::signature::Keypair;
-use std::fmt::Debug;
-
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
+use async_trait::async_trait;
 use light_client::rpc::RpcConnection;
 use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
@@ -15,10 +12,13 @@ use light_merkle_tree_reference::MerkleTree;
 use light_system_program::invoke::processor::CompressedProof;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
+use num_bigint::BigUint;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
+use solana_sdk::signature::Keypair;
+use std::fmt::Debug;
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TokenDataWithContext {
     pub token_data: TokenData,
     pub compressed_account: CompressedAccountWithMerkleContext,
@@ -59,111 +59,85 @@ pub struct AddressMerkleTreeBundle {
     pub accounts: AddressMerkleTreeAccounts,
 }
 
-pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-    fn get_multiple_compressed_account_proofs(
+#[async_trait]
+pub trait Indexer<R: RpcConnection>: Send + Sync {
+    async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    fn get_rpc_compressed_accounts_by_owner(
+    async fn get_rpc_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<String>, IndexerError>;
 
-    fn get_multiple_new_address_proofs(
+    async fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>>
-           + Send
-           + Sync;
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError>;
 
-    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
+    async fn account_nullified(&self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 
-    fn address_tree_updated(
-        &mut self,
-        _merkle_tree_pubkey: Pubkey,
-        _context: &NewAddressProofWithContext,
-    ) {
-    }
+    async fn address_tree_updated(
+        &self,
+        merkle_tree_pubkey: Pubkey,
+        context: &NewAddressProofWithContext,
+    );
 
-    fn get_state_merkle_tree_accounts(&self, _pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts> {
-        unimplemented!()
-    }
+    async fn get_state_merkle_tree_accounts(
+        &self,
+        pubkeys: &[Pubkey],
+    ) -> Vec<StateMerkleTreeAccounts>;
 
-    fn add_event_and_compressed_accounts(
-        &mut self,
-        _event: &PublicTransactionEvent,
+    async fn add_event_and_compressed_accounts(
+        &self,
+        event: &PublicTransactionEvent,
     ) -> (
         Vec<CompressedAccountWithMerkleContext>,
         Vec<TokenDataWithContext>,
-    ) {
-        unimplemented!()
-    }
+    );
 
-    fn get_state_merkle_trees(&self) -> &Vec<StateMerkleTreeBundle> {
-        unimplemented!()
-    }
+    async fn get_state_merkle_trees(&self) -> Vec<StateMerkleTreeBundle>;
 
-    fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
-        unimplemented!()
-    }
+    async fn get_address_merkle_trees(&self) -> Vec<AddressMerkleTreeBundle>;
 
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
-        unimplemented!()
-    }
+    async fn get_token_compressed_accounts(&self) -> Vec<TokenDataWithContext>;
 
-    fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
-        unimplemented!()
-    }
+    fn get_payer(&self) -> &Keypair;
 
-    fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithContext> {
-        unimplemented!()
-    }
+    fn get_group_pda(&self) -> &Pubkey;
 
-    fn get_payer(&self) -> &Keypair {
-        unimplemented!()
-    }
-
-    fn get_group_pda(&self) -> &Pubkey {
-        unimplemented!()
-    }
-
-    #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts(
-        &mut self,
-        _compressed_accounts: Option<&[[u8; 32]]>,
-        _state_merkle_tree_pubkeys: Option<&[Pubkey]>,
-        _new_addresses: Option<&[[u8; 32]]>,
-        _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        _rpc: &mut R,
-    ) -> ProofRpcResult {
-        unimplemented!()
-    }
-
-    fn add_address_merkle_tree_accounts(
-        &mut self,
-        _merkle_tree_keypair: &Keypair,
-        _queue_keypair: &Keypair,
-        _owning_program_id: Option<Pubkey>,
-    ) -> AddressMerkleTreeAccounts {
-        unimplemented!()
-    }
-
-    fn get_compressed_accounts_by_owner(
         &self,
-        _owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext> {
-        unimplemented!()
-    }
+        compressed_accounts: Option<&[[u8; 32]]>,
+        state_merkle_tree_pubkeys: Option<&[Pubkey]>,
+        new_addresses: Option<&[[u8; 32]]>,
+        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        rpc: &R,
+    ) -> ProofRpcResult;
 
-    fn get_compressed_token_accounts_by_owner(&self, _owner: &Pubkey) -> Vec<TokenDataWithContext> {
-        unimplemented!()
-    }
+    async fn add_address_merkle_tree_accounts(
+        &self,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts;
 
-    fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
-        unimplemented!()
-    }
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext>;
+
+    async fn get_compressed_token_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Vec<TokenDataWithContext>;
+
+    async fn add_state_bundle(&self, state_bundle: StateMerkleTreeBundle);
+    async fn add_address_bundle(&self, address_bundle: AddressMerkleTreeBundle);
+
+    async fn clear_state_trees(&self);
 }
 
 #[derive(Debug, Clone)]

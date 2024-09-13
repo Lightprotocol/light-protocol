@@ -14,12 +14,12 @@ use solana_sdk::transaction::Transaction;
 use std::fmt::Debug;
 
 #[async_trait]
-pub trait RpcConnection: Send + Sync + Debug + 'static {
+pub trait RpcConnection: Send + Sync + 'static {
     fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self
     where
         Self: Sized;
 
-    fn get_payer(&self) -> &Keypair;
+    async fn get_payer(&self) -> Keypair;
     fn get_url(&self) -> String;
 
     async fn health(&self) -> Result<(), RpcError>;
@@ -30,17 +30,14 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError>;
-    async fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<Signature, RpcError>;
+    async fn process_transaction(&self, transaction: Transaction) -> Result<Signature, RpcError>;
     async fn process_transaction_with_context(
-        &mut self,
+        &self,
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError>;
 
     async fn create_and_send_transaction_with_event<T>(
-        &mut self,
+        &self,
         instructions: &[Instruction],
         authority: &Pubkey,
         signers: &[&Keypair],
@@ -50,7 +47,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         T: BorshDeserialize + Send + Debug;
 
     async fn create_and_send_transaction<'a>(
-        &'a mut self,
+        &'a self,
         instructions: &'a [Instruction],
         payer: &'a Pubkey,
         signers: &'a [&'a Keypair],
@@ -62,17 +59,16 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError>;
-    async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError>;
-    fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData);
+    async fn get_account(&self, address: Pubkey) -> Result<Option<Account>, RpcError>;
+    async fn set_account(&self, address: &Pubkey, account: &AccountSharedData);
     async fn get_minimum_balance_for_rent_exemption(
-        &mut self,
+        &self,
         data_len: usize,
     ) -> Result<u64, RpcError>;
-    async fn airdrop_lamports(&mut self, to: &Pubkey, lamports: u64)
-        -> Result<Signature, RpcError>;
+    async fn airdrop_lamports(&self, to: &Pubkey, lamports: u64) -> Result<Signature, RpcError>;
 
     async fn get_anchor_account<T: BorshDeserialize>(
-        &mut self,
+        &self,
         pubkey: &Pubkey,
     ) -> Result<Option<T>, RpcError> {
         match self.get_account(*pubkey).await? {
@@ -84,9 +80,9 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         }
     }
 
-    async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError>;
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError>;
-    async fn get_slot(&mut self) -> Result<u64, RpcError>;
-    async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
+    async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError>;
+    async fn get_latest_blockhash(&self) -> Result<Hash, RpcError>;
+    async fn get_slot(&self) -> Result<u64, RpcError>;
+    async fn warp_to_slot(&self, slot: Slot) -> Result<(), RpcError>;
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;
 }

@@ -32,7 +32,7 @@ pub enum IndexerError {
     Unknown,
 }
 
-pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
+pub trait Indexer<R: RpcConnection>: Sync + Send + 'static {
     fn add_event_and_compressed_accounts(
         &mut self,
         event: &PublicTransactionEvent,
@@ -47,7 +47,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
+        rpc: &R,
     ) -> impl Future<Output = ProofRpcResult>;
 
     fn get_compressed_accounts_by_owner(

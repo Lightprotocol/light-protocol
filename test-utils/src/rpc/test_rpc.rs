@@ -1,11 +1,12 @@
-use std::fmt::{Debug, Formatter};
-
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::AnchorDeserialize;
 use async_trait::async_trait;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -14,19 +15,12 @@ use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
-
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::TransactionParams;
+use std::fmt::Debug;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub struct ProgramTestRpcConnection {
-    pub context: ProgramTestContext,
-}
-
-impl Debug for ProgramTestRpcConnection {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProgramTestRpcConnection")
-    }
+    pub context: Arc<RwLock<ProgramTestContext>>,
 }
 
 #[async_trait]
@@ -38,8 +32,9 @@ impl RpcConnection for ProgramTestRpcConnection {
         unimplemented!()
     }
 
-    fn get_payer(&self) -> &Keypair {
-        &self.context.payer
+    async fn get_payer(&self) -> Keypair {
+        let context = self.context.read().await;
+        context.payer.insecure_clone()
     }
 
     fn get_url(&self) -> String {
@@ -65,39 +60,45 @@ impl RpcConnection for ProgramTestRpcConnection {
         unimplemented!("get_program_accounts")
     }
 
-    async fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<Signature, RpcError> {
+    async fn process_transaction(&self, transaction: Transaction) -> Result<Signature, RpcError> {
         let sig = *transaction.signatures.first().unwrap();
-        let result = self
-            .context
-            .banks_client
-            .process_transaction_with_metadata(transaction)
-            .await
-            .map_err(RpcError::from)?;
-        result.result.map_err(RpcError::TransactionError)?;
+        let result = {
+            let mut context = self.context.write().await;
+            context
+                .banks_client
+                .process_transaction_with_metadata(transaction)
+                .await
+        };
+        result
+            .map_err(RpcError::from)?
+            .result
+            .map_err(RpcError::TransactionError)?;
         Ok(sig)
     }
 
     async fn process_transaction_with_context(
-        &mut self,
+        &self,
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
-        let result = self
-            .context
-            .banks_client
-            .process_transaction_with_metadata(transaction)
-            .await
-            .map_err(RpcError::from)?;
-        result.result.map_err(RpcError::TransactionError)?;
-        let slot = self.context.banks_client.get_root_slot().await?;
+        let (result, slot) = {
+            let mut context = self.context.write().await;
+            let result = context
+                .banks_client
+                .process_transaction_with_metadata(transaction)
+                .await;
+            let slot = context.banks_client.get_root_slot().await?;
+            (result, slot)
+        };
+        result
+            .map_err(RpcError::from)?
+            .result
+            .map_err(RpcError::TransactionError)?;
         Ok((sig, slot))
     }
 
     async fn create_and_send_transaction_with_event<T>(
-        &mut self,
+        &self,
         instruction: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
@@ -106,36 +107,46 @@ impl RpcConnection for ProgramTestRpcConnection {
     where
         T: AnchorDeserialize + Send + Debug,
     {
-        let pre_balance = self
-            .context
+        println!("create_and_send_transaction_with_event");
+        let mut context = self.context.write().await;
+        let pre_balance = context
             .banks_client
             .get_account(*payer)
             .await?
             .unwrap()
             .lamports;
+        println!("pre_balance: {}", pre_balance);
 
         let transaction = Transaction::new_signed_with_payer(
             instruction,
             Some(payer),
             signers,
-            self.context.get_new_latest_blockhash().await?,
+            context.get_new_latest_blockhash().await?,
         );
+        drop(context);
+        println!("transaction: {:?}", transaction);
 
         let signature = transaction.signatures[0];
         // Simulate the transaction. Currently, in banks-client/server, only
         // simulations are able to track CPIs. Therefore, simulating is the
         // only way to retrieve the event.
-        let simulation_result = self
-            .context
-            .banks_client
-            .simulate_transaction(transaction.clone())
-            .await?;
+
+        let simulation_result = {
+            let mut context = self.context.write().await;
+            context
+                .banks_client
+                .simulate_transaction(transaction.clone())
+                .await?
+        };
+        println!("simulation_result: {:?}", simulation_result);
+
         // Handle an error nested in the simulation result.
         if let Some(Err(e)) = simulation_result.result {
             let error = match e {
                 TransactionError::InstructionError(_, _) => RpcError::TransactionError(e),
                 _ => RpcError::from(BanksClientError::TransactionError(e)),
             };
+            println!("error: {:?}", error);
             return Err(error);
         }
 
@@ -148,18 +159,20 @@ impl RpcConnection for ProgramTestRpcConnection {
                     T::try_from_slice(inner_instruction.instruction.data.as_slice()).ok()
                 })
             });
+        println!("event: {:?}", event);
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
-            let result = self
-                .context
-                .banks_client
-                .process_transaction(transaction)
-                .await;
+            let result = {
+                let mut context = self.context.write().await;
+                context.banks_client.process_transaction(transaction).await
+            };
+
             if let Err(e) = result {
                 let error = RpcError::from(e);
                 return Err(error);
             }
         }
+        println!("transaction_params: {:?}", transaction_params);
 
         // assert correct rollover fee and network_fee distribution
         if let Some(transaction_params) = transaction_params {
@@ -167,6 +180,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             deduped_signers.dedup();
             let post_balance = self.get_account(*payer).await?.unwrap().lamports;
 
+            println!("post_balance: {}", post_balance);
             // a network_fee is charged if there are input compressed accounts or new addresses
             let mut network_fee: i64 = 0;
             if transaction_params.num_input_compressed_accounts != 0 {
@@ -209,8 +223,16 @@ impl RpcConnection for ProgramTestRpcConnection {
             }
         }
 
-        let slot = self.context.banks_client.get_root_slot().await?;
+        println!("event: {:?}", event);
+
+        let slot = {
+            let mut context = self.context.write().await;
+            context.banks_client.get_root_slot().await?
+        };
+        println!("slot: {:?}", slot);
+
         let result = event.map(|event| (event, signature, slot));
+        println!("result: {:?}", result);
         Ok(result)
     }
 
@@ -218,24 +240,26 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(true)
     }
 
-    async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        self.context
+    async fn get_account(&self, address: Pubkey) -> Result<Option<Account>, RpcError> {
+        let mut context = self.context.write().await;
+        context
             .banks_client
             .get_account(address)
             .await
             .map_err(RpcError::from)
     }
 
-    fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData) {
-        self.context.set_account(address, account);
+    async fn set_account(&self, address: &Pubkey, account: &AccountSharedData) {
+        let mut context = self.context.write().await;
+        context.set_account(address, account);
     }
 
     async fn get_minimum_balance_for_rent_exemption(
-        &mut self,
+        &self,
         data_len: usize,
     ) -> Result<u64, RpcError> {
-        let rent = self
-            .context
+        let mut context = self.context.write().await;
+        let rent = context
             .banks_client
             .get_rent()
             .await
@@ -244,58 +268,64 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(rent?.minimum_balance(data_len))
     }
 
-    async fn airdrop_lamports(
-        &mut self,
-        to: &Pubkey,
-        lamports: u64,
-    ) -> Result<Signature, RpcError> {
+    async fn airdrop_lamports(&self, to: &Pubkey, lamports: u64) -> Result<Signature, RpcError> {
         // Create a transfer instruction
-        let transfer_instruction =
-            system_instruction::transfer(&self.context.payer.pubkey(), to, lamports);
-        let latest_blockhash = self.get_latest_blockhash().await.unwrap();
+        let transfer_instruction = {
+            let context = self.context.read().await;
+            system_instruction::transfer(&context.payer.pubkey(), to, lamports)
+        };
+        let latest_blockhash = self.get_latest_blockhash().await?;
         // Create and sign a transaction
+        let payer = self.get_payer().await;
         let transaction = Transaction::new_signed_with_payer(
             &[transfer_instruction],
-            Some(&self.get_payer().pubkey()),
-            &vec![&self.get_payer()],
+            Some(&payer.pubkey()),
+            &vec![&payer],
             latest_blockhash,
         );
         let sig = *transaction.signatures.first().unwrap();
 
         // Send the transaction
-        self.context
-            .banks_client
-            .process_transaction(transaction)
-            .await?;
+        {
+            let mut context = self.context.write().await;
+            context
+                .banks_client
+                .process_transaction(transaction)
+                .await?;
+        }
 
         Ok(sig)
     }
 
-    async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
-        self.context
+    async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError> {
+        let mut context = self.context.write().await;
+        context
             .banks_client
             .get_balance(*pubkey)
             .await
             .map_err(RpcError::from)
     }
 
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.context
+    async fn get_latest_blockhash(&self) -> Result<Hash, RpcError> {
+        let mut context = self.context.write().await;
+        context
             .get_new_latest_blockhash()
             .await
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 
-    async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        self.context
+    async fn get_slot(&self) -> Result<u64, RpcError> {
+        let mut context = self.context.write().await;
+        context
             .banks_client
             .get_root_slot()
             .await
             .map_err(RpcError::from)
     }
 
-    async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
-        self.context
+    async fn warp_to_slot(&self, slot: Slot) -> Result<(), RpcError> {
+        let mut context = self.context.write().await;
+        context
             .warp_to_slot(slot)
             .map_err(|_| RpcError::InvalidWarpSlot)
     }

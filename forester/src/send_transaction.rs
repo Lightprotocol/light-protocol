@@ -1,6 +1,5 @@
 use crate::config::QueueConfig;
 use crate::epoch_manager::{MerkleProofType, WorkItem};
-use crate::errors::ForesterError;
 use crate::queue_helpers::fetch_queue_item_data;
 use crate::Result;
 use account_compression::utils::constants::{
@@ -29,7 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 use tokio::join;
-use tokio::sync::Mutex;
 use tokio::time::{sleep, Instant};
 use tracing::{debug, warn};
 
@@ -73,7 +71,7 @@ const LATENCY: Duration = Duration::from_millis(4 * 500);
 ///
 /// TODO:
 /// - return number of sent transactions
-/// - test timeout for any action of this function or subfunctions, timeout is
+/// - test timeout for any action of this function or sub-functions, timeout is
 ///   end of slot
 /// - consider dynamic batch size based on the number of transactions in the
 ///   queue
@@ -86,7 +84,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 ) -> Result<usize> {
     let start_time = Instant::now();
 
-    let mut rpc = pool.get_connection().await?;
+    let rpc = pool.get_connection().await?;
     let mut num_batches = 0;
     let mut num_sent_transactions: usize = 0;
     // 1. Execute batches until max number of batches is reached or light slot
@@ -110,7 +108,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             config.queue_config.address_queue_length
         };
         let queue_item_data = fetch_queue_item_data(
-            &mut *rpc,
+            &*rpc,
             &tree_accounts.queue,
             start_index,
             length,
@@ -134,7 +132,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         }
 
         // 4. Fetch recent blockhash.
-        // A recent blockhash is valid for 2 mins we only need one per batch. We
+        // A recent blockhash is valid for 1 min we only need one per batch. We
         // use a new one per batch in case that we want to retry these same
         // transactions and identical transactions might be dropped.
         let recent_blockhash = rpc.get_latest_blockhash().await?;
@@ -254,9 +252,19 @@ pub struct BuildTransactionBatchConfig {
 }
 
 pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
-    pub indexer: Arc<Mutex<I>>,
+    pub indexer: Arc<I>,
     pub epoch: u64,
     pub phantom: std::marker::PhantomData<R>,
+}
+
+impl<R: RpcConnection, I: Indexer<R>> EpochManagerTransactions<R, I> {
+    pub fn new(indexer: Arc<I>, epoch: u64) -> Self {
+        Self {
+            indexer,
+            epoch,
+            phantom: std::marker::PhantomData,
+        }
+    }
 }
 
 #[async_trait]
@@ -272,7 +280,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         let (_, all_instructions) = fetch_proofs_and_create_instructions(
             payer.pubkey(),
             payer.pubkey(),
-            self.indexer.clone(),
+            &*self.indexer,
             self.epoch,
             work_items,
         )
@@ -319,76 +327,56 @@ async fn build_signed_transaction(
 pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R>>(
     authority: Pubkey,
     derivation: Pubkey,
-    indexer: Arc<Mutex<I>>,
+    indexer: &I,
     epoch: u64,
     work_items: &[WorkItem],
 ) -> Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
-    let mut proofs = Vec::new();
-    let mut instructions = vec![];
-
     let (address_items, state_items): (Vec<_>, Vec<_>) = work_items
         .iter()
         .partition(|item| matches!(item.tree_account.tree_type, TreeType::Address));
 
-    // Prepare data for batch fetching
-    let address_data = if !address_items.is_empty() {
-        let merkle_tree = address_items
-            .first()
-            .ok_or_else(|| ForesterError::Custom("No address items found".to_string()))?
-            .tree_account
-            .merkle_tree
-            .to_bytes();
-        let addresses: Vec<[u8; 32]> = address_items
-            .iter()
-            .map(|item| item.queue_item_data.hash)
-            .collect();
-        Some((merkle_tree, addresses))
-    } else {
-        None
+    let address_future = async {
+        if !address_items.is_empty() {
+            let merkle_tree = address_items
+                .first()
+                .unwrap()
+                .tree_account
+                .merkle_tree
+                .to_bytes();
+            let addresses: Vec<[u8; 32]> = address_items
+                .iter()
+                .map(|item| item.queue_item_data.hash)
+                .collect();
+            indexer
+                .get_multiple_new_address_proofs(merkle_tree, addresses)
+                .await
+        } else {
+            Ok(vec![])
+        }
     };
 
-    let state_data = if !state_items.is_empty() {
-        let states: Vec<String> = state_items
-            .iter()
-            .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
-            .collect();
-        Some(states)
-    } else {
-        None
+    let state_future = async {
+        if !state_items.is_empty() {
+            let states: Vec<String> = state_items
+                .iter()
+                .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
+                .collect();
+            indexer.get_multiple_compressed_account_proofs(states).await
+        } else {
+            Ok(vec![])
+        }
     };
 
-    // Fetch all proofs in parallel
-    let (address_proofs, state_proofs) = {
-        let indexer = indexer.lock().await;
-
-        let address_future = async {
-            if let Some((merkle_tree, addresses)) = address_data {
-                indexer
-                    .get_multiple_new_address_proofs(merkle_tree, addresses)
-                    .await
-            } else {
-                Ok(vec![])
-            }
-        };
-
-        let state_future = async {
-            if let Some(states) = state_data {
-                indexer.get_multiple_compressed_account_proofs(states).await
-            } else {
-                Ok(vec![])
-            }
-        };
-
-        join!(address_future, state_future)
-    };
-
+    let (address_proofs, state_proofs) = join!(address_future, state_future);
     let address_proofs = address_proofs?;
     let state_proofs = state_proofs?;
 
-    // Process address proofs and create instructions
+    let mut proofs = Vec::with_capacity(work_items.len());
+    let mut instructions = Vec::with_capacity(work_items.len());
+
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
         proofs.push(MerkleProofType::AddressProof(proof.clone()));
-        let instruction = create_update_address_merkle_tree_instruction(
+        instructions.push(create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {
                 authority,
                 address_merkle_tree: item.tree_account.merkle_tree,
@@ -405,14 +393,12 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
                 is_metadata_forester: false,
             },
             epoch,
-        );
-        instructions.push(instruction);
+        ));
     }
 
-    // Process state proofs and create instructions
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
-        let instruction = create_nullify_instruction(
+        instructions.push(create_nullify_instruction(
             CreateNullifyInstructionInputs {
                 nullifier_queue: item.tree_account.queue,
                 merkle_tree: item.tree_account.merkle_tree,
@@ -425,8 +411,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
                 is_metadata_forester: false,
             },
             epoch,
-        );
-        instructions.push(instruction);
+        ));
     }
 
     Ok((proofs, instructions))

@@ -17,6 +17,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Tests:
 /// 1. Create group authority
@@ -34,7 +36,8 @@ async fn test_create_and_update_group() {
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let context = Arc::new(RwLock::new(context));
+    let context = ProgramTestRpcConnection { context };
 
     let seed = Keypair::new();
     let group_accounts = Pubkey::find_program_address(
@@ -42,14 +45,15 @@ async fn test_create_and_update_group() {
         &ID,
     );
 
+    let payer = context.get_payer().await;
     let instruction_data = account_compression::instruction::InitializeGroupAuthority {
-        authority: context.get_payer().pubkey(),
+        authority: payer.pubkey(),
     };
 
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(seed.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -60,8 +64,8 @@ async fn test_create_and_update_group() {
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer(), &seed],
+        Some(&payer.pubkey()),
+        &vec![&payer, &seed],
         latest_blockhash,
     );
     context.process_transaction(transaction).await.unwrap();
@@ -71,7 +75,7 @@ async fn test_create_and_update_group() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(group_authority.authority, context.get_payer().pubkey());
+    assert_eq!(group_authority.authority, payer.pubkey());
     assert_eq!(group_authority.seed, seed.pubkey());
 
     let updated_keypair = Keypair::new();
@@ -83,7 +87,7 @@ async fn test_create_and_update_group() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(updated_keypair.pubkey(), false),
         ],
@@ -93,8 +97,8 @@ async fn test_create_and_update_group() {
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer()],
+        Some(&payer.pubkey()),
+        &vec![&payer],
         latest_blockhash,
     );
     context.process_transaction(transaction).await.unwrap();
@@ -110,12 +114,12 @@ async fn test_create_and_update_group() {
 
     // update with old authority should fail
     let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
-        authority: context.get_payer().pubkey(),
+        authority: payer.pubkey(),
     };
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(updated_keypair.pubkey(), false),
         ],
@@ -125,14 +129,14 @@ async fn test_create_and_update_group() {
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer()],
+        Some(&payer.pubkey()),
+        &vec![&payer],
         latest_blockhash,
     );
     let update_error = context.process_transaction(transaction).await;
     assert!(update_error.is_err());
 
-    airdrop_lamports(&mut context, &updated_keypair.pubkey(), 1_000_000_000)
+    airdrop_lamports(&context, &updated_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
     let system_program_id_keypair =
@@ -187,7 +191,7 @@ async fn test_create_and_update_group() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(other_program_id, true),
             AccountMeta::new(registered_program_pda, false),
             AccountMeta::new(group_accounts.0, false),
@@ -199,8 +203,8 @@ async fn test_create_and_update_group() {
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer(), &other_program_keypair],
+        Some(&payer.pubkey()),
+        &vec![&payer, &other_program_keypair],
         latest_blockhash,
     );
     let result = context.process_transaction(transaction).await;
@@ -221,7 +225,7 @@ async fn test_create_and_update_group() {
         let close_recipient = Pubkey::new_unique();
         let deregister_program_ix = account_compression::instruction::DeregisterProgram {};
         let accounts = account_compression::accounts::DeregisterProgram {
-            authority: context.get_payer().pubkey(),
+            authority: payer.pubkey(),
             registered_program_pda,
             group_authority_pda: group_accounts.0,
             close_recipient,
@@ -231,7 +235,7 @@ async fn test_create_and_update_group() {
             accounts: accounts.to_account_metas(Some(true)),
             data: deregister_program_ix.data(),
         };
-        let payer = context.get_payer().insecure_clone();
+        let payer = context.get_payer().await;
         let result = context
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
             .await;

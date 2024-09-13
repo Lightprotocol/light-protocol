@@ -26,8 +26,8 @@ use light_client::transaction_params::TransactionParams;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
-    test_indexer: &mut I,
+    rpc: &R,
+    test_indexer: &I,
     address_merkle_tree_pubkeys: &[Pubkey],
     address_merkle_tree_queue_pubkeys: &[Pubkey],
     mut output_merkle_tree_pubkeys: Vec<Pubkey>,
@@ -59,10 +59,11 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
     }
 
     let mut output_compressed_accounts = Vec::new();
+    let payer = rpc.get_payer().await;
     for address in derived_addresses.iter() {
         output_compressed_accounts.push(CompressedAccount {
             lamports: 0,
-            owner: rpc.get_payer().pubkey(),
+            owner: payer.pubkey(),
             data: None,
             address: Some(*address),
         });
@@ -72,15 +73,13 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
         for compressed_account in input_compressed_accounts.iter() {
             output_compressed_accounts.push(CompressedAccount {
                 lamports: 0,
-                owner: rpc.get_payer().pubkey(),
+                owner: payer.pubkey(),
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
             output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
         }
     }
-
-    let payer = rpc.get_payer().insecure_clone();
 
     let inputs = CompressedTransactionTestInputs {
         rpc,
@@ -105,8 +104,8 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
-    test_indexer: &mut I,
+    rpc: &R,
+    test_indexer: &I,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
@@ -164,8 +163,8 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
-    test_indexer: &mut I,
+    rpc: &R,
+    test_indexer: &I,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipient: &Pubkey,
@@ -177,14 +176,13 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .map(|x| x.compressed_account.lamports)
         .sum::<u64>();
-
+    let payer = rpc.get_payer().await;
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: input_lamports - decompress_amount,
-        owner: rpc.get_payer().pubkey(),
+        owner: payer.pubkey(),
         data: None,
         address: None,
     }];
-    let payer = rpc.get_payer().insecure_clone();
     let inputs = CompressedTransactionTestInputs {
         rpc,
         test_indexer,
@@ -208,8 +206,8 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
-    rpc: &mut R,
-    test_indexer: &mut I,
+    rpc: &R,
+    test_indexer: &I,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipients: &[Pubkey],
@@ -252,7 +250,7 @@ pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
             address,
         });
     }
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     let inputs = CompressedTransactionTestInputs {
         rpc,
         test_indexer,
@@ -274,8 +272,8 @@ pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> {
-    rpc: &'a mut R,
-    test_indexer: &'a mut I,
+    rpc: &'a R,
+    test_indexer: &'a I,
     fee_payer: &'a Keypair,
     authority: &'a Keypair,
     input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
@@ -353,7 +351,8 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         proof = Some(proof_rpc_res.proof);
         let input_merkle_tree_accounts = inputs
             .test_indexer
-            .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
+            .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]))
+            .await;
         input_merkle_tree_snapshots =
             get_merkle_tree_snapshots::<R>(inputs.rpc, input_merkle_tree_accounts.as_slice()).await;
 
@@ -368,7 +367,8 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
 
     let output_merkle_tree_accounts = inputs
         .test_indexer
-        .get_state_merkle_tree_accounts(inputs.output_merkle_tree_pubkeys);
+        .get_state_merkle_tree_accounts(inputs.output_merkle_tree_pubkeys)
+        .await;
     let output_merkle_tree_snapshots =
         get_merkle_tree_snapshots::<R>(inputs.rpc, output_merkle_tree_accounts.as_slice()).await;
     let instruction = create_invoke_instruction(
@@ -399,20 +399,14 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;
     if inputs.compress_or_decompress_lamports.is_some() {
-        compressed_sol_pda_balance_pre =
-            match inputs.rpc.get_account(get_sol_pool_pda()).await.unwrap() {
-                Some(account) => account.lamports,
-                None => 0,
-            };
+        compressed_sol_pda_balance_pre = match inputs.rpc.get_account(get_sol_pool_pda()).await? {
+            Some(account) => account.lamports,
+            None => 0,
+        };
     }
     if inputs.recipient.is_some() {
         // TODO: assert sender balance after fee refactor
-        recipient_balance_pre = match inputs
-            .rpc
-            .get_account(inputs.recipient.unwrap())
-            .await
-            .unwrap()
-        {
+        recipient_balance_pre = match inputs.rpc.get_account(inputs.recipient.unwrap()).await? {
             Some(account) => account.lamports,
             None => 0,
         };
@@ -430,7 +424,8 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
 
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
-        .add_event_and_compressed_accounts(&event.0);
+        .add_event_and_compressed_accounts(&event.0)
+        .await;
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,

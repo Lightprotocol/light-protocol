@@ -13,7 +13,7 @@ use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 
 pub async fn get_address_bundle_config<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     address_bundle: AddressMerkleTreeAccounts,
 ) -> (AddressMerkleTreeConfig, AddressQueueConfig) {
     let address_queue_meta_data =
@@ -64,7 +64,7 @@ pub async fn get_address_bundle_config<R: RpcConnection>(
 }
 
 pub async fn get_state_bundle_config<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     state_tree_bundle: StateMerkleTreeAccounts,
 ) -> (StateMerkleTreeConfig, NullifierQueueConfig) {
     let address_queue_meta_data = AccountZeroCopy::<account_compression::QueueAccount>::new(
@@ -115,7 +115,7 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
 }
 
 pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree: Pubkey,
 ) -> bool {
     let account =
@@ -144,10 +144,7 @@ pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
  && address_tree_meta_data.rollover_metadata.rolledover_slot == u64::MAX
 }
 
-pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
-    rpc: &mut R,
-    merkle_tree: Pubkey,
-) -> bool {
+pub async fn state_tree_ready_for_rollover<R: RpcConnection>(rpc: &R, merkle_tree: Pubkey) -> bool {
     let account = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree).await;
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account.account.data.len())

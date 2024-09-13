@@ -35,7 +35,7 @@ pub enum StateMerkleTreeRolloverMode {
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
@@ -44,7 +44,8 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     queue_config: &NullifierQueueConfig,
     mode: Option<StateMerkleTreeRolloverMode>,
 ) -> Result<(solana_sdk::signature::Signature, Slot), RpcError> {
-    let payer_pubkey = rpc.get_payer().pubkey();
+    let payer = rpc.get_payer().await;
+    let payer_pubkey = payer.pubkey();
     let mut size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     if let Some(StateMerkleTreeRolloverMode::QueueInvalidSize) = mode {
         size += 1;
@@ -52,9 +53,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     let create_nullifier_queue_instruction = create_account_instruction(
         &payer_pubkey,
         size,
-        rpc.get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        rpc.get_minimum_balance_for_rent_exemption(size).await?,
         &ID,
         Some(new_nullifier_queue_keypair),
     );
@@ -71,16 +70,15 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         &payer_pubkey,
         state_tree_size,
         rpc.get_minimum_balance_for_rent_exemption(state_tree_size)
-            .await
-            .unwrap(),
+            .await?,
         &ID,
         Some(new_state_merkle_tree_keypair),
     );
     let instruction_data =
         account_compression::instruction::RolloverStateMerkleTreeAndNullifierQueue {};
     let accounts = account_compression::accounts::RolloverStateMerkleTreeAndNullifierQueue {
-        fee_payer: rpc.get_payer().pubkey(),
-        authority: rpc.get_payer().pubkey(),
+        fee_payer: payer.pubkey(),
+        authority: payer.pubkey(),
         registered_program_pda: None,
         new_state_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
         new_nullifier_queue: new_nullifier_queue_keypair.pubkey(),
@@ -96,16 +94,16 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         .concat(),
         data: instruction_data.data(),
     };
-    let blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let blockhash = rpc.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[
             create_nullifier_queue_instruction,
             create_state_merkle_tree_instruction,
             instruction,
         ],
-        Some(&rpc.get_payer().pubkey()),
+        Some(&payer.pubkey()),
         &vec![
-            &rpc.get_payer(),
+            &payer,
             &new_nullifier_queue_keypair,
             &new_state_merkle_tree_keypair,
         ],
@@ -115,7 +113,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
 }
 
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
     lamports: u64,
@@ -133,7 +131,8 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    rpc.set_account(merkle_tree_pubkey, &account_share_data)
+        .await;
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
@@ -146,7 +145,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_rolled_over_pair<R: RpcConnection>(
     payer: &Pubkey,
-    rpc: &mut R,
+    rpc: &R,
     fee_payer_prior_balance: &u64,
     old_merkle_tree_pubkey: &Pubkey,
     old_nullifier_queue_pubkey: &Pubkey,

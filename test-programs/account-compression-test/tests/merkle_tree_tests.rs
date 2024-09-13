@@ -1,6 +1,4 @@
 #![cfg(feature = "test-sbf")]
-use std::{collections::HashMap, mem};
-
 use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
@@ -45,6 +43,9 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
+use std::sync::Arc;
+use std::{collections::HashMap, mem};
+use tokio::sync::RwLock;
 
 /// Tests:
 /// 1. Functional: Initialize nullifier queue
@@ -69,10 +70,11 @@ async fn test_init_and_insert_into_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
-    let payer_pubkey = rpc.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let rpc = ProgramTestRpcConnection { context };
+    let payer_pubkey = rpc.get_payer().await.pubkey();
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -81,7 +83,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     )
     .await;
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -90,7 +92,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     )
     .await;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -101,7 +103,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     let merkle_tree_keypair_2 = Keypair::new();
     let nullifier_queue_keypair_2 = Keypair::new();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
@@ -110,28 +112,28 @@ async fn test_init_and_insert_into_nullifier_queue(
     )
     .await;
     functional_2_test_insert_into_nullifier_queues(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
     )
     .await;
 
     fail_3_insert_same_elements_into_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[3u8; 32], [1u8; 32], [1u8; 32]],
     )
     .await;
     fail_3_insert_same_elements_into_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[1u8; 32]],
     )
     .await;
     fail_4_insert_with_invalid_signer(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[3u8; 32]],
@@ -139,7 +141,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     .await;
 
     functional_5_test_insert_into_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
     )
@@ -153,7 +155,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     let nullifier_2 = [20u8; 32];
     // CHECK: nullifiers inserted into correct queue with 2 queues
     functional_6_test_insert_into_two_nullifier_queues(
-        &mut rpc,
+        &rpc,
         &[nullifier_1, nullifier_2],
         &[queue_tree_pair, queue_tree_pair_2],
     )
@@ -165,7 +167,7 @@ async fn test_init_and_insert_into_nullifier_queue(
     let nullifier_4 = [41u8; 32];
     // CHECK: nullifiers inserted into correct queue with 2 queues and not ordered
     functional_7_test_insert_into_two_nullifier_queues_not_ordered(
-        &mut rpc,
+        &rpc,
         &[nullifier_1, nullifier_2, nullifier_3, nullifier_4],
         &[
             queue_tree_pair,
@@ -242,10 +244,11 @@ async fn test_full_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
-    let payer_pubkey = rpc.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let rpc = ProgramTestRpcConnection { context };
+    let payer_pubkey = rpc.get_payer().await.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -260,7 +263,7 @@ async fn test_full_nullifier_queue(
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     );
     functional_3_append_leaves_to_merkle_tree(
-        &mut rpc,
+        &rpc,
         &mut [&mut reference_merkle_tree_1],
         &vec![merkle_tree_pubkey],
         &vec![(0u8, leaf)],
@@ -282,19 +285,13 @@ async fn test_full_nullifier_queue(
     // fills queue with increasing values starting from 0
     // -> in this process inserts leaf with value 1 into queue
     // all elements are marked with sequence number 2400
-    set_nullifier_queue_to_full(
-        &mut rpc,
-        &nullifier_queue_pubkey,
-        0,
-        lamports_queue_accounts,
-    )
-    .await;
+    set_nullifier_queue_to_full(&rpc, &nullifier_queue_pubkey, 0, lamports_queue_accounts).await;
 
     let initial_value = 309005;
     let element: [u8; 32] = bigint_to_be_bytes_array(&initial_value.to_biguint().unwrap()).unwrap();
     // CHECK 1
     fail_insert_into_full_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![element],
@@ -308,19 +305,19 @@ async fn test_full_nullifier_queue(
         ProgramTestRpcConnection,
         Poseidon,
         26,
-    >(&mut rpc, merkle_tree_pubkey)
+    >(&rpc, merkle_tree_pubkey)
     .await;
     assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
     let element_index = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut rpc, nullifier_queue_pubkey)
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&rpc, nullifier_queue_pubkey)
             .await
             .find_element_index(&BigUint::from_bytes_be(&leaf), None)
             .unwrap()
     };
     // CHECK 2
     nullify(
-        &mut rpc,
+        &rpc,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -334,7 +331,7 @@ async fn test_full_nullifier_queue(
     .unwrap();
     // CHECK 3
     fail_insert_into_full_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![element],
@@ -343,7 +340,7 @@ async fn test_full_nullifier_queue(
     // Advance to sequence threshold + 1 (expected sequence number of the last
     // element - 1).
     set_state_merkle_tree_sequence(
-        &mut rpc,
+        &rpc,
         &merkle_tree_pubkey,
         queue_config.sequence_threshold + 1,
         lamports_queue_accounts,
@@ -351,7 +348,7 @@ async fn test_full_nullifier_queue(
     .await;
     // CHECK 4
     fail_insert_into_full_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![element],
@@ -361,13 +358,13 @@ async fn test_full_nullifier_queue(
     // Advance to sequence threshold + 2 (expected sequence number of the last
     // element).
     set_state_merkle_tree_sequence(
-        &mut rpc,
+        &rpc,
         &merkle_tree_pubkey,
         queue_config.sequence_threshold + 2,
         lamports_queue_accounts,
     )
     .await;
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     let account = rpc
         .get_account(nullifier_queue_pubkey)
         .await
@@ -391,14 +388,14 @@ async fn test_full_nullifier_queue(
         &payer,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
-        &mut rpc,
+        &rpc,
     )
     .await
     .unwrap();
     // CHECK: 6
     let element: [u8; 32] = bigint_to_be_bytes_array(&30000.to_biguint().unwrap()).unwrap();
     fail_insert_into_full_queue(
-        &mut rpc,
+        &rpc,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![element],
@@ -422,10 +419,10 @@ async fn test_full_nullifier_queue_default() {
 /// 3. invalid queue accounts:
 /// 3.1 pass non queue account as queue account
 /// 3.2 pass address queue account
-/// 3.3 pass non associated queue account
+/// 3.3 pass non-associated queue account
 /// 4. invalid Merkle tree accounts:
 /// 4.1 pass non Merkle tree account as Merkle tree account
-/// 4.2 pass non associated Merkle tree account
+/// 4.2 pass non-associated Merkle tree account
 async fn failing_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
@@ -443,11 +440,12 @@ async fn failing_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
-    let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = rpc.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let rpc = ProgramTestRpcConnection { context };
+    let payer = rpc.get_payer().await;
+    let payer_pubkey = payer.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -458,7 +456,7 @@ async fn failing_queue(
     let merkle_tree_keypair_2 = Keypair::new();
     let nullifier_queue_keypair_2 = Keypair::new();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut rpc,
+        &rpc,
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
@@ -472,7 +470,7 @@ async fn failing_queue(
     create_address_merkle_tree_and_queue_account(
         &payer,
         false,
-        &mut rpc,
+        &rpc,
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
@@ -486,8 +484,7 @@ async fn failing_queue(
 
     let queue_tree_pair = (nullifier_queue_pubkey, merkle_tree_pubkey);
     // CHECK 1: no nullifiers as input
-    let result =
-        insert_into_nullifier_queues(&[], &payer, &payer, &[queue_tree_pair], &mut rpc).await;
+    let result = insert_into_nullifier_queues(&[], &payer, &payer, &[queue_tree_pair], &rpc).await;
     assert_rpc_error(
         result,
         0,
@@ -501,7 +498,7 @@ async fn failing_queue(
         &payer,
         &payer,
         &[queue_tree_pair, queue_tree_pair],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(
@@ -517,7 +514,7 @@ async fn failing_queue(
         &payer,
         &payer,
         &[(merkle_tree_pubkey, merkle_tree_pubkey)],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
@@ -528,7 +525,7 @@ async fn failing_queue(
         &payer,
         &payer,
         &[(address_queue_keypair.pubkey(), merkle_tree_pubkey)],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(
@@ -545,7 +542,7 @@ async fn failing_queue(
         &payer,
         &payer,
         &[(nullifier_queue_keypair_2.pubkey(), merkle_tree_pubkey)],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(
@@ -568,7 +565,7 @@ async fn failing_queue(
             nullifier_queue_keypair.pubkey(),
             nullifier_queue_keypair.pubkey(),
         )],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(
@@ -586,7 +583,7 @@ async fn failing_queue(
             nullifier_queue_keypair.pubkey(),
             merkle_tree_keypair_2.pubkey(),
         )],
-        &mut rpc,
+        &rpc,
     )
     .await;
     assert_rpc_error(
@@ -629,10 +626,11 @@ async fn test_init_and_rollover_state_merkle_tree(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
-    let payer_pubkey = context.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let context = ProgramTestRpcConnection { context };
+    let payer_pubkey = context.get_payer().await.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -645,7 +643,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     let merkle_tree_pubkey_2 = merkle_tree_keypair_2.pubkey();
     let nullifier_queue_keypair_2 = Keypair::new();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
@@ -670,7 +668,7 @@ async fn test_init_and_rollover_state_merkle_tree(
             .lamports
             * 2;
     set_state_merkle_tree_next_index(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         failing_next_index,
         lamports_queue_accounts,
@@ -681,7 +679,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     let new_state_merkle_tree_keypair = Keypair::new();
 
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -700,7 +698,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     .unwrap();
 
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -718,7 +716,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .unwrap();
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -737,14 +735,14 @@ async fn test_init_and_rollover_state_merkle_tree(
     .unwrap();
 
     set_state_merkle_tree_next_index(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         required_next_index,
         lamports_queue_accounts,
     )
     .await;
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -763,7 +761,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     .unwrap();
 
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey_2,
@@ -789,7 +787,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         .lamports;
 
     let rollover_signature_and_slot = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -800,10 +798,10 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await
     .unwrap();
-    let payer: Keypair = context.get_payer().insecure_clone();
+    let payer: Keypair = context.get_payer().await;
     assert_rolled_over_pair(
         &payer.pubkey(),
-        &mut context,
+        &context,
         &signer_prior_balance,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
@@ -819,7 +817,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     let failing_new_state_merkle_tree_keypair = Keypair::new();
 
     let result = perform_state_merkle_tree_roll_over(
-        &mut context,
+        &context,
         &failing_new_nullifier_queue_keypair,
         &failing_new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
@@ -898,13 +896,14 @@ async fn test_append_functional_and_failing(
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
-    let payer_pubkey = context.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let context = ProgramTestRpcConnection { context };
+    let payer_pubkey = context.get_payer().await.pubkey();
     let merkle_tree_keypair = Keypair::new();
     let queue_keypair = Keypair::new();
     // CHECK 1
     let merkle_tree_pubkey = functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &merkle_tree_keypair,
         &queue_keypair,
@@ -915,7 +914,7 @@ async fn test_append_functional_and_failing(
     let merkle_tree_keypair_2 = Keypair::new();
     let queue_keypair_2 = Keypair::new();
     let merkle_tree_pubkey_2 = functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &queue_keypair_2,
@@ -926,7 +925,7 @@ async fn test_append_functional_and_failing(
 
     // CHECK: 2 fail append with invalid inputs (mismatching leaf and merkle tree accounts)
     fail_2_append_leaves_with_invalid_inputs(
-        &mut context,
+        &context,
         &[merkle_tree_pubkey],
         vec![(0, [1u8; 32]), (1, [2u8; 32])],
         AccountCompressionErrorCode::NotAllLeavesProcessed.into(),
@@ -935,7 +934,7 @@ async fn test_append_functional_and_failing(
     .unwrap();
     // CHECK: 3 fail append with invalid inputs (pass invalid Merkle tree account)
     fail_2_append_leaves_with_invalid_inputs(
-        &mut context,
+        &context,
         &[queue_keypair.pubkey()],
         vec![(0, [1u8; 32])],
         ErrorCode::AccountDiscriminatorMismatch.into(),
@@ -960,7 +959,7 @@ async fn test_append_functional_and_failing(
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     );
     functional_3_append_leaves_to_merkle_tree(
-        &mut context,
+        &context,
         &mut [&mut reference_merkle_tree_1],
         &vec![merkle_tree_pubkey],
         &leaves,
@@ -979,7 +978,7 @@ async fn test_append_functional_and_failing(
     );
     // CHECK: 5 append leaves to multiple merkle trees not-ordered
     functional_3_append_leaves_to_merkle_tree(
-        &mut context,
+        &context,
         &mut [&mut reference_merkle_tree_1, &mut reference_merkle_tree_2],
         &vec![
             merkle_tree_pubkey,
@@ -992,7 +991,7 @@ async fn test_append_functional_and_failing(
     .await;
 
     // CHECK 6: fail append with invalid authority
-    fail_4_append_leaves_with_invalid_authority(&mut context, &merkle_tree_pubkey).await;
+    fail_4_append_leaves_with_invalid_authority(&context, &merkle_tree_pubkey).await;
 }
 
 #[tokio::test]
@@ -1028,11 +1027,12 @@ async fn test_nullify_leaves(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
-    let payer = context.get_payer().insecure_clone();
-    let payer_pubkey = context.get_payer().pubkey();
+    let context = Arc::new(RwLock::new(context));
+    let context = ProgramTestRpcConnection { context };
+    let payer = context.get_payer().await;
+    let payer_pubkey = payer.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
@@ -1045,7 +1045,7 @@ async fn test_nullify_leaves(
     let invalid_nullifier_queue_keypair = Keypair::new();
     let invalid_nullifier_queue_pubkey = invalid_nullifier_queue_keypair.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
-        &mut context,
+        &context,
         &payer_pubkey,
         &other_merkle_tree_keypair,
         &invalid_nullifier_queue_keypair,
@@ -1060,7 +1060,7 @@ async fn test_nullify_leaves(
         merkle_tree_config.canopy_depth as usize,
     );
     functional_3_append_leaves_to_merkle_tree(
-        &mut context,
+        &context,
         &mut [&mut reference_merkle_tree],
         &vec![merkle_tree_pubkey],
         &elements,
@@ -1076,7 +1076,7 @@ async fn test_nullify_leaves(
         &payer,
         &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
-        &mut context,
+        &context,
     )
     .await
     .unwrap();
@@ -1110,7 +1110,7 @@ async fn test_nullify_leaves(
         .get_leaf_index(&elements[1].1)
         .unwrap() as u64;
     nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -1141,7 +1141,7 @@ async fn test_nullify_leaves(
         index as u16
     };
     let result = nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -1163,7 +1163,7 @@ async fn test_nullify_leaves(
     let valid_element_index = 1;
     let invalid_leaf_queue_index = 0;
     let result = nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -1179,7 +1179,7 @@ async fn test_nullify_leaves(
     // 4. nullify with invalid change log index
     let invalid_changelog_index = 0;
     let result = nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -1199,7 +1199,7 @@ async fn test_nullify_leaves(
     .unwrap();
     // 5. nullify other leaf
     nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         queue_config,
@@ -1215,7 +1215,7 @@ async fn test_nullify_leaves(
     // 6. nullify leaf with nullifier queue that is not associated with the
     // merkle tree
     let result = nullify(
-        &mut context,
+        &context,
         &merkle_tree_pubkey,
         &invalid_nullifier_queue_pubkey,
         queue_config,
@@ -1244,11 +1244,11 @@ async fn test_nullify_leaves_default() {
 }
 
 async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
 ) {
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     let elements = vec![[1_u8; 32], [2_u8; 32]];
     insert_into_single_nullifier_queue(
         &elements,
@@ -1272,12 +1272,12 @@ async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
 }
 
 async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     elements: Vec<[u8; 32]>,
 ) {
-    let payer = context.get_payer().insecure_clone();
+    let payer = context.get_payer().await;
 
     let result = insert_into_single_nullifier_queue(
         &elements,
@@ -1297,7 +1297,7 @@ async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
 }
 
 async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     elements: Vec<[u8; 32]>,
@@ -1324,11 +1324,11 @@ async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
 }
 
 async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
 ) {
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     let element = 3_u32.to_biguint().unwrap();
     let elements = vec![bigint_to_be_bytes_array(&element).unwrap()];
     insert_into_single_nullifier_queue(
@@ -1354,7 +1354,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
     payer: &Keypair,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
-    context: &mut R,
+    context: &R,
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
@@ -1383,7 +1383,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&fee_payer.pubkey()),
@@ -1398,7 +1398,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     fee_payer: &Keypair,
     payer: &Keypair,
     pubkeys: &[(Pubkey, Pubkey)],
-    context: &mut R,
+    context: &R,
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
@@ -1419,7 +1419,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&fee_payer.pubkey()),
@@ -1431,7 +1431,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
@@ -1441,12 +1441,12 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
     queue_size: usize,
     forester: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
+    let payer = rpc.get_payer().await;
     let merkle_tree_account_create_ix = create_account_instruction(
-        &rpc.get_payer().pubkey(),
+        &payer.pubkey(),
         merkle_tree_size,
         rpc.get_minimum_balance_for_rent_exemption(merkle_tree_size)
-            .await
-            .unwrap(),
+            .await?,
         &ID,
         Some(merkle_tree_keypair),
     );
@@ -1455,15 +1455,14 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
         payer_pubkey,
         queue_size,
         rpc.get_minimum_balance_for_rent_exemption(queue_size)
-            .await
-            .unwrap(),
+            .await?,
         &ID,
         Some(queue_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
     let instruction = create_initialize_merkle_tree_instruction(
-        rpc.get_payer().pubkey(),
+        payer.pubkey(),
         None,
         merkle_tree_pubkey,
         queue_keypair.pubkey(),
@@ -1474,15 +1473,16 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
         1,
     );
 
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await?;
+    let payer = rpc.get_payer().await;
     let transaction = Transaction::new_signed_with_payer(
         &[
             merkle_tree_account_create_ix,
             nullifier_queue_account_create_ix,
             instruction,
         ],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer(), &merkle_tree_keypair, queue_keypair],
+        Some(&payer.pubkey()),
+        &vec![&payer, &merkle_tree_keypair, queue_keypair],
         latest_blockhash,
     );
     rpc.process_transaction(transaction.clone()).await
@@ -1491,7 +1491,7 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
 pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes<
     R: RpcConnection,
 >(
-    rpc: &mut R,
+    rpc: &R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
@@ -1551,7 +1551,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
 pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config<
     R: RpcConnection,
 >(
-    rpc: &mut R,
+    rpc: &R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
@@ -1727,7 +1727,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
 }
 
 async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
@@ -1791,16 +1791,17 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
 }
 
 pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     merkle_tree_pubkeys: &[Pubkey],
     leaves: Vec<(u8, [u8; 32])>,
     expected_error: u32,
 ) -> Result<(), RpcError> {
     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
 
+    let payer = context.get_payer().await;
     let accounts = account_compression::accounts::AppendLeaves {
-        fee_payer: context.get_payer().pubkey(),
-        authority: context.get_payer().pubkey(),
+        fee_payer: payer.pubkey(),
+        authority: payer.pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,
     };
@@ -1818,11 +1819,11 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
         data: instruction_data.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer()],
+        Some(&payer.pubkey()),
+        &vec![&payer],
         latest_blockhash,
     );
     let result = context.process_transaction(transaction).await;
@@ -1830,12 +1831,12 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
 }
 
 pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     reference_merkle_trees: &mut [&mut MerkleTree<Poseidon>],
     merkle_tree_pubkeys: &Vec<Pubkey>,
     leaves: &Vec<(u8, [u8; 32])>,
 ) {
-    let payer = context.get_payer().insecure_clone();
+    let payer = context.get_payer().await;
     let mut hash_map = HashMap::<Pubkey, (Vec<[u8; 32]>, u64, usize, usize)>::new();
     for (i, leaf) in leaves {
         let pre_account_mt = context
@@ -1864,8 +1865,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     }
     let instruction = [create_insert_leaves_instruction(
         leaves.clone(),
-        context.get_payer().pubkey(),
-        context.get_payer().pubkey(),
+        payer.pubkey(),
+        payer.pubkey(),
         (*merkle_tree_pubkeys).clone(),
     )];
 
@@ -1909,7 +1910,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
 }
 
 pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_pubkey: &Pubkey,
 ) {
     let invalid_autority = Keypair::new();
@@ -1920,8 +1921,9 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
         leaves: vec![(0, [1u8; 32])],
     };
 
+    let fee_payer = rpc.get_payer().await;
     let accounts = account_compression::accounts::AppendLeaves {
-        fee_payer: rpc.get_payer().pubkey(),
+        fee_payer: fee_payer.pubkey(),
         authority: invalid_autority.pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,
@@ -1940,7 +1942,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&invalid_autority.pubkey()),
-        &vec![&rpc.get_payer(), &invalid_autority],
+        &vec![&fee_payer, &invalid_autority],
         latest_blockhash,
     );
     let remaining_accounts_mismatch_error = rpc.process_transaction(transaction).await;
@@ -1949,7 +1951,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn nullify<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     nullifier_queue_config: &NullifierQueueConfig,
@@ -1959,7 +1961,7 @@ pub async fn nullify<R: RpcConnection>(
     leaf_queue_index: u16,
     element_index: u64,
 ) -> Result<(), RpcError> {
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
         .unwrap()
@@ -1973,7 +1975,7 @@ pub async fn nullify<R: RpcConnection>(
             vec![leaf_queue_index].as_slice(),
             vec![element_index].as_slice(),
             vec![proof].as_slice(),
-            &rpc.get_payer().pubkey(),
+            &payer.pubkey(),
             merkle_tree_pubkey,
             nullifier_queue_pubkey,
         ),
@@ -1998,11 +2000,7 @@ pub async fn nullify<R: RpcConnection>(
         .unwrap();
     assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
 
-    let account = rpc
-        .get_account(*nullifier_queue_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
+    let account = rpc.get_account(*nullifier_queue_pubkey).await?.unwrap();
     let mut data = account.data.clone();
 
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
@@ -2029,7 +2027,7 @@ pub async fn nullify<R: RpcConnection>(
 }
 
 pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     nullifier_queue_pubkey: &Pubkey,
     left_over_indices: usize,
     lamports: u64,
@@ -2056,7 +2054,8 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     account.data = data;
     let mut account_share_data = AccountSharedData::from(account);
     account_share_data.set_lamports(lamports);
-    rpc.set_account(nullifier_queue_pubkey, &account_share_data);
+    rpc.set_account(nullifier_queue_pubkey, &account_share_data)
+        .await;
     let account = rpc
         .get_account(*nullifier_queue_pubkey)
         .await
@@ -2093,12 +2092,12 @@ fn find_overlapping_probe_index(
     panic!("No value with overlapping probe index found!");
 }
 async fn fail_insert_into_full_queue<R: RpcConnection>(
-    context: &mut R,
+    context: &R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     elements: Vec<[u8; 32]>,
 ) {
-    let payer = context.get_payer().insecure_clone();
+    let payer = context.get_payer().await;
 
     let result = insert_into_single_nullifier_queue(
         &elements,
@@ -2114,7 +2113,7 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
 }
 
 pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
-    rpc: &mut R,
+    rpc: &R,
     merkle_tree_pubkey: &Pubkey,
     sequence_number: u64,
     lamports: u64,
@@ -2132,7 +2131,8 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
     }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    rpc.set_account(merkle_tree_pubkey, &account_share_data)
+        .await;
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
@@ -2145,7 +2145,7 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
     );
 }
 pub async fn assert_element_inserted_in_nullifier_queue(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &ProgramTestRpcConnection,
     nullifier_queue_pubkey: &Pubkey,
     nullifier: [u8; 32],
 ) {
@@ -2159,11 +2159,11 @@ pub async fn assert_element_inserted_in_nullifier_queue(
 }
 
 async fn functional_6_test_insert_into_two_nullifier_queues(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &ProgramTestRpcConnection,
     nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     insert_into_nullifier_queues(nullifiers, &payer, &payer, queue_tree_pairs, rpc)
         .await
         .unwrap();
@@ -2172,11 +2172,11 @@ async fn functional_6_test_insert_into_two_nullifier_queues(
 }
 
 async fn functional_7_test_insert_into_two_nullifier_queues_not_ordered(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &ProgramTestRpcConnection,
     nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = rpc.get_payer().await;
     insert_into_nullifier_queues(nullifiers, &payer, &payer, queue_tree_pairs, rpc)
         .await
         .unwrap();
