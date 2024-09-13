@@ -97,6 +97,12 @@ impl VisitMut for LightProgramTransform {
         };
         i.block.stmts.insert(0, light_context_stmt);
 
+        // Inject `check_constraints` call right after.
+        let check_constraints_stmt: Stmt = parse_quote! {
+            ctx.check_constraints()?;
+        };
+        i.block.stmts.insert(1, check_constraints_stmt);
+
         // Inject `derive_address_seeds` and  `verify` statements at the end of
         // the function.
         let stmts_len = i.block.stmts.len();
@@ -131,6 +137,7 @@ pub(crate) fn program(mut input: ItemMod) -> Result<TokenStream> {
 
     Ok(quote! {
         pub trait LightContextExt {
+            fn check_constraints(&self) -> Result<()>;
             fn derive_address_seeds(&mut self, address_merkle_context: PackedAddressMerkleContext);
         }
 
