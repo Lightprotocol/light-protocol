@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
 use futures::future::join_all;
-use light_client::rpc::{RetryConfig, RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{RetryConfig, RpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -177,7 +177,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             );
 
             let batch_start = Instant::now();
-            let url = rpc.get_url().to_string();
             let remaining_time = config
                 .retry_config
                 .timeout
@@ -189,15 +188,17 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             }
 
             // Asynchronously send all transactions in the batch
+            let pool_clone = Arc::clone(&pool);
             let send_futures = transactions.into_iter().map(move |tx| {
-                let url = url.clone();
-                let retry_config = RetryConfig {
-                    timeout: remaining_time,
-                    ..config.retry_config
-                };
+                let pool_clone = Arc::clone(&pool_clone);
                 tokio::spawn(async move {
-                    let rpc = SolanaRpcConnection::new_with_retry(url, None, Some(retry_config));
-                    rpc.send_transaction(&tx).await
+                    match pool_clone.get_connection().await {
+                        Ok(rpc) => rpc.send_transaction(&tx).await,
+                        Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
+                            "Failed to get RPC connection: {}",
+                            e
+                        ))),
+                    }
                 })
             });
 
