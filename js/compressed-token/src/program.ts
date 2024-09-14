@@ -167,6 +167,40 @@ export type CreateMintParams = {
 };
 
 /**
+ * Parameters for merging compressed token accounts
+ */
+export type MergeTokenAccountsParams = {
+    /**
+     * Tx feepayer
+     */
+    payer: PublicKey;
+    /**
+     * Owner of the token accounts to be merged
+     */
+    owner: PublicKey;
+    /**
+     * Mint public key
+     */
+    mint: PublicKey;
+    /**
+     * Array of compressed token accounts to merge
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * Optional: Public key of the state tree to merge into
+     */
+    outputStateTree: PublicKey;
+    /**
+     * Optional: Recent validity proof for state inclusion
+     */
+    recentValidityProof: CompressedProof;
+    /**
+     * Optional: Recent state root indices of the input state
+     */
+    recentInputStateRootIndices: number[];
+};
+
+/**
  * Create compressed token accounts
  */
 export type MintToParams = {
@@ -924,5 +958,37 @@ export class CompressedTokenProgram {
             .instruction();
 
         return instruction;
+    }
+
+    static async mergeTokenAccounts(
+        params: MergeTokenAccountsParams,
+    ): Promise<TransactionInstruction[]> {
+        const {
+            payer,
+            owner,
+            inputCompressedTokenAccounts,
+            outputStateTree,
+            recentValidityProof,
+            recentInputStateRootIndices,
+        } = params;
+
+        if (inputCompressedTokenAccounts.length > 3) {
+            throw new Error('Cannot merge more than 3 token accounts at once');
+        }
+
+        const ix = await this.transfer({
+            payer,
+            inputCompressedTokenAccounts,
+            toAddress: owner,
+            amount: inputCompressedTokenAccounts.reduce(
+                (sum, account) => sum.add(account.parsed.amount),
+                new BN(0),
+            ),
+            outputStateTrees: outputStateTree,
+            recentInputStateRootIndices,
+            recentValidityProof,
+        });
+
+        return [ix];
     }
 }
