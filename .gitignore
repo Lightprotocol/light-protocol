@@ -79,3 +79,4 @@ test-programs/e2e-test/**/*.txt
 output.txt
 .nx/cache
 .nx/workspace-data
+forester_venv/

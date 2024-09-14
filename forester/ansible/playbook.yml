@@ -1,0 +1,59 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Docker and Docker Compose
+      apt:
+        name: 
+          - docker.io
+          - docker-compose
+        state: present
+
+    - name: Install Rust
+      shell: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source $HOME/.cargo/env
+      args:
+        creates: $HOME/.cargo/bin/rustc
+
+    - name: Add Rust to PATH
+      lineinfile:
+        path: /root/.bashrc
+        line: 'export PATH=$PATH:$HOME/.cargo/bin'
+
+    # Remove the "Install Forester CLI" task
+
+    - name: Create Forester directory
+      file:
+        path: /opt/forester
+        state: directory
+
+    - name: Copy Forester binary
+      copy:
+        src: ../target/release/forester
+        dest: /opt/forester/forester
+        mode: '0755'
+
+    - name: Copy Docker Compose file
+      copy:
+        src: ../docker-compose.yml
+        dest: /opt/forester/docker-compose.yml
+
+    - name: Copy Forester configuration
+      copy:
+        src: ../forester.toml
+        dest: /opt/forester/forester.toml
+
+    - name: Copy environment file
+      copy:
+        src: ../.env
+        dest: /opt/forester/.env
+
+    - name: Start Forester services
+      community.docker.docker_compose:
+        project_src: /opt/forester
+        state: present
