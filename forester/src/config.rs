@@ -96,18 +96,24 @@ impl ForesterConfig {
     pub fn new_for_start(args: &StartArgs) -> Result<Self, ForesterError> {
         let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
-        let payer: Vec<u8> = serde_json::from_str(&args.payer)
+        let payer: Vec<u8> = match &args.payer {
+            Some(payer_str) => serde_json::from_str(payer_str)
+                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            None => return Err(ForesterError::ConfigError("Payer is required".to_string())),
+        };
+        let payer = Keypair::from_bytes(&payer)
             .map_err(|e| ForesterError::ConfigError(e.to_string()))?;
-        let payer =
-            Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
+
+        let rpc_url = args.rpc_url.clone()
+            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
 
         Ok(Self {
             external_services: ExternalServicesConfig {
-                rpc_url: args.rpc_url.clone(),
-                ws_rpc_url: Some(args.ws_rpc_url.clone()),
-                indexer_url: Some(args.indexer_url.clone()),
-                prover_url: Some(args.prover_url.clone()),
-                photon_api_key: Some(args.photon_api_key.clone()),
+                rpc_url,
+                ws_rpc_url: args.ws_rpc_url.clone(),
+                indexer_url: args.indexer_url.clone(),
+                prover_url: args.prover_url.clone(),
+                photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
             },
             retry_config: RetryConfig {
@@ -145,9 +151,12 @@ impl ForesterConfig {
     }
 
     pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
+        let rpc_url = args.rpc_url.clone()
+            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+
         Ok(Self {
             external_services: ExternalServicesConfig {
-                rpc_url: args.rpc_url.clone(),
+                rpc_url,
                 ws_rpc_url: None,
                 indexer_url: None,
                 prover_url: None,

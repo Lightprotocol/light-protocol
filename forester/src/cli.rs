@@ -17,25 +17,25 @@ pub enum Commands {
 #[derive(Parser, Clone, Debug)]
 pub struct StartArgs {
     #[arg(long, env = "FORESTER_RPC_URL")]
-    pub rpc_url: String,
+    pub rpc_url: Option<String>,
 
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
 
     #[arg(long, env = "FORESTER_WS_RPC_URL")]
-    pub ws_rpc_url: String,
+    pub ws_rpc_url: Option<String>,
 
     #[arg(long, env = "FORESTER_INDEXER_URL")]
-    pub indexer_url: String,
+    pub indexer_url: Option<String>,
 
     #[arg(long, env = "FORESTER_PROVER_URL")]
-    pub prover_url: String,
+    pub prover_url: Option<String>,
 
     #[arg(long, env = "FORESTER_PAYER")]
-    pub payer: String,
+    pub payer: Option<String>,
 
     #[arg(long, env = "FORESTER_PHOTON_API_KEY")]
-    pub photon_api_key: String,
+    pub photon_api_key: Option<String>,
 
     #[arg(long, env = "FORESTER_INDEXER_BATCH_SIZE", default_value = "50")]
     pub indexer_batch_size: usize,
@@ -102,7 +102,7 @@ pub struct StartArgs {
 #[derive(Parser, Clone, Debug)]
 pub struct StatusArgs {
     #[arg(long, env = "FORESTER_RPC_URL")]
-    pub rpc_url: String,
+    pub rpc_url: Option<String>,
 
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
