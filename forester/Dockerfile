@@ -12,6 +12,7 @@ WORKDIR /app
 
 RUN echo '#!/bin/sh' > /usr/local/bin/start.sh && \
     echo 'echo "Starting Forester service..."' >> /usr/local/bin/start.sh && \
+    echo 'echo "Arguments received: $@"' >> /usr/local/bin/start.sh && \
     echo 'exec forester "$@"' >> /usr/local/bin/start.sh && \
     chmod +x /usr/local/bin/start.sh
 
