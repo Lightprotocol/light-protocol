@@ -86,16 +86,16 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_RETRY_TIMEOUT", default_value = "30000")]
     pub retry_timeout: u64,
 
-    #[arg(long, env = "STATE_QUEUE_START_INDEX", default_value = "0")]
+    #[arg(long, env = "FORESTER_STATE_QUEUE_START_INDEX", default_value = "0")]
     pub state_queue_start_index: u16,
 
-    #[arg(long, env = "STATE_QUEUE_LENGTH", default_value = "28807")]
+    #[arg(long, env = "FORESTER_STATE_QUEUE_LENGTH", default_value = "28807")]
     pub state_queue_length: u16,
 
-    #[arg(long, env = "ADDRESS_QUEUE_START_INDEX", default_value = "0")]
+    #[arg(long, env = "FORESTER_ADDRESS_QUEUE_START_INDEX", default_value = "0")]
     pub address_queue_start_index: u16,
 
-    #[arg(long, env = "ADDRESS_QUEUE_LENGTH", default_value = "28807")]
+    #[arg(long, env = "FORESTER_ADDRESS_QUEUE_LENGTH", default_value = "28807")]
     pub address_queue_length: u16,
 }
 
