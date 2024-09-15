@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 config = "0.14.0"
 anchor-lang = { workspace = true }
-clap = {version = "4.5.9", features = ["derive"]}
+clap = {version = "4.5.9", features = ["derive", "env"]}
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }

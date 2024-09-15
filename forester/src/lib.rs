@@ -10,7 +10,6 @@ pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
 pub mod send_transaction;
-pub mod settings;
 mod slot_tracker;
 pub mod telemetry;
 pub mod tree_data_sync;
@@ -29,7 +28,6 @@ use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use forester_utils::indexer::Indexer;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
-pub use settings::init_config;
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::sync::Arc;
 use std::time::Duration;
@@ -78,7 +76,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
-        config.rpc_pool_size as u32,
+        config.general_config.rpc_pool_size as u32,
     )
     .await
     .map_err(|e| ForesterError::Custom(e.to_string()))?;
@@ -97,7 +95,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     };
     let slot_tracker = SlotTracker::new(
         slot,
-        Duration::from_secs(config.slot_update_interval_seconds),
+        Duration::from_secs(config.general_config.slot_update_interval_seconds),
     );
     let arc_slot_tracker = Arc::new(slot_tracker);
     let arc_slot_tracker_clone = arc_slot_tracker.clone();

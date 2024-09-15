@@ -18,6 +18,15 @@ pub async fn setup_pubsub_client(
     config: &ForesterConfig,
     queue_pubkeys: std::collections::HashSet<Pubkey>,
 ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
+    let ws_url = match &config.external_services.ws_rpc_url {
+        Some(url) => url.clone(),
+        None => {
+            return Err(ForesterError::Custom(
+                "PubSub client requires a WebSocket URL".to_string(),
+            ))
+        }
+    };
+
     debug!(
         "Setting up pubsub client for {} queues",
         queue_pubkeys.len()
@@ -25,12 +34,7 @@ pub async fn setup_pubsub_client(
     let (update_tx, update_rx) = mpsc::channel(100);
     let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
 
-    let handle = spawn_pubsub_client(
-        config.external_services.ws_rpc_url.clone(),
-        queue_pubkeys,
-        update_tx,
-        shutdown_rx,
-    );
+    let handle = spawn_pubsub_client(ws_url, queue_pubkeys, update_tx, shutdown_rx);
 
     tokio::spawn(async move {
         match handle.join() {
