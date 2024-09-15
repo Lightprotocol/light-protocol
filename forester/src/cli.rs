@@ -89,14 +89,14 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_STATE_QUEUE_START_INDEX", default_value = "0")]
     pub state_queue_start_index: u16,
 
-    #[arg(long, env = "FORESTER_STATE_QUEUE_LENGTH", default_value = "28807")]
-    pub state_queue_length: u16,
+    #[arg(long, env = "FORESTER_STATE_PROCESSING_LENGTH", default_value = "28807")]
+    pub state_queue_processing_length: u16,
 
     #[arg(long, env = "FORESTER_ADDRESS_QUEUE_START_INDEX", default_value = "0")]
     pub address_queue_start_index: u16,
 
-    #[arg(long, env = "FORESTER_ADDRESS_QUEUE_LENGTH", default_value = "28807")]
-    pub address_queue_length: u16,
+    #[arg(long, env = "FORESTER_ADDRESS_PROCESSING_LENGTH", default_value = "28807")]
+    pub address_queue_processing_length: u16,
 }
 
 #[derive(Parser, Clone, Debug)]

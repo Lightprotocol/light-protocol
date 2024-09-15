@@ -117,9 +117,9 @@ impl ForesterConfig {
             },
             queue_config: QueueConfig {
                 state_queue_start_index: args.state_queue_start_index,
-                state_queue_length: args.state_queue_length,
+                state_queue_length: args.state_queue_processing_length,
                 address_queue_start_index: args.address_queue_start_index,
-                address_queue_length: args.address_queue_length,
+                address_queue_length: args.address_queue_processing_length,
             },
             indexer_config: IndexerConfig {
                 batch_size: args.indexer_batch_size,
