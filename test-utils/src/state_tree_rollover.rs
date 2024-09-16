@@ -276,7 +276,10 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     let new_address_queue =
         unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await };
 
-    assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
+    assert_eq!(
+        old_address_queue.get_capacity(),
+        new_address_queue.get_capacity()
+    );
 
     assert_eq!(
         old_address_queue.sequence_threshold,

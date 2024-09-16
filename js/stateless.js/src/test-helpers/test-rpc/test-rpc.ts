@@ -620,7 +620,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-
         if (newAddresses.some(address => !(address instanceof BN))) {
             throw new Error('AddressWithTree is not supported in test-rpc');
         }
