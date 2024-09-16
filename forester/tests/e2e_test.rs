@@ -33,7 +33,6 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         enable_prover: true,
-        enable_forester: false,
         wait_time: 10,
         ..LightValidatorConfig::default()
     }))
@@ -246,7 +245,6 @@ async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         enable_prover: true,
-        enable_forester: false,
         wait_time: 10,
         ..LightValidatorConfig::default()
     }))
@@ -549,7 +547,6 @@ async fn test_epoch_double_registration() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         enable_prover: true,
-        enable_forester: false,
         wait_time: 10,
         ..LightValidatorConfig::default()
     }))

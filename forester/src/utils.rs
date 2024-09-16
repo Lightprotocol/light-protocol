@@ -11,7 +11,6 @@ pub struct LightValidatorConfig {
     pub path: String,
     pub enable_indexer: bool,
     pub enable_prover: bool,
-    pub enable_forester: bool,
     pub wait_time: u64,
 }
 
@@ -21,7 +20,6 @@ impl Default for LightValidatorConfig {
             path: "../cli/test_bin/run test-validator".to_string(),
             enable_indexer: false,
             enable_prover: false,
-            enable_forester: false,
             wait_time: 35,
         }
     }
@@ -37,10 +35,6 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
     if !config.enable_prover {
         path.push_str(" --skip-prover");
     }
-    if !config.enable_forester {
-        path.push_str(" --skip-forester");
-    }
-
     debug!("Starting validator with command: {}", path);
 
     Command::new("sh")

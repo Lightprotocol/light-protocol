@@ -28,7 +28,6 @@ pub async fn spawn_test_validator(config: Option<LightValidatorConfig>) {
         let config = LightValidatorConfig {
             enable_indexer: false,
             enable_prover: false,
-            enable_forester: false,
             ..LightValidatorConfig::default()
         };
         spawn_validator(config).await;
