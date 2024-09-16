@@ -567,7 +567,7 @@ impl<'a> Iterator for HashSetIterator<'a> {
     type Item = (usize, &'a HashSetCell);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.current < self.hash_set.capacity {
+        while self.current < self.hash_set.get_capacity() {
             let element_index = self.current;
             self.current += 1;
 
