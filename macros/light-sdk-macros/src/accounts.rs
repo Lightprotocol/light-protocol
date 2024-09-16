@@ -345,26 +345,15 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
         let field_ident = &field.ident;
         field_idents.push(field_ident);
 
-        let mut account_args = None;
-        for attribute in &field.attrs {
-            let attribute_list = match &attribute.meta {
-                Meta::List(attribute_list) => attribute_list,
-                _ => continue,
-            };
-            account_args = Some(syn::parse2::<LightAccountArgs>(
-                attribute_list.tokens.clone(),
-            )?);
-            break;
-        }
-        let account_args = match account_args {
-            Some(account_args) => account_args,
-            None => {
-                return Err(Error::new_spanned(
-                    input,
-                    "no arguments provided in `light_account`",
-                ))
-            }
-        };
+        let account_args = field
+            .attrs
+            .iter()
+            .find(|attribute| attribute.path().is_ident("light_account"))
+            .map(|attribute| attribute.parse_args::<LightAccountArgs>())
+            .transpose()?
+            .ok_or_else(|| {
+                Error::new_spanned(input.clone(), "no arguments provided in `light_account`")
+            })?;
 
         let type_path = match field.ty {
             Type::Path(ref type_path) => type_path,

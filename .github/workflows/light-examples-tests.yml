@@ -4,11 +4,13 @@ on:
       - main
     paths:
       - "examples/**"
+      - "macros/light-sdk-macros/**"
   pull_request:
     branches:
       - "*"
     paths:
       - "examples/**"
+      - "macros/light-sdk-macros/**"
     types:
       - opened
       - synchronize
