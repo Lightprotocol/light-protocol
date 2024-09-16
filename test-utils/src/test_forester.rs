@@ -85,7 +85,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
 
     let first = nullifier_queue.first_no_seq().unwrap();
 
-    for i in 0..nullifier_queue.capacity {
+    for i in 0..nullifier_queue.get_capacity() {
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {

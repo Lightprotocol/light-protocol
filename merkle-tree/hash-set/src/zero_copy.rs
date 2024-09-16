@@ -183,7 +183,7 @@ mod test {
             };
 
             // Ensure that the underlying data were properly initialized.
-            assert_eq!(hs.hash_set.capacity, VALUES);
+            assert_eq!(hs.hash_set.get_capacity(), VALUES);
             assert_eq!(hs.hash_set.sequence_threshold, SEQUENCE_THRESHOLD);
             for i in 0..VALUES {
                 assert!(unsafe { &*hs.hash_set.buckets.as_ptr().add(i) }.is_none());

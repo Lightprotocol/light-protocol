@@ -74,7 +74,7 @@ describe('compress', () => {
 
     it('should create account with address', async () => {
         const preCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
-        
+
         await createAccount(
             rpc as TestRpc,
             payer,

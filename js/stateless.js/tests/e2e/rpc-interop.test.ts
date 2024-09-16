@@ -644,7 +644,14 @@ describe('rpc-interop', () => {
         const addressQueue = defaultTestStateTreeAccounts().addressQueue;
         const address = await deriveAddress(seed, addressTree);
 
-        await createAccount(rpc, payer, seed, LightSystemProgram.programId, addressTree, addressQueue);
+        await createAccount(
+            rpc,
+            payer,
+            seed,
+            LightSystemProgram.programId,
+            addressTree,
+            addressQueue,
+        );
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(

@@ -180,7 +180,7 @@ pub async fn assert_queue<R: RpcConnection>(
     assert_eq!(queue_account.metadata, expected_queue_meta_data);
 
     let queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *queue_pubkey).await };
-    assert_eq!(queue.capacity, queue_config.capacity as usize);
+    assert_eq!(queue.get_capacity(), queue_config.capacity as usize);
     assert_eq!(
         queue.sequence_threshold,
         queue_config.sequence_threshold as usize

@@ -56,7 +56,11 @@ export async function createAccount(
     const address = await deriveAddress(seed, addressTree);
 
     const proof = await rpc.getValidityProofV0(undefined, [
-        { address: bn(address.toBytes()), tree: addressTree, queue: addressQueue },
+        {
+            address: bn(address.toBytes()),
+            tree: addressTree,
+            queue: addressQueue,
+        },
     ]);
 
     const params: NewAddressParams = {

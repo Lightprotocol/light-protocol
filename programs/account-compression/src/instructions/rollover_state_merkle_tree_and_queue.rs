@@ -141,7 +141,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             Some(queue_metadata.access_metadata.program_owner),
             Some(queue_metadata.access_metadata.forester),
             ctx.accounts.new_state_merkle_tree.key(),
-            nullifier_queue.hash_set.capacity as u16,
+            nullifier_queue.hash_set.get_capacity() as u16,
             nullifier_queue.hash_set.sequence_threshold as u64,
             Some(queue_metadata.rollover_metadata.rollover_threshold),
             Some(queue_metadata.rollover_metadata.close_threshold),

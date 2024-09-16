@@ -380,7 +380,7 @@ async fn test_full_nullifier_queue(
     let replacement_value = find_overlapping_probe_index(
         1,
         replacement_start_value,
-        nullifier_queue.hash_set.capacity,
+        nullifier_queue.hash_set.get_capacity(),
     );
     // CHECK: 5
     let element: [u8; 32] =
@@ -2043,7 +2043,7 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     let capacity;
     {
         let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
-        capacity = hash_set.hash_set.capacity - left_over_indices;
+        capacity = hash_set.hash_set.get_capacity() - left_over_indices;
         println!("capacity: {}", capacity);
         let arbitrary_sequence_number = 0;
         for i in 0..capacity {
