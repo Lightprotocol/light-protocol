@@ -19,21 +19,14 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
-import { killForester, startForester } from "./processForester";
 
 export async function stopTestEnv(options: {
-  forester: boolean;
   indexer: boolean;
   prover: boolean;
 }) {
   const processesToKill = [
     { name: "photon", condition: options.indexer, killFunction: killIndexer },
     { name: "prover", condition: options.prover, killFunction: killProver },
-    {
-      name: "forester",
-      condition: options.forester,
-      killFunction: killForester,
-    },
     {
       name: "test-validator",
       condition: true,
@@ -63,7 +56,6 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
-  forester = true,
   rpcPort = 8899,
   indexerPort = 8784,
   proverPort = 3001,
@@ -78,7 +70,6 @@ export async function initTestEnv({
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
-  forester: boolean;
   rpcPort?: number;
   indexerPort?: number;
   proverPort?: number;
@@ -128,10 +119,6 @@ export async function initTestEnv({
     setConfig(config);
     await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
   }
-
-  if (forester) {
-    await startForester();
-  }
 }
 
 export async function initTestEnvIfNeeded({
@@ -139,13 +126,11 @@ export async function initTestEnvIfNeeded({
   skipSystemAccounts,
   indexer = false,
   prover = false,
-  forester = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   indexer?: boolean;
   prover?: boolean;
-  forester?: boolean;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -159,7 +144,6 @@ export async function initTestEnvIfNeeded({
       skipSystemAccounts,
       indexer,
       prover,
-      forester,
     });
   }
 }

@@ -19,11 +19,6 @@ class SetupCommand extends Command {
         "Runs a test validator without starting a new prover service.",
       default: false,
     }),
-    "skip-forester": Flags.boolean({
-      description:
-        "Runs a test validator without starting a new forester service.",
-      default: false,
-    }),
     "skip-system-accounts": Flags.boolean({
       description:
         "Runs a test validator without initialized light system accounts.",
@@ -95,7 +90,6 @@ class SetupCommand extends Command {
 
     if (flags["stop"] === true) {
       await stopTestEnv({
-        forester: !flags["skip-forester"],
         indexer: !flags["skip-indexer"],
         prover: !flags["skip-prover"],
       });
@@ -103,7 +97,6 @@ class SetupCommand extends Command {
     } else {
       await initTestEnv({
         checkPhotonVersion: !flags["relax-indexer-version-constraint"],
-        forester: !flags["skip-forester"],
         indexer: !flags["skip-indexer"],
         limitLedgerSize: flags["limit-ledger-size"],
         photonDatabaseUrl: flags["indexer-db-url"],
