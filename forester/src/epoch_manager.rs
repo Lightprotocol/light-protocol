@@ -23,7 +23,7 @@ use forester_utils::forester_epoch::{
 };
 use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use futures::future::join_all;
-use light_client::rpc::{RetryConfig, RpcConnection, RpcError};
+use light_client::rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection};
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
@@ -492,7 +492,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let mut rpc = SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -521,7 +521,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             let registration_info = {
                 debug!("Registering epoch {}", epoch);
                 let registered_epoch = match Epoch::register(
-                    &mut *rpc,
+                    &mut rpc,
                     &self.protocol_config,
                     &self.config.payer_keypair,
                 )
@@ -944,7 +944,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     ))]
     async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         info!("Reporting work");
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let mut rpc = SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.payer_keypair.pubkey(),
