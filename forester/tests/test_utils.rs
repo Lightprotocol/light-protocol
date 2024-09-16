@@ -1,5 +1,5 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use forester::config::ExternalServicesConfig;
+use forester::config::{ExternalServicesConfig, GeneralConfig};
 use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
@@ -77,28 +77,26 @@ pub fn forester_config() -> ForesterConfig {
     ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: "http://localhost:8899".to_string(),
-            ws_rpc_url: "ws://localhost:8900".to_string(),
-            indexer_url: "http://localhost:8784".to_string(),
-            prover_url: "http://localhost:3001".to_string(),
+            ws_rpc_url: Some("ws://localhost:8900".to_string()),
+            indexer_url: Some("http://localhost:8784".to_string()),
+            prover_url: Some("http://localhost:3001".to_string()),
             photon_api_key: None,
-            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
-            pushgateway_url: "http://localhost:9092/metrics/job/forester".to_string(),
+            pushgateway_url: Some("http://localhost:9092/metrics/job/forester".to_string()),
         },
         retry_config: Default::default(),
         queue_config: Default::default(),
+        indexer_config: Default::default(),
+        transaction_config: Default::default(),
+        general_config: GeneralConfig {
+            rpc_pool_size: 20,
+            slot_update_interval_seconds: 10,
+            tree_discovery_interval_seconds: 5,
+            enable_metrics: false,
+        },
         registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),
-        indexer_batch_size: 50,
-        indexer_max_concurrent_batches: 10,
-        transaction_batch_size: 1,
-        transaction_max_concurrent_batches: 20,
-        cu_limit: 1_000_000,
-        rpc_pool_size: 20,
-        slot_update_interval_seconds: 10,
-        tree_discovery_interval_seconds: 5,
         address_tree_data: vec![],
         state_tree_data: vec![],
-        enable_metrics: false,
     }
 }
 
