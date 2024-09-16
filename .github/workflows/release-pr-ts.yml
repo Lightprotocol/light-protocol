@@ -54,7 +54,7 @@ jobs:
 
       - name: Create pull request for all packages
         if: inputs.package == 'all'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         env:
           COMMIT_MESSAGE: "chore: Bump version of all TypeScript projects"
         with:
@@ -65,7 +65,7 @@ jobs:
 
       - name: Create pull request for package
         if: inputs.package != 'all'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         env:
           COMMIT_MESSAGE: "chore: Bump version of TypeScript project ${{ inputs.package }}"
         with:
