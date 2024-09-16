@@ -86,6 +86,7 @@ pub enum CustomError {
 }
 
 #[light_accounts]
+#[instruction(name: String)]
 pub struct CreateRecord<'info> {
     #[account(mut)]
     #[fee_payer]
@@ -96,7 +97,7 @@ pub struct CreateRecord<'info> {
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
 
-    #[light_account(init, seeds = [b"name-service", record.name.as_bytes()])]
+    #[light_account(init, seeds = [b"name-service", name.as_bytes()])]
     pub record: LightAccount<NameRecord>,
 }
 
