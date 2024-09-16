@@ -19,7 +19,6 @@ export const CARGO_GENERATE_TAG = "v0.18.4";
 export const SOLANA_VALIDATOR_PROCESS_NAME = "solana-test-validator";
 export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
-export const FORESTER_PROCESS_NAME = "forester";
 
 export const PHOTON_VERSION = "0.45.0";
 
