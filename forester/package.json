@@ -7,6 +7,9 @@
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
+  "devDependencies": {
+    "@lightprotocol/zk-compression-cli": "workspace:*"
+  },
   "nx": {
     "targets": {
       "build": {
