@@ -40,8 +40,8 @@ impl<'a> HashSetZeroCopy<'a> {
             ));
         }
 
-        let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
-        let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
+        let capacity_values = usize::from_le_bytes(bytes[0..8].try_into().unwrap());
+        let sequence_threshold = usize::from_le_bytes(bytes[8..16].try_into().unwrap());
 
         let offset = HashSet::non_dyn_fields_size() + mem::size_of::<usize>();
 
@@ -105,9 +105,9 @@ impl<'a> HashSetZeroCopy<'a> {
             ));
         }
 
-        bytes[0..8].copy_from_slice(&capacity_values.to_ne_bytes());
-        bytes[8..16].copy_from_slice(&sequence_threshold.to_ne_bytes());
-        bytes[16..24].copy_from_slice(&0_usize.to_ne_bytes());
+        bytes[0..8].copy_from_slice(&capacity_values.to_le_bytes());
+        bytes[8..16].copy_from_slice(&sequence_threshold.to_le_bytes());
+        bytes[16..24].copy_from_slice(&0_usize.to_le_bytes());
 
         let hash_set = Self::from_bytes_zero_copy_mut(bytes)?;
 

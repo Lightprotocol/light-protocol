@@ -39,12 +39,12 @@ where
             ));
         }
 
-        let height = usize::from_ne_bytes(
+        let height = usize::from_le_bytes(
             bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, height)]
                 .try_into()
                 .unwrap(),
         );
-        let canopy_depth = usize::from_ne_bytes(
+        let canopy_depth = usize::from_le_bytes(
             bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, canopy_depth)]
                 .try_into()
                 .unwrap(),
@@ -198,30 +198,30 @@ where
         }
 
         bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, height)]
-            .copy_from_slice(&height.to_ne_bytes());
+            .copy_from_slice(&height.to_le_bytes());
         bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, canopy_depth)]
-            .copy_from_slice(&canopy_depth.to_ne_bytes());
+            .copy_from_slice(&canopy_depth.to_le_bytes());
 
         let mut offset = offset_of!(ConcurrentMerkleTree<H, HEIGHT>, next_index);
         // next_index
-        write_at::<usize>(bytes, &0_usize.to_ne_bytes(), &mut offset);
+        write_at::<usize>(bytes, &0_usize.to_le_bytes(), &mut offset);
         // sequence_number
-        write_at::<usize>(bytes, &0_usize.to_ne_bytes(), &mut offset);
+        write_at::<usize>(bytes, &0_usize.to_le_bytes(), &mut offset);
         // rightmost_leaf
         write_at::<[u8; 32]>(bytes, &H::zero_bytes()[0], &mut offset);
         // filled_subtrees (metadata)
         let filled_subtrees_metadata = BoundedVecMetadata::new(height);
-        write_at::<BoundedVecMetadata>(bytes, &filled_subtrees_metadata.to_ne_bytes(), &mut offset);
+        write_at::<BoundedVecMetadata>(bytes, &filled_subtrees_metadata.to_le_bytes(), &mut offset);
         // changelog (metadata)
         let changelog_metadata = CyclicBoundedVecMetadata::new(changelog_capacity);
-        write_at::<CyclicBoundedVecMetadata>(bytes, &changelog_metadata.to_ne_bytes(), &mut offset);
+        write_at::<CyclicBoundedVecMetadata>(bytes, &changelog_metadata.to_le_bytes(), &mut offset);
         // roots (metadata)
         let roots_metadata = CyclicBoundedVecMetadata::new(roots_capacity);
-        write_at::<CyclicBoundedVecMetadata>(bytes, &roots_metadata.to_ne_bytes(), &mut offset);
+        write_at::<CyclicBoundedVecMetadata>(bytes, &roots_metadata.to_le_bytes(), &mut offset);
         // canopy (metadata)
         let canopy_size = ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(canopy_depth);
         let canopy_metadata = BoundedVecMetadata::new(canopy_size);
-        write_at::<BoundedVecMetadata>(bytes, &canopy_metadata.to_ne_bytes(), &mut offset);
+        write_at::<BoundedVecMetadata>(bytes, &canopy_metadata.to_le_bytes(), &mut offset);
 
         Ok(offset)
     }

@@ -10,7 +10,7 @@ macro_rules! impl_as_byte_vec_for_integer_type {
     ($int_ty:ty) => {
         impl AsByteVec for $int_ty {
             fn as_byte_vec(&self) -> Vec<Vec<u8>> {
-                vec![self.to_ne_bytes().to_vec()]
+                vec![self.to_le_bytes().to_vec()]
             }
         }
     };
@@ -30,7 +30,7 @@ macro_rules! impl_as_byte_vec_for_primitive_type {
                 //   chance of undefined behavior.
                 // - Unfortunately, there is no way to achieve the similar
                 //   result with fully safe code. If we tried to do anything
-                //   like `&self.to_ne_bytes()` or `self.to_ne_bytes().as_slice()`,
+                //   like `&self.to_le_bytes()` or `self.to_le_bytes().as_slice()`,
                 //   compiler would complain with "cannot return reference to
                 //   temporary value".
                 let self_byte_slice = unsafe { slice::from_raw_parts(self_ptr.cast::<u8>(), len) };
@@ -100,74 +100,74 @@ mod test {
         let i8_min: &dyn AsByteVec = &i8::MIN;
         let i8_min_bytes = i8_min.as_byte_vec();
         assert_eq!(i8_min_bytes, &[&[128]]);
-        assert_eq!(i8_min_bytes, &[i8::MIN.to_ne_bytes()]);
+        assert_eq!(i8_min_bytes, &[i8::MIN.to_le_bytes()]);
         let i8_max: &dyn AsByteVec = &i8::MAX;
         let i8_max_bytes = i8_max.as_byte_vec();
         assert_eq!(i8_max_bytes, &[&[127]]);
-        assert_eq!(i8_max_bytes, &[i8::MAX.to_ne_bytes()]);
+        assert_eq!(i8_max_bytes, &[i8::MAX.to_le_bytes()]);
 
         let u8_min: &dyn AsByteVec = &u8::MIN;
         let u8_min_bytes = u8_min.as_byte_vec();
         assert_eq!(u8_min_bytes, &[&[0]]);
-        assert_eq!(u8_min_bytes, &[u8::MIN.to_ne_bytes()]);
+        assert_eq!(u8_min_bytes, &[u8::MIN.to_le_bytes()]);
         let u8_max: &dyn AsByteVec = &u8::MAX;
         let u8_max_bytes = u8_max.as_byte_vec();
         assert_eq!(u8_max_bytes, &[&[255]]);
-        assert_eq!(u8_max_bytes, &[u8::MAX.to_ne_bytes()]);
+        assert_eq!(u8_max_bytes, &[u8::MAX.to_le_bytes()]);
 
         let i16_min: &dyn AsByteVec = &i16::MIN;
         let i16_min_bytes = i16_min.as_byte_vec();
         assert_eq!(i16_min_bytes, &[&[0, 128]]);
-        assert_eq!(i16_min_bytes, &[&i16::MIN.to_ne_bytes()]);
+        assert_eq!(i16_min_bytes, &[&i16::MIN.to_le_bytes()]);
         let i16_max: &dyn AsByteVec = &i16::MAX;
         let i16_max_bytes = i16_max.as_byte_vec();
         assert_eq!(i16_max_bytes, &[&[255, 127]]);
-        assert_eq!(i16_max_bytes, &[i16::MAX.to_ne_bytes()]);
+        assert_eq!(i16_max_bytes, &[i16::MAX.to_le_bytes()]);
 
         let u16_min: &dyn AsByteVec = &u16::MIN;
         let u16_min_bytes = u16_min.as_byte_vec();
         assert_eq!(u16_min_bytes, &[&[0, 0]]);
-        assert_eq!(u16_min_bytes, &[u16::MIN.to_ne_bytes()]);
+        assert_eq!(u16_min_bytes, &[u16::MIN.to_le_bytes()]);
         let u16_max: &dyn AsByteVec = &u16::MAX;
         let u16_max_bytes = u16_max.as_byte_vec();
         assert_eq!(u16_max_bytes, &[&[255, 255]]);
-        assert_eq!(u16_max_bytes, &[u16::MAX.to_ne_bytes()]);
+        assert_eq!(u16_max_bytes, &[u16::MAX.to_le_bytes()]);
 
         let i32_min: &dyn AsByteVec = &i32::MIN;
         let i32_min_bytes = i32_min.as_byte_vec();
         assert_eq!(i32_min_bytes, &[&[0, 0, 0, 128]]);
-        assert_eq!(i32_min_bytes, &[i32::MIN.to_ne_bytes()]);
+        assert_eq!(i32_min_bytes, &[i32::MIN.to_le_bytes()]);
         let i32_max: &dyn AsByteVec = &i32::MAX;
         let i32_max_bytes = i32_max.as_byte_vec();
         assert_eq!(i32_max_bytes, &[&[255, 255, 255, 127]]);
-        assert_eq!(i32_max_bytes, &[i32::MAX.to_ne_bytes()]);
+        assert_eq!(i32_max_bytes, &[i32::MAX.to_le_bytes()]);
 
         let u32_min: &dyn AsByteVec = &u32::MIN;
         let u32_min_bytes = u32_min.as_byte_vec();
         assert_eq!(u32_min_bytes, &[&[0, 0, 0, 0]]);
-        assert_eq!(u32_min_bytes, &[u32::MIN.to_ne_bytes()]);
+        assert_eq!(u32_min_bytes, &[u32::MIN.to_le_bytes()]);
         let u32_max: &dyn AsByteVec = &u32::MAX;
         let u32_max_bytes = u32_max.as_byte_vec();
         assert_eq!(u32_max_bytes, &[&[255, 255, 255, 255]]);
-        assert_eq!(u32_max_bytes, &[u32::MAX.to_ne_bytes()]);
+        assert_eq!(u32_max_bytes, &[u32::MAX.to_le_bytes()]);
 
         let i64_min: &dyn AsByteVec = &i64::MIN;
         let i64_min_bytes = i64_min.as_byte_vec();
         assert_eq!(i64_min_bytes, &[&[0, 0, 0, 0, 0, 0, 0, 128]]);
-        assert_eq!(i64_min_bytes, &[i64::MIN.to_ne_bytes()]);
+        assert_eq!(i64_min_bytes, &[i64::MIN.to_le_bytes()]);
         let i64_max: &dyn AsByteVec = &i64::MAX;
         let i64_max_bytes = i64_max.as_byte_vec();
         assert_eq!(i64_max_bytes, &[&[255, 255, 255, 255, 255, 255, 255, 127]]);
-        assert_eq!(i64_max_bytes, &[i64::MAX.to_ne_bytes()]);
+        assert_eq!(i64_max_bytes, &[i64::MAX.to_le_bytes()]);
 
         let u64_min: &dyn AsByteVec = &u64::MIN;
         let u64_min_bytes = u64_min.as_byte_vec();
         assert_eq!(u64_min_bytes, &[[0, 0, 0, 0, 0, 0, 0, 0]]);
-        assert_eq!(i64_min_bytes, &[i64::MIN.to_ne_bytes()]);
+        assert_eq!(i64_min_bytes, &[i64::MIN.to_le_bytes()]);
         let u64_max: &dyn AsByteVec = &u64::MAX;
         let u64_max_bytes = u64_max.as_byte_vec();
         assert_eq!(u64_max_bytes, &[&[255, 255, 255, 255, 255, 255, 255, 255]]);
-        assert_eq!(u64_max_bytes, &[u64::MAX.to_ne_bytes()]);
+        assert_eq!(u64_max_bytes, &[u64::MAX.to_le_bytes()]);
 
         let i128_min: &dyn AsByteVec = &i128::MIN;
         let i128_min_bytes = i128_min.as_byte_vec();
@@ -175,14 +175,14 @@ mod test {
             i128_min_bytes,
             &[&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128]]
         );
-        assert_eq!(i128_min_bytes, &[i128::MIN.to_ne_bytes()]);
+        assert_eq!(i128_min_bytes, &[i128::MIN.to_le_bytes()]);
         let i128_max: &dyn AsByteVec = &i128::MAX;
         let i128_max_bytes = i128_max.as_byte_vec();
         assert_eq!(
             i128_max_bytes,
             &[&[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127]]
         );
-        assert_eq!(i128_max_bytes, &[i128::MAX.to_ne_bytes()]);
+        assert_eq!(i128_max_bytes, &[i128::MAX.to_le_bytes()]);
 
         let u128_min: &dyn AsByteVec = &u128::MIN;
         let u128_min_bytes = u128_min.as_byte_vec();
@@ -190,14 +190,14 @@ mod test {
             u128_min_bytes,
             &[&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
         );
-        assert_eq!(u128_min_bytes, &[u128::MIN.to_ne_bytes()]);
+        assert_eq!(u128_min_bytes, &[u128::MIN.to_le_bytes()]);
         let u128_max: &dyn AsByteVec = &u128::MAX;
         let u128_max_bytes = u128_max.as_byte_vec();
         assert_eq!(
             u128_max_bytes,
             &[&[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]]
         );
-        assert_eq!(u128_max_bytes, &[u128::MAX.to_ne_bytes()]);
+        assert_eq!(u128_max_bytes, &[u128::MAX.to_le_bytes()]);
     }
 
     #[test]

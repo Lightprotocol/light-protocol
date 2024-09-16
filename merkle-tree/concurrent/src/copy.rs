@@ -27,12 +27,12 @@ where
             ));
         }
 
-        let height = usize::from_ne_bytes(
+        let height = usize::from_le_bytes(
             bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, height)]
                 .try_into()
                 .unwrap(),
         );
-        let canopy_depth = usize::from_ne_bytes(
+        let canopy_depth = usize::from_le_bytes(
             bytes[span_of!(ConcurrentMerkleTree<H, HEIGHT>, canopy_depth)]
                 .try_into()
                 .unwrap(),

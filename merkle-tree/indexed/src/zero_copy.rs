@@ -196,7 +196,7 @@ where
         let indexed_changelog_metadata = CyclicBoundedVecMetadata::new(indexed_changelog_capacity);
         write_at::<CyclicBoundedVecMetadata>(
             bytes,
-            &indexed_changelog_metadata.to_ne_bytes(),
+            &indexed_changelog_metadata.to_le_bytes(),
             &mut offset,
         );
 
