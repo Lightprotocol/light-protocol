@@ -81,7 +81,7 @@ pub fn forester_config() -> ForesterConfig {
             indexer_url: Some("http://localhost:8784".to_string()),
             prover_url: Some("http://localhost:3001".to_string()),
             photon_api_key: None,
-            pushgateway_url: Some("http://localhost:9092/metrics/job/forester".to_string()),
+            pushgateway_url: None,
         },
         retry_config: Default::default(),
         queue_config: Default::default(),
