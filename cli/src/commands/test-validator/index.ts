@@ -77,7 +77,7 @@ class SetupCommand extends Command {
     }),
     stop: Flags.boolean({
       description:
-        "Stops the test validator and dependent processes. Use with --skip-indexer, --skip-prover, --skip-forester to keep specific services running.",
+        "Stops the test validator and dependent processes. Use with --skip-indexer, --skip-prover to keep specific services running.",
       required: false,
       default: false,
     }),
