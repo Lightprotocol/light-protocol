@@ -360,8 +360,8 @@ mod test {
         vec.push(37);
         vec.push(49);
 
-        let metadata_bytes = vec.metadata().to_ne_bytes();
-        let metadata = CyclicBoundedVecMetadata::from_ne_bytes(metadata_bytes);
+        let metadata_bytes = vec.metadata().to_le_bytes();
+        let metadata = CyclicBoundedVecMetadata::from_le_bytes(metadata_bytes);
         let bytes = unsafe {
             slice::from_raw_parts(
                 vec.as_mut_ptr() as *mut u8,

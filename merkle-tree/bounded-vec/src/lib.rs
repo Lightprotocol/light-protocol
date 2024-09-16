@@ -55,17 +55,17 @@ impl BoundedVecMetadata {
         Self { capacity, length }
     }
 
-    pub fn from_ne_bytes(bytes: [u8; mem::size_of::<Self>()]) -> Self {
+    pub fn from_le_bytes(bytes: [u8; mem::size_of::<Self>()]) -> Self {
         Self {
-            capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
-            length: usize::from_ne_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
+            capacity: usize::from_le_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
+            length: usize::from_le_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
         }
     }
 
-    pub fn to_ne_bytes(&self) -> [u8; mem::size_of::<Self>()] {
+    pub fn to_le_bytes(&self) -> [u8; mem::size_of::<Self>()] {
         let mut bytes = [0u8; mem::size_of::<Self>()];
-        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_ne_bytes());
-        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_ne_bytes());
+        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_le_bytes());
+        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_le_bytes());
 
         bytes
     }
@@ -500,23 +500,23 @@ impl CyclicBoundedVecMetadata {
         }
     }
 
-    pub fn from_ne_bytes(bytes: [u8; mem::size_of::<CyclicBoundedVecMetadata>()]) -> Self {
+    pub fn from_le_bytes(bytes: [u8; mem::size_of::<CyclicBoundedVecMetadata>()]) -> Self {
         Self {
-            capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
-            length: usize::from_ne_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
-            first_index: usize::from_ne_bytes(
+            capacity: usize::from_le_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
+            length: usize::from_le_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
+            first_index: usize::from_le_bytes(
                 bytes[span_of!(Self, first_index)].try_into().unwrap(),
             ),
-            last_index: usize::from_ne_bytes(bytes[span_of!(Self, last_index)].try_into().unwrap()),
+            last_index: usize::from_le_bytes(bytes[span_of!(Self, last_index)].try_into().unwrap()),
         }
     }
 
-    pub fn to_ne_bytes(&self) -> [u8; mem::size_of::<Self>()] {
+    pub fn to_le_bytes(&self) -> [u8; mem::size_of::<Self>()] {
         let mut bytes = [0u8; mem::size_of::<Self>()];
-        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_ne_bytes());
-        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_ne_bytes());
-        bytes[span_of!(Self, first_index)].copy_from_slice(&self.first_index.to_ne_bytes());
-        bytes[span_of!(Self, last_index)].copy_from_slice(&self.last_index.to_ne_bytes());
+        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_le_bytes());
+        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_le_bytes());
+        bytes[span_of!(Self, first_index)].copy_from_slice(&self.first_index.to_le_bytes());
+        bytes[span_of!(Self, last_index)].copy_from_slice(&self.last_index.to_le_bytes());
 
         bytes
     }
@@ -960,8 +960,8 @@ mod test {
             assert_eq!(metadata.capacity(), capacity);
             assert_eq!(metadata.length(), 0);
 
-            let bytes = metadata.to_ne_bytes();
-            let metadata_2 = BoundedVecMetadata::from_ne_bytes(bytes);
+            let bytes = metadata.to_le_bytes();
+            let metadata_2 = BoundedVecMetadata::from_le_bytes(bytes);
 
             assert_eq!(metadata, metadata_2);
         }
@@ -1229,8 +1229,8 @@ mod test {
             assert_eq!(metadata.capacity(), capacity);
             assert_eq!(metadata.length(), 0);
 
-            let bytes = metadata.to_ne_bytes();
-            let metadata_2 = CyclicBoundedVecMetadata::from_ne_bytes(bytes);
+            let bytes = metadata.to_le_bytes();
+            let metadata_2 = CyclicBoundedVecMetadata::from_le_bytes(bytes);
 
             assert_eq!(metadata, metadata_2);
         }

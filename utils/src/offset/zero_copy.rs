@@ -211,52 +211,52 @@ mod test {
 
         let mut offset = offset_of!(TestStruct, a);
         assert_eq!(offset, 0);
-        write_at::<isize>(&mut buf, &a.to_ne_bytes(), &mut offset);
+        write_at::<isize>(&mut buf, &a.to_le_bytes(), &mut offset);
         assert_eq!(offset, 8);
 
         let mut offset = offset_of!(TestStruct, b);
         assert_eq!(offset, 8);
-        write_at::<usize>(&mut buf, &b.to_ne_bytes(), &mut offset);
+        write_at::<usize>(&mut buf, &b.to_le_bytes(), &mut offset);
         assert_eq!(offset, 16);
 
         let mut offset = offset_of!(TestStruct, c);
         assert_eq!(offset, 16);
-        write_at::<i64>(&mut buf, &c.to_ne_bytes(), &mut offset);
+        write_at::<i64>(&mut buf, &c.to_le_bytes(), &mut offset);
         assert_eq!(offset, 24);
 
         let mut offset = offset_of!(TestStruct, d);
         assert_eq!(offset, 24);
-        write_at::<u64>(&mut buf, &d.to_ne_bytes(), &mut offset);
+        write_at::<u64>(&mut buf, &d.to_le_bytes(), &mut offset);
         assert_eq!(offset, 32);
 
         let mut offset = offset_of!(TestStruct, e);
         assert_eq!(offset, 32);
-        write_at::<i32>(&mut buf, &e.to_ne_bytes(), &mut offset);
+        write_at::<i32>(&mut buf, &e.to_le_bytes(), &mut offset);
         assert_eq!(offset, 36);
 
         let mut offset = offset_of!(TestStruct, f);
         assert_eq!(offset, 36);
-        write_at::<u32>(&mut buf, &f.to_ne_bytes(), &mut offset);
+        write_at::<u32>(&mut buf, &f.to_le_bytes(), &mut offset);
         assert_eq!(offset, 40);
 
         let mut offset = offset_of!(TestStruct, g);
         assert_eq!(offset, 40);
-        write_at::<i16>(&mut buf, &g.to_ne_bytes(), &mut offset);
+        write_at::<i16>(&mut buf, &g.to_le_bytes(), &mut offset);
         assert_eq!(offset, 42);
 
         let mut offset = offset_of!(TestStruct, h);
         assert_eq!(offset, 44);
-        write_at::<u16>(&mut buf, &h.to_ne_bytes(), &mut offset);
+        write_at::<u16>(&mut buf, &h.to_le_bytes(), &mut offset);
         assert_eq!(offset, 46);
 
         let mut offset = offset_of!(TestStruct, i);
         assert_eq!(offset, 48);
-        write_at::<i8>(&mut buf, &i.to_ne_bytes(), &mut offset);
+        write_at::<i8>(&mut buf, &i.to_le_bytes(), &mut offset);
         assert_eq!(offset, 49);
 
         let mut offset = offset_of!(TestStruct, j);
         assert_eq!(offset, 52);
-        write_at::<u8>(&mut buf, &j.to_ne_bytes(), &mut offset);
+        write_at::<u8>(&mut buf, &j.to_le_bytes(), &mut offset);
         assert_eq!(offset, 53);
 
         let s = buf.as_mut_ptr() as *mut TestStruct;

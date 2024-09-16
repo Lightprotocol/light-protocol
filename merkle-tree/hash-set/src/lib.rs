@@ -185,8 +185,8 @@ impl HashSet {
             ));
         }
 
-        let capacity = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
-        let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
+        let capacity = usize::from_le_bytes(bytes[0..8].try_into().unwrap());
+        let sequence_threshold = usize::from_le_bytes(bytes[8..16].try_into().unwrap());
         let expected_size = Self::size_in_account(capacity);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
