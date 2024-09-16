@@ -101,10 +101,12 @@ impl ForesterConfig {
                 .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
             None => return Err(ForesterError::ConfigError("Payer is required".to_string())),
         };
-        let payer = Keypair::from_bytes(&payer)
-            .map_err(|e| ForesterError::ConfigError(e.to_string()))?;
+        let payer =
+            Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
 
-        let rpc_url = args.rpc_url.clone()
+        let rpc_url = args
+            .rpc_url
+            .clone()
             .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
 
         Ok(Self {
@@ -151,7 +153,9 @@ impl ForesterConfig {
     }
 
     pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
-        let rpc_url = args.rpc_url.clone()
+        let rpc_url = args
+            .rpc_url
+            .clone()
             .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
 
         Ok(Self {
