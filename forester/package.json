@@ -3,28 +3,9 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "restart-db": "docker compose down -v && docker compose up -d db",
-    "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
-    "wait-for-db": "./scripts/wait_for_db.sh",
-    "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres --skip-forester",
-    "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
     "build": "cargo build",
-    "test": "cargo test --package forester -- --test-threads=1 --nocapture",
-    "test-lint": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
-    "generate": "ts-node ./scripts/generate.ts",
-    "docker:build": "docker build --tag forester -f Dockerfile ..",
-    "docker:down": "docker compose down",
-    "docker:up": "docker compose up -d --build",
-    "docker:logs": "docker compose logs -f"
-  },
-  "devDependencies": {
-    "@lightprotocol/stateless.js": "workspace:*",
-    "@lightprotocol/zk-compression-cli": "workspace:*",
-    "@solana/web3.js": "^1.95.0",
-    "borsh": "^2.0.0",
-    "dotenv": "^16.4.5",
-    "ts-node": "^10.9.2",
-    "tweetnacl": "^1.0.3"
+    "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
+    "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "nx": {
     "targets": {
