@@ -133,7 +133,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             Some(queue_metadata.access_metadata.program_owner),
             Some(queue_metadata.access_metadata.forester),
             ctx.accounts.new_address_merkle_tree.key(),
-            queue.hash_set.capacity as u16,
+            queue.hash_set.get_capacity() as u16,
             queue.hash_set.sequence_threshold as u64,
             queue_metadata.rollover_metadata.network_fee,
             Some(queue_metadata.rollover_metadata.rollover_threshold),

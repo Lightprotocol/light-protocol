@@ -108,7 +108,7 @@ impl HashSetCell {
 #[derive(Debug)]
 pub struct HashSet {
     /// Capacity of the buckets.
-    pub capacity: usize,
+    capacity: usize,
     /// Difference of sequence numbers, after which the given element can be
     /// replaced by an another one (with a sequence number higher than the
     /// threshold).
@@ -258,6 +258,10 @@ impl HashSet {
         } else {
             None
         }
+    }
+
+    pub fn get_capacity(&self) -> usize {
+        self.capacity
     }
 
     fn insert_into_occupied_cell(
