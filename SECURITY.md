@@ -5,7 +5,7 @@
 We appreciate any vulnerability found and responsibly disclosed.
 All reward amounts are determined based on our ongoing [bug bounty program](https://immunefi.com/bug-bounty/light-protocol/information/) with Immunefi.
 
-### Smart Contract and Infrastructure
+### Smart Contract
 
 For smart contract and infrastructure vulnerabilities submission guidelines, please see our [bug bounty program](https://immunefi.com/bug-bounty/light-protocol/information/).
 
