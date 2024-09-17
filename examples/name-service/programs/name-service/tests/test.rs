@@ -9,6 +9,7 @@ use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::address::{derive_address, derive_address_seed};
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::error::LightSdkError;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
     PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
@@ -98,8 +99,36 @@ async fn test_name_service() {
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
-    .await;
+    .await
+    .unwrap();
+
+    // Create with invalid light-system-program ID, should not succeed.
+    {
+        let result = create_record(
+            &name,
+            &rdata_1,
+            &mut rpc,
+            &mut test_indexer,
+            &env,
+            &mut remaining_accounts,
+            &payer,
+            &address,
+            &merkle_context,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
+        ));
+    }
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
@@ -127,11 +156,12 @@ async fn test_name_service() {
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
 
-    // Update with invalid owner should not succeed.
+    // Update with invalid owner, should not succeed.
     {
         let invalid_signer = Keypair::new();
         rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
@@ -147,6 +177,7 @@ async fn test_name_service() {
             &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
+            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -154,6 +185,28 @@ async fn test_name_service() {
             Err(RpcError::TransactionError(
                 TransactionError::InstructionError(0, InstructionError::Custom(error))
             ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
+    // Update with invalid light-system-program ID, should not succeed.
+    {
+        let result = update_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &rdata_2,
+            &payer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
         ));
     }
 
@@ -171,7 +224,7 @@ async fn test_name_service() {
     assert_eq!(record.name, "example.io");
     assert_eq!(record.rdata, rdata_2);
 
-    // Delete with invalid owner should not succeed.
+    // Delete with invalid owner, should not succeed.
     {
         let invalid_signer = Keypair::new();
         rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
@@ -186,6 +239,7 @@ async fn test_name_service() {
             &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
+            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -193,6 +247,27 @@ async fn test_name_service() {
             Err(RpcError::TransactionError(
                 TransactionError::InstructionError(0, InstructionError::Custom(error))
             ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
+    // Delete with invalid light-system-program ID, should not succeed.
+    {
+        let result = delete_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &payer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
         ));
     }
 
@@ -206,6 +281,7 @@ async fn test_name_service() {
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
@@ -224,7 +300,9 @@ async fn create_record<R>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) where
+    light_system_program: &Pubkey,
+) -> Result<(), RpcError>
+where
     R: RpcConnection + MerkleTreeExt,
 {
     let rpc_result = test_indexer
@@ -252,7 +330,7 @@ async fn create_record<R>(
 
     let accounts = name_service::accounts::CreateRecord {
         signer: payer.pubkey(),
-        light_system_program: PROGRAM_ID_LIGHT_SYSTEM,
+        light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
@@ -272,10 +350,9 @@ async fn create_record<R>(
 
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
-        .await
-        .unwrap()
-        .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+        .await?;
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    Ok(())
 }
 
 async fn update_record<R>(
@@ -288,6 +365,7 @@ async fn update_record<R>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
+    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -330,7 +408,7 @@ where
 
     let accounts = name_service::accounts::UpdateRecord {
         signer: payer.pubkey(),
-        light_system_program: PROGRAM_ID_LIGHT_SYSTEM,
+        light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
@@ -364,6 +442,7 @@ async fn delete_record<R>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
+    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -405,7 +484,7 @@ where
 
     let accounts = name_service::accounts::DeleteRecord {
         signer: payer.pubkey(),
-        light_system_program: PROGRAM_ID_LIGHT_SYSTEM,
+        light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,

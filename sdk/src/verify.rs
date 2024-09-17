@@ -7,6 +7,7 @@ use crate::{
     compressed_account::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
+    error::LightSdkError,
     proof::CompressedProof,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
@@ -235,6 +236,10 @@ pub fn verify<'info, 'a, 'b, 'c, T>(
 where
     T: BorshSerialize,
 {
+    if ctx.accounts.get_light_system_program().key() != PROGRAM_ID_LIGHT_SYSTEM {
+        return err!(LightSdkError::InvalidLightSystemProgram);
+    }
+
     let inputs = inputs.try_to_vec()?;
 
     let (account_infos, account_metas) = setup_cpi_accounts(ctx);
