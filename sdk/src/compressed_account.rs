@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::{AccountInfo, ProgramError, Pubkey, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
-// use light_system_program::sdk::address::derive_address;
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{

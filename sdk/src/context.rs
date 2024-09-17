@@ -101,11 +101,7 @@ where
         )
         .1;
         let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
-        anchor_lang::prelude::msg!("SIGNER_SEEDS: {:?}", signer_seeds);
 
-        // TODO(vadorovsky): Remove.
-        // self.light_accounts
-        //     .derive_address_seeds(address_merkle_context, remaining_accounts);
         let new_address_params = self.light_accounts.new_address_params();
         let input_compressed_accounts_with_merkle_context = self
             .light_accounts

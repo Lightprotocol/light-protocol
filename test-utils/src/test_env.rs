@@ -353,7 +353,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
-    // let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
@@ -361,7 +360,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     )
     .await
     .unwrap();
-    // let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
     airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
@@ -388,7 +386,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     let context = setup_test_programs(additional_programs).await;
     let mut context = light_client::rpc::test_rpc::ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
-    // let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
@@ -396,7 +393,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     )
     .await
     .unwrap();
-    // let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
     airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();

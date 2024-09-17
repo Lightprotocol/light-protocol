@@ -34,8 +34,6 @@ async fn test_name_service() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    // let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
-    //     TestIndexer::init_from_env(&payer, &env, true, true).await;
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
         &[StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
