@@ -38,12 +38,12 @@ pub struct CompressedProof {
 #[cfg(feature = "idl-build")]
 impl anchor_lang::IdlBuild for CompressedProof {}
 
-#[derive(Debug)]
-pub struct ProofRpcResult {
+#[derive(Debug, BorshDeserialize, BorshSerialize)]
+pub struct ProofWithIndices {
     pub proof: CompressedProof,
     pub root_indices: Vec<u16>,
     pub address_root_indices: Vec<u16>,
 }
 
 #[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for ProofRpcResult {}
+impl anchor_lang::IdlBuild for ProofWithIndices {}

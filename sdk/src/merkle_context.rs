@@ -166,12 +166,14 @@ pub fn pack_merkle_output_context(
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,
+    pub root_index: u16,
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,
+    pub root_index: u16,
 }
 
 /// Returns a vector of [`PackedAddressMerkleContext`] and fills up
@@ -190,6 +192,7 @@ pub fn pack_address_merkle_contexts(
             PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index,
                 address_queue_pubkey_index,
+                root_index: x.root_index,
             }
         })
         .collect::<Vec<_>>()

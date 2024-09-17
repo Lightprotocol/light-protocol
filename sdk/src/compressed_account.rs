@@ -6,21 +6,18 @@ use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    address::{derive_address, NewAddressParamsPacked},
+    address::{self, derive_address, NewAddressParamsPacked},
+    context::LightCompressedAccounts,
     merkle_context::{
-        pack_merkle_context, MerkleContext, PackedAddressMerkleContext, PackedMerkleContext,
-        RemainingAccounts,
+        pack_merkle_context, AddressMerkleContext, MerkleContext, PackedAddressMerkleContext,
+        PackedMerkleContext, RemainingAccounts,
     },
     program_merkle_context::unpack_address_merkle_context,
 };
 
 pub trait LightAccounts: Sized {
     fn try_light_accounts(
-        inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        compressed_accounts: &LightCompressedAccounts,
         remaining_accounts: &[AccountInfo],
     ) -> Result<Self>;
     fn new_address_params(&self) -> Vec<NewAddressParamsPacked>;
@@ -49,43 +46,45 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn new_init(
-        merkle_context: &PackedMerkleContext,
-        address_merkle_context: &PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        compressed_account: &PackedCompressedAccountWithMerkleContext,
+        address_merkle_context: PackedAddressMerkleContext,
     ) -> Self {
         Self::Init(LightInitAccount::new(
-            merkle_context,
+            compressed_account,
             address_merkle_context,
-            address_merkle_tree_root_index,
         ))
     }
 
-    pub fn try_from_slice_mut(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        Ok(Self::Mut(LightMutAccount::try_from_slice(
-            v,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-        )?))
+    pub fn new_mut(compressed_account: &PackedCompressedAccountWithMerkleContext) -> Result<Self> {
+        Ok(Self::Mut(LightMutAccount::new(compressed_account)?))
     }
 
-    pub fn try_from_slice_close(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
+    pub fn new_close(
+        compressed_account: &PackedCompressedAccountWithMerkleContext,
     ) -> Result<Self> {
-        Ok(Self::Close(LightCloseAccount::try_from_slice(
-            v,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-        )?))
+        Ok(Self::Close(LightCloseAccount::new(compressed_account)?))
+    }
+
+    pub fn derive_address_seed(
+        &self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        address_merkle_context: &PackedAddressMerkleContext,
+        remaining_accounts: &[AccountInfo],
+    ) -> [u8; 32] {
+        let address_merkle_context =
+            unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
+        match self {
+            Self::Init(light_init_account) => {
+                light_init_account.derive_address_seed(seeds, program_id, &address_merkle_context)
+            }
+            Self::Mut(light_mut_account) => {
+                light_mut_account.derive_address_seed(seeds, program_id, &address_merkle_context)
+            }
+            Self::Close(light_close_account) => {
+                light_close_account.derive_address_seed(seeds, program_id, &address_merkle_context)
+            }
+        }
     }
 
     pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
@@ -104,40 +103,30 @@ where
         }
     }
 
-    pub fn input_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+    pub fn input_compressed_account(&self) -> Option<PackedCompressedAccountWithMerkleContext> {
         match self {
-            Self::Init(_) => Ok(None),
+            Self::Init(_) => None,
             Self::Mut(light_mut_account) => {
-                let account =
-                    light_mut_account.input_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
+                let account = light_mut_account.input_compressed_account();
+                Some(account)
             }
             Self::Close(light_close_account) => {
-                let account =
-                    light_close_account.input_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
+                let account = light_close_account.input_compressed_account();
+                Some(account)
             }
         }
     }
 
     pub fn output_compressed_account(
         &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
         match self {
             Self::Init(light_init_account) => {
-                let account =
-                    light_init_account.output_compressed_account(program_id, remaining_accounts)?;
+                let account = light_init_account.output_compressed_account()?;
                 Ok(Some(account))
             }
             Self::Mut(light_mut_account) => {
-                let account =
-                    light_mut_account.output_compressed_account(program_id, remaining_accounts)?;
+                let account = light_mut_account.output_compressed_account()?;
                 Ok(Some(account))
             }
             Self::Close(_) => Ok(None),
@@ -178,10 +167,9 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
 {
     output_account: T,
-    address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
+    compressed_account: PackedCompressedAccountWithMerkleContext,
     address_merkle_context: PackedAddressMerkleContext,
-    address_merkle_tree_root_index: u16,
+    address_seed: Option<[u8; 32]>,
 }
 
 impl<T> LightInitAccount<T>
@@ -189,19 +177,26 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + Default + DataHasher + Discriminator,
 {
     pub fn new(
-        merkle_context: &PackedMerkleContext,
-        address_merkle_context: &PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        compressed_account: &PackedCompressedAccountWithMerkleContext,
+        address_merkle_context: PackedAddressMerkleContext,
     ) -> Self {
         let output_account = T::default();
 
         Self {
             output_account,
+            compressed_account: compressed_account.clone(),
+            address_merkle_context,
             address_seed: None,
-            merkle_context: *merkle_context,
-            address_merkle_context: *address_merkle_context,
-            address_merkle_tree_root_index,
         }
+    }
+
+    pub fn derive_address_seed(
+        &self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        address_merkle_context: &AddressMerkleContext,
+    ) -> [u8; 32] {
+        address::derive_address_seed(seeds, program_id, address_merkle_context)
     }
 
     pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
@@ -215,23 +210,28 @@ where
                 .address_merkle_context
                 .address_merkle_tree_pubkey_index,
             address_queue_account_index: self.address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_root_index: self.address_merkle_tree_root_index,
+            address_merkle_tree_root_index: self.address_merkle_context.root_index,
         }
     }
 
-    pub fn output_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
-        output_compressed_account(
-            &self.output_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
+    pub fn output_compressed_account(&self) -> Result<OutputCompressedAccountWithPackedContext> {
+        let mut compressed_account = self.compressed_account.compressed_account.clone();
+        let data = self.output_account.try_to_vec()?;
+        compressed_account.data = Some(CompressedAccountData {
+            discriminator: T::discriminator(),
+            data,
+            data_hash: self
+                .output_account
+                .hash::<Poseidon>()
+                .map_err(ProgramError::from)?,
+        });
+        Ok(OutputCompressedAccountWithPackedContext {
+            compressed_account,
+            merkle_tree_index: self
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey_index,
+        })
     }
 }
 
@@ -259,69 +259,70 @@ pub struct LightMutAccount<T>
 where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
 {
-    input_account: T,
+    // input_account: T,
     output_account: T,
+    compressed_account: PackedCompressedAccountWithMerkleContext,
     address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    merkle_tree_root_index: u16,
-    address_merkle_context: PackedAddressMerkleContext,
 }
 
 impl<T> LightMutAccount<T>
 where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
 {
-    pub fn try_from_slice(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        let account = T::try_from_slice(v)?;
+    pub fn new(compressed_account: &PackedCompressedAccountWithMerkleContext) -> Result<Self> {
+        let account = T::try_from_slice(
+            compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .expect("data to be present in the `light_account`")
+                .data
+                .as_slice(),
+        )?;
 
         Ok(Self {
-            input_account: account.clone(),
+            // input_account: account.clone(),
             output_account: account,
+            compressed_account: compressed_account.clone(),
             address_seed: None,
-            merkle_context: *merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context: *address_merkle_context,
         })
+    }
+
+    pub fn derive_address_seed(
+        &self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        address_merkle_context: &AddressMerkleContext,
+    ) -> [u8; 32] {
+        address::derive_address_seed(seeds, program_id, address_merkle_context)
     }
 
     pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
         self.address_seed = Some(address_seed);
     }
 
-    pub fn input_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
-        input_compressed_account(
-            &self.input_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            self.merkle_tree_root_index,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
+    pub fn input_compressed_account(&self) -> PackedCompressedAccountWithMerkleContext {
+        self.compressed_account.clone()
     }
 
-    pub fn output_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
-        output_compressed_account(
-            &self.output_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
+    pub fn output_compressed_account(&self) -> Result<OutputCompressedAccountWithPackedContext> {
+        let mut compressed_account = self.compressed_account.compressed_account.clone();
+        let data = self.output_account.try_to_vec()?;
+        compressed_account.data = Some(CompressedAccountData {
+            discriminator: T::discriminator(),
+            data,
+            data_hash: self
+                .output_account
+                .hash::<Poseidon>()
+                .map_err(ProgramError::from)?,
+        });
+        Ok(OutputCompressedAccountWithPackedContext {
+            compressed_account,
+            merkle_tree_index: self
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey_index,
+        })
     }
 }
 
@@ -350,51 +351,47 @@ where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
 {
     input_account: T,
+    compressed_account: PackedCompressedAccountWithMerkleContext,
     address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    merkle_tree_root_index: u16,
-    address_merkle_context: PackedAddressMerkleContext,
 }
 
 impl<T> LightCloseAccount<T>
 where
     T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
 {
-    pub fn try_from_slice(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        let input_account = T::try_from_slice(v)?;
+    pub fn new(compressed_account: &PackedCompressedAccountWithMerkleContext) -> Result<Self> {
+        let input_account = T::try_from_slice(
+            compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .expect("data to be present in the `light_account`")
+                .data
+                .as_slice(),
+        )?;
 
         Ok(Self {
             input_account,
+            compressed_account: compressed_account.clone(),
             address_seed: None,
-            merkle_context: *merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context: *address_merkle_context,
         })
+    }
+
+    pub fn derive_address_seed(
+        &self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        address_merkle_context: &AddressMerkleContext,
+    ) -> [u8; 32] {
+        address::derive_address_seed(seeds, program_id, address_merkle_context)
     }
 
     pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
         self.address_seed = Some(address_seed);
     }
 
-    pub fn input_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
-        input_compressed_account(
-            &self.input_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            self.merkle_tree_root_index,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
+    pub fn input_compressed_account(&self) -> PackedCompressedAccountWithMerkleContext {
+        self.compressed_account.clone()
     }
 }
 
@@ -512,6 +509,18 @@ pub struct PackedCompressedAccountWithMerkleContext {
 }
 
 impl CompressedAccountWithMerkleContext {
+    pub fn new(owner: Pubkey, lamports: u64, merkle_context: MerkleContext) -> Self {
+        Self {
+            compressed_account: CompressedAccount {
+                owner,
+                lamports,
+                address: None,
+                data: None,
+            },
+            merkle_context,
+        }
+    }
+
     pub fn hash(&self) -> Result<[u8; 32]> {
         self.compressed_account.hash::<Poseidon>(
             &self.merkle_context.merkle_tree_pubkey,
@@ -536,6 +545,21 @@ pub fn serialize_and_hash_account<T>(
 where
     T: BorshSerialize + DataHasher + Discriminator,
 {
+    let address_merkle_context =
+        unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
+    let address = derive_address(address_seed, &address_merkle_context);
+
+    serialize_and_hash_account_with_address(account, address, program_id)
+}
+
+pub fn serialize_and_hash_account_with_address<T>(
+    account: &T,
+    address: [u8; 32],
+    program_id: &Pubkey,
+) -> Result<CompressedAccount>
+where
+    T: BorshSerialize + DataHasher + Discriminator,
+{
     let data = account.try_to_vec()?;
     let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
     let compressed_account_data = CompressedAccountData {
@@ -543,11 +567,6 @@ where
         data,
         data_hash,
     };
-
-    let address_merkle_context =
-        unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
-    let address = derive_address(address_seed, &address_merkle_context);
-    anchor_lang::prelude::msg!("ADDRESS: {:?}", address);
 
     let compressed_account = CompressedAccount {
         owner: *program_id,

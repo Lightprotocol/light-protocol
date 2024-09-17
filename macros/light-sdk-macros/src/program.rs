@@ -182,24 +182,10 @@ impl VisitMut for LightProgramTransform {
             .insert(params_name.clone(), instruction_params.clone());
         let inputs_ident = Ident::new(&params_name, Span::call_site());
 
-        // Inject an `inputs: Vec<Vec<u8>>` argument to all instructions. The
-        // purpose of that additional argument is passing compressed accounts.
-        let inputs_arg: FnArg = parse_quote! { inputs: Vec<Vec<u8>> };
-        i.sig.inputs.insert(1, inputs_arg);
-
-        // Inject Merkle context related arguments.
-        let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::proof::CompressedProof };
-        i.sig.inputs.insert(2, proof_arg);
-        let merkle_context_arg: FnArg =
-            parse_quote! { merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
-        i.sig.inputs.insert(3, merkle_context_arg);
-        let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
-        i.sig.inputs.insert(5, address_merkle_context_arg);
-        let address_merkle_tree_root_index_arg: FnArg =
-            parse_quote! { address_merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(6, address_merkle_tree_root_index_arg);
+        // Inject `LightCompressedAccounts`.
+        let proof_arg: FnArg =
+            parse_quote! { compressed_accounts: ::light_sdk::context::LightCompressedAccounts };
+        i.sig.inputs.insert(1, proof_arg);
 
         // Inject a `LightContext` into the function body.
         let light_context_stmt: Stmt = parse_quote! {
@@ -208,11 +194,7 @@ impl VisitMut for LightProgramTransform {
                 #light_accounts_ident
             > = ::light_sdk::context::LightContext::new(
                 ctx,
-                inputs,
-                merkle_context,
-                merkle_tree_root_index,
-                address_merkle_context,
-                address_merkle_tree_root_index,
+                compressed_accounts,
             )?;
         };
         i.block.stmts.insert(0, light_context_stmt);
@@ -225,23 +207,23 @@ impl VisitMut for LightProgramTransform {
         // require even messier code...
         //
         // We move the inputs to that struct, so no copies are being made.
-        let input_idents = instruction_params
+        let instruction_param_idents = instruction_params
             .iter()
             .map(|input| input.name.clone())
             .collect::<Vec<Ident>>();
         let inputs_pack_stmt: Stmt = parse_quote! {
-            let inputs = #inputs_ident { #(#input_idents),* };
+            let instruction_params = #inputs_ident { #(#instruction_param_idents),* };
         };
         i.block.stmts.insert(1, inputs_pack_stmt);
 
         // Inject `check_constraints` and `derive_address_seeds` calls right
         // after.
         let check_constraints_stmt: Stmt = parse_quote! {
-            ctx.check_constraints(&inputs)?;
+            ctx.check_constraints(&instruction_params)?;
         };
         i.block.stmts.insert(2, check_constraints_stmt);
         let derive_address_seed_stmt: Stmt = parse_quote! {
-            ctx.derive_address_seeds(address_merkle_context, &inputs);
+            ctx.derive_address_seeds(&instruction_params);
         };
         i.block.stmts.insert(3, derive_address_seed_stmt);
 
@@ -252,14 +234,14 @@ impl VisitMut for LightProgramTransform {
         // Unpacking of the struct means moving the values and no copies are
         // being made.
         let inputs_unpack_stmt: Stmt = parse_quote! {
-            let #inputs_ident { #(#input_idents),* } = inputs;
+            let #inputs_ident { #(#instruction_param_idents),* } = instruction_params;
         };
         i.block.stmts.insert(4, inputs_unpack_stmt);
 
         // Inject `verify` statements at the end of the function.
         let stmts_len = i.block.stmts.len();
         let verify_stmt: Stmt = parse_quote! {
-            ctx.verify(proof)?;
+            ctx.verify()?;
         };
         i.block.stmts.insert(stmts_len - 1, verify_stmt);
     }

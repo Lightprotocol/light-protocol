@@ -1,12 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::{context::Context, prelude::Pubkey, Bumps, Key, Result};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    compressed_account::LightAccounts,
+    compressed_account::{LightAccounts, PackedCompressedAccountWithMerkleContext},
     constants::CPI_AUTHORITY_PDA_SEED,
-    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
-    proof::CompressedProof,
+    merkle_context::PackedAddressMerkleContext,
+    proof::ProofWithIndices,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -37,6 +38,9 @@ where
 {
     /// Context provided by Anchor.
     pub anchor_context: Context<'a, 'b, 'c, 'info, T>,
+    /// Compressed accounts provided by the called in the instruction.
+    pub compressed_accounts: LightCompressedAccounts,
+    /// Parsed light accounts.
     pub light_accounts: U,
 }
 
@@ -74,27 +78,18 @@ where
 {
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
-        inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        compressed_accounts: LightCompressedAccounts,
     ) -> Result<Self> {
-        let light_accounts = U::try_light_accounts(
-            inputs,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-            address_merkle_tree_root_index,
-            anchor_context.remaining_accounts,
-        )?;
+        let light_accounts =
+            U::try_light_accounts(&compressed_accounts, anchor_context.remaining_accounts)?;
         Ok(Self {
             anchor_context,
+            compressed_accounts,
             light_accounts,
         })
     }
 
-    pub fn verify(&mut self, proof: CompressedProof) -> Result<()> {
+    pub fn verify(&mut self) -> Result<()> {
         let bump = Pubkey::find_program_address(
             &[CPI_AUTHORITY_PDA_SEED],
             &self.anchor_context.accounts.get_invoking_program().key(),
@@ -111,7 +106,11 @@ where
             .output_accounts(self.anchor_context.remaining_accounts)?;
 
         let instruction = InstructionDataInvokeCpi {
-            proof: Some(proof),
+            proof: self
+                .compressed_accounts
+                .proof
+                .as_ref()
+                .map(|proof| proof.proof.clone()),
             new_address_params,
             relay_fee: None,
             input_compressed_accounts_with_merkle_context,
@@ -130,3 +129,14 @@ where
         Ok(())
     }
 }
+
+/// Format in which compressed accounts are provided in instructions.
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct LightCompressedAccounts {
+    pub proof: Option<ProofWithIndices>,
+    pub accounts: Vec<PackedCompressedAccountWithMerkleContext>,
+    pub new_addresses: Vec<PackedAddressMerkleContext>,
+}
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for LightCompressedAccounts {}

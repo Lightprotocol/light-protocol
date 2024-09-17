@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
@@ -8,11 +8,12 @@ use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeA
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::address::{derive_address, derive_address_seed};
-use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::compressed_account::{pack_compressed_account, CompressedAccountWithMerkleContext};
+use light_sdk::context::LightCompressedAccounts;
 use light_sdk::error::LightSdkError;
 use light_sdk::merkle_context::{
-    pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
-    PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
+    pack_address_merkle_context, AddressMerkleContext, PackedAddressMerkleContext,
+    RemainingAccounts,
 };
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
@@ -54,17 +55,22 @@ async fn test_name_service() {
 
     let mut remaining_accounts = RemainingAccounts::default();
 
-    let merkle_context = MerkleContext {
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        leaf_index: 0,
-        queue_index: None,
-    };
-    let merkle_context = pack_merkle_context(merkle_context, &mut remaining_accounts);
+    // let merkle_context = MerkleContext {
+    //     merkle_tree_pubkey: env.merkle_tree_pubkey,
+    //     nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+    //     leaf_index: 0,
+    //     queue_index: None,
+    // };
 
+    let root_index = rpc
+        .get_address_merkle_tree(env.address_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .root_index() as u16;
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        root_index,
     };
 
     let address_seed = derive_address_seed(
@@ -95,7 +101,6 @@ async fn test_name_service() {
         &mut remaining_accounts,
         &payer,
         &address,
-        &merkle_context,
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
@@ -115,7 +120,6 @@ async fn test_name_service() {
             &mut remaining_accounts,
             &payer,
             &address,
-            &merkle_context,
             &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
@@ -153,7 +157,6 @@ async fn test_name_service() {
         &rdata_2,
         &payer,
         compressed_account,
-        &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -174,7 +177,6 @@ async fn test_name_service() {
             &rdata_2,
             &invalid_signer,
             compressed_account,
-            &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
             &PROGRAM_ID_LIGHT_SYSTEM,
@@ -196,7 +198,6 @@ async fn test_name_service() {
             &rdata_2,
             &payer,
             compressed_account,
-            &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
             &Pubkey::new_unique(),
@@ -236,7 +237,6 @@ async fn test_name_service() {
             &mut remaining_accounts,
             &invalid_signer,
             compressed_account,
-            &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
             &PROGRAM_ID_LIGHT_SYSTEM,
@@ -257,7 +257,6 @@ async fn test_name_service() {
             &mut remaining_accounts,
             &payer,
             compressed_account,
-            &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
             &Pubkey::new_unique(),
@@ -278,7 +277,6 @@ async fn test_name_service() {
         &mut remaining_accounts,
         &payer,
         compressed_account,
-        &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -296,7 +294,6 @@ async fn create_record<R>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-    merkle_context: &PackedMerkleContext,
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
@@ -305,7 +302,7 @@ async fn create_record<R>(
 where
     R: RpcConnection + MerkleTreeExt,
 {
-    let rpc_result = test_indexer
+    let proof = test_indexer
         .create_proof_for_compressed_accounts(
             None,
             None,
@@ -316,12 +313,11 @@ where
         .await;
 
     let instruction_data = name_service::instruction::CreateRecord {
-        inputs: Vec::new(),
-        proof: rpc_result.proof,
-        merkle_context: *merkle_context,
-        merkle_tree_root_index: 0,
-        address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+        compressed_accounts: LightCompressedAccounts {
+            proof: Some(proof),
+            accounts: Vec::new(),
+            new_addresses: vec![*address_merkle_context],
+        },
         name: name.to_string(),
         rdata: rdata.clone(),
     };
@@ -362,7 +358,6 @@ async fn update_record<R>(
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -373,7 +368,7 @@ where
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
+    let proof = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&[hash]),
             Some(&[merkle_tree_pubkey]),
@@ -383,24 +378,20 @@ where
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    // let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
 
-    let inputs = vec![
-        compressed_account
-            .compressed_account
-            .data
-            .clone()
-            .unwrap()
-            .data,
-    ];
+    let account = pack_compressed_account(
+        compressed_account.clone(),
+        proof.root_indices[0],
+        remaining_accounts,
+    );
 
     let instruction_data = name_service::instruction::UpdateRecord {
-        inputs,
-        proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
-        address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: 0,
+        compressed_accounts: LightCompressedAccounts {
+            proof: Some(proof),
+            accounts: vec![account],
+            new_addresses: Vec::new(),
+        },
         new_rdata: new_rdata.clone(),
     };
 
@@ -439,7 +430,6 @@ async fn delete_record<R>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -450,7 +440,7 @@ where
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
+    let proof = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&[hash]),
             Some(&[merkle_tree_pubkey]),
@@ -460,24 +450,18 @@ where
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
-
-    let inputs = vec![
-        compressed_account
-            .compressed_account
-            .data
-            .clone()
-            .unwrap()
-            .data,
-    ];
+    let account = pack_compressed_account(
+        compressed_account.clone(),
+        proof.root_indices[0],
+        remaining_accounts,
+    );
 
     let instruction_data = name_service::instruction::DeleteRecord {
-        inputs,
-        proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
-        address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: 0,
+        compressed_accounts: LightCompressedAccounts {
+            proof: Some(proof),
+            accounts: vec![account],
+            new_addresses: Vec::new(),
+        },
     };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);

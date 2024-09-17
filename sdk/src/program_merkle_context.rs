@@ -20,6 +20,7 @@ pub fn pack_address_merkle_contexts(
             PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index,
                 address_queue_pubkey_index,
+                root_index: x.root_index,
             }
         })
         .collect::<Vec<_>>()
@@ -46,6 +47,7 @@ pub fn unpack_address_merkle_contexts(
             AddressMerkleContext {
                 address_merkle_tree_pubkey,
                 address_queue_pubkey,
+                root_index: x.root_index,
             }
         })
         .collect::<Vec<_>>()

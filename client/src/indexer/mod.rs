@@ -8,7 +8,7 @@ use light_indexed_merkle_tree::{
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::ProofRpcResult, token::TokenDataWithMerkleContext,
+    proof::ProofWithIndices, token::TokenDataWithMerkleContext,
 };
 use num_bigint::BigUint;
 use solana_sdk::pubkey::Pubkey;
@@ -48,7 +48,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> impl Future<Output = ProofRpcResult>;
+    ) -> impl Future<Output = ProofWithIndices>;
 
     fn get_compressed_accounts_by_owner(
         &self,

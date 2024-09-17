@@ -169,6 +169,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     let mut derive_address_seed_calls = Vec::new();
     let mut set_address_seed_calls = Vec::new();
 
+    let mut i = 0_usize;
     for field in fields.named.iter() {
         let mut light_account = false;
         for attr in &field.attrs {
@@ -181,7 +182,10 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             light_accounts_fields.push(field.clone());
             light_field_idents.push(field.ident.clone());
 
-            let field_ident = &field.ident;
+            let field_ident = field.ident.as_ref().ok_or(Error::new(
+                Span::call_site(),
+                "only named fields are supported",
+            ))?;
 
             let mut account_args = None;
             for attribute in &field.attrs {
@@ -224,16 +228,22 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             }
 
             let seeds = account_args.seeds;
+            let seed_var_ident =
+                Ident::new(&format!("{}_address_seed", field_ident), Span::call_site());
             derive_address_seed_calls.push(quote! {
-                let address_seed = ::light_sdk::address::derive_address_seed(
-                    &#seeds,
-                    &crate::ID,
-                    &unpacked_address_merkle_context,
+                let address_merkle_context =
+                    ::light_sdk::program_merkle_context::unpack_address_merkle_context(
+                        self.compressed_accounts.new_addresses[#i],
+                        self.anchor_context.remaining_accounts,
+                    );
+                let #seed_var_ident = light_sdk::address::derive_address_seed(
+                    &#seeds, &crate::ID, &address_merkle_context
                 );
             });
             set_address_seed_calls.push(quote! {
-                #field_ident.set_address_seed(address_seed);
-            })
+                #field_ident.set_address_seed(#seed_var_ident);
+            });
+            i += 1;
         } else {
             anchor_fields.push(field.clone());
             anchor_field_idents.push(field.ident.clone());
@@ -270,7 +280,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             let param_names = instruction_params.param_names;
             let param_type_checks = instruction_params.param_type_checks;
             quote! {
-                let #params_name { #(#param_names),*, .. } = inputs;
+                let #params_name { #(#param_names),*, .. } = instruction_params;
                 #(#param_type_checks)*
             }
         }
@@ -287,12 +297,11 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
         pub trait #ext_trait_name {
             fn check_constraints(
                 &self,
-                inputs: &#params_name,
+                instruction_params: &#params_name,
             ) -> Result<()>;
             fn derive_address_seeds(
                 &mut self,
-                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
-                inputs: &#params_name,
+                instruction_params: &#params_name,
             );
         }
 
@@ -303,7 +312,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             #[allow(unused_variables)]
             fn check_constraints(
                 &self,
-                inputs: &#params_name,
+                instruction_params: &#params_name,
             ) -> Result<()> {
                 let #anchor_accounts_name {
                     #(#anchor_field_idents),*, ..
@@ -319,18 +328,13 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             #[allow(unused_variables)]
             fn derive_address_seeds(
                 &mut self,
-                address_merkle_context: PackedAddressMerkleContext,
-                inputs: &#params_name,
+                instruction_params: &#params_name,
             ) {
                 let #anchor_accounts_name {
                     #(#anchor_field_idents),*, ..
                 } = &self.anchor_context.accounts;
                 #light_referrable_fields
                 #input_fields
-
-                let unpacked_address_merkle_context =
-                    ::light_sdk::program_merkle_context::unpack_address_merkle_context(
-                        address_merkle_context, self.anchor_context.remaining_accounts);
 
                 #(#derive_address_seed_calls)*
 
@@ -464,7 +468,9 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
         }
     };
 
-    for (i, field) in fields.named.iter().enumerate() {
+    let mut i_init = 0_usize;
+    let mut i_mut_close = 0_usize;
+    for field in fields.named.iter() {
         let field_ident = &field.ident;
         field_idents.push(field_ident);
 
@@ -504,29 +510,34 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             },
         };
         let try_from_slice_call = match account_args.action {
-            LightAccountAction::Init => quote! {
-                let mut #field_ident: #type_path = #type_path_without_args::new_init(
-                    &merkle_context,
-                    &address_merkle_context,
-                    address_merkle_tree_root_index,
-                );
-            },
-            LightAccountAction::Mut => quote! {
-                let mut #field_ident: #type_path = #type_path_without_args::try_from_slice_mut(
-                    inputs[#i].as_slice(),
-                    &merkle_context,
-                    merkle_tree_root_index,
-                    &address_merkle_context,
-                )?;
-            },
-            LightAccountAction::Close => quote! {
-                let mut #field_ident: #type_path = #type_path_without_args::try_from_slice_close(
-                    inputs[#i].as_slice(),
-                    &merkle_context,
-                    merkle_tree_root_index,
-                    &address_merkle_context,
-                )?;
-            },
+            LightAccountAction::Init => {
+                let call = quote! {
+                    let mut #field_ident: #type_path = #type_path_without_args::new_init(
+                        &compressed_accounts.accounts[#i_init],
+                        compressed_accounts.new_addresses[#i_init],
+                    );
+                };
+                i_init += 1;
+                call
+            }
+            LightAccountAction::Mut => {
+                let call = quote! {
+                    let mut #field_ident: #type_path = #type_path_without_args::new_mut(
+                        &compressed_accounts.accounts[#i_mut_close],
+                    )?;
+                };
+                i_mut_close += 1;
+                call
+            }
+            LightAccountAction::Close => {
+                let call = quote! {
+                    let mut #field_ident: #type_path = #type_path_without_args::new_close(
+                        &compressed_accounts.accounts[#i_mut_close],
+                    )?;
+                };
+                i_mut_close += 1;
+                call
+            }
         };
         try_from_slice_calls.push(try_from_slice_call);
 
@@ -536,18 +547,12 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             }
         });
         input_account_calls.push(quote! {
-            if let Some(compressed_account) = self.#field_ident.input_compressed_account(
-                &crate::ID,
-                remaining_accounts,
-            )? {
+            if let Some(compressed_account) = self.#field_ident.input_compressed_account() {
                 accounts.push(compressed_account);
             }
         });
         output_account_calls.push(quote! {
-            if let Some(compressed_account) = self.#field_ident.output_compressed_account(
-                &crate::ID,
-                remaining_accounts,
-            )? {
+            if let Some(compressed_account) = self.#field_ident.output_compressed_account()? {
                 accounts.push(compressed_account);
             }
         });
@@ -556,16 +561,12 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
     let expanded = quote! {
         impl #impl_gen ::light_sdk::compressed_account::LightAccounts for #strct_name #type_gen #where_clause {
             fn try_light_accounts(
-                inputs: Vec<Vec<u8>>,
-                merkle_context: ::light_sdk::merkle_context::PackedMerkleContext,
-                merkle_tree_root_index: u16,
-                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
-                address_merkle_tree_root_index: u16,
+                compressed_accounts: &::light_sdk::context::LightCompressedAccounts,
                 remaining_accounts: &[::anchor_lang::prelude::AccountInfo],
             ) -> Result<Self> {
-                let unpacked_address_merkle_context =
-                     ::light_sdk::program_merkle_context::unpack_address_merkle_context(
-                         address_merkle_context, remaining_accounts);
+                // let unpacked_address_merkle_context =
+                //      ::light_sdk::program_merkle_context::unpack_address_merkle_context(
+                //          address_merkle_context, remaining_accounts);
 
                 #(#try_from_slice_calls)*
                 Ok(Self {

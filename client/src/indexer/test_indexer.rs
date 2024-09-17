@@ -22,7 +22,7 @@ use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext,
     event::PublicTransactionEvent,
     merkle_context::MerkleContext,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::{CompressedProof, ProofWithIndices},
     token::{TokenData, TokenDataWithMerkleContext},
     ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT, PROGRAM_ID_LIGHT_SYSTEM,
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
@@ -219,7 +219,7 @@ where
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<solana_sdk::pubkey::Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> ProofWithIndices {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.unwrap().len())
@@ -289,7 +289,7 @@ where
                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-                return ProofRpcResult {
+                return ProofWithIndices {
                     root_indices,
                     address_root_indices,
                     proof: CompressedProof {
