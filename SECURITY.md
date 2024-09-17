@@ -14,8 +14,3 @@ For smart contract and infrastructure vulnerabilities submission guidelines, ple
 For vulnerabilities in any of our websites, email servers or other non-critical infrastructure, please send an e-mail to [security@lightprotocol.com](mailto:security@lightprotocol.com) referencing "Other Vulnerability" in the subject line.
 Please try to provide a clear description of any issue reported, along with how to reproduce the issue if possible.
 
-## Disqualification 
-
-You will be disqualified from receiving a reward for the following actions:
-- Filing a public ticket mentioning the vulnerability, or
-- Testing the vulnerability on the mainnet or testnet.
