@@ -13,9 +13,7 @@ use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
 use light_client::rpc_pool::SolanaRpcPool;
 
-use crate::metrics::{
-    process_queued_metrics, push_metrics, queue_metric_update, update_forester_sol_balance,
-};
+use crate::metrics::{push_metrics, queue_metric_update, update_forester_sol_balance};
 use crate::tree_finder::TreeFinder;
 use dashmap::DashMap;
 use forester_utils::forester_epoch::{
@@ -886,12 +884,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 break;
             }
 
-            if self.config.enable_metrics {
-                process_queued_metrics().await;
-                if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
-                    error!("Failed to push metrics: {:?}", e);
-                }
-            }
+            push_metrics(&self.config.external_services.pushgateway_url).await?;
 
             // Yield to allow other tasks to run
             tokio::task::yield_now().await;
@@ -1097,7 +1090,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                 rpc_pool.clone(),
                 trees.clone(),
                 new_tree_sender.clone(),
-                Duration::from_secs(config.tree_discovery_interval_seconds),
+                Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
             );
 
             let _tree_finder_handle = tokio::spawn(async move {

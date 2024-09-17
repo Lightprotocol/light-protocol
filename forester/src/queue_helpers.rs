@@ -16,7 +16,7 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     start_index: u16,
-    length: u16,
+    processing_length: u16,
     queue_length: u16,
 ) -> Result<Vec<QueueItemData>> {
     debug!("Fetching queue data for {:?}", queue_pubkey);
@@ -27,7 +27,7 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
     let queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
-    let end_index = (start_index + length).min(queue_length);
+    let end_index = (start_index + processing_length).min(queue_length);
 
     let filtered_queue = queue
         .iter()

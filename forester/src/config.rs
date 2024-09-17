@@ -1,94 +1,37 @@
+use crate::cli::{StartArgs, StatusArgs};
+use crate::errors::ForesterError;
+use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
+use anchor_lang::Id;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
-use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
-use tracing::debug;
-
-#[derive(Debug, Clone)]
-pub struct ForesterEpochInfo {
-    pub epoch: Epoch,
-    pub epoch_pda: EpochPda,
-    pub forester_epoch_pda: ForesterEpochPda,
-    pub trees: Vec<TreeForesterSchedule>,
-}
-
-impl ForesterEpochInfo {
-    /// Internal function to init Epoch struct with registered account
-    /// 1. calculate epoch phases
-    /// 2. set current epoch state
-    /// 3. derive tree schedule for all input trees
-    pub fn add_trees_with_schedule(&mut self, trees: &[TreeAccounts], current_solana_slot: u64) {
-        // let state = self.phases.get_current_epoch_state(current_solana_slot);
-        // TODO: add epoch state to sync schedule
-        for tree in trees {
-            debug!("Adding tree schedule for {:?}", tree);
-            debug!("Current slot: {}", current_solana_slot);
-            debug!("Epoch: {:?}", self.epoch_pda);
-            let tree_schedule = TreeForesterSchedule::new_with_schedule(
-                tree,
-                current_solana_slot,
-                &self.forester_epoch_pda,
-                &self.epoch_pda,
-            );
-            self.trees.push(tree_schedule);
-        }
-    }
-}
+use std::str::FromStr;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct ForesterConfig {
     pub external_services: ExternalServicesConfig,
     pub retry_config: RetryConfig,
     pub queue_config: QueueConfig,
+    pub indexer_config: IndexerConfig,
+    pub transaction_config: TransactionConfig,
+    pub general_config: GeneralConfig,
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
-    pub cu_limit: u32,
-    pub indexer_batch_size: usize,
-    pub indexer_max_concurrent_batches: usize,
-    pub transaction_batch_size: usize,
-    pub transaction_max_concurrent_batches: usize,
-    pub rpc_pool_size: usize,
-    pub slot_update_interval_seconds: u64,
-    pub tree_discovery_interval_seconds: u64,
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
-    pub enable_metrics: bool,
-}
-
-impl Clone for ForesterConfig {
-    fn clone(&self) -> Self {
-        Self {
-            external_services: self.external_services.clone(),
-            retry_config: self.retry_config,
-            queue_config: self.queue_config,
-            registry_pubkey: self.registry_pubkey,
-            payer_keypair: Keypair::from_bytes(&self.payer_keypair.to_bytes()).unwrap(),
-            cu_limit: self.cu_limit,
-            indexer_batch_size: self.indexer_batch_size,
-            indexer_max_concurrent_batches: self.indexer_max_concurrent_batches,
-            transaction_batch_size: self.transaction_batch_size,
-            transaction_max_concurrent_batches: self.transaction_max_concurrent_batches,
-            rpc_pool_size: self.rpc_pool_size,
-            state_tree_data: self.state_tree_data.clone(),
-            address_tree_data: self.address_tree_data.clone(),
-            slot_update_interval_seconds: self.slot_update_interval_seconds,
-            tree_discovery_interval_seconds: self.tree_discovery_interval_seconds,
-            enable_metrics: self.enable_metrics,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ExternalServicesConfig {
     pub rpc_url: String,
-    pub ws_rpc_url: String,
-    pub indexer_url: String,
-    pub prover_url: String,
+    pub ws_rpc_url: Option<String>,
+    pub indexer_url: Option<String>,
+    pub prover_url: Option<String>,
     pub photon_api_key: Option<String>,
-    pub derivation: String,
-    pub pushgateway_url: String,
+    pub pushgateway_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -99,6 +42,27 @@ pub struct QueueConfig {
     pub address_queue_length: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct IndexerConfig {
+    pub batch_size: usize,
+    pub max_concurrent_batches: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct TransactionConfig {
+    pub batch_size: usize,
+    pub max_concurrent_batches: usize,
+    pub cu_limit: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GeneralConfig {
+    pub rpc_pool_size: usize,
+    pub slot_update_interval_seconds: u64,
+    pub tree_discovery_interval_seconds: u64,
+    pub enable_metrics: bool,
+}
+
 impl Default for QueueConfig {
     fn default() -> Self {
         QueueConfig {
@@ -106,6 +70,155 @@ impl Default for QueueConfig {
             state_queue_length: STATE_NULLIFIER_QUEUE_VALUES,
             address_queue_start_index: 0,
             address_queue_length: ADDRESS_QUEUE_VALUES,
+        }
+    }
+}
+
+impl Default for IndexerConfig {
+    fn default() -> Self {
+        Self {
+            batch_size: 50,
+            max_concurrent_batches: 10,
+        }
+    }
+}
+
+impl Default for TransactionConfig {
+    fn default() -> Self {
+        Self {
+            batch_size: 1,
+            max_concurrent_batches: 20,
+            cu_limit: 1_000_000,
+        }
+    }
+}
+impl ForesterConfig {
+    pub fn new_for_start(args: &StartArgs) -> Result<Self, ForesterError> {
+        let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
+
+        let payer: Vec<u8> = match &args.payer {
+            Some(payer_str) => serde_json::from_str(payer_str)
+                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            None => return Err(ForesterError::ConfigError("Payer is required".to_string())),
+        };
+        let payer =
+            Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
+
+        let rpc_url = args
+            .rpc_url
+            .clone()
+            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+
+        Ok(Self {
+            external_services: ExternalServicesConfig {
+                rpc_url,
+                ws_rpc_url: args.ws_rpc_url.clone(),
+                indexer_url: args.indexer_url.clone(),
+                prover_url: args.prover_url.clone(),
+                photon_api_key: args.photon_api_key.clone(),
+                pushgateway_url: args.push_gateway_url.clone(),
+            },
+            retry_config: RetryConfig {
+                max_retries: args.max_retries,
+                retry_delay: Duration::from_millis(args.retry_delay),
+                timeout: Duration::from_millis(args.retry_timeout),
+            },
+            queue_config: QueueConfig {
+                state_queue_start_index: args.state_queue_start_index,
+                state_queue_length: args.state_queue_processing_length,
+                address_queue_start_index: args.address_queue_start_index,
+                address_queue_length: args.address_queue_processing_length,
+            },
+            indexer_config: IndexerConfig {
+                batch_size: args.indexer_batch_size,
+                max_concurrent_batches: args.indexer_max_concurrent_batches,
+            },
+            transaction_config: TransactionConfig {
+                batch_size: args.transaction_batch_size,
+                max_concurrent_batches: args.transaction_max_concurrent_batches,
+                cu_limit: args.cu_limit,
+            },
+            general_config: GeneralConfig {
+                rpc_pool_size: args.rpc_pool_size,
+                slot_update_interval_seconds: args.slot_update_interval_seconds,
+                tree_discovery_interval_seconds: args.tree_discovery_interval_seconds,
+                enable_metrics: args.enable_metrics(),
+            },
+            registry_pubkey: Pubkey::from_str(&registry_pubkey)
+                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            payer_keypair: payer,
+            address_tree_data: vec![],
+            state_tree_data: vec![],
+        })
+    }
+
+    pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
+        let rpc_url = args
+            .rpc_url
+            .clone()
+            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+
+        Ok(Self {
+            external_services: ExternalServicesConfig {
+                rpc_url,
+                ws_rpc_url: None,
+                indexer_url: None,
+                prover_url: None,
+                photon_api_key: None,
+                pushgateway_url: args.push_gateway_url.clone(),
+            },
+            retry_config: RetryConfig::default(),
+            queue_config: QueueConfig::default(),
+            indexer_config: IndexerConfig::default(),
+            transaction_config: TransactionConfig::default(),
+            general_config: GeneralConfig {
+                rpc_pool_size: 1,
+                slot_update_interval_seconds: 10,
+                tree_discovery_interval_seconds: 5,
+                enable_metrics: args.enable_metrics(),
+            },
+            registry_pubkey: Pubkey::default(),
+            payer_keypair: Keypair::new(),
+            address_tree_data: vec![],
+            state_tree_data: vec![],
+        })
+    }
+}
+impl Clone for ForesterConfig {
+    fn clone(&self) -> Self {
+        ForesterConfig {
+            external_services: self.external_services.clone(),
+            retry_config: self.retry_config,
+            queue_config: self.queue_config,
+            indexer_config: self.indexer_config.clone(),
+            transaction_config: self.transaction_config.clone(),
+            general_config: self.general_config.clone(),
+            registry_pubkey: self.registry_pubkey,
+            payer_keypair: self.payer_keypair.insecure_clone(),
+            address_tree_data: self.address_tree_data.clone(),
+            state_tree_data: self.state_tree_data.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ForesterEpochInfo {
+    pub epoch: Epoch,
+    pub epoch_pda: EpochPda,
+    pub forester_epoch_pda: ForesterEpochPda,
+    pub trees: Vec<TreeForesterSchedule>,
+}
+
+impl ForesterEpochInfo {
+    pub fn add_trees_with_schedule(&mut self, trees: &[TreeAccounts], current_solana_slot: u64) {
+        for tree in trees {
+            let tree_schedule = TreeForesterSchedule::new_with_schedule(
+                tree,
+                current_solana_slot,
+                &self.forester_epoch_pda,
+                &self.epoch_pda,
+            );
+            self.trees.push(tree_schedule);
         }
     }
 }

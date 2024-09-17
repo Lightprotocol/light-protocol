@@ -133,7 +133,17 @@ pub fn update_forester_sol_balance(pubkey: &str, balance: f64) {
     );
 }
 
-pub async fn push_metrics(url: &str) -> Result<()> {
+pub async fn push_metrics(url: &Option<String>) -> Result<()> {
+    let url = match url {
+        Some(url) => url,
+        None => {
+            debug!("Pushgateway URL not set, skipping metrics push");
+            return Ok(());
+        }
+    };
+
+    process_queued_metrics().await;
+
     update_last_run_timestamp();
 
     let encoder = TextEncoder::new();
