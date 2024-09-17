@@ -3502,10 +3502,19 @@ dependencies = [
  "async-trait",
  "bb8",
  "borsh 0.10.3",
+ "light-concurrent-merkle-tree",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-sdk",
  "log",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "reqwest 0.11.27",
  "solana-banks-client",
  "solana-client",
  "solana-program",
+ "solana-program-test",
  "solana-sdk",
  "solana-transaction-status",
  "thiserror",
@@ -3731,6 +3740,7 @@ dependencies = [
  "serde_json",
  "solana-banks-interface",
  "solana-cli-output",
+ "solana-program",
  "solana-program-test",
  "solana-sdk",
  "tokio",
@@ -4106,16 +4116,13 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 name = "name-service"
 version = "0.6.0"
 dependencies = [
- "account-compression",
  "anchor-lang",
  "borsh 0.10.3",
- "light-compressed-token",
+ "light-client",
  "light-hasher",
- "light-heap",
  "light-macros",
  "light-sdk",
  "light-sdk-macros",
- "light-system-program",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -8162,9 +8169,9 @@ dependencies = [
 
 [[package]]
 name = "termcolor"
-version = "1.4.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+checksum = "ff1bc3d3f05aff0403e8ac0d92ced918ec05b666a43f83297ccef5bea8a3d449"
 dependencies = [
  "winapi-util",
 ]

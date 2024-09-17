@@ -2,9 +2,6 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
 
-// TODO(vadorovsky): Consider moving these structs here.
-pub use light_system_program::sdk::compressed_account::{MerkleContext, PackedMerkleContext};
-
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]
 pub struct RemainingAccounts {
@@ -54,6 +51,34 @@ impl RemainingAccounts {
             .collect::<Vec<AccountMeta>>();
         remaining_accounts
     }
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct QueueIndex {
+    /// Id of queue in queue account.
+    pub queue_id: u8,
+    /// Index of compressed account hash in queue.
+    pub index: u16,
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct MerkleContext {
+    pub merkle_tree_pubkey: Pubkey,
+    pub nullifier_queue_pubkey: Pubkey,
+    pub leaf_index: u32,
+    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+    /// currently unimplemented.
+    pub queue_index: Option<QueueIndex>,
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct PackedMerkleContext {
+    pub merkle_tree_pubkey_index: u8,
+    pub nullifier_queue_pubkey_index: u8,
+    pub leaf_index: u32,
+    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+    /// currently unimplemented.
+    pub queue_index: Option<QueueIndex>,
 }
 
 pub fn pack_merkle_contexts(

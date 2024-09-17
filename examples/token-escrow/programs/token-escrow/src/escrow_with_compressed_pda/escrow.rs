@@ -10,11 +10,10 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    light_system_accounts, utils::create_cpi_inputs_for_new_account, verify::verify, LightTraits,
+    legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
-    invoke_cpi::account::CpiContextAccount,
     sdk::{
         address::derive_address,
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
@@ -39,7 +38,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     /// CHECK:
     #[cpi_context]
     #[account(mut)]
-    pub cpi_context_account: Account<'info, CpiContextAccount>,
+    pub cpi_context_account: AccountInfo<'info>,
     #[authority]
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,

@@ -2,19 +2,23 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_sdk::address::derive_address_seed;
+use light_client::indexer::test_indexer::TestIndexer;
+use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_client::rpc::test_rpc::ProgramTestRpcConnection;
+use light_sdk::address::{derive_address, derive_address_seed};
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::error::LightSdkError;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
-    PackedAddressMerkleContext, RemainingAccounts,
+    PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
 };
-use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_test_utils::indexer::test_indexer::TestIndexer;
-use light_test_utils::rpc::ProgramTestRpcConnection;
-use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
-use light_test_utils::{Indexer, RpcConnection, RpcError};
+use light_sdk::utils::get_cpi_authority_pda;
+use light_sdk::verify::find_cpi_signer;
+use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
+use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
+use light_test_utils::{RpcConnection, RpcError};
 use name_service::{CustomError, NameRecord, RData};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
@@ -22,25 +26,41 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::{Transaction, TransactionError};
 
-fn find_cpi_signer() -> (Pubkey, u8) {
-    Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), &name_service::ID)
-}
-
 #[tokio::test]
 async fn test_name_service() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
+    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
         String::from("name_service"),
         name_service::ID,
     )]))
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
-        TestIndexer::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+        &[StateMerkleTreeAccounts {
+            merkle_tree: env.merkle_tree_pubkey,
+            nullifier_queue: env.nullifier_queue_pubkey,
+            cpi_context: env.cpi_context_account_pubkey,
+        }],
+        &[AddressMerkleTreeAccounts {
+            merkle_tree: env.address_merkle_tree_pubkey,
+            queue: env.address_merkle_tree_queue_pubkey,
+        }],
+        true,
+        true,
+    )
+    .await;
 
     let name = "example.io";
 
     let mut remaining_accounts = RemainingAccounts::default();
+
+    let merkle_context = MerkleContext {
+        merkle_tree_pubkey: env.merkle_tree_pubkey,
+        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        leaf_index: 0,
+        queue_index: None,
+    };
+    let merkle_context = pack_merkle_context(merkle_context, &mut remaining_accounts);
 
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
@@ -52,17 +72,15 @@ async fn test_name_service() {
         &name_service::ID,
         &address_merkle_context,
     );
-    println!("ADDRESS_SEED: {address_seed:?}");
-    let address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let address = derive_address(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
         pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
 
-    let account_compression_authority =
-        light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
+    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
-        &[light_system_program::ID.to_bytes().as_slice()],
-        &account_compression::ID,
+        &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
+        &PROGRAM_ID_ACCOUNT_COMPRESSION,
     )
     .0;
 
@@ -77,11 +95,40 @@ async fn test_name_service() {
         &mut remaining_accounts,
         &payer,
         &address,
+        &merkle_context,
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
-    .await;
+    .await
+    .unwrap();
+
+    // Create with invalid light-system-program ID, should not succeed.
+    {
+        let result = create_record(
+            &name,
+            &rdata_1,
+            &mut rpc,
+            &mut test_indexer,
+            &env,
+            &mut remaining_accounts,
+            &payer,
+            &address,
+            &merkle_context,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
+        ));
+    }
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
@@ -109,11 +156,12 @@ async fn test_name_service() {
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
 
-    // Update with invalid owner should not succeed.
+    // Update with invalid owner, should not succeed.
     {
         let invalid_signer = Keypair::new();
         rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
@@ -129,6 +177,7 @@ async fn test_name_service() {
             &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
+            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -136,6 +185,28 @@ async fn test_name_service() {
             Err(RpcError::TransactionError(
                 TransactionError::InstructionError(0, InstructionError::Custom(error))
             ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
+    // Update with invalid light-system-program ID, should not succeed.
+    {
+        let result = update_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &rdata_2,
+            &payer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
         ));
     }
 
@@ -153,7 +224,7 @@ async fn test_name_service() {
     assert_eq!(record.name, "example.io");
     assert_eq!(record.rdata, rdata_2);
 
-    // Delete with invalid owner should not succeed.
+    // Delete with invalid owner, should not succeed.
     {
         let invalid_signer = Keypair::new();
         rpc.airdrop_lamports(&invalid_signer.pubkey(), LAMPORTS_PER_SOL * 1)
@@ -168,6 +239,7 @@ async fn test_name_service() {
             &address_merkle_context,
             &account_compression_authority,
             &registered_program_pda,
+            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -175,6 +247,27 @@ async fn test_name_service() {
             Err(RpcError::TransactionError(
                 TransactionError::InstructionError(0, InstructionError::Custom(error))
             ))if error == u32::from(CustomError::Unauthorized)
+        ));
+    }
+    // Delete with invalid light-system-program ID, should not succeed.
+    {
+        let result = delete_record(
+            &mut rpc,
+            &mut test_indexer,
+            &mut remaining_accounts,
+            &payer,
+            compressed_account,
+            &address_merkle_context,
+            &account_compression_authority,
+            &registered_program_pda,
+            &Pubkey::new_unique(),
+        )
+        .await;
+        assert!(matches!(
+            result,
+            Err(RpcError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::Custom(error))
+            ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
         ));
     }
 
@@ -188,12 +281,13 @@ async fn test_name_service() {
         &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
 }
 
-async fn create_record<R: RpcConnection>(
+async fn create_record<R>(
     name: &str,
     rdata: &RData,
     rpc: &mut R,
@@ -202,10 +296,15 @@ async fn create_record<R: RpcConnection>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
+    merkle_context: &PackedMerkleContext,
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) {
+    light_system_program: &Pubkey,
+) -> Result<(), RpcError>
+where
+    R: RpcConnection + MerkleTreeExt,
+{
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             None,
@@ -216,18 +315,10 @@ async fn create_record<R: RpcConnection>(
         )
         .await;
 
-    let merkle_context = MerkleContext {
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        leaf_index: 0,
-        queue_index: None,
-    };
-    let merkle_context = pack_merkle_context(merkle_context, remaining_accounts);
-
     let instruction_data = name_service::instruction::CreateRecord {
         inputs: Vec::new(),
         proof: rpc_result.proof,
-        merkle_context,
+        merkle_context: *merkle_context,
         merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
@@ -235,15 +326,15 @@ async fn create_record<R: RpcConnection>(
         rdata: rdata.clone(),
     };
 
-    let (cpi_signer, _) = find_cpi_signer();
+    let cpi_signer = find_cpi_signer(&name_service::ID);
 
     let accounts = name_service::accounts::CreateRecord {
         signer: payer.pubkey(),
-        light_system_program: light_system_program::ID,
-        account_compression_program: account_compression::ID,
+        light_system_program: *light_system_program,
+        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        noop_program: PROGRAM_ID_NOOP,
         self_program: name_service::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
@@ -259,13 +350,12 @@ async fn create_record<R: RpcConnection>(
 
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
-        .await
-        .unwrap()
-        .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+        .await?;
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    Ok(())
 }
 
-async fn update_record<R: RpcConnection>(
+async fn update_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
@@ -275,7 +365,11 @@ async fn update_record<R: RpcConnection>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) -> Result<(), RpcError> {
+    light_system_program: &Pubkey,
+) -> Result<(), RpcError>
+where
+    R: RpcConnection + MerkleTreeExt,
+{
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -310,15 +404,15 @@ async fn update_record<R: RpcConnection>(
         new_rdata: new_rdata.clone(),
     };
 
-    let (cpi_signer, _) = find_cpi_signer();
+    let cpi_signer = find_cpi_signer(&name_service::ID);
 
     let accounts = name_service::accounts::UpdateRecord {
         signer: payer.pubkey(),
-        light_system_program: light_system_program::ID,
-        account_compression_program: account_compression::ID,
+        light_system_program: *light_system_program,
+        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        noop_program: PROGRAM_ID_NOOP,
         self_program: name_service::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
@@ -339,7 +433,7 @@ async fn update_record<R: RpcConnection>(
     Ok(())
 }
 
-async fn delete_record<R: RpcConnection>(
+async fn delete_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     remaining_accounts: &mut RemainingAccounts,
@@ -348,7 +442,11 @@ async fn delete_record<R: RpcConnection>(
     address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
-) -> Result<(), RpcError> {
+    light_system_program: &Pubkey,
+) -> Result<(), RpcError>
+where
+    R: RpcConnection + MerkleTreeExt,
+{
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -382,15 +480,15 @@ async fn delete_record<R: RpcConnection>(
         address_merkle_tree_root_index: 0,
     };
 
-    let (cpi_signer, _) = find_cpi_signer();
+    let cpi_signer = find_cpi_signer(&name_service::ID);
 
     let accounts = name_service::accounts::DeleteRecord {
         signer: payer.pubkey(),
-        light_system_program: light_system_program::ID,
-        account_compression_program: account_compression::ID,
+        light_system_program: *light_system_program,
+        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        noop_program: PROGRAM_ID_NOOP,
         self_program: name_service::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),

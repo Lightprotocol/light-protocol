@@ -287,6 +287,7 @@ pub const FORESTER_TEST_KEYPAIR: [u8; 64] = [
 /// - registers a forester
 /// - advances to the active phase slot 2
 /// - active phase doesn't end
+// TODO(vadorovsky): Remove this function...
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
@@ -305,6 +306,45 @@ pub async fn setup_test_programs_with_accounts(
     .await
 }
 
+/// Setup test programs with accounts
+/// deploys:
+/// 1. light program
+/// 2. account_compression program
+/// 3. light_compressed_token program
+/// 4. light_system_program program
+///
+/// Sets up the following accounts:
+/// 5. creates and initializes governance authority
+/// 6. creates and initializes group authority
+/// 7. registers the light_system_program program with the group authority
+/// 8. initializes Merkle tree owned by
+/// Note:
+/// - registers a forester
+/// - advances to the active phase slot 2
+/// - active phase doesn't end
+// TODO(vadorovsky): ...in favor of this one.
+pub async fn setup_test_programs_with_accounts_v2(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+) -> (
+    light_client::rpc::test_rpc::ProgramTestRpcConnection,
+    EnvAccounts,
+) {
+    setup_test_programs_with_accounts_with_protocol_config_v2(
+        additional_programs,
+        ProtocolConfig {
+            // Init with an active epoch which doesn't end
+            active_phase_length: 1_000_000_000,
+            slot_length: 1_000_000_000 - 1,
+            genesis_slot: 0,
+            registration_phase_length: 2,
+            ..Default::default()
+        },
+        true,
+    )
+    .await
+}
+
+// TODO(vadorovsky): Remote this function...
 pub async fn setup_test_programs_with_accounts_with_protocol_config(
     additional_programs: Option<Vec<(String, Pubkey)>>,
     protocol_config: ProtocolConfig,
@@ -313,7 +353,6 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
-    // let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
@@ -321,7 +360,39 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     )
     .await
     .unwrap();
-    // let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    let env_accounts = initialize_accounts(
+        &mut context,
+        keypairs,
+        protocol_config,
+        register_forester_and_advance_to_active_phase,
+        true,
+    )
+    .await;
+    (context, env_accounts)
+}
+
+// TODO(vadorovsky): ...in favor of this one.
+pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+    protocol_config: ProtocolConfig,
+    register_forester_and_advance_to_active_phase: bool,
+) -> (
+    light_client::rpc::test_rpc::ProgramTestRpcConnection,
+    EnvAccounts,
+) {
+    let context = setup_test_programs(additional_programs).await;
+    let mut context = light_client::rpc::test_rpc::ProgramTestRpcConnection { context };
+    let keypairs = EnvAccountKeypairs::program_test_default();
+    airdrop_lamports(
+        &mut context,
+        &keypairs.governance_authority.pubkey(),
+        100_000_000_000,
+    )
+    .await
+    .unwrap();
     airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();

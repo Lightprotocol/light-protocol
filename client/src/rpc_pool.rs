@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::time::Duration;
@@ -32,7 +33,7 @@ impl<R: RpcConnection> SolanaConnectionManager<R> {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl<R: RpcConnection> bb8::ManageConnection for SolanaConnectionManager<R> {
     type Connection = R;
     type Error = PoolError;
