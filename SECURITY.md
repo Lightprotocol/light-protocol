@@ -7,7 +7,7 @@ All reward amounts are determined based on our ongoing [bug bounty program](http
 
 ### Smart Contract and Infrastructure
 
-For smart contract and infrastructure vulnerabilities submission guidelines, please see our [bug bounty program](https://immunefi.com/bug-bounty/light-protocol/information/) with Immunefi.
+For smart contract and infrastructure vulnerabilities submission guidelines, please see our [bug bounty program](https://immunefi.com/bug-bounty/light-protocol/information/).
 
 ### Other vulnerabilities
 
