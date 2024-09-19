@@ -1,6 +1,7 @@
 package merkle_tree
 
 import (
+	"encoding/json"
 	"fmt"
 	"light/light-prover/prover"
 	"math/big"
@@ -304,4 +305,55 @@ func MakeTestNonInclusionTrees(height int, numberOfCompressedAccounts int) []Non
 	trees = append(trees, invalidInPathIndicesPairSubOne)
 	trees = append(trees, invalidInPathElementsPair)
 	return trees
+}
+
+func TestBatchUpdateParameters_TestTree(t *testing.T) {
+	file, err := os.OpenFile("../test-data/batch_update.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Errorf("Error opening file: %v", err)
+		return
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			t.Errorf("Error closing file: %v", err)
+		}
+	}(file)
+
+	var testTreeDepth = []int{26}
+	var testBatchSizes = []int{1, 2, 4, 8}
+
+	for _, depth := range testTreeDepth {
+		for _, batchSize := range testBatchSizes {
+			batchUpdateParams := BuildTestBatchUpdateTree(depth, batchSize)
+
+			json, err := json.Marshal(batchUpdateParams)
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+
+			_, err = fmt.Fprintf(file, "1;%s\n", json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+
+			// Generate an invalid case (e.g., wrong pre-root)
+			invalidParams := *batchUpdateParams
+			invalidParams.PreRoot = *big.NewInt(999) // Set an invalid pre-root
+
+			invalidJSON, err := json.Marshal(&invalidParams)
+			if err != nil {
+				t.Errorf("Error marshalling invalid JSON: %v", err)
+				return
+			}
+
+			_, err = fmt.Fprintf(file, "0;%s\n", invalidJSON)
+			if err != nil {
+				t.Errorf("Error writing invalid case to file: %v", err)
+				return
+			}
+		}
+	}
 }

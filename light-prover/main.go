@@ -34,7 +34,7 @@ func runCli() {
 			{
 				Name: "setup",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" )", Required: true},
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" / \"insertion\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "Merkle tree height", Required: false},
@@ -43,10 +43,12 @@ func runCli() {
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "append-tree-height", Usage: "Append merkle tree height", Required: false},
 					&cli.UintFlag{Name: "append-batch-size", Usage: "Append batch size", Required: false},
+					&cli.UintFlag{Name: "insertion-tree-height", Usage: "Insertion merkle tree height", Required: false},
+					&cli.UintFlag{Name: "insertion-batch-size", Usage: "Insertion batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.Inclusion && circuit != prover.NonInclusion && circuit != prover.Combined && circuit != prover.BatchAppend {
+					if circuit != prover.Inclusion && circuit != prover.NonInclusion && circuit != prover.Combined && circuit != prover.BatchAppend && circuit != prover.Insertion {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -58,6 +60,8 @@ func runCli() {
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 					batchAppendTreeHeight := uint32(context.Uint("append-tree-height"))
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
+					insertionTreeHeight := uint32(context.Uint("insertion-tree-height"))
+					insertionBatchSize := uint32(context.Uint("insertion-batch-size"))
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
 						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
@@ -74,7 +78,7 @@ func runCli() {
 						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
 							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 						}
-					}
+						}
 
 					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppend {
 						return fmt.Errorf("insertion tree height and batch size must be provided")
@@ -85,16 +89,23 @@ func runCli() {
 					if circuit == prover.BatchAppend {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(batchAppendTreeHeight, batchAppendBatchSize)
-						if err != nil {
-							return err
-						}
+					if err != nil {
+						return err
+					}
+						err = writeProvingSystem(system, path, pathVkey)
+					} else 	if circuit == prover.Insertion {
+						var system *prover.ProvingSystemV2
+						system, err = prover.SetupCircuitV2(insertionTreeHeight, insertionBatchSize)
+					if err != nil {
+						return err
+					}
 						err = writeProvingSystem(system, path, pathVkey)
 					} else {
 						var system *prover.ProvingSystemV1
 						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-						if err != nil {
-							return err
-						}
+					if err != nil {
+						return err
+					}
 						err = writeProvingSystem(system, path, pathVkey)
 					}
 
@@ -110,13 +121,15 @@ func runCli() {
 				Name: "r1cs",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\")", Required: true},
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" / \"insertion\")", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "Non-inclusion merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "append-tree-height", Usage: "Batch append: merkle tree height", Required: false},
-					&cli.UintFlag{Name: "append-batch-size", Usage: "Batch append: batch size", Required: false},
+					&cli.UintFlag{Name: "append-batch-size", Usage: "Batch append: batch size", Required: false}, 
+					&cli.UintFlag{Name: "insertion-tree-height", Usage: "Batch append: merkle tree height", Required: false},
+					&cli.UintFlag{Name: "insertion-batch-size", Usage: "Batch append: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
@@ -131,6 +144,9 @@ func runCli() {
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 					batchAppendTreeHeight := uint32(context.Uint("append-tree-height"))
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
+					insertionTreeHeight := uint32(context.Uint("insertion-tree-height"))
+					insertionBatchSize := uint32(context.Uint("insertion-batch-size"))
+
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
 						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
@@ -152,6 +168,10 @@ func runCli() {
 					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppend {
 						return fmt.Errorf("append tree height and batch size must be provided")
 					}
+					
+					if (insertionTreeHeight == 0 || insertionBatchSize == 0) && circuit == prover.Insertion {
+						return fmt.Errorf("insertion tree height and batch size must be provided")
+					}
 
 					logging.Logger().Info().Msg("Building R1CS")
 
@@ -166,6 +186,8 @@ func runCli() {
 						cs, err = prover.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					} else if circuit == prover.BatchAppend {
 						cs, err = prover.R1CSBatchAppend(batchAppendTreeHeight, batchAppendBatchSize)
+					} else if circuit == prover.Insertion {
+						cs, err = prover.R1CSInsertion(insertionTreeHeight, insertionBatchSize)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -202,8 +224,6 @@ func runCli() {
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "Non-inclusion merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
-					&cli.UintFlag{Name: "append-tree-height", Usage: "Batch append: merkle tree height", Required: false},
-					&cli.UintFlag{Name: "append-batch-size", Usage: "Batch append: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
@@ -221,6 +241,8 @@ func runCli() {
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 					batchAppendTreeHeight := uint32(context.Uint("append-tree-height"))
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
+					insertionTreeHeight := uint32(context.Uint("insertion-tree-height"))
+					insertionBatchSize := uint32(context.Uint("insertion-batch-size"))
 
 					var err error
 
@@ -229,12 +251,22 @@ func runCli() {
 					if circuit == "append" {
 						if batchAppendTreeHeight == 0 || batchAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
-						}
+					}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
-						if err != nil {
-							return err
-						}
+					if err != nil {
+						return err
+					}
+						err = writeProvingSystem(system, path, "")
+					} else if circuit == "insertion" {
+						if insertionTreeHeight == 0 || insertionBatchSize == 0 {
+							return fmt.Errorf("insertion tree height and batch size must be provided")
+					}
+						var system *prover.ProvingSystemV2
+						system, err = prover.ImportInsertionSetup(insertionTreeHeight, insertionBatchSize, pk, vk)
+					if err != nil {
+						return err
+					}
 						err = writeProvingSystem(system, path, "")
 					} else {
 						if circuit == "inclusion" || circuit == "combined" {
@@ -257,9 +289,9 @@ func runCli() {
 						case "combined":
 							system, err = prover.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 						}
-						if err != nil {
-							return err
-						}
+					if err != nil {
+						return err
+					}
 						err = writeProvingSystem(system, path, "")
 					}
 
@@ -303,9 +335,9 @@ func runCli() {
 					}
 
 					err = os.MkdirAll(filepath.Dir(outputFile), 0755)
-					if err != nil {
+						if err != nil {
 						return fmt.Errorf("failed to create output directory: %v", err)
-					}
+						}
 
 					var dataToWrite = buf.Bytes()
 
@@ -393,7 +425,8 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
-					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
+					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},	
+					&cli.BoolFlag{Name: "insertion", Usage: "Run insertion circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 				},
@@ -491,6 +524,24 @@ func runCli() {
 								break
 							}
 						}
+					} else if context.Bool("insertion") {
+						var params prover.InsertionParameters
+						err = json.Unmarshal(inputsBytes, &params)
+						if err != nil {
+							return err
+						}
+
+						for _, provingSystem := range psv2 {
+							if provingSystem.TreeHeight == params.TreeHeight && provingSystem.BatchSize == params.BatchSize() {
+								proof, err = provingSystem.ProveInsertion(&params)
+								if err != nil {
+									return err
+								}
+								r, _ := json.Marshal(&proof)
+								fmt.Println(string(r))
+								break
+							}
+						}
 					}
 
 					return nil
@@ -545,12 +596,12 @@ func runCli() {
 							leaves, err := parseHexStringList(leavesStr)
 							if err != nil {
 								return fmt.Errorf("failed to parse leaves: %v", err)
-							}
+					}
 
 							verifyErr = s.VerifyInclusion(roots, leaves, &proof)
 						case "non-inclusion":
 							values, err := parseHexStringList(context.String("values"))
-							if err != nil {
+					if err != nil {
 								return fmt.Errorf("failed to parse values: %v", err)
 							}
 							verifyErr = s.VerifyNonInclusion(roots, values, &proof)
@@ -574,17 +625,17 @@ func runCli() {
 						oldSubTreeHashChain, err := parseBigInt(context.String("old-sub-tree-hash-chain"))
 						if err != nil {
 							return fmt.Errorf("failed to parse old sub-tree hash chain: %v", err)
-						}
+					}
 						newSubTreeHashChain, err := parseBigInt(context.String("new-sub-tree-hash-chain"))
-						if err != nil {
+					if err != nil {
 							return fmt.Errorf("failed to parse new sub-tree hash chain: %v", err)
-						}
+					}
 						newRoot, err := parseBigInt(context.String("new-root"))
-						if err != nil {
+					if err != nil {
 							return fmt.Errorf("failed to parse new root: %v", err)
-						}
+					}
 						hashchainHash, err := parseBigInt(context.String("hashchain-hash"))
-						if err != nil {
+					if err != nil {
 							return fmt.Errorf("failed to parse hashchain hash: %v", err)
 						}
 						verifyErr = s.VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash, &proof)
@@ -666,7 +717,7 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystemV1, []*prover.Provin
 				Msg("Read ProvingSystem")
 		case *prover.ProvingSystemV2:
 			pssv2 = append(pssv2, s)
-			logging.Logger().Info().
+		logging.Logger().Info().
 				Uint32("treeHeight", s.TreeHeight).
 				Uint32("batchSize", s.BatchSize).
 				Msg("Read BatchAppendProvingSystem")
@@ -682,7 +733,9 @@ func getKeysByArgs(context *cli.Context) ([]string, error) {
 	var inclusion = context.Bool("inclusion")
 	var nonInclusion = context.Bool("non-inclusion")
 	var batchAppend = context.Bool("append")
+	var insertion = context.Bool("insertion")
 	var circuitTypes []prover.CircuitType = make([]prover.CircuitType, 0)
+
 	if inclusion {
 		circuitTypes = append(circuitTypes, prover.Inclusion)
 	}
@@ -695,6 +748,9 @@ func getKeysByArgs(context *cli.Context) ([]string, error) {
 		circuitTypes = append(circuitTypes, prover.BatchAppend)
 	}
 
+	if insertion {
+		circuitTypes = append(circuitTypes, prover.Insertion)
+	}
 	if inclusion && nonInclusion {
 		circuitTypes = append(circuitTypes, prover.Combined)
 	}

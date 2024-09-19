@@ -60,6 +60,13 @@ main() {
             generate_circuit "append" "$height" "$batch_size" "0" "0"
         done
     done
+    
+    declare -a insertion_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${insertion_batch_sizes_arr[@]}"; do
+            generate_circuit "insertion" "$height" "$batch_size" "0" "0"
+        done
+    done
 
     declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
     for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
@@ -80,4 +87,13 @@ main() {
     done
 }
 
-main "$@"
+declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
+
+for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"
+do
+  for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"
+  do
+    generate "$i_compressed_accounts" "$ni_compressed_accounts" "combined"
+  done
+done

@@ -147,6 +147,8 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		proof, proofError = handler.combinedProof(buf)
 	case prover.BatchAppend:
 		proof, proofError = handler.batchAppendProof(buf)
+	case prover.Insertion:
+		proof, proofError = handler.insertionProof(buf)
 	default:
 		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
 	}
@@ -171,6 +173,38 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logging.Logger().Err(err)
 	}
+}
+
+
+func (handler proveHandler) insertionProof(buf []byte) (*prover.Proof, *Error) {
+	var params prover.InsertionParameters
+	err := json.Unmarshal(buf, &params)
+	if err != nil {
+		logging.Logger().Info().Msg("error Unmarshal")
+		logging.Logger().Info().Msg(err.Error())
+		return nil, malformedBodyError(err)
+	}
+
+	batchSize := uint32(len(params.Leaves))
+
+	var ps *prover.ProvingSystemV2
+	for _, provingSystem := range handler.provingSystemsV2 {
+		if provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
+			ps = provingSystem
+			break
+		}
+	}
+
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("no proving system for batch size %d", batchSize))
+	}
+
+	proof, err := ps.ProveInsertion(&params)
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, provingError(err)
+	}
+	return proof, nil
 }
 
 func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error) {

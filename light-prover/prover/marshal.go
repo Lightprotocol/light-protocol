@@ -107,11 +107,11 @@ func (ps *ProvingSystemV1) WriteTo(w io.Writer) (int64, error) {
 
 	for _, field := range fieldsToWrite {
 		binary.BigEndian.PutUint32(intBuf[:], field)
-		written, err := w.Write(intBuf[:])
-		totalWritten += int64(written)
-		if err != nil {
-			return totalWritten, err
-		}
+	written, err := w.Write(intBuf[:])
+	totalWritten += int64(written)
+	if err != nil {
+		return totalWritten, err
+	}
 	}
 
 	keyWritten, err := ps.ProvingKey.WriteTo(w)
@@ -244,10 +244,10 @@ func (ps *ProvingSystemV2) WriteTo(w io.Writer) (int64, error) {
 	for _, field := range fieldsToWrite {
 		binary.BigEndian.PutUint32(intBuf[:], field)
 		written, err := w.Write(intBuf[:])
-		totalWritten += int64(written)
-		if err != nil {
-			return totalWritten, err
-		}
+	totalWritten += int64(written)
+	if err != nil {
+		return totalWritten, err
+	}
 	}
 
 	keyWritten, err := ps.ProvingKey.WriteTo(w)
@@ -282,10 +282,10 @@ func (ps *ProvingSystemV2) UnsafeReadFrom(r io.Reader) (int64, error) {
 
 	for _, field := range fieldsToRead {
 		read, err := io.ReadFull(r, intBuf[:])
-		totalRead += int64(read)
-		if err != nil {
-			return totalRead, err
-		}
+	totalRead += int64(read)
+	if err != nil {
+		return totalRead, err
+	}
 		*field = binary.BigEndian.Uint32(intBuf[:])
 	}
 

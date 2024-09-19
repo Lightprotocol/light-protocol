@@ -65,9 +65,9 @@ func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:   gadget.Leaves[proofIndex],
-			Index:  gadget.InPathIndices[proofIndex],
-			Path:   gadget.InPathElements[proofIndex],
+			Hash:  gadget.Leaves[proofIndex],
+			Index: gadget.InPathIndices[proofIndex],
+			Path:  gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
@@ -101,9 +101,9 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
-			Hash:   currentHash[proofIndex],
-			Index:  gadget.InPathIndices[proofIndex],
-			Path:   gadget.InPathElements[proofIndex],
+			Hash:  currentHash[proofIndex],
+			Index: gadget.InPathIndices[proofIndex],
+			Path:  gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
@@ -175,9 +175,9 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 }
 
 type MerkleRootGadget struct {
-	Hash   frontend.Variable
-	Index  frontend.Variable
-	Path   []frontend.Variable
+	Hash  frontend.Variable
+	Index frontend.Variable
+	Path  []frontend.Variable
 	Height int
 }
 
@@ -254,6 +254,13 @@ func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
 		keys = append(keys, keysDir+"append_26_100.key")
 		keys = append(keys, keysDir+"append_26_500.key")
 		keys = append(keys, keysDir+"append_26_1000.key")
+	}
+	
+	if IsCircuitEnabled(circuitTypes, Insertion) {
+		keys = append(keys, keysDir+"insertion_26_1.key")
+		keys = append(keys, keysDir+"insertion_26_2.key")
+		keys = append(keys, keysDir+"insertion_26_4.key")
+		keys = append(keys, keysDir+"insertion_26_8.key")
 	}
 
 	return keys

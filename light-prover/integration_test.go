@@ -1,11 +1,12 @@
 package main_test
 
 import (
-	"bytes"
+	"fmt"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"light/light-prover/server"
+	"math/big"
 	"net/http"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func proveEndpoint() string {
 
 func StartServer() {
 	logging.Logger().Info().Msg("Setting up the prover")
-	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend}
+	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend, prover.Insertion}
 	var keys = prover.GetKeys("./proving-keys/", circuitTypes)
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
@@ -422,5 +423,311 @@ func TestBatchAppendWithPreviousState(t *testing.T) {
 	}
 	if response2.StatusCode != http.StatusOK {
 		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+}
+
+
+func TestInsertionHappyPath26_1(t *testing.T) {
+	insertionParams := merkletree.BuildTestInsertionTree(26, 1, false)
+	jsonBytes, err := insertionParams.MarshalJSON()
+	fmt.Println(string(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusBadRequest, response.StatusCode, string(body))
+	}
+}
+
+func TestInsertionHappyPath26_8(t *testing.T) {
+	insertionParams := merkletree.BuildTestInsertionTree(26, 8, false)
+	jsonBytes, err := insertionParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
+	}
+}
+
+func TestInsertionWrongPreRoot(t *testing.T) {
+	insertionParams := merkletree.BuildTestInsertionTree(26, 1, false)
+
+	// Modify the pre-root to be incorrect
+	incorrectPreRoot := big.NewInt(0)
+	insertionParams.PreRoot = *incorrectPreRoot
+
+	jsonBytes, err := insertionParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if response.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusBadRequest, response.StatusCode, string(body))
+	}
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(responseBody), "proving_error") {
+		t.Fatalf("Expected error message to be tagged with 'proving_error', got %s", string(responseBody))
+	}
+}
+
+func TestInsertionWrongMerkleProof(t *testing.T) {
+	insertionParams := merkletree.BuildTestInsertionTree(26, 1, false)
+	jsonBytes, _ := insertionParams.MarshalJSON()
+	fmt.Println(string(jsonBytes))
+	// Modify the Merkle proof to be incorrect
+	for i := range insertionParams.MerkleProofs {
+		for j := range insertionParams.MerkleProofs[i] {
+			insertionParams.MerkleProofs[i][j] = *big.NewInt(1) // Set all elements to 1 instead of 0
+		}
+	}
+
+	jsonBytes, err := insertionParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d, got %d", http.StatusBadRequest, response.StatusCode)
+	}
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(responseBody), "proving_error") {
+		t.Fatalf("Expected error message to be tagged with 'proving_error', got %s", string(responseBody))
+	}
+}
+
+func TestParsingInsertionInput(t *testing.T) {
+	insertionParams := merkletree.BuildTestInsertionTree(26, 1, false)
+	jsonBytes, err := insertionParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(string(jsonBytes))
+
+	var parsedParams prover.InsertionParameters
+	err = json.Unmarshal(jsonBytes, &parsedParams)
+	if err != nil {
+		t.Errorf("error parsing input: %v", err)
+	}
+
+	if parsedParams.PreRoot.Cmp(&insertionParams.PreRoot) != 0 {
+		t.Errorf("Invalid preRoot: expected %s, got %s", insertionParams.PreRoot.Text(16), parsedParams.PreRoot.Text(16))
+	}
+
+	if parsedParams.PostRoot.Cmp(&insertionParams.PostRoot) != 0 {
+		t.Errorf("Invalid postRoot: expected %s, got %s", insertionParams.PostRoot.Text(16), parsedParams.PostRoot.Text(16))
+	}
+
+	if parsedParams.StartIndex != insertionParams.StartIndex {
+		t.Errorf("Invalid startIndex: expected %d, got %d", insertionParams.StartIndex, parsedParams.StartIndex)
+	}
+
+	if len(parsedParams.Leaves) != len(insertionParams.Leaves) {
+		t.Errorf("Invalid number of leaves: expected %d, got %d", len(insertionParams.Leaves), len(parsedParams.Leaves))
+	}
+
+	for i, leaf := range parsedParams.Leaves {
+		if leaf.Cmp(&insertionParams.Leaves[i]) != 0 {
+			t.Errorf("Invalid leaf at index %d: expected %s, got %s", i, insertionParams.Leaves[i].Text(16), leaf.Text(16))
+		}
+	}
+
+	if len(parsedParams.MerkleProofs) != len(insertionParams.MerkleProofs) {
+		t.Errorf("Invalid number of Merkle proofs: expected %d, got %d", len(insertionParams.MerkleProofs), len(parsedParams.MerkleProofs))
+	}
+
+	for i, proof := range parsedParams.MerkleProofs {
+		if len(proof) != len(insertionParams.MerkleProofs[i]) {
+			t.Errorf("Invalid Merkle proof length at index %d: expected %d, got %d", i, len(insertionParams.MerkleProofs[i]), len(proof))
+		}
+		for j, element := range proof {
+			if element.Cmp(&insertionParams.MerkleProofs[i][j]) != 0 {
+				t.Errorf("Invalid Merkle proof element at index [%d][%d]: expected %s, got %s", i, j, insertionParams.MerkleProofs[i][j].Text(16), element.Text(16))
+			}
+		}
+	}
+}
+
+func TestBatchUpdateHappyPath26_1(t *testing.T) {
+	batchUpdateParams := merkletree.BuildTestBatchUpdateTree(26, 1)
+	jsonBytes, err := json.Marshal(batchUpdateParams)
+	fmt.Println(string(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func TestBatchUpdateHappyPath26_8(t *testing.T) {
+	batchUpdateParams := merkletree.BuildTestBatchUpdateTree(26, 8)
+
+	fmt.Printf("Debug - BatchUpdateParameters:\n")
+	fmt.Printf("PreRoot: %s\n", batchUpdateParams.PreRoot.String())
+	fmt.Printf("PostRoot: %s\n", batchUpdateParams.PostRoot.String())
+	fmt.Printf("StartIndex: %d\n", batchUpdateParams.StartIndex)
+	fmt.Printf("OldLeaves: %v\n", batchUpdateParams.OldLeaves)
+	fmt.Printf("NewLeaves: %v\n", batchUpdateParams.NewLeaves)
+	fmt.Printf("MerkleProofs length: %d\n", len(batchUpdateParams.MerkleProofs))
+
+	jsonBytes, err := batchUpdateParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status code %d, got %d: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func TestBatchUpdateWrongPreRoot(t *testing.T) {
+	batchUpdateParams := merkletree.BuildTestBatchUpdateTree(26, 1)
+
+	// Modify the pre-root to be incorrect
+	incorrectPreRoot := big.NewInt(0)
+	batchUpdateParams.PreRoot = *incorrectPreRoot
+
+	jsonBytes, err := batchUpdateParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if response.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusBadRequest, response.StatusCode, string(body))
+	}
+}
+
+func TestBatchUpdateWrongMerkleProof(t *testing.T) {
+	batchUpdateParams := merkletree.BuildTestBatchUpdateTree(26, 1)
+
+	// Modify the Merkle proof to be incorrect
+	for i := range batchUpdateParams.MerkleProofs {
+		for j := range batchUpdateParams.MerkleProofs[i] {
+			batchUpdateParams.MerkleProofs[i][j] = *big.NewInt(1) // Set all elements to 1 instead of the correct value
+		}
+	}
+
+	jsonBytes, err := batchUpdateParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d, got %d", http.StatusBadRequest, response.StatusCode)
+	}
+}
+
+func TestParsingBatchUpdateInput(t *testing.T) {
+	batchUpdateParams := merkletree.BuildTestBatchUpdateTree(26, 1)
+	jsonBytes, err := batchUpdateParams.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var parsedParams prover.BatchUpdateParameters
+	err = json.Unmarshal(jsonBytes, &parsedParams)
+	if err != nil {
+		t.Errorf("error parsing input: %v", err)
+	}
+
+	if parsedParams.PreRoot.Cmp(&batchUpdateParams.PreRoot) != 0 {
+		t.Errorf("Invalid preRoot: expected %s, got %s", batchUpdateParams.PreRoot.Text(16), parsedParams.PreRoot.Text(16))
+	}
+
+	if parsedParams.PostRoot.Cmp(&batchUpdateParams.PostRoot) != 0 {
+		t.Errorf("Invalid postRoot: expected %s, got %s", batchUpdateParams.PostRoot.Text(16), parsedParams.PostRoot.Text(16))
+	}
+
+	if parsedParams.StartIndex != batchUpdateParams.StartIndex {
+		t.Errorf("Invalid startIndex: expected %d, got %d", batchUpdateParams.StartIndex, parsedParams.StartIndex)
+	}
+
+	if len(parsedParams.OldLeaves) != len(batchUpdateParams.OldLeaves) {
+		t.Errorf("Invalid number of old leaves: expected %d, got %d", len(batchUpdateParams.OldLeaves), len(parsedParams.OldLeaves))
+	}
+
+	if len(parsedParams.NewLeaves) != len(batchUpdateParams.NewLeaves) {
+		t.Errorf("Invalid number of new leaves: expected %d, got %d", len(batchUpdateParams.NewLeaves), len(parsedParams.NewLeaves))
+	}
+
+	for i, leaf := range parsedParams.OldLeaves {
+		if leaf.Cmp(&batchUpdateParams.OldLeaves[i]) != 0 {
+			t.Errorf("Invalid old leaf at index %d: expected %s, got %s", i, batchUpdateParams.OldLeaves[i].Text(16), leaf.Text(16))
+		}
+	}
+
+	for i, leaf := range parsedParams.NewLeaves {
+		if leaf.Cmp(&batchUpdateParams.NewLeaves[i]) != 0 {
+			t.Errorf("Invalid new leaf at index %d: expected %s, got %s", i, batchUpdateParams.NewLeaves[i].Text(16), leaf.Text(16))
+		}
+	}
+
+	if len(parsedParams.MerkleProofs) != len(batchUpdateParams.MerkleProofs) {
+		t.Errorf("Invalid number of Merkle proofs: expected %d, got %d", len(batchUpdateParams.MerkleProofs), len(parsedParams.MerkleProofs))
+	}
+
+	for i, proof := range parsedParams.MerkleProofs {
+		if len(proof) != len(batchUpdateParams.MerkleProofs[i]) {
+			t.Errorf("Invalid Merkle proof length at index %d: expected %d, got %d", i, len(batchUpdateParams.MerkleProofs[i]), len(proof))
+		}
+		for j, element := range proof {
+			if element.Cmp(&batchUpdateParams.MerkleProofs[i][j]) != 0 {
+				t.Errorf("Invalid Merkle proof element at index [%d][%d]: expected %s, got %s", i, j, batchUpdateParams.MerkleProofs[i][j].Text(16), element.Text(16))
+			}
+		}
 	}
 }

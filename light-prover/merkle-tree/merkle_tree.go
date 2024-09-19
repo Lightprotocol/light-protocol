@@ -179,3 +179,90 @@ func deepCopyEmptyNode(node *PoseidonEmptyNode) *PoseidonEmptyNode {
 		emptyTreeValues: emptyTreeValues,
 	}
 }
+
+func BuildTestInsertionTree(depth int, batchSize int, random bool) prover.InsertionParameters {
+	tree := NewTree(depth)
+
+	var leaves []big.Int
+	var merkleProofs [][]big.Int
+
+	preRoot := tree.Root()
+
+	for i := 0; i < batchSize; i++ {
+		var leaf *big.Int
+		var pathIndex int
+
+		if random {
+			leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(rand.Int63())})
+			pathIndex = rand.Intn(1 << depth)
+		} else {
+			leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(int64(i + 1))})
+			pathIndex = i
+		}
+
+		proof := tree.Update(pathIndex, *leaf)
+
+		leaves = append(leaves, *leaf)
+		merkleProofs = append(merkleProofs, proof)
+	}
+
+	postRoot := tree.Root()
+
+	return prover.InsertionParameters{
+		PreRoot:      preRoot,
+		PostRoot:     postRoot,
+		StartIndex:   0,
+		Leaves:       leaves,
+		MerkleProofs: merkleProofs,
+	}
+}
+
+func BuildTestBatchUpdateTree(treeDepth int, batchSize int) *prover.BatchUpdateParameters {
+	tree := NewTree(treeDepth)
+	startIndex := uint32(rand.Intn(1 << treeDepth))
+
+	oldLeaves := make([]big.Int, batchSize)
+	newLeaves := make([]big.Int, batchSize)
+	merkleProofs := make([][]big.Int, batchSize)
+
+	fmt.Printf("Debug - BuildTestBatchUpdateTree: StartIndex: %d\n", startIndex)
+
+	for i := 0; i < batchSize; i++ {
+		index := int(startIndex) + i
+		oldLeaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+		newLeaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+
+		oldLeaves[i] = *oldLeaf
+		newLeaves[i] = *newLeaf
+
+		merkleProofs[i] = tree.Update(index, *oldLeaf)
+
+		root := tree.Root()
+		fmt.Printf("Debug - BuildTestBatchUpdateTree: Round %d, Index: %d, OldLeaf: %s, NewLeaf: %s\n", i, index, oldLeaf.String(), newLeaf.String())
+		fmt.Printf("Debug - BuildTestBatchUpdateTree: Intermediate Root: %s\n", root.String())
+		fmt.Printf("Debug - BuildTestBatchUpdateTree: MerkleProof: %v\n", merkleProofs[i])
+
+	}
+
+	preRoot := tree.Root()
+	fmt.Printf("Debug - BuildTestBatchUpdateTree: PreRoot: %s\n", preRoot.String())
+
+	for i := 0; i < batchSize; i++ {
+		index := int(startIndex) + i
+		tree.Update(index, newLeaves[i])
+		root := tree.Root()
+		fmt.Printf("Debug - BuildTestBatchUpdateTree: After update %d, Root: %s\n", i, root.String())
+	}
+
+	postRoot := tree.Root()
+	fmt.Printf("Debug - BuildTestBatchUpdateTree: PostRoot: %s\n", postRoot.String())
+
+	return &prover.BatchUpdateParameters{
+		PreRoot:      preRoot,
+		PostRoot:     postRoot,
+		StartIndex:   startIndex,
+		OldLeaves:    oldLeaves,
+		NewLeaves:    newLeaves,
+		MerkleProofs: merkleProofs,
+	}
+}
