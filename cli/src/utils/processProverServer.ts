@@ -37,9 +37,7 @@ export async function startProver(
   args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
-  console.log("args ", args);
   console.log("Starting prover...");
-  console.log("getProverNameByArch() ", getProverNameByArch());
   spawnBinary(getProverNameByArch(), args);
   await waitForServers([{ port: proverPort, path: "/" }]);
   console.log("Prover started successfully!");

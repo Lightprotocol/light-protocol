@@ -300,13 +300,6 @@ where
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                // spawn_prover(true, self.proof_types.as_slice()).await;
-
-                // std::process::Command::new("light")
-                //     .arg("start-prover")
-                //     .spawn()
-                //     .expect("Failed to start prover");
-                // sleep(Duration::from_secs(10)).await;
                 retries -= 1;
             }
         }
@@ -356,15 +349,6 @@ where
             .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
             .collect::<Vec<_>>();
 
-        // let mut proof_types = vec![];
-        // if inclusion {
-        //     proof_types.push(ProofType::Inclusion);
-        // }
-        // if non_inclusion {
-        //     proof_types.push(ProofType::NonInclusion);
-        // }
-        // if !non_inclusion || !inclusion {
-        // spawn_prover(true, proof_types.as_slice()).await;
         let mut types = vec!["start-prover"];
         if !inclusion {
             types.push("-c");
@@ -375,7 +359,7 @@ where
         let project_root = light_prover_client::gnark::helpers::get_project_root();
         std::process::Command::new("light")
             .args(types.as_slice())
-            .current_dir(project_root.unwrap().trim_end_matches("\n"))
+            .current_dir(project_root.unwrap().trim_end_matches('\n'))
             .spawn()
             .expect("Failed to start prover");
         sleep(Duration::from_secs(5)).await;

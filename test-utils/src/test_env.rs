@@ -36,6 +36,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::cmp;
+use std::path::PathBuf;
+use std::process::Command;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
@@ -51,10 +53,9 @@ pub async fn setup_test_programs(
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
     let sbf_path = std::env::var("SBF_OUT_DIR").unwrap();
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        "/home/ananas/dev/light-protocol/target/deploy",
-    );
+    // find path to bin where light cli stores program binaries.
+    let path = find_light_bin().unwrap();
+    std::env::set_var("SBF_OUT_DIR", path.to_str().unwrap());
     program_test.add_program("light_registry", light_registry::ID, None);
     program_test.add_program("account_compression", account_compression::ID, None);
     program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
@@ -79,7 +80,34 @@ pub async fn setup_test_programs(
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
 }
+fn find_light_bin() -> Option<PathBuf> {
+    // Run the 'which light' command to find the location of 'light' binary
+    let output = Command::new("which")
+        .arg("light")
+        .output()
+        .expect("Failed to execute 'which light'");
 
+    if !output.status.success() {
+        return None;
+    }
+
+    // Convert the output into a string (removing any trailing newline)
+    let light_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    // Get the parent directory of the 'light' binary
+    let mut light_bin_path = PathBuf::from(light_path);
+    light_bin_path.pop(); // Remove the 'light' binary itself
+
+    // Assuming the node_modules path starts from '/lib/node_modules/...'
+    let node_modules_bin =
+        light_bin_path.join("../lib/node_modules/@lightprotocol/zk-compression-cli/bin");
+
+    Some(
+        node_modules_bin
+            .canonicalize()
+            .unwrap_or_else(|_| node_modules_bin),
+    )
+}
 #[derive(Debug)]
 pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
