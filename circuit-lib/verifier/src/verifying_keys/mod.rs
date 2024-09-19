@@ -15,3 +15,9 @@ pub mod combined_26_3_1;
 pub mod combined_26_3_2;
 pub mod combined_26_4_1;
 pub mod combined_26_4_2;
+
+pub mod append_26_1;
+pub mod append_26_10;
+pub mod append_26_100;
+pub mod append_26_1000;
+pub mod append_26_500;

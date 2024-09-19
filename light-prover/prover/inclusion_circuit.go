@@ -33,7 +33,7 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystemV1, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
@@ -67,5 +67,10 @@ func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, 
 		return nil, err
 	}
 
-	return &ProvingSystem{treeHeight, numberOfCompressedAccounts, 0, 0, pk, vk, ccs}, nil
+	return &ProvingSystemV1{
+		InclusionTreeHeight:                 treeHeight,
+		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                          pk,
+		VerifyingKey:                        vk,
+		ConstraintSystem:                    ccs}, nil
 }
