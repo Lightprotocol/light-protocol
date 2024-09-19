@@ -78,7 +78,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
 	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -87,10 +87,15 @@ func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*P
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{0, 0, treeHeight, numberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystemV1{
+		NonInclusionTreeHeight:                 treeHeight,
+		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs}, nil
 }
 
-func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -141,4 +146,26 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 	}
 
 	return &Proof{proof}, nil
+}
+
+func (ps *ProvingSystemV1) VerifyNonInclusion(root []big.Int, leaves []big.Int, proof *Proof) error {
+	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range leaves {
+		values[i] = v
+	}
+
+	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range root {
+		roots[i] = v
+	}
+
+	publicAssignment := NonInclusionCircuit{
+		Roots:  roots,
+		Values: values,
+	}
+	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		return err
+	}
+	return groth16.Verify(proof.Proof, ps.VerifyingKey, witness)
 }

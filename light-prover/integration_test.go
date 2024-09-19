@@ -1,16 +1,14 @@
 package main_test
 
 import (
-	"fmt"
+	"bytes"
 	"io"
 	"light/light-prover/logging"
-	merkletree "light/light-prover/merkle-tree"
 	"light/light-prover/prover"
 	"light/light-prover/server"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	gnarkLogger "github.com/consensys/gnark/logger"
 )
@@ -26,21 +24,27 @@ func proveEndpoint() string {
 
 func StartServer() {
 	logging.Logger().Info().Msg("Setting up the prover")
-
-	fmt.Println("Starting test server")
-	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined}
+	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend}
 	var keys = prover.GetKeys("./proving-keys/", circuitTypes)
-	var pss = make([]*prover.ProvingSystem, len(keys))
+	var pssv1 []*prover.ProvingSystemV1
+	var pssv2 []*prover.ProvingSystemV2
 
-	for i, key := range keys {
-		// Another way to instantiate the circuit: prover.SetupInclusion(Height, NumberOfCompressedAccounts)
-		// But we need to know the tree height and the number of compressed accounts
-		ps, err := prover.ReadSystemFromFile(key)
+	for _, key := range keys {
+		system, err := prover.ReadSystemFromFile(key)
 		if err != nil {
+			logging.Logger().Info().Msgf("Error reading proving system from file: %s", key)
 			panic(err)
 		}
 
-		pss[i] = ps
+		switch s := system.(type) {
+		case *prover.ProvingSystemV1:
+			pssv1 = append(pssv1, s)
+		case *prover.ProvingSystemV2:
+			pssv2 = append(pssv2, s)
+		default:
+			logging.Logger().Info().Msgf("Unknown proving system type for file: %s", key)
+			panic("Unknown proving system type")
+		}
 	}
 
 	serverCfg := server.Config{
@@ -48,8 +52,7 @@ func StartServer() {
 		MetricsAddress: MetricsAddress,
 	}
 	logging.Logger().Info().Msg("Starting the server")
-	instance = server.Run(&serverCfg, pss)
-	time.Sleep(5 * time.Second)
+	instance = server.Run(&serverCfg, pssv1, pssv2)
 	logging.Logger().Info().Msg("Running the tests")
 }
 
@@ -76,7 +79,7 @@ func TestWrongMethod(t *testing.T) {
 }
 
 func TestInclusionHappyPath26_1(t *testing.T) {
-	tree := merkletree.BuildTestTree(26, 1, false)
+	tree := prover.BuildTestTree(26, 1, false)
 
 	// convert tree t to json
 	jsonBytes, _ := tree.MarshalJSON()
@@ -93,7 +96,7 @@ func TestInclusionHappyPath26_1(t *testing.T) {
 
 func TestInclusionHappyPath26_12348(t *testing.T) {
 	for _, compressedAccounts := range []int{1, 2, 3, 4, 8} {
-		tree := merkletree.BuildTestTree(26, compressedAccounts, false)
+		tree := prover.BuildTestTree(26, compressedAccounts, false)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
 
@@ -195,7 +198,7 @@ func TestParsingEmptyTreeWithOneLeaf(t *testing.T) {
 		t.Errorf("error parsing input: %v", err)
 	}
 
-	tree := merkletree.BuildTestTree(26, 1, false)
+	tree := prover.BuildTestTree(26, 1, false)
 
 	if len(tree.Inputs) != len(proofData.Inputs) {
 		t.Errorf("Invalid shape: expected %d, got %d", len(tree.Inputs), len(proofData.Inputs))
@@ -370,5 +373,54 @@ func TestCombinedHappyPath_JSON(t *testing.T) {
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("Expected status code %d, got %d %s", http.StatusOK, response.StatusCode, string(responseBody))
+	}
+}
+
+func TestBatchAppendHappyPath(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(1000)
+	startIndex := uint32(0)
+	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func TestBatchAppendWithPreviousState(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(100)
+	startIndex := uint32(0)
+
+	// First batch
+	params1 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+	jsonBytes1, _ := params1.MarshalJSON()
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		t.Fatalf("First batch: Expected status code %d, got %d", http.StatusOK, response1.StatusCode)
+	}
+
+	// Second batch
+	startIndex += batchSize
+	params2 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, &params1)
+	jsonBytes2, _ := params2.MarshalJSON()
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
 	}
 }

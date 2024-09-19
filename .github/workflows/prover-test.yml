@@ -23,8 +23,8 @@ on:
 jobs:
   build-and-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 120
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

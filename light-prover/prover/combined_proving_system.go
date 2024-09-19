@@ -2,6 +2,7 @@ package prover
 
 import (
 	"light/light-prover/logging"
+	"math/big"
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -93,7 +94,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	return circuit
 }
 
-func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
 	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -102,10 +103,18 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystemV1{
+		InclusionTreeHeight:                    inclusionTreeHeight,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs}, nil
+
 }
 
-func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -148,4 +157,37 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 	}
 
 	return &Proof{proof}, nil
+}
+
+func (ps *ProvingSystemV1) VerifyCombined(root []big.Int, leaf []big.Int, value []big.Int, proof *Proof) error {
+	leaves := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range leaf {
+		leaves[i] = v
+	}
+
+	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range value {
+		values[i] = v
+	}
+
+	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range root {
+		roots[i] = v
+	}
+
+	publicAssignment := CombinedCircuit{
+		InclusionCircuit{
+			Roots:  roots,
+			Leaves: leaves,
+		},
+		NonInclusionCircuit{
+			Roots:  roots,
+			Values: values,
+		},
+	}
+	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		return err
+	}
+	return groth16.Verify(proof.Proof, ps.VerifyingKey, witness)
 }
