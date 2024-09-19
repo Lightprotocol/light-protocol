@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-ROOT_DIR="$(git rev-parse --show-toplevel)";
+ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/light-prover/proving-keys"
 
 if [ ! -d "$KEYS_DIR" ]; then
@@ -12,6 +12,9 @@ BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
 # keys for append circuit 4, 10, 26 elements
 APPEND_BUCKET="bafybeiatsnqj4ksuddtzixv5si5cfoy7bah723zigvuuut55vkbvkivig4"
+
+# keys for update circuit
+UPDATE_BUCKET="bafybeicdgmeuxvgh5li5ofhllvexietky7pwqxjygoo6wr6wa5x33bioxi"
 
 LIGHTWEIGHT_FILES=(
    "inclusion_26_1.key"
@@ -46,6 +49,11 @@ LIGHTWEIGHT_FILES=(
   "combined_26_4_2.vkey"
   "append_10_10.key"
   "append_10_10.vkey"
+  "update_26_1.key" "update_26_1.vkey"
+  "update_26_10.key" "update_26_10.vkey"
+  "update_26_100.key" "update_26_100.vkey"
+  "update_26_500.key" "update_26_500.vkey"
+  "update_26_1000.key" "update_26_1000.vkey"
 )
 
 FULL_FILES=(
@@ -89,6 +97,11 @@ FULL_FILES=(
   "append_26_500.vkey"
   "append_26_1000.key"
   "append_26_1000.vkey"
+  "update_26_1.key" "update_26_1.vkey"
+  "update_26_10.key" "update_26_10.vkey"
+  "update_26_100.key" "update_26_100.vkey"
+  "update_26_500.key" "update_26_500.vkey"
+  "update_26_1000.key" "update_26_1000.vkey"
 )
 
 download_file() {
@@ -96,6 +109,8 @@ download_file() {
   local BUCKET_URL
   if [[ $FILE == append* ]]; then
     BUCKET_URL="https://${APPEND_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif  if [[ $FILE == update* ]]; then
+    BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
   else
     BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
   fi

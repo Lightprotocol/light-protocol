@@ -6,11 +6,11 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"light/light-prover/server"
+	"math/big"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	gnarkLogger "github.com/consensys/gnark/logger"
 )
@@ -28,7 +28,7 @@ func proveEndpoint() string {
 
 func StartServer(isLightweight bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
-	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend}
+	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend, prover.BatchUpdate}
 	var keys = prover.GetKeys("./proving-keys/", circuitTypes, isLightweight)
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
@@ -56,7 +56,7 @@ func StartServer(isLightweight bool) {
 			logging.Logger().Info().Msgf("Unknown proving system type for file: %s", key)
 			panic("Unknown proving system type")
 		}
-	}
+		}
 
 	if len(missingKeys) > 0 {
 		logging.Logger().Warn().Msgf("Some key files are missing. To download %s keys, run: ./scripts/download_keys.sh %s",
@@ -570,5 +570,109 @@ func testBatchAppendWithPreviousState10_10(t *testing.T) {
 	}
 	if response2.StatusCode != http.StatusOK {
 		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+}
+
+
+func testBatchUpdateHappyPath26_10(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(10)
+	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func testBatchUpdateWithSequentialFilling(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, &startIndex)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	// Verify sequential filling
+	for i := uint32(0); i < batchSize; i++ {
+		if params.PathIndices[i] != startIndex+i {
+			t.Errorf("Expected path index %d, got %d", startIndex+i, params.PathIndices[i])
+		}
+	}
+}
+
+func testBatchUpdateWithPreviousState26_10(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(10)
+
+	// First batch
+	params1 := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
+	jsonBytes1, _ := params1.MarshalJSON()
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		t.Fatalf("First batch: Expected status code %d, got %d", http.StatusOK, response1.StatusCode)
+	}
+
+	// Second batch
+	params2 := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), params1.Tree, nil)
+	jsonBytes2, _ := params2.MarshalJSON()
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+
+	// Verify that the new root is different from the old root
+	if params2.OldRoot.Cmp(params2.NewRoot) == 0 {
+		t.Errorf("Expected new root to be different from old root")
+	}
+}
+
+func TestBatchUpdateInvalidInput(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(10)
+	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
+
+	// Invalidate the input by changing the old root
+	params.OldRoot = big.NewInt(0)
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d, got %d", http.StatusBadRequest, response.StatusCode)
+	}
+
+	body, _ := io.ReadAll(response.Body)
+	if !strings.Contains(string(body), "proving_error") {
+		t.Fatalf("Expected error message to contain 'proving_error', got: %s", string(body))
 	}
 }

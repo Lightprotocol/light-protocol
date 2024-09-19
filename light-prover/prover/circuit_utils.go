@@ -30,6 +30,7 @@ type ProvingSystemV1 struct {
 }
 
 type ProvingSystemV2 struct {
+	CircuitType      CircuitType
 	TreeHeight       uint32
 	BatchSize        uint32
 	ProvingKey       groth16.ProvingKey
@@ -259,5 +260,13 @@ func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []stri
 		}
 	}
 
+if IsCircuitEnabled(circuitTypes, BatchUpdate) {
+		keys = append(keys, keysDir+"update_26_1.key")
+		keys = append(keys, keysDir+"update_26_10.key")
+		keys = append(keys, keysDir+"update_26_100.key")
+		keys = append(keys, keysDir+"update_26_500.key")
+		keys = append(keys, keysDir+"update_26_1000.key")
+	}
+	
 	return keys
 }
