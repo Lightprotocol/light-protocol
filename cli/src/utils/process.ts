@@ -128,22 +128,35 @@ export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
-  const dir = path.join(__dirname, logDir);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+  const dir = path.join(__dirname, "../..", logDir);
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const logPath = path.join(dir, `${binaryName}.log`);
+    const out = fs.openSync(logPath, "a");
+    const err = fs.openSync(logPath, "a");
+
+    const spawnedProcess = spawn(command, args, {
+      stdio: ["ignore", out, err],
+      shell: false,
+      detached: true,
+    });
+
+    spawnedProcess.on("close", (code) => {
+      console.log(`${binaryName} process exited with code ${code}`);
+    });
+
+    return spawnedProcess;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error spawning binary: ${error.message}`);
+    } else {
+      console.error(`An unknown error occurred while spawning binary`);
+    }
+    throw error;
   }
-
-  const out = fs.openSync(`${logDir}/${binaryName}.log`, "a");
-  const err = fs.openSync(`${logDir}/${binaryName}.log`, "a");
-  const spawnedProcess = spawn(command, args, {
-    stdio: ["ignore", out, err],
-    shell: false,
-    detached: true,
-  });
-
-  spawnedProcess.on("close", (code) => {
-    console.log(`${binaryName} process exited with code ${code}`);
-  });
 }
 
 export async function waitForServers(
