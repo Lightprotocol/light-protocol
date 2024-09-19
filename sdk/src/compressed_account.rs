@@ -547,7 +547,6 @@ where
     let address_merkle_context =
         unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
     let address = derive_address(address_seed, &address_merkle_context);
-    anchor_lang::prelude::msg!("ADDRESS: {:?}", address);
 
     let compressed_account = CompressedAccount {
         owner: *program_id,

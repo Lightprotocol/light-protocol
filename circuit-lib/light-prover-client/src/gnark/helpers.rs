@@ -14,7 +14,7 @@ use serde_json::json;
 use sysinfo::{Signal, System};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ProofType {
     Inclusion,
     NonInclusion,

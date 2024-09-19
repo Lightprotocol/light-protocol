@@ -8,7 +8,6 @@ use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::{spawn_prover, ProofType},
         inclusion_json_formatter::BatchInclusionJsonStruct,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -33,6 +32,7 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
+use tokio::time::sleep;
 
 use crate::{
     indexer::Indexer,
@@ -57,7 +57,6 @@ where
     pub token_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
-    proof_types: Vec<ProofType>,
     _rpc: PhantomData<R>,
 }
 
@@ -301,7 +300,13 @@ where
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                spawn_prover(true, self.proof_types.as_slice()).await;
+                // spawn_prover(true, self.proof_types.as_slice()).await;
+
+                // std::process::Command::new("light")
+                //     .arg("start-prover")
+                //     .spawn()
+                //     .expect("Failed to start prover");
+                // sleep(Duration::from_secs(10)).await;
                 retries -= 1;
             }
         }
@@ -351,16 +356,29 @@ where
             .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
             .collect::<Vec<_>>();
 
-        let mut proof_types = vec![];
-        if inclusion {
-            proof_types.push(ProofType::Inclusion);
+        // let mut proof_types = vec![];
+        // if inclusion {
+        //     proof_types.push(ProofType::Inclusion);
+        // }
+        // if non_inclusion {
+        //     proof_types.push(ProofType::NonInclusion);
+        // }
+        // if !non_inclusion || !inclusion {
+        // spawn_prover(true, proof_types.as_slice()).await;
+        let mut types = vec!["start-prover"];
+        if !inclusion {
+            types.push("-c");
         }
-        if non_inclusion {
-            proof_types.push(ProofType::NonInclusion);
+        if !non_inclusion {
+            types.push("-n");
         }
-        if !proof_types.is_empty() {
-            spawn_prover(true, proof_types.as_slice()).await;
-        }
+        println!("proof_types1 {:?}", types);
+        std::process::Command::new("light")
+            .args(types.as_slice())
+            .spawn()
+            .expect("Failed to start prover");
+        sleep(Duration::from_secs(10)).await;
+        // }
 
         Self {
             state_merkle_trees,
@@ -370,7 +388,6 @@ where
             token_compressed_accounts: Vec::new(),
             token_nullified_compressed_accounts: Vec::new(),
             events: Vec::new(),
-            proof_types,
             _rpc: PhantomData,
         }
     }
