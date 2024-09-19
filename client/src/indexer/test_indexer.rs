@@ -372,13 +372,13 @@ where
         if !non_inclusion {
             types.push("-n");
         }
-        println!("proof_types1 {:?}", types);
+        let project_root = light_prover_client::gnark::helpers::get_project_root();
         std::process::Command::new("light")
             .args(types.as_slice())
+            .current_dir(project_root.unwrap().trim_end_matches("\n"))
             .spawn()
             .expect("Failed to start prover");
-        sleep(Duration::from_secs(10)).await;
-        // }
+        sleep(Duration::from_secs(5)).await;
 
         Self {
             state_merkle_trees,
