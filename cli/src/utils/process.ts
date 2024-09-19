@@ -128,7 +128,7 @@ export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
-  const dir = path.join(__dirname, logDir);
+  const dir = path.join(__dirname, "../..", logDir);
   try {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
