@@ -102,11 +102,7 @@ fn find_light_bin() -> Option<PathBuf> {
     let node_modules_bin =
         light_bin_path.join("../lib/node_modules/@lightprotocol/zk-compression-cli/bin");
 
-    Some(
-        node_modules_bin
-            .canonicalize()
-            .unwrap_or_else(|_| node_modules_bin),
-    )
+    Some(node_modules_bin.canonicalize().unwrap_or(node_modules_bin))
 }
 #[derive(Debug)]
 pub struct EnvAccounts {
