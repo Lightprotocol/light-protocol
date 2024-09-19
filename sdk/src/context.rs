@@ -98,9 +98,8 @@ where
         let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
         let new_address_params = self.light_accounts.new_address_params();
-        let input_compressed_accounts_with_merkle_context = self
-            .light_accounts
-            .input_accounts(self.anchor_context.remaining_accounts)?;
+        let input_compressed_accounts_with_merkle_context =
+            self.compressed_accounts.accounts.clone();
         let output_compressed_accounts = self
             .light_accounts
             .output_accounts(self.anchor_context.remaining_accounts)?;

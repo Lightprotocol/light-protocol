@@ -513,8 +513,8 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             LightAccountAction::Init => {
                 let call = quote! {
                     let mut #field_ident: #type_path = #type_path_without_args::new_init(
-                        &compressed_accounts.accounts[#i_init],
-                        compressed_accounts.new_addresses[#i_init],
+                        std::rc::Rc::new(compressed_accounts.accounts[#i_init].clone()),
+                        std::rc::Rc::new(compressed_accounts.new_addresses[#i_init].clone()),
                     );
                 };
                 i_init += 1;
@@ -523,7 +523,7 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             LightAccountAction::Mut => {
                 let call = quote! {
                     let mut #field_ident: #type_path = #type_path_without_args::new_mut(
-                        &compressed_accounts.accounts[#i_mut_close],
+                        std::rc::Rc::new(compressed_accounts.accounts[#i_mut_close].clone()),
                     )?;
                 };
                 i_mut_close += 1;
@@ -532,7 +532,7 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
             LightAccountAction::Close => {
                 let call = quote! {
                     let mut #field_ident: #type_path = #type_path_without_args::new_close(
-                        &compressed_accounts.accounts[#i_mut_close],
+                        std::rc::Rc::new(compressed_accounts.accounts[#i_mut_close].clone()),
                     )?;
                 };
                 i_mut_close += 1;
@@ -580,11 +580,11 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
                 new_address_params
             }
 
-            fn input_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::PackedCompressedAccountWithMerkleContext>> {
-                let mut accounts = Vec::new();
-                #(#input_account_calls)*
-                Ok(accounts)
-            }
+            // fn input_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::PackedCompressedAccountWithMerkleContext>> {
+            //     let mut accounts = Vec::new();
+            //     #(#input_account_calls)*
+            //     Ok(accounts)
+            // }
 
             fn output_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::OutputCompressedAccountWithPackedContext>> {
                 let mut accounts = Vec::new();
