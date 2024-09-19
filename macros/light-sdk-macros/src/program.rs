@@ -285,7 +285,6 @@ pub(crate) fn program(mut input: ItemMod) -> Result<TokenStream> {
     Ok(quote! {
         #instruction_params
 
-        #[program]
         #input
     })
 }
