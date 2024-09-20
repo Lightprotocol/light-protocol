@@ -120,9 +120,9 @@ fn find_light_bin() -> Option<PathBuf> {
         .to_string();
         println!(
             "light path {}",
-            format!("{}/cli/bin/", light_protocol_toplevel)
+            format!("{}/target/deploy", light_protocol_toplevel)
         );
-        let light_path = PathBuf::from(format!("{}/cli/bin/", light_protocol_toplevel));
+        let light_path = PathBuf::from(format!("{}/target/deploy/", light_protocol_toplevel));
         Some(light_path)
     }
 }

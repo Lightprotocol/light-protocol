@@ -365,7 +365,6 @@ where
             .current_dir(cli_bin_path)
             .spawn()
             .expect("Failed to start prover");
-        // sleep(Duration::from_secs(10)).await;
         health_check(20, 1).await;
 
         Self {
