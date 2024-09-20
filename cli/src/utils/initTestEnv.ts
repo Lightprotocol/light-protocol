@@ -158,7 +158,7 @@ export async function initTestEnvIfNeeded({
  *
  * @returns {string} Directory path for Light Protocol programs.
  */
-function programsDirPath(): string {
+export function programsDirPath(): string {
   return (
     process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
     path.resolve(__dirname, BASE_PATH)
@@ -175,7 +175,7 @@ function programsDirPath(): string {
  *
  * @returns {string} Path for the given program.
  */
-function programFilePath(programName: string): string {
+export function programFilePath(programName: string): string {
   const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
   if (programsDir) {
     return path.join(programsDir, programName);

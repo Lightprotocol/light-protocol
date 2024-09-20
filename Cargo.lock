@@ -3497,12 +3497,13 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "async-trait",
  "bb8",
  "borsh 0.10.3",
  "light-concurrent-merkle-tree",
+ "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "light-prover-client",
@@ -3780,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "light-test-utils"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "account-compression",
  "anchor-lang",

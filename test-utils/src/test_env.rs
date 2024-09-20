@@ -122,6 +122,7 @@ fn find_light_bin() -> Option<PathBuf> {
         Some(light_path)
     }
 }
+
 #[derive(Debug)]
 pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
