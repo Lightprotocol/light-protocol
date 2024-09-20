@@ -38,3 +38,4 @@ export const LIGHT_CLIENT_VERSION = "0.8.0";
 export const LIGHT_TEST_UTILS_VERSION = "1.1.0";
 export const SOLANA_PROGRAM_TEST_VERSION = "1.18.22";
 export const TOKIO_VERSION = "1.36.0";
+export const COMPRESSED_PROGRAM_TEMPLATE_TAG = "v0.1.0";

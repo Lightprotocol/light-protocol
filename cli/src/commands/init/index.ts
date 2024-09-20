@@ -17,6 +17,7 @@ import {
   LIGHT_TEST_UTILS_VERSION,
   SOLANA_PROGRAM_TEST_VERSION,
   TOKIO_VERSION,
+  COMPRESSED_PROGRAM_TEMPLATE_TAG,
 } from "../../utils/constants";
 import { CARGO_GENERATE_TAG, programFilePath, programsDirPath } from "../../utils";
 import {pascalCase as upperCamelCase, kebabCase, snakeCase} from "case-anything";
@@ -60,6 +61,7 @@ export const initRepo = async (name: string,flags: any) => {
       "generate",
       "--name", kebabCaseName,
       "--git", "https://github.com/Lightprotocol/compressed-program-template",
+      "--tag", COMPRESSED_PROGRAM_TEMPLATE_TAG,
       "--define", `rust-name=${kebabCaseName}`,
       "--define", `rust-name-snake-case=${snakeCaseName}`,
       "--define", `rust-name-camel-case=${camelCaseName}`,
