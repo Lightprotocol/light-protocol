@@ -22,10 +22,10 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-light-compressed-token = { path = "../../programs/compressed-token", version = "1.0.0", features = ["cpi"]}
-light-system-program = { path = "../../programs/system", version = "1.0.0", features = ["cpi"]}
-light-registry = { path = "../../programs/registry", version = "1.0.0", features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression", version = "1.0.0", features = ["cpi"] }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+light-registry = { workspace = true }
+account-compression = { workspace = true  }
 light-hasher = { path = "../../merkle-tree/hasher", version = "1.0.0" }
 light-utils = { path = "../../utils", version = "1.0.0" }
 
