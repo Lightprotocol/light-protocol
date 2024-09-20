@@ -1,5 +1,5 @@
 export type LightSystemProgram = {
-    version: '1.0.0';
+    version: '1.2.0';
     name: 'light_system_program';
     constants: [
         {
@@ -1064,7 +1064,7 @@ export type LightSystemProgram = {
 };
 
 export const IDL: LightSystemProgram = {
-    version: '1.0.0',
+    version: '1.2.0',
     name: 'light_system_program',
     constants: [
         {
