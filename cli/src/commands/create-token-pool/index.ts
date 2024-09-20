@@ -12,7 +12,7 @@ import { createTokenPool } from "@lightprotocol/compressed-token";
 class RegisterMintCommand extends Command {
   static summary = "Register an existing mint with the CompressedToken program";
 
-  static examples = ["$ light register-mint --mint-decimals 5"];
+  static examples = ["$ light create-token-pool --mint-decimals 5"];
 
   static flags = {
     mint: Flags.string({
@@ -26,7 +26,7 @@ class RegisterMintCommand extends Command {
   async run() {
     const { flags } = await this.parse(RegisterMintCommand);
 
-    const loader = new CustomLoader(`Performing register-mint...\n`);
+    const loader = new CustomLoader(`Performing create-token-pool...\n`);
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
@@ -38,9 +38,9 @@ class RegisterMintCommand extends Command {
         "\x1b[1mMint tx:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
-      console.log("register-mint successful");
+      console.log("create-token-pool successful");
     } catch (error) {
-      this.error(`Failed to register-mint!\n${error}`);
+      this.error(`Failed to create-token-pool!\n${error}`);
     }
   }
 }

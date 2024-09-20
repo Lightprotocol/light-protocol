@@ -25,7 +25,10 @@ describe("mint-to", () => {
   });
 
   test
-    .command(["register-mint", `--mint=${mintKeypair.publicKey.toBase58()}`])
+    .command([
+      "create-token-pool",
+      `--mint=${mintKeypair.publicKey.toBase58()}`,
+    ])
     .stdout({ print: true })
     .command([
       "approve-and-mint-to",

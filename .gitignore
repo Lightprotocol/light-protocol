@@ -3,6 +3,7 @@
 
 **/test-ledger/
 
+/forester/forester_venv/
 # CLI
 /cli/node_modules/
 /cli/build/

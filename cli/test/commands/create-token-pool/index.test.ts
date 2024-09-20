@@ -25,11 +25,14 @@ describe("create-mint", () => {
 
   test
     .stdout({ print: true })
-    .command(["register-mint", `--mint=${mintKeypair.publicKey.toBase58()}`])
+    .command([
+      "create-token-pool",
+      `--mint=${mintKeypair.publicKey.toBase58()}`,
+    ])
     .it(
       `register mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
       (ctx: any) => {
-        expect(ctx.stdout).to.contain("register-mint successful");
+        expect(ctx.stdout).to.contain("create-token-pool successful");
       },
     );
 });
