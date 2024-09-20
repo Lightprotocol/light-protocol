@@ -1,6 +1,6 @@
 [package]
 name = "light-test-utils"
-version = "1.1.0"
+version = "1.2.0"
 description = "Utilities used in Light Protocol program tests"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,7 +22,7 @@ solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 thiserror = "1.0"
-light-macros = { path = "../macros/light", version = "1.0.0" }
+light-macros = { path = "../macros/light", version = "1.1.0" }
 account-compression = { workspace = true  }
 light-compressed-token = { workspace = true  }
 light-system-program = { workspace = true  }
@@ -30,14 +30,14 @@ light-registry = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 solana-transaction-status = { workspace = true }
 tokio = { workspace = true }
-light-prover-client = { path = "../circuit-lib/light-prover-client", version = "1.1.0" }
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "1.2.0" }
 reqwest = "0.11.26"
-light-hasher = { version = "1.0.0", path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { version = "1.0.0", path = "../merkle-tree/reference" }
-light-concurrent-merkle-tree = { version = "1.0.0", path = "../merkle-tree/concurrent" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.0.0" }
-light-verifier = { path = "../circuit-lib/verifier", version = "1.0.0" }
-light-utils = { path = "../utils", version = "1.0.0" }
+light-hasher = { version = "1.1.0", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "1.1.0", path = "../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "1.1.0", path = "../merkle-tree/concurrent" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.1.0" }
+light-verifier = { path = "../circuit-lib/verifier", version = "1.1.0" }
+light-utils = { path = "../utils", version = "1.1.0" }
 forester-utils = { workspace = true }
 memoffset = "0.9.1"
 rand = "0.8"
