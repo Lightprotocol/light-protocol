@@ -14,7 +14,7 @@ use serde_json::json;
 use sysinfo::{Signal, System};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ProofType {
     Inclusion,
     NonInclusion,
@@ -96,7 +96,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
     result
 }
 
-fn get_project_root() -> Option<String> {
+pub fn get_project_root() -> Option<String> {
     let output = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .output()
