@@ -35,6 +35,6 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 light-client = { workspace = true }
-light-test-utils = { path = "../../../../test-utils", version = "1.0.0", features = ["devenv"] }
+light-test-utils = { path = "../../../../test-utils", version = "1.1.0", features = ["devenv"] }
 solana-program-test = { workspace = true }
 tokio = "1.36.0"
