@@ -81,7 +81,8 @@ light-sdk = { path = "sdk", version = "0.9.0" }
 light-sdk-macros = { path = "macros/light-sdk-macros", version = "0.1.0" }
 light-utils = { path = "utils", version = "1.0.0" }
 light-verifier = { path = "circuit-lib/verifier", version = "1.0.0" }
-photon-api = { path = "photon-api" }
+photon-api = { path = "photon-api", version = "0.45.0" }
+forester-utils = { path = "forester-utils", version = "0.1.0" }
 
 # Math and crypto
 num-bigint = "0.4.6"
