@@ -47,7 +47,7 @@ export const initRepo = async (name: string,flags: any) => {
   const localFilePath = programFilePath("cargo-generate");
   const dirPath = programsDirPath();
 
-  downloadCargoGenerateIfNotExists({
+  await downloadCargoGenerateIfNotExists({
     localFilePath,
     dirPath,
   });
