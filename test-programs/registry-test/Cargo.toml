@@ -22,7 +22,7 @@ default = ["custom-heap"]
 
 [dev-dependencies]
 solana-program-test = { workspace = true }
-light-test-utils = { version = "1.0.0", path = "../../test-utils", features=["devenv"] }
+light-test-utils = { version = "1.1.0", path = "../../test-utils", features=["devenv"] }
 reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
