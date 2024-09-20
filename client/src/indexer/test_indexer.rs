@@ -359,7 +359,7 @@ where
         let project_root = light_prover_client::gnark::helpers::get_project_root().unwrap();
         let project_root = project_root.trim_end_matches('\n').to_string();
         let cli_bin_path = format!("{}/cli/test_bin", project_root);
-        println!("cli_bin_path: {}", cli_bin_path);
+
         std::process::Command::new("./run")
             .args(types.as_slice())
             .current_dir(cli_bin_path)
