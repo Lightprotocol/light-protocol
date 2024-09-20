@@ -9,6 +9,7 @@ on:
         options:
           - all
           - aligned-sized
+          - light-client
           - light-heap
           - light-utils
           - light-bounded-vec
