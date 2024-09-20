@@ -61,7 +61,7 @@ export const initRepo = async (name: string,flags: any) => {
       "generate",
       "--name", kebabCaseName,
       "--git", "https://github.com/Lightprotocol/compressed-program-template",
-      "--tag", COMPRESSED_PROGRAM_TEMPLATE_TAG,
+      // "--tag", COMPRESSED_PROGRAM_TEMPLATE_TAG,
       "--define", `rust-name=${kebabCaseName}`,
       "--define", `rust-name-snake-case=${snakeCaseName}`,
       "--define", `rust-name-camel-case=${camelCaseName}`,
