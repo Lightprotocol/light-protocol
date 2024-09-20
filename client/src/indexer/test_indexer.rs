@@ -8,6 +8,7 @@ use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::health_check,
         inclusion_json_formatter::BatchInclusionJsonStruct,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -32,7 +33,6 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-use tokio::time::sleep;
 
 use crate::{
     indexer::Indexer,
@@ -365,7 +365,8 @@ where
             .current_dir(cli_bin_path)
             .spawn()
             .expect("Failed to start prover");
-        sleep(Duration::from_secs(10)).await;
+        // sleep(Duration::from_secs(10)).await;
+        health_check(20, 1).await;
 
         Self {
             state_merkle_trees,
