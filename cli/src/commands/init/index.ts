@@ -19,8 +19,16 @@ import {
   TOKIO_VERSION,
   COMPRESSED_PROGRAM_TEMPLATE_TAG,
 } from "../../utils/constants";
-import { CARGO_GENERATE_TAG, programFilePath, programsDirPath } from "../../utils";
-import {pascalCase as upperCamelCase, kebabCase, snakeCase} from "case-anything";
+import {
+  CARGO_GENERATE_TAG,
+  programFilePath,
+  programsDirPath,
+} from "../../utils";
+import {
+  pascalCase as upperCamelCase,
+  kebabCase,
+  snakeCase,
+} from "case-anything";
 export default class InitCommand extends Command {
   static description = "Initialize a compressed account project.";
 
@@ -43,8 +51,7 @@ export default class InitCommand extends Command {
   }
 }
 
-export const initRepo = async (name: string,flags: any) => {
-
+export const initRepo = async (name: string, flags: any) => {
   const localFilePath = programFilePath("cargo-generate");
   const dirPath = programsDirPath();
 
@@ -59,28 +66,47 @@ export const initRepo = async (name: string,flags: any) => {
     command: localFilePath,
     args: [
       "generate",
-      "--name", kebabCaseName,
-      "--git", "https://github.com/Lightprotocol/compressed-program-template",
-      // "--tag", COMPRESSED_PROGRAM_TEMPLATE_TAG,
-      "--define", `rust-name=${kebabCaseName}`,
-      "--define", `rust-name-snake-case=${snakeCaseName}`,
-      "--define", `rust-name-camel-case=${camelCaseName}`,
-      "--define", `program-id=${PROGRAM_ID}`,
-      "--define", `anchor-version=${ANCHOR_VERSION}`,
-      "--define", `borsh-version=${BORSH_VERSION}`,
-      "--define", `light-hasher-version=${LIGHT_HASHER_VERSION}`,
-      "--define", `light-macros-version=${LIGHT_MACROS_VERSION}`,
-      "--define", `light-sdk-version=${LIGHT_SDK_VERSION}`,
-      "--define", `light-sdk-macros-version=${LIGHT_SDK_MACROS_VERSION}`,
-      "--define", `light-utils-version=${LIGHT_UTILS_VERSION}`,
-      "--define", `light-verifier-version=${LIGHT_VERIFIER_VERSION}`,
-      "--define", `solana-sdk-version=${SOLANA_SDK_VERSION}`,
-      "--define", `light-client-version=${LIGHT_CLIENT_VERSION}`,
-      "--define", `light-test-utils-version=${LIGHT_TEST_UTILS_VERSION}`,
-      "--define", `solana-program-test-version=${SOLANA_PROGRAM_TEST_VERSION}`,
-      "--define", `tokio-version=${TOKIO_VERSION}`,
+      "--name",
+      kebabCaseName,
+      "--git",
+      "https://github.com/Lightprotocol/compressed-program-template",
+      "--tag", COMPRESSED_PROGRAM_TEMPLATE_TAG,
+      "--define",
+      `rust-name=${kebabCaseName}`,
+      "--define",
+      `rust-name-snake-case=${snakeCaseName}`,
+      "--define",
+      `rust-name-camel-case=${camelCaseName}`,
+      "--define",
+      `program-id=${PROGRAM_ID}`,
+      "--define",
+      `anchor-version=${ANCHOR_VERSION}`,
+      "--define",
+      `borsh-version=${BORSH_VERSION}`,
+      "--define",
+      `light-hasher-version=${LIGHT_HASHER_VERSION}`,
+      "--define",
+      `light-macros-version=${LIGHT_MACROS_VERSION}`,
+      "--define",
+      `light-sdk-version=${LIGHT_SDK_VERSION}`,
+      "--define",
+      `light-sdk-macros-version=${LIGHT_SDK_MACROS_VERSION}`,
+      "--define",
+      `light-utils-version=${LIGHT_UTILS_VERSION}`,
+      "--define",
+      `light-verifier-version=${LIGHT_VERIFIER_VERSION}`,
+      "--define",
+      `solana-sdk-version=${SOLANA_SDK_VERSION}`,
+      "--define",
+      `light-client-version=${LIGHT_CLIENT_VERSION}`,
+      "--define",
+      `light-test-utils-version=${LIGHT_TEST_UTILS_VERSION}`,
+      "--define",
+      `solana-program-test-version=${SOLANA_PROGRAM_TEST_VERSION}`,
+      "--define",
+      `tokio-version=${TOKIO_VERSION}`,
     ],
-    logFile: true
+    logFile: true,
   });
   await sleep(1000);
 };

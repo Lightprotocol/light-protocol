@@ -57,7 +57,7 @@ export async function executeCommand({
     if (logFile) {
       const folderName = "test-ledger";
       const file = `./${folderName}/${commandBase}.log`;
-  
+
       if (!fs.existsSync(folderName)) {
         fs.mkdirSync(folderName);
       }

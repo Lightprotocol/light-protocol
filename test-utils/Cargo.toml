@@ -1,6 +1,6 @@
 [package]
 name = "light-test-utils"
-version = "1.2.0"
+version = "1.2.1"
 description = "Utilities used in Light Protocol program tests"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
