@@ -28,7 +28,7 @@ thiserror = "1.0"
 ark-bn254 = "0.4"
 ark-ff = "0.4"
 light-merkle-tree-reference = { path = "../reference", version = "1.0.0" }
-light-hash-set = { version = "1.0.0", path = "../hash-set", features = ["solana"] }
+light-hash-set = { workspace = true, features = ["solana"] }
 rand = "0.8"
 solana-program = {  workspace = true }
 spl-account-compression = { version = "0.3.0", default-features = false}

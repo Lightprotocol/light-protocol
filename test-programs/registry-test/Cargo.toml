@@ -31,7 +31,7 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
-forester-utils = { path = "../../forester-utils" }
+forester-utils = {  workspace = true }
 light-registry = { path = "../../programs/registry"  , features = ["cpi"]}
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
 light-system-program = { path = "../../programs/system"  , features = ["cpi"]}

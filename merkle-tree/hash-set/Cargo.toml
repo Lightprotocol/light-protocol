@@ -1,6 +1,6 @@
 [package]
 name = "light-hash-set"
-version = "1.0.0"
+version = "1.1.0"
 description = "Hash set which can be stored on a Solana account"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

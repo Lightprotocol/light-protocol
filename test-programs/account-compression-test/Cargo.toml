@@ -36,7 +36,7 @@ light-compressed-token = { path = "../../programs/compressed-token"  , features 
 light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
 light-hasher = {path = "../../merkle-tree/hasher"}
-light-hash-set = {path = "../../merkle-tree/hash-set"}
+light-hash-set = { workspace = true}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
 light-indexed-merkle-tree = {path = "../../merkle-tree/indexed"}
 light-merkle-tree-reference = {path = "../../merkle-tree/reference"}
