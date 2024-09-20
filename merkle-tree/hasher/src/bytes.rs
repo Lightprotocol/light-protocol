@@ -84,7 +84,6 @@ impl AsByteVec for String {
     }
 }
 
-#[cfg(feature = "solana")]
 impl AsByteVec for solana_program::pubkey::Pubkey {
     fn as_byte_vec(&self) -> Vec<Vec<u8>> {
         vec![self.to_bytes().to_vec()]
