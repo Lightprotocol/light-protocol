@@ -81,7 +81,7 @@ light-sdk = { path = "sdk", version = "0.10.0" }
 light-sdk-macros = { path = "macros/light-sdk-macros", version = "0.3.0" }
 light-utils = { path = "utils", version = "1.1.0" }
 light-verifier = { path = "circuit-lib/verifier", version = "1.1.0" }
-photon-api = { path = "photon-api", version = "0.46.0" }
+photon-api = { path = "photon-api", version = "0.45.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
 light-hash-set = { path = "merkle-tree/hash-set", version = "1.2.0" }
 account-compression = { path = "programs/account-compression", version = "1.2.0", features = ["cpi"] }
