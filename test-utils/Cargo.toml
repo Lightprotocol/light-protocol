@@ -23,10 +23,10 @@ solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 thiserror = "1.0"
 light-macros = { path = "../macros/light", version = "1.0.0" }
-account-compression = { path = "../programs/account-compression", version = "1.0.0", features = ["cpi"] }
-light-compressed-token = { path = "../programs/compressed-token", version = "1.0.0", features = ["cpi"] }
-light-system-program = { path = "../programs/system", version = "1.0.0", features = ["cpi"] }
-light-registry = { path = "../programs/registry", version = "1.0.0", features = ["cpi"] }
+account-compression = { workspace = true  }
+light-compressed-token = { workspace = true  }
+light-system-program = { workspace = true  }
+light-registry = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 solana-transaction-status = { workspace = true }
 tokio = { workspace = true }

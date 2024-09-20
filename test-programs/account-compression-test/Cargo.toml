@@ -32,9 +32,9 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
-light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
-light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+account-compression = { workspace = true }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-hash-set = { workspace = true}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}

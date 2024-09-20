@@ -40,8 +40,8 @@ bytemuck = "1.17"
 light-hasher = { version = "1.0.0", path = "../merkle-tree/hasher", features=["solana"] }
 light-heap = { version = "1.0.0", path = "../heap", optional = true }
 light-indexed-merkle-tree = { workspace = true }
-account-compression = { version = "1.0.0", path = "../programs/account-compression", features = ["cpi"], optional = true }
-light-system-program = { version = "1.0.0", path = "../programs/system", features = ["cpi"], optional = true }
+account-compression = { workspace = true , optional = true }
+light-system-program = { workspace = true , optional = true }
 light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "1.0.0" }
 light-utils = { version = "1.0.0", path = "../utils" }
 groth16-solana = "0.0.3"

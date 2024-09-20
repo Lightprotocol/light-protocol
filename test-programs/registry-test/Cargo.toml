@@ -32,10 +32,10 @@ spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
 forester-utils = {  workspace = true }
-light-registry = { path = "../../programs/registry"  , features = ["cpi"]}
-light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
-light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
+light-registry = { workspace = true }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+account-compression = { workspace = true  }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
 light-indexed-merkle-tree = {path = "../../merkle-tree/indexed"}

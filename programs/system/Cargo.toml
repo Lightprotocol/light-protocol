@@ -1,6 +1,6 @@
 [package]
 name = "light-system-program"
-version = "1.0.0"
+version = "1.1.0"
 description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -29,7 +29,7 @@ light-heap = { version = "1.0.0", path = "../../heap", optional = true }
 light-macros = { path = "../../macros/light", version = "1.0.0" }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", version = "1.0.0" }
 light-indexed-merkle-tree = { path = "../../merkle-tree/indexed", version = "1.0.0" }
-account-compression = { version = "1.0.0", path = "../account-compression", features = ["cpi"] }
+account-compression = { workspace =  true }
 light-utils = { version = "1.0.0", path = "../../utils" }
 groth16-solana = "0.0.3"
 light-verifier = { path = "../../circuit-lib/verifier", version = "1.0.0", features = ["solana"] }
