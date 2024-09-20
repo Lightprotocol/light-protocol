@@ -11,7 +11,7 @@ description = "Utility library for Light's Forester node implementation"
 account-compression = { path = "../programs/account-compression", version = "1.0.0", features = ["cpi"] }
 light-compressed-token = { path = "../programs/compressed-token", version = "1.0.0", features = ["cpi"] }
 light-hash-set = { path = "../merkle-tree/hash-set", version = "1.0.0" }
-light-hasher = { version = "1.0.0", path = "../merkle-tree/hasher" }
+light-hasher = { version = "1.1.1", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "1.0.0", path = "../merkle-tree/reference" }
 light-concurrent-merkle-tree = { version = "1.0.0", path = "../merkle-tree/concurrent" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.0.0" }

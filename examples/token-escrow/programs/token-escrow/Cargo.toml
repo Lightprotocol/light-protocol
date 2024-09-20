@@ -24,7 +24,7 @@ anchor-lang = { workspace = true, features = ["init-if-needed"] }
 light-compressed-token = { path = "../../../../programs/compressed-token", version = "1.0.0", features = ["cpi"]}
 light-system-program = { path = "../../../../programs/system", version = "1.0.0", features = ["cpi"]}
 account-compression = { path = "../../../../programs/account-compression", version = "1.0.0",  features = ["cpi"] }
-light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.0.0" }
+light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.1.1" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.0.0" }
 light-sdk = { workspace = true, features = ["legacy"] }
 

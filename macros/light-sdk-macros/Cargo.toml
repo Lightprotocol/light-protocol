@@ -12,7 +12,7 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
 
-light-hasher = { path = "../../merkle-tree/hasher", version = "1.0.0" }
+light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.1" }
 
 [dev-dependencies]
 light-utils = { path = "../../utils", version = "1.0.0" }

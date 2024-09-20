@@ -3582,7 +3582,7 @@ dependencies = [
 
 [[package]]
 name = "light-hasher"
-version = "1.0.0"
+version = "1.1.1"
 dependencies = [
  "ark-bn254",
  "light-poseidon",

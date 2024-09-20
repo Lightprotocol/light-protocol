@@ -29,7 +29,7 @@ anchor-lang = { workspace = true }
 bytemuck = { version = "1.17", features = ["min_const_generics"] }
 light-bounded-vec = { version = "1.0.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
 light-hash-set = { version = "1.0.0", path = "../../merkle-tree/hash-set", features = ["solana"] }
-light-hasher = { version = "1.0.0", path = "../../merkle-tree/hasher", features = ["solana"] }
+light-hasher = { version = "1.1.1", path = "../../merkle-tree/hasher", features = ["solana"] }
 light-heap = { version = "1.0.0", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { version = "1.0.0", path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "1.0.0", path = "../../merkle-tree/indexed", features = ["solana"] }

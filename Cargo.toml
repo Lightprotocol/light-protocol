@@ -72,7 +72,7 @@ thiserror = "1.0"
 # Light Protocol
 light-client = { path = "client", version = "0.8.0" }
 light-concurrent-merkle-tree = { path = "merkle-tree/concurrent", version = "1.0.0" }
-light-hasher = { path = "merkle-tree/hasher", version = "1.0.0" }
+light-hasher = { path = "merkle-tree/hasher", version = "1.1.1" }
 light-indexed-merkle-tree = { path = "merkle-tree/indexed", version = "1.0.0" }
 light-macros = { path = "macros/light", version = "1.0.0" }
 light-merkle-tree-reference = { path = "merkle-tree/reference", version = "1.0.0" }
