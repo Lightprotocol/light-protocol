@@ -183,9 +183,18 @@ impl VisitMut for LightProgramTransform {
         let inputs_ident = Ident::new(&params_name, Span::call_site());
 
         // Inject `LightCompressedAccounts`.
-        let proof_arg: FnArg =
-            parse_quote! { compressed_accounts: ::light_sdk::context::LightCompressedAccounts };
-        i.sig.inputs.insert(1, proof_arg);
+        let compressed_accounts_arg: FnArg = parse_quote! { compressed_accounts: Vec<u8> };
+        i.sig.inputs.insert(1, compressed_accounts_arg);
+
+        let log_stmt: Stmt = parse_quote! {
+            anchor_lang::prelude::msg!("CHINA");
+        };
+        i.block.stmts.insert(0, log_stmt);
+        let deserialize_stmt: Stmt = parse_quote! {
+            let compressed_accounts: ::light_sdk::context::LightCompressedAccounts =
+                ::light_sdk::context::LightCompressedAccounts::deserialize(&mut compressed_accounts.as_slice())?;
+        };
+        i.block.stmts.insert(1, deserialize_stmt);
 
         // Inject a `LightContext` into the function body.
         let light_context_stmt: Stmt = parse_quote! {
@@ -197,7 +206,7 @@ impl VisitMut for LightProgramTransform {
                 compressed_accounts,
             )?;
         };
-        i.block.stmts.insert(0, light_context_stmt);
+        i.block.stmts.insert(2, light_context_stmt);
 
         // Pack all instruction inputs in a struct, which then can be used in
         // `check_constrants` and `derive_address_seeds`.
@@ -214,18 +223,18 @@ impl VisitMut for LightProgramTransform {
         let inputs_pack_stmt: Stmt = parse_quote! {
             let instruction_params = #inputs_ident { #(#instruction_param_idents),* };
         };
-        i.block.stmts.insert(1, inputs_pack_stmt);
+        i.block.stmts.insert(3, inputs_pack_stmt);
 
         // Inject `check_constraints` and `derive_address_seeds` calls right
         // after.
         let check_constraints_stmt: Stmt = parse_quote! {
             ctx.check_constraints(&instruction_params)?;
         };
-        i.block.stmts.insert(2, check_constraints_stmt);
+        i.block.stmts.insert(4, check_constraints_stmt);
         let derive_address_seed_stmt: Stmt = parse_quote! {
             ctx.derive_address_seeds(&instruction_params);
         };
-        i.block.stmts.insert(3, derive_address_seed_stmt);
+        i.block.stmts.insert(5, derive_address_seed_stmt);
 
         // Once we are done with calling `check_constraints` and
         // `derive_address_seeds`, we can unpack the inputs, so developers can
@@ -236,7 +245,7 @@ impl VisitMut for LightProgramTransform {
         let inputs_unpack_stmt: Stmt = parse_quote! {
             let #inputs_ident { #(#instruction_param_idents),* } = instruction_params;
         };
-        i.block.stmts.insert(4, inputs_unpack_stmt);
+        i.block.stmts.insert(6, inputs_unpack_stmt);
 
         // Inject `verify` statements at the end of the function.
         let stmts_len = i.block.stmts.len();

@@ -3,6 +3,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use borsh::BorshSerialize;
 use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
@@ -312,12 +313,15 @@ where
         )
         .await;
 
+    let compressed_accounts = LightCompressedAccounts {
+        proof: Some(proof),
+        accounts: Vec::new(),
+        new_addresses: vec![*address_merkle_context],
+    };
+    let compressed_accounts = compressed_accounts.try_to_vec()?;
+
     let instruction_data = name_service::instruction::CreateRecord {
-        compressed_accounts: LightCompressedAccounts {
-            proof: Some(proof),
-            accounts: Vec::new(),
-            new_addresses: vec![*address_merkle_context],
-        },
+        compressed_accounts,
         name: name.to_string(),
         rdata: rdata.clone(),
     };
@@ -386,12 +390,15 @@ where
         remaining_accounts,
     );
 
+    let compressed_accounts = LightCompressedAccounts {
+        proof: Some(proof),
+        accounts: vec![account],
+        new_addresses: Vec::new(),
+    };
+    let compressed_accounts = compressed_accounts.try_to_vec()?;
+
     let instruction_data = name_service::instruction::UpdateRecord {
-        compressed_accounts: LightCompressedAccounts {
-            proof: Some(proof),
-            accounts: vec![account],
-            new_addresses: Vec::new(),
-        },
+        compressed_accounts,
         new_rdata: new_rdata.clone(),
     };
 
@@ -456,12 +463,15 @@ where
         remaining_accounts,
     );
 
+    let compressed_accounts = LightCompressedAccounts {
+        proof: Some(proof),
+        accounts: vec![account],
+        new_addresses: Vec::new(),
+    };
+    let compressed_accounts = compressed_accounts.try_to_vec()?;
+
     let instruction_data = name_service::instruction::DeleteRecord {
-        compressed_accounts: LightCompressedAccounts {
-            proof: Some(proof),
-            accounts: vec![account],
-            new_addresses: Vec::new(),
-        },
+        compressed_accounts,
     };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);
