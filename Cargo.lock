@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "light-prover-client"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -3665,7 +3665,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.10.3",
+ "borsh 0.9.3",
  "bytemuck",
  "color-eyre",
  "duct",

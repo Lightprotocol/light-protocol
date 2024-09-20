@@ -1,6 +1,6 @@
 [package]
 name = "light-prover-client"
-version = "1.0.0"
+version = "1.1.0"
 description = "Crate for interacting with Light Protocol circuits"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
