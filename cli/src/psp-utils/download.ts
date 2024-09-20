@@ -246,7 +246,7 @@ export async function downloadBinIfNotExists({
   }
   if (!tag) tag = await latestRelease(owner, repoName);
   const url = `https://github.com/${owner}/${repoName}/releases/download/${tag}/${remoteFileName}`;
-
+  console.log(url);
   await downloadFile({
     localFilePath,
     dirPath,

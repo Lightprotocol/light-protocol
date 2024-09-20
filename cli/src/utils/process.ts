@@ -57,7 +57,7 @@ export async function executeCommand({
     if (logFile) {
       const folderName = "test-ledger";
       const file = `./${folderName}/${commandBase}.log`;
-
+  
       if (!fs.existsSync(folderName)) {
         fs.mkdirSync(folderName);
       }
@@ -70,6 +70,7 @@ export async function executeCommand({
     console.log(`Executing command ${commandBase} ${args}...`);
     let childProcess;
     try {
+      console.log("command is: ", command);
       childProcess = spawn(command, args, options);
     } catch (e) {
       throw new Error(`Failed to execute command ${commandBase}: ${e}`);
