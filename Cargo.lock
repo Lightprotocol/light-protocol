@@ -3503,6 +3503,7 @@ dependencies = [
  "bb8",
  "borsh 0.10.3",
  "light-concurrent-merkle-tree",
+ "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "light-prover-client",

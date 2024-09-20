@@ -6,6 +6,9 @@ license = "Apache-2.0"
 repository = "https://github.com/lightprotocol/light-protocol"
 description = "Client library for Light Protocol"
 
+[features]
+devenv = []
+
 [dependencies]
 # Solana
 solana-banks-client = { workspace = true }
@@ -35,6 +38,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
+light-hasher = { workspace = true }
 
 # Math and crypto
 num-bigint = { workspace = true }

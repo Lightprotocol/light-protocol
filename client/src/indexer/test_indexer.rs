@@ -1,7 +1,7 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, thread::sleep, time::Duration};
 
 use borsh::BorshDeserialize;
-use light_concurrent_merkle_tree::light_hasher::Poseidon;
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
@@ -356,15 +356,27 @@ where
         if !non_inclusion {
             types.push("-n");
         }
-        let project_root = light_prover_client::gnark::helpers::get_project_root().unwrap();
-        let project_root = project_root.trim_end_matches('\n').to_string();
-        let cli_bin_path = format!("{}/cli/test_bin", project_root);
 
-        std::process::Command::new("./run")
-            .args(types.as_slice())
-            .current_dir(cli_bin_path)
-            .spawn()
-            .expect("Failed to start prover");
+        #[cfg(feature = "devenv")]
+        {
+            let project_root = light_prover_client::gnark::helpers::get_project_root().unwrap();
+            let project_root = project_root.trim_end_matches('\n').to_string();
+            let cli_bin_path = format!("{}/cli/test_bin", project_root);
+            std::process::Command::new("./run")
+                .args(types.as_slice())
+                .current_dir(cli_bin_path)
+                .spawn()
+                .expect("Failed to start prover");
+            sleep(Duration::from_secs(1));
+        }
+        #[cfg(not(feature = "devenv"))]
+        {
+            std::process::Command::new("light")
+                .args(types.as_slice())
+                .spawn()
+                .expect("Failed to start prover");
+            sleep(Duration::from_secs(1));
+        }
         health_check(20, 1).await;
 
         Self {
