@@ -10,7 +10,7 @@
   "devDependencies": {
     "@lightprotocol/zk-compression-cli": "workspace:*",
 
-    "chai": "^4.3.4",
+    "chai": "^5.1.1",
     "mocha": "^10.7.3",
     "ts-mocha": "^10.0.0",
     "@types/bn.js": "^5.1.0",
