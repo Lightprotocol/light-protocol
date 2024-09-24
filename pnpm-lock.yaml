@@ -398,10 +398,6 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@types/node@22.5.5)(@vitest/browser@1.6.0)(terser@5.31.0)
 
-  hasher.rs/src/main/wasm: {}
-
-  hasher.rs/src/main/wasm-simd: {}
-
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':
