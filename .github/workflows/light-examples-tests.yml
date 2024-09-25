@@ -11,6 +11,7 @@ on:
     paths:
       - "examples/**"
       - "macros/light-sdk-macros/**"
+      - "sdk/**"
     types:
       - opened
       - synchronize
