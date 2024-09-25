@@ -50,7 +50,9 @@ export async function executeCommand({
       : process.env.PATH;
 
     const options: SpawnOptionsWithoutStdio = {
-      env: env || (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
+      env:
+        env ||
+        (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
       detached: true,
     };
 
