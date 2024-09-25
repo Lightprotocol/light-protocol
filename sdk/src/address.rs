@@ -1,4 +1,7 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::{
+    anchor_syn::idl::types::{IdlField, IdlType, IdlTypeDefinition, IdlTypeDefinitionTy},
+    solana_program::pubkey::Pubkey,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
@@ -21,7 +24,53 @@ pub struct NewAddressParamsPacked {
 }
 
 #[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for NewAddressParamsPacked {}
+impl anchor_lang::IdlBuild for NewAddressParamsPacked {
+    fn __anchor_private_full_path() -> String {
+        format!("{}::{}", "light_sdk::address", "NewAddressParamsPacked")
+    }
+    fn __anchor_private_gen_idl_type(
+    ) -> Option<anchor_lang::anchor_syn::idl::types::IdlTypeDefinition> {
+        Some(IdlTypeDefinition {
+            docs: None,
+            generics: None,
+            name: "NewAddressParamsPacked".to_string(),
+            ty: IdlTypeDefinitionTy::Struct {
+                fields: vec![
+                    IdlField {
+                        name: "seed".into(),
+                        docs: None,
+                        ty: IdlType::Array(Box::new(IdlType::U8), 32),
+                    },
+                    IdlField {
+                        name: "address_queue_account_index".into(),
+                        docs: None,
+                        ty: IdlType::U8,
+                    },
+                    IdlField {
+                        name: "address_queue_account_index".into(),
+                        docs: None,
+                        ty: IdlType::U8,
+                    },
+                    IdlField {
+                        name: "address_queue_account_index".into(),
+                        docs: None,
+                        ty: IdlType::U16,
+                    },
+                ],
+            },
+        })
+    }
+    fn __anchor_private_insert_idl_defined(
+        _defined_types: &mut std::collections::HashMap<
+            String,
+            anchor_lang::anchor_syn::idl::types::IdlTypeDefinition,
+        >,
+    ) {
+        if let Some(ty) = Self::__anchor_private_gen_idl_type() {
+            _defined_types.insert(Self::__anchor_private_full_path(), ty);
+        }
+    }
+}
 
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],
