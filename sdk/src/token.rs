@@ -1,16 +1,16 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
 use crate::compressed_account::CompressedAccountWithMerkleContext;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 #[repr(u8)]
 pub enum AccountState {
     Initialized,
     Frozen,
 }
 
-#[derive(Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Clone)]
+#[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,

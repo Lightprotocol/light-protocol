@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, Bumps};
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{
@@ -32,7 +31,7 @@ pub struct CompressedCpiContext {
     pub cpi_context_account_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
@@ -186,7 +185,7 @@ pub fn setup_cpi_accounts<'info>(
     (account_infos, account_metas)
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct InvokeCpi {
     pub inputs: Vec<u8>,
 }
@@ -234,7 +233,7 @@ pub fn verify<'info, 'a, 'b, 'c, T>(
     signer_seeds: &'a [&'b [&'c [u8]]],
 ) -> Result<()>
 where
-    T: BorshSerialize,
+    T: AnchorSerialize,
 {
     if ctx.accounts.get_light_system_program().key() != PROGRAM_ID_LIGHT_SYSTEM {
         return err!(LightSdkError::InvalidLightSystemProgram);

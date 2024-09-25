@@ -1,10 +1,9 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct NewAddressParams {
     pub seed: [u8; 32],
     pub address_queue_pubkey: Pubkey,
@@ -12,16 +11,13 @@ pub struct NewAddressParams {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
     pub address_merkle_tree_account_index: u8,
     pub address_merkle_tree_root_index: u16,
 }
-
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for NewAddressParamsPacked {}
 
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],

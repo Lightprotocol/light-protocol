@@ -1,15 +1,15 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
 use crate::compressed_account::OutputCompressedAccountWithPackedContext;
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Default, PartialEq)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
     pub pubkey: Pubkey,
     pub seq: u64,
 }
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Default, PartialEq)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, Default, PartialEq)]
 pub struct PublicTransactionEvent {
     pub input_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_account_hashes: Vec<[u8; 32]>,

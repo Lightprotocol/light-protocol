@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 use solana_program::pubkey::Pubkey;
@@ -28,15 +28,12 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Clone, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
     pub c: [u8; 32],
 }
-
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for CompressedProof {}
 
 #[derive(Debug)]
 pub struct ProofRpcResult {
@@ -44,6 +41,3 @@ pub struct ProofRpcResult {
     pub root_indices: Vec<u16>,
     pub address_root_indices: Vec<u16>,
 }
-
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for ProofRpcResult {}
