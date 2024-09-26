@@ -29,6 +29,7 @@ import {
   kebabCase,
   snakeCase,
 } from "case-anything";
+import { execSync } from "child_process";
 export default class InitCommand extends Command {
   static description = "Initialize a compressed account project.";
 
@@ -59,9 +60,17 @@ export const initRepo = async (name: string, flags: any) => {
     localFilePath,
     dirPath,
   });
+
   const kebabCaseName = kebabCase(name);
   const snakeCaseName = snakeCase(name);
   const camelCaseName = upperCamelCase(name);
+
+  // Set up environment variables for macOS builds
+  if (os.platform() === "darwin") {
+    process.env.CC = execSync("xcrun -find clang").toString().trim();
+    process.env.SDKROOT = execSync("xcrun --show-sdk-path").toString().trim();
+  }
+
   await executeCommand({
     command: localFilePath,
     args: [
@@ -108,7 +117,9 @@ export const initRepo = async (name: string, flags: any) => {
       `tokio-version=${TOKIO_VERSION}`,
     ],
     logFile: true,
+    env: process.env,
   });
+
   await sleep(1000);
 };
 

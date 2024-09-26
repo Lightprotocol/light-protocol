@@ -33,11 +33,13 @@ export async function executeCommand({
   args,
   additionalPath,
   logFile = true,
+  env,
 }: {
   command: string;
   args: string[];
   additionalPath?: string;
   logFile?: boolean;
+  env?: NodeJS.ProcessEnv;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
     const commandBase = path.basename(command);
@@ -48,7 +50,9 @@ export async function executeCommand({
       : process.env.PATH;
 
     const options: SpawnOptionsWithoutStdio = {
-      env: childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env,
+      env:
+        env ||
+        (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
       detached: true,
     };
 
