@@ -38,3 +38,4 @@ jobs:
             merkle-tree
             deps
             deps-dev
+            sdk
