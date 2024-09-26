@@ -3,6 +3,8 @@ on:
     branches:
       - main
     paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "programs/**"
       - "test-programs/**"
       - "circuit-lib/verifier/**"
@@ -13,6 +15,8 @@ on:
     branches:
       - "*"
     paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "programs/**"
       - "test-programs/**"
       - "circuit-lib/verifier/**"
