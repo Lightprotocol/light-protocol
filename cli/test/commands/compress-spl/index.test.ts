@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { expect, describe, it, beforeAll } from 'vitest';
+import { runCommand } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -10,15 +11,12 @@ import {
 
 describe("compress-spl", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
-  /// TODO: add test case for separate fee-payer
-  const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
-
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
 
   const mintAmount = 10;
 
-  before(async () => {
+  beforeAll(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
 
@@ -33,26 +31,25 @@ describe("compress-spl", () => {
     );
   });
 
-  test
-    .command([
+  it(`compresses ${mintAmount - 2} tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
+    const decompressResult = await runCommand([
       "decompress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
-    ])
-    .stdout({ print: true })
-    .command([
+    ]);
+
+    expect(decompressResult.error).toBeUndefined();
+    expect(decompressResult.stdout).toContain("decompress-spl successful");
+
+    const compressResult = await runCommand([
       "compress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 2}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
-    ])
-    .it(
-      `compress ${
-        mintAmount - 2
-      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("compress-spl successful");
-      },
-    );
+    ]);
+
+    expect(compressResult.error).toBeUndefined();
+    expect(compressResult.stdout).toContain("compress-spl successful");
+  });
 });

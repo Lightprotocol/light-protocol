@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { expect, describe, it, beforeAll } from 'vitest';
+import { runCommand } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
@@ -6,18 +7,21 @@ import { requestAirdrop } from "../../helpers/helpers";
 describe("compress-sol", () => {
   const keypair = defaultSolanaWalletKeypair();
   const to = keypair.publicKey.toBase58();
-  // min rent exempt amount is 890_880 lamports
   const amount = 1000_000;
 
-  before(async () => {
+  beforeAll(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(keypair.publicKey);
   });
 
-  test
-    .stdout({ print: true })
-    .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
-    .it(`compress-sol ${amount} lamports to ${to}`, (ctx) => {
-      expect(ctx.stdout).to.contain("compress-sol successful");
-    });
+  it(`compresses ${amount} lamports to ${to}`, async () => {
+    const result = await runCommand([
+      "compress-sol",
+      `--amount=${amount}`,
+      `--to=${to}`
+    ]);
+
+    expect(result.error).toBeUndefined();
+    expect(result.stdout).toContain("compress-sol successful");
+  });
 });

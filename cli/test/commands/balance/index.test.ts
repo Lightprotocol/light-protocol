@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { expect, describe, it, beforeAll } from 'vitest';
+import { runCommand } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -16,7 +17,7 @@ describe("Get balance", () => {
   const mintAmount = 10;
   const mintDestination = Keypair.generate().publicKey;
 
-  before(async () => {
+  beforeAll(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
 
@@ -31,17 +32,15 @@ describe("Get balance", () => {
     );
   });
 
-  test
-    .stdout({ print: true })
-    .command([
+  it(`gets balance of ${mintAmount} tokens for ${mintDestination.toBase58()} from mint ${mintKeypair.publicKey.toBase58()}`, async () => {
+    const result = await runCommand([
       "balance",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--owner=${mintDestination.toBase58()}`,
-    ])
-    .it(
-      `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("balance successful");
-      },
-    );
+    ]);
+
+    expect(result.error).toBeUndefined();
+    expect(result.stdout).toContain("balance successful");
+    expect(result.stdout).toContain(`Balance: ${mintAmount}`);
+  });
 });

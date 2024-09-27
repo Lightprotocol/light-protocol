@@ -99,9 +99,6 @@ function logConfig(config: any) {
     value: "",
   });
 
-  ux.table(tableData, {
-    name: { header: "" },
-    value: { header: "" },
-  });
+  console.table(tableData);
 }
 export default ConfigCommand;
