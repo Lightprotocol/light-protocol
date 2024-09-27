@@ -14,6 +14,7 @@ import {
     NewAddressParams,
     buildAndSignTx,
     deriveAddress,
+    deriveAddressSeed,
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
@@ -25,7 +26,7 @@ import { BN } from '@coral-xyz/anchor';
  *
  * @param rpc               RPC to use
  * @param payer             Payer of the transaction and initialization fees
- * @param seed              Seed to derive the new account address
+ * @param seeds             Seeds to derive the new account address
  * @param programId         Owner of the new account
  * @param addressTree       Optional address tree. Defaults to a current shared
  *                          address tree.
@@ -40,7 +41,7 @@ import { BN } from '@coral-xyz/anchor';
 export async function createAccount(
     rpc: Rpc,
     payer: Signer,
-    seed: Uint8Array,
+    seeds: Uint8Array[],
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
@@ -52,8 +53,8 @@ export async function createAccount(
     addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
     addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
 
-    /// TODO: enforce program-derived
-    const address = await deriveAddress(seed, addressTree);
+    const seed = deriveAddressSeed(seeds, programId);
+    const address = deriveAddress(seed, addressTree);
 
     const proof = await rpc.getValidityProofV0(undefined, [
         {
@@ -96,7 +97,7 @@ export async function createAccount(
  *
  * @param rpc               RPC to use
  * @param payer             Payer of the transaction and initialization fees
- * @param seed              Seed to derive the new account address
+ * @param seeds             Seeds to derive the new account address
  * @param lamports          Number of compressed lamports to initialize the
  *                          account with
  * @param programId         Owner of the new account
@@ -114,7 +115,7 @@ export async function createAccount(
 export async function createAccountWithLamports(
     rpc: Rpc,
     payer: Signer,
-    seed: Uint8Array,
+    seeds: Uint8Array[],
     lamports: number | BN,
     programId: PublicKey,
     addressTree?: PublicKey,
@@ -138,8 +139,8 @@ export async function createAccountWithLamports(
     addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
     addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
 
-    /// TODO: enforce program-derived
-    const address = await deriveAddress(seed, addressTree);
+    const seed = deriveAddressSeed(seeds, programId);
+    const address = deriveAddress(seed, addressTree);
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
