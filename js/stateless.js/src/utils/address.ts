@@ -1,7 +1,16 @@
 import { AccountMeta, PublicKey } from '@solana/web3.js';
-import { hashToBn254FieldSizeBe } from './conversion';
+import { hashToBn254FieldSizeBe, hashvToBn254FieldSizeBe } from './conversion';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { getIndexOrAdd } from '../instruction';
+
+export function deriveAddressSeed(
+    seeds: Uint8Array[],
+    programId: PublicKey,
+): Uint8Array {
+    const combinedSeeds: Uint8Array[] = [programId.toBytes(), ...seeds];
+    const hash = hashvToBn254FieldSizeBe(combinedSeeds);
+    return hash;
+}
 
 /**
  * Derive an address for a compressed account from a seed and a merkle tree
@@ -18,7 +27,7 @@ export async function deriveAddress(
 ): Promise<PublicKey> {
     const bytes = merkleTreePubkey.toBytes();
     const combined = Buffer.from([...bytes, ...seed]);
-    const hash = await hashToBn254FieldSizeBe(combined);
+    const hash = hashToBn254FieldSizeBe(combined);
 
     if (hash === null) {
         throw new Error('DeriveAddressError');
@@ -114,6 +123,32 @@ export function packNewAddressParams(
 if (import.meta.vitest) {
     //@ts-ignore
     const { it, expect, describe } = import.meta.vitest;
+
+    const programId = new PublicKey('7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz');
+
+    describe('derive address seed', () => {
+        it('should derive a valid address seed', () => {
+            const seeds: Uint8Array[] = [
+                new TextEncoder().encode("foo"),
+                new TextEncoder().encode("bar")
+            ];
+            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(new Uint8Array([
+                0, 246, 150, 3, 192, 95, 53, 123, 56, 139, 206, 179, 253, 133, 115, 103,
+                120, 155, 251, 72, 250, 47, 117, 217, 118, 59, 174, 207, 49, 101, 201, 110
+            ]));
+        });
+
+        it('should derive a valid address seed', () => {
+            const seeds: Uint8Array[] = [
+                new TextEncoder().encode("ayy"),
+                new TextEncoder().encode("lmao")
+            ];
+            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(new Uint8Array([
+                0, 202, 44, 25, 221, 74, 144, 92, 69, 168, 38, 19, 206, 208, 29, 162, 53, 27, 120,
+                214, 152, 116, 15, 107, 212, 168, 33, 121, 187, 10, 76, 233
+            ]))
+        });
+    });
 
     describe('deriveAddress function', () => {
         it('should derive a valid address from a seed and a merkle tree public key', async () => {

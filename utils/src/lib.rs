@@ -53,7 +53,20 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     bigint < ark_bn254::Fr::MODULUS.into()
 }
 
+/// Hashes the provided `bytes` with Keccak256 and ensures the result fits
+/// in the BN254 prime field by repeatedly hashing the inputs with various
+/// "bump seeds" and truncating the resulting hash to 31 bytes.
+#[deprecated(note = "use `hashv_to_bn254_field_size_be` instead")]
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
+    // TODO(vadorovsky, affects-onchain): Get rid of the bump mechanism, it
+    // makes no sense. Doing the same as in the `hashv_to_bn254_field_size_be`
+    // below - overwriting the most significant byte with zero - is sufficient
+    // for truncation, it's also faster, doesn't force us to return `Option`
+    // and care about handling an error which is practically never returned.
+    //
+    // The reason we can't do it now is that it would affect on-chain programs.
+    // Once we can update programs, we can get rid of the seed bump (or even of
+    // this function all together in favor of the `hashv` variant).
     let mut bump_seed = [u8::MAX];
     // Loops with decreasing bump seed to find a valid hash which is less than
     // bn254 Fr modulo field size.
@@ -73,10 +86,7 @@ pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
 }
 
 /// Hashes the provided `bytes` with Keccak256 and ensures the result fits
-/// in the BN254 prime field by repeatedly hashing the inputs with various
-/// "bump seeds" and truncating the resulting hash to 31 bytes.
-///
-/// The attempted "bump seeds" are bytes from 255 to 0.
+/// in the BN254 prime field by truncating the resulting hash to 31 bytes.
 ///
 /// # Examples
 ///

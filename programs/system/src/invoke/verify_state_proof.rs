@@ -11,6 +11,7 @@ use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
+#[allow(deprecated)]
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::{
     verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
@@ -87,6 +88,7 @@ pub fn fetch_roots_address_merkle_tree<
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(never)]
 #[heap_neutral]
+#[allow(deprecated)]
 #[allow(unused_mut)]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     remaining_accounts: &'a [AccountInfo<'info>],

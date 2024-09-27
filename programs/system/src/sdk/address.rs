@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
 use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
+#[allow(deprecated)]
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked};
+
 pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+    #[allow(deprecated)]
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {

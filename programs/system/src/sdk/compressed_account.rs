@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
+#[allow(deprecated)]
 use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -162,6 +163,7 @@ impl CompressedAccount {
         &merkle_tree_pubkey: &Pubkey,
         leaf_index: &u32,
     ) -> Result<[u8; 32]> {
+        #[allow(deprecated)]
         self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()
@@ -188,6 +190,7 @@ mod tests {
     /// 5. no address and no data
     /// 6. no address, no data, no lamports
     #[test]
+    #[allow(deprecated)]
     fn test_compressed_account_hash() {
         let owner = Keypair::new().pubkey();
         let address = [1u8; 32];

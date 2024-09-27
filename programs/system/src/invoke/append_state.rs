@@ -7,6 +7,7 @@ use anchor_lang::{
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
+#[allow(deprecated)]
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
@@ -151,7 +152,9 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             });
             hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,
-                None => {
+                None =>
+                {
+                    #[allow(deprecated)]
                     hash_to_bn254_field_size_be(&account_info.key().to_bytes())
                         .unwrap()
                         .0
@@ -212,6 +215,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
         {
             Some(hashed_owner) => hashed_owner.1,
             None => {
+                #[allow(deprecated)]
                 let hashed_owner =
                     hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
                         .unwrap()

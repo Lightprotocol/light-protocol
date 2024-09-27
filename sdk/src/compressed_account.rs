@@ -4,6 +4,7 @@ use anchor_lang::prelude::{
     AccountInfo, AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result,
 };
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
+#[allow(deprecated)]
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
@@ -477,6 +478,7 @@ impl CompressedAccount {
         &merkle_tree_pubkey: &Pubkey,
         leaf_index: &u32,
     ) -> Result<[u8; 32]> {
+        #[allow(deprecated)]
         self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()
