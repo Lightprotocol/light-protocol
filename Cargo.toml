@@ -51,7 +51,7 @@ anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
 
 # Anchor compatibility
-borsh = "0.10.0"
+borsh = "1.5.1"
 
 # Macro helpers
 proc-macro2 = "1.0"

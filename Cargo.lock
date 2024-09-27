@@ -275,7 +275,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4e2e5be518ec6053d90a2a7f26843dbee607583c779e6c8395951b9739bdfbe"
 dependencies = [
  "anchor-syn",
- "borsh-derive-internal 0.10.3",
+ "borsh-derive-internal 0.9.3",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -311,7 +311,7 @@ dependencies = [
  "arrayref",
  "base64 0.13.1",
  "bincode",
- "borsh 0.10.3",
+ "borsh 0.9.3",
  "bytemuck",
  "getrandom 0.2.15",
  "solana-program",
@@ -1031,12 +1031,12 @@ dependencies = [
 
 [[package]]
 name = "borsh"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4114279215a005bc675e386011e594e1d9b800918cea18fcadadcce864a2046b"
+checksum = "115e54d64eb62cdebad391c19efc9dce4981c690c85a33a12199d99bb9546fee"
 dependencies = [
  "borsh-derive 0.10.3",
- "hashbrown 0.13.2",
+ "hashbrown 0.11.2",
 ]
 
 [[package]]
@@ -2295,7 +2295,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bincode",
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "bs58 0.4.0",
  "chrono",
  "clap 4.5.16",
@@ -3501,7 +3501,7 @@ version = "0.9.1"
 dependencies = [
  "async-trait",
  "bb8",
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
@@ -3546,7 +3546,7 @@ version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "bytemuck",
  "light-bounded-vec",
  "light-hash-set",
@@ -3605,7 +3605,7 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -3666,7 +3666,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 1.5.1",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -3718,7 +3718,7 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "bytemuck",
  "groth16-solana",
  "lazy_static",
@@ -3840,7 +3840,7 @@ dependencies = [
 name = "light-verifier"
 version = "1.1.0"
 dependencies = [
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "groth16-solana",
  "light-prover-client",
  "reqwest 0.11.27",
@@ -4118,7 +4118,7 @@ name = "name-service"
 version = "0.7.0"
 dependencies = [
  "anchor-lang",
- "borsh 0.10.3",
+ "borsh 1.5.1",
  "light-client",
  "light-hasher",
  "light-macros",
@@ -6804,7 +6804,7 @@ dependencies = [
  "bincode",
  "bitflags 2.6.0",
  "blake3",
- "borsh 0.10.3",
+ "borsh 0.10.4",
  "borsh 0.9.3",
  "borsh 1.5.1",
  "bs58 0.4.0",
@@ -7408,7 +7408,7 @@ dependencies = [
  "Inflector",
  "base64 0.21.7",
  "bincode",
- "borsh 0.10.3",
+ "borsh 0.10.4",
  "bs58 0.4.0",
  "lazy_static",
  "log",
@@ -7594,7 +7594,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "992d9c64c2564cc8f63a4b508bf3ebcdf2254b0429b13cd1d31adb6162432a5f"
 dependencies = [
  "assert_matches",
- "borsh 0.10.3",
+ "borsh 0.10.4",
  "num-derive 0.4.2",
  "num-traits",
  "solana-program",
@@ -7684,7 +7684,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2881dddfca792737c0706fa0175345ab282b1b0879c7d877bad129645737c079"
 dependencies = [
- "borsh 0.10.3",
+ "borsh 0.10.4",
  "bytemuck",
  "solana-program",
  "solana-zk-token-sdk",
@@ -7824,7 +7824,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c16ce3ba6979645fb7627aa1e435576172dd63088dc7848cb09aa331fa1fe4f"
 dependencies = [
- "borsh 0.10.3",
+ "borsh 0.10.4",
  "solana-program",
  "spl-discriminator",
  "spl-pod",
