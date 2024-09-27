@@ -9,8 +9,6 @@ on:
     branches:
       - "*"
     paths:
-      - "Cargo.toml"
-      - "Cargo.lock"
       - "examples/**"
       - "macros/light-sdk-macros/**"
       - "sdk/**"
