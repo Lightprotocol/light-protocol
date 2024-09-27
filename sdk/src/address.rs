@@ -66,18 +66,11 @@ pub fn pack_new_address_params(
 ///     &address_merkle_context,
 /// );
 /// ```
-pub fn derive_address_seed(
-    seeds: &[&[u8]],
-    program_id: &Pubkey,
-    address_merkle_context: &AddressMerkleContext,
-) -> [u8; 32] {
-    let mut inputs = Vec::with_capacity(seeds.len() + 2);
+pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
+    let mut inputs = Vec::with_capacity(seeds.len() + 1);
 
     let program_id = program_id.to_bytes();
     inputs.push(program_id.as_slice());
-
-    let merkle_tree_pubkey = address_merkle_context.address_merkle_tree_pubkey.to_bytes();
-    inputs.push(merkle_tree_pubkey.as_slice());
 
     inputs.extend(seeds);
 
