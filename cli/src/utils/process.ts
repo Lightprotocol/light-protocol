@@ -42,12 +42,14 @@ export async function executeCommand({
   env?: NodeJS.ProcessEnv;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
-    const commandParts = command.split(' && ');
-    const finalCommand = commandParts.pop() || '';
-    const preCommands = commandParts.join(' && ');
+    const commandParts = command.split(" && ");
+    const finalCommand = commandParts.pop() || "";
+    const preCommands = commandParts.join(" && ");
 
-    const fullCommand = preCommands ? `${preCommands} && ${finalCommand} ${args.join(' ')}` : `${finalCommand} ${args.join(' ')}`;
-    
+    const fullCommand = preCommands
+      ? `${preCommands} && ${finalCommand} ${args.join(" ")}`
+      : `${finalCommand} ${args.join(" ")}`;
+
     const commandBase = path.basename(finalCommand);
     let stdoutData = "";
 
@@ -56,7 +58,9 @@ export async function executeCommand({
       : process.env.PATH;
 
     const options: SpawnOptionsWithoutStdio = {
-      env: env || (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
+      env:
+        env ||
+        (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
       shell: true,
       detached: true,
     };

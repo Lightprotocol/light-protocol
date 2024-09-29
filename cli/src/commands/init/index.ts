@@ -63,8 +63,8 @@ export const initRepo = async (name: string, flags: any) => {
   const snakeCaseName = snakeCase(name);
   const camelCaseName = upperCamelCase(name);
 
-  let command = localFilePath;
-  let env = { ...process.env };
+  const command = localFilePath;
+  const env = { ...process.env };
 
   await executeCommand({
     command,
