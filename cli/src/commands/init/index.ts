@@ -47,8 +47,6 @@ export default class InitCommand extends Command {
 
     this.log("Initializing project...");
     await initRepo(name, flags);
-
-    this.log("✅ Project initialized successfully");
   }
 }
 
@@ -65,14 +63,11 @@ export const initRepo = async (name: string, flags: any) => {
   const snakeCaseName = snakeCase(name);
   const camelCaseName = upperCamelCase(name);
 
-  // Set up environment variables for macOS builds
-  if (os.platform() === "darwin") {
-    process.env.CC = execSync("xcrun -find clang").toString().trim();
-    process.env.SDKROOT = execSync("xcrun --show-sdk-path").toString().trim();
-  }
+  const command = localFilePath;
+  const env = { ...process.env };
 
   await executeCommand({
-    command: localFilePath,
+    command,
     args: [
       "generate",
       "--name",
@@ -117,8 +112,23 @@ export const initRepo = async (name: string, flags: any) => {
       `tokio-version=${TOKIO_VERSION}`,
     ],
     logFile: true,
-    env: process.env,
+    env: env,
   });
+
+  console.log("✅ Project initialized successfully");
+
+  if (os.platform() === "darwin") {
+    console.log(`
+🧢 Important for macOS users 🧢
+===============================
+
+Run this command in your terminal before building your project:
+
+----------------------------------------------------------------------------------------------------
+echo 'export CPATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include:$CPATH"' >> ~/.zshrc && source ~/.zshrc
+----------------------------------------------------------------------------------------------------
+`);
+  }
 
   await sleep(1000);
 };
