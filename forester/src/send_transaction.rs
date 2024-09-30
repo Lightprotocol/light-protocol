@@ -38,6 +38,7 @@ pub trait TransactionBuilder {
     async fn build_signed_transaction_batch(
         &self,
         payer: &Keypair,
+        derivation: &Pubkey,
         recent_blockhash: &Hash,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
@@ -50,6 +51,8 @@ pub trait TransactionBuilder {
 // 2. Latency between forester server and helius is ~ 1 slot.
 // 3. Slot duration is 500ms.
 const LATENCY: Duration = Duration::from_millis(4 * 500);
+
+const TIMEOUT_CHECK_ENABLED: bool = false;
 
 /// Setting:
 /// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
@@ -79,6 +82,7 @@ const LATENCY: Duration = Duration::from_millis(4 * 500);
 ///   queue
 pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     payer: &Keypair,
+    derivation: &Pubkey,
     pool: Arc<SolanaRpcPool<R>>,
     config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
@@ -91,7 +95,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     let mut num_sent_transactions: usize = 0;
     // 1. Execute batches until max number of batches is reached or light slot
     //    ended (light_slot_duration)
-    while num_batches < config.num_batches && start_time.elapsed() < config.retry_config.timeout {
+    while num_batches < config.num_batches && (start_time.elapsed() < config.retry_config.timeout) {
         debug!("Sending batch: {}", num_batches);
         // 2. Fetch queue items.
         let queue_length = if tree_accounts.tree_type == TreeType::State {
@@ -143,21 +147,23 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
         {
             // 6. Check if we reached the end of the light slot.
-            let remaining_time = match config
-                .retry_config
-                .timeout
-                .checked_sub(start_time.elapsed())
-            {
-                Some(time) => time,
-                None => {
+            if TIMEOUT_CHECK_ENABLED {
+                let remaining_time = match config
+                    .retry_config
+                    .timeout
+                    .checked_sub(start_time.elapsed())
+                {
+                    Some(time) => time,
+                    None => {
+                        debug!("Reached end of light slot");
+                        break;
+                    }
+                };
+
+                if remaining_time < LATENCY {
                     debug!("Reached end of light slot");
                     break;
                 }
-            };
-
-            if remaining_time < LATENCY {
-                debug!("Reached end of light slot");
-                break;
             }
 
             // Minimum time to wait for the next batch of transactions.
@@ -166,6 +172,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             let transactions: Vec<Transaction> = transaction_builder
                 .build_signed_transaction_batch(
                     payer,
+                    derivation,
                     &recent_blockhash,
                     work_items,
                     config.build_transaction_batch_config,
@@ -177,23 +184,28 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             );
 
             let batch_start = Instant::now();
-            let remaining_time = config
-                .retry_config
-                .timeout
-                .saturating_sub(start_time.elapsed());
+            if TIMEOUT_CHECK_ENABLED {
+                let remaining_time = config
+                    .retry_config
+                    .timeout
+                    .saturating_sub(start_time.elapsed());
 
-            if remaining_time < LATENCY {
-                debug!("Reached end of light slot");
-                break;
+                if remaining_time < LATENCY {
+                    debug!("Reached end of light slot");
+                    break;
+                }
             }
-
             // Asynchronously send all transactions in the batch
             let pool_clone = Arc::clone(&pool);
             let send_futures = transactions.into_iter().map(move |tx| {
                 let pool_clone = Arc::clone(&pool_clone);
                 tokio::spawn(async move {
                     match pool_clone.get_connection().await {
-                        Ok(rpc) => rpc.send_transaction(&tx).await,
+                        Ok(mut rpc) => {
+                            let result = rpc.process_transaction(tx).await;
+                            println!("tx result: {:?}", result);
+                            result
+                        }
                         Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
                             "Failed to get RPC connection: {}",
                             e
@@ -264,6 +276,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
     async fn build_signed_transaction_batch(
         &self,
         payer: &Keypair,
+        derivation: &Pubkey,
         recent_blockhash: &Hash,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
@@ -271,7 +284,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         let mut transactions = vec![];
         let (_, all_instructions) = fetch_proofs_and_create_instructions(
             payer.pubkey(),
-            payer.pubkey(),
+            *derivation,
             self.indexer.clone(),
             self.epoch,
             work_items,
@@ -391,6 +404,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         let instruction = create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {
                 authority,
+                derivation,
                 address_merkle_tree: item.tree_account.merkle_tree,
                 address_queue: item.tree_account.queue,
                 value: item.queue_item_data.index as u16,

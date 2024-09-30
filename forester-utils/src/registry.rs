@@ -181,6 +181,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
+    derivation: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
@@ -220,6 +221,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     let instruction = light_registry::account_compression_cpi::sdk::create_rollover_address_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
+            derivation: *derivation,
             new_queue: new_nullifier_queue_keypair.pubkey(),
             new_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
@@ -239,6 +241,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     authority: &Keypair,
+    derivation: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
@@ -249,6 +252,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     let instructions = create_rollover_address_merkle_tree_instructions(
         rpc,
         &authority.pubkey(),
+        derivation,
         new_nullifier_queue_keypair,
         new_state_merkle_tree_keypair,
         merkle_tree_pubkey,
@@ -273,6 +277,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
 pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
+    derivation: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
     new_cpi_context_keypair: &Keypair,
@@ -320,6 +325,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     let instruction = create_rollover_state_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
+            derivation: *derivation,
             new_queue: new_nullifier_queue_keypair.pubkey(),
             new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,

@@ -34,6 +34,9 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PAYER")]
     pub payer: Option<String>,
 
+    #[arg(long, env = "FORESTER_DERIVATION_PUBKEY")]
+    pub derivation: Option<String>,
+
     #[arg(long, env = "FORESTER_PHOTON_API_KEY")]
     pub photon_api_key: Option<String>,
 

@@ -95,6 +95,7 @@ pub fn forester_config() -> ForesterConfig {
         },
         registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),
+        derivation_pubkey: env_accounts.forester.pubkey(),
         address_tree_data: vec![],
         state_tree_data: vec![],
     }

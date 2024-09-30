@@ -602,6 +602,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {
                 authority: forester.pubkey(),
+                derivation: forester.pubkey(),
                 address_merkle_tree: address_merkle_tree_pubkey,
                 address_queue: address_queue_pubkey,
                 changelog_index,

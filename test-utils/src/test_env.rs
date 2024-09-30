@@ -575,10 +575,15 @@ pub async fn initialize_accounts<R: RpcConnection>(
     let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
     let forester_epoch = if register_forester_and_advance_to_active_phase {
-        let mut registered_epoch = Epoch::register(context, &protocol_config, &keypairs.forester)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut registered_epoch = Epoch::register(
+            context,
+            &protocol_config,
+            &keypairs.forester,
+            &keypairs.forester.pubkey(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         context
             .warp_to_slot(registered_epoch.phases.active.start)
             .await
@@ -602,7 +607,11 @@ pub async fn initialize_accounts<R: RpcConnection>(
             .fetch_account_and_add_trees_with_schedule(context, &tree_accounts)
             .await
             .unwrap();
-        let ix = create_finalize_registration_instruction(&keypairs.forester.pubkey(), 0);
+        let ix = create_finalize_registration_instruction(
+            &keypairs.forester.pubkey(),
+            &keypairs.forester.pubkey(),
+            0,
+        );
         context
             .create_and_send_transaction(&[ix], &keypairs.forester.pubkey(), &[&keypairs.forester])
             .await
