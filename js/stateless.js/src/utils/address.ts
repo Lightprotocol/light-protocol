@@ -120,7 +120,7 @@ if (import.meta.vitest) {
 
     describe('deriveAddress function', () => {
         it('should derive a valid address from a seed and a merkle tree public key', async () => {
-            let seed = new Uint8Array(32);
+            const seed = new Uint8Array(32);
             seed[0] = 1;
             seed[1] = 2;
             seed[2] = 3;
