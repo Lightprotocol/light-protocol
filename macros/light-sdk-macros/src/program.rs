@@ -141,13 +141,23 @@ impl VisitMut for LightProgramTransform {
         };
 
         // Get the last path segment of `ctx` type.
-        // It should be `LightContext`...
         let type_path = match pat_type.ty.as_mut() {
             Type::Path(type_path) => type_path,
             _ => return,
         };
         let ctx_segment = &mut type_path.path.segments.last_mut().unwrap();
-        // ...and we replace it with Anchor's `Context`
+        // If the `ctx` is of type `LightContext`, that means that the given
+        // instruction uses compressed accounts and we need to inject our code
+        // for handling them.
+        // Otherwise, stop processing the instruction and assume it's just a
+        // regular instruction using only regular accounts.
+        if ctx_segment.ident != "LightContext" {
+            return;
+        }
+
+        // Swap the type of `ctx` to Anchor's `Context` to keep the instruction
+        // signature correct. We are going to inject the code converting it to
+        // `LightContext` later.
         ctx_segment.ident = Ident::new("Context", Span::call_site());
 
         // Figure out what's are the names of:
