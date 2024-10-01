@@ -78,20 +78,24 @@ describe('compress', () => {
         await createAccount(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
+            [
+                new Uint8Array([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                ]),
+            ],
             LightSystemProgram.programId,
         );
 
         await createAccountWithLamports(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
+            [
+                new Uint8Array([
+                    1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                ]),
+            ],
             0,
             LightSystemProgram.programId,
         );
@@ -99,30 +103,37 @@ describe('compress', () => {
         await createAccount(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
-            ]),
+            [
+                new Uint8Array([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
+                ]),
+            ],
             LightSystemProgram.programId,
         );
 
         await createAccount(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-            ]),
+            [
+                new Uint8Array([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
+                ]),
+            ],
             LightSystemProgram.programId,
         );
         await expect(
             createAccount(
                 rpc as TestRpc,
                 payer,
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-                ]),
+                [
+                    new Uint8Array([
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                        31, 2,
+                    ]),
+                ],
                 LightSystemProgram.programId,
             ),
         ).rejects.toThrow();
@@ -169,10 +180,12 @@ describe('compress', () => {
         await createAccountWithLamports(
             rpc as TestRpc,
             payer,
-            new Uint8Array([
-                1, 255, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
+            [
+                new Uint8Array([
+                    1, 255, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                ]),
+            ],
             100,
             LightSystemProgram.programId,
         );

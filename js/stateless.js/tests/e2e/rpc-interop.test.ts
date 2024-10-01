@@ -10,6 +10,7 @@ import {
     createAccountWithLamports,
     defaultTestStateTreeAccounts,
     deriveAddress,
+    deriveAddressSeed,
     sleep,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -107,12 +108,18 @@ describe('rpc-interop', () => {
     });
 
     it('getValidityProof [noforester] (new-addresses) should match', async () => {
-        const newAddressSeed = new Uint8Array([
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18, 19,
-            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        const newAddressSeeds = [
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+        ];
+        const newAddressSeed = deriveAddressSeed(
+            newAddressSeeds,
+            LightSystemProgram.programId,
+        );
 
-        const newAddress = bn((await deriveAddress(newAddressSeed)).toBuffer());
+        const newAddress = bn(deriveAddress(newAddressSeed).toBuffer());
 
         /// consistent proof metadata for same address
         const validityProof = await rpc.getValidityProof([], [newAddress]);
@@ -143,16 +150,18 @@ describe('rpc-interop', () => {
         });
 
         /// Need a new unique address because the previous one has been created.
-        const newAddressSeedTest = new Uint8Array([
-            2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18, 19,
-            20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
-        ]);
+        const newAddressSeedsTest = [
+            new Uint8Array([
+                2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
+            ]),
+        ];
         /// Creates a compressed account with address using a (non-inclusion)
         /// 'validityProof' from Photon
         await createAccount(
             rpc,
             payer,
-            newAddressSeedTest,
+            newAddressSeedsTest,
             LightSystemProgram.programId,
         );
         executedTxs++;
@@ -162,7 +171,7 @@ describe('rpc-interop', () => {
         await createAccount(
             testRpc,
             payer,
-            newAddressSeed,
+            newAddressSeeds,
             LightSystemProgram.programId,
         );
         executedTxs++;
@@ -183,11 +192,17 @@ describe('rpc-interop', () => {
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
 
-        const newAddressSeed = new Uint8Array([
-            1, 2, 3, 4, 5, 6, 7, 20, 21, 22, 42, 32, 42, 14, 15, 16, 17, 18, 19,
-            20, 21, 22, 23, 24, 32, 32, 27, 28, 29, 30, 31, 32,
-        ]);
-        const newAddress = bn((await deriveAddress(newAddressSeed)).toBytes());
+        const newAddressSeeds = [
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 20, 21, 22, 42, 32, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 32, 32, 27, 28, 29, 30, 31, 32,
+            ]),
+        ];
+        const newAddressSeed = deriveAddressSeed(
+            newAddressSeeds,
+            LightSystemProgram.programId,
+        );
+        const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
 
         const validityProof = await rpc.getValidityProof([hash], [newAddress]);
         const validityProofTest = await testRpc.getValidityProof(
@@ -277,10 +292,13 @@ describe('rpc-interop', () => {
         await createAccountWithLamports(
             rpc,
             payer,
-            new Uint8Array([
-                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 111, 13, 14, 15, 16, 17,
-                18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
-            ]),
+            [
+                new Uint8Array([
+                    1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 111, 13, 14, 15, 16,
+                    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31,
+                    32,
+                ]),
+            ],
             0,
             LightSystemProgram.programId,
         );
@@ -615,11 +633,12 @@ describe('rpc-interop', () => {
     });
 
     it('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
-        const seed = new Uint8Array(randomBytes(32));
+        const seeds = [new Uint8Array(randomBytes(32))];
+        const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
         const addressTree = defaultTestStateTreeAccounts().addressTree;
-        const address = await deriveAddress(seed, addressTree);
+        const address = deriveAddress(seed, addressTree);
 
-        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+        await createAccount(rpc, payer, seeds, LightSystemProgram.programId);
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
@@ -639,15 +658,16 @@ describe('rpc-interop', () => {
     });
 
     it('getCompressedAccount with address param should work ', async () => {
-        const seed = new Uint8Array(randomBytes(32));
+        const seeds = [new Uint8Array(randomBytes(32))];
+        const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const addressQueue = defaultTestStateTreeAccounts().addressQueue;
-        const address = await deriveAddress(seed, addressTree);
+        const address = deriveAddress(seed, addressTree);
 
         await createAccount(
             rpc,
             payer,
-            seed,
+            seeds,
             LightSystemProgram.programId,
             addressTree,
             addressQueue,
