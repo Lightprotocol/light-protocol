@@ -1,12 +1,15 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::{context::Context, prelude::Pubkey, Bumps, Key, Result};
+use anchor_lang::{
+    context::Context, prelude::Pubkey, AnchorDeserialize, AnchorSerialize, Bumps, Key, Result,
+};
 
 use crate::{
-    compressed_account::LightAccounts,
+    address::PackedNewAddressParams,
+    compressed_account::{LightAccounts, PackedCompressedAccountWithMerkleContext},
     constants::CPI_AUTHORITY_PDA_SEED,
     merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
-    proof::CompressedProof,
+    proof::{CompressedProof, ProofRpcResult},
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -38,6 +41,7 @@ where
     /// Context provided by Anchor.
     pub anchor_context: Context<'a, 'b, 'c, 'info, T>,
     pub light_accounts: U,
+    pub inputs: LightInstructionInputs,
 }
 
 impl<'a, 'b, 'c, 'info, T, U> Deref for LightContext<'a, 'b, 'c, 'info, T, U>
@@ -74,27 +78,17 @@ where
 {
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
-        inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        inputs: LightInstructionInputs,
     ) -> Result<Self> {
-        let light_accounts = U::try_light_accounts(
-            inputs,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-            address_merkle_tree_root_index,
-            anchor_context.remaining_accounts,
-        )?;
+        let light_accounts = U::try_light_accounts(&inputs)?;
         Ok(Self {
             anchor_context,
             light_accounts,
+            inputs,
         })
     }
 
-    pub fn verify(&mut self, proof: CompressedProof) -> Result<()> {
+    pub fn verify(&mut self) -> Result<()> {
         let bump = Pubkey::find_program_address(
             &[CPI_AUTHORITY_PDA_SEED],
             &self.anchor_context.accounts.get_invoking_program().key(),
@@ -102,16 +96,14 @@ where
         .1;
         let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
-        let new_address_params = self.light_accounts.new_address_params();
-        let input_compressed_accounts_with_merkle_context = self
-            .light_accounts
-            .input_accounts(self.anchor_context.remaining_accounts)?;
-        let output_compressed_accounts = self
-            .light_accounts
-            .output_accounts(self.anchor_context.remaining_accounts)?;
+        // let new_address_params = self.light_accounts.new_address_params();
+        let new_address_params = self.inputs.new_addresses.clone().unwrap_or(Vec::new());
+        let input_compressed_accounts_with_merkle_context =
+            self.inputs.accounts.clone().unwrap_or(Vec::new());
+        let output_compressed_accounts = self.light_accounts.output_accounts()?;
 
         let instruction = InstructionDataInvokeCpi {
-            proof: Some(proof),
+            proof: self.inputs.proof.as_ref().map(|proof| proof.proof.clone()),
             new_address_params,
             relay_fee: None,
             input_compressed_accounts_with_merkle_context,
@@ -129,4 +121,11 @@ where
 
         Ok(())
     }
+}
+
+#[derive(AnchorDeserialize, AnchorSerialize)]
+pub struct LightInstructionInputs {
+    pub proof: Option<ProofRpcResult>,
+    pub accounts: Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    pub new_addresses: Option<Vec<PackedNewAddressParams>>,
 }

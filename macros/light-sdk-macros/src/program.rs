@@ -184,32 +184,41 @@ impl VisitMut for LightProgramTransform {
         let accounts_ident = accounts_segment.ident.clone();
         let light_accounts_name = format!("Light{}", accounts_segment.ident);
         let light_accounts_ident = Ident::new(&light_accounts_name, Span::call_site());
+        let inputs_name = format!("{}Inputs", accounts_segment.ident);
+        let inputs_ident = Ident::new(&inputs_name, Span::call_site());
 
-        // Add the previously gathered instruction inputs to the mapping of
-        // instructions to their parameters (`self.instruction_inputs`).
-        let params_name = format!("Params{}", accounts_segment.ident);
-        self.instruction_params
-            .insert(params_name.clone(), instruction_params.clone());
-        let inputs_ident = Ident::new(&params_name, Span::call_site());
+        // // Add the previously gathered instruction inputs to the mapping of
+        // // instructions to their parameters (`self.instruction_inputs`).
+        // let params_name = format!("Params{}", accounts_segment.ident);
+        // self.instruction_params
+        //     .insert(params_name.clone(), instruction_params.clone());
+        // let inputs_ident = Ident::new(&params_name, Span::call_site());
 
         // Inject an `inputs: Vec<Vec<u8>>` argument to all instructions. The
         // purpose of that additional argument is passing compressed accounts.
-        let inputs_arg: FnArg = parse_quote! { inputs: Vec<Vec<u8>> };
+        let inputs_arg: FnArg = parse_quote! { inputs: Vec<u8> };
         i.sig.inputs.insert(1, inputs_arg);
 
-        // Inject Merkle context related arguments.
-        let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::proof::CompressedProof };
-        i.sig.inputs.insert(2, proof_arg);
-        let merkle_context_arg: FnArg =
-            parse_quote! { merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
-        i.sig.inputs.insert(3, merkle_context_arg);
-        let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
-        i.sig.inputs.insert(5, address_merkle_context_arg);
-        let address_merkle_tree_root_index_arg: FnArg =
-            parse_quote! { address_merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(6, address_merkle_tree_root_index_arg);
+        // // Inject Merkle context related arguments.
+        // let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::proof::CompressedProof };
+        // i.sig.inputs.insert(2, proof_arg);
+        // let merkle_context_arg: FnArg =
+        //     parse_quote! { merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
+        // i.sig.inputs.insert(3, merkle_context_arg);
+        // let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
+        // i.sig.inputs.insert(4, merkle_tree_root_index_arg);
+        // let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
+        // i.sig.inputs.insert(5, address_merkle_context_arg);
+        // let address_merkle_tree_root_index_arg: FnArg =
+        //     parse_quote! { address_merkle_tree_root_index: u16 };
+        // i.sig.inputs.insert(6, address_merkle_tree_root_index_arg);
+
+        let inputs_stmt: Stmt = parse_quote! {
+            let inputs = #inputs_ident::deserialize(
+                &mut inputs.as_slice()
+            )?;
+        };
+        i.block.stmts.insert(0, inputs_stmt);
 
         // Inject a `LightContext` into the function body.
         let light_context_stmt: Stmt = parse_quote! {
@@ -218,58 +227,54 @@ impl VisitMut for LightProgramTransform {
                 #light_accounts_ident
             > = ::light_sdk::context::LightContext::new(
                 ctx,
-                inputs,
-                merkle_context,
-                merkle_tree_root_index,
-                address_merkle_context,
-                address_merkle_tree_root_index,
+                inputs.light_inputs,
             )?;
         };
-        i.block.stmts.insert(0, light_context_stmt);
+        i.block.stmts.insert(1, light_context_stmt);
 
-        // Pack all instruction inputs in a struct, which then can be used in
-        // `check_constrants` and `derive_address_seeds`.
-        //
-        // We do that, because passing one reference to these methods is more
-        // comfortable. Passing references to each input separately would
-        // require even messier code...
-        //
-        // We move the inputs to that struct, so no copies are being made.
-        let input_idents = instruction_params
-            .iter()
-            .map(|input| input.name.clone())
-            .collect::<Vec<Ident>>();
-        let inputs_pack_stmt: Stmt = parse_quote! {
-            let inputs = #inputs_ident { #(#input_idents),* };
-        };
-        i.block.stmts.insert(1, inputs_pack_stmt);
+        // // Pack all instruction inputs in a struct, which then can be used in
+        // // `check_constrants` and `derive_address_seeds`.
+        // //
+        // // We do that, because passing one reference to these methods is more
+        // // comfortable. Passing references to each input separately would
+        // // require even messier code...
+        // //
+        // // We move the inputs to that struct, so no copies are being made.
+        // let input_idents = instruction_params
+        //     .iter()
+        //     .map(|input| input.name.clone())
+        //     .collect::<Vec<Ident>>();
+        // let inputs_pack_stmt: Stmt = parse_quote! {
+        //     let inputs = #inputs_ident { #(#input_idents),* };
+        // };
+        // i.block.stmts.insert(1, inputs_pack_stmt);
 
-        // Inject `check_constraints` and `derive_address_seeds` calls right
-        // after.
-        let check_constraints_stmt: Stmt = parse_quote! {
-            ctx.check_constraints(&inputs)?;
-        };
-        i.block.stmts.insert(2, check_constraints_stmt);
-        let derive_address_seed_stmt: Stmt = parse_quote! {
-            ctx.derive_address_seeds(address_merkle_context, &inputs);
-        };
-        i.block.stmts.insert(3, derive_address_seed_stmt);
+        // // Inject `check_constraints` and `derive_address_seeds` calls right
+        // // after.
+        // let check_constraints_stmt: Stmt = parse_quote! {
+        //     ctx.check_constraints(&inputs)?;
+        // };
+        // i.block.stmts.insert(2, check_constraints_stmt);
+        // let derive_address_seed_stmt: Stmt = parse_quote! {
+        //     ctx.derive_address_seeds(address_merkle_context, &inputs);
+        // };
+        // i.block.stmts.insert(3, derive_address_seed_stmt);
 
-        // Once we are done with calling `check_constraints` and
-        // `derive_address_seeds`, we can unpack the inputs, so developers can
-        // use them as regular variables in their code.
-        //
-        // Unpacking of the struct means moving the values and no copies are
-        // being made.
-        let inputs_unpack_stmt: Stmt = parse_quote! {
-            let #inputs_ident { #(#input_idents),* } = inputs;
-        };
-        i.block.stmts.insert(4, inputs_unpack_stmt);
+        // // Once we are done with calling `check_constraints` and
+        // // `derive_address_seeds`, we can unpack the inputs, so developers can
+        // // use them as regular variables in their code.
+        // //
+        // // Unpacking of the struct means moving the values and no copies are
+        // // being made.
+        // let inputs_unpack_stmt: Stmt = parse_quote! {
+        //     let #inputs_ident { #(#input_idents),* } = inputs;
+        // };
+        // i.block.stmts.insert(4, inputs_unpack_stmt);
 
         // Inject `verify` statements at the end of the function.
         let stmts_len = i.block.stmts.len();
         let verify_stmt: Stmt = parse_quote! {
-            ctx.verify(proof)?;
+            ctx.verify()?;
         };
         i.block.stmts.insert(stmts_len - 1, verify_stmt);
     }
