@@ -231,7 +231,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         // Check if we're currently in the active phase
         if current_slot >= phases.active.start && current_slot < phases.active.end {
             info!("Currently in active phase. Attempting to process the new tree immediately.");
-            info!("Recovering regitration info...");
+            info!("Recovering registration info...");
             if let Ok(mut epoch_info) = self.recover_registration_info(current_epoch).await {
                 info!("Recovered registration info for current epoch");
                 let tree_schedule = TreeForesterSchedule::new_with_schedule(
@@ -335,8 +335,9 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
     async fn recover_registration_info(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         debug!("Recovering registration info for epoch {}", epoch);
+
         let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
+            get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
         let mut rpc = self.rpc_pool.get_connection().await?;
         let existing_pda = rpc
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
@@ -497,7 +498,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         if slot < phases.registration.end {
             let forester_epoch_pda_pubkey =
-                get_forester_epoch_pda_from_authority(&self.config.payer_keypair.pubkey(), epoch).0;
+                get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
             let existing_registration = rpc
                 .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
                 .await?;
@@ -523,6 +524,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &mut rpc,
                     &self.protocol_config,
                     &self.config.payer_keypair,
+                    &self.config.derivation_pubkey,
                 )
                 .await
                 {
@@ -649,14 +651,13 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
         info!("Waiting for active phase");
-
         let mut rpc = self.rpc_pool.get_connection().await?;
 
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
-            &self.config.payer_keypair.pubkey(),
+            &self.config.derivation_pubkey,
             epoch_info.epoch.epoch,
         )
         .0;
@@ -669,6 +670,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 // TODO: we can put this ix into every tx of the first batch of the current active phase
                 let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
+                    &self.config.derivation_pubkey,
                     epoch_info.epoch.epoch,
                 );
                 rpc.create_and_send_transaction(
@@ -853,6 +855,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 let start_time = Instant::now();
                 let batch_tx_future = send_batched_transactions(
                     &self.config.payer_keypair,
+                    &self.config.derivation_pubkey,
                     self.rpc_pool.clone(),
                     &batched_tx_config, // TODO: define config in epoch manager
                     tree.tree_accounts,
@@ -942,7 +945,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
-            &self.config.payer_keypair.pubkey(),
+            &self.config.derivation_pubkey,
             epoch_info.epoch.epoch,
         )
         .0;
@@ -962,6 +965,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let ix = create_report_work_instruction(
             &self.config.payer_keypair.pubkey(),
+            &self.config.derivation_pubkey,
             epoch_info.epoch.epoch,
         );
         match rpc
@@ -1080,7 +1084,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
 
             let trees = {
                 let rpc = rpc_pool.get_connection().await?;
-                fetch_trees(&*rpc).await
+                fetch_trees(&*rpc).await?
             };
             info!("Fetched initial trees: {:?}", trees);
 

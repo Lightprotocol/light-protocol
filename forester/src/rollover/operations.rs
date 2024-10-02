@@ -130,6 +130,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
 
     let rollover_signature = perform_state_merkle_tree_rollover_forester(
         &config.payer_keypair,
+        &config.derivation_pubkey,
         rpc,
         &new_nullifier_queue_keypair,
         &new_merkle_tree_keypair,
@@ -161,6 +162,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     payer: &Keypair,
+    derivation: &Pubkey,
     context: &mut R,
     new_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
@@ -172,6 +174,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
         &payer.pubkey(),
+        derivation,
         new_queue_keypair,
         new_address_merkle_tree_keypair,
         new_cpi_context_keypair,
@@ -205,6 +208,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     let new_merkle_tree_keypair = Keypair::new();
     let rollover_signature = perform_address_merkle_tree_rollover(
         &config.payer_keypair,
+        &config.derivation_pubkey,
         rpc,
         &new_nullifier_queue_keypair,
         &new_merkle_tree_keypair,
@@ -224,6 +228,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
 
 pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     payer: &Keypair,
+    derivation: &Pubkey,
     context: &mut R,
     new_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
@@ -233,6 +238,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     let instructions = create_rollover_address_merkle_tree_instructions(
         context,
         &payer.pubkey(),
+        derivation,
         new_queue_keypair,
         new_address_merkle_tree_keypair,
         old_merkle_tree_pubkey,
@@ -252,6 +258,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
+    derivation: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
@@ -290,6 +297,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     let instruction = create_rollover_address_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
+            derivation: *derivation,
             new_queue: new_nullifier_queue_keypair.pubkey(),
             new_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
@@ -310,6 +318,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
 pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
+    derivation: &Pubkey,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
     new_cpi_context_keypair: &Keypair,
@@ -359,6 +368,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     let instruction = create_rollover_state_merkle_tree_instruction(
         CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
+            derivation: *derivation,
             new_queue: new_nullifier_queue_keypair.pubkey(),
             new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,

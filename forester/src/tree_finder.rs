@@ -1,5 +1,5 @@
-use crate::errors::ForesterError;
 use crate::tree_data_sync::fetch_trees;
+use crate::Result;
 use forester_utils::forester_epoch::TreeAccounts;
 use light_client::rpc::RpcConnection;
 use light_client::rpc_pool::SolanaRpcPool;
@@ -30,7 +30,7 @@ impl<R: RpcConnection> TreeFinder<R> {
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), ForesterError> {
+    pub async fn run(&mut self) -> Result<()> {
         let mut interval = interval(self.check_interval);
 
         loop {
@@ -57,9 +57,9 @@ impl<R: RpcConnection> TreeFinder<R> {
         }
     }
 
-    async fn check_for_new_trees(&self) -> Result<Vec<TreeAccounts>, ForesterError> {
+    async fn check_for_new_trees(&self) -> Result<Vec<TreeAccounts>> {
         let rpc = self.rpc_pool.get_connection().await?;
-        let current_trees = fetch_trees(&*rpc).await;
+        let current_trees = fetch_trees(&*rpc).await?;
 
         let new_trees: Vec<TreeAccounts> = current_trees
             .into_iter()
