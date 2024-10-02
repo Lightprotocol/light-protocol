@@ -1,23 +1,20 @@
-use account_compression::{AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::{AccountDeserialize, Discriminator};
-use clap::Parser;
-use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
-use light_hash_set::HashSet;
-use light_hasher::Poseidon;
+use forester_utils::forester_epoch::TreeType;
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
-#[derive(Debug, Parser)]
-pub struct Options {
-    /// Select to run compressed token program tests.
-    #[clap(long)]
-    full: bool,
-    #[clap(long)]
-    protocol_config: bool,
-    #[clap(long, default_value_t = true)]
-    queue: bool,
-}
+use std::sync::Arc;
+use tracing::{debug, warn};
 
-pub fn fetch_foreter_stats(opts: &Options) {
+use crate::{
+    cli::StatusArgs,
+    metrics::{push_metrics, register_metrics},
+    run_queue_info,
+    tree_data_sync::fetch_trees,
+    ForesterConfig,
+};
+
+pub async fn fetch_foreter_status(opts: &StatusArgs) {
     let commitment_config = CommitmentConfig::confirmed();
     let rpc_url = std::env::var("RPC_URL")
         .expect("RPC_URL environment variable not set, export RPC_URL=<url>");
@@ -143,57 +140,23 @@ pub fn fetch_foreter_stats(opts: &Options) {
     if opts.protocol_config {
         println!("protocol config: {:?}", protocol_config_pdas[0]);
     }
-    if opts.queue {
-        let account_compression_accounts = client
-            .get_program_accounts(&account_compression::ID)
-            .expect("Failed to fetch accounts for account compression program.");
-        for (pubkey, mut account) in account_compression_accounts {
-            match account.data()[0..8].try_into().unwrap() {
-                QueueAccount::DISCRIMINATOR => {
-                    unsafe {
-                        let queue = HashSet::from_bytes_copy(
-                            &mut account.data[8 + std::mem::size_of::<QueueAccount>()..],
-                        )
-                        .unwrap();
+    let config = Arc::new(ForesterConfig::new_for_status(opts).unwrap());
 
-                        println!("Queue account: {:?}", pubkey);
-                        let mut num_of_marked_items = 0;
-                        for i in 0..queue.get_capacity() {
-                            if queue.get_unmarked_bucket(i).is_some() {
-                                num_of_marked_items += 1;
-                            }
-                        }
-                        println!(
-                            "queue num of unmarked items: {:?} / {}",
-                            num_of_marked_items,
-                            queue.get_capacity() / 2 // div by 2 because only half of the hash set can be used before tx start to fail
-                        );
-                    }
-                }
-                StateMerkleTreeAccount::DISCRIMINATOR => {
-                    println!("State Merkle tree: {:?}", pubkey);
-                    let merkle_tree = ConcurrentMerkleTreeCopy::<Poseidon, 26>::from_bytes_copy(
-                        &account.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
-                    )
-                    .unwrap();
-                    println!(
-                        "State Merkle tree next index {:?}",
-                        merkle_tree.next_index()
-                    );
-                }
-                AddressMerkleTreeAccount::DISCRIMINATOR => {
-                    println!("Address Merkle tree: {:?}", pubkey);
-                    let merkle_tree = ConcurrentMerkleTreeCopy::<Poseidon, 26>::from_bytes_copy(
-                        &account.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
-                    )
-                    .unwrap();
-                    println!(
-                        "Address Merkle tree next index {:?}",
-                        merkle_tree.next_index()
-                    );
-                }
-                _ => (),
-            }
-        }
+    if config.general_config.enable_metrics {
+        register_metrics();
     }
+
+    debug!("Fetching trees...");
+    debug!("RPC URL: {}", config.external_services.rpc_url);
+    let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+    let trees = fetch_trees(&rpc).await;
+    if trees.is_empty() {
+        warn!("No trees found. Exiting.");
+    }
+    run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
+    run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
+
+    push_metrics(&config.external_services.pushgateway_url)
+        .await
+        .unwrap();
 }
