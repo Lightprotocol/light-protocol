@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
 
 use crate::{
-    address::NewAddressParamsPacked,
+    address::PackedNewAddressParams,
     compressed_account::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
@@ -25,7 +25,7 @@ pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
 /// Helper function to create data for creating a single PDA.
 pub fn create_cpi_inputs_for_new_account(
     proof: CompressedProof,
-    new_address_params: NewAddressParamsPacked,
+    new_address_params: PackedNewAddressParams,
     compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
 ) -> InstructionDataInvokeCpi {

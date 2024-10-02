@@ -1,38 +1,138 @@
 use anchor_lang::prelude::*;
+use light_hasher::Discriminator;
 use light_sdk::{
-    compressed_account::LightAccount, light_account, light_accounts, light_program,
-    merkle_context::PackedAddressMerkleContext, LightHasher,
+    account::LightAccount, address::derive_address, error::LightSdkError,
+    instruction_data::LightInstructionData, light_account, light_system_accounts,
+    program_merkle_context::unpack_address_merkle_context, verify::verify_light_accounts,
+    LightHasher, LightTraits,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
-#[light_program]
 #[program]
 pub mod sdk_test {
     use super::*;
 
     pub fn with_compressed_account<'info>(
-        ctx: LightContext<'_, '_, '_, 'info, WithCompressedAccount<'info>>,
+        ctx: Context<'_, '_, '_, 'info, WithCompressedAccount<'info>>,
+        inputs: Vec<u8>,
         name: String,
     ) -> Result<()> {
-        ctx.light_accounts.my_compressed_account.name = name;
+        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+
+        let address_merkle_context = accounts[0]
+            .address_merkle_context
+            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
+        let address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let (address, address_seed) = derive_address(
+            &[b"compressed", name.as_bytes()],
+            &address_merkle_context,
+            &crate::ID,
+        );
+
+        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
+            LightAccount::from_meta_init(
+                &accounts[0],
+                MyCompressedAccount::discriminator(),
+                address,
+                address_seed,
+                &crate::ID,
+            )?;
+
+        my_compressed_account.name = name;
+
+        verify_light_accounts(
+            &ctx,
+            inputs.proof,
+            &[my_compressed_account],
+            None,
+            false,
+            None,
+        )?;
+
         Ok(())
     }
 
     pub fn with_nested_data<'info>(
-        ctx: LightContext<'_, '_, '_, 'info, WithNestedData<'info>>,
+        ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
+        inputs: Vec<u8>,
         name: String,
     ) -> Result<()> {
-        ctx.light_accounts.my_compressed_account.name = name;
-        ctx.light_accounts.my_compressed_account.nested = NestedData::default();
+        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+
+        let address_merkle_context = accounts[0]
+            .address_merkle_context
+            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
+        let address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let (address, address_seed) = derive_address(
+            &[b"compressed", name.as_bytes()],
+            &address_merkle_context,
+            &crate::ID,
+        );
+
+        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
+            LightAccount::from_meta_init(
+                &accounts[0],
+                MyCompressedAccount::discriminator(),
+                address,
+                address_seed,
+                &crate::ID,
+            )?;
+
+        my_compressed_account.name = name;
+        my_compressed_account.nested = NestedData::default();
+
+        verify_light_accounts(
+            &ctx,
+            inputs.proof,
+            &[my_compressed_account],
+            None,
+            false,
+            None,
+        )?;
+
         Ok(())
     }
 
     pub fn update_nested_data<'info>(
-        ctx: LightContext<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        inputs: Vec<u8>,
         nested_data: NestedData,
     ) -> Result<()> {
-        ctx.light_accounts.my_compressed_account.nested = nested_data;
+        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+
+        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
+            LightAccount::from_meta_mut(
+                &accounts[0],
+                MyCompressedAccount::discriminator(),
+                &crate::ID,
+            )?;
+
+        my_compressed_account.nested = nested_data;
+
+        verify_light_accounts(
+            &ctx,
+            inputs.proof,
+            &[my_compressed_account],
+            None,
+            false,
+            None,
+        )?;
+
         Ok(())
     }
 
@@ -94,7 +194,8 @@ pub struct MyRegularAccount {
     name: String,
 }
 
-#[light_accounts]
+#[light_system_accounts]
+#[derive(Accounts, LightTraits)]
 #[instruction(name: String)]
 pub struct WithCompressedAccount<'info> {
     #[account(mut)]
@@ -105,15 +206,15 @@ pub struct WithCompressedAccount<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-
-    #[light_account(
-        init,
-        seeds = [b"compressed".as_slice()],
-    )]
-    pub my_compressed_account: LightAccount<MyCompressedAccount>,
+    // #[light_account(
+    //     init,
+    //     seeds = [b"compressed".as_slice()],
+    // )]
+    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
-#[light_accounts]
+#[light_system_accounts]
+#[derive(Accounts, LightTraits)]
 pub struct WithNestedData<'info> {
     #[account(mut)]
     #[fee_payer]
@@ -123,14 +224,15 @@ pub struct WithNestedData<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-    #[light_account(
-        init,
-        seeds = [b"compressed".as_slice()],
-    )]
-    pub my_compressed_account: LightAccount<MyCompressedAccount>,
+    // #[light_account(
+    //     init,
+    //     seeds = [b"compressed".as_slice()],
+    // )]
+    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
-#[light_accounts]
+#[light_system_accounts]
+#[derive(Accounts, LightTraits)]
 pub struct UpdateNestedData<'info> {
     #[account(mut)]
     #[fee_payer]
@@ -140,11 +242,11 @@ pub struct UpdateNestedData<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-    #[light_account(
-        mut,
-        seeds = [b"compressed".as_slice()],
-    )]
-    pub my_compressed_account: LightAccount<MyCompressedAccount>,
+    // #[light_account(
+    //     mut,
+    //     seeds = [b"compressed".as_slice()],
+    // )]
+    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
 #[derive(Accounts)]

@@ -5,12 +5,11 @@ use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
-use light_sdk::address::{derive_address, derive_address_seed};
+use light_sdk::account_meta::LightAccountMeta;
+use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_sdk::merkle_context::{
-    pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
-    PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
-};
+use light_sdk::instruction_data::LightInstructionData;
+use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
@@ -45,24 +44,16 @@ async fn test_sdk_test() {
 
     let mut remaining_accounts = RemainingAccounts::default();
 
-    let merkle_context = MerkleContext {
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        leaf_index: 0,
-        queue_index: None,
-    };
-    let merkle_context = pack_merkle_context(merkle_context, &mut remaining_accounts);
-
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(&[b"compressed"], &sdk_test::ID);
-    let address = derive_address(&address_seed, &address_merkle_context);
-
-    let address_merkle_context =
-        pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
+    let (address, _) = derive_address(
+        &[b"compressed", b"test"],
+        &address_merkle_context,
+        &sdk_test::ID,
+    );
 
     let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
@@ -79,8 +70,6 @@ async fn test_sdk_test() {
         &mut remaining_accounts,
         &payer,
         &address,
-        &merkle_context,
-        &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -121,7 +110,6 @@ async fn test_sdk_test() {
         },
         &payer,
         compressed_account,
-        &address_merkle_context,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -151,8 +139,6 @@ async fn with_nested_data<R>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-    merkle_context: &PackedMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -170,15 +156,25 @@ where
         )
         .await;
 
-    let instruction_data = sdk_test::instruction::WithNestedData {
-        inputs: Vec::new(),
-        proof: rpc_result.proof,
-        merkle_context: *merkle_context,
-        merkle_tree_root_index: 0,
-        address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
-        name,
+    let address_merkle_context = AddressMerkleContext {
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
+    let account = LightAccountMeta::new_init(
+        &env.merkle_tree_pubkey,
+        Some(&address_merkle_context),
+        Some(rpc_result.address_root_indices[0]),
+        remaining_accounts,
+    )
+    .unwrap();
+
+    let inputs = LightInstructionData {
+        proof: Some(rpc_result),
+        accounts: Some(vec![account]),
+    };
+    let inputs = inputs.serialize().unwrap();
+
+    let instruction_data = sdk_test::instruction::WithNestedData { inputs, name };
 
     let cpi_signer = find_cpi_signer(&sdk_test::ID);
 
@@ -216,7 +212,6 @@ async fn update_nested_data<R>(
     nested_data: NestedData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -237,24 +232,20 @@ where
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    let compressed_account = LightAccountMeta::new_mut(
+        compressed_account,
+        rpc_result.root_indices[0],
+        &merkle_tree_pubkey,
+        remaining_accounts,
+    );
 
-    let inputs = vec![
-        compressed_account
-            .compressed_account
-            .data
-            .clone()
-            .unwrap()
-            .data,
-    ];
-
+    let inputs = LightInstructionData {
+        proof: Some(rpc_result),
+        accounts: Some(vec![compressed_account]),
+    };
+    let inputs = inputs.serialize().unwrap();
     let instruction_data = sdk_test::instruction::UpdateNestedData {
         inputs,
-        proof: rpc_result.proof,
-        merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
-        address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: 0,
         nested_data,
     };
 
