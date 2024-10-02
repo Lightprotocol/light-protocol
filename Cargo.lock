@@ -3713,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3749,7 +3749,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bs58 0.4.0",
  "light-hasher",
