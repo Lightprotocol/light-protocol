@@ -1,421 +1,152 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::prelude::{
-    AccountInfo, AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result,
-};
+use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result};
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
+use solana_program::account_info::AccountInfo;
 
 use crate::{
-    address::{derive_address, NewAddressParamsPacked},
-    merkle_context::{
-        pack_merkle_context, MerkleContext, PackedAddressMerkleContext, PackedMerkleContext,
-        RemainingAccounts,
+    account_info::LightAccountInfo,
+    address::{
+        derive_address_from_params, derive_address_seed, unpack_new_address_params,
+        PackedNewAddressParams,
     },
-    program_merkle_context::unpack_address_merkle_context,
+    merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts},
 };
 
-pub trait LightAccounts: Sized {
-    fn try_light_accounts(
-        inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Self>;
-    fn new_address_params(&self) -> Vec<NewAddressParamsPacked>;
-    fn input_accounts(
-        &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Vec<PackedCompressedAccountWithMerkleContext>>;
-    fn output_accounts(
-        &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Vec<OutputCompressedAccountWithPackedContext>>;
+pub trait LightAccounts<'a>: Sized {
+    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
 }
+
+// TODO(vadorovsky): Implment `LightAccountLoader`.
 
 /// A wrapper which abstracts away the UTXO model.
-pub enum LightAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    Init(LightInitAccount<T>),
-    Mut(LightMutAccount<T>),
-    Close(LightCloseAccount<T>),
-}
-
-impl<T> LightAccount<T>
+pub struct LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn new_init(
-        merkle_context: &PackedMerkleContext,
-        address_merkle_context: &PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
-    ) -> Self {
-        Self::Init(LightInitAccount::new(
-            merkle_context,
-            address_merkle_context,
-            address_merkle_tree_root_index,
-        ))
+    account_state: T,
+    account_info: &'info LightAccountInfo<'info>,
+    new_address_params: Option<PackedNewAddressParams>,
+    address: Option<[u8; 32]>,
+}
+
+impl<'info, T> LightAccount<'info, T>
+where
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+{
+    pub fn new(account_info: &'info LightAccountInfo) -> Result<Self> {
+        let account_state = if account_info.input.is_some() {
+            if let Some(data) = account_info.data {
+                T::try_from_slice(data)?
+            } else {
+                T::default()
+            }
+        } else {
+            T::default()
+        };
+        Ok(Self {
+            account_state,
+            account_info,
+            new_address_params: None,
+            address: None,
+        })
     }
 
-    pub fn try_from_slice_mut(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        Ok(Self::Mut(LightMutAccount::try_from_slice(
-            v,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-        )?))
-    }
+    pub fn derive_address(
+        &mut self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        remaining_accounts: &[AccountInfo],
+    ) {
+        if let Some(mut new_address_params) = self.account_info.new_address {
+            let seed = derive_address_seed(seeds, program_id);
+            let mut unpacked_new_address_params =
+                unpack_new_address_params(new_address_params, remaining_accounts);
 
-    pub fn try_from_slice_close(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        Ok(Self::Close(LightCloseAccount::try_from_slice(
-            v,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-        )?))
-    }
+            new_address_params.seed = seed;
+            unpacked_new_address_params.seed = seed;
+            self.new_address_params = Some(new_address_params);
 
-    pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
-        match self {
-            Self::Init(light_init_account) => light_init_account.set_address_seed(address_seed),
-            Self::Mut(light_mut_account) => light_mut_account.set_address_seed(address_seed),
-            Self::Close(light_close_account) => light_close_account.set_address_seed(address_seed),
+            let address = derive_address_from_params(unpacked_new_address_params);
+
+            self.address = Some(address);
         }
     }
 
-    pub fn new_address_params(&self) -> Option<NewAddressParamsPacked> {
-        match self {
-            Self::Init(self_init) => Some(self_init.new_address_params()),
-            Self::Mut(_) => None,
-            Self::Close(_) => None,
-        }
+    pub fn new_address_params(&self) -> Option<PackedNewAddressParams> {
+        self.new_address_params
     }
 
     pub fn input_compressed_account(
         &self,
         program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
-        match self {
-            Self::Init(_) => Ok(None),
-            Self::Mut(light_mut_account) => {
-                let account =
-                    light_mut_account.input_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
+        // TODO(vadorovsky): Support zero-copy serialization.
+        match self.account_info.input.as_ref() {
+            Some(input) => {
+                let data = match self.account_info.data {
+                    Some(data) => {
+                        let account = T::try_from_slice(data)?;
+                        Some(serialize_and_hash_account_data2(&account)?)
+                    }
+                    None => None,
+                };
+                Ok(Some(PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: *program_id,
+                        lamports: input.lamports.unwrap_or(0),
+                        address: input.address,
+                        data,
+                    },
+                    merkle_context: input.merkle_context,
+                    root_index: input.root_index,
+                    read_only: false,
+                }))
             }
-            Self::Close(light_close_account) => {
-                let account =
-                    light_close_account.input_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
-            }
+            None => Ok(None),
         }
     }
 
     pub fn output_compressed_account(
         &self,
         program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
-        match self {
-            Self::Init(light_init_account) => {
-                let account =
-                    light_init_account.output_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
+        match self.account_info.output_merkle_tree_index {
+            Some(merkle_tree_index) => {
+                let data = serialize_and_hash_account_data(&self.account_state)?;
+                Ok(Some(OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: self.account_info.owner.unwrap_or(*program_id),
+                        lamports: self.account_info.lamports.unwrap_or(0),
+                        address: self.address,
+                        data: Some(data),
+                    },
+                    merkle_tree_index,
+                }))
             }
-            Self::Mut(light_mut_account) => {
-                let account =
-                    light_mut_account.output_compressed_account(program_id, remaining_accounts)?;
-                Ok(Some(account))
-            }
-            Self::Close(_) => Ok(None),
+            None => Ok(None),
         }
     }
 }
 
-impl<T> Deref for LightAccount<T>
+impl<'a, T> Deref for LightAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Init(light_init_account) => &light_init_account.output_account,
-            Self::Mut(light_mut_account) => &light_mut_account.output_account,
-            Self::Close(light_close_account) => &light_close_account.input_account,
-        }
+        &self.account_state
     }
 }
 
-impl<T> DerefMut for LightAccount<T>
+impl<'a, T> DerefMut for LightAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Self::Init(light_init_account) => &mut light_init_account.output_account,
-            Self::Mut(light_mut_account) => &mut light_mut_account.output_account,
-            Self::Close(light_close_account) => &mut light_close_account.input_account,
-        }
-    }
-}
-
-pub struct LightInitAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    output_account: T,
-    address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    address_merkle_context: PackedAddressMerkleContext,
-    address_merkle_tree_root_index: u16,
-}
-
-impl<T> LightInitAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + Default + DataHasher + Discriminator,
-{
-    pub fn new(
-        merkle_context: &PackedMerkleContext,
-        address_merkle_context: &PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
-    ) -> Self {
-        let output_account = T::default();
-
-        Self {
-            output_account,
-            address_seed: None,
-            merkle_context: *merkle_context,
-            address_merkle_context: *address_merkle_context,
-            address_merkle_tree_root_index,
-        }
-    }
-
-    pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
-        self.address_seed = Some(address_seed);
-    }
-
-    pub fn new_address_params(&self) -> NewAddressParamsPacked {
-        NewAddressParamsPacked {
-            seed: self.address_seed.unwrap(),
-            address_merkle_tree_account_index: self
-                .address_merkle_context
-                .address_merkle_tree_pubkey_index,
-            address_queue_account_index: self.address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_root_index: self.address_merkle_tree_root_index,
-        }
-    }
-
-    pub fn output_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
-        output_compressed_account(
-            &self.output_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
-    }
-}
-
-impl<T> Deref for LightInitAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.output_account
-    }
-}
-
-impl<T> DerefMut for LightInitAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.output_account
-    }
-}
-
-pub struct LightMutAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    input_account: T,
-    output_account: T,
-    address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    merkle_tree_root_index: u16,
-    address_merkle_context: PackedAddressMerkleContext,
-}
-
-impl<T> LightMutAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    pub fn try_from_slice(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        let account = T::try_from_slice(v)?;
-
-        Ok(Self {
-            input_account: account.clone(),
-            output_account: account,
-            address_seed: None,
-            merkle_context: *merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context: *address_merkle_context,
-        })
-    }
-
-    pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
-        self.address_seed = Some(address_seed);
-    }
-
-    pub fn input_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
-        input_compressed_account(
-            &self.input_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            self.merkle_tree_root_index,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
-    }
-
-    pub fn output_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<OutputCompressedAccountWithPackedContext> {
-        output_compressed_account(
-            &self.output_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
-    }
-}
-
-impl<T> Deref for LightMutAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.output_account
-    }
-}
-
-impl<T> DerefMut for LightMutAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.output_account
-    }
-}
-
-pub struct LightCloseAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    input_account: T,
-    address_seed: Option<[u8; 32]>,
-    merkle_context: PackedMerkleContext,
-    merkle_tree_root_index: u16,
-    address_merkle_context: PackedAddressMerkleContext,
-}
-
-impl<T> LightCloseAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    pub fn try_from_slice(
-        v: &[u8],
-        merkle_context: &PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: &PackedAddressMerkleContext,
-    ) -> Result<Self> {
-        let input_account = T::try_from_slice(v)?;
-
-        Ok(Self {
-            input_account,
-            address_seed: None,
-            merkle_context: *merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context: *address_merkle_context,
-        })
-    }
-
-    pub fn set_address_seed(&mut self, address_seed: [u8; 32]) {
-        self.address_seed = Some(address_seed);
-    }
-
-    pub fn input_compressed_account(
-        &self,
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
-        input_compressed_account(
-            &self.input_account,
-            &self.address_seed.unwrap(),
-            program_id,
-            &self.merkle_context,
-            self.merkle_tree_root_index,
-            &self.address_merkle_context,
-            remaining_accounts,
-        )
-    }
-}
-
-impl<T> Deref for LightCloseAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.input_account
-    }
-}
-
-impl<T> DerefMut for LightCloseAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.input_account
+        &mut self.account_state
     }
 }
 
@@ -502,6 +233,32 @@ pub struct CompressedAccountWithMerkleContext {
     pub merkle_context: MerkleContext,
 }
 
+impl CompressedAccountWithMerkleContext {
+    pub fn new_init_account(
+        owner: Pubkey,
+        lamports: u64,
+        address: Option<[u8; 32]>,
+        merkle_context: MerkleContext,
+    ) -> Self {
+        Self {
+            compressed_account: CompressedAccount {
+                owner,
+                lamports,
+                address,
+                data: None,
+            },
+            merkle_context,
+        }
+    }
+
+    pub fn hash(&self) -> Result<[u8; 32]> {
+        self.compressed_account.hash::<Poseidon>(
+            &self.merkle_context.merkle_tree_pubkey,
+            &self.merkle_context.leaf_index,
+        )
+    }
+}
+
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -512,103 +269,35 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub read_only: bool,
 }
 
-impl CompressedAccountWithMerkleContext {
-    pub fn hash(&self) -> Result<[u8; 32]> {
-        self.compressed_account.hash::<Poseidon>(
-            &self.merkle_context.merkle_tree_pubkey,
-            &self.merkle_context.leaf_index,
-        )
-    }
-}
-
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-pub fn serialize_and_hash_account<T>(
-    account: &T,
-    address_seed: &[u8; 32],
-    program_id: &Pubkey,
-    address_merkle_context: &PackedAddressMerkleContext,
-    remaining_accounts: &[AccountInfo],
-) -> Result<CompressedAccount>
+pub fn serialize_and_hash_account_data<T>(account: &T) -> Result<CompressedAccountData>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
 {
     let data = account.try_to_vec()?;
     let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
-    let compressed_account_data = CompressedAccountData {
+    Ok(CompressedAccountData {
         discriminator: T::discriminator(),
         data,
         data_hash,
-    };
-
-    let address_merkle_context =
-        unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
-    let address = derive_address(address_seed, &address_merkle_context);
-
-    let compressed_account = CompressedAccount {
-        owner: *program_id,
-        lamports: 0,
-        address: Some(address),
-        data: Some(compressed_account_data),
-    };
-
-    Ok(compressed_account)
-}
-
-pub fn input_compressed_account<T>(
-    account: &T,
-    address_seed: &[u8; 32],
-    program_id: &Pubkey,
-    merkle_context: &PackedMerkleContext,
-    merkle_tree_root_index: u16,
-    address_merkle_context: &PackedAddressMerkleContext,
-    remaining_accounts: &[AccountInfo],
-) -> Result<PackedCompressedAccountWithMerkleContext>
-where
-    T: AnchorSerialize + DataHasher + Discriminator,
-{
-    let compressed_account = serialize_and_hash_account(
-        account,
-        address_seed,
-        program_id,
-        address_merkle_context,
-        remaining_accounts,
-    )?;
-
-    Ok(PackedCompressedAccountWithMerkleContext {
-        compressed_account,
-        merkle_context: *merkle_context,
-        root_index: merkle_tree_root_index,
-        read_only: false,
     })
 }
 
-pub fn output_compressed_account<T>(
-    account: &T,
-    address_seed: &[u8; 32],
-    program_id: &Pubkey,
-    merkle_context: &PackedMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
-    remaining_accounts: &[AccountInfo],
-) -> Result<OutputCompressedAccountWithPackedContext>
+pub fn serialize_and_hash_account_data2<T>(account: &T) -> Result<CompressedAccountData>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
 {
-    let compressed_account = serialize_and_hash_account(
-        account,
-        address_seed,
-        program_id,
-        address_merkle_context,
-        remaining_accounts,
-    )?;
-
-    Ok(OutputCompressedAccountWithPackedContext {
-        compressed_account,
-        merkle_tree_index: merkle_context.merkle_tree_pubkey_index,
+    let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
+    Ok(CompressedAccountData {
+        discriminator: T::discriminator(),
+        // Sending only data hash to the system program is sufficient.
+        data: Vec::new(),
+        data_hash,
     })
 }
 
@@ -622,7 +311,7 @@ pub fn pack_compressed_accounts(
         .zip(root_indices.iter())
         .map(|(x, root_index)| PackedCompressedAccountWithMerkleContext {
             compressed_account: x.compressed_account.clone(),
-            merkle_context: pack_merkle_context(x.merkle_context, remaining_accounts),
+            merkle_context: pack_merkle_context(&x.merkle_context, remaining_accounts),
             root_index: *root_index,
             read_only: false,
         })

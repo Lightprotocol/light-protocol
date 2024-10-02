@@ -37,9 +37,9 @@ jobs:
             sub-tests: '[
               "cargo test-sbf -p token-escrow -- --test-threads=1"
             ]'
-          - program: name-service-test
+          - program: name-service-without-macros-test
             sub-tests: '[
-              "cargo test-sbf -p name-service -- --test-threads=1"
+              "cargo test-sbf -p name-service-without-macros -- --test-threads=1"
             ]'
 
     steps:
