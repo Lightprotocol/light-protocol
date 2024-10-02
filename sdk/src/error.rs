@@ -6,4 +6,6 @@ pub enum LightSdkError {
     ConstraintViolation,
     #[msg("Invalid light-system-program ID")]
     InvalidLightSystemProgram,
+    #[msg("Expected accounts in the instruction")]
+    ExpectedAccounts,
 }
