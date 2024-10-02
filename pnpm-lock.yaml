@@ -65,6 +65,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.95.3
         version: 1.95.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@types/shell-quote':
+        specifier: ^1.7.5
+        version: 1.7.5
       axios:
         specifier: ^1.6.8
         version: 1.6.8
@@ -3309,6 +3312,9 @@ packages:
 
   '@types/semver@7.5.8':
     resolution: {integrity: sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==}
+
+  '@types/shell-quote@1.7.5':
+    resolution: {integrity: sha512-+UE8GAGRPbJVQDdxi16dgadcBfQ+KG2vgZhV1+3A1XmHbmwcdwhCUwIdy+d3pAGrbvgRoVSjeI9vOWyq376Yzw==}
 
   '@types/sinon@10.0.16':
     resolution: {integrity: sha512-j2Du5SYpXZjJVJtXBokASpPRj+e2z+VUhCPHmM6WMfe3dpHu6iVKJMU6AiBcMp/XTAYnEj6Wc1trJUWwZ0QaAQ==}
@@ -11896,6 +11902,8 @@ snapshots:
   '@types/semver@7.5.2': {}
 
   '@types/semver@7.5.8': {}
+
+  '@types/shell-quote@1.7.5': {}
 
   '@types/sinon@10.0.16':
     dependencies:
