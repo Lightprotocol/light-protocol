@@ -21,8 +21,8 @@
 This package provides server and web applications with clients, utilities, and types to leverage the power of [ZK Compression](https://www.zkcompression.com/) on Solana via the Compression RPC API.
 
 > The core ZK Compression Solana programs and clients are maintained by
-[Light](https://github.com/lightprotocol) as a part of the Light Protocol. The RPC API and indexer are maintained by
-[Helius Labs](https://github.com/helius-labs).
+> [Light](https://github.com/lightprotocol) as a part of the Light Protocol. The RPC API and indexer are maintained by
+> [Helius Labs](https://github.com/helius-labs).
 
 ## Usage
 
@@ -39,8 +39,8 @@ npm install --save \
 
 ### Dependencies
 
-- [`@solana/web3.js`](https://www.npmjs.com/package/@solana/web3.js) — provides access to the Solana network via RPC.
-- [`@coral-xyz/anchor`](https://www.npmjs.com/package/@coral-xyz/anchor) — a client for [Anchor](https://www.anchor-lang.com/) Solana programs.
+-   [`@solana/web3.js`](https://www.npmjs.com/package/@solana/web3.js) — provides access to the Solana network via RPC.
+-   [`@coral-xyz/anchor`](https://www.npmjs.com/package/@coral-xyz/anchor) — a client for [Anchor](https://www.anchor-lang.com/) Solana programs.
 
 ## Documentation and Examples
 
@@ -48,9 +48,9 @@ For a more detailed documentation on usage, please check [the respective section
 
 For example implementations, including web and server, refer to the respective repositories:
 
-- [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
+-   [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
 
-- [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
+-   [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
 
 ## Troubleshooting
 
@@ -65,14 +65,14 @@ Feel free to ask in the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](http
 
 Light and ZK Compression are open source protocols and very much welcome contributions. If you have a contribution, do not hesitate to send a PR to the respective repository or discuss in the linked developer Discord servers.
 
-- 🐞 For bugs or feature requests, please open an
-[issue](https://github.com/lightprotocol/lightprotocol/issues/new).
-- 🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
+-   🐞 For bugs or feature requests, please open an
+    [issue](https://github.com/lightprotocol/lightprotocol/issues/new).
+-   🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
 ## Additional Resources
 
-- [Light Protocol Repository](https://github.com/Lightprotocol/light-protocol)
-- [ZK Compression Official Documentation](https://www.zkcompression.com/)
+-   [Light Protocol Repository](https://github.com/Lightprotocol/light-protocol)
+-   [ZK Compression Official Documentation](https://www.zkcompression.com/)
 
 ## Disclaimer
 

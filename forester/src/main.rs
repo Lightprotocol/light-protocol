@@ -1,17 +1,15 @@
 use clap::Parser;
 use forester::cli::{Cli, Commands};
 use forester::errors::ForesterError;
-use forester::metrics::{push_metrics, register_metrics};
+use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
-use forester::tree_data_sync::fetch_trees;
-use forester::{run_pipeline, run_queue_info, ForesterConfig};
-use forester_utils::forester_epoch::TreeType;
+use forester::{forester_status, run_pipeline, ForesterConfig};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, warn};
+use tracing::debug;
 
 #[tokio::main]
 async fn main() -> Result<(), ForesterError> {
@@ -54,23 +52,7 @@ async fn main() -> Result<(), ForesterError> {
             run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
         }
         Commands::Status(args) => {
-            let config = Arc::new(ForesterConfig::new_for_status(args)?);
-
-            if config.general_config.enable_metrics {
-                register_metrics();
-            }
-
-            debug!("Fetching trees...");
-            debug!("RPC URL: {}", config.external_services.rpc_url);
-            let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
-            let trees = fetch_trees(&rpc).await?;
-            if trees.is_empty() {
-                warn!("No trees found. Exiting.");
-            }
-            run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
-            run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
-
-            push_metrics(&config.external_services.pushgateway_url).await?;
+            forester_status::fetch_forester_status(args).await;
         }
     }
     Ok(())

@@ -169,10 +169,7 @@ impl ForesterConfig {
     }
 
     pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
-        let rpc_url = args
-            .rpc_url
-            .clone()
-            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+        let rpc_url = args.rpc_url.clone();
 
         Ok(Self {
             external_services: ExternalServicesConfig {
