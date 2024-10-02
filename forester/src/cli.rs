@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+use crate::forester_stats;
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 pub struct Cli {
@@ -12,6 +14,7 @@ pub struct Cli {
 pub enum Commands {
     Start(StartArgs),
     Status(StatusArgs),
+    ForesterStats(forester_stats::Options),
 }
 
 #[derive(Parser, Clone, Debug)]

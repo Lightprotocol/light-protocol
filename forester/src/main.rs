@@ -5,7 +5,7 @@ use forester::metrics::{push_metrics, register_metrics};
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::tree_data_sync::fetch_trees;
-use forester::{run_pipeline, run_queue_info, ForesterConfig};
+use forester::{forester_stats, run_pipeline, run_queue_info, ForesterConfig};
 use forester_utils::forester_epoch::TreeType;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use std::sync::Arc;
@@ -72,6 +72,7 @@ async fn main() -> Result<(), ForesterError> {
 
             push_metrics(&config.external_services.pushgateway_url).await?;
         }
+        Commands::ForesterStats(opts) => forester_stats::fetch_foreter_stats(opts),
     }
     Ok(())
 }

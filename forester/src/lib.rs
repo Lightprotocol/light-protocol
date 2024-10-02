@@ -4,6 +4,7 @@ pub mod cli;
 pub mod config;
 pub mod epoch_manager;
 pub mod errors;
+pub mod forester_stats;
 pub mod metrics;
 pub mod photon_indexer;
 pub mod pubsub_client;
