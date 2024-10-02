@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 account-compression = { workspace = true }
+light-registry = { workspace = true }
 anyhow = "1.0"
 ark-bn254 = "0.4"
 ark-ff = "0.4"
@@ -21,3 +22,7 @@ quote = "1.0"
 sha2 = "0.10"
 solana-program = { workspace = true }
 tabled = "0.15"
+solana-sdk.workspace = true
+solana-client = { workspace = true }
+anchor-lang = { workspace = true }
+

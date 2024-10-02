@@ -23,7 +23,8 @@ export function deriveAddressSeed(
  */
 export function deriveAddress(
     seed: Uint8Array,
-    addressMerkleTreePubkey: PublicKey = defaultTestStateTreeAccounts().addressTree,
+    addressMerkleTreePubkey: PublicKey = defaultTestStateTreeAccounts()
+        .addressTree,
 ): PublicKey {
     if (seed.length != 32) {
         throw new Error('Seed length is not 32 bytes.');

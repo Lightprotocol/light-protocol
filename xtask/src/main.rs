@@ -3,6 +3,7 @@ use clap::{Parser, ValueEnum};
 mod bench;
 mod create_vkeyrs_from_gnark_key;
 mod fee;
+mod forester_stats;
 mod hash_set;
 mod type_sizes;
 mod zero_bytes;
@@ -38,6 +39,8 @@ enum Command {
     Fee,
     /// Hash set utilities.
     HashSet(hash_set::HashSetOptions),
+    /// Hash set utilities.
+    ForesterStats(forester_stats::Options),
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -55,5 +58,6 @@ fn main() -> Result<(), anyhow::Error> {
         Command::Bench(opts) => bench::bench(opts),
         Command::Fee => fee::fees(),
         Command::HashSet(opts) => hash_set::hash_set(opts),
+        Command::ForesterStats(opts) => forester_stats::fetch_foreter_stats(opts),
     }
 }
