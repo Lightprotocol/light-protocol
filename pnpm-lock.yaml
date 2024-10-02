@@ -273,6 +273,40 @@ importers:
         specifier: ^5.5.4
         version: 5.5.4
 
+  examples/name-service-without-macros:
+    dependencies:
+      '@coral-xyz/anchor':
+        specifier: ^0.29.0
+        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+    devDependencies:
+      '@lightprotocol/zk-compression-cli':
+        specifier: workspace:*
+        version: link:../../cli
+      '@types/bn.js':
+        specifier: ^5.1.0
+        version: 5.1.5
+      '@types/chai':
+        specifier: ^4.3.0
+        version: 4.3.17
+      '@types/mocha':
+        specifier: ^10.0.7
+        version: 10.0.7
+      chai:
+        specifier: ^4.3.4
+        version: 4.4.1
+      mocha:
+        specifier: ^10.7.3
+        version: 10.7.3
+      prettier:
+        specifier: ^2.6.2
+        version: 2.8.8
+      ts-mocha:
+        specifier: ^10.0.0
+        version: 10.0.0(mocha@10.7.3)
+      typescript:
+        specifier: ^5.5.4
+        version: 5.6.2
+
   examples/node/esm:
     dependencies:
       '@coral-xyz/anchor':

@@ -1,5 +1,6 @@
 use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
+use solana_program::account_info::AccountInfo;
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
 
@@ -12,7 +13,7 @@ pub struct NewAddressParams {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
-pub struct NewAddressParamsPacked {
+pub struct PackedNewAddressParams {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
     pub address_merkle_tree_account_index: u8,
@@ -27,7 +28,7 @@ pub struct AddressWithMerkleContext {
 pub fn pack_new_addresses_params(
     addresses_params: &[NewAddressParams],
     remaining_accounts: &mut RemainingAccounts,
-) -> Vec<NewAddressParamsPacked> {
+) -> Vec<PackedNewAddressParams> {
     addresses_params
         .iter()
         .map(|x| {
@@ -35,7 +36,7 @@ pub fn pack_new_addresses_params(
                 remaining_accounts.insert_or_get(x.address_queue_pubkey);
             let address_merkle_tree_account_index =
                 remaining_accounts.insert_or_get(x.address_merkle_tree_pubkey);
-            NewAddressParamsPacked {
+            PackedNewAddressParams {
                 seed: x.seed,
                 address_queue_account_index,
                 address_merkle_tree_account_index,
@@ -48,8 +49,24 @@ pub fn pack_new_addresses_params(
 pub fn pack_new_address_params(
     address_params: NewAddressParams,
     remaining_accounts: &mut RemainingAccounts,
-) -> NewAddressParamsPacked {
+) -> PackedNewAddressParams {
     pack_new_addresses_params(&[address_params], remaining_accounts)[0]
+}
+
+pub fn unpack_new_address_params(
+    address_params: PackedNewAddressParams,
+    remaining_accounts: &[AccountInfo],
+) -> NewAddressParams {
+    let address_merkle_tree_pubkey =
+        remaining_accounts[address_params.address_merkle_tree_account_index as usize].key;
+    let address_queue_pubkey =
+        remaining_accounts[address_params.address_queue_account_index as usize].key;
+    NewAddressParams {
+        seed: address_params.seed,
+        address_queue_pubkey: *address_queue_pubkey,
+        address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
+        address_merkle_tree_root_index: address_params.address_merkle_tree_root_index,
+    }
 }
 
 /// Derives a single address seed for a compressed account, based on the
@@ -85,6 +102,20 @@ pub fn derive_address(
 ) -> [u8; 32] {
     let merkle_tree_pubkey = address_merkle_context.address_merkle_tree_pubkey.to_bytes();
     let input = [merkle_tree_pubkey, *address_seed].concat();
+
+    // PANICS: Not being able to find the bump for truncating the hash is
+    // practically impossible. Quite frankly, we should just remove that error
+    // inside.
+    hash_to_bn254_field_size_be(input.as_slice()).unwrap().0
+}
+
+pub fn derive_address_from_params(params: NewAddressParams) -> [u8; 32] {
+    let NewAddressParams {
+        seed,
+        address_merkle_tree_pubkey,
+        ..
+    } = params;
+    let input = [address_merkle_tree_pubkey.to_bytes(), seed].concat();
 
     // PANICS: Not being able to find the bump for truncating the hash is
     // practically impossible. Quite frankly, we should just remove that error
