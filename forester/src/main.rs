@@ -52,7 +52,7 @@ async fn main() -> Result<(), ForesterError> {
             run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
         }
         Commands::Status(args) => {
-            forester_status::fetch_foreter_status(args).await;
+            forester_status::fetch_forester_status(args).await;
         }
     }
     Ok(())

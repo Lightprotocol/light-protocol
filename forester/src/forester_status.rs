@@ -14,13 +14,13 @@ use crate::{
     ForesterConfig,
 };
 
-pub async fn fetch_foreter_status(opts: &StatusArgs) {
+pub async fn fetch_forester_status(args: &StatusArgs) {
     let commitment_config = CommitmentConfig::confirmed();
-    let rpc_url = std::env::var("RPC_URL")
-        .expect("RPC_URL environment variable not set, export RPC_URL=<url>");
 
-    let client =
-        solana_client::rpc_client::RpcClient::new_with_commitment(rpc_url, commitment_config);
+    let client = solana_client::rpc_client::RpcClient::new_with_commitment(
+        args.rpc_url.clone(),
+        commitment_config,
+    );
     let registry_accounts = client
         .get_program_accounts(&light_registry::ID)
         .expect("Failed to fetch accounts for registry program.");
@@ -88,7 +88,7 @@ pub async fn fetch_foreter_status(opts: &StatusArgs) {
         protocol_config_pdas[0].config.active_phase_length
     );
     println!(
-        "current active epoch progress {:?}%",
+        "current active epoch progress {:.2?}%",
         protocol_config_pdas[0]
             .config
             .get_current_active_epoch_progress(slot) as f64
@@ -126,7 +126,7 @@ pub async fn fetch_foreter_status(opts: &StatusArgs) {
         // slotduration is 460ms and 1000ms is 1 second and 3600 seconds is 1 hour
         slots_until_next_registration * 460 / 1000 / 3600
     );
-    if opts.full {
+    if args.full {
         for epoch in &epoch_pdas {
             println!("Epoch: {:?}", epoch.epoch);
             let registered_foresters_in_epoch = forester_epoch_pdas
@@ -137,10 +137,10 @@ pub async fn fetch_foreter_status(opts: &StatusArgs) {
             }
         }
     }
-    if opts.protocol_config {
+    if args.protocol_config {
         println!("protocol config: {:?}", protocol_config_pdas[0]);
     }
-    let config = Arc::new(ForesterConfig::new_for_status(opts).unwrap());
+    let config = Arc::new(ForesterConfig::new_for_status(args).unwrap());
 
     if config.general_config.enable_metrics {
         register_metrics();

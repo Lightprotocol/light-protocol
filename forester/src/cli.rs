@@ -113,7 +113,7 @@ pub struct StartArgs {
 #[derive(Parser, Clone, Debug)]
 pub struct StatusArgs {
     #[arg(long, env = "FORESTER_RPC_URL")]
-    pub rpc_url: Option<String>,
+    pub rpc_url: String,
 
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
