@@ -149,7 +149,7 @@ pub async fn fetch_foreter_status(opts: &StatusArgs) {
     debug!("Fetching trees...");
     debug!("RPC URL: {}", config.external_services.rpc_url);
     let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
-    let trees = fetch_trees(&rpc).await;
+    let trees = fetch_trees(&rpc).await.unwrap();
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
