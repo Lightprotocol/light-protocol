@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Command to deactivate the devenv. It sets the old environment variables.
 deactivate () {
     PS1="${LIGHT_PROTOCOL_OLD_PS1}"
