@@ -733,6 +733,144 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'batchedMerkleTreeMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'accessMetadata';
+                        type: {
+                            defined: 'AccessMetadata';
+                        };
+                    },
+                    {
+                        name: 'rolloverMetadata';
+                        type: {
+                            defined: 'RolloverMetadata';
+                        };
+                    },
+                    {
+                        name: 'associatedInputQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'associatedOutputQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextMerkleTree';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'treeType';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedMerkleTreeAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'BatchedMerkleTreeMetadata';
+                        };
+                    },
+                    {
+                        name: 'sequenceNumber';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'treeType';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'nextIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'currentRootIndex';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedAddressQueueAccount';
+            docs: [
+                'Memory layout:',
+                '1. QueueMetadata',
+                '2. num_batches: u64',
+                '3. hash_chain hash bounded vec',
+                '3. for num_batches every 33 bytes is a bloom filter',
+                '3. (output queue) rest of account is bounded vec',
+                '',
+                'One Batch account contains multiple batches.',
+            ];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'QueueMetadata';
+                        };
+                    },
+                    {
+                        name: 'numBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'batchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'sequenceNumber';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'nextIndex';
+                        docs: [
+                            'Next index of associated Merkle tree.',
+                            'Is used to derive compressed account hashes.',
+                            'Is not used in Input queue.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'currentlyProcessingBatchIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'nextFullBatchIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'lastMtUpdatedBatch';
+                        docs: [
+                            'Index of last batch used to update in the Merkle tree.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterCapacity';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
             name: 'groupAuthority';
             type: {
                 kind: 'struct';
@@ -1009,6 +1147,31 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'TreeType';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'State';
+                    },
+                    {
+                        name: 'Address';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'Circuit';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'Batch100';
+                    },
+                ];
+            };
+        },
+        {
             name: 'QueueType';
             type: {
                 kind: 'enum';
@@ -1018,6 +1181,15 @@ export type AccountCompression = {
                     },
                     {
                         name: 'AddressQueue';
+                    },
+                    {
+                        name: 'Input';
+                    },
+                    {
+                        name: 'Address';
+                    },
+                    {
+                        name: 'Output';
                     },
                 ];
             };
@@ -1164,6 +1336,34 @@ export type AccountCompression = {
         {
             code: 6026;
             name: 'ProofLengthMismatch';
+        },
+        {
+            code: 6027;
+            name: 'InvalidCommitmentLength';
+            msg: 'Invalid commitment length';
+        },
+        {
+            code: 6028;
+            name: 'BloomFilterFull';
+            msg: 'BloomFilterFull';
+        },
+        {
+            code: 6029;
+            name: 'BatchInsertFailed';
+            msg: 'BatchInsertFailed';
+        },
+        {
+            code: 6030;
+            name: 'BatchNotReady';
+            msg: 'BatchNotReady';
+        },
+        {
+            code: 6031;
+            name: 'SizeMismatch';
+        },
+        {
+            code: 6032;
+            name: 'BatchAlreadyInserted';
         },
     ];
 };
@@ -1903,6 +2103,144 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'batchedMerkleTreeMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'accessMetadata',
+                        type: {
+                            defined: 'AccessMetadata',
+                        },
+                    },
+                    {
+                        name: 'rolloverMetadata',
+                        type: {
+                            defined: 'RolloverMetadata',
+                        },
+                    },
+                    {
+                        name: 'associatedInputQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'associatedOutputQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextMerkleTree',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'treeType',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedMerkleTreeAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'BatchedMerkleTreeMetadata',
+                        },
+                    },
+                    {
+                        name: 'sequenceNumber',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'treeType',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'nextIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'currentRootIndex',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedAddressQueueAccount',
+            docs: [
+                'Memory layout:',
+                '1. QueueMetadata',
+                '2. num_batches: u64',
+                '3. hash_chain hash bounded vec',
+                '3. for num_batches every 33 bytes is a bloom filter',
+                '3. (output queue) rest of account is bounded vec',
+                '',
+                'One Batch account contains multiple batches.',
+            ],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'QueueMetadata',
+                        },
+                    },
+                    {
+                        name: 'numBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'batchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'sequenceNumber',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'nextIndex',
+                        docs: [
+                            'Next index of associated Merkle tree.',
+                            'Is used to derive compressed account hashes.',
+                            'Is not used in Input queue.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'currentlyProcessingBatchIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'nextFullBatchIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'lastMtUpdatedBatch',
+                        docs: [
+                            'Index of last batch used to update in the Merkle tree.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterCapacity',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
             name: 'groupAuthority',
             type: {
                 kind: 'struct',
@@ -2179,6 +2517,31 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'TreeType',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'State',
+                    },
+                    {
+                        name: 'Address',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'Circuit',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'Batch100',
+                    },
+                ],
+            },
+        },
+        {
             name: 'QueueType',
             type: {
                 kind: 'enum',
@@ -2188,6 +2551,15 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'AddressQueue',
+                    },
+                    {
+                        name: 'Input',
+                    },
+                    {
+                        name: 'Address',
+                    },
+                    {
+                        name: 'Output',
                     },
                 ],
             },
@@ -2334,6 +2706,34 @@ export const IDL: AccountCompression = {
         {
             code: 6026,
             name: 'ProofLengthMismatch',
+        },
+        {
+            code: 6027,
+            name: 'InvalidCommitmentLength',
+            msg: 'Invalid commitment length',
+        },
+        {
+            code: 6028,
+            name: 'BloomFilterFull',
+            msg: 'BloomFilterFull',
+        },
+        {
+            code: 6029,
+            name: 'BatchInsertFailed',
+            msg: 'BatchInsertFailed',
+        },
+        {
+            code: 6030,
+            name: 'BatchNotReady',
+            msg: 'BatchNotReady',
+        },
+        {
+            code: 6031,
+            name: 'SizeMismatch',
+        },
+        {
+            code: 6032,
+            name: 'BatchAlreadyInserted',
         },
     ],
 };

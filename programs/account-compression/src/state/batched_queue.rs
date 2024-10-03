@@ -26,7 +26,6 @@ pub struct BatchedAddressQueueAccount {
     pub metadata: QueueMetadata,
     pub num_batches: u64,
     pub batch_size: u64,
-    pub sequence_number: u64,
     /// Next index of associated Merkle tree.
     /// Is used to derive compressed account hashes.
     /// Is not used in Input queue.
@@ -117,8 +116,7 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
             let current_batch = self.batches.get_mut(index).unwrap();
             let queue_type = QueueType::from(self.account.metadata.queue_type);
             let is_full = self.account.batch_size == current_batch.num_inserted;
-            let (can_be_filled, wipe_bloom_filter) =
-                current_batch.can_be_filled(self.account.sequence_number);
+            let (can_be_filled, wipe_bloom_filter) = current_batch.can_be_filled();
 
             // TODO: implement more efficient bloom filter wipe this will not work onchain
             if wipe_bloom_filter {
@@ -228,7 +226,6 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
                     bloomfilter_capacity: account.bloom_filter_capacity,
                     user_hash_chain: [0; 32],
                     prover_hash_chain: [0; 32],
-                    sequence_number: 0,
                     num_inserted: 0,
                     value_capacity: account.batch_size,
                     is_inserted: false,
@@ -415,7 +412,6 @@ pub mod tests {
             num_batches: num_batches as u64,
             currently_processing_batch_index: 0,
             next_index: 0,
-            sequence_number: 0,
             next_full_batch_index: 0,
             last_mt_updated_batch: 0,
             bloom_filter_capacity,
