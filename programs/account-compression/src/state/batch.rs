@@ -19,7 +19,6 @@ pub struct Batch {
     /// To enable update of the batch in multiple proofs the prover hash chain
     /// is used to save intermediate state.
     pub prover_hash_chain: [u8; 32],
-    pub sequence_number: u64,
     pub is_inserted: bool,
 }
 
@@ -35,9 +34,8 @@ impl Batch {
     /// It is possible to add values to the batch:
     /// 1. If the batch is not ready to update the tree.
     /// 2. If the sequence number is greater than the current sequence number.
-    pub fn can_be_filled(&mut self, sequence_number: u64) -> (bool, bool) {
-        let can_be_filled =
-            !self.is_ready_to_update_tree() && sequence_number >= self.sequence_number;
+    pub fn can_be_filled(&mut self) -> (bool, bool) {
+        let can_be_filled = !self.is_ready_to_update_tree();
         let wipe_bloomfilter = if self.is_inserted && self.num_inserted == self.value_capacity {
             // self.is_inserted = false;
             self.num_inserted = 0;
@@ -134,13 +132,6 @@ impl Batch {
         }
         Ok(())
     }
-
-    // There should be more batches than root history array size, usablecapacity is bloomfilter_capacity - root_history_capacity.
-
-    /// Marks the batch so that it can be overwritten
-    pub fn mark_with_sequence_number(&mut self, sequence_number: u64, sequence_threshold: u64) {
-        self.sequence_number = sequence_number + sequence_threshold;
-    }
 }
 
 #[cfg(test)]
@@ -157,7 +148,6 @@ mod tests {
             num_inserted: 0,
             user_hash_chain: [0u8; 32],
             prover_hash_chain: [0u8; 32],
-            sequence_number: 0,
             value_capacity: 500,
             is_inserted: true,
         }
@@ -308,15 +298,5 @@ mod tests {
         assert_eq!(batch, ref_batch);
         batch.insert(&value, &mut store).unwrap();
         assert!(batch.check_non_inclusion(&value, &mut store).is_err());
-    }
-
-    #[test]
-    fn test_mark_with_sequence_number() {
-        let mut batch = get_test_batch();
-
-        batch.mark_with_sequence_number(10, 5);
-        let mut ref_batch = get_test_batch();
-        ref_batch.sequence_number = 15;
-        assert_eq!(batch, ref_batch);
     }
 }

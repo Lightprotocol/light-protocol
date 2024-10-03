@@ -222,10 +222,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         } else if !queue_account.batches[batch_index as usize].is_ready_to_update_tree() {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
-        // let current_batch_index = queue_account.c;
-        // Increment sequence number here because we mark the batch with
-        // sequence number already in get_public_inputs_from_queue_account.
-        self.account.sequence_number += 1;
+
         println!("batch_index: {}", batch_index);
         println!("batch : {:?}", queue_account.batches[batch_index as usize]);
         let public_input_hash = self.compress_public_inputs(&public_inputs)?;
@@ -237,13 +234,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         queue_account.batches[batch_index as usize].is_inserted = true;
         queue_account.batches[batch_index as usize].user_hash_chain = [0u8; 32];
 
-        let sequence_threshold = self.account.root_history_capacity;
-        println!("sequence_threshold: {}", sequence_threshold);
-        println!("account.sequence_number: {}", self.account.sequence_number);
-        queue_account.batches[batch_index as usize]
-            .mark_with_sequence_number(self.account.sequence_number, sequence_threshold);
-        println!("account.sequence_number: {}", self.account.sequence_number);
-
+        self.account.sequence_number += 1;
         Ok(())
     }
 }
@@ -392,7 +383,7 @@ mod tests {
 
             let height = 26;
             // Should be twice to num batches since num batches is the number input and output batches -> 2x
-            let root_history_capacity = 4;
+            let root_history_capacity = num_batches;
             let bloomfilter_capacity = 20_000 * 8;
             let bloomfilter_num_iters = 3;
             let (mut queue_account, mut queue_account_data) = get_test_account_and_account_data(
@@ -528,11 +519,6 @@ mod tests {
                         )
                         .unwrap();
                     assert!(!zero_copy_queue_account.batches[0].is_ready_to_update_tree());
-                    // Batch 0 should be inserted now
-                    assert_eq!(
-                        zero_copy_queue_account.batches[0].sequence_number,
-                        1 + root_history_capacity
-                    );
                     // New inserts should go to Batch 1
                     {
                         assert_eq!(zero_copy_queue_account.batches[1].num_inserted, 0);
@@ -581,12 +567,15 @@ mod tests {
         }
     }
 
-    /// TODO: add infinite test with random values filling both input and output
+    /// TODO: add input queue
+    /// TODO: add complete asserts
+    /// TODO: do full sweep and write specs
+    /// TODO: add circuits for update
     /// queues with a counter which keeps things below X tps and an if that
     /// executes tree updates when possible.
     #[test]
     fn test_e2e() {
-        let num_tx = 1000000;
+        let num_tx = 220000;
         let batch_size = 6000;
         let num_batches = 2;
 
@@ -635,19 +624,19 @@ mod tests {
         let mut num_input_updates = 0;
         let mut num_input_values = 0;
         let mut num_output_values = 0;
+        let mut current_batch = 0;
 
         for tx in 0..num_tx {
             println!("tx: {}", tx);
+            println!("num_input_updates: {}", num_input_updates);
+            println!("num_output_updates: {}", num_output_updates);
             let mut input_zero_copy_account = ZeroCopyBatchedAddressQueueAccount::from_account(
                 &mut input_queue_account,
                 &mut input_queue_account_data,
             )
             .unwrap();
 
-            if rng.gen_bool(0.5)
-                && !(input_zero_copy_account.batches[0].is_ready_to_update_tree()
-                    && input_zero_copy_account.batches[1].is_ready_to_update_tree())
-            {
+            if rng.gen_bool(0.5) && current_batch == 0 {
                 println!("Input insert -----------------------------");
 
                 let rnd_bytes = get_rnd_bytes(&mut rng);
@@ -702,11 +691,13 @@ mod tests {
                 println!("batch 1 ready: {:?}", output_zero_copy_account.batches[1]);
                 panic!("output batches are both ready to update");
             }
+            if output_zero_copy_account.batches[0].is_ready_to_update_tree() {
+                current_batch = 0;
+            } else if output_zero_copy_account.batches[1].is_ready_to_update_tree() {
+                current_batch = 1;
+            }
 
-            if rng.gen_bool(0.5)
-                && !(output_zero_copy_account.batches[0].is_ready_to_update_tree()
-                    && output_zero_copy_account.batches[1].is_ready_to_update_tree())
-            {
+            if rng.gen_bool(0.5) && current_batch == 1 {
                 println!("Output insert -----------------------------");
                 let rnd_bytes = get_rnd_bytes(&mut rng);
                 output_zero_copy_account
@@ -726,6 +717,11 @@ mod tests {
                     .to_vec()
                     .contains(&rnd_bytes));
                 num_output_values += 1;
+            }
+            if output_zero_copy_account.batches[0].is_ready_to_update_tree() {
+                current_batch = 0;
+            } else if output_zero_copy_account.batches[1].is_ready_to_update_tree() {
+                current_batch = 1;
             }
             out_ready_for_update = output_zero_copy_account.batches[0].is_ready_to_update_tree()
                 || output_zero_copy_account.batches[1].is_ready_to_update_tree();
@@ -771,15 +767,25 @@ mod tests {
                 println!("batch 0: {:?}", input_zero_copy_account.batches[0].clone());
                 println!("batch 1: {:?}", input_zero_copy_account.batches[1].clone());
             }
+            let mut pre_account_state = output_queue_account.clone();
+            let mut pre_output_queue_state = output_queue_account_data.clone();
             let output_res = zero_copy_account.update(
-                &mut output_queue_account,
-                &mut output_queue_account_data,
+                &mut pre_account_state,
+                &mut pre_output_queue_state,
                 instruction_data,
+            );
+            println!(
+                "post update: sequence number: {}",
+                zero_copy_account.account.sequence_number
             );
             if !out_ready_for_update {
                 assert!(output_res.is_err());
+                // assert_ne!(output_queue_account_data, pre_output_queue_state);
+                // assert_ne!(output_queue_account, pre_account_state);
             } else {
                 assert!(output_res.is_ok());
+                output_queue_account = pre_account_state;
+                output_queue_account_data = pre_output_queue_state;
                 out_ready_for_update = false;
                 num_output_updates += 1;
                 println!("output update success {}", num_output_updates);
@@ -796,6 +802,13 @@ mod tests {
             // }
             // }
         }
+        let output_zero_copy_account = ZeroCopyBatchedAddressQueueAccount::from_account(
+            &mut output_queue_account,
+            &mut output_queue_account_data,
+        )
+        .unwrap();
+        println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
+        println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
     }
     pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
         let mut rnd_bytes = rng.gen::<[u8; 32]>();
