@@ -214,10 +214,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         let mut queue_account =
             ZeroCopyBatchedAddressQueueAccount::from_account(queue_account, queue_account_data)
                 .unwrap();
-        // let current_batch_index = queue_account.c;
-        // Increment sequence number here because we mark the batch with
-        // sequence number already in get_public_inputs_from_queue_account.
-        self.account.sequence_number += 1;
 
         let (public_inputs, batch_index) =
             self.get_public_inputs_from_queue_account(&mut queue_account, &instruction_data)?;
@@ -226,6 +222,10 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         } else if !queue_account.batches[batch_index as usize].is_ready_to_update_tree() {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
+        // let current_batch_index = queue_account.c;
+        // Increment sequence number here because we mark the batch with
+        // sequence number already in get_public_inputs_from_queue_account.
+        self.account.sequence_number += 1;
         println!("batch_index: {}", batch_index);
         println!("batch : {:?}", queue_account.batches[batch_index as usize]);
         let public_input_hash = self.compress_public_inputs(&public_inputs)?;
@@ -242,6 +242,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         println!("account.sequence_number: {}", self.account.sequence_number);
         queue_account.batches[batch_index as usize]
             .mark_with_sequence_number(self.account.sequence_number, sequence_threshold);
+        println!("account.sequence_number: {}", self.account.sequence_number);
 
         Ok(())
     }
@@ -591,7 +592,7 @@ mod tests {
 
         let height = 26;
         // Should be twice to num batches since num batches is the number input and output batches -> 2x
-        let root_history_capacity = 4;
+        let root_history_capacity = num_batches as u64;
         let bloomfilter_capacity = 200_000 * 8;
         let bloomfilter_num_iters = 3;
         let (mut input_queue_account, mut input_queue_account_data) =
@@ -694,6 +695,13 @@ mod tests {
                 &mut output_queue_account_data,
             )
             .unwrap();
+            if output_zero_copy_account.batches[0].is_ready_to_update_tree() == true
+                && true == output_zero_copy_account.batches[1].is_ready_to_update_tree()
+            {
+                println!("batch 0 ready: {:?}", output_zero_copy_account.batches[0]);
+                println!("batch 1 ready: {:?}", output_zero_copy_account.batches[1]);
+                panic!("output batches are both ready to update");
+            }
 
             if rng.gen_bool(0.5)
                 && !(output_zero_copy_account.batches[0].is_ready_to_update_tree()
