@@ -7,7 +7,7 @@ use light_bounded_vec::{
 use light_utils::offset::zero_copy::write_at;
 use light_utils::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at};
 use std::mem::ManuallyDrop;
-use std::ops::Sub;
+use std::ops::{Deref, Sub};
 
 // TODO: implement update that verifies multiple proofs
 // TODO: implement mock circuit logic as well to sanity check
@@ -110,29 +110,41 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
             ..(len as u64 + self.account.currently_processing_batch_index)
         {
             let index = index as usize % len;
+            println!("index: {:?}", index);
 
             let mut bloomfilter_stores = self.bloomfilter_stores.get_mut(index);
-            let value_store = self.value_vecs.get_mut(index);
+            let mut value_store = self.value_vecs.get_mut(index);
             let current_batch = self.batches.get_mut(index).unwrap();
             let queue_type = QueueType::from(self.account.metadata.queue_type);
-            let is_full = self.account.batch_size == current_batch.num_inserted;
+            // let is_full = self.account.batch_size == current_batch.num_inserted;
             let (can_be_filled, wipe_bloom_filter) = current_batch.can_be_filled();
 
             // TODO: implement more efficient bloom filter wipe this will not work onchain
             if wipe_bloom_filter {
+                println!(
+                    "wipe bloom filter is some {:?}",
+                    bloomfilter_stores.is_some()
+                );
                 if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
+                    println!("wiping bloom filter");
                     (*blomfilter_stores)
                         .as_mut_slice()
                         .iter_mut()
                         .for_each(|x| *x = 0);
                 }
+                println!("wipe value store is some {:?}", value_store.is_some());
+
+                if let Some(value_store) = value_store.as_mut() {
+                    println!("wiping value store");
+                    (*value_store).clear();
+                }
             }
             println!(
-                "insert into current batch {:?} index: {:?}",
-                queue_type, index
+                "insert into current batch {:?} index: {:?} can_be_filled: {:?} inserted: {:?}",
+                queue_type, index, can_be_filled, inserted
             );
             // TODO: remove unwraps
-            if !inserted && !is_full && can_be_filled {
+            if !inserted && can_be_filled {
                 println!("store value");
                 let insert_result = match queue_type {
                     QueueType::Address => current_batch.insert_and_store(
@@ -159,6 +171,9 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
                         inserted = true;
                     }
                     Err(error) => {
+                        println!("wipe bloom filter {:?}", wipe_bloom_filter);
+                        println!("batch 0 {:?}", self.batches[0]);
+                        println!("batch 1 {:?}", self.batches[1]);
                         return Err(error);
                     }
                 }
@@ -171,7 +186,10 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
 
         if !inserted {
             println!("batch 0 {:?}", self.batches[0]);
+            // println!("batch 0 {:?}", self.batches[0].can_be_filled());
             println!("batch 1 {:?}", self.batches[1]);
+            // println!("batch 1 {:?}", self.batches[1].can_be_filled());
+            println!("Both batches are not ready to insert");
             return err!(AccountCompressionErrorCode::BatchInsertFailed);
         }
         Ok(())
@@ -274,6 +292,7 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
             self.account.next_full_batch_index %= batches_len as u64;
             Ok(batch)
         } else {
+            println!("batch id: {:?}", batch.id);
             err!(AccountCompressionErrorCode::BatchNotReady)
         }
     }

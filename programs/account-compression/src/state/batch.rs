@@ -35,7 +35,7 @@ impl Batch {
     /// 1. If the batch is not ready to update the tree.
     /// 2. If the sequence number is greater than the current sequence number.
     pub fn can_be_filled(&mut self) -> (bool, bool) {
-        let can_be_filled = !self.is_ready_to_update_tree();
+        let can_be_filled = self.is_inserted || self.num_inserted != self.value_capacity;
         let wipe_bloomfilter = if self.is_inserted && self.num_inserted == self.value_capacity {
             // self.is_inserted = false;
             self.num_inserted = 0;
@@ -128,6 +128,7 @@ impl Batch {
                 .map_err(ProgramError::from)?;
         if bloom_filter.contains(value) {
             msg!("Value already exists in the bloom filter.");
+            println!("value already exists in the bloom filter.");
             return err!(AccountCompressionErrorCode::BatchInsertFailed);
         }
         Ok(())
