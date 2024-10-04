@@ -154,14 +154,14 @@ export async function initTestEnvIfNeeded({
  * If the `LIGHT_PROTOCOL_PROGRAMS_DIR` environment variable is set, the path
  * provided in it is used.
  *
- * Otherwise, the `bin` directory in the CLI internals is used.
+ * Otherwise, the `$HOME/.light/bin` directory in the CLI internals is used.
  *
  * @returns {string} Directory path for Light Protocol programs.
  */
 export function programsDirPath(): string {
   return (
     process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
-    path.resolve(__dirname, BASE_PATH)
+    path.join(process.env.HOME!, ".light", "bin")
   );
 }
 
@@ -176,12 +176,7 @@ export function programsDirPath(): string {
  * @returns {string} Path for the given program.
  */
 export function programFilePath(programName: string): string {
-  const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
-  if (programsDir) {
-    return path.join(programsDir, programName);
-  }
-
-  return path.resolve(__dirname, path.join(BASE_PATH, programName));
+  return path.join(programsDirPath(), programName);
 }
 
 export async function getSolanaArgs({
