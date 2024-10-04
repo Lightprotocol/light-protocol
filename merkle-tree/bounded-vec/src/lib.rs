@@ -143,6 +143,13 @@ where
         Self { metadata, data }
     }
 
+    // TODO: unit test
+    pub fn clear(&mut self) {
+        unsafe {
+            (*self.metadata).length = 0;
+        }
+    }
+
     /// Creates a `BoundedVec<T>` with the given `metadata`.
     ///
     /// # Safety
