@@ -33,8 +33,8 @@ func StartServer() {
 	var pss = make([]*prover.ProvingSystem, len(keys))
 
 	for i, key := range keys {
-		// Another way to instantiate the circuit: prover.SetupInclusion(Depth, NumberOfCompressedAccounts)
-		// But we need to know the tree depth and the number of compressed accounts
+		// Another way to instantiate the circuit: prover.SetupInclusion(Height, NumberOfCompressedAccounts)
+		// But we need to know the tree height and the number of compressed accounts
 		ps, err := prover.ReadSystemFromFile(key)
 		if err != nil {
 			panic(err)

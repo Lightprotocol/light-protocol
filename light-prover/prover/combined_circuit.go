@@ -17,7 +17,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		InPathElements:             circuit.Inclusion.InPathElements,
 		InPathIndices:              circuit.Inclusion.InPathIndices,
 		NumberOfCompressedAccounts: circuit.Inclusion.NumberOfCompressedAccounts,
-		Depth:                      circuit.Inclusion.Depth,
+		Height:                     circuit.Inclusion.Height,
 	})
 
 	abstractor.CallVoid(api, NonInclusionProof{
@@ -29,13 +29,13 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		InPathIndices:              circuit.NonInclusion.InPathIndices,
 		InPathElements:             circuit.NonInclusion.InPathElements,
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
-		Depth:                      circuit.NonInclusion.Depth,
+		TreeHeight:                 circuit.NonInclusion.TreeHeight,
 	})
 	return nil
 }
 
-func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
-	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,5 +52,5 @@ func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfCompressedA
 		return nil, err
 	}
 
-	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystem{inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
 }

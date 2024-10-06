@@ -35,9 +35,9 @@ func runCli() {
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
-					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "Non-inclusion merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
@@ -48,25 +48,25 @@ func runCli() {
 
 					path := context.String("output")
 					pathVkey := context.String("output-vkey")
-					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
+					inclusionTreeHeight := uint32(context.Uint("inclusion-tree-height"))
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
-					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
+					nonInclusionTreeHeight := uint32(context.Uint("non-inclusion-tree-height"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
-						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
+						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == prover.NonInclusion {
-						return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == prover.NonInclusion {
+						return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 					}
 
 					if circuit == prover.Combined {
-						if inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 						}
-						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 						}
 					}
 
@@ -74,7 +74,7 @@ func runCli() {
 
 					var system *prover.ProvingSystem
 					var err error
-					system, err = prover.SetupCircuit(circuit, inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+					system, err = prover.SetupCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					if err != nil {
 						return err
 					}
@@ -113,9 +113,9 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
-					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "Non-inclusion merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
@@ -125,25 +125,25 @@ func runCli() {
 					}
 
 					path := context.String("output")
-					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
+					inclusionTreeHeight := uint32(context.Uint("inclusion-tree-height"))
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
-					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
+					nonInclusionTreeHeight := uint32(context.Uint("non-inclusion-tree-height"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
-						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
+						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
-						return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
+						return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 					}
 
 					if circuit == "combined" {
-						if inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 						}
-						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 						}
 					}
 
@@ -153,11 +153,11 @@ func runCli() {
 					var err error
 
 					if circuit == "inclusion" {
-						cs, err = prover.R1CSInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts)
+						cs, err = prover.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
 					} else if circuit == "non-inclusion" {
-						cs, err = prover.R1CSNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+						cs, err = prover.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					} else if circuit == "combined" {
-						cs, err = prover.R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+						cs, err = prover.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -190,9 +190,9 @@ func runCli() {
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
-					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "Non-inclusion merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
@@ -205,25 +205,25 @@ func runCli() {
 					pk := context.String("pk")
 					vk := context.String("vk")
 
-					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
+					inclusionTreeHeight := uint32(context.Uint("inclusion-tree-height"))
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
-					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
+					nonInclusionTreeHeight := uint32(context.Uint("non-inclusion-tree-height"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
-						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
+						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
-						return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
+						return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 					}
 
 					if circuit == "combined" {
-						if inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
+						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 						}
-						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
+						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 						}
 					}
 
@@ -233,11 +233,11 @@ func runCli() {
 					logging.Logger().Info().Msg("Importing setup")
 
 					if circuit == "inclusion" {
-						system, err = prover.ImportInclusionSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, pk, vk)
+						system, err = prover.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
 					} else if circuit == "non-inclusion" {
-						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
+						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 					} else if circuit == "combined" {
-						system, err = prover.ImportCombinedSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
+						system, err = prover.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -296,18 +296,18 @@ func runCli() {
 			{
 				Name: "gen-test-params",
 				Flags: []cli.Flag{
-					&cli.IntFlag{Name: "tree-depth", Usage: "depth of the mock tree", DefaultText: "26", Value: 26},
+					&cli.IntFlag{Name: "tree-height", Usage: "height of the mock tree", DefaultText: "26", Value: 26},
 					&cli.IntFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", DefaultText: "1", Value: 1},
 				},
 				Action: func(context *cli.Context) error {
-					treeDepth := context.Int("tree-depth")
+					treeHeight := context.Int("tree-height")
 					compressedAccounts := context.Int("compressed-accounts")
 					logging.Logger().Info().Msg("Generating test params for the inclusion circuit")
 
 					var r []byte
 					var err error
 
-					params := merkletree.BuildTestTree(treeDepth, compressedAccounts, false)
+					params := merkletree.BuildTestTree(treeHeight, compressedAccounts, false)
 
 					r, err = json.Marshal(&params)
 
@@ -389,10 +389,10 @@ func runCli() {
 							return err
 						}
 
-						treeDepth := params.TreeDepth()
+						treeHeight := params.TreeHeight()
 						compressedAccounts := params.NumberOfCompressedAccounts()
 						for _, provingSystem := range ps {
-							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfCompressedAccounts == compressedAccounts {
+							if provingSystem.InclusionTreeHeight == treeHeight && provingSystem.InclusionNumberOfCompressedAccounts == compressedAccounts {
 								proof, err = provingSystem.ProveInclusion(&params)
 								if err != nil {
 									return err
@@ -409,11 +409,11 @@ func runCli() {
 							return err
 						}
 
-						treeDepth := params.TreeDepth()
+						treeHeight := params.TreeHeight()
 						compressedAccounts := params.NumberOfCompressedAccounts()
 
 						for _, provingSystem := range ps {
-							if provingSystem.NonInclusionTreeDepth == treeDepth && provingSystem.NonInclusionNumberOfCompressedAccounts == compressedAccounts {
+							if provingSystem.NonInclusionTreeHeight == treeHeight && provingSystem.NonInclusionNumberOfCompressedAccounts == compressedAccounts {
 								proof, err = provingSystem.ProveNonInclusion(&params)
 								if err != nil {
 									return err
@@ -431,7 +431,7 @@ func runCli() {
 						}
 
 						for _, provingSystem := range ps {
-							if provingSystem.InclusionTreeDepth == params.TreeDepth() && provingSystem.InclusionNumberOfCompressedAccounts == params.NumberOfCompressedAccounts() && provingSystem.NonInclusionTreeDepth == params.NonInclusionTreeDepth() && provingSystem.InclusionNumberOfCompressedAccounts == params.NonInclusionNumberOfCompressedAccounts() {
+							if provingSystem.InclusionTreeHeight == params.TreeHeight() && provingSystem.InclusionNumberOfCompressedAccounts == params.NumberOfCompressedAccounts() && provingSystem.NonInclusionTreeHeight == params.NonInclusionTreeHeight() && provingSystem.InclusionNumberOfCompressedAccounts == params.NonInclusionNumberOfCompressedAccounts() {
 								proof, err = provingSystem.ProveCombined(&params)
 								if err != nil {
 									return err
@@ -485,9 +485,9 @@ func runCli() {
 						return err
 					}
 					logging.Logger().Info().
-						Uint32("treeDepth", ps.InclusionTreeDepth).
+						Uint32("treeHeight", ps.InclusionTreeHeight).
 						Uint32("compressedAccounts", ps.InclusionNumberOfCompressedAccounts).
-						Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
+						Uint32("nonInclusionTreeHeight", ps.NonInclusionTreeHeight).
 						Uint32("nonInclusionCompressedAccounts", ps.NonInclusionNumberOfCompressedAccounts).
 						Msg("Read proving system")
 					logging.Logger().Info().Msg("Reading proof from stdin")
@@ -516,15 +516,15 @@ func runCli() {
 				Name: "extract-circuit",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
-					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
+					&cli.UintFlag{Name: "tree-height", Usage: "Merkle tree height", Required: true},
 					&cli.UintFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
-					treeDepth := uint32(context.Uint("tree-depth"))
+					treeHeight := uint32(context.Uint("tree-height"))
 					compressedAccounts := uint32(context.Uint("compressed-accounts"))
 					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
-					circuitString, err := prover.ExtractLean(treeDepth, compressedAccounts)
+					circuitString, err := prover.ExtractLean(treeHeight, compressedAccounts)
 					if err != nil {
 						return err
 					}
@@ -566,9 +566,9 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
 		}
 		pss[i] = ps
 		logging.Logger().Info().
-			Uint32("treeDepth", ps.InclusionTreeDepth).
+			Uint32("treeHeight", ps.InclusionTreeHeight).
 			Uint32("compressedAccounts", ps.InclusionNumberOfCompressedAccounts).
-			Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
+			Uint32("nonInclusionTreeHeight", ps.NonInclusionTreeHeight).
 			Uint32("nonInclusionCompressedAccounts", ps.NonInclusionNumberOfCompressedAccounts).
 			Msg("Read proving system")
 	}
@@ -579,7 +579,7 @@ func getKeysByArgs(context *cli.Context) ([]string, error) {
 	var keysDir = context.String("keys-dir")
 	var inclusion = context.Bool("inclusion")
 	var nonInclusion = context.Bool("non-inclusion")
-	var circuitTypes []prover.CircuitType = make([]prover.CircuitType, 0)
+	var circuitTypes = make([]prover.CircuitType, 0)
 	if inclusion {
 		circuitTypes = append(circuitTypes, prover.Inclusion)
 	}

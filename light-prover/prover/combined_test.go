@@ -44,14 +44,14 @@ func TestCombined(t *testing.T) {
 		assert.NotEqual(len(params.NonInclusionParameters.Inputs), 0)
 
 		var inclusionNumberOfCompressedAccounts = params.InclusionParameters.NumberOfCompressedAccounts()
-		var inclusionTreeDepth = params.InclusionParameters.TreeDepth()
+		var inclusionTreeHeight = params.InclusionParameters.TreeHeight()
 
 		inclusionRoots := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		inclusionLeaves := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		inclusionInPathElements := make([][]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(inclusionNumberOfCompressedAccounts); i++ {
-			inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
+			inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeHeight)
 		}
 
 		for i, v := range params.InclusionParameters.Inputs {
@@ -64,7 +64,7 @@ func TestCombined(t *testing.T) {
 		}
 
 		var nonInclusionNumberOfCompressedAccounts = params.NonInclusionParameters.NumberOfCompressedAccounts()
-		var nonInclusionTreeDepth = params.NonInclusionParameters.TreeDepth()
+		var nonInclusionTreeHeight = params.NonInclusionParameters.TreeHeight()
 
 		nonInclusionRoots := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
@@ -74,7 +74,7 @@ func TestCombined(t *testing.T) {
 		nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
-			nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
+			nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 		}
 
 		for i, v := range params.NonInclusionParameters.Inputs {
@@ -98,11 +98,11 @@ func TestCombined(t *testing.T) {
 		circuit.Inclusion.InPathIndices = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		circuit.Inclusion.InPathElements = make([][]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(inclusionNumberOfCompressedAccounts); i++ {
-			circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
+			circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, inclusionTreeHeight)
 		}
 
 		circuit.Inclusion.NumberOfCompressedAccounts = inclusionNumberOfCompressedAccounts
-		circuit.Inclusion.Depth = inclusionTreeDepth
+		circuit.Inclusion.Height = inclusionTreeHeight
 
 		circuit.NonInclusion.Roots = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.Values = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
@@ -112,11 +112,11 @@ func TestCombined(t *testing.T) {
 		circuit.NonInclusion.InPathIndices = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.InPathElements = make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
-			circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
+			circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 		}
 
 		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
-		circuit.NonInclusion.Depth = nonInclusionTreeDepth
+		circuit.NonInclusion.TreeHeight = nonInclusionTreeHeight
 
 		assignment := &CombinedCircuit{
 			Inclusion: InclusionCircuit{
@@ -125,7 +125,7 @@ func TestCombined(t *testing.T) {
 				InPathIndices:              inclusionInPathIndices,
 				InPathElements:             inclusionInPathElements,
 				NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
-				Depth:                      inclusionTreeDepth,
+				Height:                     inclusionTreeHeight,
 			},
 			NonInclusion: NonInclusionCircuit{
 				Roots:                      nonInclusionRoots,
@@ -136,7 +136,7 @@ func TestCombined(t *testing.T) {
 				InPathIndices:              nonInclusionInPathIndices,
 				InPathElements:             nonInclusionInPathElements,
 				NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
-				Depth:                      nonInclusionTreeDepth,
+				TreeHeight:                 nonInclusionTreeHeight,
 			},
 		}
 

@@ -8,20 +8,20 @@ import (
 type CircuitType string
 
 const (
-	InputCompressedAccounts             = "input-compressed-accounts"
-	Combined                CircuitType = "combined"
-	Inclusion               CircuitType = "inclusion"
-	NonInclusion            CircuitType = "non-inclusion"
+	Combined     CircuitType = "combined"
+	Inclusion    CircuitType = "inclusion"
+	NonInclusion CircuitType = "non-inclusion"
 )
 
-func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
-	if circuit == Inclusion {
-		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts)
-	} else if circuit == NonInclusion {
-		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else if circuit == Combined {
-		return SetupCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else {
+func SetupCircuit(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+	switch circuit {
+	case Inclusion:
+		return SetupInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+	case NonInclusion:
+		return SetupNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+	case Combined:
+		return SetupCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}
 }

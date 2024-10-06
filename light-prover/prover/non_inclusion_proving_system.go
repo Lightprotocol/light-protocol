@@ -32,24 +32,24 @@ func (p *NonInclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
-func (p *NonInclusionParameters) TreeDepth() uint32 {
+func (p *NonInclusionParameters) TreeHeight() uint32 {
 	if len(p.Inputs) == 0 {
 		return 0
 	}
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfCompressedAccounts uint32) error {
+func (p *NonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
 	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
 		return fmt.Errorf("wrong number of compressed accounts, p.NumberOfCompressedAccounts: %d, numOfCompressedAccounts = %d", p.NumberOfCompressedAccounts(), numOfCompressedAccounts)
 	}
-	if p.TreeDepth() != treeDepth {
-		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfCompressedAccounts(), p.TreeDepth())
+	if p.TreeHeight() != treeHeight {
+		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfCompressedAccounts(), p.TreeHeight())
 	}
 	return nil
 }
 
-func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	values := make([]frontend.Variable, numberOfCompressedAccounts)
 
@@ -61,11 +61,11 @@ func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (cons
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inPathElements[i] = make([]frontend.Variable, treeDepth)
+		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                      treeDepth,
+		TreeHeight:                 treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
 		Values:                     values,
@@ -78,8 +78,8 @@ func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (cons
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func SetupNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (*ProvingSystem, error) {
-	ccs, err := R1CSNonInclusion(treeDepth, numberOfCompressedAccounts)
+func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +87,11 @@ func SetupNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (*Pr
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{0, 0, treeDepth, numberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystem{0, 0, treeHeight, numberOfCompressedAccounts, pk, vk, ccs}, nil
 }
 
 func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
-	if err := params.ValidateShape(ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
+	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
 
@@ -112,8 +112,8 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
 		nextIndices[i] = params.Inputs[i].NextIndex
 		inPathIndices[i] = params.Inputs[i].PathIndex
-		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
-		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
+		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeHeight)
+		for j := 0; j < int(ps.NonInclusionTreeHeight); j++ {
 			inPathElements[i][j] = params.Inputs[i].PathElements[j]
 		}
 	}
@@ -133,7 +133,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
+	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.NonInclusionTreeHeight)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		logging.Logger().Error().Msg("non-inclusion prove error: " + err.Error())

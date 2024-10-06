@@ -20,9 +20,9 @@ type Proof struct {
 }
 
 type ProvingSystem struct {
-	InclusionTreeDepth                     uint32
+	InclusionTreeHeight                    uint32
 	InclusionNumberOfCompressedAccounts    uint32
-	NonInclusionTreeDepth                  uint32
+	NonInclusionTreeHeight                 uint32
 	NonInclusionNumberOfCompressedAccounts uint32
 	ProvingKey                             groth16.ProvingKey
 	VerifyingKey                           groth16.VerifyingKey
@@ -51,17 +51,17 @@ type InclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:  gadget.Leaves[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:       gadget.Leaves[proofIndex],
+			Index:      gadget.InPathIndices[proofIndex],
+			Path:       gadget.InPathElements[proofIndex],
+			TreeHeight: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -80,7 +80,7 @@ type NonInclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	TreeHeight                 uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -94,10 +94,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
-			Hash:  currentHash[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:       currentHash[proofIndex],
+			Index:      gadget.InPathIndices[proofIndex],
+			Path:       gadget.InPathElements[proofIndex],
+			TreeHeight: int(gadget.TreeHeight)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -150,15 +150,15 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 }
 
 type MerkleRootGadget struct {
-	Hash  frontend.Variable
-	Index frontend.Variable
-	Path  []frontend.Variable
-	Depth int
+	Hash       frontend.Variable
+	Index      frontend.Variable
+	Path       []frontend.Variable
+	TreeHeight int
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
-	currentPath := api.ToBinary(gadget.Index, gadget.Depth)
-	for i := 0; i < gadget.Depth; i++ {
+	currentPath := api.ToBinary(gadget.Index, gadget.TreeHeight)
+	for i := 0; i < gadget.TreeHeight; i++ {
 		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
