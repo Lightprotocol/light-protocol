@@ -3,6 +3,14 @@ import { hashToBn254FieldSizeBe, hashvToBn254FieldSizeBe } from './conversion';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { getIndexOrAdd } from '../instruction';
 
+/**
+ * Derive a seed for a compressed account from a set of seeds and a program ID.
+ * This seed can then be used with deriveAddress to generate the final address.
+ *
+ * @param seeds     Array of Uint8Array seeds
+ * @param programId Program ID associated with the account
+ * @returns         Derived seed as a Uint8Array
+ */
 export function deriveAddressSeed(
     seeds: Uint8Array[],
     programId: PublicKey,
@@ -15,6 +23,7 @@ export function deriveAddressSeed(
 /**
  * Derive an address for a compressed account from a seed and an address Merkle
  * tree public key.
+ * Use {@link deriveAddressSeed} to derive the seed from the seeds and program ID.
  *
  * @param seed                     Seed to derive the address from
  * @param addressMerkleTreePubkey  Merkle tree public key. Defaults to
