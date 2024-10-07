@@ -18,6 +18,12 @@ export async function killProcess(processName: string) {
 }
 
 export async function killProcessByPort(port: number) {
+  if (port < 0) {
+    throw new Error("Value must be non-negative");
+  }
+  // NOTE(vadorovsky): The lint error in this case doesn't make sense. `port`
+  // is a harmless number.
+  // codeql [js/shell-command-constructed-from-input]: warning
   await execute(`lsof -t -i:${port} | while read line; do kill -9 $line; done`);
 }
 
