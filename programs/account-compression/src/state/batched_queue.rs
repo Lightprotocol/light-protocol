@@ -7,7 +7,7 @@ use light_bounded_vec::{
 use light_utils::offset::zero_copy::write_at;
 use light_utils::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at};
 use std::mem::ManuallyDrop;
-use std::ops::{Deref, Sub};
+use std::ops::Sub;
 
 // TODO: implement update that verifies multiple proofs
 // TODO: implement mock circuit logic as well to sanity check
@@ -117,10 +117,10 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
             let current_batch = self.batches.get_mut(index).unwrap();
             let queue_type = QueueType::from(self.account.metadata.queue_type);
             // let is_full = self.account.batch_size == current_batch.num_inserted;
-            let (can_be_filled, wipe_bloom_filter) = current_batch.can_be_filled();
+            let (can_be_filled, wipe_batch) = current_batch.can_be_filled();
 
             // TODO: implement more efficient bloom filter wipe this will not work onchain
-            if wipe_bloom_filter {
+            if wipe_batch {
                 println!(
                     "wipe bloom filter is some {:?}",
                     bloomfilter_stores.is_some()
@@ -171,13 +171,13 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
                         inserted = true;
                     }
                     Err(error) => {
-                        println!("wipe bloom filter {:?}", wipe_bloom_filter);
+                        println!("wipe batch {:?}", wipe_batch);
                         println!("batch 0 {:?}", self.batches[0]);
                         println!("batch 1 {:?}", self.batches[1]);
                         return Err(error);
                     }
                 }
-            } else if queue_type != QueueType::Output {
+            } else if bloomfilter_stores.is_some() {
                 println!("check non inclusion");
                 current_batch
                     .check_non_inclusion(value, bloomfilter_stores.unwrap().as_mut_slice())?;
