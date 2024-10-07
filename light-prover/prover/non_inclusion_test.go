@@ -40,7 +40,7 @@ func TestNonInclusion(t *testing.T) {
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
 		var numberOfCompressedAccounts = params.NumberOfCompressedAccounts()
-		var treeDepth = params.TreeDepth()
+		var treeHeight = params.TreeHeight()
 
 		roots := make([]frontend.Variable, numberOfCompressedAccounts)
 		values := make([]frontend.Variable, numberOfCompressedAccounts)
@@ -51,7 +51,7 @@ func TestNonInclusion(t *testing.T) {
 		inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 		inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 		for i := 0; i < int(numberOfCompressedAccounts); i++ {
-			inPathElements[i] = make([]frontend.Variable, treeDepth)
+			inPathElements[i] = make([]frontend.Variable, treeHeight)
 		}
 
 		for i, v := range params.Inputs {
@@ -75,11 +75,11 @@ func TestNonInclusion(t *testing.T) {
 		circuit.InPathIndices = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfCompressedAccounts)
 		for i := 0; i < int(numberOfCompressedAccounts); i++ {
-			circuit.InPathElements[i] = make([]frontend.Variable, treeDepth)
+			circuit.InPathElements[i] = make([]frontend.Variable, treeHeight)
 		}
 
 		circuit.NumberOfCompressedAccounts = numberOfCompressedAccounts
-		circuit.Depth = treeDepth
+		circuit.Height = treeHeight
 
 		// Check if the expected result is "true" or "false"
 		expectedResult := splitLine[0]
@@ -94,7 +94,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
-				Depth:                      treeDepth,
+				Height:                     treeHeight,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else if expectedResult == "1" {
 			// Run the passing test
@@ -107,7 +107,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
-				Depth:                      treeDepth,
+				Height:                     treeHeight,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)

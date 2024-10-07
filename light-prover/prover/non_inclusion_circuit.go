@@ -21,7 +21,7 @@ type NonInclusionCircuit struct {
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
@@ -37,13 +37,13 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Depth:                      circuit.Depth,
+		Height:                     circuit.Height,
 	}
 	abstractor.Call1(api, proof)
 	return nil
 }
 
-func ImportNonInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	values := make([]frontend.Variable, numberOfCompressedAccounts)
 
@@ -55,11 +55,11 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inPathElements[i] = make([]frontend.Variable, treeDepth)
+		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                      treeDepth,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
 		Values:                     values,
@@ -87,5 +87,5 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32
 		return nil, err
 	}
 
-	return &ProvingSystem{0, 0, treeDepth, numberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystem{0, 0, treeHeight, numberOfCompressedAccounts, pk, vk, ccs}, nil
 }
