@@ -58,10 +58,10 @@ func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:       gadget.Leaves[proofIndex],
-			Index:      gadget.InPathIndices[proofIndex],
-			Path:       gadget.InPathElements[proofIndex],
-			TreeHeight: int(gadget.Height)}
+			Hash:   gadget.Leaves[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -94,10 +94,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
-			Hash:       currentHash[proofIndex],
-			Index:      gadget.InPathIndices[proofIndex],
-			Path:       gadget.InPathElements[proofIndex],
-			TreeHeight: int(gadget.Height)}
+			Hash:   currentHash[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -150,15 +150,15 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 }
 
 type MerkleRootGadget struct {
-	Hash       frontend.Variable
-	Index      frontend.Variable
-	Path       []frontend.Variable
-	TreeHeight int
+	Hash   frontend.Variable
+	Index  frontend.Variable
+	Path   []frontend.Variable
+	Height int
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
-	currentPath := api.ToBinary(gadget.Index, gadget.TreeHeight)
-	for i := 0; i < gadget.TreeHeight; i++ {
+	currentPath := api.ToBinary(gadget.Index, gadget.Height)
+	for i := 0; i < gadget.Height; i++ {
 		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
