@@ -116,7 +116,7 @@ func TestCombined(t *testing.T) {
 		}
 
 		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
-		circuit.NonInclusion.TreeHeight = nonInclusionTreeHeight
+		circuit.NonInclusion.Height = nonInclusionTreeHeight
 
 		assignment := &CombinedCircuit{
 			Inclusion: InclusionCircuit{
@@ -136,7 +136,7 @@ func TestCombined(t *testing.T) {
 				InPathIndices:              nonInclusionInPathIndices,
 				InPathElements:             nonInclusionInPathElements,
 				NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
-				TreeHeight:                 nonInclusionTreeHeight,
+				Height:                     nonInclusionTreeHeight,
 			},
 		}
 

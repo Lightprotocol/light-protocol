@@ -79,7 +79,7 @@ func TestNonInclusion(t *testing.T) {
 		}
 
 		circuit.NumberOfCompressedAccounts = numberOfCompressedAccounts
-		circuit.TreeHeight = treeHeight
+		circuit.Height = treeHeight
 
 		// Check if the expected result is "true" or "false"
 		expectedResult := splitLine[0]
@@ -94,7 +94,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
-				TreeHeight:                 treeHeight,
+				Height:                     treeHeight,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else if expectedResult == "1" {
 			// Run the passing test
@@ -107,7 +107,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
-				TreeHeight:                 treeHeight,
+				Height:                     treeHeight,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)

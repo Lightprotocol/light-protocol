@@ -21,7 +21,7 @@ type NonInclusionCircuit struct {
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	TreeHeight                 uint32
+	Height                     uint32
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
@@ -37,7 +37,7 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		TreeHeight:                 circuit.TreeHeight,
+		Height:                     circuit.Height,
 	}
 	abstractor.Call1(api, proof)
 	return nil
@@ -59,7 +59,7 @@ func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint3
 	}
 
 	circuit := NonInclusionCircuit{
-		TreeHeight:                 treeHeight,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
 		Values:                     values,

@@ -29,7 +29,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		InPathIndices:              circuit.NonInclusion.InPathIndices,
 		InPathElements:             circuit.NonInclusion.InPathElements,
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
-		TreeHeight:                 circuit.NonInclusion.TreeHeight,
+		Height:                     circuit.NonInclusion.Height,
 	})
 	return nil
 }

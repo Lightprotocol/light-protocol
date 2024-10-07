@@ -65,7 +65,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 	}
 
 	circuit := NonInclusionCircuit{
-		TreeHeight:                 treeHeight,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
 		Values:                     values,

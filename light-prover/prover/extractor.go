@@ -28,7 +28,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	}
 
 	nonInclusionCircuit := NonInclusionCircuit{
-		TreeHeight:                 treeHeight,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),

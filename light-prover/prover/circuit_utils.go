@@ -80,7 +80,7 @@ type NonInclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	TreeHeight                 uint32
+	Height                     uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -97,7 +97,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Hash:       currentHash[proofIndex],
 			Index:      gadget.InPathIndices[proofIndex],
 			Path:       gadget.InPathElements[proofIndex],
-			TreeHeight: int(gadget.TreeHeight)}
+			TreeHeight: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}

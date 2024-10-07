@@ -87,7 +87,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 			InPathIndices:              nonInclusionInPathIndices,
 			InPathElements:             nonInclusionInPathElements,
 			NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
-			TreeHeight:                 nonInclusionTreeHeight,
+			Height:                     nonInclusionTreeHeight,
 		},
 	}
 	return circuit
