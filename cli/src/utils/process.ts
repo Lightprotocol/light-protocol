@@ -5,7 +5,6 @@ import find from "find-process";
 import { exec as execCb } from "node:child_process";
 import { promisify } from "util";
 import axios from "axios";
-import * as shellQuote from "shell-quote";
 const waitOn = require("wait-on");
 
 export async function killProcess(processName: string) {
@@ -19,8 +18,7 @@ export async function killProcess(processName: string) {
 }
 
 export async function killProcessByPort(port: number) {
-  const portArg = shellQuote.quote([`-i:${port}`]);
-  await execute(`lsof -t ${portArg} | while read line; do kill -9 $line; done`);
+  await execute(`lsof -t -i:${port} | while read line; do kill -9 $line; done`);
 }
 
 /**
