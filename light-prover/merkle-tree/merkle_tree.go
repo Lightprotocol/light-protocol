@@ -11,7 +11,7 @@ import (
 
 type PoseidonNode interface {
 	depth() int
-	value() big.Int
+	Value() big.Int
 	withValue(index int, val big.Int) PoseidonNode
 	writeProof(index int, out []big.Int)
 }
@@ -28,27 +28,27 @@ func (node *PoseidonEmptyNode) depth() int {
 	return node.dep
 }
 
-func (node *PoseidonFullNode) value() big.Int {
+func (node *PoseidonFullNode) Value() big.Int {
 	return node.val
 }
 
-func (node *PoseidonEmptyNode) value() big.Int {
+func (node *PoseidonEmptyNode) Value() big.Int {
 	return node.emptyTreeValues[node.depth()]
 }
 
 func (node *PoseidonFullNode) withValue(index int, val big.Int) PoseidonNode {
 	result := PoseidonFullNode{
 		dep:   node.depth(),
-		left:  node.left,
-		right: node.right,
+		Left:  node.Left,
+		Right: node.Right,
 	}
 	if node.depth() == 0 {
 		result.val = val
 	} else {
 		if indexIsLeft(index, node.depth()) {
-			result.left = node.left.withValue(index, val)
+			result.Left = node.Left.withValue(index, val)
 		} else {
-			result.right = node.right.withValue(index, val)
+			result.Right = node.Right.withValue(index, val)
 		}
 		result.initHash()
 	}
@@ -65,11 +65,11 @@ func (node *PoseidonEmptyNode) withValue(index int, val big.Int) PoseidonNode {
 		emptyChild := PoseidonEmptyNode{dep: node.depth() - 1, emptyTreeValues: node.emptyTreeValues}
 		initializedChild := emptyChild.withValue(index, val)
 		if indexIsLeft(index, node.depth()) {
-			result.left = initializedChild
-			result.right = &emptyChild
+			result.Left = initializedChild
+			result.Right = &emptyChild
 		} else {
-			result.left = &emptyChild
-			result.right = initializedChild
+			result.Left = &emptyChild
+			result.Right = initializedChild
 		}
 		result.initHash()
 	}
@@ -81,11 +81,11 @@ func (node *PoseidonFullNode) writeProof(index int, out []big.Int) {
 		return
 	}
 	if indexIsLeft(index, node.depth()) {
-		out[node.depth()-1] = node.right.value()
-		node.left.writeProof(index, out)
+		out[node.depth()-1] = node.Right.Value()
+		node.Left.writeProof(index, out)
 	} else {
-		out[node.depth()-1] = node.left.value()
-		node.right.writeProof(index, out)
+		out[node.depth()-1] = node.Left.Value()
+		node.Right.writeProof(index, out)
 	}
 }
 
@@ -98,13 +98,13 @@ func (node *PoseidonEmptyNode) writeProof(index int, out []big.Int) {
 type PoseidonFullNode struct {
 	dep   int
 	val   big.Int
-	left  PoseidonNode
-	right PoseidonNode
+	Left  PoseidonNode
+	Right PoseidonNode
 }
 
 func (node *PoseidonFullNode) initHash() {
-	leftVal := node.left.value()
-	rightVal := node.right.value()
+	leftVal := node.Left.Value()
+	rightVal := node.Right.Value()
 	newVal, _ := poseidon.Hash([]*big.Int{&leftVal, &rightVal})
 	node.val = *newVal
 }
@@ -115,17 +115,13 @@ type PoseidonEmptyNode struct {
 }
 
 type PoseidonTree struct {
-	root PoseidonNode
-}
-
-func (tree *PoseidonTree) Root() big.Int {
-	return tree.root.value()
+	Root PoseidonNode
 }
 
 func (tree *PoseidonTree) Update(index int, value big.Int) []big.Int {
-	tree.root = tree.root.withValue(index, value)
-	proof := make([]big.Int, tree.root.depth())
-	tree.root.writeProof(index, proof)
+	tree.Root = tree.Root.withValue(index, value)
+	proof := make([]big.Int, tree.Root.depth())
+	tree.Root.writeProof(index, proof)
 	return proof
 }
 
@@ -135,7 +131,57 @@ func NewTree(depth int) PoseidonTree {
 		val, _ := poseidon.Hash([]*big.Int{&initHashes[i-1], &initHashes[i-1]})
 		initHashes[i] = *val
 	}
-	return PoseidonTree{root: &PoseidonEmptyNode{dep: depth, emptyTreeValues: initHashes}}
+	return PoseidonTree{Root: &PoseidonEmptyNode{dep: depth, emptyTreeValues: initHashes}}
+}
+
+func (tree *PoseidonTree) DeepCopy() *PoseidonTree {
+	if tree == nil {
+		return nil
+	}
+	return &PoseidonTree{
+		Root: deepCopyNode(tree.Root),
+	}
+}
+
+func deepCopyNode(node PoseidonNode) PoseidonNode {
+	if node == nil {
+		return nil
+	}
+
+	switch n := node.(type) {
+	case *PoseidonFullNode:
+		return deepCopyFullNode(n)
+	case *PoseidonEmptyNode:
+		return deepCopyEmptyNode(n)
+	default:
+		panic("Unknown node type")
+	}
+}
+
+func deepCopyFullNode(node *PoseidonFullNode) *PoseidonFullNode {
+	if node == nil {
+		return nil
+	}
+	return &PoseidonFullNode{
+		dep:   node.dep,
+		val:   *new(big.Int).Set(&node.val),
+		Left:  deepCopyNode(node.Left),
+		Right: deepCopyNode(node.Right),
+	}
+}
+
+func deepCopyEmptyNode(node *PoseidonEmptyNode) *PoseidonEmptyNode {
+	if node == nil {
+		return nil
+	}
+	emptyTreeValues := make([]big.Int, len(node.emptyTreeValues))
+	for i, v := range node.emptyTreeValues {
+		emptyTreeValues[i] = *new(big.Int).Set(&v)
+	}
+	return &PoseidonEmptyNode{
+		dep:             node.dep,
+		emptyTreeValues: emptyTreeValues,
+	}
 }
 
 func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) prover.InclusionParameters {
@@ -156,7 +202,7 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) prove
 		inputs[i].Leaf = *leaf
 		inputs[i].PathIndex = uint32(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root()
+		inputs[i].Root = tree.Root.Value()
 	}
 
 	return prover.InclusionParameters{
@@ -218,7 +264,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		inputs[i].Value = *value
 		inputs[i].PathIndex = uint32(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root()
+		inputs[i].Root = tree.Root.Value()
 		inputs[i].LeafLowerRangeValue = *leafLower
 		inputs[i].LeafHigherRangeValue = *leafUpper
 		inputs[i].NextIndex = uint32(nextIndex)
