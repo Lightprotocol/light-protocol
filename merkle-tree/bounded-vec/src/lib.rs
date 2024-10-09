@@ -143,6 +143,13 @@ where
         Self { metadata, data }
     }
 
+    // TODO: unit test
+    pub fn clear(&mut self) {
+        unsafe {
+            (*self.metadata).length = 0;
+        }
+    }
+
     /// Creates a `BoundedVec<T>` with the given `metadata`.
     ///
     /// # Safety
@@ -481,6 +488,15 @@ impl CyclicBoundedVecMetadata {
         Self {
             capacity,
             length: 0,
+            first_index: 0,
+            last_index: 0,
+        }
+    }
+
+    pub fn new_with_length(capacity: usize, length: usize) -> Self {
+        Self {
+            capacity,
+            length,
             first_index: 0,
             last_index: 0,
         }
