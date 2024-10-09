@@ -37,6 +37,10 @@ func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
 		return err
 	}
 
+	// TODO:
+	// - unify all circuits inputs into a single hashchain -> only one public input
+	// - enable partial updates of `HashchainHash`  with `HashChainStartIndex`
+	// ( consider `HashchainHash` contains a batch of 5000 leaves but we want to use 5 proves to execute this update onchain)
 	api.AssertIsEqual(circuit.HashChainStartIndex, 0)
 
 	oldSubtreesHashChain := circuit.createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
