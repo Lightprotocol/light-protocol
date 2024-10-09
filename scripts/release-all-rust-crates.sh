@@ -30,7 +30,7 @@ echo "Logging in to crates.io..."
 cargo login "${CRATES_IO_TOKEN}"
 
 PROGRAMS=("aligned-sized" "light-heap" "light-bounded-vec" "light-utils" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-system-program" "light-registry" "light-compressed-token")
-SDKS=("photon-api" "forester-utils" "light-test-utils" "light-sdk-macros" "light-sdk")
+SDKS=("light-sdk-macros" "light-sdk")
 
 release_packages() {
     local packages=("$@")
