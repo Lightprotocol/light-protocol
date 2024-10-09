@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, Bumps};
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{
-    address::NewAddressParamsPacked,
+    address::PackedNewAddressParams,
     compressed_account::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
@@ -34,7 +34,7 @@ pub struct CompressedCpiContext {
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
-    pub new_address_params: Vec<NewAddressParamsPacked>,
+    pub new_address_params: Vec<PackedNewAddressParams>,
     pub input_compressed_accounts_with_merkle_context:
         Vec<PackedCompressedAccountWithMerkleContext>,
     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
