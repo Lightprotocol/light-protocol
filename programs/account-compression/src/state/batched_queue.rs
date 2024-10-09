@@ -22,8 +22,14 @@ use std::ops::Sub;
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
 #[derive(AnchorDeserialize, Debug, Default, PartialEq)]
-pub struct BatchedAddressQueueAccount {
+pub struct BatchedQueueAccount {
     pub metadata: QueueMetadata,
+    pub queue: BatchedQueue,
+}
+#[account(zero_copy)]
+#[aligned_sized(anchor)]
+#[derive(AnchorDeserialize, Debug, Default, PartialEq)]
+pub struct BatchedQueue {
     pub num_batches: u64,
     pub batch_size: u64,
     /// Next index of associated Merkle tree.
@@ -37,179 +43,79 @@ pub struct BatchedAddressQueueAccount {
     pub bloom_filter_capacity: u64,
 }
 
-impl BatchedAddressQueueAccount {
-    pub fn size(&self) -> Result<usize> {
-        let (num_value_vec, num_bloom_filter_stores) = self.get_size_parameters()?;
+pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usize> {
+    let (num_value_vec, num_bloom_filter_stores) = account.get_size_parameters(queue_type)?;
 
-        let account_size = std::mem::size_of::<BatchedAddressQueueAccount>();
-        let batches_size = (std::mem::size_of::<BoundedVecMetadata>()
-            + std::mem::size_of::<Batch>())
-            * self.num_batches as usize;
-        let value_vecs_size = (std::mem::size_of::<BoundedVecMetadata>()
-            + 32 * self.batch_size as usize)
-            * num_value_vec;
+    let account_size = std::mem::size_of::<BatchedQueueAccount>();
+    let batches_size = (std::mem::size_of::<BoundedVecMetadata>() + std::mem::size_of::<Batch>())
+        * account.num_batches as usize;
+    let value_vecs_size = (std::mem::size_of::<BoundedVecMetadata>()
+        + 32 * account.batch_size as usize)
+        * num_value_vec;
 
-        let bloom_filter_stores_size = (std::mem::size_of::<BoundedVecMetadata>()
-            + self.bloom_filter_capacity as usize)
-            * num_bloom_filter_stores;
-        let size = account_size + batches_size + value_vecs_size + bloom_filter_stores_size;
-        Ok(size)
+    let bloom_filter_stores_size = (std::mem::size_of::<BoundedVecMetadata>()
+        + account.bloom_filter_capacity as usize)
+        * num_bloom_filter_stores;
+    let size = account_size + batches_size + value_vecs_size + bloom_filter_stores_size;
+    Ok(size)
+}
+impl BatchedQueueAccount {
+    pub fn get_size_parameters(&self) -> Result<(usize, usize)> {
+        self.queue.get_size_parameters(self.metadata.queue_type)
+    }
+    pub fn init(&mut self, meta_data: QueueMetadata, num_batches: u64, batch_size: u64) {
+        self.metadata = meta_data;
+        self.queue.init(num_batches, batch_size);
+    }
+}
+
+impl BatchedQueue {
+    pub fn init(&mut self, num_batches: u64, batch_size: u64) {
+        self.num_batches = num_batches;
+        self.batch_size = batch_size;
     }
 
-    pub fn get_size_parameters(&self) -> Result<(usize, usize)> {
+    pub fn get_size_parameters(&self, queue_type: u64) -> Result<(usize, usize)> {
         let num_batches = self.num_batches as usize;
         // Input queues don't store values
-        let num_value_stores = if self.metadata.queue_type == QueueType::Output as u64
-            || self.metadata.queue_type == QueueType::Address as u64
-        {
-            num_batches
-        } else if self.metadata.queue_type == QueueType::Input as u64 {
-            0
-        } else {
-            return err!(AccountCompressionErrorCode::InvalidQueueType);
-        };
+        let num_value_stores =
+            if queue_type == QueueType::Output as u64 || queue_type == QueueType::Address as u64 {
+                num_batches
+            } else if queue_type == QueueType::Input as u64 {
+                0
+            } else {
+                return err!(AccountCompressionErrorCode::InvalidQueueType);
+            };
         // Output queues don't use bloom filters.
-        let num_stores = if self.metadata.queue_type == QueueType::Input as u64
-            || self.metadata.queue_type == QueueType::Address as u64
-        {
-            num_batches
-        } else if self.metadata.queue_type == QueueType::Output as u64 {
-            0
-        } else {
-            return err!(AccountCompressionErrorCode::InvalidQueueType);
-        };
+        let num_stores =
+            if queue_type == QueueType::Input as u64 || queue_type == QueueType::Address as u64 {
+                num_batches
+            } else if queue_type == QueueType::Output as u64 {
+                0
+            } else {
+                return err!(AccountCompressionErrorCode::InvalidQueueType);
+            };
         Ok((num_value_stores, num_stores))
     }
 }
 
 #[derive(Debug)]
-pub struct ZeroCopyBatchedAddressQueueAccount<'a> {
-    pub account: &'a mut BatchedAddressQueueAccount,
+pub struct ZeroCopyBatchedQueueAccount<'a> {
+    pub account: &'a mut BatchedQueueAccount,
     pub batches: ManuallyDrop<BoundedVec<Batch>>,
     pub value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     pub bloomfilter_stores: Vec<ManuallyDrop<BoundedVec<u8>>>,
 }
 
-impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
-    pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
-        let len = self.batches.len();
-        let mut inserted = false;
-
-        if self.account.batch_size
-            == self.batches[self.account.currently_processing_batch_index as usize].num_inserted
-        {
-            println!("bump currently_processing_batch_index");
-            self.account.currently_processing_batch_index += 1;
-            self.account.currently_processing_batch_index %= len as u64;
-        }
-        // insertion mode
-        // Try to insert into the current queue.
-        // In case the current queue fails, try to insert into the next queue.
-        // Check every queue.
-        for index in self.account.currently_processing_batch_index
-            ..(len as u64 + self.account.currently_processing_batch_index)
-        {
-            let index = index as usize % len;
-            println!("index: {:?}", index);
-
-            let mut bloomfilter_stores = self.bloomfilter_stores.get_mut(index);
-            let mut value_store = self.value_vecs.get_mut(index);
-            let current_batch = self.batches.get_mut(index).unwrap();
-            let queue_type = QueueType::from(self.account.metadata.queue_type);
-            // let is_full = self.account.batch_size == current_batch.num_inserted;
-            let (can_be_filled, wipe_batch) = current_batch.can_be_filled();
-
-            // TODO: implement more efficient bloom filter wipe this will not work onchain
-            if wipe_batch {
-                println!(
-                    "wipe bloom filter is some {:?}",
-                    bloomfilter_stores.is_some()
-                );
-                if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
-                    println!("wiping bloom filter");
-                    (*blomfilter_stores)
-                        .as_mut_slice()
-                        .iter_mut()
-                        .for_each(|x| *x = 0);
-                }
-                println!("wipe value store is some {:?}", value_store.is_some());
-
-                if let Some(value_store) = value_store.as_mut() {
-                    println!("wiping value store");
-                    (*value_store).clear();
-                }
-            }
-            println!(
-                "insert into current batch {:?} index: {:?} can_be_filled: {:?} inserted: {:?}",
-                queue_type, index, can_be_filled, inserted
-            );
-            // TODO: remove unwraps
-            if !inserted && can_be_filled {
-                println!("store value");
-                let insert_result = match queue_type {
-                    QueueType::Address => current_batch.insert_and_store(
-                        value,
-                        bloomfilter_stores.unwrap().as_mut_slice(),
-                        value_store.unwrap(),
-                    ),
-                    QueueType::Input => {
-                        current_batch.insert(value, bloomfilter_stores.unwrap().as_mut_slice())
-                    }
-
-                    QueueType::Output => current_batch.store_and_hash(value, value_store.unwrap()),
-
-                    _ => err!(AccountCompressionErrorCode::InvalidQueueType),
-                };
-                match insert_result {
-                    Ok(_) => {
-                        // For the output queue we only need to insert. For address
-                        // and input queues we need to prove non-inclusion as well
-                        // hence check every bloomfilter.
-                        if QueueType::Output == queue_type {
-                            return Ok(());
-                        }
-                        inserted = true;
-                    }
-                    Err(error) => {
-                        println!("wipe batch {:?}", wipe_batch);
-                        println!("batch 0 {:?}", self.batches[0]);
-                        println!("batch 1 {:?}", self.batches[1]);
-                        return Err(error);
-                    }
-                }
-            } else if bloomfilter_stores.is_some() {
-                println!("check non inclusion");
-                current_batch
-                    .check_non_inclusion(value, bloomfilter_stores.unwrap().as_mut_slice())?;
-            }
-        }
-
-        if !inserted {
-            println!("batch 0 {:?}", self.batches[0]);
-            // println!("batch 0 {:?}", self.batches[0].can_be_filled());
-            println!("batch 1 {:?}", self.batches[1]);
-            // println!("batch 1 {:?}", self.batches[1].can_be_filled());
-            println!("Both batches are not ready to insert");
-            return err!(AccountCompressionErrorCode::BatchInsertFailed);
-        }
-        Ok(())
-    }
-
+impl<'a> ZeroCopyBatchedQueueAccount<'a> {
     // TODO: add discriminator check
     // TODO: add from_account_info,  and from_account_loader
     pub fn from_account(
-        account: &'a mut BatchedAddressQueueAccount,
+        account: &'a mut BatchedQueueAccount,
         account_data: &mut [u8],
-    ) -> Result<ZeroCopyBatchedAddressQueueAccount<'a>> {
-        let (num_value_stores, num_stores) = account.get_size_parameters()?;
-        let mut start_offset = std::mem::size_of::<BatchedAddressQueueAccount>();
-        let batches = deserialize_bounded_vec(account_data, &mut start_offset);
-        let value_vecs =
-            deserialize_bounded_vecs(num_value_stores, account_data, &mut start_offset);
-        let bloomfilter_stores =
-            deserialize_bounded_vecs(num_stores, account_data, &mut start_offset);
-
-        Ok(ZeroCopyBatchedAddressQueueAccount {
+    ) -> Result<ZeroCopyBatchedQueueAccount<'a>> {
+        let (batches, value_vecs, bloomfilter_stores) = queue_from_account(account, account_data)?;
+        Ok(ZeroCopyBatchedQueueAccount {
             account,
             batches,
             value_vecs,
@@ -218,57 +124,19 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
     }
 
     pub fn init_from_account(
-        account: &'a mut BatchedAddressQueueAccount,
+        account: &'a mut BatchedQueueAccount,
         account_data: &mut [u8],
         num_iters: u64,
-    ) -> Result<ZeroCopyBatchedAddressQueueAccount<'a>> {
-        if account_data.len() != account.size()? {
-            return err!(AccountCompressionErrorCode::SizeMismatch);
-        }
-        let (num_value_stores, num_stores) = account.get_size_parameters()?;
-        let mut start_offset = std::mem::size_of::<BatchedAddressQueueAccount>();
-
-        let mut batches = init_bounded_vec(
-            account.num_batches as usize,
+        bloomfilter_capacity: u64,
+    ) -> Result<ZeroCopyBatchedQueueAccount<'a>> {
+        let (batches, value_vecs, bloomfilter_stores) = init_queue_from_account(
+            &account.queue,
+            account.metadata.queue_type,
             account_data,
-            &mut start_offset,
-            false,
-        );
-        for i in 0..account.num_batches {
-            batches
-                .push(Batch {
-                    id: i as u8,
-                    bloomfilter_store_id: i as u8,
-                    value_store_id: i as u8,
-                    num_iters,
-                    bloomfilter_capacity: account.bloom_filter_capacity,
-                    user_hash_chain: [0; 32],
-                    prover_hash_chain: [0; 32],
-                    num_inserted: 0,
-                    value_capacity: account.batch_size,
-                    is_inserted: false,
-                })
-                .map_err(ProgramError::from)?;
-        }
-
-        // TODO: reset value vecs after sequence number has expired
-        let value_vecs = init_bounded_vecs(
-            num_value_stores,
-            account.batch_size as usize,
-            account_data,
-            &mut start_offset,
-            false,
-        );
-
-        let bloomfilter_stores = init_bounded_vecs(
-            num_stores,
-            account.bloom_filter_capacity as usize / 8,
-            account_data,
-            &mut start_offset,
-            true,
-        );
-
-        Ok(ZeroCopyBatchedAddressQueueAccount {
+            num_iters,
+            bloomfilter_capacity,
+        )?;
+        Ok(ZeroCopyBatchedQueueAccount {
             account,
             batches,
             value_vecs,
@@ -276,26 +144,260 @@ impl<'a> ZeroCopyBatchedAddressQueueAccount<'a> {
         })
     }
 
+    pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
+        insert_into_current_batch(
+            self.account.metadata.queue_type,
+            &mut self.account.queue,
+            &mut self.batches,
+            &mut self.value_vecs,
+            &mut self.bloomfilter_stores,
+            value,
+        )
+    }
     pub fn get_next_full_batch(&mut self) -> Result<&mut Batch> {
+        // println!(
+        //     "next_full_batch_index: {:?}",
+        //     self.account.next_full_batch_index
+        // );
+        // println!("batches.len(): {:?}", self.batches.len());
+        // let batches_len = self.batches.len();
+        // let batch = self
+        //     .batches
+        //     .get_mut(self.account.next_full_batch_index as usize)
+        //     .unwrap();
+        // if batch.is_ready_to_update_tree() {
+        //     self.account.next_full_batch_index += 1;
+        //     self.account.next_full_batch_index %= batches_len as u64;
+        //     Ok(batch)
+        // } else {
+        //     println!("batch id: {:?}", batch.id);
+        //     err!(AccountCompressionErrorCode::BatchNotReady)
+        // }
+        queue_get_next_full_batch(&mut self.account.queue, &mut self.batches)
+    }
+}
+
+pub fn queue_get_next_full_batch<'a>(
+    account: &'a mut BatchedQueue,
+    batches: &'a mut ManuallyDrop<BoundedVec<Batch>>,
+) -> Result<&'a mut Batch> {
+    println!("next_full_batch_index: {:?}", account.next_full_batch_index);
+    println!("batches.len(): {:?}", account.num_batches);
+    let batches_len = account.num_batches;
+    let batch = batches
+        .get_mut(account.next_full_batch_index as usize)
+        .unwrap();
+    if batch.is_ready_to_update_tree() {
+        account.next_full_batch_index += 1;
+        account.next_full_batch_index %= batches_len as u64;
+        Ok(batch)
+    } else {
+        println!("batch id: {:?}", batch.id);
+        err!(AccountCompressionErrorCode::BatchNotReady)
+    }
+}
+pub fn insert_into_current_batch<'a>(
+    queue_type: u64,
+    account: &'a mut BatchedQueue,
+    batches: &mut ManuallyDrop<BoundedVec<Batch>>,
+    value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    bloomfilter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
+    value: &[u8; 32],
+) -> Result<()> {
+    let len = batches.len();
+    let mut inserted = false;
+
+    if account.batch_size == batches[account.currently_processing_batch_index as usize].num_inserted
+    {
+        println!("bump currently_processing_batch_index");
+        account.currently_processing_batch_index += 1;
+        account.currently_processing_batch_index %= len as u64;
+    }
+    // insertion mode
+    // Try to insert into the current queue.
+    // In case the current queue fails, try to insert into the next queue.
+    // Check every queue.
+    for index in account.currently_processing_batch_index
+        ..(len as u64 + account.currently_processing_batch_index)
+    {
+        let index = index as usize % len;
+        println!("index: {:?}", index);
+
+        let mut bloomfilter_stores = bloomfilter_stores.get_mut(index);
+        let mut value_store = value_vecs.get_mut(index);
+        let current_batch = batches.get_mut(index).unwrap();
+        let queue_type = QueueType::from(queue_type);
+        // let is_full = account.batch_size == current_batch.num_inserted;
+        let (can_be_filled, wipe_batch) = current_batch.can_be_filled();
+
+        // TODO: implement more efficient bloom filter wipe this will not work onchain
+        if wipe_batch {
+            println!(
+                "wipe bloom filter is some {:?}",
+                bloomfilter_stores.is_some()
+            );
+            if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
+                println!("wiping bloom filter");
+                (*blomfilter_stores)
+                    .as_mut_slice()
+                    .iter_mut()
+                    .for_each(|x| *x = 0);
+            }
+            println!("wipe value store is some {:?}", value_store.is_some());
+
+            if let Some(value_store) = value_store.as_mut() {
+                println!("wiping value store");
+                (*value_store).clear();
+            }
+        }
         println!(
-            "next_full_batch_index: {:?}",
-            self.account.next_full_batch_index
+            "insert into current batch {:?} index: {:?} can_be_filled: {:?} inserted: {:?}",
+            queue_type, index, can_be_filled, inserted
         );
-        println!("batches.len(): {:?}", self.batches.len());
-        let batches_len = self.batches.len();
-        let batch = self
-            .batches
-            .get_mut(self.account.next_full_batch_index as usize)
-            .unwrap();
-        if batch.is_ready_to_update_tree() {
-            self.account.next_full_batch_index += 1;
-            self.account.next_full_batch_index %= batches_len as u64;
-            Ok(batch)
-        } else {
-            println!("batch id: {:?}", batch.id);
-            err!(AccountCompressionErrorCode::BatchNotReady)
+        // TODO: remove unwraps
+        if !inserted && can_be_filled {
+            println!("store value");
+            let insert_result = match queue_type {
+                QueueType::Address => current_batch.insert_and_store(
+                    value,
+                    bloomfilter_stores.unwrap().as_mut_slice(),
+                    value_store.unwrap(),
+                ),
+                QueueType::Input => {
+                    current_batch.insert(value, bloomfilter_stores.unwrap().as_mut_slice())
+                }
+
+                QueueType::Output => current_batch.store_and_hash(value, value_store.unwrap()),
+
+                _ => err!(AccountCompressionErrorCode::InvalidQueueType),
+            };
+            match insert_result {
+                Ok(_) => {
+                    // For the output queue we only need to insert. For address
+                    // and input queues we need to prove non-inclusion as well
+                    // hence check every bloomfilter.
+                    if QueueType::Output == queue_type {
+                        return Ok(());
+                    }
+                    inserted = true;
+                }
+                Err(error) => {
+                    println!("wipe batch {:?}", wipe_batch);
+                    println!("batch 0 {:?}", batches[0]);
+                    println!("batch 1 {:?}", batches[1]);
+                    return Err(error);
+                }
+            }
+        } else if bloomfilter_stores.is_some() {
+            println!("check non inclusion");
+            current_batch.check_non_inclusion(value, bloomfilter_stores.unwrap().as_mut_slice())?;
         }
     }
+
+    if !inserted {
+        println!("batch 0 {:?}", batches[0]);
+        // println!("batch 0 {:?}", batches[0].can_be_filled());
+        println!("batch 1 {:?}", batches[1]);
+        // println!("batch 1 {:?}", batches[1].can_be_filled());
+        println!("Both batches are not ready to insert");
+        return err!(AccountCompressionErrorCode::BatchInsertFailed);
+    }
+    Ok(())
+}
+
+pub fn queue_from_account(
+    account: &BatchedQueueAccount,
+    account_data: &mut [u8],
+) -> Result<(
+    ManuallyDrop<BoundedVec<Batch>>,
+    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    Vec<ManuallyDrop<BoundedVec<u8>>>,
+)> {
+    let (num_value_stores, num_stores) = account.get_size_parameters()?;
+    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
+    let batches = deserialize_bounded_vec(account_data, &mut start_offset);
+    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, &mut start_offset);
+    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, &mut start_offset);
+
+    Ok((batches, value_vecs, bloomfilter_stores))
+}
+
+pub fn batched_queue_from_account(
+    account: &BatchedQueue,
+    account_data: &mut [u8],
+    queue_type: u64,
+) -> Result<(
+    ManuallyDrop<BoundedVec<Batch>>,
+    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    Vec<ManuallyDrop<BoundedVec<u8>>>,
+)> {
+    let (num_value_stores, num_stores) = account.get_size_parameters(queue_type)?;
+    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
+    let batches = deserialize_bounded_vec(account_data, &mut start_offset);
+    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, &mut start_offset);
+    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, &mut start_offset);
+
+    Ok((batches, value_vecs, bloomfilter_stores))
+}
+
+pub fn init_queue_from_account(
+    account: &BatchedQueue,
+    queue_type: u64,
+    account_data: &mut [u8],
+    num_iters: u64,
+    bloomfilter_capacity: u64,
+) -> Result<(
+    ManuallyDrop<BoundedVec<Batch>>,
+    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    Vec<ManuallyDrop<BoundedVec<u8>>>,
+)> {
+    if account_data.len() != queue_account_size(&account, queue_type)? {
+        return err!(AccountCompressionErrorCode::SizeMismatch);
+    }
+    let (num_value_stores, num_stores) = account.get_size_parameters(queue_type)?;
+    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
+
+    let mut batches = init_bounded_vec(
+        account.num_batches as usize,
+        account_data,
+        &mut start_offset,
+        false,
+    );
+    for i in 0..account.num_batches {
+        batches
+            .push(Batch {
+                id: i as u8,
+                bloomfilter_store_id: i as u8,
+                value_store_id: i as u8,
+                num_iters,
+                bloomfilter_capacity,
+                user_hash_chain: [0; 32],
+                prover_hash_chain: [0; 32],
+                num_inserted: 0,
+                value_capacity: account.batch_size,
+                is_inserted: false,
+            })
+            .map_err(ProgramError::from)?;
+    }
+
+    // TODO: reset value vecs after sequence number has expired
+    let value_vecs = init_bounded_vecs(
+        num_value_stores,
+        account.batch_size as usize,
+        account_data,
+        &mut start_offset,
+        false,
+    );
+
+    let bloomfilter_stores = init_bounded_vecs(
+        num_stores,
+        account.bloom_filter_capacity as usize / 8,
+        account_data,
+        &mut start_offset,
+        true,
+    );
+
+    Ok((batches, value_vecs, bloomfilter_stores))
 }
 
 pub fn deserialize_bounded_vec<T: Clone>(
@@ -416,7 +518,7 @@ pub mod tests {
         num_batches: u64,
         queue_type: QueueType,
         bloom_filter_capacity: u64,
-    ) -> (BatchedAddressQueueAccount, Vec<u8>) {
+    ) -> (BatchedQueueAccount, Vec<u8>) {
         let metadata = QueueMetadata {
             next_queue: Pubkey::new_unique(),
             access_metadata: AccessMetadata::default(),
@@ -425,25 +527,28 @@ pub mod tests {
             associated_merkle_tree: Pubkey::new_unique(),
         };
 
-        let account = BatchedAddressQueueAccount {
+        let account = BatchedQueueAccount {
             metadata: metadata.clone(),
-            batch_size: batch_size as u64,
-            num_batches: num_batches as u64,
-            currently_processing_batch_index: 0,
-            next_index: 0,
-            next_full_batch_index: 0,
-            last_mt_updated_batch: 0,
-            bloom_filter_capacity,
+            queue: BatchedQueue {
+                batch_size: batch_size as u64,
+                num_batches: num_batches as u64,
+                currently_processing_batch_index: 0,
+                next_index: 0,
+                next_full_batch_index: 0,
+                last_mt_updated_batch: 0,
+                bloom_filter_capacity,
+            },
         };
-        let account_data: Vec<u8> = vec![0; account.size().unwrap()];
+        let account_data: Vec<u8> =
+            vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
         (account, account_data)
     }
 
     fn assert_queue_zero_copy_inited(
         batch_size: usize,
         num_batches: usize,
-        zero_copy_account: &ZeroCopyBatchedAddressQueueAccount,
-        account: &BatchedAddressQueueAccount,
+        zero_copy_account: &ZeroCopyBatchedQueueAccount,
+        account: &BatchedQueueAccount,
     ) {
         assert_eq!(zero_copy_account.account, account, "metadata mismatch");
         assert_eq!(
@@ -492,12 +597,12 @@ pub mod tests {
         for vec in zero_copy_account.bloomfilter_stores.iter() {
             assert_eq!(
                 vec.capacity() * 8,
-                account.bloom_filter_capacity as usize,
+                account.queue.bloom_filter_capacity as usize,
                 "bloom_filter_capacity mismatch"
             );
             assert_eq!(
                 vec.len() * 8,
-                account.bloom_filter_capacity as usize,
+                account.queue.bloom_filter_capacity as usize,
                 "bloom_filter_capacity mismatch"
             );
         }
@@ -523,10 +628,11 @@ pub mod tests {
                 bloomfilter_capacity,
             );
             let ref_account = account.clone();
-            let zero_copy_account = ZeroCopyBatchedAddressQueueAccount::init_from_account(
+            let zero_copy_account = ZeroCopyBatchedQueueAccount::init_from_account(
                 &mut account,
                 &mut account_data,
                 bloomfilter_num_iters,
+                bloomfilter_capacity,
             )
             .unwrap();
 
@@ -537,8 +643,7 @@ pub mod tests {
                 &ref_account,
             );
             let mut zero_copy_account =
-                ZeroCopyBatchedAddressQueueAccount::from_account(&mut account, &mut account_data)
-                    .unwrap();
+                ZeroCopyBatchedQueueAccount::from_account(&mut account, &mut account_data).unwrap();
             assert_queue_zero_copy_inited(
                 batch_size as usize,
                 num_batches as usize,
