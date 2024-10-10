@@ -1,12 +1,8 @@
 package merkle_tree
 
 import (
-	"fmt"
-	"light/light-prover/prover"
-	"math/big"
-	"math/rand"
-
 	"github.com/iden3/go-iden3-crypto/poseidon"
+	"math/big"
 )
 
 type PoseidonNode interface {
@@ -161,19 +157,19 @@ func deepCopyNode(node PoseidonNode) PoseidonNode {
 func deepCopyFullNode(node *PoseidonFullNode) *PoseidonFullNode {
 	if node == nil {
 		return nil
-	}
+				}
 	return &PoseidonFullNode{
 		dep:   node.dep,
 		val:   *new(big.Int).Set(&node.val),
 		Left:  deepCopyNode(node.Left),
 		Right: deepCopyNode(node.Right),
-	}
+			}
 }
 
 func deepCopyEmptyNode(node *PoseidonEmptyNode) *PoseidonEmptyNode {
 	if node == nil {
 		return nil
-	}
+		}
 	emptyTreeValues := make([]big.Int, len(node.emptyTreeValues))
 	for i, v := range node.emptyTreeValues {
 		emptyTreeValues[i] = *new(big.Int).Set(&v)
@@ -181,96 +177,5 @@ func deepCopyEmptyNode(node *PoseidonEmptyNode) *PoseidonEmptyNode {
 	return &PoseidonEmptyNode{
 		dep:             node.dep,
 		emptyTreeValues: emptyTreeValues,
-	}
-}
-
-func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) prover.InclusionParameters {
-	tree := NewTree(depth)
-	var leaf *big.Int
-	var pathIndex int
-	if random {
-		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(rand.Int63())})
-		pathIndex = rand.Intn(depth)
-	} else {
-		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(1)})
-		pathIndex = 0
-	}
-
-	var inputs = make([]prover.InclusionInputs, numberOfCompressedAccounts)
-
-	for i := 0; i < numberOfCompressedAccounts; i++ {
-		inputs[i].Leaf = *leaf
-		inputs[i].PathIndex = uint32(pathIndex)
-		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root.Value()
-	}
-
-	return prover.InclusionParameters{
-		Inputs: inputs,
-	}
-}
-
-func rangeIn(low, hi int) int {
-	return low + rand.Intn(hi-low)
-}
-
-func BuildValidTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool) prover.NonInclusionParameters {
-	return BuildTestNonInclusionTree(depth, numberOfCompressedAccounts, random, true, false)
-}
-
-func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool, valid bool, lowValue bool) prover.NonInclusionParameters {
-	tree := NewTree(depth)
-
-	var inputs = make([]prover.NonInclusionInputs, numberOfCompressedAccounts)
-
-	for i := 0; i < numberOfCompressedAccounts; i++ {
-		var value = big.NewInt(0)
-		var leafLower = big.NewInt(0)
-		var leafUpper = big.NewInt(2)
-		var pathIndex int
-		var nextIndex int
-		if random {
-			leafLower = big.NewInt(int64(rangeIn(0, 1000)))
-			leafUpper.Add(leafUpper, leafLower)
-			numberOfLeaves := 1 << depth
-			nextIndex = rand.Intn(numberOfLeaves)
-			if valid {
-				value.Add(leafLower, big.NewInt(1))
-			} else {
-				if lowValue {
-					value.Sub(leafLower, big.NewInt(1))
-				} else {
-					value.Add(leafUpper, big.NewInt(1))
-				}
-			}
-			pathIndex = rand.Intn(depth)
-		} else {
-			leafLower = big.NewInt(1)
-			leafUpper = big.NewInt(123)
-			nextIndex = 1
-			if valid {
-				value = big.NewInt(2)
-			} else {
-				value = big.NewInt(4)
-			}
-			pathIndex = 0
-		}
-
-		leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(nextIndex)), leafUpper})
-		if err != nil {
-			fmt.Println("error: ", err)
-		}
-
-		inputs[i].Value = *value
-		inputs[i].PathIndex = uint32(pathIndex)
-		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root.Value()
-		inputs[i].LeafLowerRangeValue = *leafLower
-		inputs[i].LeafHigherRangeValue = *leafUpper
-		inputs[i].NextIndex = uint32(nextIndex)
-	}
-
-	return prover.NonInclusionParameters{
-		Inputs: inputs,
 	}
 }

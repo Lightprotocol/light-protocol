@@ -74,7 +74,7 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 	return SpawnJob(start, shutdown)
 }
 
-func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
+func Run(config *Config, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
 	metricsMux := http.NewServeMux()
 	// TODO: Add metrics
 	//metricsMux.Handle("/metrics", promhttp.Handler())
@@ -83,7 +83,10 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
 
 	proverMux := http.NewServeMux()
-	proverMux.Handle("/prove", proveHandler{provingSystem: provingSystem})
+	proverMux.Handle("/prove", proveHandler{
+		provingSystemsV1: provingSystemsV1,
+		provingSystemsV2: provingSystemsV2,
+	})
 	proverMux.Handle("/health", healthHandler{})
 
 	// Setup CORS
@@ -102,7 +105,8 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 }
 
 type proveHandler struct {
-	provingSystem []*prover.ProvingSystem
+	provingSystemsV1 []*prover.ProvingSystemV1
+	provingSystemsV2 []*prover.ProvingSystemV2
 }
 
 type healthHandler struct {
@@ -123,6 +127,8 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var circuitType prover.CircuitType
+	var proof *prover.Proof
+	var proofError *Error
 
 	circuitType, err = prover.ParseCircuitType(buf)
 	if err != nil {
@@ -132,16 +138,17 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var proof *prover.Proof
-	var proofError *Error
-	if circuitType == prover.Inclusion {
+	switch circuitType {
+	case prover.Inclusion:
 		proof, proofError = handler.inclusionProof(buf)
-	}
-	if circuitType == prover.NonInclusion {
+	case prover.NonInclusion:
 		proof, proofError = handler.nonInclusionProof(buf)
-	}
-	if circuitType == prover.Combined {
+	case prover.Combined:
 		proof, proofError = handler.combinedProof(buf)
+	case prover.BatchAppend:
+		proof, proofError = handler.batchAppendProof(buf)
+	default:
+		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
 	}
 
 	if proofError != nil {
@@ -166,6 +173,37 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error) {
+	var params prover.BatchAppendParameters
+	err := json.Unmarshal(buf, &params)
+	if err != nil {
+		logging.Logger().Info().Msg("error Unmarshal")
+		logging.Logger().Info().Msg(err.Error())
+		return nil, malformedBodyError(err)
+	}
+
+	batchSize := uint32(len(params.Leaves))
+
+	var ps *prover.ProvingSystemV2
+	for _, provingSystem := range handler.provingSystemsV2 {
+		if provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
+			ps = provingSystem
+			break
+		}
+	}
+
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("no proving system for batch size %d", batchSize))
+	}
+
+	proof, err := ps.ProveBatchAppend(&params)
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, provingError(err)
+	}
+	return proof, nil
+}
+
 func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
 	var proof *prover.Proof
 	var params prover.InclusionParameters
@@ -180,8 +218,8 @@ func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
 
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 
-	var ps *prover.ProvingSystem
-	for _, provingSystem := range handler.provingSystem {
+	var ps *prover.ProvingSystemV1
+	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
 			ps = provingSystem
 			break
@@ -212,8 +250,8 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 	}
 
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
-	var ps *prover.ProvingSystem
-	for _, provingSystem := range handler.provingSystem {
+	var ps *prover.ProvingSystemV1
+	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
 			ps = provingSystem
 			break
@@ -247,8 +285,8 @@ func (handler proveHandler) combinedProof(buf []byte) (*prover.Proof, *Error) {
 	var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
 	var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
 
-	var ps *prover.ProvingSystem
-	for _, provingSystem := range handler.provingSystem {
+	var ps *prover.ProvingSystemV1
+	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == inclusionNumberOfCompressedAccounts && provingSystem.NonInclusionNumberOfCompressedAccounts == nonInclusionNumberOfCompressedAccounts {
 			ps = provingSystem
 			break

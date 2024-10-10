@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -93,7 +94,7 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
+func (ps *ProvingSystemV1) WriteTo(w io.Writer) (int64, error) {
 	var totalWritten int64 = 0
 	var intBuf [4]byte
 
@@ -130,11 +131,10 @@ func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return totalWritten, err
 	}
-
 	return totalWritten, nil
 }
 
-func (ps *ProvingSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
+func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 	var totalRead int64 = 0
 	var intBuf [4]byte
 
@@ -178,23 +178,137 @@ func (ps *ProvingSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	return totalRead, nil
 }
 
-func ReadSystemFromFile(path string) (ps *ProvingSystem, err error) {
-	ps = new(ProvingSystem)
-	file, err := os.Open(path)
-	if err != nil {
-		return
-	}
-
-	defer func() {
-		closeErr := file.Close()
-		if closeErr != nil && err == nil {
-			err = closeErr
+func ReadSystemFromFile(path string) (interface{}, error) {
+	if strings.Contains(strings.ToLower(path), "append") {
+		ps := new(ProvingSystemV2)
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
 		}
-	}()
+		defer file.Close()
 
-	_, err = ps.UnsafeReadFrom(file)
-	if err != nil {
-		return
+		_, err = ps.UnsafeReadFrom(file)
+		if err != nil {
+			return nil, err
+		}
+		return ps, nil
+	} else {
+		ps := new(ProvingSystemV1)
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		_, err = ps.UnsafeReadFrom(file)
+		if err != nil {
+			return nil, err
+		}
+		return ps, nil
 	}
-	return
+}
+
+func ReadProvingSystemFromFile(path string) (*ProvingSystemV1, error) {
+	system, err := ReadSystemFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+	ps, ok := system.(*ProvingSystemV1)
+	if !ok {
+		return nil, fmt.Errorf("file does not contain a ProvingSystem")
+	}
+	return ps, nil
+}
+
+func ReadBatchAppendProvingSystemFromFile(path string) (*ProvingSystemV2, error) {
+	system, err := ReadSystemFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+	baps, ok := system.(*ProvingSystemV2)
+	if !ok {
+		return nil, fmt.Errorf("file does not contain a BatchAppendProvingSystem")
+	}
+	return baps, nil
+}
+
+func (ps *ProvingSystemV2) WriteTo(w io.Writer) (int64, error) {
+	var totalWritten int64 = 0
+	var intBuf [4]byte
+
+	fieldsToWrite := []uint32{
+		ps.TreeHeight,
+		ps.BatchSize,
+	}
+
+	for _, field := range fieldsToWrite {
+		binary.BigEndian.PutUint32(intBuf[:], field)
+		written, err := w.Write(intBuf[:])
+		totalWritten += int64(written)
+		if err != nil {
+			return totalWritten, err
+		}
+	}
+
+	keyWritten, err := ps.ProvingKey.WriteTo(w)
+	totalWritten += keyWritten
+	if err != nil {
+		return totalWritten, err
+	}
+
+	keyWritten, err = ps.VerifyingKey.WriteTo(w)
+	totalWritten += keyWritten
+	if err != nil {
+		return totalWritten, err
+	}
+
+	keyWritten, err = ps.ConstraintSystem.WriteTo(w)
+	totalWritten += keyWritten
+	if err != nil {
+		return totalWritten, err
+	}
+
+	return totalWritten, nil
+}
+
+func (ps *ProvingSystemV2) UnsafeReadFrom(r io.Reader) (int64, error) {
+	var totalRead int64 = 0
+	var intBuf [4]byte
+
+	fieldsToRead := []*uint32{
+		&ps.TreeHeight,
+		&ps.BatchSize,
+	}
+
+	for _, field := range fieldsToRead {
+		read, err := io.ReadFull(r, intBuf[:])
+		totalRead += int64(read)
+		if err != nil {
+			return totalRead, err
+		}
+		*field = binary.BigEndian.Uint32(intBuf[:])
+	}
+
+	ps.ProvingKey = groth16.NewProvingKey(ecc.BN254)
+	keyRead, err := ps.ProvingKey.UnsafeReadFrom(r)
+	totalRead += keyRead
+	if err != nil {
+		return totalRead, err
+	}
+
+	ps.VerifyingKey = groth16.NewVerifyingKey(ecc.BN254)
+	keyRead, err = ps.VerifyingKey.UnsafeReadFrom(r)
+	totalRead += keyRead
+	if err != nil {
+		return totalRead, err
+	}
+
+	ps.ConstraintSystem = groth16.NewCS(ecc.BN254)
+	keyRead, err = ps.ConstraintSystem.ReadFrom(r)
+	totalRead += keyRead
+	if err != nil {
+		return totalRead, err
+	}
+
+	return totalRead, nil
 }
