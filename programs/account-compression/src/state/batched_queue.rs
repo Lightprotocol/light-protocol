@@ -44,15 +44,22 @@ pub struct BatchedQueue {
 }
 
 pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usize> {
+    println!("queue_account_size: {:?}", account);
+    println!("queue_type: {:?}", queue_type);
     let (num_value_vec, num_bloom_filter_stores) = account.get_size_parameters(queue_type)?;
 
-    let account_size = std::mem::size_of::<BatchedQueueAccount>();
+    let account_size = if queue_type != QueueType::Output as u64 {
+        0
+    } else {
+        std::mem::size_of::<BatchedQueueAccount>()
+    };
+    println!("queue_account_size: account size {:?}", account_size);
     let batches_size = (std::mem::size_of::<BoundedVecMetadata>() + std::mem::size_of::<Batch>())
         * account.num_batches as usize;
     let value_vecs_size = (std::mem::size_of::<BoundedVecMetadata>()
         + 32 * account.batch_size as usize)
         * num_value_vec;
-
+    println!("value_vecs_size: {:?}", value_vecs_size);
     let bloom_filter_stores_size = (std::mem::size_of::<BoundedVecMetadata>()
         + account.bloom_filter_capacity as usize)
         * num_bloom_filter_stores;
@@ -135,6 +142,7 @@ impl<'a> ZeroCopyBatchedQueueAccount<'a> {
             account_data,
             num_iters,
             bloomfilter_capacity,
+            &mut 0,
         )?;
         Ok(ZeroCopyBatchedQueueAccount {
             account,
@@ -326,16 +334,23 @@ pub fn batched_queue_from_account(
     account: &BatchedQueue,
     account_data: &mut [u8],
     queue_type: u64,
+    start_offset: &mut usize,
 ) -> Result<(
     ManuallyDrop<BoundedVec<Batch>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     Vec<ManuallyDrop<BoundedVec<u8>>>,
 )> {
     let (num_value_stores, num_stores) = account.get_size_parameters(queue_type)?;
-    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
-    let batches = deserialize_bounded_vec(account_data, &mut start_offset);
-    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, &mut start_offset);
-    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, &mut start_offset);
+    if queue_type == QueueType::Output as u64 {
+        println!(
+            "batched_queue_from_account: is output queue start_offset: {:?}",
+            start_offset
+        );
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>();
+    }
+    let batches = deserialize_bounded_vec(account_data, start_offset);
+    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, start_offset);
+    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, start_offset);
 
     Ok((batches, value_vecs, bloomfilter_stores))
 }
@@ -346,21 +361,30 @@ pub fn init_queue_from_account(
     account_data: &mut [u8],
     num_iters: u64,
     bloomfilter_capacity: u64,
+    start_offset: &mut usize,
 ) -> Result<(
     ManuallyDrop<BoundedVec<Batch>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     Vec<ManuallyDrop<BoundedVec<u8>>>,
 )> {
-    if account_data.len() != queue_account_size(&account, queue_type)? {
+    if account_data.len() - *start_offset != queue_account_size(&account, queue_type)? {
+        println!("account_data.len() {:?}", account_data.len());
+        println!(
+            "queue_account_size {:?}",
+            queue_account_size(&account, queue_type)?
+        );
         return err!(AccountCompressionErrorCode::SizeMismatch);
     }
     let (num_value_stores, num_stores) = account.get_size_parameters(queue_type)?;
-    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
-
+    println!("num_value_stores: {:?}", num_value_stores);
+    println!("account data len {:?}", account_data.len());
+    if queue_type == QueueType::Output as u64 {
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>();
+    }
     let mut batches = init_bounded_vec(
         account.num_batches as usize,
         account_data,
-        &mut start_offset,
+        start_offset,
         false,
     );
     for i in 0..account.num_batches {
@@ -385,7 +409,7 @@ pub fn init_queue_from_account(
         num_value_stores,
         account.batch_size as usize,
         account_data,
-        &mut start_offset,
+        start_offset,
         false,
     );
 
@@ -393,7 +417,7 @@ pub fn init_queue_from_account(
         num_stores,
         account.bloom_filter_capacity as usize / 8,
         account_data,
-        &mut start_offset,
+        start_offset,
         true,
     );
 
@@ -505,7 +529,20 @@ pub fn init_bounded_cyclic_vec<T: Clone>(
         ))
     }
 }
-
+pub fn get_output_queue_account_size_default() -> usize {
+    let account = BatchedQueueAccount {
+        metadata: QueueMetadata::default(),
+        queue: BatchedQueue {
+            currently_processing_batch_index: 0,
+            num_batches: 2,
+            batch_size: 5000,
+            bloom_filter_capacity: 0,
+            next_index: 0,
+            ..Default::default()
+        },
+    };
+    queue_account_size(&account.queue, QueueType::Output as u64).unwrap()
+}
 #[cfg(test)]
 pub mod tests {
 
