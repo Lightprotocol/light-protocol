@@ -544,6 +544,10 @@ impl CyclicBoundedVecMetadata {
     pub fn length(&self) -> usize {
         self.length
     }
+
+    pub fn get_first_index(&self) -> usize {
+        self.first_index
+    }
 }
 
 /// `CyclicBoundedVec` is a wrapper around [`Vec`](std::vec::Vec) which:
