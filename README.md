@@ -89,6 +89,13 @@ directory inside your repository clone).
 ./scripts/install.sh
 ```
 
+By default, this will install a subset of gnark keys with Merkle tree heights sufficient for running tests. If you need the full set of production keys, you can use the --full-keys flag:
+```
+./scripts/install.sh --full-keys
+```
+
+Note: The default subset of keys is adequate for most development and testing purposes. The full set of keys is larger and includes additional Merkle tree heights used in production environments.
+
 Then, activate the development environment:
 
 ```

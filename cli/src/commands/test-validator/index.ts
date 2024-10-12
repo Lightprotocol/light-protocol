@@ -64,6 +64,12 @@ class SetupCommand extends Command {
       default: 3001,
       exclusive: ["skip-prover"],
     }),
+    "prover-run-mode": Flags.string({
+      description: "Specify the running mode for the prover (test or full)",
+      options: ["test", "full"] as const,
+      default: "full",
+      exclusive: ["skip-prover"],
+    }),
     "limit-ledger-size": Flags.integer({
       description: "Keep this amount of shreds in root slots.",
       required: false,
@@ -108,6 +114,7 @@ class SetupCommand extends Command {
         proveNewAddresses: flags["prove-new-addresses"],
         prover: !flags["skip-prover"],
         skipSystemAccounts: flags["skip-system-accounts"],
+        proverRunMode: flags["prover-run-mode"] as "test" | "full" | undefined,
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }

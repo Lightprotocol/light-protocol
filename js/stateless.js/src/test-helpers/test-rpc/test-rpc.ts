@@ -142,7 +142,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     addressQueueAddress: PublicKey;
     lightWasm: LightWasm;
     depth: number;
-    log = false;
+    log = true;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection

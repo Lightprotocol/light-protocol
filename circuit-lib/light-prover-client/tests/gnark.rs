@@ -9,7 +9,8 @@ use light_prover_client::{
 use reqwest::Client;
 
 #[tokio::test]
-async fn prove_inclusion() {
+#[ignore]
+async fn prove_inclusion_full() {
     init_logger();
     spawn_prover(false, &[ProofType::Inclusion]).await;
     let client = Client::new();
@@ -24,4 +25,20 @@ async fn prove_inclusion() {
             .expect("Failed to execute request.");
         assert!(response_result.status().is_success());
     }
+}
+
+#[tokio::test]
+async fn prove_inclusion() {
+    init_logger();
+    spawn_prover(false, &[ProofType::Inclusion]).await;
+    let client = Client::new();
+    let (inputs, _) = inclusion_inputs_string(1);
+    let response_result = client
+        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .header("Content-Type", "text/plain; charset=utf-8")
+        .body(inputs)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+    assert!(response_result.status().is_success());
 }

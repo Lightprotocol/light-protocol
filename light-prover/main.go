@@ -358,13 +358,27 @@ func runCli() {
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
+					&cli.StringFlag{
+						Name:  "run-mode",
+						Usage: "Specify the running mode (test or full)",
+						Value: "full",
+					},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
 						logging.SetJSONOutput()
 					}
 
-					psv1, psv2, err := LoadKeys(context)
+					runMode := context.String("run-mode")
+					isTestMode := runMode == "test"
+
+					if isTestMode {
+						logging.Logger().Info().Msg("Running in test mode")
+					} else {
+						logging.Logger().Info().Msg("Running in full mode")
+					}
+
+					psv1, psv2, err := LoadKeys(context, isTestMode)
 					if err != nil {
 						return err
 					}
@@ -396,9 +410,23 @@ func runCli() {
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
+					&cli.StringFlag{
+						Name:  "run-mode",
+						Usage: "Specify the running mode (test or full)",
+						Value: "full",
+					},
 				},
 				Action: func(context *cli.Context) error {
-					psv1, psv2, err := LoadKeys(context)
+					runMode := context.String("run-mode")
+					isTestMode := runMode == "test"
+
+					if isTestMode {
+						logging.Logger().Info().Msg("Running in test mode")
+					} else {
+						logging.Logger().Info().Msg("Running in full mode")
+					}
+
+					psv1, psv2, err := LoadKeys(context, isTestMode)
 					if err != nil {
 						return err
 					}
@@ -644,8 +672,8 @@ func runCli() {
 	}
 }
 
-func LoadKeys(context *cli.Context) ([]*prover.ProvingSystemV1, []*prover.ProvingSystemV2, error) {
-	keys, _ := getKeysByArgs(context)
+func LoadKeys(context *cli.Context, isTestMode bool) ([]*prover.ProvingSystemV1, []*prover.ProvingSystemV2, error) {
+	keys, _ := getKeysByArgs(context, isTestMode)
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
 
@@ -677,7 +705,7 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystemV1, []*prover.Provin
 	return pssv1, pssv2, nil
 }
 
-func getKeysByArgs(context *cli.Context) ([]string, error) {
+func getKeysByArgs(context *cli.Context, isTestMode bool) ([]string, error) {
 	var keysDir = context.String("keys-dir")
 	var inclusion = context.Bool("inclusion")
 	var nonInclusion = context.Bool("non-inclusion")
@@ -703,7 +731,7 @@ func getKeysByArgs(context *cli.Context) ([]string, error) {
 		return nil, fmt.Errorf("no circuit type provided")
 	}
 
-	return prover.GetKeys(keysDir, circuitTypes), nil
+	return prover.GetKeys(keysDir, circuitTypes, isTestMode), nil
 }
 
 func createFileAndWriteBytes(filePath string, data []byte) error {

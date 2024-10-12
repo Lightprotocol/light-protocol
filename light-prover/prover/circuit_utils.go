@@ -222,8 +222,7 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 
 	return verifyingKey, nil
 }
-
-func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
+func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []string {
 	var keys []string
 
 	if IsCircuitEnabled(circuitTypes, Inclusion) {
@@ -249,11 +248,15 @@ func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
 	}
 
 	if IsCircuitEnabled(circuitTypes, BatchAppend) {
-		keys = append(keys, keysDir+"append_26_1.key")
-		keys = append(keys, keysDir+"append_26_10.key")
-		keys = append(keys, keysDir+"append_26_100.key")
-		keys = append(keys, keysDir+"append_26_500.key")
-		keys = append(keys, keysDir+"append_26_1000.key")
+		if isTestMode {
+			keys = append(keys, keysDir+"append_10_10.key")
+		} else {
+			keys = append(keys, keysDir+"append_26_1.key")
+			keys = append(keys, keysDir+"append_26_10.key")
+			keys = append(keys, keysDir+"append_26_100.key")
+			keys = append(keys, keysDir+"append_26_500.key")
+			keys = append(keys, keysDir+"append_26_1000.key")
+		}
 	}
 
 	return keys

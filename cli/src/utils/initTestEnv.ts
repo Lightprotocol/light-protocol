@@ -65,6 +65,7 @@ export async function initTestEnv({
   checkPhotonVersion = true,
   photonDatabaseUrl,
   limitLedgerSize,
+  proverRunMode = "test",
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -79,6 +80,7 @@ export async function initTestEnv({
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
+  proverRunMode?: "test" | "full";
 }) {
   const initAccounts = async () => {
     const anchorProvider = await setAnchorProvider();
@@ -117,7 +119,12 @@ export async function initTestEnv({
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
+    await startProver(
+      proverPort,
+      proveCompressedAccounts,
+      proveNewAddresses,
+      proverRunMode,
+    );
   }
 }
 
