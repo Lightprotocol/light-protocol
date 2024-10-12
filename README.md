@@ -70,7 +70,7 @@ There are three ways of setting up the development environment:
   unfortunately has performance problems on macOS.
 - [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
-- Windows is not supported
+- Windows is not supported.
 
 ### Prerequisites:
 - Ubuntu, `sudo apt-get install lld clang`
