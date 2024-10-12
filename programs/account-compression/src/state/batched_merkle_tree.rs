@@ -1,6 +1,5 @@
 use crate::{
-    batch::BatchState,
-    batched_queue::{deserialize_cyclic_bounded_vec, ZeroCopyBatchedQueueAccount},
+    batch::BatchState, batched_queue::ZeroCopyBatchedQueueAccount,
     errors::AccountCompressionErrorCode,
 };
 use aligned_sized::aligned_sized;
@@ -13,9 +12,8 @@ use std::mem::ManuallyDrop;
 use super::{
     batch::Batch,
     batched_queue::{
-        batched_queue_from_account, init_bounded_cyclic_vec, init_queue_from_account,
-        insert_into_current_batch, queue_account_size, queue_get_next_full_batch, BatchedQueue,
-        BatchedQueueAccount,
+        batched_queue_from_account, init_queue_from_account, insert_into_current_batch,
+        queue_account_size, queue_get_next_full_batch, BatchedQueue, BatchedQueueAccount,
     },
     AccessMetadata, MerkleTreeMetadata, QueueType, RolloverMetadata,
 };
@@ -166,7 +164,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             return err!(AccountCompressionErrorCode::SizeMismatch);
         }
         let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>();
-        let root_buffer = deserialize_cyclic_bounded_vec(account_data, &mut start_offset);
+        let root_buffer = CyclicBoundedVec::deserialize(account_data, &mut start_offset);
         let (batches, value_vecs, bloomfilter_stores) = batched_queue_from_account(
             &mut account.queue,
             account_data,
@@ -189,19 +187,20 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         bloomfilter_capacity: u64,
     ) -> Result<ZeroCopyBatchedMerkleTreeAccount<'a>> {
         if account_data.len() != account.size()? {
-            println!("merkle_tree_account: {:?}", account);
-            println!("account_data.len(): {}", account_data.len());
-            println!("account.size(): {}", account.size()?);
+            msg!("merkle_tree_account: {:?}", account);
+            msg!("account_data.len(): {}", account_data.len());
+            msg!("account.size(): {}", account.size()?);
             return err!(AccountCompressionErrorCode::SizeMismatch);
         }
         let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>();
 
-        let root_buffer: ManuallyDrop<CyclicBoundedVec<[u8; 32]>> = init_bounded_cyclic_vec(
+        let root_buffer = CyclicBoundedVec::init(
             account.root_history_capacity as usize,
             account_data,
             &mut start_offset,
             false,
-        );
+        )
+        .map_err(ProgramError::from)?;
 
         let (batches, value_vecs, bloomfilter_stores) = init_queue_from_account(
             &mut account.queue,

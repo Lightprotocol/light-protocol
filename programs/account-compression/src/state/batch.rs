@@ -1,9 +1,8 @@
+use crate::errors::AccountCompressionErrorCode;
 use anchor_lang::prelude::*;
 use light_bloom_filter::BloomFilter;
 use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_hasher::{Hasher, Poseidon};
-
-use crate::errors::AccountCompressionErrorCode;
 
 #[repr(u64)]
 #[derive(Clone, Debug, PartialEq, Eq)]
