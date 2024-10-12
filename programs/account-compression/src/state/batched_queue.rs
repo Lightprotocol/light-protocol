@@ -1,14 +1,9 @@
 use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-use light_bounded_vec::{
-    BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata,
-};
+use light_bounded_vec::{BoundedVec, BoundedVecMetadata};
 use light_utils::fee::compute_rollover_fee;
-use light_utils::offset::zero_copy::write_at;
-use light_utils::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at};
 use std::mem::ManuallyDrop;
-use std::ops::Sub;
 use std::u64;
 
 use super::batch::BatchState;
@@ -431,9 +426,11 @@ pub fn queue_from_account(
 )> {
     let (num_value_stores, num_stores) = account.get_size_parameters()?;
     let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
-    let batches = deserialize_bounded_vec(account_data, &mut start_offset);
-    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, &mut start_offset);
-    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, &mut start_offset);
+    let batches = BoundedVec::deserialize(account_data, &mut start_offset);
+    let value_vecs =
+        BoundedVec::deserialize_multiple(num_value_stores, account_data, &mut start_offset);
+    let bloomfilter_stores =
+        BoundedVec::deserialize_multiple(num_stores, account_data, &mut start_offset);
 
     Ok((batches, value_vecs, bloomfilter_stores))
 }
@@ -456,9 +453,10 @@ pub fn batched_queue_from_account(
         );
         *start_offset += std::mem::size_of::<BatchedQueueAccount>();
     }
-    let batches = deserialize_bounded_vec(account_data, start_offset);
-    let value_vecs = deserialize_bounded_vecs(num_value_stores, account_data, start_offset);
-    let bloomfilter_stores = deserialize_bounded_vecs(num_stores, account_data, start_offset);
+    let batches = BoundedVec::deserialize(account_data, start_offset);
+    let value_vecs = BoundedVec::deserialize_multiple(num_value_stores, account_data, start_offset);
+    let bloomfilter_stores =
+        BoundedVec::deserialize_multiple(num_stores, account_data, start_offset);
 
     Ok((batches, value_vecs, bloomfilter_stores))
 }
@@ -488,12 +486,13 @@ pub fn init_queue_from_account(
         *start_offset += std::mem::size_of::<BatchedQueueAccount>();
     }
 
-    let mut batches = init_bounded_vec(
+    let mut batches = BoundedVec::init(
         account.num_batches as usize,
         account_data,
         start_offset,
         false,
-    );
+    )
+    .map_err(ProgramError::from)?;
 
     for _ in 0..account.num_batches {
         batches
@@ -509,141 +508,27 @@ pub fn init_queue_from_account(
             .map_err(ProgramError::from)?;
     }
 
-    let value_vecs = init_bounded_vecs(
+    let value_vecs = BoundedVec::init_multiple(
         num_value_stores,
         account.batch_size as usize,
         account_data,
         start_offset,
         false,
-    );
+    )
+    .map_err(ProgramError::from)?;
 
-    let bloomfilter_stores = init_bounded_vecs(
+    let bloomfilter_stores = BoundedVec::init_multiple(
         num_stores,
         account.bloom_filter_capacity as usize / 8,
         account_data,
         start_offset,
         true,
-    );
+    )
+    .map_err(ProgramError::from)?;
 
     Ok((batches, value_vecs, bloomfilter_stores))
 }
 
-pub fn deserialize_bounded_vec<T: Clone>(
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-) -> ManuallyDrop<BoundedVec<T>> {
-    let metadata = unsafe { read_ptr_at(account_data, start_offset) };
-    unsafe {
-        ManuallyDrop::new(BoundedVec::from_raw_parts(
-            metadata,
-            read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
-        ))
-    }
-}
-
-pub fn deserialize_cyclic_bounded_vec<T: Clone>(
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-) -> ManuallyDrop<CyclicBoundedVec<T>> {
-    let metadata = unsafe { read_ptr_at(account_data, start_offset) };
-    unsafe {
-        ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
-            metadata,
-            read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
-        ))
-    }
-}
-
-pub fn deserialize_bounded_vecs<T: Clone>(
-    num_batches: usize,
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-) -> Vec<ManuallyDrop<BoundedVec<T>>> {
-    let mut value_vecs = Vec::with_capacity(num_batches);
-    for _ in 0..num_batches {
-        let vec = deserialize_bounded_vec(account_data, start_offset);
-        value_vecs.push(vec);
-    }
-    value_vecs
-}
-
-pub fn init_bounded_vec<T: Clone>(
-    capacity: usize,
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-    with_len: bool,
-) -> ManuallyDrop<BoundedVec<T>> {
-    if (capacity * std::mem::size_of::<T>()) % 8 != 0 {
-        println!("capacity {:?}", capacity);
-        // TODO: return result
-        panic!("Unaligned memory capacity must be a multiple of 8");
-    }
-    let meta: BoundedVecMetadata = if with_len {
-        BoundedVecMetadata::new_with_length(capacity, capacity)
-    } else {
-        BoundedVecMetadata::new(capacity)
-    };
-    write_at::<BoundedVecMetadata>(account_data, meta.to_le_bytes().as_slice(), start_offset);
-    let meta: *mut BoundedVecMetadata = unsafe {
-        read_ptr_at(
-            &*account_data,
-            &mut start_offset.sub(std::mem::size_of::<BoundedVecMetadata>()),
-        )
-    };
-
-    unsafe {
-        ManuallyDrop::new(BoundedVec::from_raw_parts(
-            meta,
-            read_array_like_ptr_at(&*account_data, start_offset, capacity),
-        ))
-    }
-}
-
-pub fn init_bounded_vecs<T: Clone>(
-    num_batches: usize,
-    capacity: usize,
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-    with_len: bool,
-) -> Vec<ManuallyDrop<BoundedVec<T>>> {
-    let mut value_vecs = Vec::with_capacity(num_batches);
-    for _ in 0..num_batches {
-        let vec = init_bounded_vec(capacity, account_data, start_offset, with_len);
-        value_vecs.push(vec);
-    }
-    value_vecs
-}
-
-pub fn init_bounded_cyclic_vec<T: Clone>(
-    capacity: usize,
-    account_data: &mut [u8],
-    start_offset: &mut usize,
-    with_len: bool,
-) -> ManuallyDrop<CyclicBoundedVec<T>> {
-    if (capacity * std::mem::size_of::<T>()) % 8 != 0 {
-        println!("capacity {:?}", capacity);
-        // TODO: return result
-        panic!("Unaligned memory capacity must be a multiple of 8");
-    }
-    let meta: CyclicBoundedVecMetadata = if with_len {
-        CyclicBoundedVecMetadata::new_with_length(capacity, capacity)
-    } else {
-        CyclicBoundedVecMetadata::new(capacity)
-    };
-    write_at::<CyclicBoundedVecMetadata>(account_data, meta.to_le_bytes().as_slice(), start_offset);
-    let meta: *mut CyclicBoundedVecMetadata = unsafe {
-        read_ptr_at(
-            &*account_data,
-            &mut start_offset.sub(std::mem::size_of::<CyclicBoundedVecMetadata>()),
-        )
-    };
-    unsafe {
-        ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
-            meta,
-            read_array_like_ptr_at(&*account_data, start_offset, capacity),
-        ))
-    }
-}
 pub fn get_output_queue_account_size_default() -> usize {
     let account = BatchedQueueAccount {
         metadata: QueueMetadata::default(),
