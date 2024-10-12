@@ -19,7 +19,7 @@ type Proof struct {
 	Proof groth16.Proof
 }
 
-type ProvingSystem struct {
+type ProvingSystemV1 struct {
 	InclusionTreeHeight                    uint32
 	InclusionNumberOfCompressedAccounts    uint32
 	NonInclusionTreeHeight                 uint32
@@ -29,7 +29,14 @@ type ProvingSystem struct {
 	ConstraintSystem                       constraint.ConstraintSystem
 }
 
-// ProveParentHash gadget generates the ParentHash
+type ProvingSystemV2 struct {
+	TreeHeight       uint32
+	BatchSize        uint32
+	ProvingKey       groth16.ProvingKey
+	VerifyingKey     groth16.VerifyingKey
+	ConstraintSystem constraint.ConstraintSystem
+}
+
 type ProveParentHash struct {
 	Bit     frontend.Variable
 	Hash    frontend.Variable
@@ -113,6 +120,24 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 	abstractor.Call(api, gadget.InclusionProof)
 	abstractor.Call(api, gadget.NonInclusionProof)
 	return nil
+}
+
+type VerifyProof struct {
+	Leaf  frontend.Variable
+	Path  []frontend.Variable
+	Proof []frontend.Variable
+}
+
+func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := gadget.Leaf
+	for i := 0; i < len(gadget.Path); i++ {
+		currentHash = abstractor.Call(api, ProveParentHash{
+			Bit:     gadget.Path[i],
+			Hash:    currentHash,
+			Sibling: gadget.Proof[i],
+		})
+	}
+	return currentHash
 }
 
 type LeafHashGadget struct {
@@ -222,5 +247,14 @@ func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
 		keys = append(keys, keysDir+"combined_26_4_1.key")
 		keys = append(keys, keysDir+"combined_26_4_2.key")
 	}
+
+	if IsCircuitEnabled(circuitTypes, BatchAppend) {
+		keys = append(keys, keysDir+"append_26_1.key")
+		keys = append(keys, keysDir+"append_26_10.key")
+		keys = append(keys, keysDir+"append_26_100.key")
+		keys = append(keys, keysDir+"append_26_500.key")
+		keys = append(keys, keysDir+"append_26_1000.key")
+	}
+
 	return keys
 }
