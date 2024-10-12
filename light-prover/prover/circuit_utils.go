@@ -252,12 +252,12 @@ func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []stri
 		if isTestMode {
 			keys = append(keys, keysDir+"append_10_10.key")
 		} else {
-			keys = append(keys, keysDir+"append_26_1.key")
-			keys = append(keys, keysDir+"append_26_10.key")
-			keys = append(keys, keysDir+"append_26_100.key")
-			keys = append(keys, keysDir+"append_26_500.key")
-			keys = append(keys, keysDir+"append_26_1000.key")
-		}
+		keys = append(keys, keysDir+"append_26_1.key")
+		keys = append(keys, keysDir+"append_26_10.key")
+		keys = append(keys, keysDir+"append_26_100.key")
+		keys = append(keys, keysDir+"append_26_500.key")
+		keys = append(keys, keysDir+"append_26_1000.key")
+	}
 	}
 
 	if IsCircuitEnabled(circuitTypes, BatchUpdate) {
