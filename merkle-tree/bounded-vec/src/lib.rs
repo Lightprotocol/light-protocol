@@ -1,12 +1,16 @@
+pub mod offset;
+
 use std::{
     alloc::{self, handle_alloc_error, Layout},
-    fmt, mem,
-    ops::{Index, IndexMut},
+    fmt,
+    mem::{self, ManuallyDrop},
+    ops::{Index, IndexMut, Sub},
     ptr::{self, NonNull},
     slice::{self, Iter, IterMut, SliceIndex},
 };
 
 use memoffset::span_of;
+use offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -17,6 +21,8 @@ pub enum BoundedVecError {
     ArraySize(usize, usize),
     #[error("The requested start index is out of bounds.")]
     IterFromOutOfBounds,
+    #[error("Input length {0} allocates unaligned memory. Must be a multiple of 8.")]
+    UnalignedMemory(usize),
 }
 
 #[cfg(feature = "solana")]
@@ -26,6 +32,7 @@ impl From<BoundedVecError> for u32 {
             BoundedVecError::Full => 8001,
             BoundedVecError::ArraySize(_, _) => 8002,
             BoundedVecError::IterFromOutOfBounds => 8003,
+            BoundedVecError::UnalignedMemory(_) => 8004,
         }
     }
 }
@@ -347,6 +354,79 @@ where
             self.push(item)?;
         }
         Ok(())
+    }
+
+    pub fn deserialize(
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> ManuallyDrop<BoundedVec<T>> {
+        let metadata = unsafe { read_ptr_at(account_data, start_offset) };
+        unsafe {
+            ManuallyDrop::new(BoundedVec::from_raw_parts(
+                metadata,
+                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+            ))
+        }
+    }
+
+    pub fn deserialize_multiple(
+        num_batches: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> Vec<ManuallyDrop<BoundedVec<T>>> {
+        let mut value_vecs = Vec::with_capacity(num_batches);
+        for _ in 0..num_batches {
+            let vec = Self::deserialize(account_data, start_offset);
+            value_vecs.push(vec);
+        }
+        value_vecs
+    }
+
+    pub fn init(
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
+        if (capacity * std::mem::size_of::<T>()) % 8 != 0 {
+            return Err(BoundedVecError::UnalignedMemory(
+                capacity * std::mem::size_of::<T>(),
+            ));
+        }
+        let meta: BoundedVecMetadata = if with_len {
+            BoundedVecMetadata::new_with_length(capacity, capacity)
+        } else {
+            BoundedVecMetadata::new(capacity)
+        };
+        write_at::<BoundedVecMetadata>(account_data, meta.to_le_bytes().as_slice(), start_offset);
+        let meta: *mut BoundedVecMetadata = unsafe {
+            read_ptr_at(
+                &*account_data,
+                &mut start_offset.sub(std::mem::size_of::<BoundedVecMetadata>()),
+            )
+        };
+
+        Ok(unsafe {
+            ManuallyDrop::new(BoundedVec::from_raw_parts(
+                meta,
+                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+            ))
+        })
+    }
+
+    pub fn init_multiple(
+        num_batches: usize,
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<Vec<ManuallyDrop<BoundedVec<T>>>, BoundedVecError> {
+        let mut value_vecs = Vec::with_capacity(num_batches);
+        for _ in 0..num_batches {
+            let vec = Self::init(capacity, account_data, start_offset, with_len)?;
+            value_vecs.push(vec);
+        }
+        Ok(value_vecs)
     }
 }
 
@@ -814,6 +894,56 @@ where
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
         self.get_mut(self.last_index())
+    }
+
+    pub fn init(
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<ManuallyDrop<Self>, BoundedVecError> {
+        if (capacity * std::mem::size_of::<T>()) % 8 != 0 {
+            return Err(BoundedVecError::UnalignedMemory(
+                capacity * std::mem::size_of::<T>(),
+            ));
+        }
+        let meta: CyclicBoundedVecMetadata = if with_len {
+            CyclicBoundedVecMetadata::new_with_length(capacity, capacity)
+        } else {
+            CyclicBoundedVecMetadata::new(capacity)
+        };
+        write_at::<CyclicBoundedVecMetadata>(
+            account_data,
+            meta.to_le_bytes().as_slice(),
+            start_offset,
+        );
+        let meta: *mut CyclicBoundedVecMetadata = unsafe {
+            read_ptr_at(
+                &*account_data,
+                &mut start_offset.sub(std::mem::size_of::<CyclicBoundedVecMetadata>()),
+            )
+        };
+        Ok(unsafe {
+            ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
+                meta,
+                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+            ))
+        })
+    }
+
+    // TODO: pull ManuallyDrop into CyclicBoundedVec
+    // TODO: add alignment checks
+    pub fn deserialize(
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> ManuallyDrop<CyclicBoundedVec<T>> {
+        let metadata = unsafe { read_ptr_at(account_data, start_offset) };
+        unsafe {
+            ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
+                metadata,
+                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+            ))
+        }
     }
 }
 
