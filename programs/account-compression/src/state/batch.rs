@@ -7,19 +7,24 @@ use crate::errors::AccountCompressionErrorCode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Batch {
-    pub id: u8,
-    pub bloomfilter_store_id: u8,
-    pub value_store_id: u8,
+    // pub id: u8,
+    // pub bloomfilter_store_id: u8,
+    // pub value_store_id: u8,
     pub num_iters: u64,
     pub bloomfilter_capacity: u64,
     pub value_capacity: u64,
     // TODO: make private
     pub num_inserted: u64,
+    // TODO: remove user_hash_chain and prover_hash_chain
     pub user_hash_chain: [u8; 32],
     /// To enable update of the batch in multiple proofs the prover hash chain
     /// is used to save intermediate state.
     pub prover_hash_chain: [u8; 32],
     pub is_inserted: bool,
+    // TODO: add multiple hash chains per batch
+    // pub hash_chains_capacity = batch_capacity / zkp_batch_size -> number of
+    // pub hash_chains: BoundedVec<BoundedVec<[u8; 32]>>,
+    // pub zkp_batch_size: u64,
 }
 
 impl Batch {
@@ -90,9 +95,6 @@ impl Batch {
     /// Inserts into the bloom filter and hashes the value.
     /// (used by input/nullifier queue)
     pub fn insert(&mut self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
-        println!("Inserting value: {:?}", value);
-        println!("Num iters: {:?}", self.num_iters);
-        println!("Capacity: {:?}", self.bloomfilter_capacity);
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
                 .map_err(ProgramError::from)?;
@@ -109,7 +111,6 @@ impl Batch {
             Poseidon::hashv(&[self.user_hash_chain.as_slice(), value.as_slice()])
                 .map_err(ProgramError::from)?;
         self.num_inserted += 1;
-        println!("num inserted: {:?}", self.num_inserted);
         if self.num_inserted == self.value_capacity {
             self.is_inserted = false;
         }
@@ -141,9 +142,9 @@ mod tests {
 
     fn get_test_batch() -> Batch {
         Batch {
-            id: 1,
-            bloomfilter_store_id: 1,
-            value_store_id: 1,
+            // id: 1,
+            // bloomfilter_store_id: 1,
+            // value_store_id: 1,
             num_iters: 3,
             bloomfilter_capacity: 160_000,
             num_inserted: 0,

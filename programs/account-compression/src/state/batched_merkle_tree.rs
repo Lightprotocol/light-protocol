@@ -48,7 +48,6 @@ pub struct BatchedMerkleTreeAccount {
     pub next_index: u64,
     pub height: u32,
     pub root_history_capacity: u32,
-    // pub current_root_index: u64,
     pub queue: BatchedQueue,
 }
 
@@ -63,6 +62,40 @@ impl BatchedMerkleTreeAccount {
             + queue_account_size(&self.queue, QueueType::Input as u64)?;
         Ok(size)
     }
+
+    pub fn get_state_tree_default(
+        owner: Pubkey,
+        program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
+        rollover_threshold: Option<u64>,
+        index: u64,
+        network_fee: u64,
+        batch_size: u64,
+        bloom_filter_capacity: u64,
+        associated_queue: Pubkey,
+    ) -> Self {
+        Self {
+            metadata: MerkleTreeMetadata {
+                next_merkle_tree: Pubkey::default(),
+                access_metadata: AccessMetadata::new(owner, program_owner, forester),
+                rollover_metadata: RolloverMetadata::new(
+                    index,
+                    0,
+                    rollover_threshold,
+                    network_fee,
+                    None,
+                    None,
+                ),
+                associated_queue,
+            },
+            sequence_number: 0,
+            tree_type: TreeType::State as u64,
+            next_index: 0,
+            height: 26,
+            root_history_capacity: 2,
+            queue: BatchedQueue::get_input_queue_default(batch_size, bloom_filter_capacity),
+        }
+    }
 }
 
 // Instead of a rollover we just push roots into root history. TODO: figure out
@@ -70,9 +103,9 @@ impl BatchedMerkleTreeAccount {
 // current model.)
 pub struct ZeroCopyBatchedMerkleTreeAccount<'a> {
     pub account: &'a mut BatchedMerkleTreeAccount,
-    /// Root buffer must be at be the length as the number of batches in queues.
     pub root_buffer: ManuallyDrop<CyclicBoundedVec<[u8; 32]>>,
-    // pub queue_account: &'a mut BatchedQueueAccount,
+    // TODO: add root history which is just a bounded vec of roots, with
+    // intermediate updates.
     pub batches: ManuallyDrop<BoundedVec<Batch>>,
     pub value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     pub bloomfilter_stores: Vec<ManuallyDrop<BoundedVec<u8>>>,
@@ -123,12 +156,6 @@ pub struct BatchProofInputs {
 }
 
 impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
-    // pub fn size(root_history_capacity: usize) -> usize {
-    //     std::mem::size_of::<BatchedMerkleTreeAccount>()
-    //         + std::mem::size_of::<CyclicBoundedVecMetadata>()
-    //         + 32 * root_history_capacity
-    // }
-
     // TODO: add from_account_info,  and from_account_loader
     pub fn from_account(
         account: &'a mut BatchedMerkleTreeAccount,
@@ -145,12 +172,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             QueueType::Input as u64,
             &mut start_offset,
         )?;
-        println!("from account batches: {:?}", batches.len());
-        println!("from account value_vecs: {:?}", value_vecs.len());
-        println!(
-            "from account bloomfilter_stores: {:?}",
-            bloomfilter_stores.len()
-        );
         Ok(ZeroCopyBatchedMerkleTreeAccount {
             account,
             root_buffer,
@@ -173,12 +194,14 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             return err!(AccountCompressionErrorCode::SizeMismatch);
         }
         let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>();
+
         let root_buffer: ManuallyDrop<CyclicBoundedVec<[u8; 32]>> = init_bounded_cyclic_vec(
             account.root_history_capacity as usize,
             account_data,
             &mut start_offset,
             false,
         );
+
         let (batches, value_vecs, bloomfilter_stores) = init_queue_from_account(
             &mut account.queue,
             QueueType::Input as u64,
@@ -187,9 +210,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             bloomfilter_capacity,
             &mut start_offset,
         )?;
-        println!("init batches: {:?}", batches.len());
-        println!("init value_vecs: {:?}", value_vecs.len());
-        println!("init bloomfilter_stores: {:?}", bloomfilter_stores.len());
         Ok(ZeroCopyBatchedMerkleTreeAccount {
             account,
             root_buffer,
@@ -207,7 +227,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         instruction_data: &InstructionDataBatchUpdateProofInputs,
     ) -> Result<(BatchProofInputs, u8)> {
         let batch_capacity = account.batch_size as usize;
-        let batch = queue_get_next_full_batch(account, batches)?;
+        let (batch, batch_index) = queue_get_next_full_batch(account, batches)?;
         if !batch.is_ready_to_update_tree() {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
@@ -223,7 +243,7 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             input_hash_chain: batch.prover_hash_chain,
             output_hash_chain: batch.prover_hash_chain,
         };
-        Ok((public_inputs, batch.id))
+        Ok((public_inputs, batch_index))
     }
 
     pub fn compress_public_inputs(&self, public_inputs: &BatchProofInputs) -> Result<[u8; 32]> {
@@ -251,7 +271,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         Ok(public_input_hash)
     }
 
-    // TODO: add flexibility for using multiple proofs to consume one queue batch.
     pub fn update_output_queue(
         &mut self,
         queue_account: &mut BatchedQueueAccount,
@@ -319,9 +338,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         // TODO: replace with actual verification in light-verifier
         verify_mock_circuit(&public_input_hash, &instruction_data.compressed_proof)?;
         self.root_buffer.push(public_inputs.new_root);
-        println!("public inputs start index {:?}", public_inputs.start_index);
-        println!("public inputs end index {:?}", public_inputs.end_index);
-        println!("prev next index: {:?}", self.account.next_index);
         self.account.next_index = public_inputs.end_index;
         self.account.sequence_number += 1;
         Ok(())
@@ -365,7 +381,25 @@ pub fn get_merkle_tree_account_size_default() -> usize {
             ..Default::default()
         },
     };
-    println!("get default size mt account : {:?}", mt_account);
+    mt_account.size().unwrap()
+}
+pub fn get_merkle_tree_account_size(batch_size: u64, bloom_filter_capacity: u64) -> usize {
+    // TODO: implement a default config for BatchedMerkleTreeAccount using a
+    // default for BatchedInputQueue
+    let mt_account = BatchedMerkleTreeAccount {
+        metadata: MerkleTreeMetadata::default(),
+        next_index: 0,
+        sequence_number: 0,
+        tree_type: TreeType::State as u64,
+        height: 26,
+        root_history_capacity: 2,
+        queue: BatchedQueue {
+            num_batches: 4,
+            batch_size,
+            bloom_filter_capacity,
+            ..Default::default()
+        },
+    };
     mt_account.size().unwrap()
 }
 
@@ -378,318 +412,56 @@ mod tests {
     use rand::{rngs::StdRng, Rng};
 
     use crate::{
-        batched_queue::get_output_queue_account_size_default,
-        initialize_address_queue::check_rollover_fee_sufficient, AccessMetadata,
-        MerkleTreeMetadata, QueueMetadata, QueueType, RolloverMetadata,
+        batched_queue::{
+            get_output_queue_account_size, get_output_queue_account_size_default,
+            tests::{assert_queue_inited, assert_queue_zero_copy_inited},
+        },
+        initialize_address_queue::check_rollover_fee_sufficient,
+        AccessMetadata, MerkleTreeMetadata, QueueMetadata, QueueType, RolloverMetadata,
     };
 
     use super::*;
 
-    // pub fn get_test_mt_account_and_account_data(
-    //     tree_type: TreeType,
-    //     height: u64,
-    //     root_history_capacity: u64,
-    // ) -> (BatchedMerkleTreeAccount, Vec<u8>) {
-    //     let metadata = BatchedMerkleTreeMetadata {
-    //         next_merkle_tree: Pubkey::new_unique(),
-    //         access_metadata: AccessMetadata::default(),
-    //         rollover_metadata: RolloverMetadata::default(),
-    //         tree_type: tree_type as u64,
-    //         associated_input_queue: Pubkey::new_unique(),
-    //         associated_output_queue: Pubkey::new_unique(),
-    //     };
-    //     let queue = get_test_account_and_account_data(batch_size, num_batches, queue_type, bloom_filter_capacity)
-
-    //     let account = BatchedMerkleTreeAccount {
-    //         metadata: metadata.clone(),
-    //         next_index: 0,
-    //         sequence_number: 0,
-    //         tree_type: tree_type as u64,
-    //         height,
-    //         root_history_capacity,
-    //         current_root_index: 0,
-    //     };
-    //     let account_data: Vec<u8> = vec![0; account.size().unwrap()];
-    //     (account, account_data)
-    // }
-
     fn assert_mt_zero_copy_inited(
-        tree_type: TreeType,
-        height: u32,
-        root_history_capacity: u32,
-        zero_copy_account: &ZeroCopyBatchedMerkleTreeAccount,
-        account: &BatchedMerkleTreeAccount,
+        account: &mut BatchedMerkleTreeAccount,
+        account_data: &mut [u8],
+        ref_account: BatchedMerkleTreeAccount,
+        num_iters: u64,
     ) {
-        assert_eq!(*zero_copy_account.account, *account, "metadata mismatch");
+        let queue = account.queue.clone();
+        let ref_queue = ref_account.queue.clone();
+        let queue_type = QueueType::Input as u64;
+        let num_batches = ref_queue.num_batches as usize;
+
+        let mut zero_copy_account =
+            ZeroCopyBatchedMerkleTreeAccount::from_account(account, account_data)
+                .expect("from_account failed");
+        assert_eq!(*zero_copy_account.account, ref_account, "metadata mismatch");
+
         assert_eq!(
             zero_copy_account.root_buffer.capacity(),
-            root_history_capacity as usize,
+            ref_account.root_history_capacity as usize,
             "root_history_capacity mismatch"
         );
-        assert_eq!(zero_copy_account.account.height, height, "height mismatch");
-        assert_eq!(
-            zero_copy_account.account.tree_type, tree_type as u64,
-            "tree_type mismatch"
-        );
-        assert_eq!(zero_copy_account.account.next_index, 0, "next_index != 0");
-        assert_eq!(
-            zero_copy_account.account.sequence_number, 0,
-            "sequence_number != 0"
+
+        assert!(
+            zero_copy_account.root_buffer.is_empty(),
+            "root_buffer not empty"
         );
 
-        // if account.metadata.tree_type == TreeType::State as u64 {
-        //     assert_eq!(zero_copy_account.value_vecs.len(), 0, "value_vecs mismatch");
-        //     assert_eq!(
-        //         zero_copy_account.value_vecs.capacity(),
-        //         0,
-        //         "value_vecs mismatch"
-        //     );
-        // }
-        // else {
-        //     assert_eq!(
-        //         zero_copy_account.value_vecs.capacity(),
-        //         num_batches,
-        //         "value_vecs mismatch"
-        //     );
-        //     assert_eq!(
-        //         zero_copy_account.value_vecs.len(),
-        //         num_batches,
-        //         "value_vecs mismatch"
-        //     );
-        // }
-        // if account.metadata.queue_type == QueueType::Output as u64 {
-        //     assert_eq!(
-        //         zero_copy_account.bloomfilter_stores.capacity(),
-        //         0,
-        //         "bloomfilter_stores mismatch"
-        //     );
-        // } else {
-        //     assert_eq!(
-        //         zero_copy_account.bloomfilter_stores.capacity(),
-        //         num_batches,
-        //         "bloomfilter_stores mismatch"
-        //     );
-        //     assert_eq!(
-        //         zero_copy_account.bloomfilter_stores.len(),
-        //         num_batches,o
-        //         "bloomfilter_stores mismatch"
-        //     );
-        // }
-
-        // for vec in zero_copy_account.bloomfilter_stores.iter() {
-        //     assert_eq!(
-        //         vec.capacity(),
-        //         account.bloom_filter_capacity as usize,
-        //         "bloom_filter_capacity mismatch"
-        //     );
-        //     assert_eq!(
-        //         vec.len(),
-        //         account.bloom_filter_capacity as usize,
-        //         "bloom_filter_capacity mismatch"
-        //     );
-        // }
-
-        // for vec in zero_copy_account.value_vecs.iter() {
-        //     assert_eq!(vec.capacity(), batch_size, "batch_size mismatch");
-        //     assert_eq!(vec.len(), 0, "batch_size mismatch");
-        // }
+        assert_queue_inited(
+            queue,
+            ref_queue,
+            queue_type,
+            &mut zero_copy_account.value_vecs,
+            &mut zero_copy_account.bloomfilter_stores,
+            &mut zero_copy_account.batches,
+            num_batches,
+            num_iters,
+        );
     }
 
-    /// TODO: add infinite test with random values filling both input and output
-    /// queues with a counter which keeps things below X tps and an if that
-    /// executes tree updates when possible.
-    // #[test]
-    // fn test_mt_account_functional() {
-    //     let queue_types = vec![QueueType::Input, QueueType::Output];
-    //     for queue_type in queue_types {
-    //         let batch_size = 100;
-    //         let num_batches = 2;
-
-    //         let height = 26;
-    //         // Should be twice to num batches since num batches is the number input and output batches -> 2x
-    //         let root_history_capacity = num_batches;
-    //         let bloomfilter_capacity = 20_000 * 8;
-    //         let bloomfilter_num_iters = 3;
-    //         let (mut queue_account, mut queue_account_data) = get_test_account_and_account_data(
-    //             batch_size,
-    //             num_batches,
-    //             queue_type,
-    //             bloomfilter_capacity,
-    //         );
-    //         let pre_init_account_data = queue_account_data.clone();
-    //         // Init
-    //         {
-    //             ZeroCopyBatchedQueueAccount::init_from_account(
-    //                 &mut queue_account,
-    //                 &mut queue_account_data,
-    //                 bloomfilter_num_iters,
-    //             )
-    //             .unwrap();
-    //         }
-    //         assert_ne!(queue_account_data, pre_init_account_data);
-
-    //         // Fill queue with values
-    //         for i in 0..batch_size {
-    //             let mut zero_copy_account = ZeroCopyBatchedQueueAccount::from_account(
-    //                 &mut queue_account,
-    //                 &mut queue_account_data,
-    //             )
-    //             .unwrap();
-    //             let mut value = [0u8; 32];
-    //             value[24..].copy_from_slice(&i.to_le_bytes());
-    //             zero_copy_account.insert_into_current_batch(&value).unwrap();
-    //         }
-
-    //         // assert values are in bloom filter and value vec
-    //         {
-    //             let mut zero_copy_account = ZeroCopyBatchedQueueAccount::from_account(
-    //                 &mut queue_account,
-    //                 &mut queue_account_data,
-    //             )
-    //             .unwrap();
-
-    //             // value exists in bloom filter
-    //             // value exists in value array
-    //             for i in 0..batch_size {
-    //                 let mut value = [0u8; 32];
-    //                 value[24..].copy_from_slice(&i.to_le_bytes());
-    //                 println!("value: {:?}", value);
-    //                 if queue_type == QueueType::Output {
-    //                     assert!(zero_copy_account.value_vecs[0]
-    //                         .as_mut_slice()
-    //                         .to_vec()
-    //                         .contains(&value));
-    //                 } else {
-    //                     let mut bloomfilter = light_bloom_filter::BloomFilter::new(
-    //                         zero_copy_account.batches[0].num_iters as usize,
-    //                         zero_copy_account.batches[0].bloomfilter_capacity,
-    //                         zero_copy_account.bloomfilter_stores[0].as_mut_slice(),
-    //                     )
-    //                     .unwrap();
-    //                     assert!(bloomfilter.contains(&value));
-    //                 } // TODO: assert for output queue
-    //                   // assert!(zero_copy_account.value_vecs[0]
-    //                   //     .as_mut_slice()
-    //                   //     .to_vec()
-    //                   //     .contains(&value));
-    //             }
-    //             println!(
-    //                 "zero_copy_account.batches[0]: {:?}",
-    //                 zero_copy_account.batches.get(0).unwrap()
-    //             );
-    //             // batch ready
-    //             assert!(zero_copy_account.batches[0].is_ready_to_update_tree());
-    //         }
-
-    //         for tree_type in vec![TreeType::State] {
-    //             println!("root_history_capacity: {}", root_history_capacity);
-    //             let (mut account, mut account_data) =
-    //                 get_test_mt_account_and_account_data(tree_type, height, root_history_capacity);
-    //             let ref_account = account.clone();
-    //             let mut zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::init_from_account(
-    //                 &mut account,
-    //                 &mut account_data,
-    //             )
-    //             .unwrap();
-
-    //             assert_mt_zero_copy_inited(
-    //                 tree_type,
-    //                 height,
-    //                 root_history_capacity,
-    //                 &zero_copy_account,
-    //                 &ref_account,
-    //             );
-    //             let instruction_data = InstructionDataBatchUpdateProofInputs {
-    //                 public_inputs: BatchProofInputsIx {
-    //                     circuit_id: 1,
-    //                     new_root: [1u8; 32],
-    //                     output_hash_chain: [1u8; 32],
-    //                     root_index: 0,
-    //                 },
-    //                 compressed_proof: CompressedProof::default(),
-    //             };
-    //             zero_copy_account
-    //                 .update(
-    //                     &mut queue_account,
-    //                     &mut queue_account_data,
-    //                     instruction_data,
-    //                 )
-    //                 .unwrap();
-    //             // assert merkle tree
-    //             {
-    //                 println!("self.root_buffer: {:?}", zero_copy_account.root_buffer);
-    //                 // There should be a root now
-    //                 assert_eq!(
-    //                     *zero_copy_account.root_buffer.get(0).unwrap(),
-    //                     instruction_data.public_inputs.new_root
-    //                 );
-    //                 // sequence number + 1
-    //                 assert_eq!(zero_copy_account.account.sequence_number, 1);
-    //             }
-    //             // assert queue account
-    //             {
-    //                 // Second batch proof should fail
-    //                 assert!(zero_copy_account
-    //                     .update(
-    //                         &mut queue_account,
-    //                         &mut queue_account_data,
-    //                         instruction_data,
-    //                     )
-    //                     .is_err(),);
-    //                 let mut zero_copy_queue_account = ZeroCopyBatchedQueueAccount::from_account(
-    //                     &mut queue_account,
-    //                     &mut queue_account_data,
-    //                 )
-    //                 .unwrap();
-    //                 assert!(!zero_copy_queue_account.batches[0].is_ready_to_update_tree());
-    //                 // New inserts should go to Batch 1
-    //                 {
-    //                     assert_eq!(zero_copy_queue_account.batches[1].num_inserted, 0);
-    //                     println!(
-    //                         "zero_copy_queue_account.batches[0]: {:?}",
-    //                         zero_copy_queue_account.batches[0]
-    //                     );
-    //                     println!(
-    //                         "zero_copy_queue_account.batches[1]: {:?}",
-    //                         zero_copy_queue_account.batches[1]
-    //                     );
-
-    //                     let mut value = [0u8; 32];
-    //                     value[24..].copy_from_slice(&3232u64.to_le_bytes());
-    //                     zero_copy_queue_account
-    //                         .insert_into_current_batch(&value)
-    //                         .unwrap();
-    //                     println!(
-    //                         "zero_copy_queue_account.batches[0]: {:?}",
-    //                         zero_copy_queue_account.batches[0]
-    //                     );
-    //                     println!(
-    //                         "zero_copy_queue_account.batches[1]: {:?}",
-    //                         zero_copy_queue_account.batches[1]
-    //                     );
-    //                     assert_eq!(zero_copy_queue_account.batches[1].num_inserted, 1);
-    //                 }
-    //                 // As soon as the current input batch switches the sequence
-    //                 // number needs to catch up to the sequence number of the next
-    //                 // input batch so that it is unlocked.
-    //                 // For output batches it doesn't matter.
-    //                 // TODO: unify queue and tree accounts there is no benefit in keeping these separate.
-    //                 /**
-    //                  * 1. Insert values into output queue until it's full
-    //                  * 2. Update Merkle tree with output queue
-    //                  * - it was always possible to spend values from the output queue, output queue must be updated before input queue
-    //                  * -> output queues can always be updated
-    //                  * -> input queues can only be updated if the input is already in the tree
-    //                  * -> this mess can be avoided by zeroing the value in the output queue and not inserting
-    //                  * it into the input queue if the output batch has not been inserted into the tree yet
-    //                  * 3.
-    //                  */
-    //                 struct Dummy;
-    //             }
-    //         }
-    //     }
-    // }
-
+    #[derive(Debug, PartialEq, Clone, Copy)]
     pub struct CreateStateTreeAccountsInstructionData {
         pub index: u64,
         pub program_owner: Option<Pubkey>,
@@ -709,7 +481,7 @@ mod tests {
                 index: 0,
                 program_owner: None,
                 forester: None,
-                additional_bytes: 0,
+                additional_bytes: 1,
                 bloomfilter_num_iters: 3,
                 input_queue_batch_size: 5000,
                 output_queue_batch_size: 5000,
@@ -724,8 +496,6 @@ mod tests {
     pub fn create_batched_state_merkle_tree_accounts<'a>(
         owner: Pubkey,
         params: CreateStateTreeAccountsInstructionData,
-        // input_queue_account: &'a mut BatchedQueueAccount,
-        // input_queue_account_data: &mut [u8],
         output_queue_account: &'a mut BatchedQueueAccount,
         output_queue_account_data: &mut [u8],
         output_queue_pubkey: Pubkey,
@@ -734,7 +504,16 @@ mod tests {
         mt_account_data: &mut [u8],
         mt_pubkey: Pubkey,
         merkle_tree_rent: u64,
+        additional_bytes_rent: u64,
     ) -> Result<()> {
+        if params.bloom_filter_capacity % 8 != 0 {
+            println!(
+                "params.bloom_filter_capacity: {}",
+                params.bloom_filter_capacity
+            );
+            println!("Blooms must be divisible by 8 or it will create unaligned memory.");
+            return err!(AccountCompressionErrorCode::InvalidBloomFilterCapacity);
+        }
         /*
          * Note on security for length of
          * root buffer, bloomfilter and output batch arrays:
@@ -795,19 +574,16 @@ mod tests {
         {
             let rollover_fee = match params.rollover_threshold {
                 Some(rollover_threshold) => {
-                    let rollover_fee =
-                        compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
-                            .map_err(ProgramError::from)?
-                            + compute_rollover_fee(rollover_threshold, height, queue_rent)
-                                .map_err(ProgramError::from)?;
+                    let rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
+                    let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
+                        .map_err(ProgramError::from)?;
                     check_rollover_fee_sufficient(
                         rollover_fee,
-                        queue_rent,
-                        merkle_tree_rent,
+                        0,
+                        rent,
                         rollover_threshold,
                         height,
                     )?;
-                    msg!(" state Merkle tree rollover_fee: {}", rollover_fee);
                     rollover_fee
                 }
                 None => 0,
@@ -871,15 +647,8 @@ mod tests {
         Ok(())
     }
 
-    /// TODO: add input queue
-    /// TODO: add complete asserts
-    /// TODO: do full sweep and write specs
-    /// TODO: add circuits for update
-    /// queues with a counter which keeps things below X tps and an if that
-    /// executes tree updates when possible.
     #[test]
-    fn test_e2e() {
-        let num_tx = 220000;
+    fn test_account_init() {
         let owner = Pubkey::new_unique();
 
         let queue_account_size = get_output_queue_account_size_default();
@@ -897,6 +666,186 @@ mod tests {
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
+        let additional_bytes_rent = 1000;
+        create_batched_state_merkle_tree_accounts(
+            owner,
+            params.clone(),
+            &mut output_queue_account,
+            &mut output_queue_account_data,
+            output_queue_pubkey,
+            queue_rent,
+            &mut mt_account,
+            &mut mt_account_data,
+            mt_pubkey,
+            merkle_tree_rent,
+            additional_bytes_rent,
+        )
+        .unwrap();
+        let ref_output_queue_account = BatchedQueueAccount::get_output_queue_default(
+            owner,
+            None,
+            None,
+            params.rollover_threshold,
+            0,
+            params.output_queue_batch_size,
+            params.additional_bytes,
+            merkle_tree_rent + additional_bytes_rent + queue_rent,
+            mt_pubkey,
+        );
+        assert_queue_zero_copy_inited(
+            &mut output_queue_account,
+            output_queue_account_data.as_mut_slice(),
+            ref_output_queue_account,
+            0,
+        );
+        let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+            owner,
+            None,
+            None,
+            params.rollover_threshold,
+            0,
+            params.network_fee.unwrap_or_default(),
+            params.input_queue_batch_size,
+            params.bloom_filter_capacity,
+            output_queue_pubkey,
+        );
+        assert_mt_zero_copy_inited(
+            &mut mt_account,
+            &mut mt_account_data,
+            ref_mt_account,
+            params.bloomfilter_num_iters,
+        );
+    }
+
+    #[test]
+    fn test_rnd_account_init() {
+        use rand::SeedableRng;
+        let mut rng = StdRng::seed_from_u64(0);
+        for _ in 0..10000 {
+            let owner = Pubkey::new_unique();
+
+            let program_owner = if rng.gen_bool(0.5) {
+                Some(Pubkey::new_unique())
+            } else {
+                None
+            };
+            let forester = if rng.gen_bool(0.5) {
+                Some(Pubkey::new_unique())
+            } else {
+                None
+            };
+
+            let params = CreateStateTreeAccountsInstructionData {
+                index: rng.gen_range(0..1000),
+                program_owner,
+                forester,
+                additional_bytes: rng.gen_range(0..1000),
+                bloomfilter_num_iters: rng.gen_range(0..1000),
+                input_queue_batch_size: rng.gen_range(0..1000),
+                output_queue_batch_size: rng.gen_range(0..1000),
+                // 8 bits per byte, divisible by 8 for aligned memory
+                bloom_filter_capacity: rng.gen_range(0..1000) * 8 * 8,
+                network_fee: Some(rng.gen_range(0..1000)),
+                rollover_threshold: Some(rng.gen_range(0..100)),
+                close_threshold: None,
+            };
+            let queue_account_size = get_output_queue_account_size(params.output_queue_batch_size);
+
+            let mut output_queue_account = BatchedQueueAccount::default();
+            let mut output_queue_account_data = vec![0; queue_account_size];
+            let output_queue_pubkey = Pubkey::new_unique();
+
+            let mt_account_size = get_merkle_tree_account_size(
+                params.input_queue_batch_size,
+                params.bloom_filter_capacity,
+            );
+            let mut mt_account = BatchedMerkleTreeAccount::default();
+            let mut mt_account_data = vec![0; mt_account_size];
+            let mt_pubkey = Pubkey::new_unique();
+
+            let merkle_tree_rent = rng.gen_range(0..10000000);
+            let queue_rent = rng.gen_range(0..10000000);
+            let additional_bytes_rent = rng.gen_range(0..10000000);
+            create_batched_state_merkle_tree_accounts(
+                owner,
+                params.clone(),
+                &mut output_queue_account,
+                &mut output_queue_account_data,
+                output_queue_pubkey,
+                queue_rent,
+                &mut mt_account,
+                &mut mt_account_data,
+                mt_pubkey,
+                merkle_tree_rent,
+                additional_bytes_rent,
+            )
+            .unwrap();
+            let ref_output_queue_account = BatchedQueueAccount::get_output_queue(
+                owner,
+                program_owner,
+                forester,
+                params.rollover_threshold,
+                params.index,
+                params.output_queue_batch_size,
+                params.additional_bytes,
+                merkle_tree_rent + additional_bytes_rent + queue_rent,
+                mt_pubkey,
+                params.network_fee.unwrap_or_default(),
+            );
+            assert_queue_zero_copy_inited(
+                &mut output_queue_account,
+                output_queue_account_data.as_mut_slice(),
+                ref_output_queue_account,
+                0,
+            );
+            println!("output queue account: correctly inited");
+            let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+                owner,
+                program_owner,
+                forester,
+                params.rollover_threshold,
+                params.index,
+                params.network_fee.unwrap_or_default(),
+                params.input_queue_batch_size,
+                params.bloom_filter_capacity,
+                output_queue_pubkey,
+            );
+            assert_mt_zero_copy_inited(
+                &mut mt_account,
+                &mut mt_account_data,
+                ref_mt_account,
+                params.bloomfilter_num_iters,
+            );
+        }
+    }
+
+    /// TODO: add input queue
+    /// TODO: add complete asserts
+    /// TODO: do full sweep and write specs
+    /// TODO: add circuits for update
+    /// queues with a counter which keeps things below X tps and an if that
+    /// executes tree updates when possible.
+    #[test]
+    fn test_e2e() {
+        let num_tx = 22000;
+        let owner = Pubkey::new_unique();
+
+        let queue_account_size = get_output_queue_account_size_default();
+
+        let mut output_queue_account = BatchedQueueAccount::default();
+        let mut output_queue_account_data = vec![0; queue_account_size];
+        let output_queue_pubkey = Pubkey::new_unique();
+
+        let mt_account_size = get_merkle_tree_account_size_default();
+        let mut mt_account = BatchedMerkleTreeAccount::default();
+        let mut mt_account_data = vec![0; mt_account_size];
+        let mt_pubkey = Pubkey::new_unique();
+
+        let params = CreateStateTreeAccountsInstructionData::default();
+
+        let merkle_tree_rent = 1_000_000_000;
+        let queue_rent = 1_000_000_000;
+        let additional_bytes_rent = 1000;
 
         create_batched_state_merkle_tree_accounts(
             owner,
@@ -909,6 +858,7 @@ mod tests {
             &mut mt_account_data,
             mt_pubkey,
             merkle_tree_rent,
+            additional_bytes_rent,
         )
         .unwrap();
         use rand::SeedableRng;
