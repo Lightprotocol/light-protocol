@@ -71,6 +71,12 @@ There are three ways of setting up the development environment:
 - [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
 
+### Prerequisites:
+- Ubuntu, `sudo apt-get install lld clang`
+- Arch, `sudo pacman -S lld clang`
+- Mac, `brew install llvm`
+- Windows `cargo install -f cargo-binutils && rustup component add llvm-tools-preview`
+
 ### devenv.sh
 
 The easiest way to setup the development environment is to use our scripts
