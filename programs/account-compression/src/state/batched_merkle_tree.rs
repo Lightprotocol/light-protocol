@@ -1,4 +1,5 @@
 use crate::{
+    batch::BatchState,
     batched_queue::{deserialize_cyclic_bounded_vec, ZeroCopyBatchedQueueAccount},
     errors::AccountCompressionErrorCode,
 };
@@ -228,9 +229,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
     ) -> Result<(BatchProofInputs, u8)> {
         let batch_capacity = account.batch_size as usize;
         let (batch, batch_index) = queue_get_next_full_batch(account, batches)?;
-        if !batch.is_ready_to_update_tree() {
-            return err!(AccountCompressionErrorCode::BatchNotReady);
-        }
 
         let public_inputs = BatchProofInputs {
             old_root,
@@ -323,16 +321,17 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         } else {
             &mut self.batches
         };
-        if batches[batch_index as usize].is_inserted {
+        if batches[batch_index as usize].state == BatchState::Inserted {
             return err!(AccountCompressionErrorCode::BatchAlreadyInserted);
-        } else if !batches[batch_index as usize].is_ready_to_update_tree() {
+        } else if batches[batch_index as usize].state == BatchState::CanBeFilled {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
 
         println!("batch_index: {}", batch_index);
         println!("batch : {:?}", batches[batch_index as usize]);
-        batches[batch_index as usize].is_inserted = true;
+        batches[batch_index as usize].state = BatchState::Inserted;
         batches[batch_index as usize].user_hash_chain = [0u8; 32];
+        batches[batch_index as usize].num_inserted = 0;
 
         let public_input_hash = self.compress_public_inputs(&public_inputs)?;
         // TODO: replace with actual verification in light-verifier
@@ -412,6 +411,7 @@ mod tests {
     use rand::{rngs::StdRng, Rng};
 
     use crate::{
+        batch::BatchState,
         batched_queue::{
             get_output_queue_account_size, get_output_queue_account_size_default,
             tests::{assert_queue_inited, assert_queue_zero_copy_inited},
@@ -798,7 +798,6 @@ mod tests {
                 ref_output_queue_account,
                 0,
             );
-            println!("output queue account: correctly inited");
             let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
                 owner,
                 program_owner,
@@ -818,16 +817,161 @@ mod tests {
             );
         }
     }
+    /// Insert into input queue:
+    /// 1. New value exists in the current batch bloomfilter
+    /// 2. New value does not exist in the other batch bloomfilters
+    /// 3.
+    pub fn assert_input_queue_insert(
+        mut pre_account: BatchedMerkleTreeAccount,
+        pre_batches: ManuallyDrop<BoundedVec<Batch>>,
+        pre_roots: Vec<[u8; 32]>,
+        merkle_tree_zero_copy_account: &mut ZeroCopyBatchedMerkleTreeAccount,
+        insert_value: [u8; 32],
+    ) -> Result<()> {
+        let current_batch_index = merkle_tree_zero_copy_account
+            .account
+            .queue
+            .currently_processing_batch_index as usize;
+        let mut inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
 
-    /// TODO: add input queue
-    /// TODO: add complete asserts
-    /// TODO: do full sweep and write specs
+        // if the currently processing batch changed it should
+        // increment by one and the old batch should be ready to
+        // update
+        if current_batch_index != pre_account.queue.currently_processing_batch_index as usize {
+            println!("merkle_tree_zero_copy_account.batches
+                                [pre_account.queue.currently_processing_batch_index as usize] : {:?}",merkle_tree_zero_copy_account.batches
+                                [pre_account.queue.currently_processing_batch_index as usize]);
+            assert_eq!(
+                merkle_tree_zero_copy_account.batches
+                    [pre_account.queue.currently_processing_batch_index as usize]
+                    .state,
+                BatchState::ReadyToUpdateTree
+            );
+            pre_account.queue.currently_processing_batch_index += 1;
+            pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+        }
+        let mut expected_batch = pre_batches[inserted_batch_index].clone();
+
+        if expected_batch.state == BatchState::Inserted {
+            expected_batch.state = BatchState::CanBeFilled;
+        }
+        assert_eq!(
+            *merkle_tree_zero_copy_account.account, pre_account,
+            "BatchedMerkleTreeAccount changed."
+        );
+        let post_roots: Vec<[u8; 32]> = merkle_tree_zero_copy_account
+            .root_buffer
+            .iter()
+            .cloned()
+            .collect();
+        assert_eq!(post_roots, pre_roots, "Root buffer changed.");
+
+        // New value exists in the current batch bloom filter
+        let mut bloomfilter = light_bloom_filter::BloomFilter::new(
+            merkle_tree_zero_copy_account.batches[inserted_batch_index].num_iters as usize,
+            merkle_tree_zero_copy_account.batches[inserted_batch_index].bloomfilter_capacity,
+            merkle_tree_zero_copy_account.bloomfilter_stores[inserted_batch_index].as_mut_slice(),
+        )
+        .unwrap();
+        assert!(bloomfilter.contains(&insert_value));
+        let previous_hashchain = expected_batch.user_hash_chain;
+        expected_batch.add_to_hash_chain(&insert_value)?;
+        assert_ne!(expected_batch.user_hash_chain, previous_hashchain);
+
+        assert_eq!(
+            merkle_tree_zero_copy_account.batches[inserted_batch_index],
+            expected_batch
+        );
+
+        // New value does not exist in the other batch bloomfilters
+        for (i, batch) in merkle_tree_zero_copy_account.batches.iter_mut().enumerate() {
+            // Skip current batch it is already checked above
+            if i == inserted_batch_index {
+                continue;
+            }
+            let mut bloomfilter = light_bloom_filter::BloomFilter::new(
+                batch.num_iters as usize,
+                batch.bloomfilter_capacity,
+                merkle_tree_zero_copy_account.bloomfilter_stores[i].as_mut_slice(),
+            )
+            .unwrap();
+            assert!(!bloomfilter.contains(&insert_value));
+        }
+        Ok(())
+    }
+
+    pub fn assert_output_queue_insert(
+        mut pre_account: BatchedQueueAccount,
+        pre_batches: ManuallyDrop<BoundedVec<Batch>>,
+        output_zero_copy_account: &mut ZeroCopyBatchedQueueAccount,
+        insert_value: [u8; 32],
+    ) -> Result<()> {
+        let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+        let current_batch_index = output_zero_copy_account
+            .account
+            .queue
+            .currently_processing_batch_index as usize;
+        // if the currently processing batch changed it should
+        // increment by one and the old batch should be ready to
+        // update
+        if current_batch_index != pre_account.queue.currently_processing_batch_index as usize {
+            println!("merkle_tree_zero_copy_account.batches
+                                [pre_account.queue.currently_processing_batch_index as usize] : {:?}",output_zero_copy_account.batches
+                                [pre_account.queue.currently_processing_batch_index as usize]);
+            assert!(
+                output_zero_copy_account.batches
+                    [pre_account.queue.currently_processing_batch_index as usize]
+                    .state
+                    == BatchState::ReadyToUpdateTree
+            );
+            pre_account.queue.currently_processing_batch_index += 1;
+            pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+        }
+        let mut expected_batch = pre_batches[inserted_batch_index].clone();
+
+        if expected_batch.state == BatchState::Inserted {
+            expected_batch.state = BatchState::CanBeFilled;
+        }
+        // TODO: make only is_inserted true if it was recently inserted, replace with state enum
+        assert_eq!(
+            *output_zero_copy_account.account, pre_account,
+            "ZeroCopyBatchedQueueAccount changed."
+        );
+
+        let previous_hashchain = expected_batch.user_hash_chain.clone();
+        println!("expected_batch: {:?}", expected_batch);
+        expected_batch.add_to_hash_chain(&insert_value)?;
+        // if expected_batch.num_inserted > expected_batch.batch_size {
+        //     expected_batch.num_inserted -= expected_batch.batch_size;
+        // }
+        assert_ne!(expected_batch.user_hash_chain, previous_hashchain);
+        assert_eq!(
+            output_zero_copy_account.batches[inserted_batch_index],
+            expected_batch
+        );
+
+        let other_batch = if inserted_batch_index == 0 { 1 } else { 0 };
+        assert_eq!(
+            output_zero_copy_account.batches[other_batch],
+            pre_batches[other_batch]
+        );
+        assert!(output_zero_copy_account.value_vecs[inserted_batch_index]
+            .as_mut_slice()
+            .to_vec()
+            .contains(&insert_value));
+        assert!(!output_zero_copy_account.value_vecs[other_batch]
+            .as_mut_slice()
+            .to_vec()
+            .contains(&insert_value));
+        Ok(())
+    }
+
     /// TODO: add circuits for update
     /// queues with a counter which keeps things below X tps and an if that
     /// executes tree updates when possible.
     #[test]
     fn test_e2e() {
-        let num_tx = 22000;
+        let num_tx = 220000;
         let owner = Pubkey::new_unique();
 
         let queue_account_size = get_output_queue_account_size_default();
@@ -886,44 +1030,35 @@ mod tests {
                 if rng.gen_bool(0.8) {
                     println!("Input insert -----------------------------");
 
+                    let pre_batches: ManuallyDrop<BoundedVec<Batch>> =
+                        merkle_tree_zero_copy_account.batches.clone();
+                    let pre_account = merkle_tree_zero_copy_account.account.clone();
+                    let pre_roots = merkle_tree_zero_copy_account
+                        .root_buffer
+                        .iter()
+                        .cloned()
+                        .collect();
                     let rnd_bytes = get_rnd_bytes(&mut rng);
 
                     merkle_tree_zero_copy_account
                         .insert_into_current_batch(&rnd_bytes.to_vec().try_into().unwrap())
                         .unwrap();
-                    let current_batch_index = merkle_tree_zero_copy_account
-                        .account
-                        .queue
-                        .currently_processing_batch_index
-                        as usize;
-                    let other_batch = if current_batch_index == 0 { 1 } else { 0 };
 
-                    // New value does not exist in the other batch bloom filter
-                    let mut bloomfilter = light_bloom_filter::BloomFilter::new(
-                        merkle_tree_zero_copy_account.batches[other_batch].num_iters as usize,
-                        merkle_tree_zero_copy_account.batches[other_batch].bloomfilter_capacity,
-                        merkle_tree_zero_copy_account.bloomfilter_stores[other_batch]
-                            .as_mut_slice(),
+                    assert_input_queue_insert(
+                        pre_account,
+                        pre_batches,
+                        pre_roots,
+                        &mut merkle_tree_zero_copy_account,
+                        rnd_bytes,
                     )
                     .unwrap();
-                    assert!(!bloomfilter.contains(&rnd_bytes));
-                    // New value exists in the current batch bloom filter
-                    let mut bloomfilter = light_bloom_filter::BloomFilter::new(
-                        merkle_tree_zero_copy_account.batches[current_batch_index].num_iters
-                            as usize,
-                        merkle_tree_zero_copy_account.batches[current_batch_index]
-                            .bloomfilter_capacity,
-                        merkle_tree_zero_copy_account.bloomfilter_stores[current_batch_index]
-                            .as_mut_slice(),
-                    )
-                    .unwrap();
-                    assert!(bloomfilter.contains(&rnd_bytes));
                     num_input_values += 1;
                 }
+
                 in_ready_for_update = merkle_tree_zero_copy_account
                     .batches
                     .iter()
-                    .any(|batch| batch.is_ready_to_update_tree());
+                    .any(|batch| batch.state == BatchState::ReadyToUpdateTree);
             }
             // Output queue
             {
@@ -934,30 +1069,26 @@ mod tests {
                 .unwrap();
                 if rng.gen_bool(0.5) {
                     println!("Output insert -----------------------------");
+                    println!("num_output_values: {}", num_output_values);
                     let rnd_bytes = get_rnd_bytes(&mut rng);
+                    let pre_account = output_zero_copy_account.account.clone();
+                    let pre_batches = output_zero_copy_account.batches.clone();
                     output_zero_copy_account
                         .insert_into_current_batch(&rnd_bytes)
                         .unwrap();
-                    let current_batch_index = output_zero_copy_account
-                        .account
-                        .queue
-                        .currently_processing_batch_index
-                        as usize;
-                    let other_batch = if current_batch_index == 0 { 1 } else { 0 };
-                    assert!(output_zero_copy_account.value_vecs[current_batch_index]
-                        .as_mut_slice()
-                        .to_vec()
-                        .contains(&rnd_bytes));
-                    assert!(!output_zero_copy_account.value_vecs[other_batch]
-                        .as_mut_slice()
-                        .to_vec()
-                        .contains(&rnd_bytes));
+                    assert_output_queue_insert(
+                        pre_account,
+                        pre_batches,
+                        &mut output_zero_copy_account,
+                        rnd_bytes,
+                    )
+                    .unwrap();
                     num_output_values += 1;
                 }
                 out_ready_for_update = output_zero_copy_account
                     .batches
                     .iter()
-                    .any(|batch| batch.is_ready_to_update_tree());
+                    .any(|batch| batch.state == BatchState::ReadyToUpdateTree);
             }
             let root = get_rnd_bytes(&mut rng);
 
@@ -984,6 +1115,7 @@ mod tests {
             if !in_ready_for_update {
                 assert!(input_res.is_err());
             } else {
+                println!("res {:?}", input_res);
                 assert!(input_res.is_ok());
                 in_ready_for_update = false;
                 // assert Merkle tree

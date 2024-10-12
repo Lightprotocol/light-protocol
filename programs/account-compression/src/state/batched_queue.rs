@@ -11,6 +11,7 @@ use std::mem::ManuallyDrop;
 use std::ops::Sub;
 use std::u64;
 
+use super::batch::BatchState;
 use super::{AccessMetadata, RolloverMetadata};
 
 // TODO: implement update that verifies multiple proofs
@@ -313,7 +314,7 @@ pub fn queue_get_next_full_batch<'a>(
     let batch = batches
         .get_mut(account.next_full_batch_index as usize)
         .unwrap();
-    if batch.is_ready_to_update_tree() {
+    if batch.state == BatchState::ReadyToUpdateTree {
         let batch_index = account.next_full_batch_index as u8;
         account.next_full_batch_index += 1;
         account.next_full_batch_index %= batches_len as u64;
@@ -334,12 +335,6 @@ pub fn insert_into_current_batch<'a>(
     let len = batches.len();
     let mut inserted = false;
 
-    if account.batch_size == batches[account.currently_processing_batch_index as usize].num_inserted
-    {
-        println!("bump currently_processing_batch_index");
-        account.currently_processing_batch_index += 1;
-        account.currently_processing_batch_index %= len as u64;
-    }
     // insertion mode
     // Try to insert into the current queue.
     // In case the current queue fails, try to insert into the next queue.
@@ -353,37 +348,31 @@ pub fn insert_into_current_batch<'a>(
         let mut bloomfilter_stores = bloomfilter_stores.get_mut(index);
         let mut value_store = value_vecs.get_mut(index);
         let current_batch = batches.get_mut(index).unwrap();
+        if current_batch.state == BatchState::Inserted {
+            current_batch.state = BatchState::CanBeFilled;
+        }
+        if index == account.currently_processing_batch_index as usize
+            && current_batch.state == BatchState::ReadyToUpdateTree
+        {
+            return err!(AccountCompressionErrorCode::BatchNotReady);
+        }
+
         let queue_type = QueueType::from(queue_type);
-        // let is_full = account.batch_size == current_batch.num_inserted;
-        let (can_be_filled, wipe_batch) = current_batch.can_be_filled();
 
         // TODO: implement more efficient bloom filter wipe this will not work onchain
-        if wipe_batch {
-            println!(
-                "wipe bloom filter is some {:?}",
-                bloomfilter_stores.is_some()
-            );
+        if current_batch.num_inserted == 0 {
             if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
-                println!("wiping bloom filter");
                 (*blomfilter_stores)
                     .as_mut_slice()
                     .iter_mut()
                     .for_each(|x| *x = 0);
             }
-            println!("wipe value store is some {:?}", value_store.is_some());
-
             if let Some(value_store) = value_store.as_mut() {
-                println!("wiping value store");
                 (*value_store).clear();
             }
         }
-        println!(
-            "insert into current batch {:?} index: {:?} can_be_filled: {:?} inserted: {:?}",
-            queue_type, index, can_be_filled, inserted
-        );
         // TODO: remove unwraps
-        if !inserted && can_be_filled {
-            println!("store value");
+        if !inserted && current_batch.state == BatchState::CanBeFilled {
             let insert_result = match queue_type {
                 QueueType::Address => current_batch.insert_and_store(
                     value,
@@ -393,41 +382,41 @@ pub fn insert_into_current_batch<'a>(
                 QueueType::Input => {
                     current_batch.insert(value, bloomfilter_stores.unwrap().as_mut_slice())
                 }
-
                 QueueType::Output => current_batch.store_and_hash(value, value_store.unwrap()),
 
                 _ => err!(AccountCompressionErrorCode::InvalidQueueType),
             };
             match insert_result {
                 Ok(_) => {
+                    inserted = true;
                     // For the output queue we only need to insert. For address
                     // and input queues we need to prove non-inclusion as well
                     // hence check every bloomfilter.
                     if QueueType::Output == queue_type {
-                        return Ok(());
+                        break;
                     }
-                    inserted = true;
                 }
                 Err(error) => {
-                    println!("wipe batch {:?}", wipe_batch);
-                    println!("batch 0 {:?}", batches[0]);
-                    println!("batch 1 {:?}", batches[1]);
+                    msg!("batch 0 {:?}", batches[0]);
+                    msg!("batch 1 {:?}", batches[1]);
                     return Err(error);
                 }
             }
         } else if bloomfilter_stores.is_some() {
-            println!("check non inclusion");
             current_batch.check_non_inclusion(value, bloomfilter_stores.unwrap().as_mut_slice())?;
         }
     }
 
     if !inserted {
-        println!("batch 0 {:?}", batches[0]);
-        // println!("batch 0 {:?}", batches[0].can_be_filled());
-        println!("batch 1 {:?}", batches[1]);
-        // println!("batch 1 {:?}", batches[1].can_be_filled());
-        println!("Both batches are not ready to insert");
+        msg!("batch 0 {:?}", batches[0]);
+        msg!("batch 1 {:?}", batches[1]);
+        msg!("Both batches are not ready to insert");
         return err!(AccountCompressionErrorCode::BatchInsertFailed);
+    }
+    if account.batch_size == batches[account.currently_processing_batch_index as usize].num_inserted
+    {
+        account.currently_processing_batch_index += 1;
+        account.currently_processing_batch_index %= len as u64;
     }
     Ok(())
 }
@@ -506,11 +495,6 @@ pub fn init_queue_from_account(
         false,
     );
 
-    let value_capacity = if queue_type == QueueType::Output as u64 {
-        account.batch_size
-    } else {
-        0
-    };
     for _ in 0..account.num_batches {
         batches
             .push(Batch {
@@ -519,8 +503,8 @@ pub fn init_queue_from_account(
                 user_hash_chain: [0; 32],
                 prover_hash_chain: [0; 32],
                 num_inserted: 0,
-                value_capacity,
-                is_inserted: false,
+                batch_size: account.batch_size,
+                state: BatchState::CanBeFilled,
             })
             .map_err(ProgramError::from)?;
     }
@@ -763,20 +747,14 @@ pub mod tests {
         assert_eq!(queue, ref_queue, "queue mismatch");
         assert_eq!(batches.len(), num_batches, "batches mismatch");
         for batch in batches.iter() {
-            let value_capacity = if queue_type == QueueType::Input as u64 {
-                0
-            } else {
-                ref_queue.batch_size
-            };
-
             let ref_batch = Batch {
                 num_iters,
                 bloomfilter_capacity: ref_queue.bloom_filter_capacity,
                 user_hash_chain: [0; 32],
                 prover_hash_chain: [0; 32],
                 num_inserted: 0,
-                value_capacity,
-                is_inserted: false,
+                batch_size: ref_queue.batch_size,
+                state: BatchState::CanBeFilled,
             };
             assert_eq!(batch, &ref_batch, "batch mismatch");
         }
