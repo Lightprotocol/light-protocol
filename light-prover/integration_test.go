@@ -154,6 +154,10 @@ func runFullOnlyTests(t *testing.T) {
 	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
 	t.Run("testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000)
 	t.Run("testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100)
+
+	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
+	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
+	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
 }
 
 // runFullOnlyTests contains tests that should only run in lightweight mode
@@ -673,4 +677,45 @@ func testBatchUpdateInvalidInput(t *testing.T) {
 	if !strings.Contains(string(body), "proving_error") {
 		t.Fatalf("Expected error message to contain 'proving_error', got: %s", string(body))
 	}
+}
+
+// Add these new test functions
+func testBatchUpdateHappyPath26_100(t *testing.T) {
+	runBatchUpdateTest(t, 26, 100)
+}
+
+func testBatchUpdateHappyPath26_500(t *testing.T) {
+	runBatchUpdateTest(t, 26, 500)
+}
+
+func testBatchUpdateHappyPath26_1000(t *testing.T) {
+	runBatchUpdateTest(t, 26, 1000)
+}
+
+// Helper function to reduce code duplication
+func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
+	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	// Verify that the new root is different from the old root
+	if params.OldRoot.Cmp(params.NewRoot) == 0 {
+		t.Errorf("Expected new root to be different from old root")
+	}
+
+	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
