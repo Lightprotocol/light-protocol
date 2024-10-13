@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	gnarkLogger "github.com/consensys/gnark/logger"
 )
@@ -56,7 +57,7 @@ func StartServer(isLightweight bool) {
 			logging.Logger().Info().Msgf("Unknown proving system type for file: %s", key)
 			panic("Unknown proving system type")
 		}
-		}
+	}
 
 	if len(missingKeys) > 0 {
 		logging.Logger().Warn().Msgf("Some key files are missing. To download %s keys, run: ./scripts/download_keys.sh %s",
@@ -110,13 +111,6 @@ func TestMain(m *testing.M) {
 	StopServer()
 }
 
-// TestAllModes is our main test function that will always run
-func TestAllModes(t *testing.T) {
-	t.Run("InclusionHappyPath26_1", testInclusionHappyPath26_1)
-	t.Run("TestNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
-	// Add more common tests here
-}
-
 // TestLightweight runs tests in lightweight mode
 func TestLightweight(t *testing.T) {
 	if !isLightweightMode {
@@ -151,6 +145,8 @@ func runCommonTests(t *testing.T) {
 
 	// combined
 	t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
+
+	t.Run("testBatchUpdateInvalidInput", testBatchUpdateInvalidInput)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
@@ -165,6 +161,9 @@ func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
 	t.Run("testBatchAppendHappyPath10_10", testBatchAppendHappyPath10_10)
 	t.Run("testBatchAppendWithPreviousState10_10", testBatchAppendWithPreviousState10_10)
+	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
+	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
+	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -573,7 +572,6 @@ func testBatchAppendWithPreviousState10_10(t *testing.T) {
 	}
 }
 
-
 func testBatchUpdateHappyPath26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
@@ -593,7 +591,7 @@ func testBatchUpdateHappyPath26_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithSequentialFilling(t *testing.T) {
+func testBatchUpdateWithSequentialFilling26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
@@ -652,7 +650,7 @@ func testBatchUpdateWithPreviousState26_10(t *testing.T) {
 	}
 }
 
-func TestBatchUpdateInvalidInput(t *testing.T) {
+func testBatchUpdateInvalidInput(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)

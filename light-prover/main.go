@@ -92,23 +92,23 @@ func runCli() {
 					if circuit == prover.BatchAppend {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchAppend, batchAppendTreeHeight, batchAppendBatchSize)
-					if err != nil {
-						return err
-					}
+						if err != nil {
+							return err
+						}
 						err = writeProvingSystem(system, path, pathVkey)
 					} else if circuit == prover.BatchUpdate {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchUpdate, batchUpdateTreeHeight, batchUpdateBatchSize)
-					if err != nil {
-						return err
-					}
+						if err != nil {
+							return err
+						}
 						err = writeProvingSystem(system, path, pathVkey)
 					} else {
 						var system *prover.ProvingSystemV1
 						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					if err != nil {
-						return err
-					}
+						if err != nil {
+							return err
+						}
 						err = writeProvingSystem(system, path, pathVkey)
 					}
 
@@ -165,7 +165,7 @@ func runCli() {
 						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
 							return fmt.Errorf("[Combined]: tree height and number of compressed accounts must be provided")
 						}
-						}
+					}
 
 					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppend {
 						return fmt.Errorf("[Batch append]: tree height and batch size must be provided")
@@ -267,37 +267,37 @@ func runCli() {
 					} else if circuit == "update" {
 						if batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
-					}
+						}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
 						if err != nil {
 							return err
-					}
+						}
 						err = writeProvingSystem(system, path, "")
 					} else {
 						if circuit == "inclusion" || circuit == "combined" {
-						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
-						}
+							if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
+								return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
+							}
 						}
 						if circuit == "non-inclusion" || circuit == "combined" {
-						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
+							if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+								return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
+							}
 						}
-					}
 
 						var system *prover.ProvingSystemV1
 						switch circuit {
 						case "inclusion":
-						system, err = prover.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
+							system, err = prover.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
 						case "non-inclusion":
-						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+							system, err = prover.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 						case "combined":
-						system, err = prover.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
-					}
-					if err != nil {
-						return err
-					}
+							system, err = prover.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+						}
+						if err != nil {
+							return err
+						}
 						err = writeProvingSystem(system, path, "")
 					}
 
@@ -341,9 +341,9 @@ func runCli() {
 					}
 
 					err = os.MkdirAll(filepath.Dir(outputFile), 0755)
-						if err != nil {
+					if err != nil {
 						return fmt.Errorf("failed to create output directory: %v", err)
-						}
+					}
 
 					var dataToWrite = buf.Bytes()
 
@@ -631,7 +631,7 @@ func runCli() {
 							leaves, err := parseHexStringList(leavesStr)
 							if err != nil {
 								return fmt.Errorf("failed to parse leaves: %v", err)
-					}
+							}
 
 							verifyErr = s.VerifyInclusion(roots, leaves, &proof)
 						case "non-inclusion":
@@ -658,19 +658,19 @@ func runCli() {
 							return fmt.Errorf("invalid circuit type for ProvingSystemV2: %s", circuit)
 						}
 						oldSubTreeHashChain, err := parseBigInt(context.String("old-sub-tree-hash-chain"))
-					if err != nil {
+						if err != nil {
 							return fmt.Errorf("failed to parse old sub-tree hash chain: %v", err)
-					}
+						}
 						newSubTreeHashChain, err := parseBigInt(context.String("new-sub-tree-hash-chain"))
-					if err != nil {
+						if err != nil {
 							return fmt.Errorf("failed to parse new sub-tree hash chain: %v", err)
-					}
+						}
 						newRoot, err := parseBigInt(context.String("new-root"))
-					if err != nil {
+						if err != nil {
 							return fmt.Errorf("failed to parse new root: %v", err)
-					}
+						}
 						hashchainHash, err := parseBigInt(context.String("hashchain-hash"))
-					if err != nil {
+						if err != nil {
 							return fmt.Errorf("failed to parse hashchain hash: %v", err)
 						}
 						verifyErr = s.VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash, &proof)
@@ -752,7 +752,7 @@ func LoadKeys(context *cli.Context, isTestMode bool) ([]*prover.ProvingSystemV1,
 				Msg("Read ProvingSystem")
 		case *prover.ProvingSystemV2:
 			pssv2 = append(pssv2, s)
-		logging.Logger().Info().
+			logging.Logger().Info().
 				Uint32("treeHeight", s.TreeHeight).
 				Uint32("batchSize", s.BatchSize).
 				Msg("Read BatchAppendProvingSystem")

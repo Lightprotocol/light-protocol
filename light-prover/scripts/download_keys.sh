@@ -51,9 +51,6 @@ LIGHTWEIGHT_FILES=(
   "append_10_10.vkey"
   "update_26_1.key" "update_26_1.vkey"
   "update_26_10.key" "update_26_10.vkey"
-  "update_26_100.key" "update_26_100.vkey"
-  "update_26_500.key" "update_26_500.vkey"
-  "update_26_1000.key" "update_26_1000.vkey"
 )
 
 FULL_FILES=(
