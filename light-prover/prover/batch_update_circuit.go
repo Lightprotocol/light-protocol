@@ -17,7 +17,6 @@ import (
 type BatchUpdateCircuit struct {
 	OldRoot             frontend.Variable `gnark:",public"`
 	NewRoot             frontend.Variable `gnark:",public"`
-	HashChainStartIndex frontend.Variable `gnark:",public"`
 	LeavesHashchainHash frontend.Variable `gnark:",public"`
 
 	Leaves       []frontend.Variable   `gnark:"input"`
@@ -29,10 +28,8 @@ type BatchUpdateCircuit struct {
 }
 
 func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
-	calculatedHashchainHash := circuit.createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	calculatedHashchainHash := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
 	api.AssertIsEqual(calculatedHashchainHash, circuit.LeavesHashchainHash)
-
-	api.AssertIsEqual(circuit.HashChainStartIndex, 0)
 
 	emptyLeaf := frontend.Variable(0)
 	newRoot := circuit.OldRoot
@@ -59,28 +56,6 @@ func (circuit *BatchUpdateCircuit) merkleRoot(api frontend.API, leaf frontend.Va
 	}
 
 	return currentHash
-}
-
-func (circuit *BatchUpdateCircuit) incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
-	carry := frontend.Variable(1)
-	for i := 0; i < len(bits); i++ {
-		newBit := api.Xor(bits[i], carry)
-		carry = api.And(bits[i], carry)
-		bits[i] = newBit
-	}
-	return bits
-}
-
-func (circuit *BatchUpdateCircuit) createHashChain(api frontend.API, length int, hashes []frontend.Variable) frontend.Variable {
-	if length == 0 {
-		return frontend.Variable(0)
-	}
-
-	hashChain := hashes[0]
-	for i := 1; i < length; i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon2{In1: hashChain, In2: hashes[i]})
-	}
-	return hashChain
 }
 
 type BatchUpdateParameters struct {
@@ -147,7 +122,6 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 	oldRoot := frontend.Variable(params.OldRoot)
 	newRoot := frontend.Variable(params.NewRoot)
 	leavesHashchainHash := frontend.Variable(params.LeavesHashchainHash)
-	hashChainStartIndex := frontend.Variable(params.HashChainStartIndex)
 
 	leaves := make([]frontend.Variable, len(params.Leaves))
 	pathIndices := make([]frontend.Variable, len(params.PathIndices))
@@ -169,7 +143,6 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
-		HashChainStartIndex: hashChainStartIndex,
 		Height:              ps.TreeHeight,
 		BatchSize:           ps.BatchSize,
 	}
@@ -203,7 +176,6 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
-		HashChainStartIndex: frontend.Variable(0),
 		Height:              height,
 		BatchSize:           batchSize,
 	}

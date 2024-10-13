@@ -43,16 +43,16 @@ func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
 	// ( consider `HashchainHash` contains a batch of 5000 leaves but we want to use 5 proves to execute this update onchain)
 	api.AssertIsEqual(circuit.HashChainStartIndex, 0)
 
-	oldSubtreesHashChain := circuit.createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
+	oldSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
 	api.AssertIsEqual(oldSubtreesHashChain, circuit.OldSubTreeHashChain)
 
-	leavesHashChain := circuit.createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
 	api.AssertIsEqual(leavesHashChain, circuit.HashchainHash)
 
 	newRoot, newSubtrees := circuit.batchAppend(api)
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
 
-	newSubtreesHashChain := circuit.createHashChain(api, int(circuit.TreeHeight), newSubtrees)
+	newSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), newSubtrees)
 	api.AssertIsEqual(newSubtreesHashChain, circuit.NewSubTreeHashChain)
 
 	return nil
@@ -176,18 +176,6 @@ func (circuit *BatchAppendCircuit) incrementBits(api frontend.API, bits []fronte
 
 func (circuit *BatchAppendCircuit) getZeroValue(api frontend.API, level int) frontend.Variable {
 	return frontend.Variable(new(big.Int).SetBytes(ZERO_BYTES[level][:]))
-}
-
-func (circuit *BatchAppendCircuit) createHashChain(api frontend.API, length int, hashes []frontend.Variable) frontend.Variable {
-	if length == 0 {
-		return 0
-	}
-
-	hashChain := hashes[0]
-	for i := 1; i < length; i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon2{In1: hashChain, In2: hashes[i]})
-	}
-	return hashChain
 }
 
 type BatchAppendParameters struct {

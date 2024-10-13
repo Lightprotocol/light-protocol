@@ -13,7 +13,6 @@ type BatchUpdateProofInputsJSON struct {
 	Leaves              []string   `json:"leaves"`
 	MerkleProofs        [][]string `json:"newMerkleProofs"`
 	PathIndices         []uint32   `json:"pathIndices"`
-	HashChainStartIndex uint32     `json:"hashChainStartIndex"`
 	Height              uint32     `json:"height"`
 	BatchSize           uint32     `json:"batchSize"`
 }
@@ -40,7 +39,6 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePar
 	paramsJson.Inputs.OldRoot = toHex(p.OldRoot)
 	paramsJson.Inputs.NewRoot = toHex(p.NewRoot)
 	paramsJson.Inputs.LeavesHashchainHash = toHex(p.LeavesHashchainHash)
-	paramsJson.Inputs.HashChainStartIndex = p.HashChainStartIndex
 	paramsJson.Inputs.Height = p.Height
 	paramsJson.Inputs.BatchSize = p.BatchSize
 
@@ -95,7 +93,6 @@ func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateParametersJSON)
 		return err
 	}
 
-	p.HashChainStartIndex = params.Inputs.HashChainStartIndex
 	p.Height = params.Inputs.Height
 	p.BatchSize = params.Inputs.BatchSize
 
