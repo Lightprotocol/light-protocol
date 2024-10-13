@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -e
+
+# Ensure required commands are available
+command -v git >/dev/null 2>&1 || { echo >&2 "git is required but it's not installed. Aborting."; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but it's not installed. Aborting."; exit 1; }
+command -v wc >/dev/null 2>&1 || { echo >&2 "wc is required but it's not installed. Aborting."; exit 1; }
+
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/light-prover/proving-keys"
 
@@ -7,17 +14,17 @@ if [ ! -d "$KEYS_DIR" ]; then
   mkdir -p "$KEYS_DIR"
 fi
 
-# inclusion, non-inclusion and combined keys for 26 elements
+# inclusion, non-inclusion and combined keys for merkle tree of height 26
 BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
-# keys for append circuit 4, 10, 26 elements
+# keys for append circuit for trees of height 4, 10, 26 
 APPEND_BUCKET="bafybeiatsnqj4ksuddtzixv5si5cfoy7bah723zigvuuut55vkbvkivig4"
 
-# keys for update circuit
+# keys for update circuit for tree of height 26
 UPDATE_BUCKET="bafybeicdgmeuxvgh5li5ofhllvexietky7pwqxjygoo6wr6wa5x33bioxi"
 
 LIGHTWEIGHT_FILES=(
-   "inclusion_26_1.key"
+  "inclusion_26_1.key"
   "inclusion_26_1.vkey"
   "inclusion_26_2.key"
   "inclusion_26_2.vkey"
@@ -49,8 +56,10 @@ LIGHTWEIGHT_FILES=(
   "combined_26_4_2.vkey"
   "append_10_10.key"
   "append_10_10.vkey"
-  "update_26_1.key" "update_26_1.vkey"
-  "update_26_10.key" "update_26_10.vkey"
+  "update_26_1.key"
+  "update_26_1.vkey"
+  "update_26_10.key"
+  "update_26_10.vkey"
 )
 
 FULL_FILES=(
@@ -94,11 +103,16 @@ FULL_FILES=(
   "append_26_500.vkey"
   "append_26_1000.key"
   "append_26_1000.vkey"
-  "update_26_1.key" "update_26_1.vkey"
-  "update_26_10.key" "update_26_10.vkey"
-  "update_26_100.key" "update_26_100.vkey"
-  "update_26_500.key" "update_26_500.vkey"
-  "update_26_1000.key" "update_26_1000.vkey"
+  "update_26_1.key"
+  "update_26_1.vkey"
+  "update_26_10.key"
+  "update_26_10.vkey"
+  "update_26_100.key"
+  "update_26_100.vkey"
+  "update_26_500.key"
+  "update_26_500.vkey"
+  "update_26_1000.key"
+  "update_26_1000.vkey"
 )
 
 download_file() {
@@ -106,7 +120,7 @@ download_file() {
   local BUCKET_URL
   if [[ $FILE == append* ]]; then
     BUCKET_URL="https://${APPEND_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif  if [[ $FILE == update* ]]; then
+  elif [[ $FILE == update* ]]; then
     BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
   else
     BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
@@ -124,8 +138,8 @@ download_file() {
   fi
 
   echo "Downloading $BUCKET_URL"
-  MAX_RETRIES=5
-  attempt=0
+  local MAX_RETRIES=5
+  local attempt=0
   while ! curl -s -o "$KEYS_DIR/$FILE" "$BUCKET_URL" && (( attempt < MAX_RETRIES )); do
     echo "Download failed for $FILE (attempt $((attempt + 1))). Retrying..."
     sleep 2
