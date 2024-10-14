@@ -26,7 +26,6 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			Leaves:              make([]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
-			HashChainStartIndex: frontend.Variable(0),
 			Height:              uint32(treeDepth),
 			BatchSize:           uint32(batchSize),
 		}
@@ -42,7 +41,6 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			Leaves:              make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
-			HashChainStartIndex: frontend.Variable(params.HashChainStartIndex),
 			Height:              uint32(treeDepth),
 			BatchSize:           uint32(batchSize),
 		}
