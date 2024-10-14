@@ -129,21 +129,6 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid HashChainStartIndex", func(t *testing.T) {
-		treeDepth := 10
-		batchSize := 5
-		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
-
-		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
-
-		// Modify HashChainStartIndex to make it invalid
-		witness.HashChainStartIndex = frontend.Variable(params.HashChainStartIndex + 1)
-
-		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
-		assert.Error(err)
-	})
-
 	t.Run("Invalid leaf", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
@@ -183,7 +168,6 @@ func createBatchUpdateCircuit(treeDepth, batchSize int) BatchUpdateCircuit {
 		Leaves:              make([]frontend.Variable, batchSize),
 		MerkleProofs:        make([][]frontend.Variable, batchSize),
 		PathIndices:         make([]frontend.Variable, batchSize),
-		HashChainStartIndex: frontend.Variable(0),
 		Height:              uint32(treeDepth),
 		BatchSize:           uint32(batchSize),
 	}
@@ -203,7 +187,6 @@ func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count i
 		Leaves:              make([]frontend.Variable, count),
 		MerkleProofs:        make([][]frontend.Variable, count),
 		PathIndices:         make([]frontend.Variable, count),
-		HashChainStartIndex: frontend.Variable(params.HashChainStartIndex + uint32(startIndex)),
 		Height:              params.Height,
 		BatchSize:           uint32(count),
 	}
