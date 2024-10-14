@@ -24,6 +24,11 @@ class StartProver extends Command {
       required: false,
       default: 3001,
     }),
+    "run-mode": Flags.string({
+      description: "Specify the running mode (test or full)",
+      options: ["test", "full"],
+      default: "full",
+    }),
   };
 
   async run() {
@@ -35,6 +40,7 @@ class StartProver extends Command {
       flags["prover-port"],
       !flags["skip-prove-compressed-accounts"],
       !flags["skip-prove-new-addresses"],
+      flags["run-mode"],
     );
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
   }

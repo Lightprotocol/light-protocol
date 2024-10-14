@@ -181,6 +181,21 @@ func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 func ReadSystemFromFile(path string) (interface{}, error) {
 	if strings.Contains(strings.ToLower(path), "append") {
 		ps := new(ProvingSystemV2)
+		ps.CircuitType = BatchAppend
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		_, err = ps.UnsafeReadFrom(file)
+		if err != nil {
+			return nil, err
+		}
+		return ps, nil
+	} else if strings.Contains(strings.ToLower(path), "update") {
+		ps := new(ProvingSystemV2)
+		ps.CircuitType = BatchUpdate
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
@@ -194,10 +209,10 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		return ps, nil
 	} else {
 		ps := new(ProvingSystemV1)
-		file, err := os.Open(path)
-		if err != nil {
+	file, err := os.Open(path)
+	if err != nil {
 			return nil, err
-		}
+	}
 		defer file.Close()
 
 		_, err = ps.UnsafeReadFrom(file)
@@ -222,9 +237,9 @@ func ReadProvingSystemFromFile(path string) (*ProvingSystemV1, error) {
 
 func ReadBatchAppendProvingSystemFromFile(path string) (*ProvingSystemV2, error) {
 	system, err := ReadSystemFromFile(path)
-	if err != nil {
-		return nil, err
-	}
+		if err != nil {
+			return nil, err
+		}
 	baps, ok := system.(*ProvingSystemV2)
 	if !ok {
 		return nil, fmt.Errorf("file does not contain a BatchAppendProvingSystem")

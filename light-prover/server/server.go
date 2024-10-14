@@ -147,6 +147,8 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		proof, proofError = handler.combinedProof(buf)
 	case prover.BatchAppend:
 		proof, proofError = handler.batchAppendProof(buf)
+	case prover.BatchUpdate:
+		proof, proofError = handler.batchUpdateProof(buf)
 	default:
 		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
 	}
@@ -186,7 +188,7 @@ func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error)
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
+		if provingSystem.CircuitType == prover.BatchAppend && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
 			ps = provingSystem
 			break
 		}
@@ -197,6 +199,38 @@ func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error)
 	}
 
 	proof, err := ps.ProveBatchAppend(&params)
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, provingError(err)
+	}
+	return proof, nil
+}
+
+func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error) {
+	var params prover.BatchUpdateParameters
+	err := json.Unmarshal(buf, &params)
+	if err != nil {
+		logging.Logger().Info().Msg("error Unmarshal")
+		logging.Logger().Info().Msg(err.Error())
+		return nil, malformedBodyError(err)
+	}
+
+	treeHeight := params.Height
+	batchSize := params.BatchSize
+
+	var ps *prover.ProvingSystemV2
+	for _, provingSystem := range handler.provingSystemsV2 {
+		if provingSystem.CircuitType == prover.BatchUpdate && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+			ps = provingSystem
+			break
+		}
+	}
+
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	}
+
+	proof, err := ps.ProveBatchUpdate(&params)
 	if err != nil {
 		logging.Logger().Err(err)
 		return nil, provingError(err)

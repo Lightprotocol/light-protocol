@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	merkle_tree "light/light-prover/merkle-tree"
-	"light/light-prover/prover/poseidon"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -43,16 +42,16 @@ func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
 	// ( consider `HashchainHash` contains a batch of 5000 leaves but we want to use 5 proves to execute this update onchain)
 	api.AssertIsEqual(circuit.HashChainStartIndex, 0)
 
-	oldSubtreesHashChain := circuit.createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
+	oldSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
 	api.AssertIsEqual(oldSubtreesHashChain, circuit.OldSubTreeHashChain)
 
-	leavesHashChain := circuit.createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
 	api.AssertIsEqual(leavesHashChain, circuit.HashchainHash)
 
 	newRoot, newSubtrees := circuit.batchAppend(api)
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
 
-	newSubtreesHashChain := circuit.createHashChain(api, int(circuit.TreeHeight), newSubtrees)
+	newSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), newSubtrees)
 	api.AssertIsEqual(newSubtreesHashChain, circuit.NewSubTreeHashChain)
 
 	return nil
@@ -89,52 +88,20 @@ func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Varia
 	return newRoot, currentSubtrees
 }
 
-// append inserts a new leaf into the Merkle tree and updates the tree structure accordingly.
-// It traverses the tree from the bottom up, updating nodes and subtrees based on the binary
-// representation of the insertion index.
-//
-// The function works as follows:
-//  1. It starts with the new leaf as the current node.
-//  2. For each level of the tree, from bottom to top:
-//     a. It uses the corresponding bit of the index to determine if we're inserting on the right or left.
-//     b. If inserting on the right (isRight is true):
-//     - The current subtree at this level becomes the left sibling.
-//     - The current node becomes the right sibling and the new subtree for this level.
-//     c. If inserting on the left (isRight is false):
-//     - The current node becomes the left sibling.
-//     - The existing subtree at this level (or a zero value if none exists) becomes the right sibling.
-//     d. It selects the appropriate left and right nodes based on the insertion direction.
-//     e. It hashes the left and right nodes together to create the new parent node.
-//     f. This new parent becomes the current node for the next level up.
-//  3. The process repeats for each level, ultimately resulting in a new root hash.
-//
-// Parameters:
-// - api: The frontend API for ZKP operations.
-// - leaf: The new leaf to be inserted.
-// - subtrees: The current state of subtrees in the Merkle tree.
-// - indexBits: Binary representation of the insertion index.
-//
-// Returns:
-// - The new root hash of the Merkle tree.
-// - The updated subtrees after insertion.
 func (circuit *BatchAppendCircuit) append(api frontend.API, leaf frontend.Variable, subtrees []frontend.Variable, indexBits []frontend.Variable) (frontend.Variable, []frontend.Variable) {
 	currentNode := leaf
 
 	for i := 0; i < int(circuit.TreeHeight); i++ {
 		isRight := indexBits[i]
-
-		// Update the subtree at this level if we're inserting on the right
 		subtrees[i] = api.Select(isRight, subtrees[i], currentNode)
-
-		// Select the sibling node
 		sibling := api.Select(isRight, subtrees[i], circuit.getZeroValue(api, i))
 
-		// Arrange nodes for hashing
-		left := api.Select(isRight, sibling, currentNode)
-		right := api.Select(isRight, currentNode, sibling)
-
-		// Hash the nodes to get the parent
-		currentNode = abstractor.Call(api, poseidon.Poseidon2{In1: left, In2: right})
+		currentNode = abstractor.Call(api, MerkleRootGadget{
+			Hash:   currentNode,
+			Index:  isRight,
+			Path:   []frontend.Variable{sibling},
+			Height: 1,
+		})
 	}
 
 	return currentNode, subtrees
@@ -176,18 +143,6 @@ func (circuit *BatchAppendCircuit) incrementBits(api frontend.API, bits []fronte
 
 func (circuit *BatchAppendCircuit) getZeroValue(api frontend.API, level int) frontend.Variable {
 	return frontend.Variable(new(big.Int).SetBytes(ZERO_BYTES[level][:]))
-}
-
-func (circuit *BatchAppendCircuit) createHashChain(api frontend.API, length int, hashes []frontend.Variable) frontend.Variable {
-	if length == 0 {
-		return 0
-	}
-
-	hashChain := hashes[0]
-	for i := 1; i < length; i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon2{In1: hashChain, In2: hashes[i]})
-	}
-	return hashChain
 }
 
 type BatchAppendParameters struct {

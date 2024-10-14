@@ -98,6 +98,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		Inputs: inputs,
 	}
 }
+
 func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, startIndex uint32, previousParams *BatchAppendParameters) BatchAppendParameters {
 	var tree merkletree.PoseidonTree
 	var oldSubTreeHashChain *big.Int
@@ -192,4 +193,66 @@ func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashes[i]})
 	}
 	return hashChain
+}
+
+func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex *uint32) *BatchUpdateParameters {
+	var tree merkletree.PoseidonTree
+
+	if previousTree == nil {
+		tree = merkletree.NewTree(treeDepth)
+	} else {
+		tree = *previousTree.DeepCopy()
+	}
+
+	leaves := make([]*big.Int, batchSize)
+	merkleProofs := make([][]big.Int, batchSize)
+	pathIndices := make([]uint32, batchSize)
+	emptyLeaf := big.NewInt(0)
+
+	usedIndices := make(map[uint32]bool)
+
+	for i := 0; i < batchSize; i++ {
+		leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+		leaves[i] = leaf
+
+		if startIndex != nil {
+			// Sequential filling
+			pathIndices[i] = *startIndex + uint32(i)
+		} else {
+			// Random filling with uniqueness check
+			for {
+				index := uint32(rand.Intn(1 << uint(treeDepth)))
+				if !usedIndices[index] {
+					pathIndices[i] = index
+					usedIndices[index] = true
+					break
+				}
+			}
+		}
+
+		tree.Update(int(pathIndices[i]), *leaf)
+	}
+
+	oldRoot := tree.Root.Value()
+
+	for i := 0; i < batchSize; i++ {
+		merkleProofs[i] = tree.Update(int(pathIndices[i]), *leaves[i])
+		tree.Update(int(pathIndices[i]), *emptyLeaf)
+	}
+
+	leavesHashchainHash := calculateHashChain(leaves, batchSize)
+	newRoot := tree.Root.Value()
+
+	return &BatchUpdateParameters{
+		OldRoot:             &oldRoot,
+		NewRoot:             &newRoot,
+		LeavesHashchainHash: leavesHashchainHash,
+		Leaves:              leaves,
+		PathIndices:         pathIndices,
+		MerkleProofs:        merkleProofs,
+		HashChainStartIndex: 0,
+		Height:              uint32(treeDepth),
+		BatchSize:           uint32(batchSize),
+		Tree:                &tree,
+	}
 }

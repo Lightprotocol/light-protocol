@@ -60,6 +60,8 @@ if [ "$inclusion" = true ]; then cmd="$cmd --inclusion=true"; fi
 if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi
 
+cmd="$cmd --run-mode=test"
+
 echo "Running command: $cmd"
 
 kill_light_prover && $cmd &
