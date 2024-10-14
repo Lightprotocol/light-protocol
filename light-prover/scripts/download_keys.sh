@@ -18,10 +18,10 @@ fi
 BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
 # keys for append circuit for trees of height 4, 10, 26 
-APPEND_BUCKET="bafybeiatsnqj4ksuddtzixv5si5cfoy7bah723zigvuuut55vkbvkivig4"
+APPEND_BUCKET="bafybeibi7umughjdzal5hw656or2mw4envpvvsooz3flp4n3vqx7sxeyhy"
 
 # keys for update circuit for tree of height 26
-UPDATE_BUCKET="bafybeicdgmeuxvgh5li5ofhllvexietky7pwqxjygoo6wr6wa5x33bioxi"
+UPDATE_BUCKET="bafybeibi7umughjdzal5hw656or2mw4envpvvsooz3flp4n3vqx7sxeyhy"
 
 LIGHTWEIGHT_FILES=(
   "inclusion_26_1.key"
@@ -56,10 +56,8 @@ LIGHTWEIGHT_FILES=(
   "combined_26_4_2.vkey"
   "append_10_10.key"
   "append_10_10.vkey"
-  "update_26_1.key"
-  "update_26_1.vkey"
-  "update_26_10.key"
-  "update_26_10.vkey"
+  "update_10_10.key"
+  "update_10_10.vkey"
 )
 
 FULL_FILES=(
