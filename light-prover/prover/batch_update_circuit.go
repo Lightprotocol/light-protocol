@@ -3,7 +3,6 @@ package prover
 import (
 	"fmt"
 	merkle_tree "light/light-prover/merkle-tree"
-	"light/light-prover/prover/poseidon"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -35,27 +34,26 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	newRoot := circuit.OldRoot
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
-		indexBits := api.ToBinary(circuit.PathIndices[i], int(circuit.Height))
-		currentRoot := circuit.merkleRoot(api, circuit.Leaves[i], indexBits, circuit.MerkleProofs[i])
+		currentRoot := abstractor.Call(api, MerkleRootGadget{
+			Hash:   circuit.Leaves[i],
+			Index:  circuit.PathIndices[i],
+			Path:   circuit.MerkleProofs[i],
+			Height: int(circuit.Height),
+		})
+
 		api.AssertIsEqual(currentRoot, newRoot)
-		newRoot = circuit.merkleRoot(api, emptyLeaf, indexBits, circuit.MerkleProofs[i])
+
+		newRoot = abstractor.Call(api, MerkleRootGadget{
+			Hash:   emptyLeaf,
+			Index:  circuit.PathIndices[i],
+			Path:   circuit.MerkleProofs[i],
+			Height: int(circuit.Height),
+		})
 	}
 
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
 
 	return nil
-}
-
-func (circuit *BatchUpdateCircuit) merkleRoot(api frontend.API, leaf frontend.Variable, indexBits []frontend.Variable, siblings []frontend.Variable) frontend.Variable {
-	currentHash := leaf
-
-	for i := 0; i < int(circuit.Height); i++ {
-		leftSibling := api.Select(indexBits[i], siblings[i], currentHash)
-		rightSibling := api.Select(indexBits[i], currentHash, siblings[i])
-		currentHash = abstractor.Call(api, poseidon.Poseidon2{In1: leftSibling, In2: rightSibling})
-	}
-
-	return currentHash
 }
 
 type BatchUpdateParameters struct {

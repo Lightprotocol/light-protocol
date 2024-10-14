@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -a HEIGHTS=("4" "10" "26")
+declare -a HEIGHTS=("10" "26")
 DEFAULT_HEIGHT="26"
 PROVING_KEYS_DIR="./proving-keys"
 VERIFIER_DIR="../circuit-lib/verifier/src/verifying_keys"
@@ -60,19 +60,19 @@ generate_circuit() {
 }
 
 main() {
-    # declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    # for height in "${HEIGHTS[@]}"; do
-    #     for batch_size in "${append_batch_sizes_arr[@]}"; do
-    #         generate_circuit "append" "$height" "$batch_size" "0" "0" "0"
-    #     done
-    # done
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append" "$height" "$batch_size" "0" "0" "0"
+        done
+    done
 
-    # declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    # for height in "${HEIGHTS[@]}"; do
-    #     for batch_size in "${update_batch_sizes_arr[@]}"; do
-    #         generate_circuit "update" "$height" "0" "$batch_size" "0" "0"
-    #     done
-    # done
+    declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${update_batch_sizes_arr[@]}"; do
+            generate_circuit "update" "$height" "0" "$batch_size" "0" "0"
+        done
+    done
 
     declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
     for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
