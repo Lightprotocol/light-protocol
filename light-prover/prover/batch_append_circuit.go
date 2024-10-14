@@ -96,15 +96,18 @@ func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Varia
 //  1. It starts with the new leaf as the current node.
 //  2. For each level of the tree, from bottom to top:
 //     a. It uses the corresponding bit of the index to determine if we're inserting on the right or left.
-//     b. If inserting on the right (isRight is true):
+//     b. update subtrees:
+//     - if isRight then do not update subtrees
+//     - else update subtrees with current node
+//     c. If inserting on the right (isRight is true):
 //     - The current subtree at this level becomes the left sibling.
 //     - The current node becomes the right sibling and the new subtree for this level.
-//     c. If inserting on the left (isRight is false):
+//     d. If inserting on the left (isRight is false):
 //     - The current node becomes the left sibling.
-//     - The existing subtree at this level (or a zero value if none exists) becomes the right sibling.
-//     d. It selects the appropriate left and right nodes based on the insertion direction.
-//     e. It hashes the left and right nodes together to create the new parent node.
-//     f. This new parent becomes the current node for the next level up.
+//     -  zero value becomes the right sibling.
+//     e. It selects the appropriate left and right nodes based on the insertion direction.
+//     f. It hashes the left and right nodes together to create the new parent node.
+//     g. This new parent becomes the current node for the next level up.
 //  3. The process repeats for each level, ultimately resulting in a new root hash.
 //
 // Parameters:
