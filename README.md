@@ -74,6 +74,7 @@ There are three ways of setting up the development environment:
 
 ### Prerequisites:
 - Ubuntu, `sudo apt-get install lld clang`
+- Fedora, `sudo dnf install clang lld`
 - Arch, `sudo pacman -S lld clang`
 - Mac, `brew install llvm`
 
