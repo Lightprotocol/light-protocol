@@ -47,13 +47,13 @@ jobs:
           key: "${{ env.LAKE_VERSION }}"
 
       - name: Download keys for lightweight tests
-        if: github.ref == 'refs/heads/main'
+        if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd light-prover
           ./scripts/download_keys.sh light
 
       - name: Download keys for full tests
-        if: startsWith(github.ref, 'refs/heads/release/')
+        if: ${{ github.event.pull_request.base.ref == 'release' }}
         run: |
           cd light-prover
           ./scripts/download_keys.sh full
@@ -69,13 +69,13 @@ jobs:
           go test ./prover -timeout 30m
 
       - name: Lightweight integration tests
-        if: github.ref == 'refs/heads/main'
+        if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd light-prover
           go test -run TestLightweight -timeout 15m
   
       - name: Full integration tests
-        if: startsWith(github.ref, 'refs/heads/release/')
+        if: ${{ github.event.pull_request.base.ref == 'release' }}
         run: |
           cd light-prover
           go test -run TestFull -timeout 120m
