@@ -1,35 +1,52 @@
+use std::io::Cursor;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
+use light_sdk::error::LightSdkError;
+use light_sdk::verify::verify_compressed_accounts;
 use light_sdk::{
-    compressed_account::{LightAccount, LightAccounts, OutputCompressedAccountWithPackedContext},
-    context::LightInstructionInputs,
-    light_system_accounts, LightDiscriminator, LightHasher, LightTraits,
+    address::PackedNewAddressParams,
+    compressed_account::{
+        LightAccount, LightAccounts, OutputCompressedAccountWithPackedContext,
+        PackedCompressedAccountWithMerkleContext,
+    },
+    light_system_accounts,
+    proof::ProofRpcResult,
+    LightDiscriminator, LightHasher, LightTraits,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
-    use light_sdk::context::LightContext;
+
+    use light_sdk::inputs::LightInputs;
 
     use super::*;
 
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateRecord<'info>>,
         inputs: Vec<u8>,
+        name: String,
+        rdata: RData,
     ) -> Result<()> {
-        let inputs = CreateRecordInputs::deserialize(&mut inputs.as_slice())?;
-        let mut ctx =
-            LightContext::<CreateRecord, LightCreateRecord>::new(ctx, inputs.light_inputs)?;
+        let inputs = LightInputs::serialize(&inputs)?;
+        let mut light_accounts = LightCreateRecord::try_light_accounts(&inputs.accounts)?;
 
-        ctx.light_accounts.record.owner = ctx.accounts.signer.key();
-        ctx.light_accounts.record.name = inputs.name;
-        ctx.light_accounts.record.rdata = inputs.rdata;
+        light_accounts.record.owner = ctx.accounts.signer.key();
+        light_accounts.record.name = name;
+        light_accounts.record.rdata = rdata;
 
-        ctx.verify()?;
+        verify_compressed_accounts(
+            &ctx,
+            inputs.proof,
+            &[light_accounts.record],
+            &inputs.new_addresses.unwrap(),
+            None,
+            None,
+        )?;
 
         Ok(())
     }
@@ -37,14 +54,24 @@ pub mod name_service {
     pub fn update_record<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateRecord<'info>>,
         inputs: Vec<u8>,
+        new_rdata: RData,
     ) -> Result<()> {
-        let inputs = UpdateRecordInputs::deserialize(&mut inputs.as_slice())?;
-        let mut ctx =
-            LightContext::<UpdateRecord, LightUpdateRecord>::new(ctx, inputs.light_inputs)?;
+        let mut inputs = Cursor::new(inputs);
+        let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
+        let accounts = Option::<Vec<PackedCompressedAccountWithMerkleContext>>::deserialize_reader(
+            &mut inputs,
+        )?;
+        let _new_addresses =
+            Option::<Vec<PackedNewAddressParams>>::deserialize_reader(&mut inputs)?;
+        let mut light_accounts = LightUpdateRecord::try_light_accounts(&accounts)?;
 
-        ctx.light_accounts.record.rdata = inputs.new_rdata;
+        if light_accounts.record.owner != ctx.accounts.signer.key() {
+            return err!(CustomError::Unauthorized);
+        }
 
-        ctx.verify()?;
+        light_accounts.record.rdata = new_rdata;
+
+        verify_compressed_accounts(&ctx, proof, &[light_accounts.record], &[], None, None)?;
 
         Ok(())
     }
@@ -53,11 +80,20 @@ pub mod name_service {
         ctx: Context<'_, '_, '_, 'info, DeleteRecord<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs = DeleteRecordInputs::deserialize(&mut inputs.as_slice())?;
-        let mut ctx =
-            LightContext::<DeleteRecord, LightDeleteRecord>::new(ctx, inputs.light_inputs)?;
+        let mut inputs = Cursor::new(inputs);
+        let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
+        let accounts = Option::<Vec<PackedCompressedAccountWithMerkleContext>>::deserialize_reader(
+            &mut inputs,
+        )?;
+        let _new_addresses =
+            Option::<Vec<PackedNewAddressParams>>::deserialize_reader(&mut inputs)?;
+        let light_accounts = LightDeleteRecord::try_light_accounts(&accounts)?;
 
-        ctx.verify()?;
+        if light_accounts.record.owner != ctx.accounts.signer.key() {
+            return err!(CustomError::Unauthorized);
+        }
+
+        verify_compressed_accounts(&ctx, proof, &[light_accounts.record], &[], None, None)?;
 
         Ok(())
     }
@@ -92,7 +128,9 @@ impl Default for RData {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct NameRecord {
+    #[truncate]
     pub owner: Pubkey,
+    #[truncate]
     pub name: String,
     pub rdata: RData,
 }
@@ -116,14 +154,17 @@ pub struct CreateRecord<'info> {
     pub cpi_signer: AccountInfo<'info>,
 }
 
-pub struct LightCreateRecord {
-    pub record: LightAccount<NameRecord>,
+pub struct LightCreateRecord<'a> {
+    pub record: LightAccount<'a, NameRecord>,
 }
 
-impl LightAccounts for LightCreateRecord {
-    fn try_light_accounts(inputs: &LightInstructionInputs) -> Result<Self> {
+impl<'a> LightAccounts<'a> for LightCreateRecord<'a> {
+    fn try_light_accounts(
+        accounts: &'a Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    ) -> Result<Self> {
+        let accounts = accounts.as_ref().ok_or(LightSdkError::ExpectedAccounts)?;
         let record: LightAccount<NameRecord> =
-            LightAccount::new_init(&inputs.accounts.as_ref().unwrap()[0].compressed_account);
+            LightAccount::new_init(&accounts[0].compressed_account);
         Ok(Self { record })
     }
 
@@ -134,13 +175,6 @@ impl LightAccounts for LightCreateRecord {
         }
         Ok(output_accounts)
     }
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct CreateRecordInputs {
-    pub light_inputs: LightInstructionInputs,
-    pub name: String,
-    pub rdata: RData,
 }
 
 #[light_system_accounts]
@@ -156,15 +190,16 @@ pub struct UpdateRecord<'info> {
     pub cpi_signer: AccountInfo<'info>,
 }
 
-pub struct LightUpdateRecord {
-    pub record: LightAccount<NameRecord>,
+pub struct LightUpdateRecord<'a> {
+    pub record: LightAccount<'a, NameRecord>,
 }
 
-impl LightAccounts for LightUpdateRecord {
-    fn try_light_accounts(inputs: &LightInstructionInputs) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::try_from_slice_mut(
-            &inputs.accounts.as_ref().unwrap()[0].compressed_account,
-        )?;
+impl<'a> LightAccounts<'a> for LightUpdateRecord<'a> {
+    fn try_light_accounts(
+        accounts: &'a Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    ) -> Result<Self> {
+        let accounts = accounts.as_ref().ok_or(LightSdkError::ExpectedAccounts)?;
+        let record: LightAccount<NameRecord> = LightAccount::try_from_slice_mut(&accounts[0])?;
         Ok(Self { record })
     }
 
@@ -175,12 +210,6 @@ impl LightAccounts for LightUpdateRecord {
         }
         Ok(output_accounts)
     }
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct UpdateRecordInputs {
-    pub light_inputs: LightInstructionInputs,
-    pub new_rdata: RData,
 }
 
 #[light_system_accounts]
@@ -196,24 +225,20 @@ pub struct DeleteRecord<'info> {
     pub cpi_signer: AccountInfo<'info>,
 }
 
-pub struct LightDeleteRecord {
-    pub record: LightAccount<NameRecord>,
+pub struct LightDeleteRecord<'a> {
+    pub record: LightAccount<'a, NameRecord>,
 }
 
-impl LightAccounts for LightDeleteRecord {
-    fn try_light_accounts(inputs: &LightInstructionInputs) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::try_from_slice_mut(
-            &inputs.accounts.as_ref().unwrap()[0].compressed_account,
-        )?;
+impl<'a> LightAccounts<'a> for LightDeleteRecord<'a> {
+    fn try_light_accounts(
+        accounts: &'a Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    ) -> Result<Self> {
+        let accounts = accounts.as_ref().ok_or(LightSdkError::ExpectedAccounts)?;
+        let record: LightAccount<NameRecord> = LightAccount::try_from_slice_mut(&accounts[0])?;
         Ok(Self { record })
     }
 
     fn output_accounts(&self) -> Result<Vec<OutputCompressedAccountWithPackedContext>> {
         Ok(Vec::new())
     }
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct DeleteRecordInputs {
-    pub light_inputs: LightInstructionInputs,
 }

@@ -4,44 +4,59 @@ use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, ProgramError, Pub
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
-use crate::{
-    context::LightInstructionInputs,
-    merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts},
+use crate::merkle_context::{
+    pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts,
 };
 
-pub trait LightAccounts: Sized {
-    fn try_light_accounts(inputs: &LightInstructionInputs) -> Result<Self>;
+pub trait LightAccounts<'a>: Sized {
+    fn try_light_accounts(
+        accounts: &'a Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    ) -> Result<Self>;
     fn output_accounts(&self) -> Result<Vec<OutputCompressedAccountWithPackedContext>>;
 }
 
 /// A wrapper which abstracts away the UTXO model.
-pub enum LightAccount<T>
-where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
-{
-    Init(LightInitAccount<T>),
-    Mut(LightMutAccount<T>),
-    Close(LightCloseAccount<T>),
-}
-
-impl<T> LightAccount<T>
+pub enum LightAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn new_init(compressed_account: &CompressedAccount) -> Self {
+    Init(LightInitAccount<'a, T>),
+    Mut(LightMutAccount<'a, T>),
+    Close(LightCloseAccount<'a, T>),
+}
+
+impl<'a, T> LightAccount<'a, T>
+where
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+{
+    pub fn new_init(compressed_account: &'a CompressedAccount) -> Self {
         Self::Init(LightInitAccount::new(compressed_account))
     }
 
-    pub fn try_from_slice_mut(compressed_account: &CompressedAccount) -> Result<Self> {
+    pub fn try_from_slice_mut(
+        compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    ) -> Result<Self> {
         Ok(Self::Mut(LightMutAccount::try_from_slice(
             compressed_account,
         )?))
     }
 
-    pub fn try_from_slice_close(compressed_account: &CompressedAccount) -> Result<Self> {
+    pub fn try_from_slice_close(
+        compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    ) -> Result<Self> {
         Ok(Self::Close(LightCloseAccount::try_from_slice(
             compressed_account,
         )?))
+    }
+
+    pub fn input_compressed_account(&self) -> Option<&'a PackedCompressedAccountWithMerkleContext> {
+        match self {
+            Self::Init(_) => None,
+            Self::Mut(light_mut_account) => Some(light_mut_account.input_compressed_account()),
+            Self::Close(light_close_account) => {
+                Some(light_close_account.input_compressed_account())
+            }
+        }
     }
 
     pub fn output_compressed_account(
@@ -61,68 +76,58 @@ where
     }
 }
 
-impl<T> Deref for LightAccount<T>
+impl<'a, T> Deref for LightAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Init(light_init_account) => &light_init_account.output_account,
-            Self::Mut(light_mut_account) => &light_mut_account.output_account,
-            Self::Close(light_close_account) => &light_close_account.input_account,
+            Self::Init(light_init_account) => &light_init_account.account_state,
+            Self::Mut(light_mut_account) => &light_mut_account.account_state,
+            Self::Close(light_close_account) => &light_close_account.account_state,
         }
     }
 }
 
-impl<T> DerefMut for LightAccount<T>
+impl<'a, T> DerefMut for LightAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            Self::Init(light_init_account) => &mut light_init_account.output_account,
-            Self::Mut(light_mut_account) => &mut light_mut_account.output_account,
-            Self::Close(light_close_account) => &mut light_close_account.input_account,
+            Self::Init(light_init_account) => &mut light_init_account.account_state,
+            Self::Mut(light_mut_account) => &mut light_mut_account.account_state,
+            Self::Close(light_close_account) => &mut light_close_account.account_state,
         }
     }
 }
 
-pub struct LightInitAccount<T>
+pub struct LightInitAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    output_account: T,
-    output_compressed_account: CompressedAccount,
+    account_state: T,
+    output_compressed_account: &'a CompressedAccount,
 }
 
-impl<T> LightInitAccount<T>
+impl<'a, T> LightInitAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + Default + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn new(compressed_account: &CompressedAccount) -> Self {
-        let output_account = T::default();
-
-        // Clean the provided compressed account from data and use it as an
-        // output account. The data of output data is going to be assigned in
-        // the `output_compressed_account` method.
-        let output_compressed_account = CompressedAccount {
-            owner: compressed_account.owner,
-            lamports: compressed_account.lamports,
-            address: compressed_account.address,
-            data: None,
-        };
+    pub fn new(compressed_account: &'a CompressedAccount) -> Self {
+        let account_state = T::default();
 
         Self {
-            output_account,
-            output_compressed_account,
+            account_state,
+            output_compressed_account: compressed_account,
         }
     }
 
     pub fn output_compressed_account(&self) -> Result<OutputCompressedAccountWithPackedContext> {
         let mut compressed_account = self.output_compressed_account.clone();
-        let compressed_account_data = serialize_and_hash_account_data(&self.output_account)?;
+        let compressed_account_data = serialize_and_hash_account_data(&self.account_state)?;
         compressed_account.data = Some(compressed_account_data);
         Ok(OutputCompressedAccountWithPackedContext {
             compressed_account,
@@ -131,63 +136,69 @@ where
     }
 }
 
-impl<T> Deref for LightInitAccount<T>
+impl<'a, T> Deref for LightInitAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.output_account
+        &self.account_state
     }
 }
 
-impl<T> DerefMut for LightInitAccount<T>
+impl<'a, T> DerefMut for LightInitAccount<'a, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.output_account
+        &mut self.account_state
     }
 }
 
-pub struct LightMutAccount<T>
+pub struct LightMutAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
-    input_account: T,
-    output_account: T,
-    output_compressed_account: CompressedAccount,
+    input_account: &'a PackedCompressedAccountWithMerkleContext,
+    account_state: T,
 }
 
-impl<T> LightMutAccount<T>
+impl<'a, T> LightMutAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
-    pub fn try_from_slice(compressed_account: &CompressedAccount) -> Result<Self> {
-        let account = T::try_from_slice(&compressed_account.data.as_ref().unwrap().data)?;
-
-        // Clean the provided compressed account from data and use it as an
-        // output account. The data of output data is going to be assigned in
-        // the `output_compressed_account` method.
-        let output_compressed_account = CompressedAccount {
-            owner: compressed_account.owner,
-            lamports: compressed_account.lamports,
-            address: compressed_account.address,
-            data: None,
-        };
+    pub fn try_from_slice(
+        compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    ) -> Result<Self> {
+        let account_state = T::try_from_slice(
+            &compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data,
+        )?;
 
         Ok(Self {
-            input_account: account.clone(),
-            output_account: account,
-            output_compressed_account,
+            input_account: compressed_account,
+            account_state,
         })
+    }
+
+    pub fn input_compressed_account(&self) -> &'a PackedCompressedAccountWithMerkleContext {
+        self.input_account
     }
 
     pub fn output_compressed_account(&self) -> Result<OutputCompressedAccountWithPackedContext> {
-        let mut compressed_account = self.output_compressed_account.clone();
-        let compressed_account_data = serialize_and_hash_account_data(&self.output_account)?;
-        compressed_account.data = Some(compressed_account_data);
+        let input_account = &self.input_account.compressed_account;
+        let data = Some(serialize_and_hash_account_data(&self.account_state)?);
+        let compressed_account = CompressedAccount {
+            owner: input_account.owner,
+            lamports: input_account.lamports,
+            address: input_account.address,
+            data,
+        };
         Ok(OutputCompressedAccountWithPackedContext {
             compressed_account,
             merkle_tree_index: 0,
@@ -195,61 +206,78 @@ where
     }
 }
 
-impl<T> Deref for LightMutAccount<T>
+impl<'a, T> Deref for LightMutAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.output_account
+        &self.account_state
     }
 }
 
-impl<T> DerefMut for LightMutAccount<T>
+impl<'a, T> DerefMut for LightMutAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.output_account
+        &mut self.account_state
     }
 }
 
-pub struct LightCloseAccount<T>
+pub struct LightCloseAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
-    input_account: T,
+    input_account: &'a PackedCompressedAccountWithMerkleContext,
+    account_state: T,
 }
 
-impl<T> LightCloseAccount<T>
+impl<'a, T> LightCloseAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
-    pub fn try_from_slice(compressed_account: &CompressedAccount) -> Result<Self> {
-        let input_account = T::try_from_slice(&compressed_account.data.as_ref().unwrap().data)?;
+    pub fn try_from_slice(
+        compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    ) -> Result<Self> {
+        let account_state = T::try_from_slice(
+            &compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data,
+        )?;
 
-        Ok(Self { input_account })
+        Ok(Self {
+            input_account: compressed_account,
+            account_state,
+        })
+    }
+
+    pub fn input_compressed_account(&self) -> &'a PackedCompressedAccountWithMerkleContext {
+        self.input_account
     }
 }
 
-impl<T> Deref for LightCloseAccount<T>
+impl<'a, T> Deref for LightCloseAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.input_account
+        &self.account_state
     }
 }
 
-impl<T> DerefMut for LightCloseAccount<T>
+impl<'a, T> DerefMut for LightCloseAccount<'a, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.input_account
+        &mut self.account_state
     }
 }
 

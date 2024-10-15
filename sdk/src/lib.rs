@@ -8,6 +8,7 @@ pub use constants::*;
 pub mod context;
 pub mod error;
 pub mod event;
+pub mod inputs;
 pub mod legacy;
 pub mod merkle_context;
 pub mod program_merkle_context;

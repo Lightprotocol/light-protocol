@@ -1,5 +1,6 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
+use std::io::Cursor;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
@@ -10,10 +11,14 @@ use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::address::{
     derive_address, derive_address_seed, pack_new_address_params, NewAddressParams,
+    PackedNewAddressParams,
 };
-use light_sdk::compressed_account::{pack_compressed_account, CompressedAccountWithMerkleContext};
-use light_sdk::context::LightInstructionInputs;
+use light_sdk::compressed_account::{
+    pack_compressed_account, CompressedAccountWithMerkleContext,
+    PackedCompressedAccountWithMerkleContext,
+};
 use light_sdk::error::LightSdkError;
+use light_sdk::inputs::LightInputs;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
     RemainingAccounts,
@@ -23,9 +28,7 @@ use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
-use name_service::{
-    CreateRecordInputs, CustomError, DeleteRecordInputs, NameRecord, RData, UpdateRecordInputs,
-};
+use name_service::{CustomError, NameRecord, RData};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
@@ -315,7 +318,7 @@ where
         queue_index: None,
     };
     let account = CompressedAccountWithMerkleContext::new_init_account(
-        payer.pubkey(),
+        name_service::ID,
         0,
         Some(*address),
         merkle_context,
@@ -330,18 +333,16 @@ where
     };
     let address_params = pack_new_address_params(address_params, remaining_accounts);
 
-    let inputs = CreateRecordInputs {
-        light_inputs: LightInstructionInputs {
-            proof: Some(rpc_result),
-            accounts: Some(vec![account]),
-            new_addresses: Some(vec![address_params]),
-        },
+    let inputs = LightInputs {
+        proof: Some(rpc_result),
+        accounts: Some(vec![account]),
+        new_addresses: Some(vec![address_params]),
+    };
+    let inputs = inputs.deserialize().unwrap();
+    let instruction_data = name_service::instruction::CreateRecord {
+        inputs,
         name: name.to_string(),
         rdata: rdata.clone(),
-    };
-
-    let instruction_data = name_service::instruction::CreateRecord {
-        inputs: inputs.try_to_vec().unwrap(),
     };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);
@@ -406,17 +407,15 @@ where
         remaining_accounts,
     );
 
-    let inputs = UpdateRecordInputs {
-        light_inputs: LightInstructionInputs {
-            proof: Some(rpc_result),
-            accounts: Some(vec![compressed_account]),
-            new_addresses: None,
-        },
-        new_rdata: new_rdata.clone(),
+    let inputs = LightInputs {
+        proof: Some(rpc_result),
+        accounts: Some(vec![compressed_account]),
+        new_addresses: None,
     };
-
+    let inputs = inputs.deserialize().unwrap();
     let instruction_data = name_service::instruction::UpdateRecord {
-        inputs: inputs.try_to_vec().unwrap(),
+        inputs,
+        new_rdata: new_rdata.clone(),
     };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);
@@ -480,17 +479,13 @@ where
         remaining_accounts,
     );
 
-    let inputs = DeleteRecordInputs {
-        light_inputs: LightInstructionInputs {
-            proof: Some(rpc_result),
-            accounts: Some(vec![compressed_account]),
-            new_addresses: None,
-        },
+    let inputs = LightInputs {
+        proof: Some(rpc_result),
+        accounts: Some(vec![compressed_account]),
+        new_addresses: None,
     };
-
-    let instruction_data = name_service::instruction::DeleteRecord {
-        inputs: inputs.try_to_vec().unwrap(),
-    };
+    let inputs = inputs.deserialize().unwrap();
+    let instruction_data = name_service::instruction::DeleteRecord { inputs };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);
 
