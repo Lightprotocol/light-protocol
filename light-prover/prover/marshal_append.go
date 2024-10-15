@@ -72,6 +72,12 @@ func (p *BatchAppendParameters) UpdateWithJSON(params BatchAppendParametersJSON)
 
 	p.TreeHeight = params.TreeHeight
 
+	p.PublicInputHash = new(big.Int)
+	err = fromHex(p.PublicInputHash, params.PublicInputHash)
+	if err != nil {
+		return err
+	}
+
 	p.OldSubTreeHashChain = new(big.Int)
 	err = fromHex(p.OldSubTreeHashChain, params.OldSubTreeHashChain)
 	if err != nil {

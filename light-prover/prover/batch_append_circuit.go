@@ -16,16 +16,16 @@ import (
 
 type BatchAppendCircuit struct {
 	// Public inputs
-	PublicInputHash     frontend.Variable `gnark:",public"`
-	OldSubTreeHashChain frontend.Variable `gnark:",private"`
-	NewSubTreeHashChain frontend.Variable `gnark:",private"`
-	NewRoot             frontend.Variable `gnark:",private"`
-	HashchainHash       frontend.Variable `gnark:",private"`
-	StartIndex          frontend.Variable `gnark:",private"`
+	PublicInputHash frontend.Variable `gnark:",public"`
 
 	// Private inputs
-	Leaves   []frontend.Variable `gnark:",private"`
-	Subtrees []frontend.Variable `gnark:",private"`
+	OldSubTreeHashChain frontend.Variable   `gnark:",private"`
+	NewSubTreeHashChain frontend.Variable   `gnark:",private"`
+	NewRoot             frontend.Variable   `gnark:",private"`
+	HashchainHash       frontend.Variable   `gnark:",private"`
+	StartIndex          frontend.Variable   `gnark:",private"`
+	Leaves              []frontend.Variable `gnark:",private"`
+	Subtrees            []frontend.Variable `gnark:",private"`
 
 	BatchSize  uint32
 	TreeHeight uint32

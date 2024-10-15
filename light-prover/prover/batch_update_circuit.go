@@ -14,14 +14,14 @@ import (
 )
 
 type BatchUpdateCircuit struct {
-	PublicInputHash     frontend.Variable `gnark:",public"`
-	OldRoot             frontend.Variable `gnark:",private"`
-	NewRoot             frontend.Variable `gnark:",private"`
-	LeavesHashchainHash frontend.Variable `gnark:",private"`
+	PublicInputHash frontend.Variable `gnark:",public"`
 
-	Leaves       []frontend.Variable   `gnark:"input"`
-	MerkleProofs [][]frontend.Variable `gnark:"input"`
-	PathIndices  []frontend.Variable   `gnark:"input"`
+	OldRoot             frontend.Variable     `gnark:",private"`
+	NewRoot             frontend.Variable     `gnark:",private"`
+	LeavesHashchainHash frontend.Variable     `gnark:",private"`
+	Leaves              []frontend.Variable   `gnark:"input"`
+	MerkleProofs        [][]frontend.Variable `gnark:"input"`
+	PathIndices         []frontend.Variable   `gnark:"input"`
 
 	Height    uint32
 	BatchSize uint32
@@ -120,6 +120,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		return nil, err
 	}
 
+	publicInputHash := frontend.Variable(params.PublicInputHash)
 	oldRoot := frontend.Variable(params.OldRoot)
 	newRoot := frontend.Variable(params.NewRoot)
 	leavesHashchainHash := frontend.Variable(params.LeavesHashchainHash)
@@ -138,6 +139,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 	}
 
 	assignment := BatchUpdateCircuit{
+		PublicInputHash:     publicInputHash,
 		OldRoot:             oldRoot,
 		NewRoot:             newRoot,
 		LeavesHashchainHash: leavesHashchainHash,
@@ -171,6 +173,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 	}
 
 	circuit := BatchUpdateCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
 		LeavesHashchainHash: frontend.Variable(0),

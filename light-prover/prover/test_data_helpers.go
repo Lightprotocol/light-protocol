@@ -257,6 +257,7 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 		&newRoot,
 		leavesHashchainHash},
 		3)
+
 	return &BatchUpdateParameters{
 		PublicInputHash:     publicInputHash,
 		OldRoot:             &oldRoot,
