@@ -190,6 +190,36 @@ func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
 	return gadget.Hash
 }
 
+type MerkleRootUpdateGadget struct {
+	OldRoot     frontend.Variable
+	OldLeaf     frontend.Variable
+	NewLeaf     frontend.Variable
+	PathIndex   frontend.Variable
+	MerkleProof []frontend.Variable
+	Height      int
+}
+
+func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
+	// Verify the old root
+	currentRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.OldLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
+	api.AssertIsEqual(currentRoot, gadget.OldRoot)
+
+	// Calculate the new root
+	newRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.NewLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
+
+	return newRoot
+}
+
 // Trusted setup utility functions
 // Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L19
 func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {

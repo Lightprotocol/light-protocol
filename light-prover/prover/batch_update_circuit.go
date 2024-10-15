@@ -33,7 +33,6 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	hashChainInputs[0] = circuit.OldRoot
 	hashChainInputs[1] = circuit.NewRoot
 	hashChainInputs[2] = circuit.LeavesHashchainHash
-	api.Println("HashChain inputs: ", hashChainInputs)
 	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
 	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
 
@@ -44,20 +43,13 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	newRoot := circuit.OldRoot
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
-		currentRoot := abstractor.Call(api, MerkleRootGadget{
-			Hash:   circuit.Leaves[i],
-			Index:  circuit.PathIndices[i],
-			Path:   circuit.MerkleProofs[i],
-			Height: int(circuit.Height),
-		})
-
-		api.AssertIsEqual(currentRoot, newRoot)
-
-		newRoot = abstractor.Call(api, MerkleRootGadget{
-			Hash:   emptyLeaf,
-			Index:  circuit.PathIndices[i],
-			Path:   circuit.MerkleProofs[i],
-			Height: int(circuit.Height),
+		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+			OldRoot:     newRoot,
+			OldLeaf:     circuit.Leaves[i],
+			NewLeaf:     emptyLeaf,
+			PathIndex:   circuit.PathIndices[i],
+			MerkleProof: circuit.MerkleProofs[i],
+			Height:      int(circuit.Height),
 		})
 	}
 
