@@ -1,10 +1,12 @@
 use anchor_lang::{prelude::*, Bumps};
+use light_hasher::{DataHasher, Discriminator};
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{
     address::PackedNewAddressParams,
     compressed_account::{
-        OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
+        LightAccount, OutputCompressedAccountWithPackedContext,
+        PackedCompressedAccountWithMerkleContext,
     },
     error::LightSdkError,
     proof::CompressedProof,
@@ -243,5 +245,59 @@ where
 
     let (account_infos, account_metas) = setup_cpi_accounts(ctx);
     invoke_cpi(&account_infos, account_metas, inputs, signer_seeds)?;
+    Ok(())
+}
+
+pub fn verify_compressed_accounts<'info, T>(
+    ctx: &Context<
+        '_,
+        '_,
+        '_,
+        'info,
+        impl InvokeAccounts<'info>
+            + LightSystemAccount<'info>
+            + InvokeCpiAccounts<'info>
+            + SignerAccounts<'info>
+            + InvokeCpiContextAccount<'info>
+            + Bumps,
+    >,
+    light_accounts: &[LightAccount<T>],
+) -> Result<()>
+where
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+{
+    let bump = Pubkey::find_program_address(
+        &[CPI_AUTHORITY_PDA_SEED],
+        &ctx.accounts.get_invoking_program().key(),
+    )
+    .1;
+    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
+
+    let mut input_compressed_accounts_with_merkle_context =
+        Vec::with_capacity(light_accounts.len());
+    let mut output_compressed_accounts = Vec::with_capacity(light_accounts.len());
+
+    for light_account in light_accounts {
+        if let Some(input_account) = light_account.input_compressed_account() {
+            input_compressed_accounts_with_merkle_context.push(input_account.clone());
+        }
+        if let Some(output_account) = light_account.output_compressed_account()? {
+            output_compressed_accounts.push(output_account);
+        }
+    }
+
+    let instruction = InstructionDataInvokeCpi {
+        proof: None,
+        new_address_params: Vec::new(),
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context,
+        output_compressed_accounts,
+        compress_or_decompress_lamports: None,
+        is_compress: false,
+        cpi_context: None,
+    };
+
+    verify(ctx, &instruction, &[&signer_seeds[..]])?;
+
     Ok(())
 }
