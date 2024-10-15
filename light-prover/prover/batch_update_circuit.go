@@ -14,19 +14,28 @@ import (
 )
 
 type BatchUpdateCircuit struct {
-	OldRoot             frontend.Variable `gnark:",public"`
-	NewRoot             frontend.Variable `gnark:",public"`
-	LeavesHashchainHash frontend.Variable `gnark:",public"`
+	PublicInputHash frontend.Variable `gnark:",public"`
 
-	Leaves       []frontend.Variable   `gnark:"input"`
-	MerkleProofs [][]frontend.Variable `gnark:"input"`
-	PathIndices  []frontend.Variable   `gnark:"input"`
+	OldRoot             frontend.Variable     `gnark:",private"`
+	NewRoot             frontend.Variable     `gnark:",private"`
+	LeavesHashchainHash frontend.Variable     `gnark:",private"`
+	Leaves              []frontend.Variable   `gnark:"input"`
+	MerkleProofs        [][]frontend.Variable `gnark:"input"`
+	PathIndices         []frontend.Variable   `gnark:"input"`
 
 	Height    uint32
 	BatchSize uint32
 }
 
 func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
+
+	hashChainInputs := make([]frontend.Variable, int(3))
+	hashChainInputs[0] = circuit.OldRoot
+	hashChainInputs[1] = circuit.NewRoot
+	hashChainInputs[2] = circuit.LeavesHashchainHash
+	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
+	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
+
 	calculatedHashchainHash := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
 	api.AssertIsEqual(calculatedHashchainHash, circuit.LeavesHashchainHash)
 
@@ -34,20 +43,13 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	newRoot := circuit.OldRoot
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
-		currentRoot := abstractor.Call(api, MerkleRootGadget{
-			Hash:   circuit.Leaves[i],
-			Index:  circuit.PathIndices[i],
-			Path:   circuit.MerkleProofs[i],
-			Height: int(circuit.Height),
-		})
-
-		api.AssertIsEqual(currentRoot, newRoot)
-
-		newRoot = abstractor.Call(api, MerkleRootGadget{
-			Hash:   emptyLeaf,
-			Index:  circuit.PathIndices[i],
-			Path:   circuit.MerkleProofs[i],
-			Height: int(circuit.Height),
+		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+			OldRoot:     newRoot,
+			OldLeaf:     circuit.Leaves[i],
+			NewLeaf:     emptyLeaf,
+			PathIndex:   circuit.PathIndices[i],
+			MerkleProof: circuit.MerkleProofs[i],
+			Height:      int(circuit.Height),
 		})
 	}
 
@@ -57,6 +59,7 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 }
 
 type BatchUpdateParameters struct {
+	PublicInputHash     *big.Int
 	OldRoot             *big.Int
 	NewRoot             *big.Int
 	LeavesHashchainHash *big.Int
@@ -117,6 +120,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		return nil, err
 	}
 
+	publicInputHash := frontend.Variable(params.PublicInputHash)
 	oldRoot := frontend.Variable(params.OldRoot)
 	newRoot := frontend.Variable(params.NewRoot)
 	leavesHashchainHash := frontend.Variable(params.LeavesHashchainHash)
@@ -135,6 +139,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 	}
 
 	assignment := BatchUpdateCircuit{
+		PublicInputHash:     publicInputHash,
 		OldRoot:             oldRoot,
 		NewRoot:             newRoot,
 		LeavesHashchainHash: leavesHashchainHash,
@@ -168,6 +173,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 	}
 
 	circuit := BatchUpdateCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
 		LeavesHashchainHash: frontend.Variable(0),
