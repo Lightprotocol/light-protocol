@@ -1,3 +1,5 @@
+pub mod batch_append_json_formatter;
+pub mod batch_update_json_formatter;
 pub mod combined_json_formatter;
 pub mod constants;
 pub mod helpers;
