@@ -7,6 +7,7 @@ import (
 )
 
 type BatchUpdateProofInputsJSON struct {
+	PublicInputHash     string     `json:"publicInputHash"`
 	OldRoot             string     `json:"oldRoot"`
 	NewRoot             string     `json:"newRoot"`
 	LeavesHashchainHash string     `json:"leavesHashchainHash"`
@@ -36,6 +37,7 @@ func (p *BatchUpdateParameters) MarshalJSON() ([]byte, error) {
 
 func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdateParametersJSON {
 	paramsJson := BatchUpdateParametersJSON{}
+	paramsJson.Inputs.PublicInputHash = toHex(p.PublicInputHash)
 	paramsJson.Inputs.OldRoot = toHex(p.OldRoot)
 	paramsJson.Inputs.NewRoot = toHex(p.NewRoot)
 	paramsJson.Inputs.LeavesHashchainHash = toHex(p.LeavesHashchainHash)

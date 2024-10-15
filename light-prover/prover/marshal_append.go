@@ -7,6 +7,7 @@ import (
 )
 
 type BatchAppendParametersJSON struct {
+	PublicInputHash     string   `json:"publicInputHash"`
 	OldSubTreeHashChain string   `json:"oldSubTreeHashChain"`
 	NewSubTreeHashChain string   `json:"newSubTreeHashChain"`
 	NewRoot             string   `json:"newRoot"`
@@ -34,6 +35,7 @@ func (p *BatchAppendParameters) MarshalJSON() ([]byte, error) {
 
 func (p *BatchAppendParameters) CreateBatchAppendParametersJSON() BatchAppendParametersJSON {
 	paramsJson := BatchAppendParametersJSON{
+		PublicInputHash:     toHex(p.PublicInputHash),
 		OldSubTreeHashChain: toHex(p.OldSubTreeHashChain),
 		NewSubTreeHashChain: toHex(p.NewSubTreeHashChain),
 		NewRoot:             toHex(p.NewRoot),

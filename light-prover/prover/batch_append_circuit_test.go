@@ -251,12 +251,12 @@ func TestBatchAppendCircuit(t *testing.T) {
 
 func createCircuit(params *BatchAppendParameters) BatchAppendCircuit {
 	circuit := BatchAppendCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
 		HashchainHash:       frontend.Variable(0),
 		StartIndex:          frontend.Variable(0),
-		HashChainStartIndex: frontend.Variable(0),
 		Leaves:              make([]frontend.Variable, len(params.Leaves)),
 		Subtrees:            make([]frontend.Variable, len(params.Subtrees)),
 		BatchSize:           uint32(len(params.Leaves)),
@@ -275,12 +275,12 @@ func createCircuit(params *BatchAppendParameters) BatchAppendCircuit {
 
 func createWitness(params *BatchAppendParameters) *BatchAppendCircuit {
 	witness := &BatchAppendCircuit{
+		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldSubTreeHashChain: frontend.Variable(params.OldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(params.NewSubTreeHashChain),
 		NewRoot:             frontend.Variable(params.NewRoot),
 		HashchainHash:       frontend.Variable(params.HashchainHash),
 		StartIndex:          frontend.Variable(params.StartIndex),
-		HashChainStartIndex: frontend.Variable(params.HashChainStartIndex),
 		Leaves:              make([]frontend.Variable, len(params.Leaves)),
 		Subtrees:            make([]frontend.Variable, len(params.Subtrees)),
 		BatchSize:           uint32(len(params.Leaves)),

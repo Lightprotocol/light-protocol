@@ -20,6 +20,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := BatchUpdateCircuit{
+			PublicInputHash:     frontend.Variable(0),
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
 			LeavesHashchainHash: frontend.Variable(0),
@@ -35,6 +36,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		}
 
 		witness := BatchUpdateCircuit{
+			PublicInputHash:     frontend.Variable(params.PublicInputHash),
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
 			LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),
@@ -162,6 +164,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 
 func createBatchUpdateCircuit(treeDepth, batchSize int) BatchUpdateCircuit {
 	circuit := BatchUpdateCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
 		LeavesHashchainHash: frontend.Variable(0),
@@ -181,6 +184,7 @@ func createBatchUpdateCircuit(treeDepth, batchSize int) BatchUpdateCircuit {
 
 func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count int) BatchUpdateCircuit {
 	witness := BatchUpdateCircuit{
+		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldRoot:             frontend.Variable(params.OldRoot),
 		NewRoot:             frontend.Variable(params.NewRoot),
 		LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),

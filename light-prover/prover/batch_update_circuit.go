@@ -14,9 +14,10 @@ import (
 )
 
 type BatchUpdateCircuit struct {
-	OldRoot             frontend.Variable `gnark:",public"`
-	NewRoot             frontend.Variable `gnark:",public"`
-	LeavesHashchainHash frontend.Variable `gnark:",public"`
+	PublicInputHash     frontend.Variable `gnark:",public"`
+	OldRoot             frontend.Variable `gnark:",private"`
+	NewRoot             frontend.Variable `gnark:",private"`
+	LeavesHashchainHash frontend.Variable `gnark:",private"`
 
 	Leaves       []frontend.Variable   `gnark:"input"`
 	MerkleProofs [][]frontend.Variable `gnark:"input"`
@@ -27,6 +28,15 @@ type BatchUpdateCircuit struct {
 }
 
 func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
+
+	hashChainInputs := make([]frontend.Variable, int(3))
+	hashChainInputs[0] = circuit.OldRoot
+	hashChainInputs[1] = circuit.NewRoot
+	hashChainInputs[2] = circuit.LeavesHashchainHash
+	api.Println("HashChain inputs: ", hashChainInputs)
+	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
+	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
+
 	calculatedHashchainHash := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
 	api.AssertIsEqual(calculatedHashchainHash, circuit.LeavesHashchainHash)
 
@@ -57,6 +67,7 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 }
 
 type BatchUpdateParameters struct {
+	PublicInputHash     *big.Int
 	OldRoot             *big.Int
 	NewRoot             *big.Int
 	LeavesHashchainHash *big.Int

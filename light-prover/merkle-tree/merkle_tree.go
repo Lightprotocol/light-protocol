@@ -1,8 +1,9 @@
 package merkle_tree
 
 import (
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"math/big"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type PoseidonNode interface {
@@ -157,19 +158,19 @@ func deepCopyNode(node PoseidonNode) PoseidonNode {
 func deepCopyFullNode(node *PoseidonFullNode) *PoseidonFullNode {
 	if node == nil {
 		return nil
-				}
+	}
 	return &PoseidonFullNode{
 		dep:   node.dep,
 		val:   *new(big.Int).Set(&node.val),
 		Left:  deepCopyNode(node.Left),
 		Right: deepCopyNode(node.Right),
-			}
+	}
 }
 
 func deepCopyEmptyNode(node *PoseidonEmptyNode) *PoseidonEmptyNode {
 	if node == nil {
 		return nil
-		}
+	}
 	emptyTreeValues := make([]big.Int, len(node.emptyTreeValues))
 	for i, v := range node.emptyTreeValues {
 		emptyTreeValues[i] = *new(big.Int).Set(&v)

@@ -16,16 +16,16 @@ import (
 
 type BatchAppendCircuit struct {
 	// Public inputs
-	OldSubTreeHashChain frontend.Variable `gnark:",public"`
-	NewSubTreeHashChain frontend.Variable `gnark:",public"`
-	NewRoot             frontend.Variable `gnark:",public"`
-	HashchainHash       frontend.Variable `gnark:",public"`
-	StartIndex          frontend.Variable `gnark:",public"`
+	PublicInputHash     frontend.Variable `gnark:",public"`
+	OldSubTreeHashChain frontend.Variable `gnark:",private"`
+	NewSubTreeHashChain frontend.Variable `gnark:",private"`
+	NewRoot             frontend.Variable `gnark:",private"`
+	HashchainHash       frontend.Variable `gnark:",private"`
+	StartIndex          frontend.Variable `gnark:",private"`
 
 	// Private inputs
-	Leaves              []frontend.Variable `gnark:",private"`
-	Subtrees            []frontend.Variable `gnark:",private"`
-	HashChainStartIndex frontend.Variable   `gnark:",private"`
+	Leaves   []frontend.Variable `gnark:",private"`
+	Subtrees []frontend.Variable `gnark:",private"`
 
 	BatchSize  uint32
 	TreeHeight uint32
@@ -35,12 +35,16 @@ func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
 	if err := circuit.validateInputs(); err != nil {
 		return err
 	}
+	hashChainInputs := make([]frontend.Variable, int(5))
+	hashChainInputs[0] = circuit.OldSubTreeHashChain
+	hashChainInputs[1] = circuit.NewSubTreeHashChain
+	hashChainInputs[2] = circuit.NewRoot
+	hashChainInputs[3] = circuit.HashchainHash
+	hashChainInputs[4] = circuit.StartIndex
 
-	// TODO:
-	// - unify all circuits inputs into a single hashchain -> only one public input
-	// - enable partial updates of `HashchainHash`  with `HashChainStartIndex`
-	// ( consider `HashchainHash` contains a batch of 5000 leaves but we want to use 5 proves to execute this update onchain)
-	api.AssertIsEqual(circuit.HashChainStartIndex, 0)
+	publicInputsHashChain := createHashChain(api, int(5), hashChainInputs)
+
+	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
 	oldSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
 	api.AssertIsEqual(oldSubtreesHashChain, circuit.OldSubTreeHashChain)
@@ -177,6 +181,7 @@ func (circuit *BatchAppendCircuit) getZeroValue(api frontend.API, level int) fro
 }
 
 type BatchAppendParameters struct {
+	PublicInputHash     *big.Int   `json:"publicInputHash"`
 	OldSubTreeHashChain *big.Int   `json:"oldSubTreeHashChain"`
 	NewSubTreeHashChain *big.Int   `json:"newSubTreeHashChain"`
 	NewRoot             *big.Int   `json:"newRoot"`
@@ -225,6 +230,7 @@ func SetupBatchAppend(treeHeight uint32, batchSize uint32) (*ProvingSystemV2, er
 
 func ImportBatchAppendSetup(treeDepth uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
 	circuit := BatchAppendCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
@@ -232,7 +238,6 @@ func ImportBatchAppendSetup(treeDepth uint32, batchSize uint32, pkPath string, v
 		StartIndex:          frontend.Variable(0),
 		Leaves:              make([]frontend.Variable, batchSize),
 		Subtrees:            make([]frontend.Variable, treeDepth),
-		HashChainStartIndex: frontend.Variable(0),
 	}
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
@@ -266,6 +271,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 	}
 
 	circuit := BatchAppendCircuit{
+		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldSubTreeHashChain: frontend.Variable(params.OldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(params.NewSubTreeHashChain),
 		NewRoot:             frontend.Variable(params.NewRoot),
@@ -273,7 +279,6 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 		StartIndex:          frontend.Variable(params.StartIndex),
 		Leaves:              make([]frontend.Variable, ps.BatchSize),
 		Subtrees:            make([]frontend.Variable, ps.TreeHeight),
-		HashChainStartIndex: frontend.Variable(params.HashChainStartIndex),
 	}
 
 	for i, leaf := range params.Leaves {
@@ -321,6 +326,7 @@ func (ps *ProvingSystemV2) VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHash
 
 func R1CSBatchAppend(treeDepth uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
 	circuit := BatchAppendCircuit{
+		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
@@ -328,7 +334,6 @@ func R1CSBatchAppend(treeDepth uint32, batchSize uint32) (constraint.ConstraintS
 		StartIndex:          frontend.Variable(0),
 		Leaves:              make([]frontend.Variable, batchSize),
 		Subtrees:            make([]frontend.Variable, treeDepth),
-		HashChainStartIndex: frontend.Variable(0),
 
 		TreeHeight: treeDepth,
 		BatchSize:  batchSize,

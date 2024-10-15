@@ -2,10 +2,11 @@ package prover
 
 import (
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	merkletree "light/light-prover/merkle-tree"
 	"math/big"
 	"math/rand"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 func rangeIn(low, hi int) int {
@@ -132,7 +133,15 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 	newRoot := tree.Root.Value()
 	hashchainHash := calculateHashChain(newLeaves, int(batchSize))
 
+	publicInputHash := calculateHashChain([]*big.Int{
+		oldSubTreeHashChain,
+		newSubTreeHashChain,
+		&newRoot,
+		hashchainHash,
+		big.NewInt(int64(startIndex))},
+		5)
 	params := BatchAppendParameters{
+		PublicInputHash:     publicInputHash,
 		OldSubTreeHashChain: oldSubTreeHashChain,
 		NewSubTreeHashChain: newSubTreeHashChain,
 		NewRoot:             &newRoot,
@@ -243,7 +252,13 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	leavesHashchainHash := calculateHashChain(leaves, batchSize)
 	newRoot := tree.Root.Value()
 
+	publicInputHash := calculateHashChain([]*big.Int{
+		&oldRoot,
+		&newRoot,
+		leavesHashchainHash},
+		3)
 	return &BatchUpdateParameters{
+		PublicInputHash:     publicInputHash,
 		OldRoot:             &oldRoot,
 		NewRoot:             &newRoot,
 		LeavesHashchainHash: leavesHashchainHash,
