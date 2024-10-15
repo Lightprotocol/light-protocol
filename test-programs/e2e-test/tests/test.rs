@@ -22,8 +22,7 @@ async fn test_10_all() {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
-        KeypairActionConfig::all_default().inclusion(),
-        KeypairActionConfig::all_default().non_inclusion(),
+        Some(KeypairActionConfig::all_default().prover_config()),
     )
     .await;
 
@@ -60,8 +59,7 @@ async fn test_10000_all() {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
-        KeypairActionConfig::all_default().inclusion(),
-        KeypairActionConfig::all_default().non_inclusion(),
+        Some(KeypairActionConfig::all_default().prover_config()),
     )
     .await;
 

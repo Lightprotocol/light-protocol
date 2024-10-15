@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod test {
+    use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_prover, spawn_prover, ProofType},
+            helpers::{kill_prover, spawn_prover},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -15,7 +16,14 @@ mod test {
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        spawn_prover(false, &[ProofType::Inclusion]).await;
+        spawn_prover(
+            false,
+            ProverConfig {
+                run_mode: None,
+                circuits: vec![ProofType::Inclusion],
+            },
+        )
+        .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
@@ -57,7 +65,14 @@ mod test {
     #[ignore]
     async fn prove_inclusion_full() {
         init_logger();
-        spawn_prover(false, &[ProofType::Inclusion]).await;
+        spawn_prover(
+            false,
+            ProverConfig {
+                run_mode: None,
+                circuits: vec![ProofType::Inclusion],
+            },
+        )
+        .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);

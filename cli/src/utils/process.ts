@@ -15,7 +15,6 @@ export async function killProcess(processName: string) {
   );
 
   for (const proc of targetProcesses) {
-    console.log(`Killing process with PID and name: ${proc.pid} ${proc.name}`);
     try {
       process.kill(proc.pid, "SIGKILL");
     } catch (error) {

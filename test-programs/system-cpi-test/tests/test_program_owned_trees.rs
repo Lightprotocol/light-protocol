@@ -9,6 +9,7 @@ use account_compression::{
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
 };
@@ -52,8 +53,15 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_context_keypair = Keypair::new();
 
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,

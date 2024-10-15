@@ -60,12 +60,11 @@ export async function initTestEnv({
   indexerPort = 8784,
   proverPort = 3001,
   gossipHost = "127.0.0.1",
-  proveCompressedAccounts = true,
-  proveNewAddresses = false,
   checkPhotonVersion = true,
   photonDatabaseUrl,
   limitLedgerSize,
-  proverRunMode = "test",
+  proverRunMode,
+  circuits,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -75,12 +74,18 @@ export async function initTestEnv({
   indexerPort?: number;
   proverPort?: number;
   gossipHost?: string;
-  proveCompressedAccounts?: boolean;
-  proveNewAddresses?: boolean;
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
-  proverRunMode?: "test" | "full";
+  proverRunMode?:
+    | "inclusion"
+    | "non-inclusion"
+    | "forester"
+    | "forester-test"
+    | "rpc"
+    | "full"
+    | "full-test";
+  circuits?: string[];
 }) {
   const initAccounts = async () => {
     const anchorProvider = await setAnchorProvider();
@@ -119,12 +124,7 @@ export async function initTestEnv({
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(
-      proverPort,
-      proveCompressedAccounts,
-      proveNewAddresses,
-      proverRunMode,
-    );
+    await startProver(proverPort, proverRunMode, circuits);
   }
 }
 

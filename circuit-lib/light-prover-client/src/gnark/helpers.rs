@@ -1,5 +1,6 @@
 use log::info;
 use std::{
+    ffi::OsStr,
     fmt::{Display, Formatter},
     process::Command,
     sync::atomic::{AtomicBool, Ordering},
@@ -14,12 +15,40 @@ use serde_json::json;
 use sysinfo::{Signal, System};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ProverMode {
+    Rpc,
+    Forester,
+    ForesterTest,
+    Full,
+    FullTest,
+}
+
+impl Display for ProverMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ProverMode::Rpc => "rpc",
+                ProverMode::Forester => "forester",
+                ProverMode::ForesterTest => "forester-test",
+                ProverMode::Full => "full",
+                ProverMode::FullTest => "full-test",
+            }
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ProofType {
     Inclusion,
     NonInclusion,
+    Combined,
     BatchAppend,
     BatchUpdate,
+    BatchAppendTest,
+    BatchUpdateTest,
 }
 
 impl Display for ProofType {
@@ -30,31 +59,47 @@ impl Display for ProofType {
             match self {
                 ProofType::Inclusion => "inclusion",
                 ProofType::NonInclusion => "non-inclusion",
+                ProofType::Combined => "combined",
                 ProofType::BatchAppend => "append",
                 ProofType::BatchUpdate => "update",
+                ProofType::BatchAppendTest => "append-test",
+                ProofType::BatchUpdateTest => "update-test",
             }
         )
     }
 }
 
-pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
+#[derive(Debug, Clone)]
+pub struct ProverConfig {
+    pub run_mode: Option<ProverMode>,
+    pub circuits: Vec<ProofType>,
+}
+
+pub async fn spawn_prover(restart: bool, config: ProverConfig) {
     if let Some(project_root) = get_project_root() {
-        let path = "circuit-lib/light-prover-client/scripts/prover.sh";
+        let path = "cli/test_bin/run";
         let absolute_path = format!("{}/{}", project_root.trim(), path);
         if restart {
+            println!("Killing prover...");
             kill_prover();
         }
 
         if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
-            let proof_type_args: Vec<String> = proof_types.iter().map(|p| p.to_string()).collect();
-            let proof_type_str = proof_type_args.join(" ");
-            Command::new("sh")
-                .arg("-c")
-                .arg(format!("{} {}", absolute_path, proof_type_str))
-                .spawn()
-                .expect("Failed to start server process");
+            let mut command = Command::new(&absolute_path);
+            command.arg("start-prover");
+
+            if let Some(ref mode) = config.run_mode {
+                command.arg("--run-mode").arg(mode.to_string());
+            }
+
+            for circuit in config.circuits.clone() {
+                command.arg("--circuit").arg(circuit.to_string());
+            }
+
+            let _ = command.spawn().expect("Failed to start prover process");
+
             let health_result = health_check(20, 5).await;
             if health_result {
                 info!("Prover started successfully");
@@ -68,15 +113,60 @@ pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
     }
 }
 
-pub fn kill_prover() {
+pub fn kill_process(process_name: &str) {
     let mut system = System::new_all();
     system.refresh_all();
 
     for process in system.processes().values() {
-        if process.name() == "light-prover" {
-            process.kill_with(Signal::Term);
+        let process_name_str = process.name().to_string_lossy();
+        let process_cmd = process.cmd().join(OsStr::new(" "));
+        let process_cmd_str = process_cmd.to_string_lossy();
+
+        // Match the exact process name
+        if process_name_str.contains(process_name) {
+            println!(
+                "Attempting to kill process: PID={}, Name={}, Cmd={}",
+                process.pid(),
+                process_name_str,
+                process_cmd_str
+            );
+            if process.kill_with(Signal::Kill).is_some() {
+                println!("Successfully killed process: PID={}", process.pid());
+            } else {
+                eprintln!("Failed to kill process: PID={}", process.pid());
+            }
         }
     }
+
+    // Double-check if processes are still running
+    system.refresh_all();
+    let remaining_processes: Vec<_> = system
+        .processes()
+        .values()
+        .filter(|process| {
+            let process_name_str = process.name().to_string_lossy();
+            process_name_str == process_name
+        })
+        .collect();
+
+    if !remaining_processes.is_empty() {
+        eprintln!(
+            "Warning: {} processes still running after kill attempt",
+            remaining_processes.len()
+        );
+        for process in remaining_processes {
+            eprintln!(
+                "Remaining process: PID={}, Name={}, Cmd={}",
+                process.pid(),
+                process.name().to_string_lossy(),
+                process.cmd().join(OsStr::new(" ")).to_string_lossy()
+            );
+        }
+    }
+}
+
+pub fn kill_prover() {
+    kill_process("prover");
 }
 
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
@@ -144,5 +234,54 @@ where
     match serde_json::to_string_pretty(&json) {
         Ok(json) => json,
         Err(_) => panic!("Merkle tree data invalid"),
+    }
+}
+
+#[derive(Debug)]
+pub struct LightValidatorConfig {
+    pub enable_indexer: bool,
+    pub prover_config: Option<ProverConfig>,
+    pub wait_time: u64,
+}
+
+impl Default for LightValidatorConfig {
+    fn default() -> Self {
+        Self {
+            enable_indexer: false,
+            prover_config: None,
+            wait_time: 35,
+        }
+    }
+}
+
+pub async fn spawn_validator(config: LightValidatorConfig) {
+    if let Some(project_root) = get_project_root() {
+        let path = "cli/test_bin/run test-validator";
+        let mut path = format!("{}/{}", project_root.trim(), path);
+        println!("Starting validator...");
+        println!("Config: {:?}", config);
+        if !config.enable_indexer {
+            path.push_str(" --skip-indexer");
+        }
+        if let Some(prover_config) = config.prover_config {
+            prover_config.circuits.iter().for_each(|circuit| {
+                path.push_str(&format!(" --circuit {}", circuit));
+            });
+            if let Some(prover_mode) = prover_config.run_mode {
+                path.push_str(&format!(" --prover-run-mode {}", prover_mode));
+            }
+        } else {
+            path.push_str(" --skip-prover");
+        }
+
+        println!("Starting validator with command: {}", path);
+
+        Command::new("sh")
+            .arg("-c")
+            .arg(path)
+            .spawn()
+            .expect("Failed to start server process");
+        tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
+        println!("Validator started successfully");
     }
 }
