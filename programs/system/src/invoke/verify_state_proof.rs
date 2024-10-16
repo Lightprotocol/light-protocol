@@ -18,6 +18,7 @@ use light_verifier::{
 };
 use std::mem;
 
+// TODO: add support for batched Merkle trees
 #[inline(never)]
 #[heap_neutral]
 pub fn fetch_input_compressed_account_roots<

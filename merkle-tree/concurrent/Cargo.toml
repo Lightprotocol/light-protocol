@@ -16,7 +16,7 @@ solana = [
 
 [dependencies]
 borsh = "0.10"
-bytemuck = "1.17"
+bytemuck = { version = "1.17", features = ["derive"] }
 light-bounded-vec = { path = "../bounded-vec", version = "1.1.0" }
 light-hasher = { path = "../hasher", version = "1.1.0" }
 light-utils = { version = "1.1.0", path = "../../utils" }
