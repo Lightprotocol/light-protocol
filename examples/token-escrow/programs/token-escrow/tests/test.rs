@@ -237,10 +237,12 @@ pub async fn perform_escrow<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             rpc,
@@ -256,7 +258,7 @@ pub async fn perform_escrow<R: RpcConnection>(
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
@@ -395,10 +397,12 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             context,
@@ -414,7 +418,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[

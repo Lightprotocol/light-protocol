@@ -8,7 +8,6 @@ use std::mem::ManuallyDrop;
 
 use super::batch::BatchState;
 
-// TODO: implement update that verifies multiple proofs
 /// Memory layout:
 /// 1. QueueMetadata
 /// 2. num_batches: u64
@@ -41,6 +40,7 @@ pub struct BatchedQueue {
 }
 
 impl BatchedQueue {
+    // TODO: add check that batch size is divisible by zkp_batch_size
     pub fn get_num_zkp_batches(&self) -> u64 {
         self.batch_size / self.zkp_batch_size
     }
@@ -125,7 +125,7 @@ impl BatchedQueue {
     pub fn init(&mut self, num_batches: u64, batch_size: u64, zkp_batch_size: u64) -> Result<()> {
         self.num_batches = num_batches;
         self.batch_size = batch_size;
-        // TODO: check that batch size is divisible by zkp_batch_size
+        // Check that batch size is divisible by zkp_batch_size.
         if batch_size % zkp_batch_size != 0 {
             return err!(AccountCompressionErrorCode::BatchSizeNotDivisibleByZkpBatchSize);
         }
@@ -136,23 +136,21 @@ impl BatchedQueue {
     pub fn get_size_parameters(&self, queue_type: u64) -> Result<(usize, usize, usize)> {
         let num_batches = self.num_batches as usize;
         // Input queues don't store values
-        let num_value_stores =
-            if queue_type == QueueType::Output as u64 || queue_type == QueueType::Address as u64 {
-                num_batches
-            } else if queue_type == QueueType::Input as u64 {
-                0
-            } else {
-                return err!(AccountCompressionErrorCode::InvalidQueueType);
-            };
+        let num_value_stores = if queue_type == QueueType::Output as u64 {
+            num_batches
+        } else if queue_type == QueueType::Input as u64 {
+            0
+        } else {
+            return err!(AccountCompressionErrorCode::InvalidQueueType);
+        };
         // Output queues don't use bloom filters.
-        let num_stores =
-            if queue_type == QueueType::Input as u64 || queue_type == QueueType::Address as u64 {
-                num_batches
-            } else if queue_type == QueueType::Output as u64 && self.bloom_filter_capacity == 0 {
-                0
-            } else {
-                return err!(AccountCompressionErrorCode::InvalidQueueType);
-            };
+        let num_stores = if queue_type == QueueType::Input as u64 {
+            num_batches
+        } else if queue_type == QueueType::Output as u64 && self.bloom_filter_capacity == 0 {
+            0
+        } else {
+            return err!(AccountCompressionErrorCode::InvalidQueueType);
+        };
         Ok((
             num_value_stores,
             num_stores,
@@ -187,12 +185,13 @@ impl ZeroCopyBatchedQueueAccount {
             let (num_value_stores, num_stores, num_hashchain_stores) =
                 (*account).get_size_parameters()?;
 
-            let (batches, value_vecs, bloom_filter_stores, hashchain_store) = queue_from_bytes(
-                num_value_stores,
-                num_stores,
-                num_hashchain_stores,
-                account_data,
-            )?;
+            let (batches, value_vecs, bloom_filter_stores, hashchain_store) =
+                output_queue_from_bytes(
+                    num_value_stores,
+                    num_stores,
+                    num_hashchain_stores,
+                    account_data,
+                )?;
             Ok(ZeroCopyBatchedQueueAccount {
                 account,
                 batches,
@@ -258,6 +257,45 @@ impl ZeroCopyBatchedQueueAccount {
         }
         Ok(())
     }
+
+    /// Zero out a leaf by index if it exists in the queues value vec. If
+    /// checked fail if leaf is not found.
+    pub fn prove_inclusion_by_index_and_zero_out_leaf(
+        &mut self,
+        leaf_index: u64,
+        value: &[u8; 32],
+        checked: bool,
+    ) -> Result<()> {
+        for (batch_index, batch) in self.batches.iter().enumerate() {
+            if batch.value_is_inserted_in_batch(leaf_index)? {
+                let index = batch.get_value_index_in_batch(leaf_index)?;
+                msg!(
+                    "self.value_vecs[batch_index] {:?}",
+                    self.value_vecs[batch_index]
+                );
+                let element = self.value_vecs[batch_index]
+                    .get_mut(index as usize)
+                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
+                msg!("element {:?}", element);
+                msg!("index {:?}", index);
+                msg!("value {:?}", value);
+                msg!("checked {:?}", checked);
+                msg!("leaf_index {:?}", leaf_index);
+                if *value == [0; 32] && !checked {
+                } else if element == value {
+                    *element = [0; 32];
+                    return Ok(());
+                } else {
+                    return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
+                }
+            }
+        }
+        if checked {
+            err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[allow(clippy::ptr_arg)]
@@ -302,23 +340,25 @@ pub fn insert_into_current_batch(
 
         if wipe {
             if let Some(blomfilter_stores) = bloom_filter_stores.as_mut() {
-                // TODO: consider to move it to forester because this is
-                // expensive
-                (*blomfilter_stores)
-                    .as_mut_slice()
-                    .iter_mut()
-                    .for_each(|x| *x = 0);
-                // Saving sequence number and root index for the batch.
-                // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
-                // if not advance current root index to root index
-                if current_batch.sequence_number != 0 {
-                    if root_index.is_none() && sequence_number.is_none() {
-                        root_index = Some(current_batch.root_index);
-                        sequence_number = Some(current_batch.sequence_number);
-                        current_batch.sequence_number = 0;
-                    } else {
-                        unreachable!("root_index is already set this is a bug.");
+                if !current_batch.bloom_filter_is_wiped {
+                    (*blomfilter_stores)
+                        .as_mut_slice()
+                        .iter_mut()
+                        .for_each(|x| *x = 0);
+                    // Saving sequence number and root index for the batch.
+                    // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
+                    // if not advance current root index to root index
+                    if current_batch.sequence_number != 0 {
+                        if root_index.is_none() && sequence_number.is_none() {
+                            root_index = Some(current_batch.root_index);
+                            sequence_number = Some(current_batch.sequence_number);
+                            current_batch.sequence_number = 0;
+                        } else {
+                            unreachable!("root_index is already set this is a bug.");
+                        }
                     }
+                } else {
+                    current_batch.bloom_filter_is_wiped = false;
                 }
             }
             if let Some(value_store) = value_store.as_mut() {
@@ -374,7 +414,7 @@ pub fn insert_into_current_batch(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn queue_from_bytes(
+pub fn output_queue_from_bytes(
     num_value_stores: usize,
     num_stores: usize,
     num_hashchain_stores: usize,
@@ -401,8 +441,7 @@ pub fn queue_from_bytes(
 }
 
 #[allow(clippy::type_complexity)]
-#[allow(clippy::ptr_arg)]
-pub fn batched_queue_bytes(
+pub fn input_queue_bytes(
     account: &BatchedQueue,
     account_data: &mut [u8],
     queue_type: u64,
@@ -723,7 +762,70 @@ pub mod tests {
             if queue_type != QueueType::Output {
                 assert!(zero_copy_account.insert_into_current_batch(&value).is_err());
             }
-            // TODO: add full assert
+        }
+    }
+
+    #[test]
+    fn test_value_exists_in_value_vec_present() {
+        let (account, mut account_data) =
+            get_test_account_and_account_data(100, 2, QueueType::Output, 0);
+        let mut zero_copy_account = ZeroCopyBatchedQueueAccount::init(
+            account.metadata.clone(),
+            2,
+            100,
+            10,
+            &mut account_data,
+            0,
+            0,
+        )
+        .unwrap();
+
+        let value = [1u8; 32];
+        let value2 = [2u8; 32];
+
+        // 1. Functional for 1 value
+        {
+            zero_copy_account.insert_into_current_batch(&value).unwrap();
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, true),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, true),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert!(zero_copy_account
+                .prove_inclusion_by_index_and_zero_out_leaf(0, &value, true)
+                .is_ok());
+        }
+        // 2. Functional does not succeed on second invocation
+        {
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value, true),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+        }
+
+        // 3. Functional for 2 values
+        {
+            zero_copy_account
+                .insert_into_current_batch(&value2)
+                .unwrap();
+
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, true),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert!(zero_copy_account
+                .prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true)
+                .is_ok());
+        }
+        // 4. Functional does not succeed on second invocation
+        {
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
         }
     }
 }

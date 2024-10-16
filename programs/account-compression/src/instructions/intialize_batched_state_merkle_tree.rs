@@ -69,14 +69,14 @@ impl default::Default for InitStateTreeAccountsInstructionData {
             index: 0,
             program_owner: None,
             forester: None,
-            additional_bytes: 1,
+            additional_bytes: 20 * 1024 + 8, // default value for cpi context account
             bloom_filter_num_iters: 3,
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             output_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: 10,
             output_queue_zkp_batch_size: 10,
             root_history_capacity: 20,
-            bloom_filter_capacity: 200_000 * 8,
+            bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
@@ -150,6 +150,7 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
 pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes: &mut [u8],
 ) -> Result<*mut T> {
+    // TODO: throw error for size check
     // Ensure the slice has at least as many bytes as needed for MyStruct
     assert!(bytes.len() >= std::mem::size_of::<T>());
 

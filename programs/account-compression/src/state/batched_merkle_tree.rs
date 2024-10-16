@@ -20,7 +20,7 @@ use std::mem::ManuallyDrop;
 use super::{
     batch::Batch,
     batched_queue::{
-        batched_queue_bytes, init_queue, insert_into_current_batch, queue_account_size,
+        input_queue_bytes, init_queue, insert_into_current_batch, queue_account_size,
         BatchedQueue,
     },
     AccessMetadata, MerkleTreeMetadata, QueueType, RolloverMetadata,
@@ -51,9 +51,11 @@ impl GroupAccess for ZeroCopyBatchedMerkleTreeAccount {
 
 #[repr(u64)]
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum BatchedTreeType {
+pub enum TreeType {
     State = 1,
     Address = 2,
+    BatchedState = 3,
+    BatchedAddress = 4,
 }
 
 #[derive(Debug, PartialEq, Default)]
@@ -71,7 +73,7 @@ pub struct BatchedMerkleTreeAccount {
 
 impl BatchedMerkleTreeAccount {
     pub fn size(&self) -> Result<usize> {
-        // TODO: replace with Self::LEN; and remove DISCRIMINATOR_LENGTH
+        // TODO: replace with Self::LEN;
         let account_size = std::mem::size_of::<Self>() + DISCRIMINATOR_LENGTH;
         let root_history_size = std::mem::size_of::<CyclicBoundedVecMetadata>()
             + (std::mem::size_of::<[u8; 32]>() * self.root_history_capacity as usize);
@@ -109,7 +111,7 @@ impl BatchedMerkleTreeAccount {
                 associated_queue,
             },
             sequence_number: 0,
-            tree_type: BatchedTreeType::State as u64,
+            tree_type: TreeType::BatchedState as u64,
             next_index: 0,
             height: 26,
             root_history_capacity,
@@ -180,7 +182,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
             let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset)
                 .map_err(ProgramError::from)?;
-            let (batches, value_vecs, bloom_filter_stores, hashchain_store) = batched_queue_bytes(
+            let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
                 &(*account).queue,
                 account_data,
                 QueueType::Input as u64,
@@ -213,7 +215,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             (*account).metadata = metadata;
             (*account).root_history_capacity = root_history_capacity;
             (*account).height = height;
-            (*account).tree_type = BatchedTreeType::State as u64;
+            (*account).tree_type = TreeType::BatchedState as u64;
             (*account).queue.init(
                 num_batches_input_queue,
                 input_queue_batch_size,
@@ -396,19 +398,21 @@ impl ZeroCopyBatchedMerkleTreeAccount {
     /// -> we can access the history of how commitments are spent in zkps for example fraud proofs
     pub fn insert_nullifier_into_current_batch(
         &mut self,
-        value: &[u8; 32],
+        compressed_account_hash: &[u8; 32],
         leaf_index: u64,
         tx_hash: &[u8; 32],
     ) -> Result<()> {
         let leaf_index_bytes = leaf_index.to_be_bytes();
-        let nullifier =
-            Poseidon::hashv(&[value, &leaf_index_bytes, tx_hash]).map_err(ProgramError::from)?;
-        self.insert_into_current_batch(value, &nullifier)
+        let nullifier = Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])
+            .map_err(ProgramError::from)?;
+        msg!("leaf index bytes: {:?}", leaf_index);
+        msg!("nullifier: {:?}", nullifier);
+        self.insert_into_current_batch(compressed_account_hash, &nullifier)
     }
 
     fn insert_into_current_batch(
         &mut self,
-        value: &[u8; 32],
+        bloom_filter_value: &[u8; 32],
         leaves_hash_value: &[u8; 32],
     ) -> Result<()> {
         unsafe {
@@ -419,7 +423,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 &mut self.value_vecs,
                 &mut self.bloom_filter_stores,
                 &mut self.hashchain_store,
-                value,
+                bloom_filter_value,
                 Some(leaves_hash_value),
                 None,
             )?;
@@ -516,7 +520,7 @@ pub fn get_merkle_tree_account_size_default() -> usize {
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
         sequence_number: 0,
-        tree_type: BatchedTreeType::State as u64,
+        tree_type: TreeType::BatchedState as u64,
         height: 26,
         root_history_capacity: 20,
         queue: BatchedQueue {
@@ -555,7 +559,7 @@ pub fn get_merkle_tree_account_size(
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
         sequence_number: 0,
-        tree_type: BatchedTreeType::State as u64,
+        tree_type: TreeType::BatchedState as u64,
         height: 26,
         root_history_capacity,
         queue: BatchedQueue {

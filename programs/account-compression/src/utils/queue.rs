@@ -20,6 +20,8 @@ pub struct QueueBundle<'a, 'info> {
     pub queue_type: QueueType,
     pub accounts: Vec<&'info AccountInfo<'info>>,
     pub elements: Vec<&'a [u8; 32]>,
+    pub indices: Vec<u32>,
+    pub checked: Vec<bool>,
 }
 
 impl<'a, 'info> QueueBundle<'a, 'info> {
@@ -28,6 +30,8 @@ impl<'a, 'info> QueueBundle<'a, 'info> {
             queue_type,
             accounts,
             elements: Vec::new(),
+            indices: Vec::new(),
+            checked: Vec::new(),
         }
     }
 }

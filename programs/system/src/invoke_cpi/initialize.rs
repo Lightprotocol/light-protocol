@@ -1,4 +1,3 @@
-use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 
 use super::account::CpiContextAccount;
@@ -12,5 +11,6 @@ pub struct InitializeCpiContextAccount<'info> {
     pub fee_payer: Signer<'info>,
     #[account(zero)]
     pub cpi_context_account: Account<'info, CpiContextAccount>,
-    pub associated_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
+    /// CHECK: manually in instruction
+    pub associated_merkle_tree: AccountInfo<'info>,
 }

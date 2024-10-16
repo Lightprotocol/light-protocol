@@ -40,6 +40,7 @@ use light_test_utils::{
     create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
     Epoch, RpcConnection, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts, TreeType,
 };
+use serial_test::serial;
 use solana_sdk::{
     instruction::Instruction,
     native_token::LAMPORTS_PER_SOL,
@@ -489,6 +490,7 @@ async fn test_initialize_protocol_config() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_custom_forester() {
     let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
@@ -565,10 +567,12 @@ async fn test_custom_forester() {
         .unwrap();
     }
 }
+
 /// Test:
 /// 1. SUCCESS: Register a forester
 /// 2. SUCCESS: Update forester authority
 /// 3. SUCCESS: Register forester for epoch
+#[serial]
 #[tokio::test]
 async fn test_register_and_update_forester_pda() {
     let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(

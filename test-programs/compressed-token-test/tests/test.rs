@@ -45,6 +45,7 @@ use light_test_utils::{
 };
 use light_verifier::VerifierError;
 use rand::Rng;
+use serial_test::serial;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
@@ -1296,8 +1297,8 @@ async fn test_approve_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -1721,8 +1722,8 @@ async fn test_revoke_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -2188,7 +2189,7 @@ async fn failing_tests_burn() {
         let invalid_change_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
-            .nullifier_queue_pubkey;
+            .queue_pubkey;
         let (_, _, _, _, instruction) = create_burn_test_instruction(
             &sender,
             &mut rpc,
@@ -2427,8 +2428,8 @@ async fn test_failing_freeze() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -2574,8 +2575,8 @@ async fn test_failing_freeze() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -2691,8 +2692,8 @@ async fn test_failing_thaw() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -2829,8 +2830,8 @@ async fn test_failing_thaw() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -3183,8 +3184,8 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
     let (root_indices, proof) = if !input_compressed_account_hashes.is_empty() {
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 rpc,
@@ -3313,10 +3314,12 @@ async fn test_invalid_inputs() {
         .clone()];
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_accounts[0].hash().unwrap()]),
-            Some(&[input_compressed_accounts[0]
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_accounts[0].hash().unwrap()]),
+            Some(vec![
+                input_compressed_accounts[0]
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut rpc,
@@ -3650,7 +3653,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
             .iter()
             .map(|x| MerkleContext {
                 merkle_tree_pubkey: *merkle_tree_pubkey,
-                nullifier_queue_pubkey: *nullifier_queue_pubkey,
+                queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 queue_index: None,
             })
@@ -3687,4 +3690,41 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         latest_blockhash,
     );
     rpc.process_transaction(transaction).await
+}
+
+#[serial]
+#[tokio::test]
+async fn mint_with_batched_tree() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.batched_output_queue;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: None,
+        //     circuits: vec![ProofType::Inclusion],
+        // }),
+        None,
+    )
+    .await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount; 3],
+        vec![sender.pubkey(); 3],
+    )
+    .await;
 }

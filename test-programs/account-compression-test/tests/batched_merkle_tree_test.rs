@@ -16,11 +16,13 @@ use account_compression::{
 use anchor_lang::prelude::AccountMeta;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
-use light_prover_client::mock_batched_forester::MockBatchedForester;
+use light_prover_client::mock_batched_forester::{MockBatchedForester, MockTxEvent};
+use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_test_utils::test_env::NOOP_PROGRAM_ID;
 use light_test_utils::{create_account_instruction, RpcConnection};
 use light_test_utils::{rpc::ProgramTestRpcConnection, AccountZeroCopy};
 use light_verifier::CompressedProof;
+use serial_test::serial;
 use solana_program_test::ProgramTest;
 use solana_sdk::account::WritableAccount;
 use solana_sdk::pubkey::Pubkey;
@@ -28,8 +30,9 @@ use solana_sdk::{
     instruction::Instruction,
     signature::{Keypair, Signer},
 };
+use std::ops::Deref;
 
-#[ignore]
+#[serial]
 #[tokio::test]
 async fn test_init_state_merkle_tree() {
     let mut program_test = ProgramTest::default();
@@ -174,6 +177,11 @@ async fn test_init_state_merkle_tree() {
             leaf[31] = counter as u8;
             leaves.push((0, leaf));
             mock_indexer.output_queue_leaves.push(leaf);
+            mock_indexer.tx_events.push(MockTxEvent {
+                tx_hash: [0u8; 32],
+                inputs: vec![],
+                outputs: vec![leaf],
+            });
             counter += 1;
         }
 
@@ -205,7 +213,7 @@ async fn test_init_state_merkle_tree() {
             .unwrap();
     }
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![
@@ -262,20 +270,32 @@ async fn test_init_state_merkle_tree() {
     let num_of_leaves = 10;
     let num_tx = 5;
     let mut counter = 0;
-    for i in 0..num_tx {
-        println!("insert into nullifier queue tx: {:?}", i);
-        // TODO: take leaves from active leaves (and fill active leaves before)
-        let mut nullifiers = vec![];
+    for _ in 0..num_tx {
+        let mut leaves = vec![];
+        let leaf_indices = (counter..counter + num_of_leaves).collect::<Vec<u32>>();
         for _ in 0..num_of_leaves {
             let mut leaf = [0u8; 32];
             leaf[31] = counter as u8;
-            nullifiers.push(leaf);
-            mock_indexer.input_queue_leaves.push((leaf, i));
+            leaves.push(leaf);
+            mock_indexer
+                .input_queue_leaves
+                .push((leaf, counter as usize));
+
             counter += 1;
         }
-
-        let instruction =
-            account_compression::instruction::InsertIntoNullifierQueues { nullifiers };
+        let slot = context.get_slot().await.unwrap();
+        let tx_hash = create_tx_hash(&leaves, &vec![], slot);
+        mock_indexer.tx_events.push(MockTxEvent {
+            tx_hash,
+            inputs: leaves.clone(),
+            outputs: vec![],
+        });
+        let instruction = account_compression::instruction::InsertIntoNullifierQueues {
+            nullifiers: leaves,
+            leaf_indices,
+            tx_hash: Some(tx_hash),
+            check_proof_by_index: None,
+        };
         let accounts = account_compression::accounts::InsertIntoQueues {
             authority: context.get_payer().pubkey(),
             fee_payer: context.get_payer().pubkey(),
@@ -290,7 +310,7 @@ async fn test_init_state_merkle_tree() {
                     is_signer: false,
                     is_writable: true,
                 };
-                num_of_leaves
+                num_of_leaves as usize
             ],
         ]
         .concat();
@@ -338,7 +358,6 @@ async fn test_init_state_merkle_tree() {
             .unwrap();
     }
 }
-use std::ops::Deref;
 
 pub async fn create_append_batch_ix_data(
     mock_indexer: &mut MockBatchedForester<26>,

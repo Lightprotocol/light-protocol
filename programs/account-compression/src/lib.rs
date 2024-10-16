@@ -64,7 +64,10 @@ pub mod account_compression {
         process_insert_into_queues::<AddressMerkleTreeAccount>(
             ctx,
             addresses.as_slice(),
+            Vec::new(),
             QueueType::AddressQueue,
+            None,
+            &None,
         )
     }
 
@@ -167,6 +170,7 @@ pub mod account_compression {
     pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
         leaves: Vec<(u8, [u8; 32])>,
+        // zero_out_leaf_indices: Vec<ZeroOutLeafIndex>,
     ) -> Result<()> {
         process_append_leaves_to_merkle_trees(ctx, leaves)
     }
@@ -190,11 +194,17 @@ pub mod account_compression {
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         nullifiers: Vec<[u8; 32]>,
+        leaf_indices: Vec<u32>,
+        tx_hash: Option<[u8; 32]>,
+        check_proof_by_index: Option<Vec<bool>>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
             &nullifiers,
+            leaf_indices,
             QueueType::NullifierQueue,
+            tx_hash,
+            &check_proof_by_index,
         )
     }
 
@@ -208,9 +218,8 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        // TODO: replace error code
         let instruction_data = InstructionDataBatchUpdateProofInputs::try_from_slice(&data)
-            .map_err(|_| ProgramError::Custom(1))?;
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_nullify_leaves(&ctx, instruction_data)?;
         Ok(())
     }
@@ -219,9 +228,8 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        // TODO: replace error code
         let instruction_data = InstructionDataBatchAppendProofInputs::try_from_slice(&data)
-            .map_err(|_| ProgramError::Custom(1))?;
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_append_leaves(&ctx, instruction_data)?;
         Ok(())
     }

@@ -373,7 +373,8 @@ where
                 ));
             }
             let metadata: *mut BoundedVecMetadata = read_ptr_at(account_data, start_offset);
-            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
+            if ((*metadata).capacity() * std::mem::size_of::<T>()) % std::mem::align_of::<T>() != 0
+            {
                 return Err(BoundedVecError::UnalignedMemory(
                     (*metadata).capacity() * std::mem::size_of::<T>(),
                 ));
@@ -413,7 +414,7 @@ where
         with_len: bool,
     ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
         let vector_size = capacity * std::mem::size_of::<T>();
-        if vector_size % 8 != 0 {
+        if vector_size % std::mem::align_of::<T>() != 0 {
             return Err(BoundedVecError::UnalignedMemory(
                 capacity * std::mem::size_of::<T>(),
             ));
@@ -935,7 +936,7 @@ where
         with_len: bool,
     ) -> Result<ManuallyDrop<Self>, BoundedVecError> {
         let vector_size = capacity * std::mem::size_of::<T>();
-        if vector_size % 8 != 0 {
+        if vector_size % std::mem::align_of::<T>() != 0 {
             return Err(BoundedVecError::UnalignedMemory(
                 capacity * std::mem::size_of::<T>(),
             ));
@@ -987,7 +988,8 @@ where
             }
 
             let metadata: *mut CyclicBoundedVecMetadata = read_ptr_at(account_data, start_offset);
-            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
+            if ((*metadata).capacity() * std::mem::size_of::<T>()) % std::mem::align_of::<T>() != 0
+            {
                 return Err(BoundedVecError::UnalignedMemory(
                     (*metadata).capacity() * std::mem::size_of::<T>(),
                 ));

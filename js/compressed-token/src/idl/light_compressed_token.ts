@@ -737,38 +737,6 @@ export type LightCompressedToken = {
     ];
     types: [
         {
-            name: 'AccessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'forester';
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ];
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'AccountState';
             type: {
                 kind: 'enum';
@@ -1159,34 +1127,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'MerkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'MerkleTreeSequenceNumber';
             type: {
                 kind: 'struct';
@@ -1290,7 +1230,7 @@ export type LightCompressedToken = {
                         type: 'u8';
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex';
+                        name: 'queuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -1435,63 +1375,6 @@ export type LightCompressedToken = {
                         name: 'index';
                         docs: ['Index of compressed account hash in queue.'];
                         type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'RolloverMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'additionalBytes';
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ];
-                        type: 'u64';
                     },
                 ];
             };
@@ -2308,38 +2191,6 @@ export const IDL: LightCompressedToken = {
     ],
     types: [
         {
-            name: 'AccessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'AccountState',
             type: {
                 kind: 'enum',
@@ -2734,34 +2585,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'MerkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'MerkleTreeSequenceNumber',
             type: {
                 kind: 'struct',
@@ -2865,7 +2688,7 @@ export const IDL: LightCompressedToken = {
                         type: 'u8',
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex',
+                        name: 'queuePubkeyIndex',
                         type: 'u8',
                     },
                     {
@@ -3011,63 +2834,6 @@ export const IDL: LightCompressedToken = {
                         name: 'index',
                         docs: ['Index of compressed account hash in queue.'],
                         type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'RolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
                     },
                 ],
             },

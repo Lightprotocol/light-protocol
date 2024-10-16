@@ -248,7 +248,7 @@ fn verify<const N: usize>(
 }
 
 #[inline(never)]
-pub fn verify_batch_append(
+pub fn verify_batch_append_with_subtrees(
     batch_size: usize,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,

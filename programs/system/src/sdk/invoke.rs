@@ -113,34 +113,37 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                 index += 1;
             }
         };
+        let root_index = if i >= input_root_indices.len() {
+            0
+        } else {
+            input_root_indices[i]
+        };
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: *remaining_accounts
                     .get(&context.merkle_tree_pubkey)
                     .unwrap() as u8,
-                nullifier_queue_pubkey_index: 0,
+                queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
-                queue_index: None,
+                queue_index: merkle_context[i].queue_index,
             },
             read_only: false,
-            root_index: input_root_indices[i],
+            root_index,
         });
     }
 
     for (i, context) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&context.nullifier_queue_pubkey) {
+        match remaining_accounts.get(&context.queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.nullifier_queue_pubkey, index);
+                remaining_accounts.insert(context.queue_pubkey, index);
                 index += 1;
             }
         };
         _input_compressed_accounts[i]
             .merkle_context
-            .nullifier_queue_pubkey_index = *remaining_accounts
-            .get(&context.nullifier_queue_pubkey)
-            .unwrap() as u8;
+            .queue_pubkey_index = *remaining_accounts.get(&context.queue_pubkey).unwrap() as u8;
     }
 
     let mut output_compressed_accounts_with_context: Vec<OutputCompressedAccountWithPackedContext> =
@@ -260,13 +263,13 @@ mod test {
         let input_merkle_context = vec![
             MerkleContext {
                 merkle_tree_pubkey,
-                nullifier_queue_pubkey: nullifier_array_pubkey,
+                queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
                 queue_index: None,
             },
             MerkleContext {
                 merkle_tree_pubkey,
-                nullifier_queue_pubkey: nullifier_array_pubkey,
+                queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
                 queue_index: None,
             },
@@ -358,13 +361,13 @@ mod test {
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                 .merkle_context
-                .nullifier_queue_pubkey_index,
+                .queue_pubkey_index,
             1
         );
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                 .merkle_context
-                .nullifier_queue_pubkey_index,
+                .queue_pubkey_index,
             1
         );
         assert_eq!(
@@ -385,14 +388,14 @@ mod test {
             instruction.accounts[9 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[0]
                 .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+                .queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
             instruction.accounts[9 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[1]
                 .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+                .queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(

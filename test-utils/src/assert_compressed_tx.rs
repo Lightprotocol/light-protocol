@@ -9,7 +9,6 @@ use light_system_program::sdk::{
     event::PublicTransactionEvent,
     invoke::get_sol_pool_pda,
 };
-use log::debug;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::account::ReadableAccount;
@@ -159,7 +158,8 @@ pub fn assert_created_compressed_accounts(
             && x.address == output_account.compressed_account.address),);
         assert!(output_merkle_tree_pubkeys
             .iter()
-            .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey),);
+            .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey
+                || *x == output_account.merkle_context.queue_pubkey),);
     }
 }
 
@@ -212,8 +212,8 @@ pub fn assert_public_transaction_event(
             .iter_mut()
             .find(|x| x.pubkey == merkle_tree_pubkey);
         if index.is_none() {
-            debug!("reference sequence numbers: {:?}", sequence_numbers);
-            debug!("event: {:?}", event);
+            println!("reference sequence numbers: {:?}", sequence_numbers);
+            println!("event: {:?}", event);
             panic!(
                 "merkle tree pubkey not found in sequence numbers : {:?}",
                 merkle_tree_pubkey
@@ -259,16 +259,16 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
             snapshot.accounts.merkle_tree,
         )
         .await;
-        debug!("sequence number: {:?}", merkle_tree.next_index() as u64);
-        debug!("next index: {:?}", snapshot.next_index);
-        debug!("prev sequence number: {:?}", snapshot.num_added_accounts);
+        println!("sequence number: {:?}", merkle_tree.next_index() as u64);
+        println!("next index: {:?}", snapshot.next_index);
+        println!("prev sequence number: {:?}", snapshot.num_added_accounts);
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
             seq: merkle_tree.sequence_number() as u64,
         });
         if merkle_tree.root() == snapshot.root {
-            debug!("deduped_snapshots: {:?}", deduped_snapshots);
-            debug!("i: {:?}", i);
+            println!("deduped_snapshots: {:?}", deduped_snapshots);
+            println!("i: {:?}", i);
             panic!("merkle tree root update failed, it should have updated but didn't");
         }
         assert_eq!(
@@ -282,16 +282,16 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
             .expect("merkle tree not found in test indexer");
 
         if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
-            // The following lines are just debug prints
-            debug!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
+            // The following lines are just println prints
+            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
             for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
                 .iter()
                 .enumerate()
             {
-                debug!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
+                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
             }
             for i in 0..16 {
-                debug!("root {} {:?}", i, merkle_tree.roots.get(i));
+                println!("root {} {:?}", i, merkle_tree.roots.get(i));
             }
 
             panic!("merkle tree root update failed");
@@ -312,6 +312,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
 ) -> Vec<MerkleTreeTestSnapShot> {
     let mut snapshots = Vec::new();
     for account_bundle in accounts.iter() {
+        // TODO: match discriminator
         let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
             rpc,
             account_bundle.merkle_tree,

@@ -55,9 +55,17 @@ impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct ZeroOutLeafIndex {
+    pub tree_index: u8,
+    pub batch_index: u8,
+    pub leaf_index: u16,
+}
+
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: Vec<(u8, [u8; 32])>,
+    // zero_out_leaf_indices: Vec<ZeroOutLeafIndex>,
 ) -> Result<()> {
     let leaves_processed = batch_append_leaves(&ctx, &leaves)?;
     if leaves_processed != leaves.len() {
@@ -80,6 +88,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 fn batch_append_leaves<'a, 'c: 'info, 'info>(
     ctx: &Context<'a, '_, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [(u8, [u8; 32])],
+    // zero_out_leaves: &'a [ZeroOutLeafIndex],
 ) -> Result<usize> {
     let mut leaves_processed: usize = 0;
     let len = ctx.remaining_accounts.len();

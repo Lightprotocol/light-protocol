@@ -22,6 +22,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     //       consider whether it should only be created if inputs exist.
     // TODO: extend event by the batch inputs and outputs are inserted in, None means v0 insert.
     // Note: message is unimplemented
+    // (if we compute the tx hash in indexer we don't need to modify the event.)
     let event = PublicTransactionEvent {
         input_compressed_account_hashes,
         output_compressed_account_hashes,
