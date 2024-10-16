@@ -10,6 +10,7 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
+use batched_merkle_tree::InstructionDataBatchUpdateProofInputs;
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -21,18 +22,22 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-
 #[program]
 pub mod account_compression {
 
+    use batched_merkle_tree::InstructionDataBatchAppendProofInputs;
     use errors::AccountCompressionErrorCode;
 
-    use self::{
-        initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
-        insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
-    };
+    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
 
     use super::*;
+
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        params: InitStateTreeAccountsInstructionData,
+    ) -> Result<()> {
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
@@ -197,5 +202,27 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
+    }
+
+    pub fn batch_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        // TODO: replace error code
+        let instruction_data = InstructionDataBatchUpdateProofInputs::try_from_slice(&data)
+            .map_err(|_| ProgramError::Custom(1))?;
+        process_batch_nullify_leaves(&ctx, instruction_data)?;
+        Ok(())
+    }
+
+    pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        // TODO: replace error code
+        let instruction_data = InstructionDataBatchAppendProofInputs::try_from_slice(&data)
+            .map_err(|_| ProgramError::Custom(1))?;
+        process_batch_append_leaves(&ctx, instruction_data)?;
+        Ok(())
     }
 }

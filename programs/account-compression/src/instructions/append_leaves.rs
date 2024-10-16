@@ -1,4 +1,5 @@
 use crate::{
+    batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
     state_merkle_tree_from_bytes_zero_copy_mut,
@@ -10,7 +11,7 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
@@ -26,6 +27,16 @@ pub struct AppendLeaves<'info> {
 }
 
 impl GroupAccess for StateMerkleTreeAccount {
+    fn get_owner(&self) -> &Pubkey {
+        &self.metadata.access_metadata.owner
+    }
+
+    fn get_program_owner(&self) -> &Pubkey {
+        &self.metadata.access_metadata.program_owner
+    }
+}
+
+impl GroupAccess for BatchedQueueAccount {
     fn get_owner(&self) -> &Pubkey {
         &self.metadata.access_metadata.owner
     }
@@ -74,6 +85,11 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
     let len = ctx.remaining_accounts.len();
     for i in 0..len {
         let merkle_tree_acc_info = &ctx.remaining_accounts[i];
+        //TODO: check whether copy from slice is more efficient
+        let merkle_tree_acc_discriminator: [u8; 8] = ctx.remaining_accounts[i].try_borrow_data()?
+            [0..8]
+            .try_into()
+            .unwrap();
         let rollover_fee: u64 = {
             let start = match leaves.iter().position(|x| x.0 as usize == i) {
                 Some(pos) => Ok(pos),
@@ -86,41 +102,82 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
             let batch_size = end - start;
             leaves_processed += batch_size;
 
-            let rollover_fee = {
-                let merkle_tree_account =
-                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                        .map_err(ProgramError::from)?;
-
-                {
-                    let merkle_tree_account = merkle_tree_account.load()?;
-                    let rollover_fee = merkle_tree_account.metadata.rollover_metadata.rollover_fee
-                        * batch_size as u64;
-
-                    check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
-                        ctx,
-                        &merkle_tree_account,
-                    )?;
-
-                    rollover_fee
-                }
-            };
-
-            let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
-            let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
-
-            merkle_tree
-                .append_batch(
+            match merkle_tree_acc_discriminator {
+                StateMerkleTreeAccount::DISCRIMINATOR => append_v0(
+                    ctx,
+                    merkle_tree_acc_info,
+                    batch_size,
                     leaves[start..end]
                         .iter()
                         .map(|x| &x.1)
                         .collect::<Vec<&[u8; 32]>>()
                         .as_slice(),
-                )
-                .map_err(ProgramError::from)?;
-
-            rollover_fee
+                )?,
+                BatchedQueueAccount::DISCRIMINATOR => {
+                    append_v1(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
+                }
+                _ => return err!(AccountCompressionErrorCode::InvalidDiscriminator),
+            }
         };
         transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;
     }
     Ok(leaves_processed)
+}
+
+fn append_v0<'a, 'b, 'c: 'info, 'info>(
+    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
+    merkle_tree_acc_info: &'info AccountInfo<'info>,
+    batch_size: usize,
+    leaves: &[&[u8; 32]],
+) -> Result<u64> {
+    let rollover_fee = {
+        let merkle_tree_account =
+            AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+                .map_err(ProgramError::from)?;
+
+        {
+            let merkle_tree_account = merkle_tree_account.load()?;
+            let rollover_fee =
+                merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
+
+            check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
+                ctx,
+                &merkle_tree_account,
+            )?;
+
+            rollover_fee
+        }
+    };
+    let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
+    let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
+    merkle_tree
+        .append_batch(leaves)
+        .map_err(ProgramError::from)?;
+    Ok(rollover_fee)
+}
+
+fn append_v1<'a, 'b, 'c: 'info, 'info>(
+    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
+    merkle_tree_acc_info: &'info AccountInfo<'info>,
+    batch_size: usize,
+    leaves: &[(u8, [u8; 32])],
+) -> Result<u64> {
+    let account_data = &mut merkle_tree_acc_info.try_borrow_mut_data()?;
+    let output_queue_zero_copy = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(account_data)?;
+    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
+        ctx,
+        output_queue_zero_copy.get_account(),
+    )?;
+
+    for (_, leaf) in leaves {
+        output_queue_zero_copy.insert_into_current_batch(leaf)?;
+    }
+
+    let rollover_fee = output_queue_zero_copy
+        .get_account()
+        .metadata
+        .rollover_metadata
+        .rollover_fee
+        * batch_size as u64;
+    Ok(rollover_fee)
 }

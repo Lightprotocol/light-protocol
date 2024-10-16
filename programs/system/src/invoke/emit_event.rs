@@ -18,6 +18,9 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     output_leaf_indices: Vec<u32>,
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
+    // TODO: add tx hashchain of inputs, outputs, message, compress and decompress
+    //       consider whether it should only be created if inputs exist.
+    // TODO: extend event by the batch inputs and outputs are inserted in, None means v0 insert.
     // Note: message is unimplemented
     let event = PublicTransactionEvent {
         input_compressed_account_hashes,

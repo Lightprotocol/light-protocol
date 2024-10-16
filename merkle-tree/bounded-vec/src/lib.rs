@@ -1,12 +1,16 @@
+pub mod offset;
+
 use std::{
     alloc::{self, handle_alloc_error, Layout},
-    fmt, mem,
-    ops::{Index, IndexMut},
+    fmt,
+    mem::{self, ManuallyDrop},
+    ops::{Index, IndexMut, Sub},
     ptr::{self, NonNull},
     slice::{self, Iter, IterMut, SliceIndex},
 };
 
 use memoffset::span_of;
+use offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -17,6 +21,10 @@ pub enum BoundedVecError {
     ArraySize(usize, usize),
     #[error("The requested start index is out of bounds.")]
     IterFromOutOfBounds,
+    #[error("Input length {0} allocates unaligned memory. Must be a multiple of 8.")]
+    UnalignedMemory(usize),
+    #[error("Memory allocated {0}, Memory required {0}")]
+    InsufficientMemoryAllocated(usize, usize),
 }
 
 #[cfg(feature = "solana")]
@@ -26,6 +34,8 @@ impl From<BoundedVecError> for u32 {
             BoundedVecError::Full => 8001,
             BoundedVecError::ArraySize(_, _) => 8002,
             BoundedVecError::IterFromOutOfBounds => 8003,
+            BoundedVecError::UnalignedMemory(_) => 8004,
+            BoundedVecError::InsufficientMemoryAllocated(_, _) => 8005,
         }
     }
 }
@@ -141,6 +151,13 @@ where
         let data = Self::data_with_capacity(capacity);
 
         Self { metadata, data }
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        unsafe {
+            (*self.metadata).length = 0;
+        }
     }
 
     /// Creates a `BoundedVec<T>` with the given `metadata`.
@@ -341,6 +358,108 @@ where
         }
         Ok(())
     }
+
+    pub fn deserialize(
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
+        unsafe {
+            if account_data.len().saturating_sub(*start_offset)
+                < std::mem::size_of::<BoundedVecMetadata>()
+            {
+                return Err(BoundedVecError::InsufficientMemoryAllocated(
+                    account_data.len().saturating_sub(*start_offset),
+                    std::mem::size_of::<BoundedVecMetadata>(),
+                ));
+            }
+            let metadata: *mut BoundedVecMetadata = read_ptr_at(account_data, start_offset);
+            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
+                return Err(BoundedVecError::UnalignedMemory(
+                    (*metadata).capacity() * std::mem::size_of::<T>(),
+                ));
+            }
+            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
+                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            if account_data.len().saturating_sub(*start_offset) < full_vector_size {
+                return Err(BoundedVecError::InsufficientMemoryAllocated(
+                    account_data.len().saturating_sub(*start_offset),
+                    full_vector_size,
+                ));
+            }
+            Ok(ManuallyDrop::new(BoundedVec::from_raw_parts(
+                metadata,
+                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+            )))
+        }
+    }
+
+    pub fn deserialize_multiple(
+        num: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> Result<Vec<ManuallyDrop<BoundedVec<T>>>, BoundedVecError> {
+        let mut value_vecs = Vec::with_capacity(num);
+        for _ in 0..num {
+            let vec = Self::deserialize(account_data, start_offset)?;
+            value_vecs.push(vec);
+        }
+        Ok(value_vecs)
+    }
+
+    pub fn init(
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
+        let vector_size = capacity * std::mem::size_of::<T>();
+        if vector_size % 8 != 0 {
+            return Err(BoundedVecError::UnalignedMemory(
+                capacity * std::mem::size_of::<T>(),
+            ));
+        }
+        let full_vector_size = vector_size + std::mem::size_of::<BoundedVecMetadata>();
+        if full_vector_size > account_data.len().saturating_sub(*start_offset) {
+            return Err(BoundedVecError::InsufficientMemoryAllocated(
+                account_data.len().saturating_sub(*start_offset),
+                full_vector_size,
+            ));
+        }
+        let meta: BoundedVecMetadata = if with_len {
+            BoundedVecMetadata::new_with_length(capacity, capacity)
+        } else {
+            BoundedVecMetadata::new(capacity)
+        };
+        write_at::<BoundedVecMetadata>(account_data, meta.to_le_bytes().as_slice(), start_offset);
+        let meta: *mut BoundedVecMetadata = unsafe {
+            read_ptr_at(
+                &*account_data,
+                &mut start_offset.sub(std::mem::size_of::<BoundedVecMetadata>()),
+            )
+        };
+
+        Ok(unsafe {
+            ManuallyDrop::new(BoundedVec::from_raw_parts(
+                meta,
+                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+            ))
+        })
+    }
+
+    pub fn init_multiple(
+        num: usize,
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<Vec<ManuallyDrop<BoundedVec<T>>>, BoundedVecError> {
+        let mut value_vecs = Vec::with_capacity(num);
+        for _ in 0..num {
+            let vec = Self::init(capacity, account_data, start_offset, with_len)?;
+            value_vecs.push(vec);
+        }
+        Ok(value_vecs)
+    }
 }
 
 impl<T> Clone for BoundedVec<T>
@@ -486,6 +605,15 @@ impl CyclicBoundedVecMetadata {
         }
     }
 
+    pub fn new_with_length(capacity: usize, length: usize) -> Self {
+        Self {
+            capacity,
+            length,
+            first_index: 0,
+            last_index: 0,
+        }
+    }
+
     pub fn new_with_indices(
         capacity: usize,
         length: usize,
@@ -527,6 +655,10 @@ impl CyclicBoundedVecMetadata {
 
     pub fn length(&self) -> usize {
         self.length
+    }
+
+    pub fn get_first_index(&self) -> usize {
+        self.first_index
     }
 }
 
@@ -794,6 +926,87 @@ where
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
         self.get_mut(self.last_index())
+    }
+
+    pub fn init(
+        capacity: usize,
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+        with_len: bool,
+    ) -> Result<ManuallyDrop<Self>, BoundedVecError> {
+        let vector_size = capacity * std::mem::size_of::<T>();
+        if vector_size % 8 != 0 {
+            return Err(BoundedVecError::UnalignedMemory(
+                capacity * std::mem::size_of::<T>(),
+            ));
+        }
+        let full_vector_size = vector_size + std::mem::size_of::<CyclicBoundedVecMetadata>();
+        if full_vector_size > account_data.len().saturating_sub(*start_offset) {
+            return Err(BoundedVecError::InsufficientMemoryAllocated(
+                account_data.len().saturating_sub(*start_offset),
+                full_vector_size,
+            ));
+        }
+        let meta: CyclicBoundedVecMetadata = if with_len {
+            CyclicBoundedVecMetadata::new_with_length(capacity, capacity)
+        } else {
+            CyclicBoundedVecMetadata::new(capacity)
+        };
+        write_at::<CyclicBoundedVecMetadata>(
+            account_data,
+            meta.to_le_bytes().as_slice(),
+            start_offset,
+        );
+        let meta: *mut CyclicBoundedVecMetadata = unsafe {
+            read_ptr_at(
+                &*account_data,
+                &mut start_offset.sub(std::mem::size_of::<CyclicBoundedVecMetadata>()),
+            )
+        };
+        Ok(unsafe {
+            ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
+                meta,
+                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+            ))
+        })
+    }
+
+    // TODO: pull ManuallyDrop into CyclicBoundedVec
+    pub fn deserialize(
+        account_data: &mut [u8],
+        start_offset: &mut usize,
+    ) -> Result<ManuallyDrop<CyclicBoundedVec<T>>, BoundedVecError> {
+        unsafe {
+            if account_data.len().saturating_sub(*start_offset)
+                < std::mem::size_of::<CyclicBoundedVecMetadata>()
+            {
+                return Err(BoundedVecError::InsufficientMemoryAllocated(
+                    account_data.len().saturating_sub(*start_offset),
+                    std::mem::size_of::<CyclicBoundedVecMetadata>(),
+                ));
+            }
+
+            let metadata: *mut CyclicBoundedVecMetadata = read_ptr_at(account_data, start_offset);
+            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
+                return Err(BoundedVecError::UnalignedMemory(
+                    (*metadata).capacity() * std::mem::size_of::<T>(),
+                ));
+            }
+
+            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
+                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            if account_data.len().saturating_sub(*start_offset) < full_vector_size {
+                return Err(BoundedVecError::InsufficientMemoryAllocated(
+                    account_data.len().saturating_sub(*start_offset),
+                    full_vector_size,
+                ));
+            }
+
+            Ok(ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
+                metadata,
+                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+            )))
+        }
     }
 }
 
@@ -1715,5 +1928,225 @@ mod test {
                 &248, &249, &250, &251, &252, &253, &254, &255
             ]
         );
+    }
+
+    #[test]
+    fn test_clear_pass() {
+        let mut vec = BoundedVec::with_capacity(5);
+        vec.push(1).unwrap();
+        vec.push(2).unwrap();
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+        assert!(vec.get(0).is_none());
+        assert!(vec.get(1).is_none());
+    }
+
+    #[test]
+    fn test_clear_fail() {
+        let mut vec = BoundedVec::with_capacity(5);
+        vec.push(1).unwrap();
+        assert_eq!(vec.get(0).unwrap(), &1);
+        vec.clear();
+        assert_eq!(vec.get(0), None);
+    }
+
+    #[test]
+    fn test_deserialize_pass() {
+        let mut account_data = vec![0u8; 64];
+        let mut start_offset = 0;
+
+        // Initialize data with valid BoundedVec metadata and elements
+        BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false).unwrap();
+        start_offset = 0;
+
+        // Deserialize the BoundedVec
+        let deserialized_vec = BoundedVec::<u64>::deserialize(&mut account_data, &mut start_offset)
+            .expect("Failed to deserialize BoundedVec");
+
+        assert_eq!(deserialized_vec.metadata().capacity(), 4);
+        assert_eq!(deserialized_vec.metadata().length(), 0);
+    }
+
+    #[test]
+    fn test_deserialize_fail_unaligned_memory() {
+        let mut account_data = vec![0u8; 64];
+        let mut start_offset = 0;
+        BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false).unwrap();
+        let mut start_offset = 0;
+
+        let result =
+            BoundedVec::<UnalignedStruct>::deserialize(&mut account_data, &mut start_offset);
+        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
+    }
+
+    #[test]
+    fn test_deserialize_multiple_pass() {
+        let mut account_data = vec![0u8; 128];
+        let mut start_offset = 0;
+
+        // Initialize data for multiple BoundedVecs
+        BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false).unwrap();
+        BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false).unwrap();
+        start_offset = 0;
+
+        // Deserialize multiple BoundedVecs
+        let deserialized_vecs =
+            BoundedVec::<u64>::deserialize_multiple(2, &mut account_data, &mut start_offset)
+                .expect("Failed to deserialize multiple BoundedVecs");
+
+        assert_eq!(deserialized_vecs.len(), 2);
+    }
+
+    #[test]
+    fn test_init_pass() {
+        let mut account_data = vec![0u8; 64];
+        let mut start_offset = 0;
+
+        // Initialize a BoundedVec with capacity 4
+        let mut vec = BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false)
+            .expect("Failed to initialize BoundedVec");
+
+        assert_eq!(vec.metadata().capacity(), 4);
+        assert_eq!(vec.metadata().length(), 0);
+        for i in 0..4 {
+            assert!(vec.get(i).is_none());
+            vec.push(i as u64).unwrap();
+            assert_eq!(*vec.get(i).unwrap(), i as u64);
+            assert!(vec.metadata().length() == i + 1);
+        }
+    }
+
+    #[allow(dead_code)]
+    #[derive(Clone, Copy)]
+    pub struct UnalignedStruct {
+        pub field: u8,
+    }
+
+    #[test]
+    fn test_init_fail_unaligned_memory() {
+        let mut account_data = vec![0u8; 64];
+        let mut start_offset = 0;
+
+        // Attempt to initialize a BoundedVec with unaligned capacity
+        let result =
+            BoundedVec::<UnalignedStruct>::init(3, &mut account_data, &mut start_offset, false);
+        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
+    }
+
+    #[test]
+    fn test_init_multiple_pass() {
+        let mut account_data = vec![0u8; 128];
+        let mut start_offset = 0;
+        let mut initialized_vecs =
+            BoundedVec::<u64>::init_multiple(2, 4, &mut account_data, &mut start_offset, false)
+                .expect("Failed to initialize multiple BoundedVecs");
+
+        assert_eq!(initialized_vecs.len(), 2);
+        assert_eq!(initialized_vecs[0].metadata().capacity(), 4);
+        assert_eq!(initialized_vecs[1].metadata().capacity(), 4);
+        assert_eq!(initialized_vecs[0].metadata().length(), 0);
+        assert_eq!(initialized_vecs[1].metadata().length(), 0);
+        for i in 0..4 {
+            for vec in initialized_vecs.iter_mut() {
+                assert!(vec.get(i).is_none());
+                vec.push(i as u64).unwrap();
+                assert_eq!(*vec.get(i).unwrap(), i as u64);
+                assert!(vec.metadata().length() == i + 1);
+            }
+        }
+    }
+
+    #[test]
+    fn test_init_multiple_fail_unaligned_memory() {
+        let mut account_data = vec![0u8; 128];
+        let mut start_offset = 0;
+
+        let result = BoundedVec::<UnalignedStruct>::init_multiple(
+            2,
+            3,
+            &mut account_data,
+            &mut start_offset,
+            false,
+        );
+        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
+    }
+
+    #[test]
+    fn test_insufficient_memory_deserialize_metadata() {
+        let required_memory = mem::size_of::<BoundedVecMetadata>();
+        let mut account_data = vec![0u8; required_memory - 1];
+        let mut start_offset = 0;
+
+        let result = BoundedVec::<u64>::deserialize(&mut account_data, &mut start_offset);
+        assert!(matches!(
+            result,
+            Err(BoundedVecError::InsufficientMemoryAllocated(_, expected_memory
+            )) if expected_memory == required_memory
+        ));
+    }
+
+    #[test]
+    fn test_insufficient_memory_deserialize_full_vector() {
+        let required_memory = mem::size_of::<BoundedVecMetadata>() + 4 * mem::size_of::<u64>();
+        let mut account_data = vec![0u8; required_memory];
+        BoundedVec::<u64>::init(4, &mut account_data, &mut 0, false).unwrap();
+        let mut account_data = account_data[0..required_memory - 1].to_vec();
+        let mut start_offset = 0;
+
+        let result = BoundedVec::<u64>::deserialize(&mut account_data, &mut start_offset);
+        assert!(matches!(
+            result,
+            Err(BoundedVecError::InsufficientMemoryAllocated(_, expected_memory
+            )) if expected_memory == required_memory
+        ));
+    }
+
+    #[test]
+    fn test_insufficient_memory_init_single() {
+        let required_memory = mem::size_of::<BoundedVecMetadata>() + 4 * mem::size_of::<u64>();
+        let mut account_data = vec![0u8; required_memory - 1];
+        let mut start_offset = 0;
+        let result = BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false);
+        assert!(matches!(
+            result,
+            Err(BoundedVecError::InsufficientMemoryAllocated(_, expected_memory
+            )) if expected_memory == required_memory
+        ));
+    }
+
+    #[test]
+    fn test_insufficient_memory_deserialize_multiple() {
+        let required_memory =
+            2 * (mem::size_of::<BoundedVecMetadata>() + 3 * mem::size_of::<u64>());
+        let mut account_data = vec![0u8; required_memory];
+        BoundedVec::<u64>::init_multiple(2, 3, &mut account_data, &mut 0, false).unwrap();
+        let mut account_data = account_data[0..required_memory - 1].to_vec();
+        let mut start_offset = 0;
+
+        let result =
+            BoundedVec::<u64>::deserialize_multiple(2, &mut account_data, &mut start_offset);
+        let required_memory_per_vec = required_memory / 2;
+        assert!(matches!(
+            result,
+            Err(BoundedVecError::InsufficientMemoryAllocated(_, expected_memory
+            )) if expected_memory == required_memory_per_vec
+        ));
+    }
+
+    #[test]
+    fn test_insufficient_memory_init_multiple() {
+        let required_memory =
+            2 * (mem::size_of::<BoundedVecMetadata>() + 3 * mem::size_of::<u64>());
+        let mut account_data = vec![0u8; required_memory - 1];
+
+        let result = BoundedVec::<u64>::init_multiple(2, 3, &mut account_data, &mut 0, false);
+        let required_memory_per_vec = required_memory / 2;
+        assert!(matches!(
+            result,
+            Err(BoundedVecError::InsufficientMemoryAllocated(
+                _,
+                expected_memory
+            )) if expected_memory == required_memory_per_vec
+        ));
     }
 }
