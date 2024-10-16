@@ -35,9 +35,17 @@ async fn prove_inclusion_full() {
 }
 
 #[tokio::test]
-async fn prove_inclusion() {
+async fn test_inclusion_batch_append_batch_update() {
     init_logger();
-    spawn_prover(false, &[ProofType::Inclusion]).await;
+    spawn_prover(
+        false,
+        &[
+            ProofType::Inclusion,
+            ProofType::BatchUpdate,
+            ProofType::BatchAppend,
+        ],
+    )
+    .await;
     let client = Client::new();
     let (inputs, _) = inclusion_inputs_string(1);
     let response_result = client
@@ -48,11 +56,7 @@ async fn prove_inclusion() {
         .await
         .expect("Failed to execute request.");
     assert!(response_result.status().is_success());
-}
 
-#[tokio::test]
-async fn prove_batch_update() {
-    init_logger();
     spawn_prover(false, &[ProofType::BatchUpdate]).await;
     const HEIGHT: usize = 10;
     const CANOPY: usize = 0;
@@ -98,14 +102,7 @@ async fn prove_batch_update() {
         .await
         .expect("Failed to execute request.");
     assert!(response_result.status().is_success());
-}
 
-#[tokio::test]
-async fn prove_batch_append() {
-    init_logger();
-    spawn_prover(false, &[ProofType::BatchAppend]).await;
-    const HEIGHT: usize = 10;
-    const CANOPY: usize = 0;
     let num_insertions = 10;
 
     info!("initializing merkle tree");
