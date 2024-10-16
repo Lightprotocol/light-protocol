@@ -3672,6 +3672,8 @@ dependencies = [
  "duct",
  "env_logger 0.11.5",
  "groth16-solana",
+ "light-bounded-vec",
+ "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",

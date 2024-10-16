@@ -149,7 +149,6 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 		StartIndex:          startIndex,
 		Leaves:              newLeaves,
 		Subtrees:            oldSubtrees,
-		HashChainStartIndex: uint32(0),
 		TreeHeight:          treeDepth,
 		tree:                &tree,
 	}
@@ -257,7 +256,6 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 		&newRoot,
 		leavesHashchainHash},
 		3)
-
 	return &BatchUpdateParameters{
 		PublicInputHash:     publicInputHash,
 		OldRoot:             &oldRoot,
@@ -266,7 +264,6 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
-		HashChainStartIndex: 0,
 		Height:              uint32(treeDepth),
 		BatchSize:           uint32(batchSize),
 		Tree:                &tree,

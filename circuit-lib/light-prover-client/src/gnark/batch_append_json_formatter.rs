@@ -17,8 +17,6 @@ pub struct BatchAppendJsonStruct {
     pub hashchain_hash: String,
     #[serde(rename(serialize = "startIndex"))]
     pub start_index: u32,
-    #[serde(rename(serialize = "hashChainStartIndex"))]
-    pub hash_chain_start_index: u32,
     #[serde(rename(serialize = "treeHeight"))]
     pub tree_height: u32,
     #[serde(rename(serialize = "leaves"))]
@@ -35,7 +33,6 @@ impl BatchAppendJsonStruct {
         let new_root = big_int_to_string(&inputs.new_root);
         let hashchain_hash = big_int_to_string(&inputs.hashchain_hash);
         let start_index = inputs.start_index.to_u32().unwrap();
-        let hash_chain_start_index = inputs.hash_chain_start_index.to_u32().unwrap();
         let tree_height = inputs.tree_height.to_u32().unwrap();
 
         let leaves = inputs
@@ -57,7 +54,6 @@ impl BatchAppendJsonStruct {
             new_root,
             hashchain_hash,
             start_index,
-            hash_chain_start_index,
             tree_height,
             leaves,
             subtrees,
@@ -85,7 +81,6 @@ pub fn new_with_append_inputs() -> (BatchAppendJsonStruct, BatchAppendCircuitInp
         new_root: big_int_to_string(&append_inputs.new_root),
         hashchain_hash: big_int_to_string(&append_inputs.hashchain_hash),
         start_index: append_inputs.start_index.to_u32().unwrap(),
-        hash_chain_start_index: append_inputs.hash_chain_start_index.to_u32().unwrap(),
         tree_height: append_inputs.tree_height.to_u32().unwrap(),
         leaves: append_inputs
             .leaves

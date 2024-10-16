@@ -15,7 +15,6 @@ type BatchAppendParametersJSON struct {
 	StartIndex          uint32   `json:"startIndex"`
 	Leaves              []string `json:"leaves"`
 	Subtrees            []string `json:"subtrees"`
-	HashChainStartIndex uint32   `json:"hashChainStartIndex"`
 	TreeHeight          uint32   `json:"treeHeight"`
 }
 
@@ -41,7 +40,6 @@ func (p *BatchAppendParameters) CreateBatchAppendParametersJSON() BatchAppendPar
 		NewRoot:             toHex(p.NewRoot),
 		HashchainHash:       toHex(p.HashchainHash),
 		StartIndex:          p.StartIndex,
-		HashChainStartIndex: p.HashChainStartIndex,
 		TreeHeight:          p.TreeHeight,
 	}
 
@@ -103,7 +101,6 @@ func (p *BatchAppendParameters) UpdateWithJSON(params BatchAppendParametersJSON)
 	}
 
 	p.StartIndex = params.StartIndex
-	p.HashChainStartIndex = params.HashChainStartIndex
 
 	p.Leaves = make([]*big.Int, len(params.Leaves))
 	for i, leafStr := range params.Leaves {
