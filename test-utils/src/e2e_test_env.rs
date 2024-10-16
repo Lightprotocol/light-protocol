@@ -845,6 +845,7 @@ where
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
                     cpi_context: cpi_context_keypair.pubkey(),
                 },
+                version: 0,
                 merkle_tree,
             });
         // TODO: Add assert
@@ -1888,6 +1889,7 @@ where
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
                 },
+                version: 0,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
                     STATE_MERKLE_TREE_HEIGHT as usize,
                     STATE_MERKLE_TREE_CANOPY_DEPTH as usize,

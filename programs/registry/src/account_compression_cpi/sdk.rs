@@ -4,7 +4,8 @@ use crate::utils::{
 };
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
+    NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
@@ -265,6 +266,35 @@ pub fn create_initialize_merkle_tree_instruction(
         queue_config: nullifier_queue_config,
     };
     let accounts = crate::accounts::InitializeMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: nullifier_queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda,
+        light_system_program: Some(LightSystemProgram::id()),
+        cpi_context_account: Some(cpi_context_pubkey),
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_batched_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    nullifier_queue_pubkey: Pubkey,
+    cpi_context_pubkey: Pubkey,
+    params: InitStateTreeAccountsInstructionData,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let instruction_data = crate::instruction::InitializeBatchedStateMerkleTree { bump, params };
+    let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: payer,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,

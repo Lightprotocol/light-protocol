@@ -12,6 +12,7 @@ const (
 	InclusionCircuitType    CircuitType = "inclusion"
 	NonInclusionCircuitType CircuitType = "non-inclusion"
 	BatchAppendCircuitType  CircuitType = "append"
+	BatchAppend2CircuitType CircuitType = "append2"
 	BatchUpdateCircuitType  CircuitType = "update"
 )
 
@@ -32,6 +33,8 @@ func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*Prov
 	switch circuit {
 	case BatchAppendCircuitType:
 		return SetupBatchAppend(height, batchSize)
+	case BatchAppend2CircuitType:
+		return SetupBatchAppend2(height, batchSize)
 	case BatchUpdateCircuitType:
 		return SetupBatchUpdate(height, batchSize)
 	default:
@@ -52,6 +55,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	_, hasNewSubTreeHashChain := inputs["newSubTreeHashChain"]
 	_, hasLeaves := inputs["leaves"]
 	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
+	_, hasOldLeaves := inputs["oldLeaves"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return CombinedCircuitType, nil
@@ -63,6 +67,8 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return BatchAppendCircuitType, nil
 	} else if hasNewMerkleProofs {
 		return BatchUpdateCircuitType, nil
+	} else if hasOldLeaves {
+		return BatchAppend2CircuitType, nil
 	}
 	return "", fmt.Errorf("unknown schema")
 }

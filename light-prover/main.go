@@ -44,7 +44,7 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchAppendCircuitType && circuit != prover.BatchUpdateCircuitType {
+					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchAppendCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppend2CircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -88,6 +88,13 @@ func runCli() {
 					if circuit == prover.BatchAppendCircuitType {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
+						if err != nil {
+							return err
+						}
+						err = prover.WriteProvingSystem(system, path, pathVkey)
+					} else if circuit == prover.BatchAppend2CircuitType {
+						var system *prover.ProvingSystemV2
+						system, err = prover.SetupCircuitV2(prover.BatchAppend2CircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
 							return err
 						}
@@ -229,9 +236,6 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
-					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
-						return fmt.Errorf("invalid circuit type %s", circuit)
-					}
 
 					path := context.String("output")
 					pk := context.String("pk")
@@ -391,7 +395,7 @@ func runCli() {
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test)",
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, append2-test, update-test)",
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -448,8 +452,8 @@ func runCli() {
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test)",
-						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "append", "update", "append-test", "update-test"),
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, append2-test, update-test)",
+						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "append", "update", "append-test", "append2-test", "update-test"),
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",

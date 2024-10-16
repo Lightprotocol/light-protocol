@@ -47,7 +47,7 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     let mut bigint_leaves = vec![];
     let old_subtrees = sub_trees;
     let old_subtree_hashchain = calculate_hash_chain(&old_subtrees);
-    let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(sub_trees);
+    let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(sub_trees, next_index);
     let start_index =
         bigint_to_be_bytes_array::<32>(&BigUint::from_usize(next_index).unwrap()).unwrap();
     for leaf in leaves.iter() {

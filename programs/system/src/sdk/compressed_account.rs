@@ -31,7 +31,7 @@ impl CompressedAccountWithMerkleContext {
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
-    pub nullifier_queue_pubkey: Pubkey,
+    pub queue_pubkey: Pubkey,
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
@@ -41,7 +41,7 @@ pub struct MerkleContext {
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
+    pub queue_pubkey_index: u8,
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
@@ -64,8 +64,8 @@ pub fn pack_merkle_context(
         .iter()
         .map(|x| PackedMerkleContext {
             leaf_index: x.leaf_index,
-            merkle_tree_pubkey_index: 0,     // will be assigned later
-            nullifier_queue_pubkey_index: 0, // will be assigned later
+            merkle_tree_pubkey_index: 0, // will be assigned later
+            queue_pubkey_index: 0,       // will be assigned later
             queue_index: None,
         })
         .collect::<Vec<PackedMerkleContext>>();
@@ -83,16 +83,15 @@ pub fn pack_merkle_context(
     }
 
     for (i, params) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&params.nullifier_queue_pubkey) {
+        match remaining_accounts.get(&params.queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.nullifier_queue_pubkey, index);
+                remaining_accounts.insert(params.queue_pubkey, index);
                 index += 1;
             }
         };
-        merkle_context_packed[i].nullifier_queue_pubkey_index = *remaining_accounts
-            .get(&params.nullifier_queue_pubkey)
-            .unwrap() as u8;
+        merkle_context_packed[i].queue_pubkey_index =
+            *remaining_accounts.get(&params.queue_pubkey).unwrap() as u8;
     }
     merkle_context_packed
 }

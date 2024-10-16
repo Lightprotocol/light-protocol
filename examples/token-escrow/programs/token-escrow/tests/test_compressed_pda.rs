@@ -236,10 +236,12 @@ async fn create_escrow_ix<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             Some(&[address]),
             Some(vec![env.address_merkle_tree_pubkey]),
             context,
@@ -261,7 +263,7 @@ async fn create_escrow_ix<R: RpcConnection>(
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             queue_index: None,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
@@ -450,8 +452,8 @@ pub async fn perform_withdrawal<R: RpcConnection>(
     // the compressed pda program executes the transaction
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[compressed_pda_hash, token_escrow_account_hash]),
-            Some(&[
+            Some(vec![compressed_pda_hash, token_escrow_account_hash]),
+            Some(vec![
                 compressed_escrow_pda.merkle_context.merkle_tree_pubkey,
                 token_escrow_account.merkle_context.merkle_tree_pubkey,
             ]),
@@ -467,13 +469,13 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             queue_index: None,
         },
         input_cpda_merkle_context: MerkleContext {
             leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             queue_index: None,
         },
         output_compressed_account_merkle_tree_pubkeys: &[

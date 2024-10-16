@@ -505,6 +505,9 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         forester: env.forester.insecure_clone(),
         registered_forester_pda: env.registered_forester_pda,
         forester_epoch: env.forester_epoch.clone(),
+        batched_cpi_context: env.batched_cpi_context,
+        batched_output_queue: env.batched_output_queue,
+        batched_state_merkle_tree: env.batched_state_merkle_tree,
     };
 
     perform_create_pda_failing(
@@ -550,6 +553,9 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         forester: env.forester.insecure_clone(),
         registered_forester_pda: env.registered_forester_pda,
         forester_epoch: env.forester_epoch.clone(),
+        batched_cpi_context: env.batched_cpi_context,
+        batched_output_queue: env.batched_output_queue,
+        batched_state_merkle_tree: env.batched_state_merkle_tree,
     };
     perform_create_pda_failing(
         &mut test_indexer,
@@ -605,6 +611,9 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         forester: env.forester.insecure_clone(),
         registered_forester_pda: env.registered_forester_pda,
         forester_epoch: env.forester_epoch.clone(),
+        batched_cpi_context: env.batched_cpi_context,
+        batched_output_queue: env.batched_output_queue,
+        batched_state_merkle_tree: env.batched_state_merkle_tree,
     };
     let seed = [4u8; 32];
     let data = [5u8; 31];
@@ -809,7 +818,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         );
     }
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
-    let nullifier_pubkey = compressed_account.merkle_context.nullifier_queue_pubkey;
+    let nullifier_pubkey = compressed_account.merkle_context.queue_pubkey;
     let cpi_context = match mode {
         WithInputAccountsMode::Freeze
         | WithInputAccountsMode::Thaw
@@ -841,8 +850,8 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         .cpi_context;
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&hashes),
-            Some(&merkle_tree_pubkeys),
+            Some(hashes),
+            Some(merkle_tree_pubkeys),
             None,
             None,
             rpc,
@@ -863,7 +872,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     queue_index: None,
                 },
                 lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
@@ -893,7 +902,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
             merkle_context: PackedMerkleContext {
                 leaf_index: compressed_account.merkle_context.leaf_index,
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 1,
+                queue_pubkey_index: 1,
                 queue_index: None,
             },
             root_index: rpc_result.root_indices[0],

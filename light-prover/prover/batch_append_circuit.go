@@ -27,7 +27,8 @@ type BatchAppendCircuit struct {
 	Leaves   []frontend.Variable `gnark:",private"`
 	Subtrees []frontend.Variable `gnark:",private"`
 
-	BatchSize  uint32
+	BatchSize uint32
+	// TODO: rename to height
 	TreeHeight uint32
 }
 
@@ -86,7 +87,7 @@ func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Varia
 		newRoot, currentSubtrees = circuit.append(api, leaf, currentSubtrees, indexBits)
 
 		// Increment the binary representation of the index
-		indexBits = circuit.incrementBits(api, indexBits)
+		indexBits = incrementBits(api, indexBits)
 	}
 
 	return newRoot, currentSubtrees
@@ -133,7 +134,7 @@ func (circuit *BatchAppendCircuit) append(api frontend.API, leaf frontend.Variab
 
 		currentNode = abstractor.Call(api, MerkleRootGadget{
 			Hash:   currentNode,
-			Index:  isRight,
+			Index:  []frontend.Variable{isRight},
 			Path:   []frontend.Variable{sibling},
 			Height: 1,
 		})
@@ -164,7 +165,7 @@ func (circuit *BatchAppendCircuit) append(api frontend.API, leaf frontend.Variab
 // i=2: 1⊕1=0, carry=1∧1=1 -> 1010, carry=1
 // i=3: 0⊕1=1, carry=0∧1=0 -> 1000, carry=0
 // Final result: 1000 (8 in decimal)
-func (circuit *BatchAppendCircuit) incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
+func incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
 	carry := frontend.Variable(1)
 	for i := 0; i < len(bits); i++ {
 		// XOR operation implements binary addition without carry

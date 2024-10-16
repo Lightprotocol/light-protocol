@@ -26,6 +26,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			LeavesHashchainHash: frontend.Variable(0),
 			TxHashes:            make([]frontend.Variable, batchSize),
 			Leaves:              make([]frontend.Variable, batchSize),
+			OldLeaves:           make([]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
 			Height:              uint32(treeDepth),
@@ -43,6 +44,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),
 			TxHashes:            make([]frontend.Variable, batchSize),
 			Leaves:              make([]frontend.Variable, batchSize),
+			OldLeaves:           make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
 			Height:              uint32(treeDepth),
@@ -51,6 +53,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 
 		for i := 0; i < batchSize; i++ {
 			witness.Leaves[i] = frontend.Variable(params.Leaves[i])
+			witness.OldLeaves[i] = frontend.Variable(params.OldLeaves[i])
 			witness.TxHashes[i] = frontend.Variable(params.TxHashes[i])
 			witness.PathIndices[i] = frontend.Variable(params.PathIndices[i])
 			witness.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
@@ -187,6 +190,7 @@ func createBatchUpdateCircuit(treeDepth, batchSize int) BatchUpdateCircuit {
 		LeavesHashchainHash: frontend.Variable(0),
 		TxHashes:            make([]frontend.Variable, batchSize),
 		Leaves:              make([]frontend.Variable, batchSize),
+		OldLeaves:           make([]frontend.Variable, batchSize),
 		MerkleProofs:        make([][]frontend.Variable, batchSize),
 		PathIndices:         make([]frontend.Variable, batchSize),
 		Height:              uint32(treeDepth),
@@ -208,6 +212,7 @@ func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count i
 		LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),
 		TxHashes:            make([]frontend.Variable, count),
 		Leaves:              make([]frontend.Variable, count),
+		OldLeaves:           make([]frontend.Variable, count),
 		MerkleProofs:        make([][]frontend.Variable, count),
 		PathIndices:         make([]frontend.Variable, count),
 		Height:              params.Height,
@@ -217,6 +222,7 @@ func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count i
 	for i := 0; i < count; i++ {
 		witness.TxHashes[i] = frontend.Variable(params.TxHashes[i])
 		witness.Leaves[i] = frontend.Variable(params.Leaves[i])
+		witness.OldLeaves[i] = frontend.Variable(params.OldLeaves[i])
 		witness.PathIndices[i] = frontend.Variable(params.PathIndices[i])
 		witness.MerkleProofs[i] = make([]frontend.Variable, int(params.Height))
 		for j := 0; j < int(params.Height); j++ {

@@ -3,10 +3,11 @@ use crate::{
     NewAddressParamsPacked,
 };
 use account_compression::{
-    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
-    StateMerkleTreeAccount,
+    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    utils::check_discrimininator::check_discriminator,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, Bumps};
+use anchor_lang::{prelude::*, Bumps, Discriminator};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
@@ -18,6 +19,7 @@ use light_verifier::{
 };
 use std::mem;
 
+// TODO: add support for batched Merkle trees
 #[inline(never)]
 #[heap_neutral]
 pub fn fetch_input_compressed_account_roots<
@@ -29,24 +31,48 @@ pub fn fetch_input_compressed_account_roots<
 >(
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    roots: &'a mut [[u8; 32]],
+    roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    for (i, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
-        .iter()
-        .enumerate()
+    for input_compressed_account_with_context in
+        input_compressed_accounts_with_merkle_context.iter()
     {
+        if input_compressed_account_with_context
+            .merkle_context
+            .queue_index
+            .is_some()
+        {
+            continue;
+        }
         let merkle_tree = &ctx.remaining_accounts[input_compressed_account_with_context
             .merkle_context
             .merkle_tree_pubkey_index as usize];
-        let merkle_tree = merkle_tree.try_borrow_data()?;
-        check_discriminator::<StateMerkleTreeAccount>(&merkle_tree)?;
-        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-        )
-        .map_err(ProgramError::from)?;
-        let fetched_roots = &merkle_tree.roots;
+        let merkle_tree = &mut merkle_tree.try_borrow_mut_data()?;
+        let mut discriminator_bytes = [0u8; 8];
+        discriminator_bytes.copy_from_slice(&merkle_tree[0..8]);
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => {
+                let merkle_tree =
+                    ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+                        &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+                    )
+                    .map_err(ProgramError::from)?;
+                let fetched_roots = &merkle_tree.roots;
 
-        roots[i] = fetched_roots[input_compressed_account_with_context.root_index as usize];
+                (*roots)
+                    .push(fetched_roots[input_compressed_account_with_context.root_index as usize]);
+            }
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(merkle_tree)
+                    .map_err(ProgramError::from)?;
+                (*roots).push(
+                    merkle_tree.root_history
+                        [input_compressed_account_with_context.root_index as usize],
+                );
+            }
+            _ => {
+                return err!(crate::ErrorCode::AccountDiscriminatorMismatch);
+            }
+        }
     }
     Ok(())
 }
@@ -118,13 +144,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             Some(address) => addresses[j] = Some(*address),
             None => {}
         };
-        if input_compressed_account_with_context
-            .merkle_context
-            .queue_index
-            .is_some()
-        {
-            unimplemented!("Queue index is not supported.");
-        }
 
         #[allow(clippy::comparison_chain)]
         if current_mt_index
@@ -224,4 +243,22 @@ pub fn verify_state_proof(
         verify_merkle_proof_zkp(roots, leaves, compressed_proof).map_err(ProgramError::from)?;
     }
     Ok(())
+}
+
+pub fn create_tx_hash(
+    input_compressed_account_hashes: &[[u8; 32]],
+    output_compressed_account_hashes: &[[u8; 32]],
+    current_slot: u64,
+) -> [u8; 32] {
+    use light_hasher::Hasher;
+    // TODO: extend with message hash (first 32 bytes of the message)
+    let mut tx_hash = input_compressed_account_hashes[0];
+    for hash in input_compressed_account_hashes.iter().skip(1) {
+        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
+    }
+    tx_hash = Poseidon::hashv(&[&tx_hash, &current_slot.to_be_bytes()]).unwrap();
+    for hash in output_compressed_account_hashes.iter() {
+        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
+    }
+    tx_hash
 }

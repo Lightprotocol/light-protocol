@@ -61,9 +61,10 @@ type InclusionProof struct {
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
+		currentPath := api.ToBinary(gadget.InPathIndices[proofIndex], int(gadget.Height))
 		hash := MerkleRootGadget{
 			Hash:   gadget.Leaves[proofIndex],
-			Index:  gadget.InPathIndices[proofIndex],
+			Index:  currentPath,
 			Path:   gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
@@ -97,9 +98,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Value:                gadget.Values[proofIndex]}
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
+		currentPath := api.ToBinary(gadget.InPathIndices[proofIndex], int(gadget.Height))
 		hash := MerkleRootGadget{
 			Hash:   currentHash[proofIndex],
-			Index:  gadget.InPathIndices[proofIndex],
+			Index:  currentPath,
 			Path:   gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
@@ -173,15 +175,14 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 
 type MerkleRootGadget struct {
 	Hash   frontend.Variable
-	Index  frontend.Variable
+	Index  []frontend.Variable
 	Path   []frontend.Variable
 	Height int
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
-	currentPath := api.ToBinary(gadget.Index, gadget.Height)
 	for i := 0; i < gadget.Height; i++ {
-		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
+		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: gadget.Index[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
 }
@@ -190,7 +191,7 @@ type MerkleRootUpdateGadget struct {
 	OldRoot     frontend.Variable
 	OldLeaf     frontend.Variable
 	NewLeaf     frontend.Variable
-	PathIndex   frontend.Variable
+	PathIndex   []frontend.Variable
 	MerkleProof []frontend.Variable
 	Height      int
 }

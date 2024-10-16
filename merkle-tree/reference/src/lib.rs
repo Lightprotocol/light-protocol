@@ -282,6 +282,17 @@ where
         }
         subtrees
     }
+
+    pub fn get_next_index(&self) -> usize {
+        self.rightmost_index + 1
+    }
+
+    pub fn get_leaf(&self, index: usize) -> Result<[u8; 32], ReferenceMerkleTreeError> {
+        self.layers[0]
+            .get(index)
+            .cloned()
+            .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(index))
+    }
 }
 
 #[cfg(test)]
@@ -331,7 +342,7 @@ mod tests {
     #[test]
     fn test_subtrees() {
         let tree_depth = 4;
-        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0); // Replace TestHasher with your specific hasher.
+        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0);
 
         let subtrees = tree.get_subtrees();
         for (i, subtree) in subtrees.iter().enumerate() {

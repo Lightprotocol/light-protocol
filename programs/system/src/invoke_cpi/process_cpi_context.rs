@@ -191,7 +191,7 @@ mod tests {
                     },
                     merkle_context: PackedMerkleContext {
                         merkle_tree_pubkey_index: 0,
-                        nullifier_queue_pubkey_index: iter,
+                        queue_pubkey_index: iter,
                         leaf_index: 0,
                         queue_index: None,
                     },

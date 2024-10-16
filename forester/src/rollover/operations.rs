@@ -193,6 +193,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         )),
+        version: 0,
     };
     indexer.lock().await.add_state_bundle(state_bundle);
     Ok(())

@@ -23,6 +23,9 @@ generate_circuit() {
     if [ "$circuit_type" == "append" ]; then
         compressed_accounts=$append_batch_size
         circuit_type_rs="append"
+    elif [ "$circuit_type" == "append2" ]; then
+        compressed_accounts=$append_batch_size
+        circuit_type_rs="append2"
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$update_batch_size
         circuit_type_rs="update"
@@ -64,6 +67,13 @@ main() {
     for height in "${HEIGHTS[@]}"; do
         for batch_size in "${append_batch_sizes_arr[@]}"; do
             generate_circuit "append" "$height" "$batch_size" "0" "0" "0"
+        done
+    done
+
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append2" "$height" "$batch_size" "0" "0" "0"
         done
     done
 

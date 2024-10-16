@@ -2,22 +2,33 @@ use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
 use crate::env_accounts;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
+use account_compression::batched_merkle_tree::{
+    get_merkle_tree_account_size, BatchedMerkleTreeAccount,
+};
+use account_compression::batched_queue::{
+    assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
+};
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
+    assert_mt_zero_copy_inited, get_output_queue_account_default, AddressMerkleTreeConfig,
+    AddressQueueConfig, InitStateTreeAccountsInstructionData, QueueType,
+};
+use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueType};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
 use forester_utils::registry::register_test_forester;
-use forester_utils::{airdrop_lamports, create_account_instruction};
+use forester_utils::{airdrop_lamports, create_account_instruction, AccountZeroCopy};
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_hasher::Poseidon;
 use light_macros::pubkey;
-use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
+use light_registry::account_compression_cpi::sdk::{
+    create_initialize_batched_merkle_tree_instruction, get_registered_program_pda,
+};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
     create_deregister_program_instruction, create_finalize_registration_instruction,
@@ -30,6 +41,7 @@ use light_registry::utils::{
 };
 use light_registry::ForesterConfig;
 use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::{read_keypair_file, Signature};
 use solana_sdk::{
     pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
@@ -138,6 +150,9 @@ pub struct EnvAccounts {
     pub cpi_context_account_pubkey: Pubkey,
     pub registered_forester_pda: Pubkey,
     pub forester_epoch: Option<Epoch>,
+    pub batched_state_merkle_tree: Pubkey,
+    pub batched_output_queue: Pubkey,
+    pub batched_cpi_context: Pubkey,
 }
 
 impl EnvAccounts {
@@ -158,6 +173,9 @@ impl EnvAccounts {
             cpi_context_account_pubkey: pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4"),
             registered_forester_pda: Pubkey::default(),
             forester_epoch: None, // Set to None or to an appropriate Epoch value if needed
+            batched_state_merkle_tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+            batched_output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+            batched_cpi_context: pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj"),
         }
     }
 }
@@ -173,6 +191,9 @@ pub struct EnvAccountKeypairs {
     pub cpi_context_account: Keypair,
     pub system_program: Keypair,
     pub registry_program: Keypair,
+    pub batched_state_merkle_tree: Keypair,
+    pub batched_output_queue: Keypair,
+    pub batched_cpi_context: Keypair,
 }
 
 impl EnvAccountKeypairs {
@@ -188,6 +209,10 @@ impl EnvAccountKeypairs {
             cpi_context_account: Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap(),
             system_program: Keypair::from_bytes(&OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap(),
             registry_program: Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap(),
+            batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+                .unwrap(),
+            batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
+            batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
         }
     }
 
@@ -245,6 +270,10 @@ impl EnvAccountKeypairs {
             cpi_context_account,
             system_program,
             registry_program,
+            batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+                .unwrap(),
+            batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
+            batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
         }
     }
 }
@@ -318,6 +347,28 @@ pub const FORESTER_TEST_KEYPAIR: [u8; 64] = [
     44, 250, 77, 224, 55, 104, 35, 168, 1, 92, 200, 204, 184, 194, 21, 117, 231, 90, 62, 117, 179,
     162, 181, 71, 36, 34, 47, 49, 195, 215, 90, 115, 3, 69, 74, 210, 75, 162, 191, 63, 51, 170,
     204,
+];
+
+// HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu
+pub const BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
+    85, 82, 64, 221, 4, 69, 191, 4, 64, 56, 29, 32, 145, 68, 117, 157, 130, 83, 228, 58, 142, 48,
+    130, 43, 101, 149, 140, 82, 123, 102, 108, 148, 242, 174, 90, 229, 244, 60, 225, 10, 207, 196,
+    201, 136, 192, 35, 58, 9, 149, 215, 40, 149, 244, 9, 184, 209, 113, 234, 101, 91, 227, 243, 41,
+    254,
+];
+// 6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU
+pub const BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR: [u8; 64] = [
+    56, 183, 128, 249, 154, 184, 81, 219, 6, 98, 1, 79, 56, 253, 134, 198, 170, 16, 43, 112, 170,
+    206, 203, 48, 49, 119, 115, 11, 192, 208, 67, 107, 79, 47, 194, 208, 90, 252, 43, 18, 216, 76,
+    41, 113, 8, 161, 113, 18, 188, 202, 207, 115, 125, 235, 151, 110, 167, 166, 249, 78, 75, 221,
+    38, 219,
+];
+// 7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj
+pub const BATCHED_CPI_CONTEXT_TEST_KEYPAIR: [u8; 64] = [
+    152, 98, 187, 34, 35, 31, 202, 218, 11, 86, 181, 144, 29, 208, 167, 201, 77, 12, 104, 170, 95,
+    53, 115, 33, 244, 179, 187, 255, 246, 100, 43, 203, 93, 116, 162, 215, 36, 226, 217, 56, 215,
+    240, 198, 198, 253, 195, 107, 230, 122, 63, 116, 163, 105, 167, 18, 188, 161, 63, 146, 7, 238,
+    3, 12, 228,
 ];
 
 /// Setup test programs with accounts
@@ -556,6 +607,32 @@ pub async fn initialize_accounts<R: RpcConnection>(
     )
     .await
     .unwrap();
+    let params = InitStateTreeAccountsInstructionData::default();
+    assert_eq!(
+        params.additional_bytes,
+        ProtocolConfig::default().cpi_context_size
+    );
+    create_batched_state_merkle_tree(
+        &keypairs.governance_authority,
+        true,
+        context,
+        &keypairs.batched_state_merkle_tree,
+        &keypairs.batched_output_queue,
+        &keypairs.batched_cpi_context,
+        params,
+    )
+    .await
+    .unwrap();
+    assert_registry_created_batched_state_merkle_tree(
+        context,
+        get_group_pda(group_seed_keypair.pubkey()),
+        keypairs.batched_state_merkle_tree.pubkey(),
+        keypairs.batched_output_queue.pubkey(),
+        keypairs.batched_cpi_context.pubkey(),
+        params,
+    )
+    .await
+    .unwrap();
 
     create_address_merkle_tree_and_queue_account(
         &keypairs.governance_authority,
@@ -634,6 +711,9 @@ pub async fn initialize_accounts<R: RpcConnection>(
         registered_registry_program_pda,
         registered_forester_pda: get_forester_pda(&keypairs.forester.pubkey()).0,
         forester_epoch,
+        batched_cpi_context: keypairs.batched_cpi_context.pubkey(),
+        batched_output_queue: keypairs.batched_output_queue.pubkey(),
+        batched_state_merkle_tree: keypairs.batched_state_merkle_tree.pubkey(),
     }
 }
 pub fn get_group_pda(seed: Pubkey) -> Pubkey {
@@ -684,6 +764,7 @@ pub async fn initialize_new_group<R: RpcConnection>(
     group_pda
 }
 
+// TODO: unify with keypairs
 pub fn get_test_env_accounts() -> EnvAccounts {
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
@@ -724,6 +805,15 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         cpi_context_account_pubkey: cpi_context_keypair.pubkey(),
         registered_registry_program_pda,
         forester_epoch: None,
+        batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR)
+            .unwrap()
+            .pubkey(),
+        batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR)
+            .unwrap()
+            .pubkey(),
+        batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+            .unwrap()
+            .pubkey(),
     }
 }
 
@@ -1053,4 +1143,179 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
     )
     .await?;
     Ok(token_program_registered_program_pda)
+}
+
+use anchor_lang::{InstructionData, ToAccountMetas};
+
+pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
+    payer: &Keypair,
+    registry: bool,
+    rpc: &mut R,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    cpi_context_keypair: &Keypair,
+    params: InitStateTreeAccountsInstructionData,
+) -> Result<Signature, RpcError> {
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let create_queue_account_ix = create_account_instruction(
+        &payer.pubkey(),
+        queue_account_size,
+        queue_rent,
+        &account_compression::ID,
+        Some(queue_keypair),
+    );
+    let mt_rent = rpc
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+    let create_mt_account_ix = create_account_instruction(
+        &payer.pubkey(),
+        mt_account_size,
+        mt_rent,
+        &account_compression::ID,
+        Some(merkle_tree_keypair),
+    );
+    let rent_cpi_config = rpc
+        .get_minimum_balance_for_rent_exemption(ProtocolConfig::default().cpi_context_size as usize)
+        .await
+        .unwrap();
+    let create_cpi_context_instruction = create_account_instruction(
+        &payer.pubkey(),
+        ProtocolConfig::default().cpi_context_size as usize,
+        rent_cpi_config,
+        &light_system_program::ID,
+        Some(cpi_context_keypair),
+    );
+    let instruction = if registry {
+        create_initialize_batched_merkle_tree_instruction(
+            payer.pubkey(),
+            merkle_tree_keypair.pubkey(),
+            queue_keypair.pubkey(),
+            cpi_context_keypair.pubkey(),
+            params,
+        )
+    } else {
+        let instruction =
+            account_compression::instruction::InitializeBatchedStateMerkleTree { params };
+        let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+            authority: payer.pubkey(),
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: queue_keypair.pubkey(),
+            registered_program_pda: None,
+        };
+
+        Instruction {
+            program_id: account_compression::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction.data(),
+        }
+    };
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[
+            create_mt_account_ix,
+            create_queue_account_ix,
+            create_cpi_context_instruction,
+            instruction,
+        ],
+        Some(&payer.pubkey()),
+        &vec![
+            payer,
+            merkle_tree_keypair,
+            queue_keypair,
+            cpi_context_keypair,
+        ],
+        rpc.get_latest_blockhash().await.unwrap(),
+    );
+    rpc.process_transaction(transaction).await
+}
+
+pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
+    rpc: &mut R,
+    payer_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    output_queue_pubkey: Pubkey,
+    // TODO: assert cpi_context_account creation
+    _cpi_context_pubkey: Pubkey,
+    params: InitStateTreeAccountsInstructionData,
+) -> Result<(), RpcError> {
+    let mut merkle_tree =
+        AccountZeroCopy::<BatchedMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
+
+    let mut queue = AccountZeroCopy::<BatchedQueueAccount>::new(rpc, output_queue_pubkey).await;
+    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+        payer_pubkey,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.network_fee.unwrap_or_default(),
+        params.input_queue_batch_size,
+        params.input_queue_zkp_batch_size,
+        params.bloom_filter_capacity,
+        params.root_history_capacity,
+        output_queue_pubkey,
+    );
+    println!("pre assert_mt_zero_copy_inited");
+    assert_mt_zero_copy_inited(
+        merkle_tree.account.data.as_mut_slice(),
+        ref_mt_account,
+        params.bloom_filter_num_iters,
+    );
+    println!("post assert_mt_zero_copy_inited");
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let mt_rent = rpc
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+    let additional_bytes_rent = rpc
+        .get_minimum_balance_for_rent_exemption(params.additional_bytes as usize)
+        .await
+        .unwrap();
+    let total_rent = queue_rent + mt_rent + additional_bytes_rent;
+    let ref_output_queue_account = get_output_queue_account_default(
+        payer_pubkey,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.additional_bytes,
+        total_rent,
+        merkle_tree_pubkey,
+    );
+    // TODO: return result instead of panic by assert
+    assert_queue_zero_copy_inited(
+        queue.account.data.as_mut_slice(),
+        ref_output_queue_account,
+        0, // output queue doesn't have a bloom filter hence no iterations
+    );
+    Ok(())
 }

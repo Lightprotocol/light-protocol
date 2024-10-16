@@ -10,6 +10,7 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
+use batched_merkle_tree::InstructionDataBatchUpdateProofInputs;
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -21,18 +22,22 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-
 #[program]
 pub mod account_compression {
 
+    use batched_merkle_tree::InstructionDataBatchAppendProofInputs;
     use errors::AccountCompressionErrorCode;
 
-    use self::{
-        initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
-        insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
-    };
+    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
 
     use super::*;
+
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        params: InitStateTreeAccountsInstructionData,
+    ) -> Result<()> {
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
@@ -59,7 +64,10 @@ pub mod account_compression {
         process_insert_into_queues::<AddressMerkleTreeAccount>(
             ctx,
             addresses.as_slice(),
+            Vec::new(),
             QueueType::AddressQueue,
+            None,
+            &None,
         )
     }
 
@@ -162,6 +170,7 @@ pub mod account_compression {
     pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
         leaves: Vec<(u8, [u8; 32])>,
+        // zero_out_leaf_indices: Vec<ZeroOutLeafIndex>,
     ) -> Result<()> {
         process_append_leaves_to_merkle_trees(ctx, leaves)
     }
@@ -185,11 +194,17 @@ pub mod account_compression {
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         nullifiers: Vec<[u8; 32]>,
+        leaf_indices: Vec<u32>,
+        tx_hash: Option<[u8; 32]>,
+        check_proof_by_index: Option<Vec<bool>>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
             &nullifiers,
+            leaf_indices,
             QueueType::NullifierQueue,
+            tx_hash,
+            &check_proof_by_index,
         )
     }
 
@@ -197,5 +212,25 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
+    }
+
+    pub fn batch_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchUpdateProofInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_nullify_leaves(&ctx, instruction_data)?;
+        Ok(())
+    }
+
+    pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchAppendProofInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_append_leaves(&ctx, instruction_data)?;
+        Ok(())
     }
 }

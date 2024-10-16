@@ -22,6 +22,7 @@ type BatchUpdateCircuit struct {
 
 	TxHashes     []frontend.Variable   `gnark:"private"`
 	Leaves       []frontend.Variable   `gnark:"private"`
+	OldLeaves    []frontend.Variable   `gnark:"private"`
 	MerkleProofs [][]frontend.Variable `gnark:"private"`
 	PathIndices  []frontend.Variable   `gnark:"private"`
 
@@ -38,8 +39,19 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
 	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
 	nullifiers := make([]frontend.Variable, int(circuit.BatchSize))
+	// We might nullify leaves which have not been appended yet. Hence we need
+	// to handle the case where the OldLeaf is 0 and not equal to leaves[i].
+	// Leaves[i] is checked as part of the nullifier hash
+	// path index is checked as part of the nullifier hash
+	//	in case old leaf is 0 the checked path index
+	//	ensures the correct leaf is nullified (leaf hash depends on the leaf index)
+	// old leaf is checked with the initial Merkle proof
+	//	which is checked against the onchain root
 	for i := 0; i < int(circuit.BatchSize); i++ {
-		nullifiers[i] = abstractor.Call(api, poseidon.Poseidon2{In1: circuit.Leaves[i], In2: circuit.TxHashes[i]})
+		// - We need to include path index in the nullifier hash so
+		// that it is checked in case OldLeaf is 0 -> Leaves[i] is not inserted
+		// yet but has to be inserted into a specific index
+		nullifiers[i] = abstractor.Call(api, poseidon.Poseidon3{In1: circuit.Leaves[i], In2: circuit.PathIndices[i], In3: circuit.TxHashes[i]})
 	}
 
 	nullifierHashChainHash := createHashChain(api, int(circuit.BatchSize), nullifiers)
@@ -48,11 +60,12 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	newRoot := circuit.OldRoot
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
+		currentPath := api.ToBinary(circuit.PathIndices[i], int(circuit.Height))
 		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
-			OldLeaf:     circuit.Leaves[i],
+			OldLeaf:     circuit.OldLeaves[i],
 			NewLeaf:     nullifiers[i],
-			PathIndex:   circuit.PathIndices[i],
+			PathIndex:   currentPath,
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
 		})
@@ -70,6 +83,7 @@ type BatchUpdateParameters struct {
 	TxHashes            []*big.Int
 	LeavesHashchainHash *big.Int
 	Leaves              []*big.Int
+	OldLeaves           []*big.Int
 	MerkleProofs        [][]big.Int
 	PathIndices         []uint32
 	Height              uint32
@@ -87,6 +101,9 @@ func (p *BatchUpdateParameters) TreeDepth() uint32 {
 func (p *BatchUpdateParameters) ValidateShape() error {
 	if len(p.Leaves) != int(p.BatchSize) {
 		return fmt.Errorf("wrong number of leaves: %d, expected: %d", len(p.Leaves), p.BatchSize)
+	}
+	if len(p.OldLeaves) != int(p.BatchSize) {
+		return fmt.Errorf("wrong number of old leaves: %d, expected: %d", len(p.OldLeaves), p.BatchSize)
 	}
 	if len(p.TxHashes) != int(p.BatchSize) {
 		return fmt.Errorf("wrong number of tx hashes: %d, expected: %d", len(p.TxHashes), p.BatchSize)
@@ -135,11 +152,13 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 
 	txHashes := make([]frontend.Variable, len(params.TxHashes))
 	leaves := make([]frontend.Variable, len(params.Leaves))
+	oldLeaves := make([]frontend.Variable, len(params.OldLeaves))
 	pathIndices := make([]frontend.Variable, len(params.PathIndices))
 	merkleProofs := make([][]frontend.Variable, len(params.MerkleProofs))
 
 	for i := 0; i < len(params.Leaves); i++ {
 		leaves[i] = frontend.Variable(params.Leaves[i])
+		oldLeaves[i] = frontend.Variable(params.OldLeaves[i])
 		txHashes[i] = frontend.Variable(params.TxHashes[i])
 		pathIndices[i] = frontend.Variable(params.PathIndices[i])
 		merkleProofs[i] = make([]frontend.Variable, len(params.MerkleProofs[i]))
@@ -154,6 +173,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		NewRoot:             newRoot,
 		TxHashes:            txHashes,
 		LeavesHashchainHash: leavesHashchainHash,
+		OldLeaves:           oldLeaves,
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
@@ -176,6 +196,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 
 func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
 	leaves := make([]frontend.Variable, batchSize)
+	oldLeaves := make([]frontend.Variable, batchSize)
 	txHashes := make([]frontend.Variable, batchSize)
 	pathIndices := make([]frontend.Variable, batchSize)
 	merkleProofs := make([][]frontend.Variable, batchSize)
@@ -191,6 +212,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 		TxHashes:            txHashes,
 		LeavesHashchainHash: frontend.Variable(0),
 		Leaves:              leaves,
+		OldLeaves:           oldLeaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
 		Height:              height,
@@ -203,11 +225,10 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
 	leaves := make([]frontend.Variable, batchSize)
 	txHashes := make([]frontend.Variable, batchSize)
-	oldMerkleProofs := make([][]frontend.Variable, batchSize)
+	oldLeaves := make([]frontend.Variable, batchSize)
 	newMerkleProofs := make([][]frontend.Variable, batchSize)
 
 	for i := 0; i < int(batchSize); i++ {
-		oldMerkleProofs[i] = make([]frontend.Variable, treeHeight)
 		newMerkleProofs[i] = make([]frontend.Variable, treeHeight)
 	}
 
@@ -215,6 +236,7 @@ func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, 
 		Height:              treeHeight,
 		TxHashes:            txHashes,
 		Leaves:              leaves,
+		OldLeaves:           oldLeaves,
 		MerkleProofs:        newMerkleProofs,
 		PathIndices:         make([]frontend.Variable, batchSize),
 		OldRoot:             frontend.Variable(0),

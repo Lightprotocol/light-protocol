@@ -483,7 +483,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 1,
                     queue_index: None,
                 },
@@ -497,7 +497,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 2,
                     queue_index: None,
                 },
@@ -589,7 +589,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 1,
                     queue_index: None,
                 },
@@ -603,7 +603,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 2,
                     queue_index: None,
                 },
@@ -648,7 +648,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 1,
                     queue_index: None,
                 },
@@ -662,7 +662,7 @@ mod test {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 2,
                     queue_index: None,
                 },

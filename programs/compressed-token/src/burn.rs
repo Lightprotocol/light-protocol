@@ -337,7 +337,7 @@ mod test {
                 amount: test_amount,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 1,
                     queue_index: None,
                 },
@@ -518,7 +518,7 @@ mod test {
             amount: 100,
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 1,
+                queue_pubkey_index: 1,
                 leaf_index: 1,
                 queue_index: None,
             },
