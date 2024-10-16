@@ -9,12 +9,27 @@ const waitOn = require("wait-on");
 
 export async function killProcess(processName: string) {
   const processList = await find("name", processName);
+
   const targetProcesses = processList.filter(
-    (proc) => proc.cmd.split(" ")[0] === processName,
+    (proc) => proc.name.includes(processName) || proc.cmd.includes(processName),
   );
-  targetProcesses.forEach((proc) => {
-    process.kill(proc.pid);
-  });
+
+  for (const proc of targetProcesses) {
+    console.log(`Killing process with PID and name: ${proc.pid} ${proc.name}`);
+    try {
+      process.kill(proc.pid, "SIGKILL");
+    } catch (error) {
+      console.error(`Failed to kill process ${proc.pid}: ${error}`);
+    }
+  }
+
+  // Double-check if processes are still running
+  const remainingProcesses = await find("name", processName);
+  if (remainingProcesses.length > 0) {
+    console.warn(
+      `Warning: ${remainingProcesses.length} processes still running after kill attempt`,
+    );
+  }
 }
 
 export async function killProcessByPort(port: number) {
