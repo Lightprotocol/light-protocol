@@ -59,7 +59,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let start = num_zkp_updates as usize * batch_size as usize;
         let end = start + batch_size as usize;
         let leaves = leaves[start..end].to_vec();
-        // let sub_trees = self.merkle_tree.get_subtrees().try_into().unwrap();
+        let sub_trees = self.merkle_tree.get_subtrees().try_into().unwrap();
         let local_leaves_hashchain = calculate_hash_chain(&leaves);
         let old_root = self.merkle_tree.root();
         let start_index = self.merkle_tree.get_next_index().saturating_sub(1);
@@ -119,6 +119,10 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 },
                 bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap())
                     .unwrap(),
+                bigint_to_be_bytes_array::<32>(
+                    &circuit_inputs.new_sub_tree_hash_chain.to_biguint().unwrap(),
+                )
+                .unwrap(),
             ));
         }
         Err(Error)
