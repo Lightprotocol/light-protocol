@@ -10,7 +10,7 @@ use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use std::mem;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, Debug, PartialEq, Default)]
 pub struct QueueMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
@@ -27,6 +27,22 @@ pub struct QueueMetadata {
 pub enum QueueType {
     NullifierQueue = 1,
     AddressQueue = 2,
+    Input = 3,
+    Address = 4,
+    Output = 5,
+}
+
+impl From<u64> for QueueType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => QueueType::NullifierQueue,
+            2 => QueueType::AddressQueue,
+            3 => QueueType::Input,
+            4 => QueueType::Address,
+            5 => QueueType::Output,
+            _ => panic!("Invalid queue type"),
+        }
+    }
 }
 
 pub fn check_queue_type(queue_type: &u64, expected_queue_type: &QueueType) -> Result<()> {
@@ -36,6 +52,7 @@ pub fn check_queue_type(queue_type: &u64, expected_queue_type: &QueueType) -> Re
         Ok(())
     }
 }
+
 impl QueueMetadata {
     pub fn init(
         &mut self,
