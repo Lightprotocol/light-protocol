@@ -456,7 +456,6 @@ async fn prove_batch_address_append() {
 
     init_logger();
 
-    // Spawn the prover with specific configuration
     spawn_prover(
         true,
         ProverConfig {

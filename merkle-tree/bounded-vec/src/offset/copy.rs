@@ -1,8 +1,6 @@
 use std::{mem, ptr};
 
-use light_bounded_vec::{
-    BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata,
-};
+use crate::{BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata};
 
 /// Creates a copy of value of type `T` based on the provided `bytes` buffer.
 ///
