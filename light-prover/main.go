@@ -791,10 +791,6 @@ func getKeysByArgs(context *cli.Context, isTestMode bool) ([]string, error) {
 		circuitTypes = append(circuitTypes, prover.Combined)
 	}
 
-	if !inclusion && !nonInclusion {
-		return nil, fmt.Errorf("no circuit type provided")
-	}
-
 	return prover.GetKeys(keysDir, circuitTypes, isTestMode), nil
 }
 

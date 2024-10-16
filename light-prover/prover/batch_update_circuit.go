@@ -14,14 +14,14 @@ import (
 )
 
 type BatchUpdateCircuit struct {
-	PublicInputHash frontend.Variable `gnark:",public"`
+	PublicInputHash     frontend.Variable `gnark:",public"`
+	OldRoot             frontend.Variable `gnark:",private"`
+	NewRoot             frontend.Variable `gnark:",private"`
+	LeavesHashchainHash frontend.Variable `gnark:",private"`
 
-	OldRoot             frontend.Variable     `gnark:",private"`
-	NewRoot             frontend.Variable     `gnark:",private"`
-	LeavesHashchainHash frontend.Variable     `gnark:",private"`
-	Leaves              []frontend.Variable   `gnark:"input"`
-	MerkleProofs        [][]frontend.Variable `gnark:"input"`
-	PathIndices         []frontend.Variable   `gnark:"input"`
+	Leaves       []frontend.Variable   `gnark:"input"`
+	MerkleProofs [][]frontend.Variable `gnark:"input"`
+	PathIndices  []frontend.Variable   `gnark:"input"`
 
 	Height    uint32
 	BatchSize uint32
@@ -66,7 +66,6 @@ type BatchUpdateParameters struct {
 	Leaves              []*big.Int
 	MerkleProofs        [][]big.Int
 	PathIndices         []uint32
-	HashChainStartIndex uint32
 	Height              uint32
 	BatchSize           uint32
 	Tree                *merkle_tree.PoseidonTree

@@ -31,6 +31,7 @@ func StartServer(isLightweight bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
 	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend, prover.BatchUpdate}
 	var keys = prover.GetKeys("./proving-keys/", circuitTypes, isLightweight)
+
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
 

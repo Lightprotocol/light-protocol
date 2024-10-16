@@ -16,16 +16,16 @@ import (
 
 type BatchAppendCircuit struct {
 	// Public inputs
-	PublicInputHash frontend.Variable `gnark:",public"`
+	PublicInputHash     frontend.Variable `gnark:",public"`
+	OldSubTreeHashChain frontend.Variable `gnark:",private"`
+	NewSubTreeHashChain frontend.Variable `gnark:",private"`
+	NewRoot             frontend.Variable `gnark:",private"`
+	HashchainHash       frontend.Variable `gnark:",private"`
+	StartIndex          frontend.Variable `gnark:",private"`
 
 	// Private inputs
-	OldSubTreeHashChain frontend.Variable   `gnark:",private"`
-	NewSubTreeHashChain frontend.Variable   `gnark:",private"`
-	NewRoot             frontend.Variable   `gnark:",private"`
-	HashchainHash       frontend.Variable   `gnark:",private"`
-	StartIndex          frontend.Variable   `gnark:",private"`
-	Leaves              []frontend.Variable `gnark:",private"`
-	Subtrees            []frontend.Variable `gnark:",private"`
+	Leaves   []frontend.Variable `gnark:",private"`
+	Subtrees []frontend.Variable `gnark:",private"`
 
 	BatchSize  uint32
 	TreeHeight uint32
@@ -189,7 +189,6 @@ type BatchAppendParameters struct {
 	StartIndex          uint32     `json:"startIndex"`
 	Leaves              []*big.Int `json:"leaves"`
 	Subtrees            []*big.Int `json:"subtrees"`
-	HashChainStartIndex uint32     `json:"hashChainStartIndex"`
 	TreeHeight          uint32     `json:"treeHeight"`
 	tree                *merkle_tree.PoseidonTree
 }

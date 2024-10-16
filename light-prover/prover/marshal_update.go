@@ -17,9 +17,6 @@ type BatchUpdateProofInputsJSON struct {
 	Height              uint32     `json:"height"`
 	BatchSize           uint32     `json:"batchSize"`
 }
-type BatchUpdateParametersJSON struct {
-	Inputs BatchUpdateProofInputsJSON `json:"batch-update-inputs"`
-}
 
 func ParseBatchUpdateInput(inputJSON string) (BatchUpdateParameters, error) {
 	var proofData BatchUpdateParameters
@@ -35,30 +32,30 @@ func (p *BatchUpdateParameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(paramsJson)
 }
 
-func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdateParametersJSON {
-	paramsJson := BatchUpdateParametersJSON{}
-	paramsJson.Inputs.PublicInputHash = toHex(p.PublicInputHash)
-	paramsJson.Inputs.OldRoot = toHex(p.OldRoot)
-	paramsJson.Inputs.NewRoot = toHex(p.NewRoot)
-	paramsJson.Inputs.LeavesHashchainHash = toHex(p.LeavesHashchainHash)
-	paramsJson.Inputs.Height = p.Height
-	paramsJson.Inputs.BatchSize = p.BatchSize
+func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdateProofInputsJSON {
+	paramsJson := BatchUpdateProofInputsJSON{}
+	paramsJson.PublicInputHash = toHex(p.PublicInputHash)
+	paramsJson.OldRoot = toHex(p.OldRoot)
+	paramsJson.NewRoot = toHex(p.NewRoot)
+	paramsJson.LeavesHashchainHash = toHex(p.LeavesHashchainHash)
+	paramsJson.Height = p.Height
+	paramsJson.BatchSize = p.BatchSize
 
-	paramsJson.Inputs.Leaves = make([]string, len(p.Leaves))
+	paramsJson.Leaves = make([]string, len(p.Leaves))
 	for i := 0; i < len(p.Leaves); i++ {
-		paramsJson.Inputs.Leaves[i] = toHex(p.Leaves[i])
+		paramsJson.Leaves[i] = toHex(p.Leaves[i])
 	}
 
-	paramsJson.Inputs.PathIndices = make([]uint32, len(p.PathIndices))
+	paramsJson.PathIndices = make([]uint32, len(p.PathIndices))
 	for i := 0; i < len(p.PathIndices); i++ {
-		paramsJson.Inputs.PathIndices[i] = p.PathIndices[i]
+		paramsJson.PathIndices[i] = p.PathIndices[i]
 	}
 
-	paramsJson.Inputs.MerkleProofs = make([][]string, len(p.MerkleProofs))
+	paramsJson.MerkleProofs = make([][]string, len(p.MerkleProofs))
 	for i := 0; i < len(p.MerkleProofs); i++ {
-		paramsJson.Inputs.MerkleProofs[i] = make([]string, len(p.MerkleProofs[i]))
+		paramsJson.MerkleProofs[i] = make([]string, len(p.MerkleProofs[i]))
 		for j := 0; j < len(p.MerkleProofs[i]); j++ {
-			paramsJson.Inputs.MerkleProofs[i][j] = toHex(&p.MerkleProofs[i][j])
+			paramsJson.MerkleProofs[i][j] = toHex(&p.MerkleProofs[i][j])
 		}
 	}
 
@@ -66,66 +63,65 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePar
 }
 
 func (p *BatchUpdateParameters) UnmarshalJSON(data []byte) error {
-	var params BatchUpdateParametersJSON
+	var params BatchUpdateProofInputsJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
 	}
+
 	return p.UpdateWithJSON(params)
 }
 
-func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateParametersJSON) error {
+func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateProofInputsJSON) error {
 	var err error
-
-	p.PublicInputHash = new(big.Int)
-	err = fromHex(p.PublicInputHash, params.Inputs.PublicInputHash)
-	if err != nil {
-		return err
-	}
+	p.Height = params.Height
+	p.BatchSize = params.BatchSize
 
 	p.OldRoot = new(big.Int)
-	err = fromHex(p.OldRoot, params.Inputs.OldRoot)
+	err = fromHex(p.OldRoot, params.OldRoot)
 	if err != nil {
 		return err
 	}
 
 	p.NewRoot = new(big.Int)
-	err = fromHex(p.NewRoot, params.Inputs.NewRoot)
+	err = fromHex(p.NewRoot, params.NewRoot)
 	if err != nil {
 		return err
 	}
 
 	p.LeavesHashchainHash = new(big.Int)
-	err = fromHex(p.LeavesHashchainHash, params.Inputs.LeavesHashchainHash)
+	err = fromHex(p.LeavesHashchainHash, params.LeavesHashchainHash)
 	if err != nil {
 		return err
 	}
 
-	p.Height = params.Inputs.Height
-	p.BatchSize = params.Inputs.BatchSize
-
-	p.Leaves = make([]*big.Int, len(params.Inputs.Leaves))
-	for i := 0; i < len(params.Inputs.Leaves); i++ {
+	p.Leaves = make([]*big.Int, len(params.Leaves))
+	for i := 0; i < len(params.Leaves); i++ {
 		p.Leaves[i] = new(big.Int)
-		err = fromHex(p.Leaves[i], params.Inputs.Leaves[i])
+		err = fromHex(p.Leaves[i], params.Leaves[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	p.PathIndices = make([]uint32, len(params.Inputs.PathIndices))
-	copy(p.PathIndices, params.Inputs.PathIndices)
+	p.PathIndices = make([]uint32, len(params.PathIndices))
+	copy(p.PathIndices, params.PathIndices)
 
-	p.MerkleProofs = make([][]big.Int, len(params.Inputs.MerkleProofs))
-	for i := 0; i < len(params.Inputs.MerkleProofs); i++ {
-		p.MerkleProofs[i] = make([]big.Int, len(params.Inputs.MerkleProofs[i]))
-		for j := 0; j < len(params.Inputs.MerkleProofs[i]); j++ {
-			err = fromHex(&p.MerkleProofs[i][j], params.Inputs.MerkleProofs[i][j])
+	p.MerkleProofs = make([][]big.Int, len(params.MerkleProofs))
+	for i := 0; i < len(params.MerkleProofs); i++ {
+		p.MerkleProofs[i] = make([]big.Int, len(params.MerkleProofs[i]))
+		for j := 0; j < len(params.MerkleProofs[i]); j++ {
+			err = fromHex(&p.MerkleProofs[i][j], params.MerkleProofs[i][j])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
+	p.PublicInputHash = new(big.Int)
+	err = fromHex(p.PublicInputHash, params.PublicInputHash)
+	if err != nil {
+		return err
+	}
 	return nil
 }

@@ -18,6 +18,8 @@ static IS_LOADING: AtomicBool = AtomicBool::new(false);
 pub enum ProofType {
     Inclusion,
     NonInclusion,
+    BatchAppend,
+    BatchUpdate,
 }
 
 impl Display for ProofType {
@@ -28,6 +30,8 @@ impl Display for ProofType {
             match self {
                 ProofType::Inclusion => "inclusion",
                 ProofType::NonInclusion => "non-inclusion",
+                ProofType::BatchAppend => "append",
+                ProofType::BatchUpdate => "update",
             }
         )
     }

@@ -51,7 +51,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	_, hasOldSubTreeHashChain := inputs["oldSubTreeHashChain"]
 	_, hasNewSubTreeHashChain := inputs["newSubTreeHashChain"]
 	_, hasLeaves := inputs["leaves"]
-	_, hasBatchUpdateInputs := inputs["batch-update-inputs"]
+	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return Combined, nil
@@ -61,7 +61,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return NonInclusion, nil
 	} else if hasOldSubTreeHashChain && hasNewSubTreeHashChain && hasLeaves {
 		return BatchAppend, nil
-	} else if hasBatchUpdateInputs {
+	} else if hasNewMerkleProofs {
 		return BatchUpdate, nil
 	}
 	return "", fmt.Errorf("unknown schema")
