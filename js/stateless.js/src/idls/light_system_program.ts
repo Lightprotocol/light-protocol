@@ -1002,6 +1002,14 @@ export type LightSystemProgram = {
             code: 6035;
             name: 'ReadOnlyAccountDoesNotExist';
         },
+        {
+            code: 6036;
+            name: 'HashChainInputsLenghtInconsistent';
+        },
+        {
+            code: 6037;
+            name: 'InvalidAddressTreeHeight';
+        },
     ];
 };
 
@@ -2013,6 +2021,14 @@ export const IDL: LightSystemProgram = {
         {
             code: 6035,
             name: 'ReadOnlyAccountDoesNotExist',
+        },
+        {
+            code: 6036,
+            name: 'HashChainInputsLenghtInconsistent',
+        },
+        {
+            code: 6037,
+            name: 'InvalidAddressTreeHeight',
         },
     ],
 };

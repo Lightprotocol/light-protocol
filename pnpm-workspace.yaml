@@ -10,3 +10,4 @@ packages:
   - "js/compressed-token/**"
   - "examples/**"
   - "forester/**"
+  - "test-programs/**"

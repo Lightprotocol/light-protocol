@@ -166,7 +166,6 @@ impl Batch {
         store: &mut [u8],
         hashchain_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
-        println!("batch insert bloom filter value {:?}", bloom_filter_value);
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;

@@ -152,9 +152,7 @@ where
 
     #[inline]
     pub fn clear(&mut self) {
-        unsafe {
-            (*self.metadata).length = 0;
-        }
+        self.metadata_mut().length = 0;
     }
 
     /// Creates a `BoundedVec<T>` with the given `metadata`.
@@ -175,6 +173,10 @@ where
 
     pub fn metadata(&self) -> &BoundedVecMetadata {
         unsafe { &*self.metadata }
+    }
+
+    fn metadata_mut(&mut self) -> &mut BoundedVecMetadata {
+        unsafe { &mut *self.metadata }
     }
 
     pub fn from_array<const N: usize>(array: &[T; N]) -> Self {
@@ -236,7 +238,7 @@ where
     /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
-        unsafe { (*self.metadata).capacity }
+        self.metadata().capacity
     }
 
     #[inline]
@@ -276,12 +278,12 @@ where
 
     #[inline]
     pub fn len(&self) -> usize {
-        unsafe { (*self.metadata).length }
+        self.metadata().length
     }
 
     #[inline]
     fn inc_len(&mut self) {
-        unsafe { (*self.metadata).length += 1 };
+        self.metadata_mut().length += 1;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -459,7 +461,7 @@ where
         if metadata.is_null() {
             handle_alloc_error(layout);
         }
-        unsafe { *metadata = (*self.metadata).clone() };
+        unsafe { *metadata = self.metadata().clone() };
 
         let layout = Layout::array::<T>(self.capacity()).unwrap();
         let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
@@ -734,6 +736,10 @@ where
         unsafe { &*self.metadata }
     }
 
+    fn metadata_mut(&mut self) -> &mut CyclicBoundedVecMetadata {
+        unsafe { &mut *self.metadata }
+    }
+
     /// Creates a `CyclicBoundedVec<T>` directly from a pointer, a capacity, and a length.
     ///
     /// # Safety
@@ -773,7 +779,7 @@ where
     /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
-        unsafe { (*self.metadata).capacity }
+        self.metadata().capacity
     }
 
     #[inline]
@@ -809,12 +815,12 @@ where
 
     #[inline]
     pub fn len(&self) -> usize {
-        unsafe { (*self.metadata).length }
+        self.metadata().length
     }
 
     #[inline]
     fn inc_len(&mut self) {
-        unsafe { (*self.metadata).length += 1 }
+        self.metadata_mut().length += 1;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -871,14 +877,12 @@ where
 
     #[inline]
     pub fn first_index(&self) -> usize {
-        unsafe { (*self.metadata).first_index }
+        self.metadata().first_index
     }
 
     #[inline]
-    fn inc_first_index(&self) {
-        unsafe {
-            (*self.metadata).first_index = ((*self.metadata).first_index + 1) % self.capacity();
-        }
+    fn inc_first_index(&mut self) {
+        self.metadata_mut().first_index = (self.metadata().first_index + 1) % self.capacity();
     }
 
     #[inline]
@@ -893,14 +897,12 @@ where
 
     #[inline]
     pub fn last_index(&self) -> usize {
-        unsafe { (*self.metadata).last_index }
+        self.metadata().last_index
     }
 
     #[inline]
     fn inc_last_index(&mut self) {
-        unsafe {
-            (*self.metadata).last_index = ((*self.metadata).last_index + 1) % self.capacity();
-        }
+        self.metadata_mut().last_index = (self.metadata().last_index + 1) % self.capacity();
     }
 
     #[inline]

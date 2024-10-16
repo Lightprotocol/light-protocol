@@ -1,4 +1,5 @@
 use log::info;
+use num_traits::Num;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -70,7 +71,7 @@ impl Display for ProofType {
                 ProofType::BatchAppendWithSubtreesTest => "append-with-subtrees-test",
                 ProofType::BatchUpdateTest => "update-test",
                 ProofType::BatchAppendWithProofsTest => "append-with-proofs-test",
-                ProofType::BatchAddressAppend => "address-append",
+                ProofType::BatchAddressAppend => "addressAppend",
                 ProofType::BatchAddressAppendTest => "address-append-test",
             }
         )
@@ -228,6 +229,13 @@ pub fn big_uint_to_string(big_uint: &BigUint) -> String {
 
 pub fn big_int_to_string(big_int: &BigInt) -> String {
     format!("0x{}", big_int.to_str_radix(16))
+}
+pub fn string_to_big_int(hex_str: &str) -> Option<BigInt> {
+    if hex_str.starts_with("0x") || hex_str.starts_with("0X") {
+        BigInt::from_str_radix(&hex_str[2..], 16).ok()
+    } else {
+        None
+    }
 }
 
 pub fn create_vec_of_string(number_of_utxos: usize, element: &BigInt) -> Vec<String> {

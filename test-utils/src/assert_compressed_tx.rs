@@ -60,7 +60,6 @@ pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R>>(
             .collect::<Vec<_>>()
             .as_slice(),
         input.created_output_compressed_accounts,
-        input.sorted_output_accounts,
     );
     // CHECK 2
     assert_nullifiers_exist_in_hash_sets(
@@ -138,13 +137,15 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     .unwrap());
             }
             2 => {
-                let mut merkle_tree_account = rpc
+                let mut merkle_tree_account_data = rpc
                     .get_account(snapshots[i].accounts.merkle_tree)
                     .await
                     .unwrap()
-                    .unwrap();
+                    .unwrap()
+                    .data
+                    .clone();
                 let mut merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                    &mut merkle_tree_account.data,
+                    &mut merkle_tree_account_data,
                 )
                 .unwrap();
                 let mut batches = merkle_tree.batches.clone();
@@ -170,10 +171,46 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
     created_addresses: &[[u8; 32]],
 ) {
     for (address, pubkey) in created_addresses.iter().zip(address_queue_pubkeys) {
-        let address_queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await };
-        assert!(address_queue
-            .contains(&BigUint::from_be_bytes(address), None)
-            .unwrap());
+        let account = rpc.get_account(*pubkey).await.unwrap().unwrap();
+        let discriminator = account.data[0..8].try_into().unwrap();
+        match discriminator {
+            QueueAccount::DISCRIMINATOR => {
+                let address_queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await };
+                assert!(address_queue
+                    .contains(&BigUint::from_be_bytes(address), None)
+                    .unwrap());
+            }
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                let mut account_data = account.data.clone();
+                let mut merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+                        &mut account_data,
+                    )
+                    .unwrap();
+                let mut batches = merkle_tree.batches.clone();
+                // Must be included in one batch
+                batches.iter_mut().enumerate().any(|(i, batch)| {
+                    batch
+                        .check_non_inclusion(
+                            address,
+                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
+                        )
+                        .is_err()
+                });
+                // must not be included in any other batch
+                batches.iter_mut().enumerate().any(|(i, batch)| {
+                    batch
+                        .check_non_inclusion(
+                            address,
+                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
+                        )
+                        .is_ok()
+                });
+            }
+            _ => {
+                panic!("assert_addresses_exist_in_hash_sets: invalid discriminator");
+            }
+        }
     }
 }
 
@@ -181,7 +218,6 @@ pub fn assert_created_compressed_accounts(
     output_compressed_accounts: &[CompressedAccount],
     output_merkle_tree_pubkeys: &[Pubkey],
     created_out_compressed_accounts: &[CompressedAccountWithMerkleContext],
-    _sorted: bool,
 ) {
     for output_account in created_out_compressed_accounts.iter() {
         assert!(output_compressed_accounts.iter().any(|x| x.lamports

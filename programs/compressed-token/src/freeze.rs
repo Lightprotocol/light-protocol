@@ -52,6 +52,7 @@ pub fn process_freeze_or_thaw<
             &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
         )?;
+    // TODO: discuss
     let proof = if inputs.proof == CompressedProof::default() {
         None
     } else {

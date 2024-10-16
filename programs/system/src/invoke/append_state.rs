@@ -29,7 +29,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],

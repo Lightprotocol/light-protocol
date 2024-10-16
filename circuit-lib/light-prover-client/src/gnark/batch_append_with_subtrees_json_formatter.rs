@@ -1,10 +1,13 @@
 use crate::batch_append_with_subtrees::BatchAppendWithSubtreesCircuitInputs;
 use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
+use crate::prove_utils::CircuitType;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct BatchAppendWithSubtreesJsonStruct {
+    #[serde(rename = "circuitType")]
+    pub circuit_type: String,
     #[serde(rename(serialize = "publicInputHash"))]
     pub public_input_hash: String,
     #[serde(rename(serialize = "oldSubTreeHashChain"))]
@@ -48,6 +51,7 @@ impl BatchAppendWithSubtreesJsonStruct {
             .collect::<Vec<String>>();
 
         Self {
+            circuit_type: CircuitType::BatchAppendWithSubtrees.to_string(),
             public_input_hash,
             old_sub_tree_hash_chain,
             new_sub_tree_hash_chain,
@@ -78,6 +82,7 @@ pub fn new_with_append_inputs() -> (
     let append_inputs = BatchAppendWithSubtreesCircuitInputs::default();
 
     let json_struct = BatchAppendWithSubtreesJsonStruct {
+        circuit_type: CircuitType::BatchAppendWithSubtrees.to_string(),
         public_input_hash: big_int_to_string(&append_inputs.public_input_hash),
         old_sub_tree_hash_chain: big_int_to_string(&append_inputs.old_sub_tree_hash_chain),
         new_sub_tree_hash_chain: big_int_to_string(&append_inputs.new_sub_tree_hash_chain),

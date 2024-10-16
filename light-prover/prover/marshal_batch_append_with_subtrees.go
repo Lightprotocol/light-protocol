@@ -7,15 +7,17 @@ import (
 )
 
 type BatchAppendWithSubtreesParametersJSON struct {
-	PublicInputHash     string   `json:"publicInputHash"`
-	OldSubTreeHashChain string   `json:"oldSubTreeHashChain"`
-	NewSubTreeHashChain string   `json:"newSubTreeHashChain"`
-	NewRoot             string   `json:"newRoot"`
-	HashchainHash       string   `json:"hashchainHash"`
-	StartIndex          uint32   `json:"startIndex"`
-	Leaves              []string `json:"leaves"`
-	Subtrees            []string `json:"subtrees"`
-	TreeHeight          uint32   `json:"treeHeight"`
+	CircuitType         CircuitType `json:"circuitType"`
+	StateTreeHeight     uint32      `json:"stateTreeHeight"`
+	PublicInputHash     string      `json:"publicInputHash"`
+	OldSubTreeHashChain string      `json:"oldSubTreeHashChain"`
+	NewSubTreeHashChain string      `json:"newSubTreeHashChain"`
+	NewRoot             string      `json:"newRoot"`
+	HashchainHash       string      `json:"hashchainHash"`
+	StartIndex          uint32      `json:"startIndex"`
+	Leaves              []string    `json:"leaves"`
+	Subtrees            []string    `json:"subtrees"`
+	TreeHeight          uint32      `json:"treeHeight"`
 }
 
 func ParseBatchAppendInput(inputJSON string) (BatchAppendWithSubtreesParameters, error) {

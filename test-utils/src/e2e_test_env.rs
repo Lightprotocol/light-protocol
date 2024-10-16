@@ -1400,6 +1400,7 @@ where
             )
             .await
             .unwrap();
+            println!("post decompress_sol_test");
             self.stats.sol_decompress += 1;
         }
     }

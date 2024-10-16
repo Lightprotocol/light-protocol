@@ -1098,7 +1098,47 @@ async fn failing_test_forester() {
         // Swap the derived forester pda with an initialized but invalid one.
         instruction.accounts[0].pubkey =
             get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
-        println!("here1");
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
+    }
+    // 4 FAIL: batch append failed
+    {
+        let expected_error_code = RegistryError::InvalidForester.into();
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_append_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.batched_state_merkle_tree,
+            env.batched_output_queue,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
+    }
+    // 4 FAIL: batch nullify failed
+    {
+        let expected_error_code = RegistryError::InvalidForester.into();
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_nullify_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.batched_state_merkle_tree,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -1176,7 +1216,6 @@ async fn failing_test_forester() {
             )
             .await;
         assert_rpc_error(result, 2, expected_error_code).unwrap();
-        println!("here1");
     }
     // 6. FAIL: rollover state tree with invalid authority
     {

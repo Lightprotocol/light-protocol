@@ -7,20 +7,22 @@ import (
 )
 
 type BatchAddressAppendParametersJSON struct {
-	PublicInputHash       string     `json:"PublicInputHash"`
-	OldRoot               string     `json:"OldRoot"`
-	NewRoot               string     `json:"NewRoot"`
-	HashchainHash         string     `json:"HashchainHash"`
-	StartIndex            uint32     `json:"StartIndex"`
-	LowElementValues      []string   `json:"LowElementValues"`
-	LowElementIndices     []string   `json:"LowElementIndices"`
-	LowElementNextIndices []string   `json:"LowElementNextIndices"`
-	LowElementNextValues  []string   `json:"LowElementNextValues"`
-	NewElementValues      []string   `json:"NewElementValues"`
-	LowElementProofs      [][]string `json:"LowElementProofs"`
-	NewElementProofs      [][]string `json:"NewElementProofs"`
-	TreeHeight            uint32     `json:"TreeHeight"`
-	BatchSize             uint32     `json:"BatchSize"`
+	CircuitType           CircuitType `json:"circuitType"`
+	StateTreeHeight       uint32      `json:"stateTreeHeight"`
+	PublicInputHash       string      `json:"publicInputHash"`
+	OldRoot               string      `json:"oldRoot"`
+	NewRoot               string      `json:"newRoot"`
+	HashchainHash         string      `json:"hashchainHash"`
+	StartIndex            uint32      `json:"startIndex"`
+	LowElementValues      []string    `json:"lowElementValues"`
+	LowElementIndices     []string    `json:"lowElementIndices"`
+	LowElementNextIndices []string    `json:"lowElementNextIndices"`
+	LowElementNextValues  []string    `json:"lowElementNextValues"`
+	NewElementValues      []string    `json:"newElementValues"`
+	LowElementProofs      [][]string  `json:"lowElementProofs"`
+	NewElementProofs      [][]string  `json:"newElementProofs"`
+	TreeHeight            uint32      `json:"treeHeight"`
+	BatchSize             uint32      `json:"batchSize"`
 }
 
 func ParseBatchAddressAppendInput(inputJSON string) (BatchAddressAppendParameters, error) {

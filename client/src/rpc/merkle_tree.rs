@@ -27,6 +27,7 @@ pub enum MerkleTreeExtError {
 /// fetching Merkle trees.
 #[async_trait]
 pub trait MerkleTreeExt: RpcConnection {
+    // TODO: add v2 state tree
     async fn get_state_merkle_tree(
         &mut self,
         pubkey: Pubkey,
@@ -39,6 +40,7 @@ pub trait MerkleTreeExt: RpcConnection {
         Ok(tree)
     }
 
+    // TODO: add v2 state tree
     async fn get_address_merkle_tree(
         &mut self,
         pubkey: Pubkey,

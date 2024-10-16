@@ -785,6 +785,9 @@ pub fn create_hash_chain_from_vec(inputs: Vec<[u8; 32]>) -> Result<[u8; 32]> {
 }
 
 pub fn create_hash_chain_from_slice(inputs: &[[u8; 32]]) -> Result<[u8; 32]> {
+    if inputs.is_empty() {
+        return Ok([0u8; 32]);
+    }
     let mut hash_chain = inputs[0];
     for input in inputs.iter().skip(1) {
         hash_chain = Poseidon::hashv(&[&hash_chain, input]).map_err(ProgramError::from)?;

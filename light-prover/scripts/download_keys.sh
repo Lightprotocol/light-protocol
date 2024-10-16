@@ -2,231 +2,90 @@
 
 set -e
 
-command -v git >/dev/null 2>&1 || { echo >&2 "git is required but it's not installed. Aborting."; exit 1; }
-command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but it's not installed. Aborting."; exit 1; }
-command -v wc >/dev/null 2>&1 || { echo >&2 "wc is required but it's not installed. Aborting."; exit 1; }
-
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/light-prover/proving-keys"
-TEMP_DIR="${KEYS_DIR}/temp"
 
-mkdir -p "$KEYS_DIR" "$TEMP_DIR"
+mkdir -p "$KEYS_DIR"
 
+# Circuits with multiple inputs (we are going to cease supporting address trees of
+# height 26 hence no point in doing a new trusted setup for these circuits)
+NON_INCLUSION_26_BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
+COMBINED_26_26_BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
-download_file() {
-  local FILE="$1"
-  local BUCKET_URL
-  if [[ $FILE == append-with-proofs* ]]; then
-    BUCKET_URL="https://${APPEND_WITH_PROOFS_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == append-with-subtrees* ]]; then
-    BUCKET_URL="https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == update* ]]; then
-    BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == address-append* ]]; then
-    BUCKET_URL="https://${APPEND_ADDRESS_BUCKET}.ipfs.w3s.link/${FILE}"
-  else
-    BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
-  fi
-
-  local TEMP_FILE="${TEMP_DIR}/${FILE}.partial"
-  local FINAL_FILE="${KEYS_DIR}/${FILE}"
-
-  # Simple check if file exists
-  if [ -f "$FINAL_FILE" ]; then
-    echo "$FILE already exists. Skipping."
-    return 0
-  fi
-
-  echo "Downloading $FILE"
-
-  local MAX_RETRIES=100
-  local attempt=0
-  while (( attempt < MAX_RETRIES )); do
-    if curl -S -f --retry 3 --retry-delay 2 --connect-timeout 30 \
-         --max-time 3600 --tlsv1.2 --tls-max 1.2 \
-         -o "$TEMP_FILE" "$BUCKET_URL"; then
-      
-      mv "$TEMP_FILE" "$FINAL_FILE"
-      echo "$FILE downloaded successfully"
-      return 0
-    fi
-
-    echo "Download failed for $FILE (attempt $((attempt + 1))). Retrying..."
-    sleep $((2 ** attempt))
-    ((attempt++))
-  done
-
-  echo "Failed to download $FILE after $MAX_RETRIES attempts"
-  return 1
-}
-
-cleanup() {
-  echo "Cleaning up temporary files..."
-  rm -rf "$TEMP_DIR"
-  exit 1
-}
-
-# Set up trap for script interruption
-trap cleanup INT TERM
-
-download_files() {
-  local files=("$@")
-  local failed_files=()
-
-  for FILE in "${files[@]}"; do
-    if ! download_file "$FILE"; then
-      failed_files+=("$FILE")
-      echo "Failed to download: $FILE"
-    fi
-  done
-
-  if [ ${#failed_files[@]} -ne 0 ]; then
-    echo "The following files failed to download:"
-    printf '%s\n' "${failed_files[@]}"
-    exit 1
-  fi
-}
-
-# inclusion, non-inclusion and combined keys for merkle tree of height 26
-
-BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
-
-# mt height 26, batch sizes {1, 10, 100, 500, 1000}
+# Circuits with unified inputs
+INCLUSION_26_BUCKET="bafybeigp64bqx2k2ogwur4efzcxczm22jkxye57p5mnmvgzvlpb75b66m4"
+NON_INCLUSION_40_BUCKET="bafybeigp64bqx2k2ogwur4efzcxczm22jkxye57p5mnmvgzvlpb75b66m4"
+COMBINED_26_40_BUCKET="bafybeigp64bqx2k2ogwur4efzcxczm22jkxye57p5mnmvgzvlpb75b66m4"
 APPEND_WITH_PROOFS_BUCKET="bafybeicngrfui5cef2a4g67lxw3u42atyrfks35vx4hu6c4rme3knh6lby"
 APPEND_WITH_SUBTREES_BUCKET="bafybeieyujtdrhp52unqkwvzn36o4hh4brsw52juaftceaki4gfypszbxa"
-
-# mt height 40, batch sizes {1, 10, 100, 250, 500, 1000}
 APPEND_ADDRESS_BUCKET="bafybeib2rajatndlpslpqhf4vrbekpyyehjt5byivfzxl36c5p67ypddvu"
-
-# keys for update circuit for tree of height 26
 UPDATE_BUCKET="bafybeievf2qdaex4cskdfk24uifq4244ne42w3dghwnnfp4ybsve6mw2pa"
 
-LIGHTWEIGHT_FILES=(
-  "inclusion_26_1.key"
-  "inclusion_26_1.vkey"
-  "inclusion_26_2.key"
-  "inclusion_26_2.vkey"
-  "inclusion_26_3.key"
-  "inclusion_26_3.vkey"
-  "inclusion_26_4.key"
-  "inclusion_26_4.vkey"
-  "inclusion_26_8.key"
-  "inclusion_26_8.vkey"
-  "non-inclusion_26_1.key"
-  "non-inclusion_26_1.vkey"
-  "non-inclusion_26_2.key"
-  "non-inclusion_26_2.vkey"
-  "combined_26_1_1.key"
-  "combined_26_1_1.vkey"
-  "combined_26_1_2.key"
-  "combined_26_1_2.vkey"
-  "combined_26_2_1.key"
-  "combined_26_2_1.vkey"
-  "combined_26_2_2.key"
-  "combined_26_2_2.vkey"
-  "combined_26_3_1.key"
-  "combined_26_3_1.vkey"
-  "combined_26_3_2.key"
-  "combined_26_3_2.vkey"
-  "combined_26_4_1.key"
-  "combined_26_4_1.vkey"
-  "combined_26_4_2.key"
-  "combined_26_4_2.vkey"
-  "append-with-proofs_26_10.key"
-  "append-with-proofs_26_10.vkey"
-  "append-with-subtrees_26_10.key"
-  "append-with-subtrees_26_10.vkey"
-  "update_26_10.key"
-  "update_26_10.vkey"
-  "address-append_40_1.key"
-  "address-append_40_1.vkey"
-  "address-append_40_10.key"
-  "address-append_40_10.vkey"
-)
+get_bucket_url() {
+    local FILE="$1"
+    if [[ $FILE == inclusion_26_* ]]; then
+        echo "https://${INCLUSION_26_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == non-inclusion_26_* ]]; then
+        echo "https://${NON_INCLUSION_26_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == non-inclusion_40_* ]]; then
+        echo "https://${NON_INCLUSION_40_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == combined_26_40_* ]]; then
+        echo "https://${COMBINED_26_40_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == combined_26_* ]]; then
+        echo "https://${COMBINED_26_26_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == append-with-proofs_* ]]; then
+        echo "https://${APPEND_WITH_PROOFS_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == append-with-subtrees_* ]]; then
+        echo "https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == address-append_* ]]; then
+        echo "https://${APPEND_ADDRESS_BUCKET}.ipfs.w3s.link/${FILE}"
+    elif [[ $FILE == update_* ]]; then
+        echo "https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
+    fi
+}
 
-FULL_FILES=(
-  "inclusion_26_1.key"
-  "inclusion_26_1.vkey"
-  "inclusion_26_2.key"
-  "inclusion_26_2.vkey"
-  "inclusion_26_3.key"
-  "inclusion_26_3.vkey"
-  "inclusion_26_4.key"
-  "inclusion_26_4.vkey"
-  "inclusion_26_8.key"
-  "inclusion_26_8.vkey"
-  "non-inclusion_26_1.key"
-  "non-inclusion_26_1.vkey"
-  "non-inclusion_26_2.key"
-  "non-inclusion_26_2.vkey"
-  "combined_26_1_1.key"
-  "combined_26_1_1.vkey"
-  "combined_26_1_2.key"
-  "combined_26_1_2.vkey"
-  "combined_26_2_1.key"
-  "combined_26_2_1.vkey"
-  "combined_26_2_2.key"
-  "combined_26_2_2.vkey"
-  "combined_26_3_1.key"
-  "combined_26_3_1.vkey"
-  "combined_26_3_2.key"
-  "combined_26_3_2.vkey"
-  "combined_26_4_1.key"
-  "combined_26_4_1.vkey"
-  "combined_26_4_2.key"
-  "combined_26_4_2.vkey"
-  "append-with-proofs_26_1.key"
-  "append-with-proofs_26_1.vkey"
-  "append-with-proofs_26_10.key"
-  "append-with-proofs_26_10.vkey"
-  "append-with-proofs_26_100.key"
-  "append-with-proofs_26_100.vkey"
-  "append-with-proofs_26_500.key"
-  "append-with-proofs_26_500.vkey"
-  "append-with-proofs_26_1000.key"
-  "append-with-proofs_26_1000.vkey"
-  "append-with-subtrees_26_1.key"
-  "append-with-subtrees_26_1.vkey"
-  "append-with-subtrees_26_10.key"
-  "append-with-subtrees_26_10.vkey"
-  "append-with-subtrees_26_100.key"
-  "append-with-subtrees_26_100.vkey"
-  "append-with-subtrees_26_500.key"
-  "append-with-subtrees_26_500.vkey"
-  "append-with-subtrees_26_1000.key"
-  "append-with-subtrees_26_1000.vkey"
-  "update_26_1.key"
-  "update_26_1.vkey"
-  "update_26_10.key"
-  "update_26_10.vkey"
-  "update_26_100.key"
-  "update_26_100.vkey"
-  "update_26_500.key"
-  "update_26_500.vkey"
-  "update_26_1000.key"
-  "update_26_1000.vkey"
-  "address-append_40_1.key"
-  "address-append_40_1.vkey"
-  "address-append_40_10.key"
-  "address-append_40_10.vkey"
-  "address-append_40_100.key"
-  "address-append_40_100.vkey"
-  "address-append_40_250.key"
-  "address-append_40_250.vkey"
-  "address-append_40_500.key"
-  "address-append_40_500.vkey"
-  "address-append_40_1000.key"
-  "address-append_40_1000.vkey"
-)
+case "$1" in
+    "light")
+        SUFFIXES=(
+            "inclusion_26:1 2 3 4 8"
+            "non-inclusion_26:1 2 3 4 8"
+            "non-inclusion_40:1 2 3 4 8"
+            "combined_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+            "combined_26_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
+            "append-with-proofs_26:1 10"
+            "append-with-subtrees_26:1 10"
+            "update_26:1 10"
+            "address-append_40:1 10"
+        )
+        ;;
+    "full")
+        SUFFIXES=(
+            "inclusion_26:1 2 3 4 8"
+            "non-inclusion_26:1 2 3 4 8"
+            "non-inclusion_40:1 2 3 4 8"
+            "combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+            "combined_26_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
+            "append-with-proofs_26:1 10 100 500 1000"
+            "append-with-subtrees_26:1 10 100 500 1000"
+            "update_26:1 10 100 500 1000"
+            "address-append_40:1 10 100 250 500 1000"
+        )
+        ;;
+    *)
+        echo "Usage: $0 [light|full]"
+        exit 1
+        ;;
+esac
 
-if [ "$1" = "light" ]; then
-  download_files "${LIGHTWEIGHT_FILES[@]}"
-elif [ "$1" = "full" ]; then
-  download_files "${FULL_FILES[@]}"
-else
-  echo "Usage: $0 [light|full]"
-  exit 1
-fi
-
-
-rm -rf "$TEMP_DIR"
+for group in "${SUFFIXES[@]}"; do
+    base=${group%:*}
+    suffixes=${group#*:}
+    for suffix in $suffixes; do
+        for ext in key vkey; do
+            file="${base}_${suffix}.${ext}"
+            url="$(get_bucket_url "$file")"
+            echo "Downloading $file"
+            curl -S --retry 3 -o "${KEYS_DIR}/${file}" "$url"
+        done
+    done
+done

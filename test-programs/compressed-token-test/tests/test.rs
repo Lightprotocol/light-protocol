@@ -324,7 +324,7 @@ async fn test_failing_create_token_pool() {
 #[tokio::test]
 async fn test_wrapped_sol() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -567,7 +567,7 @@ async fn test_22_mint_to() {
 }
 #[tokio::test]
 async fn test_22_transfer() {
-    perform_transfer_22_test(1, 1, 12412, true).await;
+    perform_transfer_22_test(1, 1, 12412, true, true).await;
 }
 
 #[tokio::test]
@@ -1038,6 +1038,14 @@ async fn test_mint_to_failing() {
 
 #[tokio::test]
 async fn test_transfers() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        },
+    )
+    .await;
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
         for output_num in 1..8 {
@@ -1049,7 +1057,7 @@ async fn test_transfers() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, false).await
         }
     }
 }
@@ -1066,7 +1074,7 @@ async fn test_1_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, true).await
         }
     }
 }
@@ -1084,7 +1092,7 @@ async fn test_2_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, true).await
         }
     }
 }
@@ -1098,28 +1106,40 @@ async fn test_8_transfer() {
             "\n\ninput num: {}, output num: {}\n\n",
             input_num, output_num
         );
-        perform_transfer_test(input_num, output_num, 10_000).await
+        perform_transfer_test(input_num, output_num, 10_000, true).await
     }
 }
 
 /// Creates inputs compressed accounts with amount tokens each
 /// Transfers all tokens from inputs compressed accounts evenly distributed to outputs compressed accounts
-async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
-    perform_transfer_22_test(inputs, outputs, amount, false).await;
+async fn perform_transfer_test(
+    inputs: usize,
+    outputs: usize,
+    amount: u64,
+    start_prover_server: bool,
+) {
+    perform_transfer_22_test(inputs, outputs, amount, false, start_prover_server).await;
 }
-async fn perform_transfer_22_test(inputs: usize, outputs: usize, amount: u64, token_22: bool) {
+async fn perform_transfer_22_test(
+    inputs: usize,
+    outputs: usize,
+    amount: u64,
+    token_22: bool,
+    start_prover_server: bool,
+) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
+    let prover_config = if start_prover_server {
         Some(ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+        })
+    } else {
+        None
+    };
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, prover_config).await;
     let mint = if token_22 {
         create_mint_22_helper(&mut rpc, &payer).await
     } else {
@@ -2216,7 +2236,7 @@ async fn test_revoke_failing() {
 #[tokio::test]
 async fn test_burn() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2364,7 +2384,7 @@ async fn test_burn() {
 #[tokio::test]
 async fn failing_tests_burn() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2616,7 +2636,7 @@ async fn failing_tests_burn() {
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2782,7 +2802,7 @@ async fn test_freeze_and_thaw_10000() {
 #[tokio::test]
 async fn test_failing_freeze() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2929,7 +2949,7 @@ async fn test_failing_freeze() {
         // 3. Invalid proof.
         {
             let invalid_proof = CompressedProof {
-                a: [0; 32],
+                a: [1; 32],
                 b: [0; 64],
                 c: [0; 32],
             };
@@ -3045,7 +3065,7 @@ async fn test_failing_freeze() {
 #[tokio::test]
 async fn test_failing_thaw() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -3218,7 +3238,7 @@ async fn test_failing_thaw() {
         // 3. Invalid proof.
         {
             let invalid_proof = CompressedProof {
-                a: [0; 32],
+                a: [1; 32],
                 b: [0; 64],
                 c: [0; 32],
             };

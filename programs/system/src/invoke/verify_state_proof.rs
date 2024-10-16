@@ -18,13 +18,13 @@ use account_compression::{
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::Poseidon;
+use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::{
-    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
-    verify_merkle_proof_zkp, CompressedProof,
+    select_verifying_key, verify_create_addresses_and_merkle_proof_zkp,
+    verify_create_addresses_zkp, CompressedProof,
 };
 use std::mem;
 
@@ -109,24 +109,35 @@ pub fn fetch_roots_address_merkle_tree<
     read_only_addresses: &'a [PackedReadOnlyAddress],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut Vec<[u8; 32]>,
-) -> Result<()> {
+) -> Result<u8> {
+    let mut height = 0;
     for new_address_param in new_address_params.iter() {
-        fetch_address_root::<false, A>(
+        let _height = fetch_address_root::<false, A>(
             ctx,
             new_address_param.address_merkle_tree_account_index,
             new_address_param.address_merkle_tree_root_index,
             roots,
         )?;
+        if height == 0 {
+            height = _height;
+        } else if height != _height {
+            return err!(SystemProgramError::InvalidAddressTreeHeight);
+        }
     }
     for read_only_address in read_only_addresses.iter() {
-        fetch_address_root::<true, A>(
+        let _height = fetch_address_root::<true, A>(
             ctx,
             read_only_address.address_merkle_tree_account_index,
             read_only_address.address_merkle_tree_root_index,
             roots,
         )?;
+        if height == 0 {
+            height = _height;
+        } else if height != _height {
+            return err!(SystemProgramError::InvalidAddressTreeHeight);
+        }
     }
-    Ok(())
+    Ok(height)
 }
 
 /// For each input account which is marked to be proven by index
@@ -249,7 +260,8 @@ fn fetch_address_root<
     address_merkle_tree_account_index: u8,
     address_merkle_tree_root_index: u16,
     roots: &'a mut Vec<[u8; 32]>,
-) -> Result<()> {
+) -> Result<u8> {
+    let height;
     let merkle_tree_account_info =
         &ctx.remaining_accounts[address_merkle_tree_account_index as usize];
     let mut discriminator_bytes = [0u8; 8];
@@ -268,6 +280,7 @@ fn fetch_address_root<
                     &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
                 )
                 .map_err(ProgramError::from)?;
+            height = merkle_tree.height as u8;
             (*roots).push(merkle_tree.roots[address_merkle_tree_root_index as usize]);
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
@@ -275,6 +288,8 @@ fn fetch_address_root<
                 merkle_tree_account_info,
             )
             .map_err(ProgramError::from)?;
+            height = merkle_tree.get_account().height as u8;
+
             (*roots).push(merkle_tree.root_history[address_merkle_tree_root_index as usize]);
         }
         _ => {
@@ -283,7 +298,7 @@ fn fetch_address_root<
             );
         }
     }
-    Ok(())
+    Ok(height)
 }
 
 /// Hashes the input compressed accounts and stores the results in the leaves array.
@@ -295,7 +310,7 @@ fn fetch_address_root<
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     remaining_accounts: &'a [AccountInfo<'info>],
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
-    leaves: &'a mut [[u8; 32]],
+    leaves: &'a mut Vec<[u8; 32]>,
     addresses: &'a mut [Option<[u8; 32]>],
     hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
 ) -> Result<()> {
@@ -384,15 +399,17 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 }
             };
         }
-        leaves[j] = input_compressed_account_with_context
-            .compressed_account
-            .hash_with_hashed_values::<Poseidon>(
-                &hashed_owner,
-                &current_hashed_mt,
-                &input_compressed_account_with_context
-                    .merkle_context
-                    .leaf_index,
-            )?;
+        leaves.push(
+            input_compressed_account_with_context
+                .compressed_account
+                .hash_with_hashed_values::<Poseidon>(
+                    &hashed_owner,
+                    &current_hashed_mt,
+                    &input_compressed_account_with_context
+                        .merkle_context
+                        .leaf_index,
+                )?,
+        );
     }
     Ok(())
 }
@@ -401,50 +418,66 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 #[heap_neutral]
 pub fn verify_state_proof(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    mut roots: Vec<[u8; 32]>,
-    leaves: &[[u8; 32]],
+    roots: &[[u8; 32]],
+    leaves: &mut Vec<[u8; 32]>,
     address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],
-    read_only_accounts: &[PackedReadOnlyCompressedAccount],
-    read_only_roots: &[[u8; 32]],
     compressed_proof: &CompressedProof,
+    address_tree_height: u8,
 ) -> anchor_lang::Result<()> {
-    // Filter out leaves that are not in the proof (proven by index).
-    let mut proof_input_leaves = leaves
+    // Accounts proven by index are not part of the zkp.
+    // filter out accounts which are proven by index with queue_index.is_some()
+    let mut num_removed = 0;
+    for (i, input_account) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
-        .filter(|(x, _)| {
-            input_compressed_accounts_with_merkle_context[*x]
-                .merkle_context
-                .queue_index
-                .is_none()
-        })
-        .map(|x| *x.1)
-        .collect::<Vec<[u8; 32]>>();
-
-    read_only_accounts.iter().for_each(|x| {
-        if x.merkle_context.queue_index.is_none() {
-            proof_input_leaves.extend_from_slice(&[x.account_hash]);
+    {
+        if input_account.merkle_context.queue_index.is_some() {
+            leaves.remove(i - num_removed);
+            num_removed += 1;
         }
-    });
-    roots.extend_from_slice(read_only_roots);
-
-    if !addresses.is_empty() && !proof_input_leaves.is_empty() {
-        verify_create_addresses_and_merkle_proof_zkp(
-            &roots,
-            &proof_input_leaves,
-            address_roots,
-            addresses,
-            compressed_proof,
-        )
-        .map_err(ProgramError::from)?;
-    } else if !addresses.is_empty() {
-        verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
-            .map_err(ProgramError::from)?;
-    } else {
-        verify_merkle_proof_zkp(&roots, &proof_input_leaves, compressed_proof)
-            .map_err(ProgramError::from)?;
     }
+    // leave here for debugging
+    msg!("address_tree_height == {}", address_tree_height);
+    msg!("addresses.len() == {}", addresses.len());
+    msg!("address_roots.len() == {}", address_roots.len());
+    msg!("leaves.len() == {}", leaves.len());
+    msg!("roots.len() == {}", roots.len());
+    if address_tree_height == 40 || addresses.is_empty() {
+        let public_input_hash = if !leaves.is_empty() {
+            create_two_inputs_hash_chain(roots, leaves)?
+        } else if !addresses.is_empty() {
+            create_two_inputs_hash_chain(address_roots, addresses)?
+        } else {
+            create_hash_chain_from_slice(&[
+                create_two_inputs_hash_chain(roots, leaves)?,
+                create_two_inputs_hash_chain(address_roots, addresses)?,
+            ])?
+        };
+        msg!("public_input_hash == {:?}", public_input_hash);
+        let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
+        light_verifier::verify(&[public_input_hash], compressed_proof, vk)
+            .map_err(ProgramError::from)?;
+    } else if address_tree_height == 26 {
+        if !addresses.is_empty() && !leaves.is_empty() {
+            verify_create_addresses_and_merkle_proof_zkp(
+                roots,
+                leaves,
+                address_roots,
+                addresses,
+                compressed_proof,
+            )
+            .map_err(ProgramError::from)?;
+        } else if !addresses.is_empty() {
+            verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
+                .map_err(ProgramError::from)?;
+        } else {
+            return err!(SystemProgramError::InvalidAddressTreeHeight);
+        }
+    } else {
+        return err!(SystemProgramError::InvalidAddressTreeHeight);
+    }
+
     Ok(())
 }
 
@@ -459,4 +492,28 @@ pub fn create_tx_hash(
     let inputs_hash_chain = create_hash_chain_from_slice(input_compressed_account_hashes)?;
     let outputs_hash_chain = create_hash_chain_from_slice(output_compressed_account_hashes)?;
     create_hash_chain_from_slice(&[version, inputs_hash_chain, outputs_hash_chain, slot_bytes])
+}
+
+pub fn create_two_inputs_hash_chain(
+    hashes_first: &[[u8; 32]],
+    hashes_second: &[[u8; 32]],
+) -> Result<[u8; 32]> {
+    msg!("hashes_first == {:?}", hashes_first);
+    msg!("hashes_second == {:?}", hashes_second);
+    if hashes_first.len() != hashes_second.len() {
+        return err!(SystemProgramError::HashChainInputsLenghtInconsistent);
+    }
+    if hashes_first.is_empty() {
+        return Ok([0u8; 32]);
+    }
+    let mut hash_chain = Poseidon::hashv(&[&hashes_first[0], &hashes_second[0]]).unwrap();
+
+    if hashes_first.len() == 1 {
+        return Ok(hash_chain);
+    }
+
+    for i in 1..hashes_first.len() {
+        hash_chain = Poseidon::hashv(&[&hash_chain, &hashes_first[i], &hashes_second[i]]).unwrap();
+    }
+    Ok(hash_chain)
 }

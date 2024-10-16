@@ -90,8 +90,8 @@ func TestCombined(t *testing.T) {
 		}
 
 		var circuit CombinedCircuit
-		circuit.Inclusion = InclusionCircuit{}
-		circuit.NonInclusion = NonInclusionCircuit{}
+		circuit.Inclusion = InclusionProof{}
+		circuit.NonInclusion = NonInclusionProof{}
 
 		circuit.Inclusion.Roots = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 		circuit.Inclusion.Leaves = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
@@ -114,12 +114,13 @@ func TestCombined(t *testing.T) {
 		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
 			circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 		}
-
+		circuit.PublicInputHash = frontend.Variable(0)
 		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
 		circuit.NonInclusion.Height = nonInclusionTreeHeight
 
 		assignment := &CombinedCircuit{
-			Inclusion: InclusionCircuit{
+			PublicInputHash: params.PublicInputHash,
+			Inclusion: InclusionProof{
 				Roots:                      inclusionRoots,
 				Leaves:                     inclusionLeaves,
 				InPathIndices:              inclusionInPathIndices,
@@ -127,7 +128,7 @@ func TestCombined(t *testing.T) {
 				NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
 				Height:                     inclusionTreeHeight,
 			},
-			NonInclusion: NonInclusionCircuit{
+			NonInclusion: NonInclusionProof{
 				Roots:                      nonInclusionRoots,
 				Values:                     nonInclusionValues,
 				LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
