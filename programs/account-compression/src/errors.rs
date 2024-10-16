@@ -55,4 +55,16 @@ pub enum AccountCompressionErrorCode {
     UnsupportedAdditionalBytes,
     InvalidGroup,
     ProofLengthMismatch,
+    #[msg("Invalid commitment length")]
+    InvalidCommitmentLength,
+    #[msg("BloomFilterFull")]
+    BloomFilterFull,
+    #[msg("BatchInsertFailed")]
+    BatchInsertFailed,
+    #[msg("BatchNotReady")]
+    BatchNotReady,
+    SizeMismatch,
+    BatchAlreadyInserted,
+    InvalidBloomFilterCapacity,
+    InvalidCircuitBatchSize,
 }
