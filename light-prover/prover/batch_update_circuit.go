@@ -14,6 +14,10 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
+// TODO: add new subtrees to PublicInputHash
+//   - if subtrees are not updated append proofs break onchain
+//   - in circuit we prove correctness of a new subtree hash
+//     matching NewRoot after batch updates are complete
 type BatchUpdateCircuit struct {
 	PublicInputHash     frontend.Variable `gnark:",public"`
 	OldRoot             frontend.Variable `gnark:",private"`

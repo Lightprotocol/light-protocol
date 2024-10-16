@@ -33,10 +33,19 @@ light-hasher = { version = "1.1.0", path = "../../merkle-tree/hasher", features 
 light-heap = { version = "1.1.0", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { version = "1.1.0", path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "1.1.0", path = "../../merkle-tree/indexed", features = ["solana"] }
-light-utils = { version = "1.1.0", path = "../../utils" }
+light-utils = { version = "1.0.0", path = "../../utils" }
+light-bloom-filter = { version = "0.1.0", path = "../../merkle-tree/bloom-filter", features = ["solana"] }
 num-bigint = "0.4"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
+light-verifier = { version = "1.0.0", path = "../../circuit-lib/verifier", features = ["solana"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
+
+[dev-dependencies]
+rand = "0.8.5"
+light-prover-client = { version = "1.2.0", path = "../../circuit-lib/light-prover-client", features = ["gnark"] }
+light-merkle-tree-reference = { version = "1.1.0", path = "../../merkle-tree/reference" }
+tokio = { version = "1.16.1" }
+serial_test = "3.1.1"

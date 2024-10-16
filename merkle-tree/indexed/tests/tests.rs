@@ -96,7 +96,7 @@ where
     Ok(update)
 }
 
-// TODO: unify these helpers with MockIndexer
+// TODO: unify these helpers with MockBatchedForester
 /// A mock function which imitates a relayer endpoint for updating the
 /// nullifier Merkle tree.
 fn relayer_update<H>(
