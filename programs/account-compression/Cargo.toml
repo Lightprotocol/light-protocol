@@ -45,3 +45,6 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"
+light-prover-client = { version = "1.2.0", path = "../../circuit-lib/light-prover-client", features = ["gnark"] }
+light-merkle-tree-reference = { version = "1.1.0", path = "../../merkle-tree/reference" }
+tokio = { version = "1.16.1" }

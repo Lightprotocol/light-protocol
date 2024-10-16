@@ -4,11 +4,9 @@ use crate::{
 };
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-use light_bounded_vec::{
-    BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata,
-};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_hasher::{Hasher, Poseidon};
-use light_verifier::CompressedProof;
+use light_verifier::{verify_batch_append, verify_batch_update, CompressedProof};
 use std::mem::ManuallyDrop;
 
 use super::{
@@ -142,31 +140,11 @@ pub struct InstructionDataBatchUpdateProofInputs {
     pub compressed_proof: CompressedProof,
 }
 
-pub enum Circuit {
-    Batch10,
-    Batch100,
-    Batch500,
-    Batch1000,
-}
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct BatchProofInputsIx {
-    pub circuit_id: u16,
     pub new_root: [u8; 32],
     pub output_hash_chain: [u8; 32],
-    pub root_index: u16,
-}
-
-impl BatchProofInputsIx {
-    pub fn map_circuit_id(&self) -> u16 {
-        match self.circuit_id {
-            1 => 10,
-            2 => 100,
-            3 => 500,
-            4 => 1000,
-            _ => panic!("Invalid circuit id"),
-        }
-    }
+    pub old_root_index: u16,
 }
 
 pub struct BatchProofInputs {
@@ -318,16 +296,15 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
                 batches,
                 &instruction_data,
             )?;
-        let circuit_batch_size = instruction_data.public_inputs.map_circuit_id() as u64;
-        if circuit_batch_size != account.queue.zkp_batch_size {
-            return err!(AccountCompressionErrorCode::InvalidCircuitBatchSize);
-        }
+        let circuit_batch_size = account.queue.zkp_batch_size;
+
         let public_input_hash = create_hash_chain([
             &public_inputs.old_root,
             &public_inputs.new_root,
             &public_inputs.start_index.to_le_bytes(),
         ])?;
-        self.update(
+        self.update::<5>(
+            circuit_batch_size as usize,
             instruction_data.compressed_proof,
             batch_index,
             Some(batches),
@@ -362,7 +339,9 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
             &public_inputs.new_root,
             &public_inputs.start_index.to_le_bytes(),
         ])?;
-        self.update(
+
+        self.update::<3>(
+            self.account.queue.zkp_batch_size as usize,
             instruction_data.compressed_proof,
             batch_index,
             None,
@@ -377,8 +356,9 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    fn update(
+    fn update<const QUEUE_TYPE: u64>(
         &mut self,
+        batch_size: usize,
         proof: CompressedProof,
         batch_index: u8,
         batches: Option<&mut ManuallyDrop<BoundedVec<Batch>>>,
@@ -398,8 +378,15 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
         println!("batch_index: {}", batch_index);
         println!("batch : {:?}", batches[batch_index as usize]);
 
-        // TODO: replace with actual verification in light-verifier
-        verify_mock_circuit(&public_input_hash, &proof)?;
+        if QUEUE_TYPE == QueueType::Output as u64 {
+            verify_batch_append(batch_size, public_input_hash, &proof)
+                .map_err(ProgramError::from)?;
+        } else if QUEUE_TYPE == QueueType::Input as u64 {
+            verify_batch_update(batch_size, public_input_hash, &proof)
+                .map_err(ProgramError::from)?;
+        } else {
+            return err!(AccountCompressionErrorCode::InvalidQueueType);
+        }
         self.account.sequence_number += 1;
         Ok(())
     }
@@ -528,13 +515,6 @@ impl<'a> ZeroCopyBatchedMerkleTreeAccount<'a> {
     }
 }
 
-pub fn verify_mock_circuit(_public_input_hash: &[u8; 32], _proof: &CompressedProof) -> Result<()> {
-    // 1. Recreate public input hash
-    // end index == start index + batch_size * num_batches
-    // execute nullify, indexed insert or append ciruit logic
-    Ok(())
-}
-
 pub fn create_hash_chain<const T: usize>(inputs: [&[u8]; T]) -> Result<[u8; 32]> {
     let mut hash_chain = [0u8; 32];
     for i in 0..T {
@@ -594,8 +574,14 @@ pub fn get_merkle_tree_account_size(
 #[cfg(test)]
 mod tests {
 
-    use std::default;
+    use std::{default, ops::Deref};
 
+    use light_merkle_tree_reference::MerkleTree;
+    use light_prover_client::{
+        batch_append::get_batch_append_inputs,
+        gnark::helpers::{spawn_prover, ProofType},
+        mock_indexer,
+    };
     use light_utils::fee::compute_rollover_fee;
     use rand::{rngs::StdRng, Rng};
 
@@ -710,57 +696,7 @@ mod tests {
             println!("Blooms must be divisible by 8 or it will create unaligned memory.");
             return err!(AccountCompressionErrorCode::InvalidBloomFilterCapacity);
         }
-        /*
-         * Note on security for length of
-         * root buffer, bloomfilter and output batch arrays:
-         * Example on input and output number of batches and root buffer length:
-         * - 2 root buffer length
-         * - 4 bloom filters in the input (nullifier) queue
-         * - 2 large output batches so that these don’t switch roots too often
-         *
-         * Account {
-         *   bloomfilter: [B0, B1, B2, B3],
-         *     roots: [R0, R1],
-         * }
-         *
-         * Timeslot 0:
-         * - insert into B0 until full
-         *
-         * Timeslot 1:
-         * - insert into B1 until full
-         * - update tree with B0, don't clear B0 yet
-         * -> R0 -> B0
-         *
-         * Timeslot 2:
-         * - insert into B2 until full
-         * - update tree with B1, don't clear B1 yet
-         * -> R0 -> B0
-         * -> R1 -> B1
-         *
-         * Timeslot 3:
-         * -> R0 -> B0
-         * -> R1 -> B1
-         * - clear B3
-         * - insert into B3 until full
-         * - update tree with B2, don't clear B2 yet
-         * -> R0 -> B2 (B0 is save to clear now)
-         *
-         * Timeslot 4:
-         * -> R0 -> B2
-         * -> R1 -> B1
-         * - clear B0
-         * - insert into B0 until full
-         * - update tree with B3, don't clear B3 yet
-         * -> R1 -> B3 (B1 is save to clear now)
-         *
-         * Timeslot 5:
-         * -> R0 -> B2
-         * -> R1 -> B3
-         * - clear B1
-         * - insert into B1 until full
-         * - update tree with B0, don't clear B0 yet
-         * -> R0 -> B0 (B2 is save to clear now)
-         */
+
         let num_batches_input_queue = 4;
         let num_batches_output_queue = 2;
         let height = 26;
@@ -1210,8 +1146,11 @@ mod tests {
     /// TODO: add circuits for update
     /// queues with a counter which keeps things below X tps and an if that
     /// executes tree updates when possible.
-    #[test]
-    fn test_e2e() {
+    #[tokio::test]
+    async fn test_e2e() {
+        spawn_prover(false, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;
+        let mut mock_indexer = mock_indexer::MockIndexer::<26>::new();
+
         let num_tx = 220000;
         let owner = Pubkey::new_unique();
 
@@ -1281,7 +1220,8 @@ mod tests {
                         .collect();
                     let pre_hashchains = merkle_tree_zero_copy_account.hashchain_store.clone();
                     let rnd_bytes = get_rnd_bytes(&mut rng);
-
+                    // Index input queue insert event
+                    mock_indexer.input_queue_leaves.push(rnd_bytes);
                     merkle_tree_zero_copy_account
                         .insert_into_current_batch(&rnd_bytes.to_vec().try_into().unwrap())
                         .unwrap();
@@ -1335,27 +1275,56 @@ mod tests {
                     .iter()
                     .any(|batch| batch.get_state() == BatchState::ReadyToUpdateTree);
             }
-            let root = get_rnd_bytes(&mut rng);
+            // let root = get_rnd_bytes(&mut rng);
 
             let new_output_hash_chain = get_rnd_bytes(&mut rng);
-            let instruction_data = InstructionDataBatchUpdateProofInputs {
-                public_inputs: BatchProofInputsIx {
-                    circuit_id: 1,
-                    new_root: root,
-                    output_hash_chain: new_output_hash_chain,
-                    root_index: 0, // TODO: test with rootindex and simulate security this way
-                },
-                compressed_proof: CompressedProof::default(),
-            };
+
             let mut pre_mt_account = mt_account.clone();
             let mut pre_mt_account_data = mt_account_data.clone();
-            let input_res = {
+            let (input_res, root) = {
                 let mut zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::from_account(
                     &mut pre_mt_account,
                     &mut pre_mt_account_data,
                 )
                 .unwrap();
-                zero_copy_account.update_input_queue(instruction_data)
+
+                let old_root_index = zero_copy_account.root_history.last_index();
+                let next_full_batch = zero_copy_account.account.queue.next_full_batch_index;
+                let batch = zero_copy_account
+                    .batches
+                    .get(next_full_batch as usize)
+                    .unwrap();
+                let leaves_hashchain = zero_copy_account
+                    .hashchain_store
+                    .get(next_full_batch as usize)
+                    .unwrap()
+                    .get(batch.get_current_zkp_batch_index() as usize)
+                    .unwrap();
+                let (proof, new_root) = mock_indexer
+                    .get_batched_update_proof(
+                        zero_copy_account.account.queue.zkp_batch_size as u32,
+                        *leaves_hashchain,
+                    )
+                    .await
+                    .unwrap();
+
+                let instruction_data = InstructionDataBatchUpdateProofInputs {
+                    public_inputs: BatchProofInputsIx {
+                        new_root,
+                        output_hash_chain: new_output_hash_chain,
+                        old_root_index: old_root_index as u16,
+                    },
+                    compressed_proof: CompressedProof {
+                        a: proof.a,
+                        b: proof.b,
+                        c: proof.c,
+                    },
+                };
+
+                (
+                    zero_copy_account.update_input_queue(instruction_data),
+                    new_root,
+                )
             };
             if !in_ready_for_update {
                 assert!(input_res.is_err());
@@ -1394,18 +1363,6 @@ mod tests {
 
                 num_input_updates += 1;
             }
-            let root = get_rnd_bytes(&mut rng);
-
-            let new_output_hash_chain = get_rnd_bytes(&mut rng);
-            let instruction_data = InstructionDataBatchUpdateProofInputs {
-                public_inputs: BatchProofInputsIx {
-                    circuit_id: 2,
-                    new_root: root,
-                    output_hash_chain: new_output_hash_chain,
-                    root_index: 0, // TODO: test with rootindex and simulate security this way
-                },
-                compressed_proof: CompressedProof::default(),
-            };
             let mut pre_mt_account = mt_account.clone();
             let mut pre_mt_account_data = mt_account_data.clone();
             let mut zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::from_account(
@@ -1413,6 +1370,56 @@ mod tests {
                 &mut pre_mt_account_data,
             )
             .unwrap();
+            let output_zero_copy_account = ZeroCopyBatchedQueueAccount::from_account(
+                &mut output_queue_account,
+                &mut output_queue_account_data,
+            )
+            .unwrap();
+
+            let next_index = zero_copy_account.account.next_index;
+            let next_full_batch = output_zero_copy_account.account.queue.next_full_batch_index;
+            let batch = output_zero_copy_account
+                .batches
+                .get(next_full_batch as usize)
+                .unwrap();
+            let leaves_hashchain = output_zero_copy_account
+                .hashchain_store
+                .get(next_full_batch as usize)
+                .unwrap()
+                .get(batch.get_current_zkp_batch_index() as usize)
+                .unwrap();
+            let leaves = output_zero_copy_account
+                .value_vecs
+                .get(next_full_batch as usize)
+                .unwrap()
+                .deref()
+                .clone()
+                .to_vec();
+            let proof = mock_indexer
+                .get_batched_append_proof(
+                    next_index as usize,
+                    *leaves_hashchain,
+                    leaves,
+                    batch.get_current_zkp_batch_index() as u32,
+                    batch.zkp_batch_size as u32,
+                )
+                .await
+                .unwrap();
+            let new_root = mock_indexer.merkle_tree.root();
+
+            let instruction_data = InstructionDataBatchUpdateProofInputs {
+                public_inputs: BatchProofInputsIx {
+                    new_root,
+                    output_hash_chain: new_output_hash_chain,
+                    old_root_index: 0, // not relevant for output queue
+                },
+                compressed_proof: CompressedProof {
+                    a: proof.a,
+                    b: proof.b,
+                    c: proof.c,
+                },
+            };
+
             let mut pre_output_account_state = output_queue_account.clone();
             let mut pre_output_queue_state = output_queue_account_data.clone();
             println!("Output update -----------------------------");

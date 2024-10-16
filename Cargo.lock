@@ -26,6 +26,8 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.6",
@@ -33,6 +35,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "tokio",
 ]
 
 [[package]]
