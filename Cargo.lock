@@ -2296,7 +2296,7 @@ dependencies = [
  "base64 0.22.1",
  "bincode",
  "borsh 0.10.3",
- "bs58 0.4.0",
+ "bs58 0.5.1",
  "chrono",
  "clap 4.5.16",
  "config",
@@ -3624,7 +3624,7 @@ dependencies = [
 name = "light-macros"
 version = "1.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.1",
  "light-hasher",
  "light-utils",
  "proc-macro2",
@@ -3753,7 +3753,7 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.1",
  "light-hasher",
  "light-utils",
  "proc-macro2",
