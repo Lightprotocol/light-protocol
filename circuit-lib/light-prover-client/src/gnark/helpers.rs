@@ -76,9 +76,18 @@ pub struct ProverConfig {
 }
 
 pub async fn spawn_prover(restart: bool, config: ProverConfig) {
-    if let Some(project_root) = get_project_root() {
-        let path = "cli/test_bin/run";
-        let absolute_path = format!("{}/{}", project_root.trim(), path);
+    if let Some(_project_root) = get_project_root() {
+        let prover_path: &str = {
+            #[cfg(feature = "devenv")]
+            {
+                format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
+            }
+            #[cfg(not(feature = "devenv"))]
+            {
+                "light"
+            }
+        };
+
         if restart {
             println!("Killing prover...");
             kill_prover();
@@ -87,7 +96,7 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
         if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
-            let mut command = Command::new(&absolute_path);
+            let mut command = Command::new(prover_path);
             command.arg("start-prover");
 
             if let Some(ref mode) = config.run_mode {
