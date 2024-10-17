@@ -8,7 +8,8 @@ edition = "2021"
 
 [features]
 gnark = ["tokio", "reqwest"]
-default = ["gnark"]
+default = ["gnark", "devenv"]
+devenv = []
 
 [dependencies]
 

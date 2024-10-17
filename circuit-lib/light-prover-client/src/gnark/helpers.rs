@@ -80,7 +80,7 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
             {
-                format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
+                &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
             {
@@ -106,6 +106,8 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
             for circuit in config.circuits.clone() {
                 command.arg("--circuit").arg(circuit.to_string());
             }
+
+            println!("Starting prover with command: {:?}", command);
 
             let _ = command.spawn().expect("Failed to start prover process");
 
