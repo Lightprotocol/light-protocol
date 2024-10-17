@@ -54,10 +54,10 @@ LIGHTWEIGHT_FILES=(
   "combined_26_4_1.vkey"
   "combined_26_4_2.key"
   "combined_26_4_2.vkey"
-  "append_10_10.key"
-  "append_10_10.vkey"
-  "update_10_10.key"
-  "update_10_10.vkey"
+  "append_26_10.key"
+  "append_26_10.vkey"
+  "update_26_10.key"
+  "update_26_10.vkey"
 )
 
 FULL_FILES=(

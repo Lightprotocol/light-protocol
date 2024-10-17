@@ -40,6 +40,11 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+
       # concurrent merkle tree crate must run in isolation because otherwise it
       # tries to use the idl-build feature (which fails).
       - name: Test workspace (excluding light-concurrent-merkle-tree)

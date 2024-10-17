@@ -3,6 +3,7 @@ use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
     errors::SystemProgramError,
@@ -46,7 +47,6 @@ use solana_sdk::{
 };
 use solana_sdk::{signature::Keypair, transaction::TransactionError};
 use tokio::fs::write as async_write;
-
 // TODO: use lazy_static to spawn the server once
 
 /// invoke_failing_test
@@ -102,8 +102,15 @@ async fn invoke_failing_test() {
     .await
     .unwrap();
 
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
     // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
@@ -884,8 +891,15 @@ async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -1143,8 +1157,15 @@ async fn invoke_test() {
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
 
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1329,8 +1350,15 @@ async fn test_with_compression() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let compress_amount = 1_000_000;
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: compress_amount + 1,

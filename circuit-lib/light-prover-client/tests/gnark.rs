@@ -4,7 +4,7 @@ use light_prover_client::batch_append::{calculate_hash_chain, get_batch_append_i
 use light_prover_client::batch_update::get_batch_update_inputs;
 use light_prover_client::gnark::batch_append_json_formatter::append_inputs_string;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType};
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::{
     gnark::{
         constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -19,7 +19,14 @@ use reqwest::Client;
 #[ignore]
 async fn prove_inclusion_full() {
     init_logger();
-    spawn_prover(false, &[ProofType::Inclusion]).await;
+    spawn_prover(
+        false,
+        ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion, { ProofType::BatchUpdateTest }],
+        },
+    )
+    .await;
     let client = Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
         let (inputs, _) = inclusion_inputs_string(*number_of_utxos as usize);
@@ -35,15 +42,18 @@ async fn prove_inclusion_full() {
 }
 
 #[tokio::test]
-async fn test_inclusion_batch_append_batch_update() {
+async fn prove_inclusion() {
     init_logger();
     spawn_prover(
-        false,
-        &[
-            ProofType::Inclusion,
-            ProofType::BatchUpdate,
-            ProofType::BatchAppend,
-        ],
+        true,
+        ProverConfig {
+            run_mode: None,
+            circuits: vec![
+                ProofType::Inclusion,
+                ProofType::BatchUpdateTest,
+                ProofType::BatchAppendTest,
+            ],
+        },
     )
     .await;
     let client = Client::new();
@@ -57,8 +67,15 @@ async fn test_inclusion_batch_append_batch_update() {
         .expect("Failed to execute request.");
     assert!(response_result.status().is_success());
 
-    spawn_prover(false, &[ProofType::BatchUpdate]).await;
-    const HEIGHT: usize = 10;
+    spawn_prover(
+        false,
+        ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::BatchUpdate],
+        },
+    )
+    .await;
+    const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let num_insertions = 10;
 
@@ -93,7 +110,6 @@ async fn test_inclusion_batch_append_batch_update() {
     );
     let client = Client::new();
     let inputs = update_inputs_string(&inputs);
-
     let response_result = client
         .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -101,7 +117,8 @@ async fn test_inclusion_batch_append_batch_update() {
         .send()
         .await
         .expect("Failed to execute request.");
-    assert!(response_result.status().is_success());
+    let status = response_result.status();
+    assert!(status.is_success());
 
     let num_insertions = 10;
 

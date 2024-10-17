@@ -15,6 +15,7 @@
 
 use anchor_lang::AnchorDeserialize;
 use light_hasher::{Hasher, Poseidon};
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::MerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
@@ -41,7 +42,14 @@ async fn test_escrow_with_compressed_pda() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let test_indexer = TestIndexer::init_from_env(&payer, &env, true, true);
+    let test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
 

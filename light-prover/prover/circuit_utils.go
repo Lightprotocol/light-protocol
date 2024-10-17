@@ -15,6 +15,16 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
+type RunMode string
+
+const (
+	Forester     RunMode = "forester"
+	ForesterTest RunMode = "forester-test"
+	Rpc          RunMode = "rpc"
+	Full         RunMode = "full"
+	FullTest     RunMode = "full-test"
+)
+
 type Proof struct {
 	Proof groth16.Proof
 }
@@ -253,52 +263,99 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 
 	return verifyingKey, nil
 }
-func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []string {
+func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var keys []string
 
-	if IsCircuitEnabled(circuitTypes, Inclusion) {
-		keys = append(keys, keysDir+"inclusion_26_1.key")
-		keys = append(keys, keysDir+"inclusion_26_2.key")
-		keys = append(keys, keysDir+"inclusion_26_3.key")
-		keys = append(keys, keysDir+"inclusion_26_4.key")
-		keys = append(keys, keysDir+"inclusion_26_8.key")
-	}
-	if IsCircuitEnabled(circuitTypes, NonInclusion) {
-		keys = append(keys, keysDir+"non-inclusion_26_1.key")
-		keys = append(keys, keysDir+"non-inclusion_26_2.key")
-	}
-	if IsCircuitEnabled(circuitTypes, Combined) {
-		keys = append(keys, keysDir+"combined_26_1_1.key")
-		keys = append(keys, keysDir+"combined_26_1_2.key")
-		keys = append(keys, keysDir+"combined_26_2_1.key")
-		keys = append(keys, keysDir+"combined_26_2_2.key")
-		keys = append(keys, keysDir+"combined_26_3_1.key")
-		keys = append(keys, keysDir+"combined_26_3_2.key")
-		keys = append(keys, keysDir+"combined_26_4_1.key")
-		keys = append(keys, keysDir+"combined_26_4_2.key")
+	var inclusionKeys []string = []string{
+		keysDir + "inclusion_26_1.key",
+		keysDir + "inclusion_26_2.key",
+		keysDir + "inclusion_26_3.key",
+		keysDir + "inclusion_26_4.key",
+		keysDir + "inclusion_26_8.key",
 	}
 
-	if IsCircuitEnabled(circuitTypes, BatchAppend) {
-		if isTestMode {
-			keys = append(keys, keysDir+"append_10_10.key")
-		} else {
-			keys = append(keys, keysDir+"append_26_1.key")
-			keys = append(keys, keysDir+"append_26_10.key")
-			keys = append(keys, keysDir+"append_26_100.key")
-			keys = append(keys, keysDir+"append_26_500.key")
-			keys = append(keys, keysDir+"append_26_1000.key")
-		}
+	var nonInclusionKeys []string = []string{
+		keysDir + "non-inclusion_26_1.key",
+		keysDir + "non-inclusion_26_2.key",
 	}
 
-	if IsCircuitEnabled(circuitTypes, BatchUpdate) {
-		if isTestMode {
-			keys = append(keys, keysDir+"update_10_10.key")
-		} else {
-			keys = append(keys, keysDir+"update_26_1.key")
-			keys = append(keys, keysDir+"update_26_10.key")
-			keys = append(keys, keysDir+"update_26_100.key")
-			keys = append(keys, keysDir+"update_26_500.key")
-			keys = append(keys, keysDir+"update_26_1000.key")
+	var combinedKeys []string = []string{
+		keysDir + "combined_26_1_1.key",
+		keysDir + "combined_26_1_2.key",
+		keysDir + "combined_26_2_1.key",
+		keysDir + "combined_26_2_2.key",
+		keysDir + "combined_26_3_1.key",
+		keysDir + "combined_26_3_2.key",
+		keysDir + "combined_26_4_1.key",
+		keysDir + "combined_26_4_2.key",
+	}
+
+	var appendKeys []string = []string{
+		keysDir + "append_26_1.key",
+		keysDir + "append_26_10.key",
+		keysDir + "append_26_100.key",
+		keysDir + "append_26_500.key",
+		keysDir + "append_26_1000.key",
+	}
+	var updateKeys []string = []string{
+		keysDir + "update_26_1.key",
+		keysDir + "update_26_10.key",
+		keysDir + "update_26_100.key",
+		keysDir + "update_26_500.key",
+		keysDir + "update_26_1000.key",
+	}
+
+	var appendTestKeys []string = []string{
+		keysDir + "append_26_10.key",
+	}
+	var updateTestKeys []string = []string{
+		keysDir + "update_26_10.key",
+	}
+
+	switch runMode {
+	case Forester: // inclusion + non-inclusion
+		keys = append(keys, inclusionKeys...)
+		keys = append(keys, nonInclusionKeys...)
+	case ForesterTest: // append-test + update-test
+		keys = append(keys, appendTestKeys...)
+		keys = append(keys, updateTestKeys...)
+	case Rpc: // inclusion + non-inclusion + combined
+		keys = append(keys, inclusionKeys...)
+		keys = append(keys, nonInclusionKeys...)
+		keys = append(keys, combinedKeys...)
+	case Full: // inclusion + non-inclusion + combined + append + update
+		keys = append(keys, inclusionKeys...)
+		keys = append(keys, nonInclusionKeys...)
+		keys = append(keys, combinedKeys...)
+		keys = append(keys, appendKeys...)
+		keys = append(keys, updateKeys...)
+	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test
+		keys = append(keys, inclusionKeys...)
+		keys = append(keys, nonInclusionKeys...)
+		keys = append(keys, combinedKeys...)
+		keys = append(keys, appendTestKeys...)
+		keys = append(keys, updateTestKeys...)
+	}
+
+	fmt.Println("Keys: ", keys)
+	fmt.Println("Circuits: ", circuits)
+
+	for _, circuit := range circuits {
+		switch circuit {
+		case "inclusion":
+			keys = append(keys, inclusionKeys...)
+		case "non-inclusion":
+			keys = append(keys, nonInclusionKeys...)
+		case "combined":
+			keys = append(keys, combinedKeys...)
+		case "append":
+			keys = append(keys, appendKeys...)
+		case "update":
+			keys = append(keys, updateKeys...)
+		case "append-test":
+			keys = append(keys, appendTestKeys...)
+		case "update-test":
+			keys = append(keys, updateTestKeys...)
 		}
 	}
 

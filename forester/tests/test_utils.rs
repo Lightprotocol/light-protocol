@@ -3,10 +3,10 @@ use forester::config::{ExternalServicesConfig, GeneralConfig};
 use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
-use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::ForesterConfig;
 use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::test_env::get_test_env_accounts;
@@ -22,16 +22,8 @@ pub async fn init(config: Option<LightValidatorConfig>) {
 
 #[allow(dead_code)]
 pub async fn spawn_test_validator(config: Option<LightValidatorConfig>) {
-    if let Some(config) = config {
-        spawn_validator(config).await;
-    } else {
-        let config = LightValidatorConfig {
-            enable_indexer: false,
-            enable_prover: false,
-            ..LightValidatorConfig::default()
-        };
-        spawn_validator(config).await;
-    }
+    let config = config.unwrap_or_default();
+    spawn_validator(config).await;
 }
 
 #[allow(dead_code)]
