@@ -7,6 +7,7 @@ use std::mem::ManuallyDrop;
 use std::u64;
 
 use super::batch::BatchState;
+use super::batched_merkle_tree::DEFAULT_BATCH_SIZE;
 use super::{AccessMetadata, RolloverMetadata};
 
 // TODO: implement update that verifies multiple proofs
@@ -419,10 +420,12 @@ pub fn insert_into_current_batch<'a>(
         let current_batch = batches.get_mut(index).unwrap();
         println!("index {:?}", index);
         println!("current batch {:?}", current_batch);
+        let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted
             && index == account.currently_processing_batch_index as usize
         {
             current_batch.advance_state_to_can_be_filled()?;
+            wipe = true;
         }
         if index == account.currently_processing_batch_index as usize
             && current_batch.get_state() == BatchState::ReadyToUpdateTree
@@ -440,7 +443,7 @@ pub fn insert_into_current_batch<'a>(
         );
         println!("get num inserted {:?}", current_batch.get_num_inserted());
         // TODO: implement more efficient bloom filter wipe this will not work onchain
-        if current_batch.get_num_inserted() == 0 {
+        if wipe {
             println!("clearing");
             if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
                 println!("clearing bloomfilter store");
@@ -672,8 +675,8 @@ pub fn get_output_queue_account_size_default() -> usize {
         next_index: 0,
         queue: BatchedQueue {
             num_batches: 2,
-            batch_size: 5000,
-            zkp_batch_size: 100,
+            batch_size: DEFAULT_BATCH_SIZE,
+            zkp_batch_size: 10,
             ..Default::default()
         },
     };
@@ -725,7 +728,7 @@ pub mod tests {
                 next_full_batch_index: 0,
                 last_mt_updated_batch: 0,
                 bloom_filter_capacity,
-                zkp_batch_size: 100,
+                zkp_batch_size: 10,
             },
         };
         let account_data: Vec<u8> =

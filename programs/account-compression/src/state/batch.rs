@@ -130,6 +130,7 @@ impl Batch {
         &mut self,
         value: &[u8; 32],
         value_store: &mut BoundedVec<[u8; 32]>,
+        // TODO: remove hashchain_store
         hashchain_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
         match self.store_value(value, value_store) {
@@ -167,13 +168,23 @@ impl Batch {
             BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
                 .map_err(ProgramError::from)?;
         bloom_filter.insert(value).map_err(ProgramError::from)?;
-        self.add_to_hash_chain(value, hashchain_store)?;
+        println!("value inserted into bloom filter");
 
+        self.add_to_hash_chain(value, hashchain_store)?;
+        // if self.num_inserted == self.zkp_batch_size {
+        //     self.num_inserted = 0;
+        // }
+        // self.num_inserted += 1;
+        // if self.num_inserted == self.zkp_batch_size {
+        //     self.current_zkp_batch_index += 1;
+        // }
+        // if self.get_num_zkp_batches() == self.current_zkp_batch_index {
+        //     self.advance_state_to_ready_to_update_tree()?;
+        //     self.num_inserted = 0;
+        // }
         Ok(())
     }
 
-    /// Adds a value to the hash chain so that it can be used in the batch
-    /// update zkp.
     pub fn add_to_hash_chain(
         &mut self,
         value: &[u8; 32],
@@ -181,6 +192,9 @@ impl Batch {
     ) -> Result<()> {
         if self.num_inserted == 0 {
             hashchain_store.push(*value).map_err(ProgramError::from)?;
+        } else if self.num_inserted == self.zkp_batch_size {
+            hashchain_store.push(*value).map_err(ProgramError::from)?;
+            self.num_inserted = 0;
         } else if let Some(last_hashchain) = hashchain_store.last() {
             let hashchain =
                 Poseidon::hashv(&[last_hashchain, value.as_slice()]).map_err(ProgramError::from)?;
@@ -190,10 +204,10 @@ impl Batch {
         self.num_inserted += 1;
         if self.num_inserted == self.zkp_batch_size {
             self.current_zkp_batch_index += 1;
-            self.num_inserted = 0;
         }
         if self.get_num_zkp_batches() == self.current_zkp_batch_index {
             self.advance_state_to_ready_to_update_tree()?;
+            self.num_inserted = 0;
         }
         Ok(())
     }

@@ -282,6 +282,17 @@ where
         }
         subtrees
     }
+
+    pub fn get_next_index(&self) -> usize {
+        self.rightmost_index + 1
+    }
+
+    pub fn get_leaf(&self, index: usize) -> Result<[u8; 32], ReferenceMerkleTreeError> {
+        self.layers[0]
+            .get(index)
+            .cloned()
+            .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(index))
+    }
 }
 
 #[cfg(test)]

@@ -79,8 +79,12 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
 
         circuit_merkle_proofs.push(merkle_proof);
     }
+    println!("old_root: {:?}", old_root);
+    println!("new_root: {:?}", new_root);
+    println!("leaves_hashchain: {:?}", leaves_hashchain);
 
     let public_input_hash = calculate_hash_chain(&[old_root, new_root, leaves_hashchain]);
+    println!("public_input_hash: {:?}", public_input_hash);
 
     BatchUpdateCircuitInputs {
         public_input_hash: BigInt::from_be_bytes(&public_input_hash),

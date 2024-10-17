@@ -54,87 +54,93 @@ async fn prove_inclusion() {
 async fn prove_batch_update() {
     init_logger();
     spawn_prover(false, &[ProofType::BatchUpdate]).await;
-    const HEIGHT: usize = 10;
+    const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let num_insertions = 10;
 
     info!("initializing merkle tree");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
+    for i in 0..2 {
+        let mut leaves = vec![];
+        for i in 0..num_insertions {
+            let mut bn: [u8; 32] = [0; 32];
+            bn[31] = i as u8;
+            let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
+            leaves.push(leaf);
+            merkle_tree.append(&leaf).unwrap();
+        }
 
-    let mut leaves = vec![];
-    for i in 0..num_insertions {
-        let mut bn: [u8; 32] = [0; 32];
-        bn[31] = i as u8;
-        let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
-        leaves.push(leaf);
-        merkle_tree.append(&leaf).unwrap();
+        let mut merkle_proofs = vec![];
+        let mut path_indices = vec![];
+        for index in 0..leaves.len() {
+            let proof = merkle_tree.get_proof_of_leaf(index, true).unwrap();
+            merkle_proofs.push(proof.to_vec());
+            path_indices.push(index as u32);
+        }
+        let root = merkle_tree.root();
+        let leaves_hashchain = calculate_hash_chain(&leaves);
+        let inputs = get_batch_update_inputs::<HEIGHT>(
+            root,
+            leaves,
+            leaves_hashchain,
+            merkle_proofs,
+            path_indices,
+            num_insertions,
+        );
+        let client = Client::new();
+        let inputs = update_inputs_string(&inputs);
+
+        let response_result = client
+            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(inputs)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        assert!(response_result.status().is_success());
     }
-
-    let mut merkle_proofs = vec![];
-    let mut path_indices = vec![];
-    for index in 0..leaves.len() {
-        let proof = merkle_tree.get_proof_of_leaf(index, true).unwrap();
-        merkle_proofs.push(proof.to_vec());
-        path_indices.push(index as u32);
-    }
-    let root = merkle_tree.root();
-    let leaves_hashchain = calculate_hash_chain(&leaves);
-    let inputs = get_batch_update_inputs::<HEIGHT>(
-        root,
-        leaves,
-        leaves_hashchain,
-        merkle_proofs,
-        path_indices,
-        num_insertions,
-    );
-    let client = Client::new();
-    let inputs = update_inputs_string(&inputs);
-
-    let response_result = client
-        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs)
-        .send()
-        .await
-        .expect("Failed to execute request.");
-    assert!(response_result.status().is_success());
 }
 
 #[tokio::test]
 async fn prove_batch_append() {
     init_logger();
     spawn_prover(false, &[ProofType::BatchAppend]).await;
-    const HEIGHT: usize = 10;
+    const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let num_insertions = 10;
 
     info!("initializing merkle tree");
-    let merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
+    for i in 0..2 {
+        let old_subtrees = merkle_tree.get_subtrees();
+        let mut leaves = vec![];
+        for j in 0..num_insertions {
+            let mut bn: [u8; 32] = [0; 32];
+            bn[31] = j as u8 + 10 * i as u8;
+            let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
+            leaves.push(leaf);
+        }
 
-    let old_subtrees = merkle_tree.get_subtrees();
-    let mut leaves = vec![];
-    for i in 0..num_insertions {
-        let mut bn: [u8; 32] = [0; 32];
-        bn[31] = i as u8;
-        let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
-        leaves.push(leaf);
+        let leaves_hashchain = calculate_hash_chain(&leaves);
+        let inputs = get_batch_append_inputs::<HEIGHT>(
+            merkle_tree.layers[0].len(),
+            old_subtrees.try_into().unwrap(),
+            leaves.clone(),
+            leaves_hashchain,
+        );
+        for i in 0..num_insertions {
+            merkle_tree.append(&leaves[i]).unwrap();
+        }
+        let client = Client::new();
+        let inputs = append_inputs_string(&inputs);
+        let response_result = client
+            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(inputs)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        println!("response_result: {:?}", response_result.status());
+        assert!(response_result.status().is_success());
     }
-
-    let leaves_hashchain = calculate_hash_chain(&leaves);
-    let inputs = get_batch_append_inputs::<HEIGHT>(
-        merkle_tree.layers[0].len(),
-        old_subtrees.try_into().unwrap(),
-        leaves,
-        leaves_hashchain,
-    );
-    let client = Client::new();
-    let inputs = append_inputs_string(&inputs);
-    let response_result = client
-        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs)
-        .send()
-        .await
-        .expect("Failed to execute request.");
-    assert!(response_result.status().is_success());
 }
