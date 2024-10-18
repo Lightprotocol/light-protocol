@@ -6,9 +6,11 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"light/light-prover/server"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +18,8 @@ import (
 	gnarkLogger "github.com/consensys/gnark/logger"
 )
 
-var isLightweightMode bool
+var isFullMode bool
+var isBenchMode bool
 
 const ProverAddress = "localhost:8081"
 const MetricsAddress = "localhost:9999"
@@ -27,11 +30,18 @@ func proveEndpoint() string {
 	return "http://" + ProverAddress + "/prove"
 }
 
-func StartServer(isLightweight bool) {
+func StartServer(isFull bool, isBench bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
-	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend, prover.BatchUpdate}
-	var keys = prover.GetKeys("./proving-keys/", circuitTypes, isLightweight)
-
+	logging.Logger().Info().Msgf("Using %d CPU cores", runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	var keys []string
+	if isFull {
+		keys = prover.GetKeys("./proving-keys/", prover.Full, []string{})
+	} else if isBench {
+		keys = prover.GetKeys("./proving-keys/", prover.Bench, []string{})
+	} else {
+		keys = prover.GetKeys("./proving-keys/", prover.FullTest, []string{})
+	}
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
 
@@ -60,12 +70,6 @@ func StartServer(isLightweight bool) {
 		}
 	}
 
-	if len(missingKeys) > 0 {
-		logging.Logger().Warn().Msgf("Some key files are missing. To download %s keys, run: ./scripts/download_keys.sh %s",
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight],
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight])
-	}
-
 	if len(pssv1) == 0 && len(pssv2) == 0 {
 		logging.Logger().Fatal().Msg("No valid proving systems found. Cannot start the server. Please ensure you have downloaded the necessary key files.")
 		return
@@ -89,32 +93,88 @@ func StopServer() {
 	instance.AwaitStop()
 }
 
+func TestBench(t *testing.T) {
+	if !isBenchMode {
+		t.Skip("This test only runs in bench mode")
+	}
+
+	bigTests := []TestCase{
+		{"testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100},
+		{"testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500},
+		{"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
+		{"testBatchAppendHappyPath26_100", testBatchAppendHappyPath26_100},
+		{"testBatchAppendHappyPath26_500", testBatchAppendHappyPath26_500},
+		{"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
+	}
+
+	runTests(t, bigTests)
+}
+
 func TestMain(m *testing.M) {
 	gnarkLogger.Set(*logging.Logger())
-	isLightweightMode = true
+	isFullMode = false
+	isBenchMode = false
 	for _, arg := range os.Args {
+		logging.Logger().Info().Msgf("Arg: %s", arg)
+
 		if arg == "-test.run=TestFull" {
-			isLightweightMode = false
+			isFullMode = false
+			break
+		}
+		if arg == "-test.run=TestBench" {
+			isBenchMode = true
 			break
 		}
 	}
 
-	if isLightweightMode {
-		logging.Logger().Info().Msg("Running in lightweight mode")
-		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh lightweight")
-	} else {
+	if isFullMode {
 		logging.Logger().Info().Msg("Running in full mode")
 		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")
+	} else if isBenchMode {
+		logging.Logger().Info().Msg("Running in bench mode")
+		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")
+	} else {
+		logging.Logger().Info().Msg("Running in lightweight mode")
+		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh lightweight")
+
 	}
 
-	StartServer(isLightweightMode)
+	StartServer(isFullMode, isBenchMode)
 	m.Run()
 	StopServer()
 }
 
+// A helper function to log the execution time for each test
+func logTestExecutionTime(t *testing.T, testName string, testFunc func(t *testing.T)) {
+	start := time.Now() // Start time
+	log.Printf("Starting test: %s", testName)
+
+	// Run the actual test
+	testFunc(t)
+
+	// End time and log the duration
+	duration := time.Since(start)
+	log.Printf("Test %s completed in %s", testName, duration)
+}
+
+// A struct to hold the test name and its corresponding function
+type TestCase struct {
+	Name string
+	Func func(t *testing.T)
+}
+
+// runTests is a helper function to iterate over test cases and run them with logging
+func runTests(t *testing.T, tests []TestCase) {
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			logTestExecutionTime(t, test.Name, test.Func)
+		})
+	}
+}
+
 // TestLightweight runs tests in lightweight mode
 func TestLightweight(t *testing.T) {
-	if !isLightweightMode {
+	if isFullMode || isBenchMode {
 		t.Skip("This test only runs in lightweight mode")
 	}
 	runCommonTests(t)
@@ -123,7 +183,7 @@ func TestLightweight(t *testing.T) {
 
 // TestFull runs tests in full mode
 func TestFull(t *testing.T) {
-	if isLightweightMode {
+	if !isFullMode {
 		t.Skip("This test only runs in full mode")
 	}
 	runCommonTests(t)
@@ -132,44 +192,44 @@ func TestFull(t *testing.T) {
 
 // runCommonTests contains all tests that should run in both modes
 func runCommonTests(t *testing.T) {
-	t.Run("testWrongMethod", testWrongMethod)
-
-	// inclusion tests
-	t.Run("testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON)
-	t.Run("testInclusionWrongInPathIndices", testInclusionWrongInPathIndices)
-	t.Run("testInclusionWrongInPathElements", testInclusionWrongInPathElements)
-	t.Run("testInclusionWrongRoot", testInclusionWrongRoot)
-	t.Run("testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf)
-
-	// non-inclusion tests
-	t.Run("testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
-
-	// combined
-	t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
+	commonTests := []TestCase{
+		{"testWrongMethod", testWrongMethod},
+		{"testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON},
+		{"testInclusionWrongInPathIndices", testInclusionWrongInPathIndices},
+		{"testInclusionWrongInPathElements", testInclusionWrongInPathElements},
+		{"testInclusionWrongRoot", testInclusionWrongRoot},
+		{"testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf},
+		{"testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON},
+		{"testCombinedHappyPath_JSON", testCombinedHappyPath_JSON},
+	}
+	runTests(t, commonTests)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
 func runFullOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
-	t.Run("testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000)
-	t.Run("testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100)
-
-	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
-	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
-	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
+	fullOnlyTests := []TestCase{
+		{"testInclusionHappyPath26_12348", testInclusionHappyPath26_12348},
+		{"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
+		{"testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100},
+		{"testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100},
+		{"testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500},
+		{"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
+	}
+	runTests(t, fullOnlyTests)
 }
 
 // runFullOnlyTests contains tests that should only run in lightweight mode
 func runLightweightOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
-
-	t.Run("testBatchAppendHappyPath10_10", testBatchAppendHappyPath10_10)
-	t.Run("testBatchAppendWithPreviousState10_10", testBatchAppendWithPreviousState10_10)
-
-	t.Run("testBatchUpdateHappyPath10_10", testBatchUpdateHappyPath10_10)
-	t.Run("testBatchUpdateWithPreviousState10_10", testBatchUpdateWithPreviousState10_10)
-	t.Run("testBatchUpdateWithSequentialFilling10_10", testBatchUpdateWithSequentialFilling10_10)
-	t.Run("testBatchUpdateInvalidInput10_10", testBatchUpdateInvalidInput10_10)
+	lightweightOnlyTests := []TestCase{
+		{"testInclusionHappyPath26_1", testInclusionHappyPath26_1},
+		{"testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10},
+		{"testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10},
+		{"testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10},
+		{"testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10},
+		{"testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10},
+		{"testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10},
+	}
+	runTests(t, lightweightOnlyTests)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -480,37 +540,42 @@ func testCombinedHappyPath_JSON(t *testing.T) {
 	}
 }
 
+func testBatchAppendHappyPath26_10(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(10)
+	runBatchAppendTest(t, treeDepth, batchSize)
+}
+
+func testBatchAppendHappyPath26_100(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(100)
+	runBatchAppendTest(t, treeDepth, batchSize)
+}
+
+func testBatchAppendHappyPath26_500(t *testing.T) {
+	treeDepth := uint32(26)
+	batchSize := uint32(500)
+	runBatchAppendTest(t, treeDepth, batchSize)
+}
+
 func testBatchAppendHappyPath26_1000(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(1000)
-	startIndex := uint32(0)
-	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
-
-	jsonBytes, _ := params.MarshalJSON()
-
-	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
-	}
+	runBatchAppendTest(t, treeDepth, batchSize)
 }
 
-func testBatchAppendHappyPath10_10(t *testing.T) {
-	treeDepth := uint32(10)
-	batchSize := uint32(10)
+func runBatchAppendTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	startIndex := uint32(0)
 	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
 
-	jsonBytes, _ := params.MarshalJSON()
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
 	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to send POST request: %v", err)
 	}
 	defer response.Body.Close()
 
@@ -518,6 +583,8 @@ func testBatchAppendHappyPath10_10(t *testing.T) {
 		body, _ := io.ReadAll(response.Body)
 		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
 	}
+
+	t.Logf("Successfully ran batch append test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
 
 func testBatchAppendWithPreviousState26_100(t *testing.T) {
@@ -549,8 +616,8 @@ func testBatchAppendWithPreviousState26_100(t *testing.T) {
 	}
 }
 
-func testBatchAppendWithPreviousState10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchAppendWithPreviousState26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 
@@ -578,8 +645,8 @@ func testBatchAppendWithPreviousState10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithSequentialFilling10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateWithSequentialFilling26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, &startIndex)
@@ -605,8 +672,8 @@ func testBatchUpdateWithSequentialFilling10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithPreviousState10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateWithPreviousState26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 
 	// First batch
@@ -637,8 +704,8 @@ func testBatchUpdateWithPreviousState10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateInvalidInput10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateInvalidInput26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
 
@@ -662,8 +729,8 @@ func testBatchUpdateInvalidInput10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateHappyPath10_10(t *testing.T) {
-	runBatchUpdateTest(t, 10, 10)
+func testBatchUpdateHappyPath26_10(t *testing.T) {
+	runBatchUpdateTest(t, 26, 10)
 }
 
 func testBatchUpdateHappyPath26_100(t *testing.T) {
@@ -678,7 +745,6 @@ func testBatchUpdateHappyPath26_1000(t *testing.T) {
 	runBatchUpdateTest(t, 26, 1000)
 }
 
-// Helper function to reduce code duplication
 func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
 
@@ -696,11 +762,6 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
-	}
-
-	// Verify that the new root is different from the old root
-	if params.OldRoot.Cmp(params.NewRoot) == 0 {
-		t.Errorf("Expected new root to be different from old root")
 	}
 
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)

@@ -16,7 +16,7 @@ use light_compressed_token::process_transfer::transfer_sdk::create_transfer_inst
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{token_data::TokenData, ErrorCode};
-use light_prover_client::gnark::helpers::kill_prover;
+use light_prover_client::gnark::helpers::{kill_prover, ProofType, ProverConfig};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -179,8 +179,15 @@ async fn test_failing_create_token_pool() {
 async fn test_wrapped_sol() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let native_mint = spl_token::native_mint::ID;
     let token_account_keypair = Keypair::new();
     create_token_account(&mut rpc, &native_mint, &token_account_keypair, &payer)
@@ -239,7 +246,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, false, false).await;
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
 
     let recipients = amounts
         .iter()
@@ -771,8 +778,15 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let sender = Keypair::new();
     mint_tokens_helper_with_lamports(
@@ -819,8 +833,15 @@ async fn test_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
@@ -883,8 +904,15 @@ async fn test_delegation(
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -997,8 +1025,15 @@ async fn test_delegation_mixed() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1213,8 +1248,15 @@ async fn test_approve_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1493,8 +1535,15 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1601,8 +1650,15 @@ async fn test_revoke_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1801,8 +1857,15 @@ async fn test_burn() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1930,8 +1993,15 @@ async fn failing_tests_burn() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2152,8 +2222,15 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2303,8 +2380,15 @@ async fn test_failing_freeze() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2535,8 +2619,15 @@ async fn test_failing_thaw() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2788,8 +2879,15 @@ async fn test_failing_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
@@ -3181,8 +3279,15 @@ async fn test_invalid_inputs() {
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    )
+    .await;
     let recipient_keypair = Keypair::new();
     airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
         .await

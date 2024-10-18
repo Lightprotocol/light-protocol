@@ -23,6 +23,7 @@ use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     crate::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
@@ -38,7 +39,7 @@ use {
         gnark::{
             combined_json_formatter::CombinedJsonStruct,
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{spawn_prover, ProofType},
+            helpers::spawn_prover,
             inclusion_json_formatter::BatchInclusionJsonStruct,
             non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -80,7 +81,7 @@ pub struct TestIndexer<R: RpcConnection> {
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
-    pub proof_types: Vec<ProofType>,
+    pub prover_config: Option<ProverConfig>,
     phantom: PhantomData<R>,
 }
 
@@ -519,7 +520,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                spawn_prover(true, self.proof_types.as_slice()).await;
+                if let Some(ref prover_config) = self.prover_config {
+                    spawn_prover(true, prover_config.clone()).await;
+                }
                 retries -= 1;
             }
         }
@@ -598,8 +601,7 @@ impl<R: RpcConnection> TestIndexer<R> {
     pub async fn init_from_env(
         payer: &Keypair,
         env: &EnvAccounts,
-        inclusion: bool,
-        non_inclusion: bool,
+        prover_config: Option<ProverConfig>,
     ) -> Self {
         Self::new(
             vec![StateMerkleTreeAccounts {
@@ -613,8 +615,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             }],
             payer.insecure_clone(),
             env.group_pda,
-            inclusion,
-            non_inclusion,
+            prover_config,
         )
         .await
     }
@@ -624,18 +625,10 @@ impl<R: RpcConnection> TestIndexer<R> {
         address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
         payer: Keypair,
         group_pda: Pubkey,
-        inclusion: bool,
-        non_inclusion: bool,
+        prover_config: Option<ProverConfig>,
     ) -> Self {
-        let mut vec_proof_types = vec![];
-        if inclusion {
-            vec_proof_types.push(ProofType::Inclusion);
-        }
-        if non_inclusion {
-            vec_proof_types.push(ProofType::NonInclusion);
-        }
-        if !vec_proof_types.is_empty() {
-            spawn_prover(true, vec_proof_types.as_slice()).await;
+        if let Some(ref prover_config) = prover_config {
+            spawn_prover(true, prover_config.clone()).await;
         }
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
@@ -666,7 +659,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             events: vec![],
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
-            proof_types: vec_proof_types,
+            prover_config,
             phantom: Default::default(),
             group_pda,
         }
