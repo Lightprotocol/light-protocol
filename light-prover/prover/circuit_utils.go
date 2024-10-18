@@ -317,12 +317,12 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var appendBenchTestKeys []string = []string{
 		keysDir + "append_26_100.key",
 		keysDir + "append_26_500.key",
-		// keysDir + "append_26_1000.key",
+		keysDir + "append_26_1000.key",
 	}
 	var updateBenchTestKeys []string = []string{
 		keysDir + "update_26_100.key",
 		keysDir + "update_26_500.key",
-		// keysDir + "update_26_1000.key",
+		keysDir + "update_26_1000.key",
 	}
 
 	switch runMode {
