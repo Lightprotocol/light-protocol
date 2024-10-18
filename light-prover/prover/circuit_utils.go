@@ -23,6 +23,8 @@ const (
 	Rpc          RunMode = "rpc"
 	Full         RunMode = "full"
 	FullTest     RunMode = "full-test"
+
+	Bench RunMode = "bench"
 )
 
 type Proof struct {
@@ -335,6 +337,9 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, appendTestKeys...)
 		keys = append(keys, updateTestKeys...)
+	case Bench: // append + update
+		keys = append(keys, appendKeys...)
+		keys = append(keys, updateKeys...)
 	}
 
 	fmt.Println("Keys: ", keys)

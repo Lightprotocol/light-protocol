@@ -6,9 +6,11 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"light/light-prover/server"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +18,8 @@ import (
 	gnarkLogger "github.com/consensys/gnark/logger"
 )
 
-var isLightweightMode bool
+var isFullMode bool
+var isBenchMode bool
 
 const ProverAddress = "localhost:8081"
 const MetricsAddress = "localhost:9999"
@@ -27,13 +30,17 @@ func proveEndpoint() string {
 	return "http://" + ProverAddress + "/prove"
 }
 
-func StartServer(isLightweight bool) {
+func StartServer(isFull bool, isBench bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
+	logging.Logger().Info().Msgf("Using %d CPU cores", runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	var keys []string
-	if isLightweight {
-		keys = prover.GetKeys("./proving-keys/", prover.FullTest, []string{})
-	} else {
+	if isFull {
 		keys = prover.GetKeys("./proving-keys/", prover.Full, []string{})
+	} else if isBench {
+		keys = prover.GetKeys("./proving-keys/", prover.Bench, []string{})
+	} else {
+		keys = prover.GetKeys("./proving-keys/", prover.FullTest, []string{})
 	}
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
@@ -63,12 +70,6 @@ func StartServer(isLightweight bool) {
 		}
 	}
 
-	if len(missingKeys) > 0 {
-		logging.Logger().Warn().Msgf("Some key files are missing. To download %s keys, run: ./scripts/download_keys.sh %s",
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight],
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight])
-	}
-
 	if len(pssv1) == 0 && len(pssv2) == 0 {
 		logging.Logger().Fatal().Msg("No valid proving systems found. Cannot start the server. Please ensure you have downloaded the necessary key files.")
 		return
@@ -92,32 +93,84 @@ func StopServer() {
 	instance.AwaitStop()
 }
 
+func TestBench(t *testing.T) {
+	if !isBenchMode {
+		t.Skip("This test only runs in bench mode")
+	}
+
+	bigTests := []TestCase{
+		{"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
+		{"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
+	}
+
+	runTests(t, bigTests)
+}
+
 func TestMain(m *testing.M) {
 	gnarkLogger.Set(*logging.Logger())
-	isLightweightMode = true
+	isFullMode = false
+	isBenchMode = false
 	for _, arg := range os.Args {
+		logging.Logger().Info().Msgf("Arg: %s", arg)
+
 		if arg == "-test.run=TestFull" {
-			isLightweightMode = false
+			isFullMode = false
+			break
+		}
+		if arg == "-test.run=TestBench" {
+			isBenchMode = true
 			break
 		}
 	}
 
-	if isLightweightMode {
-		logging.Logger().Info().Msg("Running in lightweight mode")
-		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh lightweight")
-	} else {
+	if isFullMode {
 		logging.Logger().Info().Msg("Running in full mode")
 		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")
+	} else if isBenchMode {
+		logging.Logger().Info().Msg("Running in bench mode")
+		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")
+	} else {
+		logging.Logger().Info().Msg("Running in lightweight mode")
+		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh lightweight")
+
 	}
 
-	StartServer(isLightweightMode)
+	StartServer(isFullMode, isBenchMode)
 	m.Run()
 	StopServer()
 }
 
+// A helper function to log the execution time for each test
+func logTestExecutionTime(t *testing.T, testName string, testFunc func(t *testing.T)) {
+	start := time.Now() // Start time
+	log.Printf("Starting test: %s", testName)
+
+	// Run the actual test
+	testFunc(t)
+
+	// End time and log the duration
+	duration := time.Since(start)
+	log.Printf("Test %s completed in %s", testName, duration)
+}
+
+// A struct to hold the test name and its corresponding function
+type TestCase struct {
+	Name string
+	Func func(t *testing.T)
+}
+
+// runTests is a helper function to iterate over test cases and run them with logging
+func runTests(t *testing.T, tests []TestCase) {
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			logTestExecutionTime(t, test.Name, test.Func)
+		})
+	}
+}
+
 // TestLightweight runs tests in lightweight mode
 func TestLightweight(t *testing.T) {
-	if !isLightweightMode {
+	if isFullMode || isBenchMode {
 		t.Skip("This test only runs in lightweight mode")
 	}
 	runCommonTests(t)
@@ -126,7 +179,7 @@ func TestLightweight(t *testing.T) {
 
 // TestFull runs tests in full mode
 func TestFull(t *testing.T) {
-	if isLightweightMode {
+	if !isFullMode {
 		t.Skip("This test only runs in full mode")
 	}
 	runCommonTests(t)
@@ -135,44 +188,44 @@ func TestFull(t *testing.T) {
 
 // runCommonTests contains all tests that should run in both modes
 func runCommonTests(t *testing.T) {
-	t.Run("testWrongMethod", testWrongMethod)
-
-	// inclusion tests
-	t.Run("testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON)
-	t.Run("testInclusionWrongInPathIndices", testInclusionWrongInPathIndices)
-	t.Run("testInclusionWrongInPathElements", testInclusionWrongInPathElements)
-	t.Run("testInclusionWrongRoot", testInclusionWrongRoot)
-	t.Run("testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf)
-
-	// non-inclusion tests
-	t.Run("testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
-
-	// combined
-	t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
+	commonTests := []TestCase{
+		{"testWrongMethod", testWrongMethod},
+		{"testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON},
+		{"testInclusionWrongInPathIndices", testInclusionWrongInPathIndices},
+		{"testInclusionWrongInPathElements", testInclusionWrongInPathElements},
+		{"testInclusionWrongRoot", testInclusionWrongRoot},
+		{"testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf},
+		{"testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON},
+		{"testCombinedHappyPath_JSON", testCombinedHappyPath_JSON},
+	}
+	runTests(t, commonTests)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
 func runFullOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
-	t.Run("testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000)
-	t.Run("testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100)
-
-	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
-	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
-	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
+	fullOnlyTests := []TestCase{
+		{"testInclusionHappyPath26_12348", testInclusionHappyPath26_12348},
+		{"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
+		{"testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100},
+		{"testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100},
+		{"testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500},
+		{"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
+	}
+	runTests(t, fullOnlyTests)
 }
 
 // runFullOnlyTests contains tests that should only run in lightweight mode
 func runLightweightOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
-
-	t.Run("testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10)
-	t.Run("testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10)
-
-	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
-	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
-	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
-	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
+	lightweightOnlyTests := []TestCase{
+		{"testInclusionHappyPath26_1", testInclusionHappyPath26_1},
+		{"testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10},
+		{"testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10},
+		{"testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10},
+		{"testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10},
+		{"testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10},
+		{"testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10},
+	}
+	runTests(t, lightweightOnlyTests)
 }
 
 func testWrongMethod(t *testing.T) {
