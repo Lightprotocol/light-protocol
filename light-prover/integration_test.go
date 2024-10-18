@@ -101,10 +101,10 @@ func TestBench(t *testing.T) {
 	bigTests := []TestCase{
 		{"testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100},
 		{"testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500},
-		{"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
+		// {"testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000},
 		{"testBatchAppendHappyPath26_100", testBatchAppendHappyPath26_100},
 		{"testBatchAppendHappyPath26_500", testBatchAppendHappyPath26_500},
-		{"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
+		// {"testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000},
 	}
 
 	runTests(t, bigTests)

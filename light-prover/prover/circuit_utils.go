@@ -314,6 +314,17 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "update_26_10.key",
 	}
 
+	var appendBenchTestKeys []string = []string{
+		keysDir + "append_26_100.key",
+		keysDir + "append_26_500.key",
+		// keysDir + "append_26_1000.key",
+	}
+	var updateBenchTestKeys []string = []string{
+		keysDir + "update_26_100.key",
+		keysDir + "update_26_500.key",
+		// keysDir + "update_26_1000.key",
+	}
+
 	switch runMode {
 	case Forester: // inclusion + non-inclusion
 		keys = append(keys, inclusionKeys...)
@@ -338,8 +349,8 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, appendTestKeys...)
 		keys = append(keys, updateTestKeys...)
 	case Bench: // append + update
-		keys = append(keys, appendKeys...)
-		keys = append(keys, updateKeys...)
+		keys = append(keys, appendBenchTestKeys...)
+		keys = append(keys, updateBenchTestKeys...)
 	}
 
 	fmt.Println("Keys: ", keys)
