@@ -548,13 +548,13 @@ func testBatchAppendHappyPath26_10(t *testing.T) {
 
 func testBatchAppendHappyPath26_100(t *testing.T) {
 	treeDepth := uint32(26)
-	batchSize := uint32(10)
+	batchSize := uint32(100)
 	runBatchAppendTest(t, treeDepth, batchSize)
 }
 
 func testBatchAppendHappyPath26_500(t *testing.T) {
 	treeDepth := uint32(26)
-	batchSize := uint32(10)
+	batchSize := uint32(500)
 	runBatchAppendTest(t, treeDepth, batchSize)
 }
 
