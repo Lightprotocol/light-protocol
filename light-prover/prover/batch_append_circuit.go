@@ -2,6 +2,7 @@ package prover
 
 import (
 	"fmt"
+	"github.com/consensys/gnark/backend"
 	"light/light-prover/logging"
 	merkle_tree "light/light-prover/merkle-tree"
 	"math/big"
@@ -11,7 +12,7 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
 type BatchAppendCircuit struct {
@@ -293,7 +294,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 	}
 
 	logging.Logger().Info().Msg("Generating Batch Append proof")
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness, backend.WithIcicleAcceleration())
 	if err != nil {
 		return nil, fmt.Errorf("error generating proof: %v", err)
 	}

@@ -2,6 +2,7 @@ package prover
 
 import (
 	"fmt"
+	"github.com/consensys/gnark/backend"
 	merkle_tree "light/light-prover/merkle-tree"
 	"math/big"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
 type BatchUpdateCircuit struct {
@@ -154,7 +155,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		return nil, fmt.Errorf("error creating witness: %v", err)
 	}
 
-	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
+	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness, backend.WithIcicleAcceleration())
 	if err != nil {
 		return nil, fmt.Errorf("error proving: %v", err)
 	}

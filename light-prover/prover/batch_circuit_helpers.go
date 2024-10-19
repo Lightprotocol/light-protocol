@@ -4,7 +4,7 @@ import (
 	"light/light-prover/prover/poseidon"
 
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
 func createHashChain(api frontend.API, length int, hashes []frontend.Variable) frontend.Variable {

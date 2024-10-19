@@ -81,7 +81,7 @@ main() {
 
     declare -a non_inclusion_compressed_accounts_arr=("1" "2")
     for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
-        generate_circuit "non-inclusion" "$DEFAULT_HEIGHT" "0" "0" "$compressed_accounts"
+        generate_circuit "non-inclusion" "$DEFAULT_HEIGHT" "0" "0" "0" "$compressed_accounts"
     done
 
     declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
