@@ -1,6 +1,6 @@
 [package]
 name = "light-wasm-hasher"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "WASM wrapper for blake2 and Poseidon hashing"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -20,7 +20,7 @@ hex = { version = "0.4.3", features = [] }
 blake2b_simd = "1"
 num-bigint = "0.4.6"
 console_error_panic_hook = "0.1.7"
-thiserror = "1.0.56"
+thiserror = "1.0.64"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

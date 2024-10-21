@@ -65,6 +65,7 @@ export async function initTestEnv({
   checkPhotonVersion = true,
   photonDatabaseUrl,
   limitLedgerSize,
+  proverRunMode = "test",
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -79,6 +80,7 @@ export async function initTestEnv({
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
+  proverRunMode?: "test" | "full";
 }) {
   const initAccounts = async () => {
     const anchorProvider = await setAnchorProvider();
@@ -117,7 +119,12 @@ export async function initTestEnv({
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
+    await startProver(
+      proverPort,
+      proveCompressedAccounts,
+      proveNewAddresses,
+      proverRunMode,
+    );
   }
 }
 
@@ -158,7 +165,7 @@ export async function initTestEnvIfNeeded({
  *
  * @returns {string} Directory path for Light Protocol programs.
  */
-function programsDirPath(): string {
+export function programsDirPath(): string {
   return (
     process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
     path.resolve(__dirname, BASE_PATH)
@@ -175,7 +182,7 @@ function programsDirPath(): string {
  *
  * @returns {string} Path for the given program.
  */
-function programFilePath(programName: string): string {
+export function programFilePath(programName: string): string {
   const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
   if (programsDir) {
     return path.join(programsDir, programName);

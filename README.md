@@ -3,22 +3,19 @@
 # Light Protocol
 
 [![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
-[![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-poseidon/actions?query=workflow)
+[![Workflow Status](https://github.com/Lightprotocol/light-protocol-onchain/workflows/programs-test/badge.svg)](https://github.com/Lightprotocol/light-protocol/actions?query=workflow)
 
-**The ZK Layer for Solana**
+**The ZK Compression Protocol for Solana**
 
-Light is a zkLayer enabling stateless program execution, purpose-built for Solana.
+Light is a ZK protocol enabling stateless program execution that is purpose-built for Solana.
 
 Developers can use Light to...
 
-- reduce the cost of state on the Solana L1.
+- reduce the cost of state on the Solana L1 via ZK Compression.
 - build zk applications that compose with Light state such as
   - offchain orderbooks
   - zk-coprocessors
   - zk-identity
-
-Note: All these tools and the protocol are in active development and unaudited.
-To work with this Monorepo, read below:
 
 The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs.
 
@@ -61,6 +58,7 @@ Light Protocol programs have been audited, and Light protocol circuits are forma
 - Neodyme (Programs audit): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/neodyme_v1_audit.pdf)
 - Reilabs (Circuits Formal verification): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/reilabs_circuits_formal_verification_report.pdf)
 
+Note: All other tooling such as light-sdk-macros and light-sdk are in active development and unaudited.
 
 ## Development environment
 
@@ -72,6 +70,13 @@ There are three ways of setting up the development environment:
   unfortunately has performance problems on macOS.
 - [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
+- Windows is not supported.
+
+### Prerequisites:
+- Ubuntu, `sudo apt-get install lld clang`
+- Fedora, `sudo dnf install clang lld`
+- Arch, `sudo pacman -S lld clang`
+- Mac, `brew install llvm`
 
 ### devenv.sh
 
@@ -84,6 +89,13 @@ directory inside your repository clone).
 ```
 ./scripts/install.sh
 ```
+
+By default, this will install a subset of gnark keys with Merkle tree heights sufficient for running tests. If you need the full set of production keys, you can use the --full-keys flag:
+```
+./scripts/install.sh --full-keys
+```
+
+Note: The default subset of keys is adequate for most development and testing purposes. The full set of keys is larger and includes additional Merkle tree heights used in production environments.
 
 Then, activate the development environment:
 

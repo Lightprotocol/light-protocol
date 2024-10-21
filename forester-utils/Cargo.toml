@@ -1,6 +1,6 @@
 [package]
 name = "forester-utils"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/lightprotocol/light-protocol"
@@ -8,17 +8,17 @@ description = "Utility library for Light's Forester node implementation"
 
 [dependencies]
 # Light Protocol
-account-compression = { path = "../programs/account-compression", version = "1.0.0", features = ["cpi"] }
-light-compressed-token = { path = "../programs/compressed-token", version = "1.0.0", features = ["cpi"] }
-light-hash-set = { path = "../merkle-tree/hash-set", version = "1.0.0" }
-light-hasher = { version = "1.0.0", path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { version = "1.0.0", path = "../merkle-tree/reference" }
-light-concurrent-merkle-tree = { version = "1.0.0", path = "../merkle-tree/concurrent" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.0.0" }
-light-prover-client = { path = "../circuit-lib/light-prover-client", version = "1.0.0" }
-light-registry = { path = "../programs/registry", version = "1.0.0", features = ["cpi"] }
-light-system-program = { path = "../programs/system", version = "1.0.0", features = ["cpi"] }
-light-utils = { path = "../utils", version = "1.0.0" }
+account-compression = { workspace = true }
+light-compressed-token = { workspace = true }
+light-hash-set = { workspace=true }
+light-hasher = { version = "1.1.0", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "1.1.0", path = "../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "1.1.0", path = "../merkle-tree/concurrent" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.1.0" }
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "1.2.0" }
+light-registry = { workspace = true }
+light-system-program = { path = "../programs/system", version = "1.2.0", features = ["cpi"] }
+light-utils = { path = "../utils", version = "1.1.0" }
 
 photon-api = { workspace = true }
 light-client = { workspace = true }

@@ -11,6 +11,7 @@ use light_sdk::{
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[light_program]
+#[program]
 pub mod name_service {
     use super::*;
 

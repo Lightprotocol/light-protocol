@@ -3,7 +3,7 @@ use crate::{
     protocol_config::state::ProtocolConfig,
     utils::{
         get_cpi_authority_pda, get_epoch_pda_address, get_forester_epoch_pda_from_authority,
-        get_forester_pda, get_protocol_config_pda_address,
+        get_forester_epoch_pda_from_derivation, get_forester_pda, get_protocol_config_pda_address,
     },
     ForesterConfig,
 };
@@ -212,10 +212,11 @@ pub fn create_update_forester_pda_instruction(
 
 pub fn create_register_forester_epoch_pda_instruction(
     authority: &Pubkey,
+    derivation: &Pubkey,
     epoch: u64,
 ) -> Instruction {
-    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_authority(authority, epoch);
-    let (forester_pda, _) = get_forester_pda(authority);
+    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_authority(derivation, epoch);
+    let (forester_pda, _) = get_forester_pda(derivation);
     let epoch_pda = get_epoch_pda_address(epoch);
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let instruction_data = crate::instruction::RegisterForesterEpoch { epoch };
@@ -235,8 +236,12 @@ pub fn create_register_forester_epoch_pda_instruction(
     }
 }
 
-pub fn create_finalize_registration_instruction(authority: &Pubkey, epoch: u64) -> Instruction {
-    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_authority(authority, epoch);
+pub fn create_finalize_registration_instruction(
+    authority: &Pubkey,
+    derivation: &Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_derivation(derivation, epoch);
     let epoch_pda = get_epoch_pda_address(epoch);
     let instruction_data = crate::instruction::FinalizeRegistration {};
     let accounts = crate::accounts::FinalizeRegistration {
@@ -251,8 +256,12 @@ pub fn create_finalize_registration_instruction(authority: &Pubkey, epoch: u64) 
     }
 }
 
-pub fn create_report_work_instruction(authority: &Pubkey, epoch: u64) -> Instruction {
-    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_authority(authority, epoch);
+pub fn create_report_work_instruction(
+    authority: &Pubkey,
+    derivation: &Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let (forester_epoch_pda, _bump) = get_forester_epoch_pda_from_authority(derivation, epoch);
     let epoch_pda = get_epoch_pda_address(epoch);
     let instruction_data = crate::instruction::ReportWork {};
     let accounts = crate::accounts::ReportWork {

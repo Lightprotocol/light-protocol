@@ -602,11 +602,15 @@ where
                         self.registration_epoch
                     );
 
-                    let registered_epoch =
-                        Epoch::register(&mut self.rpc, &self.protocol_config, &forester.keypair)
-                            .await
-                            .unwrap()
-                            .unwrap();
+                    let registered_epoch = Epoch::register(
+                        &mut self.rpc,
+                        &self.protocol_config,
+                        &forester.keypair,
+                        &forester.keypair.pubkey(),
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap();
                     println!("registered_epoch {:?}", registered_epoch.phases);
                     forester.forester.registration = registered_epoch;
                     if forester.is_registered.is_none() {
@@ -660,7 +664,7 @@ where
                     .await;
                     forester
                         .forester
-                        .report_work(&mut self.rpc, &forester.keypair)
+                        .report_work(&mut self.rpc, &forester.keypair, &forester.keypair.pubkey())
                         .await
                         .unwrap();
                     println!("reported work");
@@ -731,6 +735,7 @@ where
                         .await
                         .unwrap();
                     let ix = create_finalize_registration_instruction(
+                        &forester.keypair.pubkey(),
                         &forester.keypair.pubkey(),
                         forester.forester.active.epoch,
                     );

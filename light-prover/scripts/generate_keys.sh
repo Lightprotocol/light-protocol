@@ -1,67 +1,96 @@
 #!/usr/bin/env bash
 
-DEPTH="26"
+declare -a HEIGHTS=("10" "26")
+DEFAULT_HEIGHT="26"
+PROVING_KEYS_DIR="./proving-keys"
+VERIFIER_DIR="../circuit-lib/verifier/src/verifying_keys"
 
 gnark() {
     local args=("$@")
     ./light-prover "${args[@]}"
 }
 
-generate() {
-    local INCLUSION_COMPRESSED_ACCOUNTS=$1
-    local NON_INCLUSION_COMPRESSED_ACCOUNTS=$2
-    local CIRCUIT_TYPE=$3
-    mkdir -p circuits
-    if [ "$CIRCUIT_TYPE" == "inclusion" ]; then
-        COMPRESSED_ACCOUNTS=$INCLUSION_COMPRESSED_ACCOUNTS
-        CIRCUIT_TYPE_RS="inclusion"
-    elif [ "$CIRCUIT_TYPE" == "non-inclusion" ]; then
-        COMPRESSED_ACCOUNTS=$NON_INCLUSION_COMPRESSED_ACCOUNTS
-        # rust file names cannot include dashes
-        CIRCUIT_TYPE_RS="non_inclusion"
-    else
-        COMPRESSED_ACCOUNTS="${INCLUSION_COMPRESSED_ACCOUNTS}_${NON_INCLUSION_COMPRESSED_ACCOUNTS}"
-        CIRCUIT_TYPE_RS="combined"
-    fi
-    CIRCUIT_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${COMPRESSED_ACCOUNTS}.key"
-    CIRCUIT_VKEY_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${COMPRESSED_ACCOUNTS}.vkey"
-    CIRCUIT_VKEY_RS_FILE="../circuit-lib/verifier/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${COMPRESSED_ACCOUNTS}.rs"
+generate_circuit() {
+    local circuit_type=$1
+    local height=$2
+    local append_batch_size=$3
+    local update_batch_size=$4
+    local inclusion_compressed_accounts=$5
+    local non_inclusion_compressed_accounts=$6
 
-    echo "Generating ${CIRCUIT_TYPE} circuit for ${COMPRESSED_ACCOUNTS} COMPRESSED_ACCOUNTS..."
-    echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-compressed-accounts ${INCLUSION_COMPRESSED_ACCOUNTS} --non-inclusion-compressed-accounts ${NON_INCLUSION_COMPRESSED_ACCOUNTS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
+    local compressed_accounts
+    local circuit_type_rs
+    if [ "$circuit_type" == "append" ]; then
+        compressed_accounts=$append_batch_size
+        circuit_type_rs="append"
+    elif [ "$circuit_type" == "update" ]; then
+        compressed_accounts=$update_batch_size
+        circuit_type_rs="update"
+    elif [ "$circuit_type" == "inclusion" ]; then
+        compressed_accounts=$inclusion_compressed_accounts
+        circuit_type_rs="inclusion"
+    elif [ "$circuit_type" == "non-inclusion" ]; then
+        compressed_accounts=$non_inclusion_compressed_accounts
+        circuit_type_rs="non_inclusion"
+    else
+        compressed_accounts="${inclusion_compressed_accounts}_${non_inclusion_compressed_accounts}"
+        circuit_type_rs="combined"
+    fi
+
+    local circuit_file="${PROVING_KEYS_DIR}/${circuit_type}_${height}_${compressed_accounts}.key"
+    local circuit_vkey_file="${PROVING_KEYS_DIR}/${circuit_type}_${height}_${compressed_accounts}.vkey"
+    local circuit_vkey_rs_file="${VERIFIER_DIR}/${circuit_type_rs}_${height}_${compressed_accounts}.rs"
+
+    echo "Generating ${circuit_type} circuit for ${compressed_accounts} COMPRESSED_ACCOUNTS with height ${height}..."
 
     gnark setup \
-      --circuit "${CIRCUIT_TYPE}" \
-      --inclusion-compressed-accounts "$INCLUSION_COMPRESSED_ACCOUNTS" \
-      --non-inclusion-compressed-accounts "$NON_INCLUSION_COMPRESSED_ACCOUNTS" \
-      --inclusion-tree-depth "$DEPTH" \
-      --non-inclusion-tree-depth "$DEPTH" \
-      --output "${CIRCUIT_FILE}" \
-      --output-vkey "${CIRCUIT_VKEY_FILE}"
-    cargo xtask generate-vkey-rs --input-path "${CIRCUIT_VKEY_FILE}" --output-path "${CIRCUIT_VKEY_RS_FILE}"
+        --circuit "${circuit_type}" \
+        --inclusion-compressed-accounts "$inclusion_compressed_accounts" \
+        --non-inclusion-compressed-accounts "$non_inclusion_compressed_accounts" \
+        --inclusion-tree-height "$height" \
+        --non-inclusion-tree-height "$height" \
+        --append-batch-size "$append_batch_size" \
+        --append-tree-height "$height" \
+        --update-batch-size "$update_batch_size" \
+        --update-tree-height "$height" \
+        --output "${circuit_file}" \
+        --output-vkey "${circuit_vkey_file}" || { echo "Error: gnark setup failed"; exit 1; }
+
+    cargo xtask generate-vkey-rs --input-path "${circuit_vkey_file}" --output-path "${circuit_vkey_rs_file}" || { echo "Error: cargo xtask generate-vkey-rs failed"; exit 1; }
 }
 
-declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+main() {
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append" "$height" "$batch_size" "0" "0" "0"
+        done
+    done
 
-for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"
-do
-    generate "$compressed_accounts" "0" "inclusion"
-done
+    declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${update_batch_sizes_arr[@]}"; do
+            generate_circuit "update" "$height" "0" "$batch_size" "0" "0"
+        done
+    done
 
-declare -a non_inclusion_compressed_accounts_arr=("1" "2")
+    declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+    for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
+        generate_circuit "inclusion" "$DEFAULT_HEIGHT" "0" "0" "$compressed_accounts" "0"
+    done
 
-for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"
-do
-    generate "0" "$compressed_accounts" "non-inclusion"
-done
+    declare -a non_inclusion_compressed_accounts_arr=("1" "2")
+    for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
+        generate_circuit "non-inclusion" "$DEFAULT_HEIGHT" "0" "0" "$compressed_accounts"
+    done
 
-declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
-declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
+    declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+    declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
+    for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
+        for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
+            generate_circuit "combined" "$DEFAULT_HEIGHT" "0" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
+        done
+    done
+}
 
-for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"
-do
-  for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"
-  do
-    generate "$i_compressed_accounts" "$ni_compressed_accounts" "combined"
-  done
-done
+main "$@"

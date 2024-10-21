@@ -35,6 +35,8 @@ options=("$@")
 inclusion=false
 non_inclusion=false
 combined=false
+append=false
+update=false
 
 for option in "${options[@]}"; do
   case $option in
@@ -46,6 +48,12 @@ for option in "${options[@]}"; do
     ;;
   combined)
     combined=true
+    ;;
+    append)
+    append=true
+    ;;
+    update)
+    update=true
     ;;
   *)
     echo "Error: Invalid option '$option'. Allowed options: inclusion, non-inclusion, combined"
@@ -59,6 +67,10 @@ cmd="$root_dir/light-prover/light-prover start --keys-dir=$keys_dir"
 if [ "$inclusion" = true ]; then cmd="$cmd --inclusion=true"; fi
 if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi
+if [ "$append" = true ]; then cmd="$cmd --append=true"; fi
+if [ "$update" = true ]; then cmd="$cmd --update=true"; fi
+
+cmd="$cmd --run-mode=test"
 
 echo "Running command: $cmd"
 

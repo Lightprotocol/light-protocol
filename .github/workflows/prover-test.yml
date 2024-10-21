@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - 'release/**'
     paths:
       - "light-prover/**"
       - ".github/workflows/prover-test.yml"
@@ -23,8 +24,8 @@ on:
 jobs:
   build-and-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 120
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -45,10 +46,17 @@ jobs:
           path: light-prover/formal-verification/lake-packages
           key: "${{ env.LAKE_VERSION }}"
 
-      - name: Download keys
+      - name: Download keys for lightweight tests
+        if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd light-prover
-          ./scripts/download_keys.sh
+          ./scripts/download_keys.sh light
+
+      - name: Download keys for full tests
+        if: ${{ github.event.pull_request.base.ref == 'release' }}
+        run: |
+          cd light-prover
+          ./scripts/download_keys.sh full
 
       - name: Build
         run: |
@@ -60,15 +68,22 @@ jobs:
           cd light-prover
           go test ./prover -timeout 30m
 
-      - name: Integration tests
+      - name: Lightweight integration tests
+        if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd light-prover
-          go test -timeout 30m
+          go test -run TestLightweight -timeout 15m
+  
+      - name: Full integration tests
+        if: ${{ github.event.pull_request.base.ref == 'release' }}
+        run: |
+          cd light-prover
+          go test -run TestFull -timeout 120m
 
       - name: Extract circuit to Lean
         run: |
           cd light-prover
-          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-depth=26 --compressed-accounts=8
+          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-height=26 --compressed-accounts=8
 
       - name: Build lean project
         run: |

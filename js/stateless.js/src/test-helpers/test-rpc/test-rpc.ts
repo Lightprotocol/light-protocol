@@ -562,6 +562,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const proof: MerkleContextWithNewAddressProof = {
                 root,
+                rootIndex: 3,
                 value: addresses[i],
                 leafLowerRangeValue: lowElement.value,
                 leafHigherRangeValue: higherRangeValue,
@@ -577,10 +578,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * @deprecated This method is not available. Please use
-     * {@link getValidityProof} instead.
+     * Advanced usage of getValidityProof: fetches ZKP directly from a custom
+     * non-rpcprover. Note: This uses the proverEndpoint specified in the
+     * constructor. For normal usage, please use {@link getValidityProof}
+     * instead.
+     *
+     * Note: Use RPC class for forested trees. TestRpc is only for custom
+     * testing purposes.
      */
-    async getValidityProof_direct(
+    async getValidityProofDirect(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {

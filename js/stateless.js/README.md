@@ -1,52 +1,80 @@
-# TS client for ZK Compression
+<p align="center">
+  <img src="https://github.com/ldiego08/light-protocol/raw/main/assets/logo.svg" width="90" />
+</p>
 
-Use this to interact with programs using ZK Compression on Solana via the
-Compression RPC API.
+<h1 align="center">Stateless.js</h1>
+
+<p align="center">
+  <b>Integrate server and web applications with ZK Compression on Solana.</b>
+</p>
+
+<p align="center">
+  <a href="https://badge.fury.io/js/@lightprotocol%2Fstateless.js">
+    <img src="https://badge.fury.io/js/@lightprotocol%2Fstateless.js.svg" alt="package npm version" height="18" />
+  </a>
+  <img src="https://img.shields.io/npm/l/%40lightprotocol%2Fstateless.js" alt="package license" height="18">
+  <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fstateless.js" alt="package weekly downloads" height="18" />
+</p>
+
+## Overview
+
+This package provides server and web applications with clients, utilities, and types to leverage the power of [ZK Compression](https://www.zkcompression.com/) on Solana via the Compression RPC API.
+
+> The core ZK Compression Solana programs and clients are maintained by
+> [Light](https://github.com/lightprotocol) as a part of the Light Protocol. The RPC API and indexer are maintained by
+> [Helius Labs](https://github.com/helius-labs).
+
+## Usage
 
 ### Installation
 
-**For use in Node.js or a web application**
+Install this package in your project by running the following terminal command:
 
-```bash
+```bin
 npm install --save \
     @lightprotocol/stateless.js \
     @solana/web3.js \
     @coral-xyz/anchor@0.29
 ```
 
-### Documentation and examples
+### Dependencies
 
--   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/stateless.js)
--   Documentation and examples will be linked here soon!
+-   [`@solana/web3.js`](https://www.npmjs.com/package/@solana/web3.js) — provides access to the Solana network via RPC.
+-   [`@coral-xyz/anchor`](https://www.npmjs.com/package/@coral-xyz/anchor) — a client for [Anchor](https://www.anchor-lang.com/) Solana programs.
 
-### Getting help
+## Documentation and Examples
+
+For a more detailed documentation on usage, please check [the respective section at the ZK Compression documentation.](https://www.zkcompression.com/developers/typescript-client)
+
+For example implementations, including web and server, refer to the respective repositories:
+
+-   [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
+
+-   [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
+
+## Troubleshooting
 
 Have a question or a problem?
-Check out the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) Developer Discord servers!
+Feel free to ask in the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) developer Discord servers. Please, include the following information to better be able to respond:
 
-When asking for help, please include:
+-   A detailed description or context of the issue or what you are trying to achieve.
+-   A code example that we can use to test and debug (if possible). Use [CodeSandbox](https://codesandbox.io/p/sandbox/vanilla-ts) or any other live environment provider.
+-   A description or context of any errors you are encountering with stacktraces if available.
 
--   A detailed description of what you're trying to achieve
--   Source code, if possible
--   The text of any errors you encountered, with stacktraces if available
+## Contributing
 
-### Contributing
+Light and ZK Compression are open source protocols and very much welcome contributions. If you have a contribution, do not hesitate to send a PR to the respective repository or discuss in the linked developer Discord servers.
 
-The ZK Compression system programs and clients are maintained by
-[Light](https://github.com/lightprotocol) as a part of the Light Protocol.
+-   🐞 For bugs or feature requests, please open an
+    [issue](https://github.com/lightprotocol/lightprotocol/issues/new).
+-   🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
-The ZK Compression RPC API and its indexer implementation is maintained by
-[Helius Labs](https://github.com/helius-labs).
+## Additional Resources
 
-Light and ZK Compression are open protocols and contributions are welcome. If
-you have a contribution, please open a PR on the respective repository.
+-   [Light Protocol Repository](https://github.com/Lightprotocol/light-protocol)
+-   [ZK Compression Official Documentation](https://www.zkcompression.com/)
 
-If you found a bug or would like to request a feature, please file an
-[issue](https://github.com/lightprotocol/lightprotocol/issues/new).
-
-If you found a security vulnerability, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
-
-### Disclaimer
+## Disclaimer
 
 All claims, content, designs, algorithms, estimates, roadmaps, specifications,
 and performance measurements described in this project are done with Light

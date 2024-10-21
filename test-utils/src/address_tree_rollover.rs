@@ -288,6 +288,7 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
     let instructions = create_rollover_address_merkle_tree_instructions(
         context,
         &payer.pubkey(),
+        &payer.pubkey(),
         new_queue_keypair,
         new_address_merkle_tree_keypair,
         old_merkle_tree_pubkey,
@@ -320,6 +321,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
 ) -> Result<(solana_sdk::signature::Signature, Slot), RpcError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
+        &payer.pubkey(),
         &payer.pubkey(),
         new_queue_keypair,
         new_address_merkle_tree_keypair,

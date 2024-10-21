@@ -2,6 +2,7 @@ package prover
 
 import (
 	"light/light-prover/logging"
+	"math/big"
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -20,40 +21,40 @@ func (p *CombinedParameters) NumberOfCompressedAccounts() uint32 {
 	return p.InclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *CombinedParameters) TreeDepth() uint32 {
-	return p.InclusionParameters.TreeDepth()
+func (p *CombinedParameters) TreeHeight() uint32 {
+	return p.InclusionParameters.TreeHeight()
 }
 
 func (p *CombinedParameters) NonInclusionNumberOfCompressedAccounts() uint32 {
 	return p.NonInclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *CombinedParameters) NonInclusionTreeDepth() uint32 {
-	return p.NonInclusionParameters.TreeDepth()
+func (p *CombinedParameters) NonInclusionTreeHeight() uint32 {
+	return p.NonInclusionParameters.TreeHeight()
 }
 
-func (p *CombinedParameters) ValidateShape(inclusionTreeDepth uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumOfCompressedAccounts uint32) error {
-	if err := p.InclusionParameters.ValidateShape(inclusionTreeDepth, inclusionNumOfCompressedAccounts); err != nil {
+func (p *CombinedParameters) ValidateShape(inclusionTreeHeight uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumOfCompressedAccounts uint32) error {
+	if err := p.InclusionParameters.ValidateShape(inclusionTreeHeight, inclusionNumOfCompressedAccounts); err != nil {
 		return err
 	}
-	if err := p.NonInclusionParameters.ValidateShape(nonInclusionTreeDepth, nonInclusionNumOfCompressedAccounts); err != nil {
+	if err := p.NonInclusionParameters.ValidateShape(nonInclusionTreeHeight, nonInclusionNumOfCompressedAccounts); err != nil {
 		return err
 	}
 	return nil
 }
 
-func R1CSCombined(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
-	circuit := InitializeCombinedCircuit(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+func R1CSCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+	circuit := InitializeCombinedCircuit(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) CombinedCircuit {
+func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) CombinedCircuit {
 	inclusionRoots := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionLeaves := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionInPathElements := make([][]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	for i := 0; i < int(inclusionNumberOfCompressedAccounts); i++ {
-		inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
+		inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeHeight)
 	}
 
 	nonInclusionRoots := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
@@ -66,7 +67,7 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompr
 	nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
-		nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
+		nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 	}
 
 	circuit := CombinedCircuit{
@@ -76,7 +77,7 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompr
 			InPathIndices:              inclusionInPathIndices,
 			InPathElements:             inclusionInPathElements,
 			NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
-			Depth:                      inclusionTreeDepth,
+			Height:                     inclusionTreeHeight,
 		},
 		NonInclusion: NonInclusionCircuit{
 			Roots:                      nonInclusionRoots,
@@ -87,14 +88,14 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompr
 			InPathIndices:              nonInclusionInPathIndices,
 			InPathElements:             nonInclusionInPathElements,
 			NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
-			Depth:                      nonInclusionTreeDepth,
+			Height:                     nonInclusionTreeHeight,
 		},
 	}
 	return circuit
 }
 
-func SetupCombined(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
-	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
+func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -102,22 +103,30 @@ func SetupCombined(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccount
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
+	return &ProvingSystemV1{
+		InclusionTreeHeight:                    inclusionTreeHeight,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs}, nil
+
 }
 
-func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, error) {
-	if err := params.ValidateShape(ps.InclusionTreeDepth, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
+func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, error) {
+	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
 
-	circuit := InitializeCombinedCircuit(ps.InclusionTreeDepth, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfCompressedAccounts)
+	circuit := InitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.InclusionNumberOfCompressedAccounts); i++ {
 		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root
 		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Inputs[i].Leaf
 		circuit.Inclusion.InPathIndices[i] = params.InclusionParameters.Inputs[i].PathIndex
-		circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, ps.InclusionTreeDepth)
-		for j := 0; j < int(ps.InclusionTreeDepth); j++ {
+		circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, ps.InclusionTreeHeight)
+		for j := 0; j < int(ps.InclusionTreeHeight); j++ {
 			circuit.Inclusion.InPathElements[i][j] = params.InclusionParameters.Inputs[i].PathElements[j]
 		}
 	}
@@ -129,8 +138,8 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 		circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
 		circuit.NonInclusion.NextIndices[i] = params.NonInclusionParameters.Inputs[i].NextIndex
 		circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
-		circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
-		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
+		circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeHeight)
+		for j := 0; j < int(ps.NonInclusionTreeHeight); j++ {
 			circuit.NonInclusion.InPathElements[i][j] = params.NonInclusionParameters.Inputs[i].PathElements[j]
 		}
 	}
@@ -140,7 +149,7 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof combined" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)) + " " + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
+	logging.Logger().Info().Msg("Proof combined" + strconv.Itoa(int(ps.InclusionTreeHeight)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)) + " " + strconv.Itoa(int(ps.NonInclusionTreeHeight)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		logging.Logger().Error().Msg("combined prove error: " + err.Error())
@@ -148,4 +157,37 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 	}
 
 	return &Proof{proof}, nil
+}
+
+func (ps *ProvingSystemV1) VerifyCombined(root []big.Int, leaf []big.Int, value []big.Int, proof *Proof) error {
+	leaves := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range leaf {
+		leaves[i] = v
+	}
+
+	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range value {
+		values[i] = v
+	}
+
+	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
+	for i, v := range root {
+		roots[i] = v
+	}
+
+	publicAssignment := CombinedCircuit{
+		InclusionCircuit{
+			Roots:  roots,
+			Leaves: leaves,
+		},
+		NonInclusionCircuit{
+			Roots:  roots,
+			Values: values,
+		},
+	}
+	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		return err
+	}
+	return groth16.Verify(proof.Proof, ps.VerifyingKey, witness)
 }

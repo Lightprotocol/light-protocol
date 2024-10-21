@@ -64,15 +64,6 @@ jobs:
             sub-tests: '[
               "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
             ]'
-          - program: token-escrow-test
-            sub-tests: '[
-              "cargo test-sbf -p token-escrow -- --test-threads=1"
-            ]'
-          - program: name-service-test
-            sub-tests: '[
-              "cargo test-sbf -p name-service -- --test-threads=1"
-            ]'
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

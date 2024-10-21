@@ -30,7 +30,7 @@ pub fn create_nullify_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
@@ -68,6 +68,7 @@ pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
 
 pub struct CreateRolloverMerkleTreeInstructionInputs {
     pub authority: Pubkey,
+    pub derivation: Pubkey,
     pub new_queue: Pubkey,
     pub new_merkle_tree: Pubkey,
     pub old_queue: Pubkey,
@@ -88,7 +89,7 @@ pub fn create_rollover_address_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
 
     let accounts = crate::accounts::RolloverAddressMerkleTreeAndQueue {
@@ -122,7 +123,7 @@ pub fn create_rollover_state_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
     let protocol_config_pda = get_protocol_config_pda_address().0;
 
@@ -150,6 +151,7 @@ pub fn create_rollover_state_merkle_tree_instruction(
 
 pub struct UpdateAddressMerkleTreeInstructionInputs {
     pub authority: Pubkey,
+    pub derivation: Pubkey,
     pub address_merkle_tree: Pubkey,
     pub address_queue: Pubkey,
     pub changelog_index: u16,
@@ -171,7 +173,7 @@ pub fn create_update_address_merkle_tree_instruction(
     let registered_forester_pda = if inputs.is_metadata_forester {
         None
     } else {
-        Some(get_forester_epoch_pda_from_authority(&inputs.authority, epoch).0)
+        Some(get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0)
     };
 
     let (cpi_authority, bump) = get_cpi_authority_pda();

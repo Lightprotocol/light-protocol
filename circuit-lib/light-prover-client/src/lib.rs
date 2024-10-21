@@ -1,3 +1,5 @@
+pub mod batch_append;
+pub mod batch_update;
 pub mod combined;
 pub mod errors;
 #[cfg(feature = "gnark")]

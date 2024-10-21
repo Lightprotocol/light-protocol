@@ -1,7 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::prelude::{AccountInfo, ProgramError, Pubkey, Result};
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    AccountInfo, AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result,
+};
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
@@ -37,7 +38,7 @@ pub trait LightAccounts: Sized {
 /// A wrapper which abstracts away the UTXO model.
 pub enum LightAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     Init(LightInitAccount<T>),
     Mut(LightMutAccount<T>),
@@ -46,7 +47,7 @@ where
 
 impl<T> LightAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn new_init(
         merkle_context: &PackedMerkleContext,
@@ -147,7 +148,7 @@ where
 
 impl<T> Deref for LightAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
@@ -162,7 +163,7 @@ where
 
 impl<T> DerefMut for LightAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
@@ -175,7 +176,7 @@ where
 
 pub struct LightInitAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     output_account: T,
     address_seed: Option<[u8; 32]>,
@@ -186,7 +187,7 @@ where
 
 impl<T> LightInitAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + Default + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + Default + DataHasher + Discriminator,
 {
     pub fn new(
         merkle_context: &PackedMerkleContext,
@@ -237,7 +238,7 @@ where
 
 impl<T> Deref for LightInitAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
@@ -248,7 +249,7 @@ where
 
 impl<T> DerefMut for LightInitAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.output_account
@@ -257,7 +258,7 @@ where
 
 pub struct LightMutAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     input_account: T,
     output_account: T,
@@ -269,7 +270,7 @@ where
 
 impl<T> LightMutAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     pub fn try_from_slice(
         v: &[u8],
@@ -327,7 +328,7 @@ where
 
 impl<T> Deref for LightMutAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
@@ -338,7 +339,7 @@ where
 
 impl<T> DerefMut for LightMutAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.output_account
@@ -347,7 +348,7 @@ where
 
 pub struct LightCloseAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     input_account: T,
     address_seed: Option<[u8; 32]>,
@@ -358,7 +359,7 @@ where
 
 impl<T> LightCloseAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     pub fn try_from_slice(
         v: &[u8],
@@ -400,7 +401,7 @@ where
 
 impl<T> Deref for LightCloseAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     type Target = T;
 
@@ -411,14 +412,14 @@ where
 
 impl<T> DerefMut for LightCloseAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Discriminator,
+    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.input_account
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -488,20 +489,20 @@ impl CompressedAccount {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
     pub data_hash: [u8; 32],
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: MerkleContext,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -520,7 +521,7 @@ impl CompressedAccountWithMerkleContext {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
@@ -534,7 +535,7 @@ pub fn serialize_and_hash_account<T>(
     remaining_accounts: &[AccountInfo],
 ) -> Result<CompressedAccount>
 where
-    T: BorshSerialize + DataHasher + Discriminator,
+    T: AnchorSerialize + DataHasher + Discriminator,
 {
     let data = account.try_to_vec()?;
     let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
@@ -547,7 +548,6 @@ where
     let address_merkle_context =
         unpack_address_merkle_context(*address_merkle_context, remaining_accounts);
     let address = derive_address(address_seed, &address_merkle_context);
-    anchor_lang::prelude::msg!("ADDRESS: {:?}", address);
 
     let compressed_account = CompressedAccount {
         owner: *program_id,
@@ -569,7 +569,7 @@ pub fn input_compressed_account<T>(
     remaining_accounts: &[AccountInfo],
 ) -> Result<PackedCompressedAccountWithMerkleContext>
 where
-    T: BorshSerialize + DataHasher + Discriminator,
+    T: AnchorSerialize + DataHasher + Discriminator,
 {
     let compressed_account = serialize_and_hash_account(
         account,
@@ -596,7 +596,7 @@ pub fn output_compressed_account<T>(
     remaining_accounts: &[AccountInfo],
 ) -> Result<OutputCompressedAccountWithPackedContext>
 where
-    T: BorshSerialize + DataHasher + Discriminator,
+    T: AnchorSerialize + DataHasher + Discriminator,
 {
     let compressed_account = serialize_and_hash_account(
         account,

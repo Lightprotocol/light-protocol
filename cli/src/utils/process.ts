@@ -9,15 +9,36 @@ const waitOn = require("wait-on");
 
 export async function killProcess(processName: string) {
   const processList = await find("name", processName);
+
   const targetProcesses = processList.filter(
-    (proc) => proc.cmd.split(" ")[0] === processName,
+    (proc) => proc.name.includes(processName) || proc.cmd.includes(processName),
   );
-  targetProcesses.forEach((proc) => {
-    process.kill(proc.pid);
-  });
+
+  for (const proc of targetProcesses) {
+    console.log(`Killing process with PID and name: ${proc.pid} ${proc.name}`);
+    try {
+      process.kill(proc.pid, "SIGKILL");
+    } catch (error) {
+      console.error(`Failed to kill process ${proc.pid}: ${error}`);
+    }
+  }
+
+  // Double-check if processes are still running
+  const remainingProcesses = await find("name", processName);
+  if (remainingProcesses.length > 0) {
+    console.warn(
+      `Warning: ${remainingProcesses.length} processes still running after kill attempt`,
+    );
+  }
 }
 
 export async function killProcessByPort(port: number) {
+  if (port < 0) {
+    throw new Error("Value must be non-negative");
+  }
+  // NOTE(vadorovsky): The lint error in this case doesn't make sense. `port`
+  // is a harmless number.
+  // codeql [js/shell-command-constructed-from-input]: warning
   await execute(`lsof -t -i:${port} | while read line; do kill -9 $line; done`);
 }
 
@@ -33,14 +54,24 @@ export async function executeCommand({
   args,
   additionalPath,
   logFile = true,
+  env,
 }: {
   command: string;
   args: string[];
   additionalPath?: string;
   logFile?: boolean;
+  env?: NodeJS.ProcessEnv;
 }): Promise<string> {
   return new Promise((resolve, reject) => {
-    const commandBase = path.basename(command);
+    const commandParts = command.split(" && ");
+    const finalCommand = commandParts.pop() || "";
+    const preCommands = commandParts.join(" && ");
+
+    const fullCommand = preCommands
+      ? `${preCommands} && ${finalCommand} ${args.join(" ")}`
+      : `${finalCommand} ${args.join(" ")}`;
+
+    const commandBase = path.basename(finalCommand);
     let stdoutData = "";
 
     const childPathEnv = additionalPath
@@ -48,7 +79,10 @@ export async function executeCommand({
       : process.env.PATH;
 
     const options: SpawnOptionsWithoutStdio = {
-      env: childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env,
+      env:
+        env ||
+        (childPathEnv ? { ...process.env, PATH: childPathEnv } : process.env),
+      shell: true,
       detached: true,
     };
 
@@ -62,15 +96,13 @@ export async function executeCommand({
         fs.mkdirSync(folderName);
       }
 
-      logStream = fs.createWriteStream(file, {
-        flags: "a",
-      });
+      logStream = fs.createWriteStream(file, { flags: "a" });
     }
 
-    console.log(`Executing command ${commandBase} ${args}...`);
+    console.log(`Executing command: ${fullCommand}`);
     let childProcess;
     try {
-      childProcess = spawn(command, args, options);
+      childProcess = spawn(fullCommand, [], options);
     } catch (e) {
       throw new Error(`Failed to execute command ${commandBase}: ${e}`);
     }
@@ -128,22 +160,35 @@ export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
-  const dir = path.join(__dirname, logDir);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+  const dir = path.join(__dirname, "../..", logDir);
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const logPath = path.join(dir, `${binaryName}.log`);
+    const out = fs.openSync(logPath, "a");
+    const err = fs.openSync(logPath, "a");
+
+    const spawnedProcess = spawn(command, args, {
+      stdio: ["ignore", out, err],
+      shell: false,
+      detached: true,
+    });
+
+    spawnedProcess.on("close", (code) => {
+      console.log(`${binaryName} process exited with code ${code}`);
+    });
+
+    return spawnedProcess;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Error spawning binary: ${error.message}`);
+    } else {
+      console.error(`An unknown error occurred while spawning binary`);
+    }
+    throw error;
   }
-
-  const out = fs.openSync(`${logDir}/${binaryName}.log`, "a");
-  const err = fs.openSync(`${logDir}/${binaryName}.log`, "a");
-  const spawnedProcess = spawn(command, args, {
-    stdio: ["ignore", out, err],
-    shell: false,
-    detached: true,
-  });
-
-  spawnedProcess.on("close", (code) => {
-    console.log(`${binaryName} process exited with code ${code}`);
-  });
 }
 
 export async function waitForServers(

@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -165,11 +165,11 @@ checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
 
 [[package]]
 name = "aligned-sized"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -424,9 +424,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.86"
+version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
+checksum = "37bf3594c4c988a53154954629820791dde498571819ae4ca50ca811e060cc95"
 
 [[package]]
 name = "aquamarine"
@@ -744,7 +744,7 @@ checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -755,7 +755,7 @@ checksum = "a27b8a3a6e1a44fa4c8baf1f653e4172e81486d4941f2237e20dc2d0cf4ddff1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -933,7 +933,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1085,7 +1085,7 @@ dependencies = [
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "syn_derive",
 ]
 
@@ -1218,7 +1218,7 @@ checksum = "0cc8b54b395f2fcfbb3d90c47b01c7f444d94d05bdeb775811dec868ac3bbc26"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1408,7 +1408,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1474,7 +1474,7 @@ dependencies = [
 
 [[package]]
 name = "compressed-token-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -1756,7 +1756,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim 0.11.1",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1767,7 +1767,7 @@ checksum = "d336a2a514f6ccccaa3e09b02d41d35330c07ddf03a62165fcec10bb561c7806"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1864,7 +1864,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1943,7 +1943,7 @@ checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -1966,7 +1966,7 @@ checksum = "a6cbae11b3de8fce2a456e8ea3dada226b35fe791f0dc1d360c0941f0bb681f3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "e2e-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -2123,7 +2123,7 @@ checksum = "a1ab991c1362ac86c61ab6f556cff143daa22e5a15e4e189df818b2fd19fe65b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2136,7 +2136,7 @@ dependencies = [
  "num-traits",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -2288,7 +2288,7 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forester"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -2306,7 +2306,7 @@ dependencies = [
  "env_logger 0.11.5",
  "forester-utils",
  "function_name",
- "futures 0.3.30",
+ "futures 0.3.31",
  "lazy_static",
  "light-bounded-vec",
  "light-client",
@@ -2352,7 +2352,7 @@ dependencies = [
 
 [[package]]
 name = "forester-utils"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -2427,9 +2427,9 @@ checksum = "3a471a38ef8ed83cd6e40aa59c1ffe17db6855c18e3604d9c4ed8c08ebc28678"
 
 [[package]]
 name = "futures"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "645c6916888f6cb6350d2550b80fb63e734897a8498abe35cfb732b6487804b0"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -2442,9 +2442,9 @@ dependencies = [
 
 [[package]]
 name = "futures-channel"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
+checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -2452,15 +2452,15 @@ dependencies = [
 
 [[package]]
 name = "futures-core"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfc6580bb841c5a68e9ef15c77ccc837b40a7504914d52e47b8b0e9bbda25a1d"
+checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
 
 [[package]]
 name = "futures-executor"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a576fc72ae164fca6b9db127eaa9a9dda0d61316034f33a0a0d4eda41f02b01d"
+checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
 dependencies = [
  "futures-core",
  "futures-task",
@@ -2470,32 +2470,32 @@ dependencies = [
 
 [[package]]
 name = "futures-io"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
+checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
 
 [[package]]
 name = "futures-macro"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
+checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
 name = "futures-sink"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb8e00e87438d937621c1c6269e53f536c14d3fbd6a042bb24879e57d474fb5"
+checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
 
 [[package]]
 name = "futures-task"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38d84fa142264698cdce1a9f9172cf383a0c82de1bddcf3092901442c4097004"
+checksum = "f90f7dce0722e95104fcb095585910c0977252f286e354b5e3bd38902cd99988"
 
 [[package]]
 name = "futures-timer"
@@ -2505,9 +2505,9 @@ checksum = "f288b0a4f20f9a56b5d1da57e2227c661b7b16168e2f72365f57b63326e29b24"
 
 [[package]]
 name = "futures-util"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
+checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
  "futures 0.1.31",
  "futures-channel",
@@ -2601,7 +2601,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8af59a261bcf42f45d1b261232847b9b850ba0a1419d6100698246fb66e9240"
 dependencies = [
  "arc-swap",
- "futures 0.3.30",
+ "futures 0.3.31",
  "log",
  "reqwest 0.11.27",
  "serde",
@@ -2954,7 +2954,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca815a891b24fdfb243fa3239c86154392b0953ee584aa1a2a1f66d20cbe75cc"
 dependencies = [
  "bytes",
- "futures 0.3.30",
+ "futures 0.3.31",
  "headers",
  "http 0.2.12",
  "hyper 0.14.30",
@@ -3251,7 +3251,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2b99d4207e2a04fb4581746903c2bb7eb376f88de9c699d0f3e10feeac0cd3a"
 dependencies = [
  "derive_more",
- "futures 0.3.30",
+ "futures 0.3.31",
  "jsonrpc-core",
  "jsonrpc-pubsub",
  "log",
@@ -3266,7 +3266,7 @@ version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14f7f76aef2d054868398427f6c54943cf3d1caa9a7ec7d0c38d69df97a965eb"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "futures-executor",
  "futures-util",
  "log",
@@ -3281,7 +3281,7 @@ version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b51da17abecbdab3e3d4f26b01c5ec075e88d3abe3ab3b05dc9aa69392764ec0"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "jsonrpc-client-transports",
 ]
 
@@ -3303,7 +3303,7 @@ version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1dea6e07251d9ce6a552abfb5d7ad6bc290a4596c8dcc3d795fae2bbdc1f3ff"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "hyper 0.14.30",
  "jsonrpc-core",
  "jsonrpc-server-utils",
@@ -3319,7 +3319,7 @@ version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "240f87695e6c6f62fb37f05c02c04953cf68d6408b8c1c89de85c7a0125b1011"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "jsonrpc-core",
  "lazy_static",
  "log",
@@ -3335,7 +3335,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa4fdea130485b572c39a460d50888beb00afb3e35de23ccd7fad8ff19f0e0d4"
 dependencies = [
  "bytes",
- "futures 0.3.30",
+ "futures 0.3.31",
  "globset",
  "jsonrpc-core",
  "lazy_static",
@@ -3486,7 +3486,7 @@ dependencies = [
 
 [[package]]
 name = "light-bounded-vec"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bytemuck",
  "memoffset 0.9.1",
@@ -3497,12 +3497,13 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.8.0"
+version = "0.9.1"
 dependencies = [
  "async-trait",
  "bb8",
  "borsh 0.10.3",
  "light-concurrent-merkle-tree",
+ "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "light-prover-client",
@@ -3523,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3541,7 +3542,7 @@ dependencies = [
 
 [[package]]
 name = "light-concurrent-merkle-tree"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3565,7 +3566,7 @@ dependencies = [
 
 [[package]]
 name = "light-hash-set"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3582,7 +3583,7 @@ dependencies = [
 
 [[package]]
 name = "light-hasher"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "light-poseidon",
@@ -3595,14 +3596,14 @@ dependencies = [
 
 [[package]]
 name = "light-heap"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anchor-lang",
 ]
 
 [[package]]
 name = "light-indexed-merkle-tree"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "borsh 0.10.3",
  "light-bounded-vec",
@@ -3621,19 +3622,19 @@ dependencies = [
 
 [[package]]
 name = "light-macros"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bs58 0.4.0",
  "light-hasher",
  "light-utils",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
 name = "light-merkle-tree-reference"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "light-bounded-vec",
  "light-hasher",
@@ -3655,7 +3656,7 @@ dependencies = [
 
 [[package]]
 name = "light-prover-client"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -3671,6 +3672,8 @@ dependencies = [
  "duct",
  "env_logger 0.11.5",
  "groth16-solana",
+ "light-bounded-vec",
+ "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
@@ -3691,7 +3694,7 @@ dependencies = [
 
 [[package]]
 name = "light-registry"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3712,7 +3715,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.8.0"
+version = "0.11.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3748,19 +3751,19 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "bs58 0.4.0",
  "light-hasher",
  "light-utils",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
 name = "light-system-program"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -3780,7 +3783,7 @@ dependencies = [
 
 [[package]]
 name = "light-test-utils"
-version = "1.0.0"
+version = "1.2.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3821,7 +3824,7 @@ dependencies = [
 
 [[package]]
 name = "light-utils"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "ark-bn254",
@@ -3837,7 +3840,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "borsh 0.10.3",
  "groth16-solana",
@@ -3850,7 +3853,7 @@ dependencies = [
 
 [[package]]
 name = "light-wasm-hasher"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -4041,6 +4044,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixed-accounts"
+version = "0.7.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-macros",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "mockall"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4114,7 +4136,7 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "name-service"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.3",
@@ -4279,7 +4301,7 @@ checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4360,7 +4382,7 @@ dependencies = [
  "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4372,7 +4394,7 @@ dependencies = [
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4434,7 +4456,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4701,7 +4723,7 @@ dependencies = [
  "pest_meta",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4755,7 +4777,7 @@ checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -4879,7 +4901,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479cf940fbbb3426c32c5d5176f62ad57549a0bb84773423ba8be9d089f5faba"
 dependencies = [
  "proc-macro2",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5044,7 +5066,7 @@ checksum = "9e2e25ee72f5b24d773cae88422baddefff7714f97aab68d96fe2b6fc4a28fb2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5306,7 +5328,7 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "registry-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -5497,7 +5519,7 @@ version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97eeab2f3c0a199bc4be135c36c924b6590b88c377d416494288c14f2db30199"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "futures-timer",
  "rstest_macros",
  "rustc_version",
@@ -5516,7 +5538,7 @@ dependencies = [
  "regex",
  "relative-path",
  "rustc_version",
- "syn 2.0.77",
+ "syn 2.0.79",
  "unicode-ident",
 ]
 
@@ -5710,7 +5732,7 @@ checksum = "1db149f81d46d2deba7cd3c50772474707729550221e69588478ebf9ada425ae"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5793,7 +5815,7 @@ checksum = "a5831b979fd7b5439637af1752d535ff49f4860c0f341d1baeb6faf0f4242170"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5866,7 +5888,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5878,7 +5900,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -5900,7 +5922,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b4b487fe2acf240a021cf57c6b2b4903b1e78ca0ecd862a71b71d2a51fed77d"
 dependencies = [
- "futures 0.3.30",
+ "futures 0.3.31",
  "log",
  "once_cell",
  "parking_lot 0.12.3",
@@ -5916,7 +5938,7 @@ checksum = "82fe9db325bcef1fbcde82e078a5cc4efdf787e96b3b9cf45b50b529f2083d67"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6106,7 +6128,7 @@ checksum = "41d1c5305e39e09653383c2c7244f2f78b3bcae37cf50c64cb4789c9f5096ec2"
 dependencies = [
  "base64 0.13.1",
  "bytes",
- "futures 0.3.30",
+ "futures 0.3.31",
  "httparse",
  "log",
  "rand 0.8.5",
@@ -6223,7 +6245,7 @@ version = "1.18.22"
 source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi-tracking#79188f6896dfd827db58491c05217c1ec4b3c9b0"
 dependencies = [
  "borsh 1.5.1",
- "futures 0.3.30",
+ "futures 0.3.31",
  "solana-banks-interface",
  "solana-program",
  "solana-sdk",
@@ -6250,7 +6272,7 @@ source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi
 dependencies = [
  "bincode",
  "crossbeam-channel",
- "futures 0.3.30",
+ "futures 0.3.31",
  "solana-accounts-db",
  "solana-banks-interface",
  "solana-client",
@@ -6380,7 +6402,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "dashmap 5.5.3",
- "futures 0.3.30",
+ "futures 0.3.31",
  "futures-util",
  "indexmap 2.5.0",
  "indicatif",
@@ -6546,7 +6568,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -6612,7 +6634,7 @@ dependencies = [
  "crossbeam-channel",
  "dashmap 5.5.3",
  "fs_extra",
- "futures 0.3.30",
+ "futures 0.3.31",
  "itertools",
  "lazy_static",
  "libc",
@@ -6931,7 +6953,7 @@ source = "git+https://github.com/lightprotocol/agave?branch=v1.18.22-enforce-cpi
 dependencies = [
  "async-mutex",
  "async-trait",
- "futures 0.3.30",
+ "futures 0.3.31",
  "itertools",
  "lazy_static",
  "log",
@@ -7230,7 +7252,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -7279,7 +7301,7 @@ dependencies = [
  "bzip2",
  "enum-iterator",
  "flate2",
- "futures 0.3.30",
+ "futures 0.3.31",
  "goauth",
  "http 0.2.12",
  "hyper 0.14.30",
@@ -7643,7 +7665,7 @@ checksum = "07fd7858fc4ff8fb0e34090e41d7eb06a823e1057945c26d480bfc21d2338a93"
 dependencies = [
  "quote",
  "spl-discriminator-syn",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -7655,7 +7677,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sha2 0.10.8",
- "syn 2.0.77",
+ "syn 2.0.79",
  "thiserror",
 ]
 
@@ -7712,7 +7734,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sha2 0.10.8",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -7958,9 +7980,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.77"
+version = "2.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f35bcdf61fd8e7be6caf75f429fdca8beb3ed76584befb503b1569faee373ed"
+checksum = "89132cd0bf050864e1d38dc3bbc07a0eb8e7530af26344d3d2bbbef83499f590"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7976,7 +7998,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -8034,7 +8056,7 @@ dependencies = [
 
 [[package]]
 name = "system-cpi-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -8057,7 +8079,7 @@ dependencies = [
 
 [[package]]
 name = "system-test"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -8127,7 +8149,7 @@ checksum = "1c38a012bed6fb9681d3bf71ffaa4f88f3b4b9ed3198cda6e4c8462d24d4bb80"
 dependencies = [
  "anyhow",
  "fnv",
- "futures 0.3.30",
+ "futures 0.3.31",
  "humantime",
  "opentelemetry",
  "pin-project",
@@ -8200,7 +8222,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -8211,7 +8233,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "test-case-core",
 ]
 
@@ -8232,22 +8254,22 @@ checksum = "23d434d3f8967a09480fb04132ebe0a3e088c173e6d0ee7897abbdf4eab0f8b9"
 
 [[package]]
 name = "thiserror"
-version = "1.0.63"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0342370b38b6a11b6cc11d6a805569958d54cfa061a29969c3b5ce2ea405724"
+checksum = "d50af8abc119fb8bb6dbabcfa89656f46f84aa0ac7688088608076ad2b459a84"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.63"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4558b58466b9ad7ca0f102865eccc95938dca1a74a856f2b57b6629050da261"
+checksum = "08904e7672f5eb876eaaf87e0ce17857500934f4981c4a0ab2b4aa98baac7fc3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -8336,7 +8358,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token-escrow"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -8393,7 +8415,7 @@ checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -8661,7 +8683,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -9063,7 +9085,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "wasm-bindgen-shared",
 ]
 
@@ -9097,7 +9119,7 @@ checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -9227,7 +9249,7 @@ checksum = "9107ddc059d5b6fbfbffdfa7a7fe3e22a226def0b2608f72e9d552763d3e1ad7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -9238,7 +9260,7 @@ checksum = "29bee4b38ea3cde66011baa44dba677c432a78593e202392d1e9070cf2a7fca7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -9467,7 +9489,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "account-compression",
  "anyhow",
@@ -9524,7 +9546,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]
@@ -9544,7 +9566,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.77",
+ "syn 2.0.79",
 ]
 
 [[package]]

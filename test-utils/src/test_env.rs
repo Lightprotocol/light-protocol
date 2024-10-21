@@ -36,6 +36,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::cmp;
+use std::path::PathBuf;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
@@ -50,11 +51,16 @@ pub async fn setup_test_programs(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
+    let sbf_path = std::env::var("SBF_OUT_DIR").unwrap();
+    // find path to bin where light cli stores program binaries.
+    let path = find_light_bin().unwrap();
+    std::env::set_var("SBF_OUT_DIR", path.to_str().unwrap());
     program_test.add_program("light_registry", light_registry::ID, None);
     program_test.add_program("account_compression", account_compression::ID, None);
     program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
     program_test.add_program("light_system_program", light_system_program::ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    std::env::set_var("SBF_OUT_DIR", sbf_path);
     let registered_program = env_accounts::get_registered_program_pda();
     program_test.add_account(
         get_registered_program_pda(&light_system_program::ID),
@@ -72,6 +78,49 @@ pub async fn setup_test_programs(
     }
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
+}
+
+fn find_light_bin() -> Option<PathBuf> {
+    // Run the 'which light' command to find the location of 'light' binary
+
+    #[cfg(not(feature = "devenv"))]
+    {
+        use std::process::Command;
+        let output = Command::new("which")
+            .arg("light")
+            .output()
+            .expect("Failed to execute 'which light'");
+
+        if !output.status.success() {
+            return None;
+        }
+        // Convert the output into a string (removing any trailing newline)
+        let light_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        // Get the parent directory of the 'light' binary
+        let mut light_bin_path = PathBuf::from(light_path);
+        light_bin_path.pop(); // Remove the 'light' binary itself
+
+        // Assuming the node_modules path starts from '/lib/node_modules/...'
+        let node_modules_bin =
+            light_bin_path.join("../lib/node_modules/@lightprotocol/zk-compression-cli/bin");
+
+        Some(node_modules_bin.canonicalize().unwrap_or(node_modules_bin))
+    }
+    #[cfg(feature = "devenv")]
+    {
+        let light_protocol_toplevel = String::from_utf8_lossy(
+            &std::process::Command::new("git")
+                .arg("rev-parse")
+                .arg("--show-toplevel")
+                .output()
+                .expect("Failed to get top-level directory")
+                .stdout,
+        )
+        .trim()
+        .to_string();
+        let light_path = PathBuf::from(format!("{}/target/deploy/", light_protocol_toplevel));
+        Some(light_path)
+    }
 }
 
 #[derive(Debug)]
@@ -526,10 +575,15 @@ pub async fn initialize_accounts<R: RpcConnection>(
     let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
     let forester_epoch = if register_forester_and_advance_to_active_phase {
-        let mut registered_epoch = Epoch::register(context, &protocol_config, &keypairs.forester)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut registered_epoch = Epoch::register(
+            context,
+            &protocol_config,
+            &keypairs.forester,
+            &keypairs.forester.pubkey(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         context
             .warp_to_slot(registered_epoch.phases.active.start)
             .await
@@ -553,7 +607,11 @@ pub async fn initialize_accounts<R: RpcConnection>(
             .fetch_account_and_add_trees_with_schedule(context, &tree_accounts)
             .await
             .unwrap();
-        let ix = create_finalize_registration_instruction(&keypairs.forester.pubkey(), 0);
+        let ix = create_finalize_registration_instruction(
+            &keypairs.forester.pubkey(),
+            &keypairs.forester.pubkey(),
+            0,
+        );
         context
             .create_and_send_transaction(&[ix], &keypairs.forester.pubkey(), &[&keypairs.forester])
             .await

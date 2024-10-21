@@ -170,7 +170,7 @@ download_gnark_keys() {
     if ! is_installed "gnark_keys"; then
         echo "Downloading gnark keys..."
         ROOT_DIR="$(git rev-parse --show-toplevel)"
-        "${ROOT_DIR}/light-prover/scripts/download_keys.sh"
+        "${ROOT_DIR}/light-prover/scripts/download_keys.sh" "$key_type"
         log "gnark_keys"
     fi
 }
@@ -187,6 +187,21 @@ install_dependencies() {
 main() {
     mkdir -p "${PREFIX}/bin"
 
+   # Parse command line arguments
+    local key_type="light"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --full-keys)
+                key_type="full"
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
     install_go
     install_rust
     install_node
@@ -194,7 +209,7 @@ main() {
     install_solana
     install_anchor
     install_jq
-    download_gnark_keys
+    download_gnark_keys "$key_type"
     install_dependencies
 
     rm -f "$INSTALL_LOG"

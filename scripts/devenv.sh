@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Command to deactivate the devenv. It sets the old environment variables.
 deactivate () {
     PS1="${LIGHT_PROTOCOL_OLD_PS1}"
@@ -6,6 +8,7 @@ deactivate () {
     NPM_CONFIG_PREFIX="${LIGHT_PROTOCOL_OLD_NPM_CONFIG_PREFIX}"
     PATH="${LIGHT_PROTOCOL_OLD_PATH}"
     [ -n "${LIGHT_PROTOCOL_OLD_RUST_PATH}" ] && PATH="${LIGHT_PROTOCOL_OLD_RUST_PATH}"
+    [ -n "${LIGHT_PROTOCOL_OLD_CPATH}" ] && CPATH="${LIGHT_PROTOCOL_OLD_CPATH}"
     unset LIGHT_PROTOCOL_DEVENV
     unset LIGHT_PROTOCOL_TOPLEVEL
     unset GOROOT
@@ -59,3 +62,8 @@ PATH="${CARGO_HOME}/bin:${PATH}"
 
 # Export the modified PATH
 export PATH
+
+if [[ "$(uname)" == "Darwin" ]]; then
+    LIGHT_PROTOCOL_OLD_CPATH="${CPATH:-}"
+    export CPATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include:${CPATH:-}"
+fi

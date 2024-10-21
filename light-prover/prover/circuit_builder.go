@@ -8,20 +8,33 @@ import (
 type CircuitType string
 
 const (
-	InputCompressedAccounts             = "input-compressed-accounts"
-	Combined                CircuitType = "combined"
-	Inclusion               CircuitType = "inclusion"
-	NonInclusion            CircuitType = "non-inclusion"
+	Combined     CircuitType = "combined"
+	Inclusion    CircuitType = "inclusion"
+	NonInclusion CircuitType = "non-inclusion"
+	BatchAppend  CircuitType = "append"
+	BatchUpdate  CircuitType = "update"
 )
 
-func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
-	if circuit == Inclusion {
-		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts)
-	} else if circuit == NonInclusion {
-		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else if circuit == Combined {
-		return SetupCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
-	} else {
+func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+	switch circuit {
+	case Inclusion:
+		return SetupInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+	case NonInclusion:
+		return SetupNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+	case Combined:
+		return SetupCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+	default:
+		return nil, fmt.Errorf("invalid circuit: %s", circuit)
+	}
+}
+
+func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
+	switch circuit {
+	case BatchAppend:
+		return SetupBatchAppend(height, batchSize)
+	case BatchUpdate:
+		return SetupBatchUpdate(height, batchSize)
+	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}
 }
@@ -33,8 +46,12 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return "", err
 	}
 
-	var _, hasInputCompressedAccounts = inputs["input-compressed-accounts"]
-	var _, hasNewAddresses = inputs["new-addresses"]
+	_, hasInputCompressedAccounts := inputs["input-compressed-accounts"]
+	_, hasNewAddresses := inputs["new-addresses"]
+	_, hasOldSubTreeHashChain := inputs["oldSubTreeHashChain"]
+	_, hasNewSubTreeHashChain := inputs["newSubTreeHashChain"]
+	_, hasLeaves := inputs["leaves"]
+	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return Combined, nil
@@ -42,6 +59,10 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return Inclusion, nil
 	} else if hasNewAddresses {
 		return NonInclusion, nil
+	} else if hasOldSubTreeHashChain && hasNewSubTreeHashChain && hasLeaves {
+		return BatchAppend, nil
+	} else if hasNewMerkleProofs {
+		return BatchUpdate, nil
 	}
 	return "", fmt.Errorf("unknown schema")
 }

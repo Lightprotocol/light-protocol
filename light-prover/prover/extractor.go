@@ -6,20 +6,20 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/extractor"
 )
 
-func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, error) {
-	// Not checking for numberOfCompressedAccounts === 0 or treeDepth === 0
+func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, error) {
+	// Not checking for numberOfCompressedAccounts === 0 or treeHeight === 0
 
 	// Initialising MerkleProofs slice with correct dimensions
 	inclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 	nonInclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inclusionInPathElements[i] = make([]frontend.Variable, treeDepth)
-		nonInclusionInPathElements[i] = make([]frontend.Variable, treeDepth)
+		inclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
+		nonInclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
 
 	inclusionCircuit := InclusionCircuit{
-		Depth:                      treeDepth,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Leaves:                     make([]frontend.Variable, numberOfCompressedAccounts),
@@ -28,7 +28,7 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 	}
 
 	nonInclusionCircuit := NonInclusionCircuit{
-		Depth:                      treeDepth,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),

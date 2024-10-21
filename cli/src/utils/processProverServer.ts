@@ -20,6 +20,7 @@ export async function startProver(
   proverPort: number,
   proveCompressedAccounts: boolean,
   proveNewAddresses: boolean,
+  runMode: string = "full",
 ) {
   if (!proveCompressedAccounts && !proveNewAddresses) {
     console.log(
@@ -37,11 +38,11 @@ export async function startProver(
   args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
-
-  console.log("Starting prover...");
-  spawnBinary(getProverNameByArch(), args);
+  args.push("--run-mode", runMode);
+  console.log(`Starting prover in ${runMode} mode...`);
+  spawnBinary(getProverPathByArch(), args);
   await waitForServers([{ port: proverPort, path: "/" }]);
-  console.log("Prover started successfully!");
+  console.log(`Prover started successfully in ${runMode} mode!`);
 }
 
 export function getProverNameByArch(): string {
@@ -57,7 +58,11 @@ export function getProverNameByArch(): string {
   if (platform.toString() === "windows") {
     binaryName += ".exe";
   }
+  return binaryName;
+}
 
+export function getProverPathByArch(): string {
+  let binaryName = getProverNameByArch();
   // We need to provide the full path to the binary because it's not in the PATH.
   const binDir = path.join(__dirname, "../..", "bin");
   binaryName = path.join(binDir, binaryName);

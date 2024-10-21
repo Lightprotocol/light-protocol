@@ -676,9 +676,14 @@ async fn test_register_and_update_forester_pda() {
         },
     ];
 
-    let registered_epoch = Epoch::register(&mut rpc, &protocol_config, &forester_keypair)
-        .await
-        .unwrap();
+    let registered_epoch = Epoch::register(
+        &mut rpc,
+        &protocol_config,
+        &forester_keypair,
+        &forester_keypair.pubkey(),
+    )
+    .await
+    .unwrap();
     assert!(registered_epoch.is_some());
     let mut registered_epoch = registered_epoch.unwrap();
     let forester_epoch_pda = rpc
@@ -710,6 +715,7 @@ async fn test_register_and_update_forester_pda() {
             .await
             .unwrap();
         let ix = create_finalize_registration_instruction(
+            &forester_keypair.pubkey(),
             &forester_keypair.pubkey(),
             registered_epoch.epoch,
         );
@@ -770,9 +776,14 @@ async fn test_register_and_update_forester_pda() {
     .await
     .unwrap();
     // register for next epoch
-    let next_registered_epoch = Epoch::register(&mut rpc, &protocol_config, &forester_keypair)
-        .await
-        .unwrap();
+    let next_registered_epoch = Epoch::register(
+        &mut rpc,
+        &protocol_config,
+        &forester_keypair,
+        &forester_keypair.pubkey(),
+    )
+    .await
+    .unwrap();
     assert!(next_registered_epoch.is_some());
     let next_registered_epoch = next_registered_epoch.unwrap();
     assert_eq!(next_registered_epoch.epoch, 1);
@@ -795,7 +806,11 @@ async fn test_register_and_update_forester_pda() {
             &registered_epoch.epoch_pda,
         )
         .await;
-        let ix = create_report_work_instruction(&forester_keypair.pubkey(), registered_epoch.epoch);
+        let ix = create_report_work_instruction(
+            &forester_keypair.pubkey(),
+            &forester_keypair.pubkey(),
+            registered_epoch.epoch,
+        );
         rpc.create_and_send_transaction(&[ix], &forester_keypair.pubkey(), &[&forester_keypair])
             .await
             .unwrap();
@@ -906,6 +921,7 @@ async fn failing_test_forester() {
         let mut instruction = create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {
                 authority: authority.pubkey(),
+                derivation: authority.pubkey(),
                 address_merkle_tree: env.address_merkle_tree_pubkey,
                 address_queue: env.address_merkle_tree_queue_pubkey,
                 changelog_index: 0,
@@ -939,6 +955,7 @@ async fn failing_test_forester() {
         let mut instructions = create_rollover_address_merkle_tree_instructions(
             &mut rpc,
             &authority.pubkey(),
+            &authority.pubkey(),
             &new_queue_keypair,
             &new_merkle_tree_keypair,
             &env.address_merkle_tree_pubkey,
@@ -970,6 +987,7 @@ async fn failing_test_forester() {
         let authority = rpc.get_payer().insecure_clone();
         let mut instructions = create_rollover_state_merkle_tree_instructions(
             &mut rpc,
+            &authority.pubkey(),
             &authority.pubkey(),
             &new_nullifier_queue_keypair,
             &new_state_merkle_tree_keypair,

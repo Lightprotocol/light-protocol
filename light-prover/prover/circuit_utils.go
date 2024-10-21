@@ -19,17 +19,25 @@ type Proof struct {
 	Proof groth16.Proof
 }
 
-type ProvingSystem struct {
-	InclusionTreeDepth                     uint32
+type ProvingSystemV1 struct {
+	InclusionTreeHeight                    uint32
 	InclusionNumberOfCompressedAccounts    uint32
-	NonInclusionTreeDepth                  uint32
+	NonInclusionTreeHeight                 uint32
 	NonInclusionNumberOfCompressedAccounts uint32
 	ProvingKey                             groth16.ProvingKey
 	VerifyingKey                           groth16.VerifyingKey
 	ConstraintSystem                       constraint.ConstraintSystem
 }
 
-// ProveParentHash gadget generates the ParentHash
+type ProvingSystemV2 struct {
+	CircuitType      CircuitType
+	TreeHeight       uint32
+	BatchSize        uint32
+	ProvingKey       groth16.ProvingKey
+	VerifyingKey     groth16.VerifyingKey
+	ConstraintSystem constraint.ConstraintSystem
+}
+
 type ProveParentHash struct {
 	Bit     frontend.Variable
 	Hash    frontend.Variable
@@ -51,17 +59,17 @@ type InclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:  gadget.Leaves[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:   gadget.Leaves[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -80,7 +88,7 @@ type NonInclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -94,10 +102,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
-			Hash:  currentHash[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Hash:   currentHash[proofIndex],
+			Index:  gadget.InPathIndices[proofIndex],
+			Path:   gadget.InPathElements[proofIndex],
+			Height: int(gadget.Height)}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -113,6 +121,24 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 	abstractor.Call(api, gadget.InclusionProof)
 	abstractor.Call(api, gadget.NonInclusionProof)
 	return nil
+}
+
+type VerifyProof struct {
+	Leaf  frontend.Variable
+	Path  []frontend.Variable
+	Proof []frontend.Variable
+}
+
+func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := gadget.Leaf
+	for i := 0; i < len(gadget.Path); i++ {
+		currentHash = abstractor.Call(api, ProveParentHash{
+			Bit:     gadget.Path[i],
+			Hash:    currentHash,
+			Sibling: gadget.Proof[i],
+		})
+	}
+	return currentHash
 }
 
 type LeafHashGadget struct {
@@ -150,18 +176,48 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 }
 
 type MerkleRootGadget struct {
-	Hash  frontend.Variable
-	Index frontend.Variable
-	Path  []frontend.Variable
-	Depth int
+	Hash   frontend.Variable
+	Index  frontend.Variable
+	Path   []frontend.Variable
+	Height int
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
-	currentPath := api.ToBinary(gadget.Index, gadget.Depth)
-	for i := 0; i < gadget.Depth; i++ {
+	currentPath := api.ToBinary(gadget.Index, gadget.Height)
+	for i := 0; i < gadget.Height; i++ {
 		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
+}
+
+type MerkleRootUpdateGadget struct {
+	OldRoot     frontend.Variable
+	OldLeaf     frontend.Variable
+	NewLeaf     frontend.Variable
+	PathIndex   frontend.Variable
+	MerkleProof []frontend.Variable
+	Height      int
+}
+
+func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
+	// Verify the old root
+	currentRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.OldLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
+	api.AssertIsEqual(currentRoot, gadget.OldRoot)
+
+	// Calculate the new root
+	newRoot := abstractor.Call(api, MerkleRootGadget{
+		Hash:   gadget.NewLeaf,
+		Index:  gadget.PathIndex,
+		Path:   gadget.MerkleProof,
+		Height: gadget.Height,
+	})
+
+	return newRoot
 }
 
 // Trusted setup utility functions
@@ -197,8 +253,7 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 
 	return verifyingKey, nil
 }
-
-func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
+func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []string {
 	var keys []string
 
 	if IsCircuitEnabled(circuitTypes, Inclusion) {
@@ -222,5 +277,30 @@ func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
 		keys = append(keys, keysDir+"combined_26_4_1.key")
 		keys = append(keys, keysDir+"combined_26_4_2.key")
 	}
+
+	if IsCircuitEnabled(circuitTypes, BatchAppend) {
+		if isTestMode {
+			keys = append(keys, keysDir+"append_10_10.key")
+		} else {
+			keys = append(keys, keysDir+"append_26_1.key")
+			keys = append(keys, keysDir+"append_26_10.key")
+			keys = append(keys, keysDir+"append_26_100.key")
+			keys = append(keys, keysDir+"append_26_500.key")
+			keys = append(keys, keysDir+"append_26_1000.key")
+		}
+	}
+
+	if IsCircuitEnabled(circuitTypes, BatchUpdate) {
+		if isTestMode {
+			keys = append(keys, keysDir+"update_10_10.key")
+		} else {
+			keys = append(keys, keysDir+"update_26_1.key")
+			keys = append(keys, keysDir+"update_26_10.key")
+			keys = append(keys, keysDir+"update_26_100.key")
+			keys = append(keys, keysDir+"update_26_500.key")
+			keys = append(keys, keysDir+"update_26_1000.key")
+		}
+	}
+
 	return keys
 }

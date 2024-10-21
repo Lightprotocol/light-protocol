@@ -34,6 +34,9 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PAYER")]
     pub payer: Option<String>,
 
+    #[arg(long, env = "FORESTER_DERIVATION_PUBKEY")]
+    pub derivation: Option<String>,
+
     #[arg(long, env = "FORESTER_PHOTON_API_KEY")]
     pub photon_api_key: Option<String>,
 
@@ -110,10 +113,17 @@ pub struct StartArgs {
 #[derive(Parser, Clone, Debug)]
 pub struct StatusArgs {
     #[arg(long, env = "FORESTER_RPC_URL")]
-    pub rpc_url: Option<String>,
+    pub rpc_url: String,
 
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
+    /// Select to run compressed token program tests.
+    #[clap(long)]
+    pub full: bool,
+    #[clap(long)]
+    pub protocol_config: bool,
+    #[clap(long, default_value_t = true)]
+    pub queue: bool,
 }
 
 impl StartArgs {

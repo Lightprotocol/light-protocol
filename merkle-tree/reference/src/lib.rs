@@ -1,3 +1,5 @@
+pub mod sparse_merkle_tree;
+
 use std::marker::PhantomData;
 
 use light_bounded_vec::{BoundedVec, BoundedVecError};
@@ -258,5 +260,102 @@ where
 
         // Compare the computed hash to the last known root
         Ok(computed_hash == self.root())
+    }
+
+    /// Returns the filled subtrees of the Merkle tree.
+    /// Subtrees are the rightmost left node of each level.
+    /// Subtrees can be used for efficient append operations.
+    pub fn get_subtrees(&self) -> Vec<[u8; 32]> {
+        let mut subtrees = H::zero_bytes()[0..self.height].to_vec();
+        if self.layers.last().and_then(|layer| layer.first()).is_some() {
+            for level in (0..self.height).rev() {
+                if let Some(left_child) = self.layers.get(level).and_then(|layer| {
+                    if layer.len() % 2 == 0 {
+                        layer.get(layer.len() - 2)
+                    } else {
+                        layer.last()
+                    }
+                }) {
+                    subtrees[level] = *left_child;
+                }
+            }
+        }
+        subtrees
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
+
+    use super::*;
+
+    const TREE_AFTER_1_UPDATE: [[u8; 32]; 4] = [
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1,
+        ],
+        [
+            0, 122, 243, 70, 226, 211, 4, 39, 158, 121, 224, 169, 243, 2, 63, 119, 18, 148, 167,
+            138, 203, 112, 231, 63, 144, 175, 226, 124, 173, 64, 30, 129,
+        ],
+        [
+            4, 163, 62, 195, 162, 201, 237, 49, 131, 153, 66, 155, 106, 112, 192, 40, 76, 131, 230,
+            239, 224, 130, 106, 36, 128, 57, 172, 107, 60, 247, 103, 194,
+        ],
+        [
+            7, 118, 172, 114, 242, 52, 137, 62, 111, 106, 113, 139, 123, 161, 39, 255, 86, 13, 105,
+            167, 223, 52, 15, 29, 137, 37, 106, 178, 49, 44, 226, 75,
+        ],
+    ];
+
+    const TREE_AFTER_2_UPDATES: [[u8; 32]; 4] = [
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 2,
+        ],
+        [
+            0, 122, 243, 70, 226, 211, 4, 39, 158, 121, 224, 169, 243, 2, 63, 119, 18, 148, 167,
+            138, 203, 112, 231, 63, 144, 175, 226, 124, 173, 64, 30, 129,
+        ],
+        [
+            18, 102, 129, 25, 152, 42, 192, 218, 100, 215, 169, 202, 77, 24, 100, 133, 45, 152, 17,
+            121, 103, 9, 187, 226, 182, 36, 35, 35, 126, 255, 244, 140,
+        ],
+        [
+            11, 230, 92, 56, 65, 91, 231, 137, 40, 92, 11, 193, 90, 225, 123, 79, 82, 17, 212, 147,
+            43, 41, 126, 223, 49, 2, 139, 211, 249, 138, 7, 12,
+        ],
+    ];
+
+    #[test]
+    fn test_subtrees() {
+        let tree_depth = 4;
+        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0); // Replace TestHasher with your specific hasher.
+
+        let subtrees = tree.get_subtrees();
+        for (i, subtree) in subtrees.iter().enumerate() {
+            assert_eq!(*subtree, ZERO_BYTES[i]);
+        }
+
+        let mut leaf_0: [u8; 32] = [0; 32];
+        leaf_0[31] = 1;
+        tree.append(&leaf_0).unwrap();
+        tree.append(&leaf_0).unwrap();
+
+        let subtrees = tree.get_subtrees();
+        for (i, subtree) in subtrees.iter().enumerate() {
+            assert_eq!(*subtree, TREE_AFTER_1_UPDATE[i]);
+        }
+
+        let mut leaf_1: [u8; 32] = [0; 32];
+        leaf_1[31] = 2;
+        tree.append(&leaf_1).unwrap();
+        tree.append(&leaf_1).unwrap();
+
+        let subtrees = tree.get_subtrees();
+        for (i, subtree) in subtrees.iter().enumerate() {
+            assert_eq!(*subtree, TREE_AFTER_2_UPDATES[i]);
+        }
     }
 }

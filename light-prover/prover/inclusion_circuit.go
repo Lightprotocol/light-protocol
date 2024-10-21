@@ -17,7 +17,7 @@ type InclusionCircuit struct {
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	Depth                      uint32
+	Height                     uint32
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
@@ -28,22 +28,22 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Depth:                      circuit.Depth,
+		Height:                     circuit.Height,
 	})
 	return nil
 }
 
-func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystemV1, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inPathElements[i] = make([]frontend.Variable, treeDepth)
+		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
 	circuit := InclusionCircuit{
-		Depth:                      treeDepth,
+		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
 		Leaves:                     leaves,
@@ -67,5 +67,10 @@ func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, p
 		return nil, err
 	}
 
-	return &ProvingSystem{treeDepth, numberOfCompressedAccounts, 0, 0, pk, vk, ccs}, nil
+	return &ProvingSystemV1{
+		InclusionTreeHeight:                 treeHeight,
+		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                          pk,
+		VerifyingKey:                        vk,
+		ConstraintSystem:                    ccs}, nil
 }

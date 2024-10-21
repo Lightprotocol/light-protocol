@@ -20,6 +20,7 @@ pub struct ForesterConfig {
     pub general_config: GeneralConfig,
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
+    pub derivation_pubkey: Pubkey,
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
 }
@@ -104,6 +105,20 @@ impl ForesterConfig {
         let payer =
             Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
 
+        let derivation: Vec<u8> = match &args.derivation {
+            Some(derivation_str) => serde_json::from_str(derivation_str)
+                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            None => {
+                return Err(ForesterError::ConfigError(
+                    "Derivation is required".to_string(),
+                ))
+            }
+        };
+        let derivation_array: [u8; 32] = derivation
+            .try_into()
+            .map_err(|_| ForesterError::ConfigError("Derivation must be 32 bytes".to_string()))?;
+        let derivation = Pubkey::from(derivation_array);
+
         let rpc_url = args
             .rpc_url
             .clone()
@@ -147,16 +162,14 @@ impl ForesterConfig {
             registry_pubkey: Pubkey::from_str(&registry_pubkey)
                 .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
             payer_keypair: payer,
+            derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
         })
     }
 
     pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
-        let rpc_url = args
-            .rpc_url
-            .clone()
-            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+        let rpc_url = args.rpc_url.clone();
 
         Ok(Self {
             external_services: ExternalServicesConfig {
@@ -179,6 +192,7 @@ impl ForesterConfig {
             },
             registry_pubkey: Pubkey::default(),
             payer_keypair: Keypair::new(),
+            derivation_pubkey: Pubkey::default(),
             address_tree_data: vec![],
             state_tree_data: vec![],
         })
@@ -195,6 +209,7 @@ impl Clone for ForesterConfig {
             general_config: self.general_config.clone(),
             registry_pubkey: self.registry_pubkey,
             payer_keypair: self.payer_keypair.insecure_clone(),
+            derivation_pubkey: self.derivation_pubkey,
             address_tree_data: self.address_tree_data.clone(),
             state_tree_data: self.state_tree_data.clone(),
         }

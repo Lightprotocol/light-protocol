@@ -1,6 +1,6 @@
 [package]
 name = "name-service"
-version = "0.6.0"
+version = "0.7.0"
 description = "Created with Anchor"
 edition = "2021"
 rust-version = "1.75.0" 
@@ -21,7 +21,7 @@ bench-sbf = []
 idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
-anchor-lang = { workspace = true, features = ["init-if-needed"] }
+anchor-lang = { workspace=true}
 borsh = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 light-macros = { workspace = true }
@@ -34,7 +34,7 @@ light-verifier = { workspace = true }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-light-client = { workspace = true }
-light-test-utils = { path = "../../../../test-utils", version = "1.0.0" }
+light-client = { workspace = true , features = ["devenv"]}
+light-test-utils = { path = "../../../../test-utils", version = "1.2.0", features = ["devenv"] }
 solana-program-test = { workspace = true }
 tokio = "1.36.0"

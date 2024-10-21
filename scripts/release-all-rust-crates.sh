@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Configuration
 CRATES_IO_TOKEN=${CRATES_IO_TOKEN}

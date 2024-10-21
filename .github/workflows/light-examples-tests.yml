@@ -11,6 +11,7 @@ on:
     paths:
       - "examples/**"
       - "macros/light-sdk-macros/**"
+      - "sdk/**"
     types:
       - opened
       - synchronize
@@ -56,7 +57,8 @@ jobs:
       - name: ${{ matrix.program }}
         run: |
           source ./scripts/devenv.sh
-          
+          npx nx build @lightprotocol/zk-compression-cli
+
           IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do

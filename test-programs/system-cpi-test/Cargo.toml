@@ -1,6 +1,6 @@
 [package]
 name = "system-cpi-test"
-version = "1.0.0"
+version = "1.1.0"
 description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,22 +22,22 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-light-compressed-token = { path = "../../programs/compressed-token", version = "1.0.0", features = ["cpi"]}
-light-system-program = { path = "../../programs/system", version = "1.0.0", features = ["cpi"]}
-light-registry = { path = "../../programs/registry", version = "1.0.0", features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression", version = "1.0.0", features = ["cpi"] }
-light-hasher = { path = "../../merkle-tree/hasher", version = "1.0.0" }
-light-utils = { path = "../../utils", version = "1.0.0" }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+light-registry = { workspace = true }
+account-compression = { workspace = true  }
+light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0" }
+light-utils = { path = "../../utils", version = "1.1.0" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
 solana-program-test = { workspace = true }
-light-test-utils = { version = "1.0.0", path = "../../test-utils" }
+light-test-utils = { version = "1.2.0", path = "../../test-utils", features=["devenv"] }
 reqwest = "0.11.26"
 tokio = { workspace = true }
-light-prover-client = { path = "../../circuit-lib/light-prover-client", version = "1.0.0" }
+light-prover-client = { path = "../../circuit-lib/light-prover-client", version = "1.2.0" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 spl-token = { workspace = true }

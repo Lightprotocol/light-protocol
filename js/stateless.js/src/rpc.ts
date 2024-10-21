@@ -335,6 +335,7 @@ export type NonInclusionMerkleProofInputs = {
 
 export type MerkleContextWithNewAddressProof = {
     root: BN;
+    rootIndex: number;
     value: BN;
     leafLowerRangeValue: BN;
     leafHigherRangeValue: BN;
@@ -1216,6 +1217,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         for (const proof of res.result.value) {
             const _proof: MerkleContextWithNewAddressProof = {
                 root: proof.root,
+                rootIndex: proof.rootSeq % 2400,
                 value: proof.address,
                 leafLowerRangeValue: proof.lowerRangeAddress,
                 leafHigherRangeValue: proof.higherRangeAddress,
@@ -1231,8 +1233,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * @deprecated This method is not available. Please use
-     * {@link getValidityProof} instead.
+     * Advanced usage of getValidityProof: fetches ZKP directly from a custom
+     * non-rpcprover. Note: This uses the proverEndpoint specified in the
+     * constructor. For normal usage, please use {@link getValidityProof}
+     * instead.
      *
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
@@ -1247,7 +1251,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * @param newAddresses  Array of BN254 new addresses.
      * @returns             validity proof with context
      */
-    async getValidityProof_direct(
+    async getValidityProofDirect(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
@@ -1305,11 +1309,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // This is a static root because the
-                // address tree doesn't advance.
-                rootIndices: newAddressProofs.map(_ => 3),
-                leafIndices: newAddressProofs.map(
-                    proof => proof.nextIndex.toNumber(), // TODO: support >32bit
+                rootIndices: newAddressProofs.map(proof => proof.rootIndex),
+                leafIndices: newAddressProofs.map(proof =>
+                    proof.nextIndex.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
@@ -1344,9 +1346,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.root)),
                 rootIndices: merkleProofsWithContext
                     .map(proof => proof.rootIndex)
-                    // This is a static root because the
-                    // address tree doesn't advance.
-                    .concat(newAddressProofs.map(_ => 3)),
+                    .concat(newAddressProofs.map(proof => proof.rootIndex)),
                 leafIndices: merkleProofsWithContext
                     .map(proof => proof.leafIndex)
                     .concat(

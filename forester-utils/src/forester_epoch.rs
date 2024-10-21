@@ -42,8 +42,13 @@ impl Forester {
         &mut self,
         rpc: &mut impl RpcConnection,
         forester_keypair: &Keypair,
+        derivation: &Pubkey,
     ) -> Result<Signature, RpcError> {
-        let ix = create_report_work_instruction(&forester_keypair.pubkey(), self.report_work.epoch);
+        let ix = create_report_work_instruction(
+            &forester_keypair.pubkey(),
+            derivation,
+            self.report_work.epoch,
+        );
         rpc.create_and_send_transaction(&[ix], &forester_keypair.pubkey(), &[forester_keypair])
             .await
     }
@@ -322,6 +327,7 @@ impl Epoch {
         rpc: &mut R,
         protocol_config: &ProtocolConfig,
         authority: &Keypair,
+        derivation: &Pubkey,
     ) -> Result<Option<Epoch>, RpcError> {
         let epoch_registration =
             Self::slots_until_next_epoch_registration(rpc, protocol_config).await?;
@@ -333,6 +339,7 @@ impl Epoch {
 
         let instruction = create_register_forester_epoch_pda_instruction(
             &authority.pubkey(),
+            derivation,
             epoch_registration.epoch,
         );
         let signature = rpc
@@ -345,7 +352,7 @@ impl Epoch {
             .await?
             .unwrap();
         let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_from_authority(&authority.pubkey(), epoch_registration.epoch).0;
+            get_forester_epoch_pda_from_authority(derivation, epoch_registration.epoch).0;
 
         let phases = get_epoch_phases(protocol_config, epoch_pda.epoch);
         Ok(Some(Self {

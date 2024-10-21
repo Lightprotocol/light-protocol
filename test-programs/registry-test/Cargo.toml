@@ -1,6 +1,6 @@
 [package]
 name = "registry-test"
-version = "1.0.0"
+version = "1.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -22,7 +22,7 @@ default = ["custom-heap"]
 
 [dev-dependencies]
 solana-program-test = { workspace = true }
-light-test-utils = { version = "1.0.0", path = "../../test-utils" }
+light-test-utils = { version = "1.2.0", path = "../../test-utils", features=["devenv"] }
 reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
@@ -31,11 +31,11 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
-forester-utils = { path = "../../forester-utils" }
-light-registry = { path = "../../programs/registry"  , features = ["cpi"]}
-light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
-light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
-account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
+forester-utils = {  workspace = true }
+light-registry = { workspace = true }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+account-compression = { workspace = true  }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
 light-indexed-merkle-tree = {path = "../../merkle-tree/indexed"}

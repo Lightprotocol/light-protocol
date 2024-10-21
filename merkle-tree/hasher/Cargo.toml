@@ -1,17 +1,17 @@
 [package]
 name = "light-hasher"
-version = "1.0.0"
+version = "1.1.0"
 description = "Trait for generic usage of hash functions on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
+solana = []
 
 [dependencies]
 light-poseidon = "0.2.0"
-solana-program = { workspace = true, optional = true }
+solana-program = { workspace = true }
 thiserror = "1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

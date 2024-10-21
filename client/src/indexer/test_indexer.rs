@@ -1,14 +1,14 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, thread::sleep, time::Duration};
 
 use borsh::BorshDeserialize;
-use light_concurrent_merkle_tree::light_hasher::Poseidon;
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::{spawn_prover, ProofType},
+        helpers::health_check,
         inclusion_json_formatter::BatchInclusionJsonStruct,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -57,7 +57,6 @@ where
     pub token_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
-    proof_types: Vec<ProofType>,
     _rpc: PhantomData<R>,
 }
 
@@ -301,7 +300,6 @@ where
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                spawn_prover(true, self.proof_types.as_slice()).await;
                 retries -= 1;
             }
         }
@@ -351,16 +349,35 @@ where
             .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
             .collect::<Vec<_>>();
 
-        let mut proof_types = vec![];
-        if inclusion {
-            proof_types.push(ProofType::Inclusion);
+        let mut types = vec!["start-prover"];
+        if !inclusion {
+            types.push("-c");
         }
-        if non_inclusion {
-            proof_types.push(ProofType::NonInclusion);
+        if !non_inclusion {
+            types.push("-n");
         }
-        if !proof_types.is_empty() {
-            spawn_prover(true, proof_types.as_slice()).await;
+
+        #[cfg(feature = "devenv")]
+        {
+            let project_root = light_prover_client::gnark::helpers::get_project_root().unwrap();
+            let project_root = project_root.trim_end_matches('\n').to_string();
+            let cli_bin_path = format!("{}/cli/test_bin", project_root);
+            std::process::Command::new("./run")
+                .args(types.as_slice())
+                .current_dir(cli_bin_path)
+                .spawn()
+                .expect("Failed to start prover");
+            sleep(Duration::from_secs(1));
         }
+        #[cfg(not(feature = "devenv"))]
+        {
+            std::process::Command::new("light")
+                .args(types.as_slice())
+                .spawn()
+                .expect("Failed to start prover");
+            sleep(Duration::from_secs(1));
+        }
+        health_check(20, 1).await;
 
         Self {
             state_merkle_trees,
@@ -370,7 +387,6 @@ where
             token_compressed_accounts: Vec::new(),
             token_nullified_compressed_accounts: Vec::new(),
             events: Vec::new(),
-            proof_types,
             _rpc: PhantomData,
         }
     }
