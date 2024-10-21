@@ -71,6 +71,11 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+
       - name: build-programs
         run: |
           source ./scripts/devenv.sh

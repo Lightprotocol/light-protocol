@@ -1,9 +1,15 @@
-use std::{marker::PhantomData, thread::sleep, time::Duration};
+use std::{marker::PhantomData, time::Duration};
 
+use crate::{
+    indexer::Indexer,
+    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
+    transaction_params::FeeConfig,
+};
 use borsh::BorshDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
@@ -33,12 +39,6 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-
-use crate::{
-    indexer::Indexer,
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
-    transaction_params::FeeConfig,
-};
 
 use super::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
@@ -349,34 +349,20 @@ where
             .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
             .collect::<Vec<_>>();
 
-        let mut types = vec!["start-prover"];
-        if !inclusion {
-            types.push("-c");
+        let mut prover_config = ProverConfig {
+            circuits: vec![],
+            run_mode: None,
+        };
+
+        if inclusion {
+            prover_config.circuits.push(ProofType::Inclusion);
         }
-        if !non_inclusion {
-            types.push("-n");
+        if non_inclusion {
+            prover_config.circuits.push(ProofType::NonInclusion);
         }
 
-        #[cfg(feature = "devenv")]
-        {
-            let project_root = light_prover_client::gnark::helpers::get_project_root().unwrap();
-            let project_root = project_root.trim_end_matches('\n').to_string();
-            let cli_bin_path = format!("{}/cli/test_bin", project_root);
-            std::process::Command::new("./run")
-                .args(types.as_slice())
-                .current_dir(cli_bin_path)
-                .spawn()
-                .expect("Failed to start prover");
-            sleep(Duration::from_secs(1));
-        }
-        #[cfg(not(feature = "devenv"))]
-        {
-            std::process::Command::new("light")
-                .args(types.as_slice())
-                .spawn()
-                .expect("Failed to start prover");
-            sleep(Duration::from_secs(1));
-        }
+        spawn_prover(true, prover_config).await;
+
         health_check(20, 1).await;
 
         Self {
