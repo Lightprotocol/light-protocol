@@ -1,17 +1,18 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    io::Cursor,
+    ops::{Deref, DerefMut},
+};
 
-use anchor_lang::{context::Context, prelude::Pubkey, Bumps, Key, Result};
+use anchor_lang::{context::Context, AnchorDeserialize, Bumps, Result};
 
 use crate::{
-    compressed_account::LightAccounts,
-    constants::CPI_AUTHORITY_PDA_SEED,
-    merkle_context::{PackedAddressMerkleContext, PackedMerkleContext},
-    proof::CompressedProof,
+    address::PackedNewAddressParams,
+    compressed_account::{LightAccounts, PackedCompressedAccountWithMerkleContext},
+    proof::ProofRpcResult,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
     },
-    verify::{verify, InstructionDataInvokeCpi},
 };
 
 /// Provides non-argument inputs to the program, including light accounts and
@@ -33,17 +34,19 @@ use crate::{
 pub struct LightContext<'a, 'b, 'c, 'info, T, U>
 where
     T: Bumps,
-    U: LightAccounts,
+    U: LightAccounts<'a>,
 {
     /// Context provided by Anchor.
     pub anchor_context: Context<'a, 'b, 'c, 'info, T>,
     pub light_accounts: U,
+    // pub new_addresses:
+    // pub inputs: LightInstructionInputs,
 }
 
 impl<'a, 'b, 'c, 'info, T, U> Deref for LightContext<'a, 'b, 'c, 'info, T, U>
 where
     T: Bumps,
-    U: LightAccounts,
+    U: LightAccounts<'a>,
 {
     type Target = Context<'a, 'b, 'c, 'info, T>;
 
@@ -55,7 +58,7 @@ where
 impl<'a, 'b, 'c, 'info, T, U> DerefMut for LightContext<'a, 'b, 'c, 'info, T, U>
 where
     T: Bumps,
-    U: LightAccounts,
+    U: LightAccounts<'a>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.anchor_context
@@ -70,63 +73,32 @@ where
         + InvokeCpiContextAccount<'info>
         + LightSystemAccount<'info>
         + SignerAccounts<'info>,
-    U: LightAccounts,
+    U: LightAccounts<'a>,
 {
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
-        inputs: Vec<Vec<u8>>,
-        merkle_context: PackedMerkleContext,
-        merkle_tree_root_index: u16,
-        address_merkle_context: PackedAddressMerkleContext,
-        address_merkle_tree_root_index: u16,
+        accounts: &'a Option<Vec<PackedCompressedAccountWithMerkleContext>>,
     ) -> Result<Self> {
-        let light_accounts = U::try_light_accounts(
-            inputs,
-            merkle_context,
-            merkle_tree_root_index,
-            address_merkle_context,
-            address_merkle_tree_root_index,
-            anchor_context.remaining_accounts,
-        )?;
+        let light_accounts = U::try_light_accounts(accounts)?;
         Ok(Self {
             anchor_context,
             light_accounts,
         })
     }
+}
 
-    pub fn verify(&mut self, proof: CompressedProof) -> Result<()> {
-        let bump = Pubkey::find_program_address(
-            &[CPI_AUTHORITY_PDA_SEED],
-            &self.anchor_context.accounts.get_invoking_program().key(),
-        )
-        .1;
-        let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
+pub fn parse_light_inputs(
+    inputs: Vec<u8>,
+) -> Result<(
+    Option<ProofRpcResult>,
+    Option<Vec<PackedCompressedAccountWithMerkleContext>>,
+    Option<Vec<PackedNewAddressParams>>,
+)> {
+    let mut inputs = Cursor::new(inputs);
+    let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
+    let accounts =
+        Option::<Vec<PackedCompressedAccountWithMerkleContext>>::deserialize_reader(&mut inputs)?;
+    let new_addresses = Option::<Vec<PackedNewAddressParams>>::deserialize_reader(&mut inputs)?;
 
-        let new_address_params = self.light_accounts.new_address_params();
-        let input_compressed_accounts_with_merkle_context = self
-            .light_accounts
-            .input_accounts(self.anchor_context.remaining_accounts)?;
-        let output_compressed_accounts = self
-            .light_accounts
-            .output_accounts(self.anchor_context.remaining_accounts)?;
-
-        let instruction = InstructionDataInvokeCpi {
-            proof: Some(proof),
-            new_address_params,
-            relay_fee: None,
-            input_compressed_accounts_with_merkle_context,
-            output_compressed_accounts,
-            compress_or_decompress_lamports: None,
-            is_compress: false,
-            cpi_context: None,
-        };
-
-        verify(
-            &self.anchor_context,
-            &instruction,
-            &[signer_seeds.as_slice()],
-        )?;
-
-        Ok(())
-    }
+    Ok((proof, accounts, new_addresses))
 }

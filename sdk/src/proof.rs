@@ -35,7 +35,7 @@ pub struct CompressedProof {
     pub c: [u8; 32],
 }
 
-#[derive(Debug)]
+#[derive(Debug, AnchorDeserialize, AnchorSerialize)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<u16>,
