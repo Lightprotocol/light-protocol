@@ -37,28 +37,30 @@ use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
 
-pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
+enum TreeAccount {
+    State(StateMerkleTreeAccount),
+    Address(AddressMerkleTreeAccount),
+}
+
+#[derive(Debug, Clone)]
+pub struct TreeInfo {
+    pub fullness: f64,
+    pub next_index: usize,
+    pub threshold: usize,
+}
+
+pub async fn get_tree_fullness<R: RpcConnection>(
     rpc: &mut R,
     tree_pubkey: Pubkey,
     tree_type: TreeType,
-) -> Result<bool, ForesterError> {
-    debug!(
-        "Checking if tree is ready for rollover: {:?}",
-        tree_pubkey.to_string()
-    );
+) -> Result<TreeInfo, ForesterError> {
     match tree_type {
         TreeType::State => {
             let account = rpc
                 .get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap();
-            // let account_info = rpc.get_account(tree_pubkey).await?.unwrap();
 
-            let is_already_rolled_over =
-                account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
-            if is_already_rolled_over {
-                return Ok(false);
-            }
             let merkle_tree =
                 get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
                     rpc,
@@ -66,13 +68,17 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 )
                 .await;
             let height = 26;
+            let capacity = 1 << height;
             let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
+            let next_index = merkle_tree.next_index();
+            let fullness = next_index as f64 / capacity as f64;
 
-            //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
-            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
-            //     > account.metadata.rollover_metadata.rollover_fee * (1 << height);
-            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 1)
+            Ok(TreeInfo {
+                fullness,
+                next_index,
+                threshold,
+            })
         }
         TreeType::Address => {
             let account = rpc
@@ -83,37 +89,70 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .get_anchor_account::<QueueAccount>(&account.metadata.associated_queue)
                 .await?
                 .unwrap();
-            // let account_info = rpc
-            //     .get_account(account.metadata.associated_queue)
-            //     .await?
-            //     .unwrap();
-            let is_already_rolled_over =
-                account.metadata.rollover_metadata.rolledover_slot != u64::MAX;
-            if is_already_rolled_over {
-                return Ok(false);
-            }
-
             let merkle_tree =
                 get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     tree_pubkey,
                 )
                 .await;
-
             let height = 26;
+            let capacity = 1 << height;
+
             let threshold = ((1 << height)
                 * queue_account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
+            let next_index = merkle_tree.next_index() - 3;
+            let fullness = next_index as f64 / capacity as f64;
 
-            //  TODO: (fix) check to avoid processing Merkle trees with rollover threshold 0 which haven't processed any transactions
-            //  current implementation is returns always true
-            // let lamports_in_account_are_sufficient_for_rollover = account_info.lamports
-            // > account.metadata.rollover_metadata.rollover_fee * (1 << height);
+            Ok(TreeInfo {
+                fullness,
+                next_index,
+                threshold,
+            })
+        }
+    }
+}
 
-            // Address Merkle trees are initialized with 2 leaves and with 3 as the next index.
-            // To make sure we roll over them after they have processed some transactions, we check
-            // if the next index is greater than 3.
-            Ok(merkle_tree.next_index() >= threshold && merkle_tree.next_index() > 3)
+pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
+    rpc: &mut R,
+    tree_pubkey: Pubkey,
+    tree_type: TreeType,
+) -> Result<bool, ForesterError> {
+    debug!(
+        "Checking if tree is ready for rollover: {:?}",
+        tree_pubkey.to_string()
+    );
+
+    let account = match tree_type {
+        TreeType::State => TreeAccount::State(
+            rpc.get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
+                .await?
+                .unwrap(),
+        ),
+        TreeType::Address => TreeAccount::Address(
+            rpc.get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
+                .await?
+                .unwrap(),
+        ),
+    };
+
+    let is_already_rolled_over = match &account {
+        TreeAccount::State(acc) => acc.metadata.rollover_metadata.rolledover_slot != u64::MAX,
+        TreeAccount::Address(acc) => acc.metadata.rollover_metadata.rolledover_slot != u64::MAX,
+    };
+
+    if is_already_rolled_over {
+        return Ok(false);
+    }
+
+    let tree_info = get_tree_fullness(rpc, tree_pubkey, tree_type).await?;
+
+    match tree_type {
+        TreeType::State => {
+            Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 1)
+        }
+        TreeType::Address => {
+            Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
     }
 }

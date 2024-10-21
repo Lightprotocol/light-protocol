@@ -6,6 +6,7 @@ use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
 use std::sync::Arc;
 use tracing::{debug, warn};
 
+use crate::rollover::get_tree_fullness;
 use crate::{
     cli::StatusArgs,
     metrics::{push_metrics, register_metrics},
@@ -148,13 +149,34 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
 
     debug!("Fetching trees...");
     debug!("RPC URL: {}", config.external_services.rpc_url);
-    let rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+    let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
     let trees = fetch_trees(&rpc).await.unwrap();
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
     run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
     run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
+    for tree in &trees {
+        let tree_type = format!(
+            "[{}]",
+            match tree.tree_type {
+                TreeType::State => "State",
+                TreeType::Address => "Address",
+            }
+        );
+        let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
+            .await
+            .unwrap();
+        let fullness_percentage = tree_info.fullness * 100.0;
+        println!(
+            "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
+            tree_type,
+            &tree.merkle_tree,
+            format!("{:.2}%", fullness_percentage),
+            tree_info.next_index,
+            tree_info.threshold
+        );
+    }
 
     push_metrics(&config.external_services.pushgateway_url)
         .await
