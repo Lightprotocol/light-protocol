@@ -1216,6 +1216,8 @@ mod tests {
             if inclusion.is_none() {
                 let mut included = false;
 
+                // TODO: insert into batch regardless if the batch is already
+                // part of the Merkle tree (don't skip the check though)
                 for value_vec in output_zero_copy_account.value_vecs.iter_mut() {
                     for value in value_vec.iter_mut() {
                         // TODO: test double spending
