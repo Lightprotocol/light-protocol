@@ -42,9 +42,11 @@ func runCli() {
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "[Non-inclusion]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "[Non-inclusion]: number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "append-tree-height", Usage: "[Batch append]: tree height", Required: false},
-					&cli.UintFlag{Name: "append-batch-size", Usage: "[Batch append]: barch size", Required: false},
+					&cli.UintFlag{Name: "append-batch-size", Usage: "[Batch append]: batch size", Required: false},
 					&cli.UintFlag{Name: "update-tree-height", Usage: "[Batch update]: tree height", Required: false},
 					&cli.UintFlag{Name: "update-batch-size", Usage: "[Batch update]: batch size", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-tree-height", Usage: "[Batch address append]: tree height", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-batch-size", Usage: "[Batch address append]: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
@@ -62,6 +64,8 @@ func runCli() {
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
 					batchUpdateTreeHeight := uint32(context.Uint("update-tree-height"))
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
+					batchAddressAppendTreeHeight := uint32(context.Uint("batch-address-append-tree-height"))
+					batchAddressAppendBatchSize := uint32(context.Uint("batch-address-append-batch-size"))
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
 						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
@@ -87,6 +91,10 @@ func runCli() {
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdate {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
+					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppend {
+						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
+					}
+
 					logging.Logger().Info().Msg("Running setup")
 					var err error
 					if circuit == prover.BatchAppend {
@@ -99,6 +107,13 @@ func runCli() {
 					} else if circuit == prover.BatchUpdate {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchUpdate, batchUpdateTreeHeight, batchUpdateBatchSize)
+						if err != nil {
+							return err
+						}
+						err = writeProvingSystem(system, path, pathVkey)
+					} else if circuit == prover.BatchAddressAppend {
+						var system *prover.ProvingSystemV2
+						system, err = prover.SetupCircuitV2(prover.BatchAddressAppend, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 						if err != nil {
 							return err
 						}
@@ -133,6 +148,8 @@ func runCli() {
 					&cli.UintFlag{Name: "append-batch-size", Usage: "[Batch append]: batch size", Required: false},
 					&cli.UintFlag{Name: "update-tree-height", Usage: "[Batch update]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "update-batch-size", Usage: "[Batch update]: batch size", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-tree-height", Usage: "[Batch address append]: tree height", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-batch-size", Usage: "[Batch address append]: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
@@ -149,6 +166,8 @@ func runCli() {
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
 					batchUpdateTreeHeight := uint32(context.Uint("update-tree-height"))
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
+					batchAddressAppendTreeHeight := uint32(context.Uint("batch-address-append-tree-height"))
+					batchAddressAppendBatchSize := uint32(context.Uint("batch-address-append-batch-size"))
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
 						return fmt.Errorf("[Inclusion]: tree height and number of compressed accounts must be provided")
@@ -175,6 +194,18 @@ func runCli() {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
 
+					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppend {
+						return fmt.Errorf("[Batch append]: tree height and batch size must be provided")
+					}
+
+					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdate {
+						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
+					}
+
+					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppend {
+						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
+					}
+
 					logging.Logger().Info().Msg("Building R1CS")
 
 					var cs constraint.ConstraintSystem
@@ -190,6 +221,8 @@ func runCli() {
 						cs, err = prover.R1CSBatchAppend(batchAppendTreeHeight, batchAppendBatchSize)
 					} else if circuit == prover.BatchUpdate {
 						cs, err = prover.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
+					} else if circuit == prover.BatchAddressAppend {
+						cs, err = prover.R1CSBatchAddressAppend(batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -230,6 +263,8 @@ func runCli() {
 					&cli.UintFlag{Name: "append-batch-size", Usage: "[Batch append]: batch size", Required: false},
 					&cli.UintFlag{Name: "update-tree-height", Usage: "[Batch update]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "update-batch-size", Usage: "[Batch update]: batch size", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-tree-height", Usage: "[Batch address append]: tree height", Required: false},
+					&cli.UintFlag{Name: "batch-address-append-batch-size", Usage: "[Batch address append]: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
@@ -249,6 +284,8 @@ func runCli() {
 					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
 					batchUpdateTreeHeight := uint32(context.Uint("update-tree-height"))
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
+					batchAddressAppendTreeHeight := uint32(context.Uint("batch-address-append-tree-height"))
+					batchAddressAppendBatchSize := uint32(context.Uint("batch-address-append-batch-size"))
 
 					var err error
 
@@ -270,6 +307,16 @@ func runCli() {
 						}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
+						if err != nil {
+							return err
+						}
+						err = writeProvingSystem(system, path, "")
+					} else if circuit == "-address-append" {
+						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
+							return fmt.Errorf("append tree height and batch size must be provided")
+						}
+						var system *prover.ProvingSystemV2
+						system, err = prover.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
@@ -396,6 +443,7 @@ func runCli() {
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.BoolFlag{Name: "update", Usage: "Run batch update circuit", Required: false},
+					&cli.BoolFlag{Name: "address-append", Usage: "Run batch address append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -448,6 +496,7 @@ func runCli() {
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.BoolFlag{Name: "update", Usage: "Run batch update circuit", Required: false},
+					&cli.BoolFlag{Name: "address-append", Usage: "Run batch address append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 					&cli.StringFlag{
@@ -569,6 +618,24 @@ func runCli() {
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.Height && provingSystem.BatchSize == params.BatchSize {
 								proof, err = provingSystem.ProveBatchUpdate(&params)
+								if err != nil {
+									return err
+								}
+								r, _ := json.Marshal(&proof)
+								fmt.Println(string(r))
+								break
+							}
+						}
+					} else if context.Bool("address-append") {
+						var params prover.BatchAddressTreeAppendParameters
+						err = json.Unmarshal(inputsBytes, &params)
+						if err != nil {
+							return err
+						}
+
+						for _, provingSystem := range psv2 {
+							if provingSystem.TreeHeight == params.TreeHeight && provingSystem.BatchSize == params.BatchSize {
+								proof, err = provingSystem.ProveBatchAddressAppend(&params)
 								if err != nil {
 									return err
 								}
@@ -769,6 +836,7 @@ func getKeysByArgs(context *cli.Context, isTestMode bool) ([]string, error) {
 	var nonInclusion = context.Bool("non-inclusion")
 	var batchAppend = context.Bool("append")
 	var batchUpdate = context.Bool("update")
+	var batchAddressAppend = context.Bool("address-append")
 	var circuitTypes []prover.CircuitType = make([]prover.CircuitType, 0)
 
 	if batchAppend {
@@ -777,6 +845,10 @@ func getKeysByArgs(context *cli.Context, isTestMode bool) ([]string, error) {
 
 	if batchUpdate {
 		circuitTypes = append(circuitTypes, prover.BatchUpdate)
+	}
+
+	if batchAddressAppend {
+		circuitTypes = append(circuitTypes, prover.BatchAddressAppend)
 	}
 
 	if inclusion {

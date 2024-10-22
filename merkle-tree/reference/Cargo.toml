@@ -11,3 +11,4 @@ light-bounded-vec = { path = "../bounded-vec", version = "1.1.0" }
 light-hasher = { path = "../hasher", version = "1.1.0" }
 thiserror = "1.0"
 log = "0.4.20"
+num-bigint = "0.4"

@@ -12,7 +12,7 @@ func TestSubtrees(t *testing.T) {
 	assert := test.NewAssert(t)
 	treeDepth := 4
 	tree := NewTree(int(treeDepth))
-	subtrees := GetRightmostSubtrees(&tree, int(treeDepth))
+	subtrees := tree.GetRightmostSubtrees(int(treeDepth))
 	fmt.Println("Initial subtrees:")
 	for i := 1; i < len(subtrees); i++ {
 		subtree := [32](byte)(subtrees[i].Bytes())
@@ -23,7 +23,7 @@ func TestSubtrees(t *testing.T) {
 	leaf_0 := new(big.Int).SetInt64(1)
 	tree.Update(0, *leaf_0)
 	tree.Update(1, *leaf_0)
-	subtrees = GetRightmostSubtrees(&tree, int(treeDepth))
+	subtrees = tree.GetRightmostSubtrees(int(treeDepth))
 	fmt.Println("0 Next subtrees:")
 	for i := 0; i < len(subtrees); i++ {
 		subtree := subtrees[i]
@@ -34,7 +34,7 @@ func TestSubtrees(t *testing.T) {
 	leaf_1 := new(big.Int).SetInt64(2)
 	tree.Update(2, *leaf_1)
 	tree.Update(3, *leaf_1)
-	subtrees = GetRightmostSubtrees(&tree, int(treeDepth))
+	subtrees = tree.GetRightmostSubtrees(int(treeDepth))
 	fmt.Println("1 Next subtrees:")
 	for i := 0; i < len(subtrees); i++ {
 		subtree := subtrees[i]

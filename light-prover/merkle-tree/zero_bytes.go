@@ -1,4 +1,4 @@
-package prover
+package merkle_tree
 
 var ZERO_BYTES = [33][32]byte{
 	{

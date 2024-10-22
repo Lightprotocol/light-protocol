@@ -157,6 +157,10 @@ func runFullOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
 	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
 	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
+
+	t.Run("testBatchAddressAppendPath26_100", testBatchAddressAppendHappyPath26_100)
+	t.Run("testBatchAddressAppendPath26_500", testBatchAddressAppendHappyPath26_500)
+	t.Run("testBatchAddressAppendPath26_1000", testBatchAddressAppendHappyPath26_1000)
 }
 
 // runFullOnlyTests contains tests that should only run in lightweight mode
@@ -170,6 +174,11 @@ func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateWithPreviousState10_10", testBatchUpdateWithPreviousState10_10)
 	t.Run("testBatchUpdateWithSequentialFilling10_10", testBatchUpdateWithSequentialFilling10_10)
 	t.Run("testBatchUpdateInvalidInput10_10", testBatchUpdateInvalidInput10_10)
+
+	t.Run("testBatchAddressAppendHappyPath10_10", testBatchAddressAppendHappyPath10_10)
+	t.Run("testBatchAddressAppendWithSequentialFilling10_10", testBatchAddressAppendWithSequentialFilling10_10)
+	t.Run("testBatchAddressAppendWithPreviousState10_10", testBatchAddressAppendWithPreviousState10_10)
+	t.Run("testBatchAddressAppendInvalidInput10_10", testBatchAddressAppendInvalidInput10_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -704,4 +713,164 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	}
 
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
+}
+
+func testBatchAddressAppendHappyPath10_10(t *testing.T) {
+	treeDepth := uint32(10)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+	params := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, startIndex, nil, "")
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func testBatchAddressAppendWithSequentialFilling10_10(t *testing.T) {
+	treeDepth := uint32(10)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+	params := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, startIndex, nil, "")
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	// Verify sequential addressing
+	for i := uint32(0); i < batchSize-1; i++ {
+		if params.NewElements[i].Index >= params.NewElements[i+1].Index {
+			t.Errorf("Expected increasing indices, got %d >= %d", params.NewElements[i].Index, params.NewElements[i+1].Index)
+		}
+	}
+}
+
+func testBatchAddressAppendWithPreviousState10_10(t *testing.T) {
+	treeDepth := uint32(10)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+
+	// First batch
+	params1 := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, startIndex, nil, "")
+	jsonBytes1, err := params1.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal first batch JSON: %v", err)
+	}
+
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatalf("Failed to send first batch POST request: %v", err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		t.Fatalf("First batch: Expected status code %d, got %d", http.StatusOK, response1.StatusCode)
+	}
+
+	// Second batch with previous state
+	params2 := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, startIndex+batchSize, params1, "")
+	jsonBytes2, err := params2.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal second batch JSON: %v", err)
+	}
+
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatalf("Failed to send second batch POST request: %v", err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+
+	// Verify state continuity
+	if params2.OldRoot.Cmp(params1.NewRoot) != 0 {
+		t.Error("New root of first batch should match old root of second batch")
+	}
+}
+
+func testBatchAddressAppendInvalidInput10_10(t *testing.T) {
+	treeDepth := uint32(10)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+
+	// Test with invalid parameters
+	params := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, startIndex, nil, "invalid_tree")
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d for invalid input, got %d", http.StatusBadRequest, response.StatusCode)
+	}
+
+	body, _ := io.ReadAll(response.Body)
+	if !strings.Contains(string(body), "proving_error") {
+		t.Fatalf("Expected error message to contain 'proving_error', got: %s", string(body))
+	}
+}
+
+func runBatchAddressAppendTest(t *testing.T, treeDepth uint32, batchSize uint32) {
+	params := prover.BuildTestBatchAddressAppend(treeDepth, batchSize, 0, nil, "")
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	if params.NewRoot.Cmp(params.OldRoot) == 0 {
+		t.Error("Expected new root to be different from old root")
+	}
+
+	t.Logf("Successfully ran batch address update test with tree depth %d and batch size %d", treeDepth, batchSize)
+}
+
+func testBatchAddressAppendHappyPath26_100(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 100)
+}
+
+func testBatchAddressAppendHappyPath26_500(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 500)
+}
+
+func testBatchAddressAppendHappyPath26_1000(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 1000)
 }

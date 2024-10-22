@@ -155,6 +155,7 @@ func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
+
 	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.NextIndex, In3: gadget.LeafHigherRangeValue})
 }
 
@@ -183,11 +184,12 @@ type MerkleRootGadget struct {
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
+	currentHash := gadget.Hash
 	currentPath := api.ToBinary(gadget.Index, gadget.Height)
 	for i := 0; i < gadget.Height; i++ {
-		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
+		currentHash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: currentHash, Sibling: gadget.Path[i]})
 	}
-	return gadget.Hash
+	return currentHash
 }
 
 type MerkleRootUpdateGadget struct {
@@ -200,23 +202,20 @@ type MerkleRootUpdateGadget struct {
 }
 
 func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
-	// Verify the old root
-	currentRoot := abstractor.Call(api, MerkleRootGadget{
+	oldRoot := abstractor.Call(api, MerkleRootGadget{
 		Hash:   gadget.OldLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
 	})
-	api.AssertIsEqual(currentRoot, gadget.OldRoot)
+	api.AssertIsEqual(oldRoot, gadget.OldRoot)
 
-	// Calculate the new root
 	newRoot := abstractor.Call(api, MerkleRootGadget{
 		Hash:   gadget.NewLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
 	})
-
 	return newRoot
 }
 
@@ -300,6 +299,19 @@ func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []stri
 			keys = append(keys, keysDir+"update_26_500.key")
 			keys = append(keys, keysDir+"update_26_1000.key")
 		}
+	}
+
+	if IsCircuitEnabled(circuitTypes, BatchAddressAppend) {
+		if isTestMode {
+			keys = append(keys, keysDir+"address_append_10_10.key")
+		} else {
+			keys = append(keys, keysDir+"address_append_26_1.key")
+			keys = append(keys, keysDir+"address_append_26_10.key")
+			keys = append(keys, keysDir+"address_append_26_100.key")
+			keys = append(keys, keysDir+"address_append_26_500.key")
+			keys = append(keys, keysDir+"address_append_26_1000.key")
+		}
+
 	}
 
 	return keys
