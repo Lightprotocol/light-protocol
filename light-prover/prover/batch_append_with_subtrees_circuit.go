@@ -130,7 +130,7 @@ func (circuit *BatchAppendWithSubtreesCircuit) append(api frontend.API, leaf fro
 	for i := 0; i < int(circuit.TreeHeight); i++ {
 		isRight := indexBits[i]
 		subtrees[i] = api.Select(isRight, subtrees[i], currentNode)
-		sibling := api.Select(isRight, subtrees[i], circuit.getZeroValue(i))
+		sibling := api.Select(isRight, subtrees[i], getZeroValue(i))
 
 		currentNode = abstractor.Call(api, MerkleRootGadget{
 			Hash:   currentNode,

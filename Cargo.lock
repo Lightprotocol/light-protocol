@@ -3639,6 +3639,7 @@ dependencies = [
  "light-bounded-vec",
  "light-hasher",
  "log",
+ "num-bigint 0.4.6",
  "thiserror",
 ]
 
