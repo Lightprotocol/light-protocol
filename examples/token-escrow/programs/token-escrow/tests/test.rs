@@ -11,6 +11,7 @@
 // release compressed tokens
 
 use light_hasher::Poseidon;
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
@@ -50,7 +51,14 @@ async fn test_escrow_pda() {
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let test_indexer = TestIndexer::init_from_env(&payer, &env, true, false);
+    let test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        }),
+    );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
 

@@ -12,37 +12,46 @@ const KEYS_DIR = "proving-keys/";
 
 export async function killProver() {
   await killProcess(getProverNameByArch());
-  // Temporary fix for the case when prover is instantiated via prover.sh:
   await killProcess(LIGHT_PROVER_PROCESS_NAME);
 }
 
 export async function startProver(
   proverPort: number,
-  proveCompressedAccounts: boolean,
-  proveNewAddresses: boolean,
-  runMode: string = "full",
+  runMode: string | undefined,
+  circuits: string[] | undefined = [],
 ) {
-  if (!proveCompressedAccounts && !proveNewAddresses) {
-    console.log(
-      "No flags provided. Please provide at least one flag to start the prover.",
-    );
-    process.exit(1);
-  }
   console.log("Kill existing prover process...");
   await killProver();
   await killProcessByPort(proverPort);
 
   const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
   const args = ["start"];
-  args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
-  args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
-  args.push("--run-mode", runMode);
-  console.log(`Starting prover in ${runMode} mode...`);
+  if (runMode != null) {
+    args.push("--run-mode", runMode);
+  }
+
+  for (const circuit of circuits) {
+    console.log(`Adding circuit: ${circuit}`);
+    args.push("--circuit", circuit);
+  }
+
+  if (runMode != null) {
+    console.log(`Starting prover in ${runMode} mode...`);
+  } else if (circuits && circuits.length > 0) {
+    console.log(`Starting prover with circuits: ${circuits.join(", ")}...`);
+  }
+
+  if ((!circuits || circuits.length === 0) && runMode == null) {
+    runMode = "rpc";
+    args.push("--run-mode", runMode);
+    console.log(`Starting prover with fallback ${runMode} mode...`);
+  }
+
   spawnBinary(getProverPathByArch(), args);
   await waitForServers([{ port: proverPort, path: "/" }]);
-  console.log(`Prover started successfully in ${runMode} mode!`);
+  console.log(`Prover started successfully!`);
 }
 
 export function getProverNameByArch(): string {

@@ -139,15 +139,15 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch circuitType {
-	case prover.Inclusion:
+	case prover.InclusionCircuitType:
 		proof, proofError = handler.inclusionProof(buf)
-	case prover.NonInclusion:
+	case prover.NonInclusionCircuitType:
 		proof, proofError = handler.nonInclusionProof(buf)
-	case prover.Combined:
+	case prover.CombinedCircuitType:
 		proof, proofError = handler.combinedProof(buf)
-	case prover.BatchAppend:
+	case prover.BatchAppendCircuitType:
 		proof, proofError = handler.batchAppendProof(buf)
-	case prover.BatchUpdate:
+	case prover.BatchUpdateCircuitType:
 		proof, proofError = handler.batchUpdateProof(buf)
 	default:
 		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
@@ -188,7 +188,7 @@ func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error)
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppend && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
+		if provingSystem.CircuitType == prover.BatchAppendCircuitType && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
 			ps = provingSystem
 			break
 		}
@@ -220,7 +220,7 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchUpdate && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+		if provingSystem.CircuitType == prover.BatchUpdateCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
 			break
 		}

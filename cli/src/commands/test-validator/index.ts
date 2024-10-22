@@ -24,16 +24,6 @@ class SetupCommand extends Command {
         "Runs a test validator without initialized light system accounts.",
       default: false,
     }),
-    "prove-compressed-accounts": Flags.boolean({
-      description: "Enable proving of compressed accounts.",
-      default: true,
-      exclusive: ["skip-prover"],
-    }),
-    "prove-new-addresses": Flags.boolean({
-      description: "Enable proving of new addresses.",
-      default: true,
-      exclusive: ["skip-prover"],
-    }),
     "relax-indexer-version-constraint": Flags.boolean({
       description:
         "Disables indexer version check. Only use if you know what you are doing.",
@@ -65,9 +55,31 @@ class SetupCommand extends Command {
       exclusive: ["skip-prover"],
     }),
     "prover-run-mode": Flags.string({
-      description: "Specify the running mode for the prover (test or full)",
-      options: ["test", "full"] as const,
-      default: "full",
+      description:
+        "Specify the running mode for the prover (forester, forester-test, rpc, or full)",
+      options: [
+        "rpc",
+        "forester",
+        "forester-test",
+        "full",
+        "full-test",
+      ] as const,
+      required: false,
+      exclusive: ["skip-prover"],
+    }),
+    circuit: Flags.string({
+      description: "Specify individual circuits to enable.",
+      options: [
+        "inclusion",
+        "non-inclusion",
+        "combined",
+        "append",
+        "update",
+        "append-test",
+        "update-test",
+      ],
+      multiple: true,
+      required: false,
       exclusive: ["skip-prover"],
     }),
     "limit-ledger-size": Flags.integer({
@@ -94,6 +106,15 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
 
+    if (
+      !flags["skip-prover"] &&
+      !flags["prover-run-mode"] &&
+      !flags["circuit"]
+    ) {
+      this.log("Please specify --prover-run-mode or --circuit.");
+      return;
+    }
+
     if (flags["stop"] === true) {
       await stopTestEnv({
         indexer: !flags["skip-indexer"],
@@ -110,11 +131,18 @@ class SetupCommand extends Command {
         gossipHost: flags["gossip-host"],
         indexerPort: flags["indexer-port"],
         proverPort: flags["prover-port"],
-        proveCompressedAccounts: flags["prove-compressed-accounts"],
-        proveNewAddresses: flags["prove-new-addresses"],
         prover: !flags["skip-prover"],
         skipSystemAccounts: flags["skip-system-accounts"],
-        proverRunMode: flags["prover-run-mode"] as "test" | "full" | undefined,
+        proverRunMode: flags["prover-run-mode"] as
+          | "inclusion"
+          | "non-inclusion"
+          | "forester"
+          | "forester-test"
+          | "rpc"
+          | "full"
+          | "full-test"
+          | undefined,
+        circuits: flags["circuit"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }

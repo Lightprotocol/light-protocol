@@ -29,9 +29,12 @@ func proveEndpoint() string {
 
 func StartServer(isLightweight bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
-	var circuitTypes = []prover.CircuitType{prover.Inclusion, prover.NonInclusion, prover.Combined, prover.BatchAppend, prover.BatchUpdate}
-	var keys = prover.GetKeys("./proving-keys/", circuitTypes, isLightweight)
-
+	var keys []string
+	if isLightweight {
+		keys = prover.GetKeys("./proving-keys/", prover.FullTest, []string{})
+	} else {
+		keys = prover.GetKeys("./proving-keys/", prover.Full, []string{})
+	}
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
 
@@ -163,13 +166,13 @@ func runFullOnlyTests(t *testing.T) {
 func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
 
-	t.Run("testBatchAppendHappyPath10_10", testBatchAppendHappyPath10_10)
-	t.Run("testBatchAppendWithPreviousState10_10", testBatchAppendWithPreviousState10_10)
+	t.Run("testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10)
+	t.Run("testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10)
 
-	t.Run("testBatchUpdateHappyPath10_10", testBatchUpdateHappyPath10_10)
-	t.Run("testBatchUpdateWithPreviousState10_10", testBatchUpdateWithPreviousState10_10)
-	t.Run("testBatchUpdateWithSequentialFilling10_10", testBatchUpdateWithSequentialFilling10_10)
-	t.Run("testBatchUpdateInvalidInput10_10", testBatchUpdateInvalidInput10_10)
+	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
+	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
+	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
+	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -500,8 +503,8 @@ func testBatchAppendHappyPath26_1000(t *testing.T) {
 	}
 }
 
-func testBatchAppendHappyPath10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchAppendHappyPath26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
@@ -549,8 +552,8 @@ func testBatchAppendWithPreviousState26_100(t *testing.T) {
 	}
 }
 
-func testBatchAppendWithPreviousState10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchAppendWithPreviousState26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 
@@ -578,8 +581,8 @@ func testBatchAppendWithPreviousState10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithSequentialFilling10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateWithSequentialFilling26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, &startIndex)
@@ -605,8 +608,8 @@ func testBatchUpdateWithSequentialFilling10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithPreviousState10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateWithPreviousState26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 
 	// First batch
@@ -637,8 +640,8 @@ func testBatchUpdateWithPreviousState10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateInvalidInput10_10(t *testing.T) {
-	treeDepth := uint32(10)
+func testBatchUpdateInvalidInput26_10(t *testing.T) {
+	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
 
@@ -662,8 +665,8 @@ func testBatchUpdateInvalidInput10_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateHappyPath10_10(t *testing.T) {
-	runBatchUpdateTest(t, 10, 10)
+func testBatchUpdateHappyPath26_10(t *testing.T) {
+	runBatchUpdateTest(t, 26, 10)
 }
 
 func testBatchUpdateHappyPath26_100(t *testing.T) {

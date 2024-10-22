@@ -8,20 +8,20 @@ import (
 type CircuitType string
 
 const (
-	Combined     CircuitType = "combined"
-	Inclusion    CircuitType = "inclusion"
-	NonInclusion CircuitType = "non-inclusion"
-	BatchAppend  CircuitType = "append"
-	BatchUpdate  CircuitType = "update"
+	CombinedCircuitType     CircuitType = "combined"
+	InclusionCircuitType    CircuitType = "inclusion"
+	NonInclusionCircuitType CircuitType = "non-inclusion"
+	BatchAppendCircuitType  CircuitType = "append"
+	BatchUpdateCircuitType  CircuitType = "update"
 )
 
 func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
 	switch circuit {
-	case Inclusion:
+	case InclusionCircuitType:
 		return SetupInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
-	case NonInclusion:
+	case NonInclusionCircuitType:
 		return SetupNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-	case Combined:
+	case CombinedCircuitType:
 		return SetupCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
@@ -30,9 +30,9 @@ func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNu
 
 func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
 	switch circuit {
-	case BatchAppend:
+	case BatchAppendCircuitType:
 		return SetupBatchAppend(height, batchSize)
-	case BatchUpdate:
+	case BatchUpdateCircuitType:
 		return SetupBatchUpdate(height, batchSize)
 	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
@@ -54,24 +54,15 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
-		return Combined, nil
+		return CombinedCircuitType, nil
 	} else if hasInputCompressedAccounts {
-		return Inclusion, nil
+		return InclusionCircuitType, nil
 	} else if hasNewAddresses {
-		return NonInclusion, nil
+		return NonInclusionCircuitType, nil
 	} else if hasOldSubTreeHashChain && hasNewSubTreeHashChain && hasLeaves {
-		return BatchAppend, nil
+		return BatchAppendCircuitType, nil
 	} else if hasNewMerkleProofs {
-		return BatchUpdate, nil
+		return BatchUpdateCircuitType, nil
 	}
 	return "", fmt.Errorf("unknown schema")
-}
-
-func IsCircuitEnabled(s []CircuitType, e CircuitType) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

@@ -1,13 +1,9 @@
 package prover
 
 import (
-	"fmt"
-	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
 	"math/big"
-	"os"
 
-	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
@@ -218,89 +214,4 @@ func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} 
 	})
 
 	return newRoot
-}
-
-// Trusted setup utility functions
-// Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L19
-func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
-	logging.Logger().Info().Msg("start reading proving key")
-	pk = groth16.NewProvingKey(ecc.BN254)
-	f, _ := os.Open(filepath)
-	_, err = pk.ReadFrom(f)
-	if err != nil {
-		return pk, fmt.Errorf("read file error")
-	}
-	err = f.Close()
-	if err != nil {
-		return nil, err
-	}
-	return pk, nil
-}
-
-// Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L32
-func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err error) {
-	logging.Logger().Info().Msg("start reading verifying key")
-	verifyingKey = groth16.NewVerifyingKey(ecc.BN254)
-	f, _ := os.Open(filepath)
-	_, err = verifyingKey.ReadFrom(f)
-	if err != nil {
-		return verifyingKey, fmt.Errorf("read file error")
-	}
-	err = f.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return verifyingKey, nil
-}
-func GetKeys(keysDir string, circuitTypes []CircuitType, isTestMode bool) []string {
-	var keys []string
-
-	if IsCircuitEnabled(circuitTypes, Inclusion) {
-		keys = append(keys, keysDir+"inclusion_26_1.key")
-		keys = append(keys, keysDir+"inclusion_26_2.key")
-		keys = append(keys, keysDir+"inclusion_26_3.key")
-		keys = append(keys, keysDir+"inclusion_26_4.key")
-		keys = append(keys, keysDir+"inclusion_26_8.key")
-	}
-	if IsCircuitEnabled(circuitTypes, NonInclusion) {
-		keys = append(keys, keysDir+"non-inclusion_26_1.key")
-		keys = append(keys, keysDir+"non-inclusion_26_2.key")
-	}
-	if IsCircuitEnabled(circuitTypes, Combined) {
-		keys = append(keys, keysDir+"combined_26_1_1.key")
-		keys = append(keys, keysDir+"combined_26_1_2.key")
-		keys = append(keys, keysDir+"combined_26_2_1.key")
-		keys = append(keys, keysDir+"combined_26_2_2.key")
-		keys = append(keys, keysDir+"combined_26_3_1.key")
-		keys = append(keys, keysDir+"combined_26_3_2.key")
-		keys = append(keys, keysDir+"combined_26_4_1.key")
-		keys = append(keys, keysDir+"combined_26_4_2.key")
-	}
-
-	if IsCircuitEnabled(circuitTypes, BatchAppend) {
-		if isTestMode {
-			keys = append(keys, keysDir+"append_10_10.key")
-		} else {
-			keys = append(keys, keysDir+"append_26_1.key")
-			keys = append(keys, keysDir+"append_26_10.key")
-			keys = append(keys, keysDir+"append_26_100.key")
-			keys = append(keys, keysDir+"append_26_500.key")
-			keys = append(keys, keysDir+"append_26_1000.key")
-		}
-	}
-
-	if IsCircuitEnabled(circuitTypes, BatchUpdate) {
-		if isTestMode {
-			keys = append(keys, keysDir+"update_10_10.key")
-		} else {
-			keys = append(keys, keysDir+"update_26_1.key")
-			keys = append(keys, keysDir+"update_26_10.key")
-			keys = append(keys, keysDir+"update_26_100.key")
-			keys = append(keys, keysDir+"update_26_500.key")
-			keys = append(keys, keysDir+"update_26_1000.key")
-		}
-	}
-
-	return keys
 }

@@ -4,6 +4,7 @@ use anchor_lang::AnchorDeserialize;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_system_program::errors::SystemProgramError;
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
@@ -50,7 +51,15 @@ async fn only_test_create_pda() {
     let (mut rpc, env) =
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
 
     let seed = [1u8; 32];
     let data = [2u8; 31];
@@ -289,7 +298,15 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
     mint_tokens_helper(
@@ -453,7 +470,15 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
     // Failing test 1 invalid address Merkle tree ----------------------------------------------
     let program_owned_address_merkle_tree_keypair = Keypair::new();
     let program_owned_address_queue_keypair = Keypair::new();

@@ -2,12 +2,13 @@ use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIE
 use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::run_pipeline;
-use forester::utils::{get_protocol_config, LightValidatorConfig};
+use forester::utils::get_protocol_config;
 use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use forester_utils::registry::register_test_forester;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
@@ -33,9 +34,11 @@ use test_utils::*;
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        enable_prover: true,
         wait_time: 10,
-        ..LightValidatorConfig::default()
+        prover_config: Some(ProverConfig {
+            run_mode: Some(ProverMode::Forester),
+            circuits: vec![],
+        }),
     }))
     .await;
 
@@ -98,7 +101,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
 
     let config = Arc::new(config);
     let indexer: TestIndexer<SolanaRpcConnection> =
-        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, false, false).await;
+        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
 
     let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
@@ -263,9 +266,11 @@ pub async fn assert_queue_len(
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        enable_prover: true,
-        wait_time: 10,
-        ..LightValidatorConfig::default()
+        wait_time: 15,
+        prover_config: Some(ProverConfig {
+            run_mode: Some(ProverMode::Forester),
+            circuits: vec![],
+        }),
     }))
     .await;
     let forester_keypair1 = Keypair::new();
@@ -353,7 +358,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     let config2 = Arc::new(config2);
 
     let indexer: TestIndexer<SolanaRpcConnection> =
-        TestIndexer::init_from_env(&config1.payer_keypair, &env_accounts, false, false).await;
+        TestIndexer::init_from_env(&config1.payer_keypair, &env_accounts, None).await;
 
     let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
@@ -489,7 +494,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         panic!("Test timed out after {:?}", TIMEOUT_DURATION);
     }
 
-    assert_trees_are_rollledover(
+    assert_trees_are_rolledover(
         &pool,
         &state_tree_with_rollover_threshold_0,
         &address_tree_with_rollover_threshold_0,
@@ -529,7 +534,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     service_handle1.await.unwrap().unwrap();
     service_handle2.await.unwrap().unwrap();
 }
-pub async fn assert_trees_are_rollledover(
+pub async fn assert_trees_are_rolledover(
     pool: &SolanaRpcPool<SolanaRpcConnection>,
     state_tree_with_rollover_threshold_0: &Pubkey,
     address_tree_with_rollover_threshold_0: &Pubkey,
@@ -598,9 +603,11 @@ async fn test_epoch_double_registration() {
     println!("*****************************************************************");
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        enable_prover: true,
         wait_time: 10,
-        ..LightValidatorConfig::default()
+        prover_config: Some(ProverConfig {
+            run_mode: Some(ProverMode::Forester),
+            circuits: vec![],
+        }),
     }))
     .await;
 
@@ -663,7 +670,7 @@ async fn test_epoch_double_registration() {
     let config = Arc::new(config);
 
     let indexer: TestIndexer<SolanaRpcConnection> =
-        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, false, false).await;
+        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
 
     let indexer = Arc::new(Mutex::new(indexer));
 
@@ -694,7 +701,7 @@ async fn test_epoch_double_registration() {
     let current_epoch = protocol_config.get_current_epoch(solana_slot);
 
     let forester_epoch_pda_address =
-        get_forester_epoch_pda_from_authority(&&config.derivation_pubkey, current_epoch).0;
+        get_forester_epoch_pda_from_authority(&config.derivation_pubkey, current_epoch).0;
 
     let forester_epoch_pda = rpc
         .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_address)
