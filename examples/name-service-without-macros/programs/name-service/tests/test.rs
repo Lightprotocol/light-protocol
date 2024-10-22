@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
@@ -8,13 +8,11 @@ use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeA
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_info::LightAccountInfo;
-use light_sdk::address::{derive_address, derive_address_seed, NewAddressParams};
+use light_sdk::address::{derive_address, derive_address_seed};
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
 use light_sdk::inputs::LightInputs;
-use light_sdk::merkle_context::{
-    pack_merkle_context, AddressMerkleContext, MerkleContext, RemainingAccounts,
-};
+use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
@@ -55,13 +53,6 @@ async fn test_name_service() {
 
     let mut remaining_accounts = RemainingAccounts::default();
 
-    let merkle_context = MerkleContext {
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        leaf_index: 0,
-        queue_index: None,
-    };
-
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
@@ -88,7 +79,6 @@ async fn test_name_service() {
         &mut remaining_accounts,
         &payer,
         &address,
-        &address_seed,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -107,7 +97,6 @@ async fn test_name_service() {
             &mut remaining_accounts,
             &payer,
             &address,
-            &address_seed,
             &account_compression_authority,
             &registered_program_pda,
             &Pubkey::new_unique(),
@@ -281,7 +270,6 @@ async fn create_record<R>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-    address_seed: &[u8; 32],
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
