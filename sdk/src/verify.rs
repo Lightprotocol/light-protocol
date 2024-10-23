@@ -263,7 +263,8 @@ pub fn verify_compressed_accounts<'info, T>(
     >,
     proof: Option<ProofRpcResult>,
     light_accounts: &[LightAccount<T>],
-    lamports: Option<u64>,
+    compress_or_decompress_lamports: Option<u64>,
+    is_compress: bool,
     cpi_context: Option<CompressedCpiContext>,
     program_id: &Pubkey,
 ) -> Result<()>
@@ -287,7 +288,6 @@ where
             new_address_params.push(new_address_param);
         }
         if let Some(input_account) = light_account.input_compressed_account(program_id) {
-            msg!("input acc: {:?}", input_account);
             input_compressed_accounts_with_merkle_context.push(input_account);
         }
         if let Some(output_account) = light_account.output_compressed_account(program_id)? {
@@ -301,8 +301,8 @@ where
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts,
-        compress_or_decompress_lamports: lamports,
-        is_compress: false,
+        compress_or_decompress_lamports,
+        is_compress,
         cpi_context,
     };
 

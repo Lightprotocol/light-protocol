@@ -25,7 +25,7 @@ pub mod name_service {
         name: String,
         rdata: RData,
     ) -> Result<()> {
-        let inputs = LightInputs::serialize(&inputs)?;
+        let inputs = LightInputs::deserialize(&inputs)?;
         let mut light_accounts = LightCreateRecord::try_light_accounts(&inputs.accounts)?;
 
         light_accounts.record.derive_address(
@@ -43,6 +43,7 @@ pub mod name_service {
             inputs.proof,
             &[light_accounts.record],
             None,
+            false,
             None,
             &crate::ID,
         )?;
@@ -55,7 +56,7 @@ pub mod name_service {
         inputs: Vec<u8>,
         new_rdata: RData,
     ) -> Result<()> {
-        let inputs = LightInputs::serialize(&inputs)?;
+        let inputs = LightInputs::deserialize(&inputs)?;
         let mut light_accounts = LightCreateRecord::try_light_accounts(&inputs.accounts)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
@@ -69,6 +70,7 @@ pub mod name_service {
             inputs.proof,
             &[light_accounts.record],
             None,
+            false,
             None,
             &crate::ID,
         )?;
@@ -80,7 +82,7 @@ pub mod name_service {
         ctx: Context<'_, '_, '_, 'info, DeleteRecord<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs = LightInputs::serialize(&inputs)?;
+        let inputs = LightInputs::deserialize(&inputs)?;
         let light_accounts = LightDeleteRecord::try_light_accounts(&inputs.accounts)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
@@ -92,6 +94,7 @@ pub mod name_service {
             inputs.proof,
             &[light_accounts.record],
             None,
+            false,
             None,
             &crate::ID,
         )?;

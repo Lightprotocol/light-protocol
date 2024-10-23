@@ -10,7 +10,7 @@ pub struct LightInputs {
 }
 
 impl LightInputs {
-    pub fn serialize(bytes: &[u8]) -> Result<Self, io::Error> {
+    pub fn deserialize(bytes: &[u8]) -> Result<Self, io::Error> {
         let mut inputs = Cursor::new(bytes);
 
         let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
@@ -19,7 +19,7 @@ impl LightInputs {
         Ok(LightInputs { proof, accounts })
     }
 
-    pub fn deserialize(&self) -> Result<Vec<u8>, io::Error> {
+    pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         let mut bytes = Vec::new();
         self.proof.serialize(&mut bytes)?;
         self.accounts.serialize(&mut bytes)?;

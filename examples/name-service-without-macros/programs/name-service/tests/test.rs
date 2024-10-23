@@ -304,7 +304,7 @@ where
         proof: Some(rpc_result),
         accounts: Some(vec![account]),
     };
-    let inputs = inputs.deserialize().unwrap();
+    let inputs = inputs.serialize().unwrap();
     let instruction_data = name_service::instruction::CreateRecord {
         inputs,
         name: name.to_string(),
@@ -377,7 +377,7 @@ where
         proof: Some(rpc_result),
         accounts: Some(vec![compressed_account]),
     };
-    let inputs = inputs.deserialize().unwrap();
+    let inputs = inputs.serialize().unwrap();
     let instruction_data = name_service::instruction::UpdateRecord {
         inputs,
         new_rdata: new_rdata.clone(),
@@ -448,7 +448,7 @@ where
         proof: Some(rpc_result),
         accounts: Some(vec![compressed_account]),
     };
-    let inputs = inputs.deserialize().unwrap();
+    let inputs = inputs.serialize().unwrap();
     let instruction_data = name_service::instruction::DeleteRecord { inputs };
 
     let cpi_signer = find_cpi_signer(&name_service::ID);
