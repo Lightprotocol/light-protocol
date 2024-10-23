@@ -7,7 +7,7 @@ use light_sdk::account_info::LightAccountInfo;
 use light_sdk::{
     compressed_account::{LightAccount, LightAccounts, OutputCompressedAccountWithPackedContext},
     error::LightSdkError,
-    inputs::LightInputs,
+    inputs::LightInstructionData,
     light_system_accounts,
     verify::verify_compressed_accounts,
     LightDiscriminator, LightHasher, LightTraits,
@@ -25,7 +25,7 @@ pub mod name_service {
         name: String,
         rdata: RData,
     ) -> Result<()> {
-        let inputs = LightInputs::deserialize(&inputs)?;
+        let inputs = LightInstructionData::deserialize(&inputs)?;
         let mut light_accounts = LightCreateRecord::try_light_accounts(&inputs.accounts)?;
 
         light_accounts.record.derive_address(
@@ -56,7 +56,7 @@ pub mod name_service {
         inputs: Vec<u8>,
         new_rdata: RData,
     ) -> Result<()> {
-        let inputs = LightInputs::deserialize(&inputs)?;
+        let inputs = LightInstructionData::deserialize(&inputs)?;
         let mut light_accounts = LightCreateRecord::try_light_accounts(&inputs.accounts)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
@@ -82,7 +82,7 @@ pub mod name_service {
         ctx: Context<'_, '_, '_, 'info, DeleteRecord<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs = LightInputs::deserialize(&inputs)?;
+        let inputs = LightInstructionData::deserialize(&inputs)?;
         let light_accounts = LightDeleteRecord::try_light_accounts(&inputs.accounts)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {

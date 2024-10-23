@@ -1,15 +1,10 @@
-use std::{
-    io::Cursor,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
-use anchor_lang::{context::Context, AnchorDeserialize, Bumps, Result};
+use anchor_lang::{context::Context, Bumps, Result};
 
 use crate::{
     account_info::LightAccountInfo,
-    address::PackedNewAddressParams,
-    compressed_account::{LightAccounts, PackedCompressedAccountWithMerkleContext},
-    proof::ProofRpcResult,
+    compressed_account::LightAccounts,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,

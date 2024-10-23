@@ -139,8 +139,6 @@ pub struct LightInitAccountInfo {
     pub lamports: Option<u64>,
     /// Merkle tree index.
     pub merkle_tree_index: u8,
-    /// Address parameters.
-    // pub address_params: PackedNewAddressParams,
     /// Address Merkle tree context.
     pub address_merkle_context: PackedAddressMerkleContext,
     /// Address Merkle tree root index.

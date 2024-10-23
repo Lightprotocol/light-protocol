@@ -11,7 +11,7 @@ use light_sdk::account_info::LightAccountInfo;
 use light_sdk::address::{derive_address, derive_address_seed};
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
-use light_sdk::inputs::LightInputs;
+use light_sdk::inputs::LightInstructionData;
 use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
@@ -300,7 +300,7 @@ where
         remaining_accounts,
     );
 
-    let inputs = LightInputs {
+    let inputs = LightInstructionData {
         proof: Some(rpc_result),
         accounts: Some(vec![account]),
     };
@@ -373,7 +373,7 @@ where
         remaining_accounts,
     );
 
-    let inputs = LightInputs {
+    let inputs = LightInstructionData {
         proof: Some(rpc_result),
         accounts: Some(vec![compressed_account]),
     };
@@ -444,7 +444,7 @@ where
         remaining_accounts,
     );
 
-    let inputs = LightInputs {
+    let inputs = LightInstructionData {
         proof: Some(rpc_result),
         accounts: Some(vec![compressed_account]),
     };
