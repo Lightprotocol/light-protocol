@@ -21,18 +21,21 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-
 #[program]
 pub mod account_compression {
 
     use errors::AccountCompressionErrorCode;
 
-    use self::{
-        initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
-        insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
-    };
+    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
 
     use super::*;
+
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        params: InitStateTreeAccountsInstructionData,
+    ) -> Result<()> {
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,

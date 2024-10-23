@@ -1,3 +1,4 @@
+use crate::utils::constants::DEFAULT_BATCH_SIZE;
 use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
@@ -7,7 +8,6 @@ use std::mem::ManuallyDrop;
 use std::u64;
 
 use super::batch::BatchState;
-use super::batched_merkle_tree::DEFAULT_BATCH_SIZE;
 use super::{AccessMetadata, RolloverMetadata};
 
 // TODO: implement update that verifies multiple proofs
@@ -606,10 +606,10 @@ pub fn init_queue_from_account(
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 )> {
     if account_data.len() - *start_offset != queue_account_size(&account, queue_type)? {
-        println!("*start_offset {:?}", *start_offset);
-        println!("account_data.len() {:?}", account_data.len());
-        println!("net size {:?}", account_data.len() - *start_offset);
-        println!(
+        msg!("*start_offset {:?}", *start_offset);
+        msg!("account_data.len() {:?}", account_data.len());
+        msg!("net size {:?}", account_data.len() - *start_offset);
+        msg!(
             "queue_account_size {:?}",
             queue_account_size(&account, queue_type)?
         );
@@ -696,6 +696,99 @@ pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> us
     };
     queue_account_size(&account.queue, QueueType::Output as u64).unwrap()
 }
+pub fn assert_queue_inited(
+    queue: BatchedQueue,
+    ref_queue: BatchedQueue,
+    queue_type: u64,
+    value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    bloomfilter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
+    batches: &mut ManuallyDrop<BoundedVec<Batch>>,
+    num_batches: usize,
+    num_iters: u64,
+) {
+    assert_eq!(queue, ref_queue, "queue mismatch");
+    assert_eq!(batches.len(), num_batches, "batches mismatch");
+    for batch in batches.iter() {
+        let ref_batch = Batch::new(
+            num_iters,
+            ref_queue.bloom_filter_capacity,
+            ref_queue.batch_size,
+            ref_queue.zkp_batch_size,
+        );
+
+        assert_eq!(batch, &ref_batch, "batch mismatch");
+    }
+    if queue_type == QueueType::Input as u64 {
+        assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
+        assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
+    } else {
+        assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
+        assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
+    }
+    if queue_type == QueueType::Output as u64 {
+        assert_eq!(
+            bloomfilter_stores.capacity(),
+            0,
+            "bloomfilter_stores mismatch"
+        );
+    } else {
+        assert_eq!(
+            bloomfilter_stores.capacity(),
+            num_batches,
+            "bloomfilter_stores mismatch"
+        );
+        assert_eq!(
+            bloomfilter_stores.len(),
+            num_batches,
+            "bloomfilter_stores mismatch"
+        );
+    }
+
+    for vec in bloomfilter_stores.iter() {
+        assert_eq!(
+            vec.capacity() * 8,
+            queue.bloom_filter_capacity as usize,
+            "bloom_filter_capacity mismatch"
+        );
+    }
+
+    for vec in value_vecs.iter() {
+        assert_eq!(
+            vec.capacity(),
+            queue.batch_size as usize,
+            "batch_size mismatch"
+        );
+        assert_eq!(vec.len(), 0, "batch_size mismatch");
+    }
+}
+pub fn assert_queue_zero_copy_inited(
+    account: &mut BatchedQueueAccount,
+    account_data: &mut [u8],
+    ref_account: BatchedQueueAccount,
+    num_iters: u64,
+) {
+    let num_batches = ref_account.queue.num_batches as usize;
+    let queue = account.queue.clone();
+    let queue_type = account.metadata.queue_type as u64;
+
+    let mut zero_copy_account = ZeroCopyBatchedQueueAccount::from_account(account, account_data)
+        .expect("from_account failed");
+    assert_eq!(
+        zero_copy_account.account.metadata, ref_account.metadata,
+        "metadata mismatch"
+    );
+    assert_queue_inited(
+        queue,
+        ref_account.queue,
+        queue_type,
+        &mut zero_copy_account.value_vecs,
+        &mut zero_copy_account.bloomfilter_stores,
+        &mut zero_copy_account.batches,
+        num_batches,
+        num_iters,
+    );
+}
+
 #[cfg(test)]
 pub mod tests {
 
@@ -735,102 +828,6 @@ pub mod tests {
             vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
         (account, account_data)
     }
-
-    pub fn assert_queue_zero_copy_inited(
-        account: &mut BatchedQueueAccount,
-        account_data: &mut [u8],
-        ref_account: BatchedQueueAccount,
-        num_iters: u64,
-    ) {
-        let num_batches = ref_account.queue.num_batches as usize;
-        let queue = account.queue.clone();
-        let queue_type = account.metadata.queue_type as u64;
-
-        let mut zero_copy_account =
-            ZeroCopyBatchedQueueAccount::from_account(account, account_data)
-                .expect("from_account failed");
-        assert_eq!(
-            zero_copy_account.account.metadata, ref_account.metadata,
-            "metadata mismatch"
-        );
-        assert_queue_inited(
-            queue,
-            ref_account.queue,
-            queue_type,
-            &mut zero_copy_account.value_vecs,
-            &mut zero_copy_account.bloomfilter_stores,
-            &mut zero_copy_account.batches,
-            num_batches,
-            num_iters,
-        );
-    }
-
-    pub fn assert_queue_inited(
-        queue: BatchedQueue,
-        ref_queue: BatchedQueue,
-        queue_type: u64,
-        value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-        bloomfilter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
-        batches: &mut ManuallyDrop<BoundedVec<Batch>>,
-        num_batches: usize,
-        num_iters: u64,
-    ) {
-        assert_eq!(queue, ref_queue, "queue mismatch");
-        assert_eq!(batches.len(), num_batches, "batches mismatch");
-        for batch in batches.iter() {
-            let ref_batch = Batch::new(
-                num_iters,
-                ref_queue.bloom_filter_capacity,
-                ref_queue.batch_size,
-                ref_queue.zkp_batch_size,
-            );
-
-            assert_eq!(batch, &ref_batch, "batch mismatch");
-        }
-        if queue_type == QueueType::Input as u64 {
-            assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
-            assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
-        } else {
-            assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
-            assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
-        }
-        if queue_type == QueueType::Output as u64 {
-            assert_eq!(
-                bloomfilter_stores.capacity(),
-                0,
-                "bloomfilter_stores mismatch"
-            );
-        } else {
-            assert_eq!(
-                bloomfilter_stores.capacity(),
-                num_batches,
-                "bloomfilter_stores mismatch"
-            );
-            assert_eq!(
-                bloomfilter_stores.len(),
-                num_batches,
-                "bloomfilter_stores mismatch"
-            );
-        }
-
-        for vec in bloomfilter_stores.iter() {
-            assert_eq!(
-                vec.capacity() * 8,
-                queue.bloom_filter_capacity as usize,
-                "bloom_filter_capacity mismatch"
-            );
-        }
-
-        for vec in value_vecs.iter() {
-            assert_eq!(
-                vec.capacity(),
-                queue.batch_size as usize,
-                "batch_size mismatch"
-            );
-            assert_eq!(vec.len(), 0, "batch_size mismatch");
-        }
-    }
-
     #[test]
     fn test_output_queue_account() {
         let batch_size = 100;

@@ -1,6 +1,8 @@
 use crate::{
-    batch::BatchState, batched_queue::ZeroCopyBatchedQueueAccount,
+    batch::BatchState,
+    batched_queue::ZeroCopyBatchedQueueAccount,
     errors::AccountCompressionErrorCode,
+    utils::constants::{DEFAULT_BATCH_SIZE, HEIGHT_26_SUBTREE_ZERO_HASH},
 };
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
@@ -32,7 +34,7 @@ pub struct BatchedMerkleTreeMetadata {
 
 #[repr(u64)]
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum TreeType {
+pub enum BatchedTreeType {
     State = 1,
     Address = 2,
 }
@@ -50,11 +52,6 @@ pub struct BatchedMerkleTreeAccount {
     pub subtree_hash: [u8; 32],
     pub queue: BatchedQueue,
 }
-pub const HEIGHT_26_SUBTREE_ZERO_HASH: [u8; 32] = [
-    30, 114, 220, 97, 73, 119, 54, 137, 202, 221, 15, 94, 251, 155, 251, 88, 112, 248, 135, 179,
-    188, 233, 66, 171, 225, 7, 89, 158, 104, 225, 167, 38,
-];
-pub const DEFAULT_BATCH_SIZE: u64 = 50;
 
 impl BatchedMerkleTreeAccount {
     pub fn size(&self) -> Result<usize> {
@@ -97,7 +94,7 @@ impl BatchedMerkleTreeAccount {
             },
             subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
             sequence_number: 0,
-            tree_type: TreeType::State as u64,
+            tree_type: BatchedTreeType::State as u64,
             next_index: 0,
             height: 26,
             root_history_capacity,
@@ -110,24 +107,9 @@ impl BatchedMerkleTreeAccount {
     }
 }
 
-// Instead of a rollover we just push roots into root history. TODO: figure out
-// how we nullify in old trees. (it's probably easier to just stick to the
-// current model.)
 pub struct ZeroCopyBatchedMerkleTreeAccount<'a> {
     pub account: &'a mut BatchedMerkleTreeAccount,
-    /// Root history used for inclusion proofs.
     pub root_history: ManuallyDrop<CyclicBoundedVec<[u8; 32]>>,
-    // /// Root buffer used for updating the tree. Root buffer is more frequently
-    // /// updated than root history to avoid frequent root history updates. Latest
-    // /// root in root buffer is synced to root history if:
-    // /// 1. output batch insert is complete
-    // /// 2. input batch is cleared (reused) and the root of that input batch
-    // ///    hasn't synced yet. During normal operation this case ideally doesn't
-    // ///    happen, but it occurs deterministally once the tree is full and state
-    // ///    is only invalidated.
-    // pub root_buffer: ManuallyDrop<CyclicBoundedVec<[u8; 32]>>,
-    // TODO: add root history which is just a bounded vec of roots, with
-    // intermediate updates.
     pub batches: ManuallyDrop<BoundedVec<Batch>>,
     pub value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     pub bloomfilter_stores: Vec<ManuallyDrop<BoundedVec<u8>>>,
@@ -553,7 +535,7 @@ pub fn get_merkle_tree_account_size_default() -> usize {
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
         sequence_number: 0,
-        tree_type: TreeType::State as u64,
+        tree_type: BatchedTreeType::State as u64,
         height: 26,
         root_history_capacity: 20,
         subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
@@ -582,7 +564,7 @@ pub fn get_merkle_tree_account_size(
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
         sequence_number: 0,
-        tree_type: TreeType::State as u64,
+        tree_type: BatchedTreeType::State as u64,
         height: 26,
         root_history_capacity,
         subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
@@ -600,28 +582,20 @@ pub fn get_merkle_tree_account_size(
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        cmp::{max, min},
-        default,
-        ops::Deref,
-    };
+    use std::{cmp::min, ops::Deref};
 
     use light_merkle_tree_reference::MerkleTree;
     use light_prover_client::{
         gnark::helpers::{spawn_prover, ProofType},
         mock_indexer::{self},
     };
-    use light_utils::fee::compute_rollover_fee;
+
     use rand::{rngs::StdRng, Rng};
 
     use crate::{
         batch::BatchState,
-        batched_queue::{
-            get_output_queue_account_size, get_output_queue_account_size_default,
-            tests::{assert_queue_inited, assert_queue_zero_copy_inited},
-        },
-        initialize_address_queue::check_rollover_fee_sufficient,
-        AccessMetadata, MerkleTreeMetadata, QueueMetadata, QueueType, RolloverMetadata,
+        batched_queue::{assert_queue_inited, get_output_queue_account_size_default},
+        init_batched_state_merkle_tree_accounts, QueueType,
     };
 
     use super::*;
@@ -669,338 +643,6 @@ mod tests {
         );
     }
 
-    #[derive(Debug, PartialEq, Clone, Copy)]
-    pub struct CreateStateTreeAccountsInstructionData {
-        pub index: u64,
-        pub program_owner: Option<Pubkey>,
-        pub forester: Option<Pubkey>,
-        pub additional_bytes: u64,
-        pub bloomfilter_num_iters: u64,
-        pub input_queue_batch_size: u64,
-        pub output_queue_batch_size: u64,
-        pub input_queue_zkp_batch_size: u64,
-        pub output_queue_zkp_batch_size: u64,
-        pub root_history_capacity: u32,
-        pub bloom_filter_capacity: u64,
-        pub network_fee: Option<u64>,
-        pub rollover_threshold: Option<u64>,
-        pub close_threshold: Option<u64>,
-    }
-
-    impl default::Default for CreateStateTreeAccountsInstructionData {
-        fn default() -> Self {
-            Self {
-                index: 0,
-                program_owner: None,
-                forester: None,
-                additional_bytes: 1,
-                bloomfilter_num_iters: 3,
-                input_queue_batch_size: DEFAULT_BATCH_SIZE,
-                output_queue_batch_size: DEFAULT_BATCH_SIZE,
-                input_queue_zkp_batch_size: 10,
-                output_queue_zkp_batch_size: 10,
-                root_history_capacity: 20,
-                bloom_filter_capacity: 200_000 * 8,
-                network_fee: Some(5000),
-                rollover_threshold: Some(95),
-                close_threshold: None,
-            }
-        }
-    }
-
-    pub fn create_batched_state_merkle_tree_accounts<'a>(
-        owner: Pubkey,
-        params: CreateStateTreeAccountsInstructionData,
-        output_queue_account: &'a mut BatchedQueueAccount,
-        output_queue_account_data: &mut [u8],
-        output_queue_pubkey: Pubkey,
-        queue_rent: u64,
-        mt_account: &'a mut BatchedMerkleTreeAccount,
-        mt_account_data: &mut [u8],
-        mt_pubkey: Pubkey,
-        merkle_tree_rent: u64,
-        additional_bytes_rent: u64,
-    ) -> Result<()> {
-        if params.bloom_filter_capacity % 8 != 0 {
-            println!(
-                "params.bloom_filter_capacity: {}",
-                params.bloom_filter_capacity
-            );
-            println!("Blooms must be divisible by 8 or it will create unaligned memory.");
-            return err!(AccountCompressionErrorCode::InvalidBloomFilterCapacity);
-        }
-
-        let num_batches_input_queue = 4;
-        let num_batches_output_queue = 2;
-        let height = 26;
-
-        // Output queue
-        {
-            let rollover_fee = match params.rollover_threshold {
-                Some(rollover_threshold) => {
-                    let rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
-                    let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
-                        .map_err(ProgramError::from)?;
-                    check_rollover_fee_sufficient(
-                        rollover_fee,
-                        0,
-                        rent,
-                        rollover_threshold,
-                        height,
-                    )?;
-                    rollover_fee
-                }
-                None => 0,
-            };
-            let metadata = QueueMetadata {
-                next_queue: Pubkey::default(),
-                access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),
-                rollover_metadata: RolloverMetadata::new(
-                    params.index,
-                    rollover_fee,
-                    params.rollover_threshold,
-                    params.network_fee.unwrap_or_default(),
-                    params.close_threshold,
-                    Some(params.additional_bytes),
-                ),
-                queue_type: QueueType::Output as u64,
-                associated_merkle_tree: mt_pubkey,
-            };
-            output_queue_account.init(
-                metadata,
-                num_batches_output_queue,
-                params.output_queue_batch_size,
-                params.output_queue_zkp_batch_size,
-            );
-            ZeroCopyBatchedQueueAccount::init_from_account(
-                output_queue_account,
-                output_queue_account_data,
-                0,
-                0,
-            )?;
-        }
-        let metadata = MerkleTreeMetadata {
-            next_merkle_tree: Pubkey::default(),
-            access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),
-            rollover_metadata: RolloverMetadata::new(
-                params.index,
-                // Complete rollover fee is charged when creating an output
-                // compressed account by inserting it into the output queue.
-                0,
-                params.rollover_threshold,
-                params.network_fee.unwrap_or_default(),
-                params.close_threshold,
-                None,
-            ),
-            associated_queue: output_queue_pubkey,
-        };
-        mt_account.metadata = metadata;
-        mt_account.root_history_capacity = params.root_history_capacity;
-        mt_account.height = height;
-        mt_account.tree_type = TreeType::State as u64;
-        mt_account.subtree_hash = HEIGHT_26_SUBTREE_ZERO_HASH;
-        mt_account.queue.init(
-            num_batches_input_queue,
-            params.input_queue_batch_size,
-            params.input_queue_zkp_batch_size,
-        );
-        mt_account.queue.bloom_filter_capacity = params.bloom_filter_capacity;
-        println!("initing mt_account: ");
-        ZeroCopyBatchedMerkleTreeAccount::init_from_account(
-            mt_account,
-            mt_account_data,
-            params.bloomfilter_num_iters,
-            params.bloom_filter_capacity,
-        )?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_account_init() {
-        let owner = Pubkey::new_unique();
-
-        let queue_account_size = get_output_queue_account_size_default();
-
-        let mut output_queue_account = BatchedQueueAccount::default();
-        let mut output_queue_account_data = vec![0; queue_account_size];
-        let output_queue_pubkey = Pubkey::new_unique();
-
-        let mt_account_size = get_merkle_tree_account_size_default();
-        let mut mt_account = BatchedMerkleTreeAccount::default();
-        let mut mt_account_data = vec![0; mt_account_size];
-        let mt_pubkey = Pubkey::new_unique();
-
-        let params = CreateStateTreeAccountsInstructionData::default();
-
-        let merkle_tree_rent = 1_000_000_000;
-        let queue_rent = 1_000_000_000;
-        let additional_bytes_rent = 1000;
-        create_batched_state_merkle_tree_accounts(
-            owner,
-            params.clone(),
-            &mut output_queue_account,
-            &mut output_queue_account_data,
-            output_queue_pubkey,
-            queue_rent,
-            &mut mt_account,
-            &mut mt_account_data,
-            mt_pubkey,
-            merkle_tree_rent,
-            additional_bytes_rent,
-        )
-        .unwrap();
-        let ref_output_queue_account = BatchedQueueAccount::get_output_queue_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.output_queue_batch_size,
-            params.output_queue_zkp_batch_size,
-            params.additional_bytes,
-            merkle_tree_rent + additional_bytes_rent + queue_rent,
-            mt_pubkey,
-        );
-        assert_queue_zero_copy_inited(
-            &mut output_queue_account,
-            output_queue_account_data.as_mut_slice(),
-            ref_output_queue_account,
-            0,
-        );
-        let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.network_fee.unwrap_or_default(),
-            params.input_queue_batch_size,
-            params.input_queue_zkp_batch_size,
-            params.bloom_filter_capacity,
-            params.root_history_capacity,
-            output_queue_pubkey,
-        );
-        assert_mt_zero_copy_inited(
-            &mut mt_account,
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloomfilter_num_iters,
-        );
-    }
-
-    #[test]
-    fn test_rnd_account_init() {
-        use rand::SeedableRng;
-        let mut rng = StdRng::seed_from_u64(0);
-        for _ in 0..10000 {
-            let owner = Pubkey::new_unique();
-
-            let program_owner = if rng.gen_bool(0.5) {
-                Some(Pubkey::new_unique())
-            } else {
-                None
-            };
-            let forester = if rng.gen_bool(0.5) {
-                Some(Pubkey::new_unique())
-            } else {
-                None
-            };
-            let input_queue_zkp_batch_size = rng.gen_range(1..1000);
-            let output_queue_zkp_batch_size = rng.gen_range(1..1000);
-
-            let params = CreateStateTreeAccountsInstructionData {
-                index: rng.gen_range(0..1000),
-                program_owner,
-                forester,
-                additional_bytes: rng.gen_range(0..1000),
-                bloomfilter_num_iters: rng.gen_range(0..1000),
-                input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
-                output_queue_batch_size: rng.gen_range(1..1000) * output_queue_zkp_batch_size,
-                input_queue_zkp_batch_size, //TODO: randomize 100,500,1000
-                output_queue_zkp_batch_size,
-                // 8 bits per byte, divisible by 8 for aligned memory
-                bloom_filter_capacity: rng.gen_range(0..1000) * 8 * 8,
-                network_fee: Some(rng.gen_range(0..1000)),
-                rollover_threshold: Some(rng.gen_range(0..100)),
-                close_threshold: None,
-                root_history_capacity: rng.gen_range(0..1000),
-            };
-            let queue_account_size = get_output_queue_account_size(
-                params.output_queue_batch_size,
-                params.output_queue_zkp_batch_size,
-            );
-
-            let mut output_queue_account = BatchedQueueAccount::default();
-            let mut output_queue_account_data = vec![0; queue_account_size];
-            let output_queue_pubkey = Pubkey::new_unique();
-
-            let mt_account_size = get_merkle_tree_account_size(
-                params.input_queue_batch_size,
-                params.bloom_filter_capacity,
-                params.input_queue_zkp_batch_size,
-                params.root_history_capacity,
-            );
-            let mut mt_account = BatchedMerkleTreeAccount::default();
-            let mut mt_account_data = vec![0; mt_account_size];
-            let mt_pubkey = Pubkey::new_unique();
-
-            let merkle_tree_rent = rng.gen_range(0..10000000);
-            let queue_rent = rng.gen_range(0..10000000);
-            let additional_bytes_rent = rng.gen_range(0..10000000);
-            create_batched_state_merkle_tree_accounts(
-                owner,
-                params.clone(),
-                &mut output_queue_account,
-                &mut output_queue_account_data,
-                output_queue_pubkey,
-                queue_rent,
-                &mut mt_account,
-                &mut mt_account_data,
-                mt_pubkey,
-                merkle_tree_rent,
-                additional_bytes_rent,
-            )
-            .unwrap();
-            let ref_output_queue_account = BatchedQueueAccount::get_output_queue(
-                owner,
-                program_owner,
-                forester,
-                params.rollover_threshold,
-                params.index,
-                params.output_queue_batch_size,
-                params.output_queue_zkp_batch_size,
-                params.additional_bytes,
-                merkle_tree_rent + additional_bytes_rent + queue_rent,
-                mt_pubkey,
-                params.network_fee.unwrap_or_default(),
-            );
-            assert_queue_zero_copy_inited(
-                &mut output_queue_account,
-                output_queue_account_data.as_mut_slice(),
-                ref_output_queue_account,
-                0,
-            );
-            let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-                owner,
-                program_owner,
-                forester,
-                params.rollover_threshold,
-                params.index,
-                params.network_fee.unwrap_or_default(),
-                params.input_queue_batch_size,
-                params.input_queue_zkp_batch_size,
-                params.bloom_filter_capacity,
-                params.root_history_capacity,
-                output_queue_pubkey,
-            );
-            assert_mt_zero_copy_inited(
-                &mut mt_account,
-                &mut mt_account_data,
-                ref_mt_account,
-                params.bloomfilter_num_iters,
-            );
-        }
-    }
     /// Insert into input queue:
     /// 1. New value exists in the current batch bloomfilter
     /// 2. New value does not exist in the other batch bloomfilters
@@ -1261,13 +903,13 @@ mod tests {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let params = CreateStateTreeAccountsInstructionData::default();
+        let params = crate::InitStateTreeAccountsInstructionData::default();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
         let additional_bytes_rent = 1000;
 
-        create_batched_state_merkle_tree_accounts(
+        init_batched_state_merkle_tree_accounts(
             owner,
             params,
             &mut output_queue_account,
@@ -1737,13 +1379,13 @@ mod tests {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let params = CreateStateTreeAccountsInstructionData::default();
+        let params = crate::InitStateTreeAccountsInstructionData::default();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
         let additional_bytes_rent = 1000;
 
-        create_batched_state_merkle_tree_accounts(
+        init_batched_state_merkle_tree_accounts(
             owner,
             params,
             &mut output_queue_account,

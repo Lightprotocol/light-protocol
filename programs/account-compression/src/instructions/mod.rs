@@ -33,3 +33,6 @@ pub use rollover_address_merkle_tree_and_queue::*;
 
 pub mod deregister_program;
 pub use deregister_program::*;
+
+pub mod intialize_batched_state_merkle_tree;
+pub use intialize_batched_state_merkle_tree::*;
