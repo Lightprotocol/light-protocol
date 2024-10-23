@@ -40,8 +40,6 @@ where
     /// Context provided by Anchor.
     pub anchor_context: Context<'a, 'b, 'c, 'info, T>,
     pub light_accounts: U,
-    // pub new_addresses:
-    // pub inputs: LightInstructionInputs,
 }
 
 impl<'a, 'b, 'c, 'info, T, U> Deref for LightContext<'a, 'b, 'c, 'info, T, U>
@@ -86,20 +84,4 @@ where
             light_accounts,
         })
     }
-}
-
-pub fn parse_light_inputs(
-    inputs: Vec<u8>,
-) -> Result<(
-    Option<ProofRpcResult>,
-    Option<Vec<PackedCompressedAccountWithMerkleContext>>,
-    Option<Vec<PackedNewAddressParams>>,
-)> {
-    let mut inputs = Cursor::new(inputs);
-    let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
-    let accounts =
-        Option::<Vec<PackedCompressedAccountWithMerkleContext>>::deserialize_reader(&mut inputs)?;
-    let new_addresses = Option::<Vec<PackedNewAddressParams>>::deserialize_reader(&mut inputs)?;
-
-    Ok((proof, accounts, new_addresses))
 }
