@@ -238,7 +238,7 @@ where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     pub fn try_from_slice(account_info: &'a LightMutAccountInfo) -> Result<Self> {
-        let account_state = T::try_from_slice(&account_info.data.as_ref().unwrap())?;
+        let account_state = T::try_from_slice(account_info.data.as_ref().unwrap())?;
 
         Ok(Self {
             account_info,
@@ -354,7 +354,7 @@ where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Discriminator,
 {
     pub fn try_from_slice(account_info: &'a LightCloseAccountInfo) -> Result<Self> {
-        let account_state = T::try_from_slice(&account_info.data.as_ref().unwrap())?;
+        let account_state = T::try_from_slice(account_info.data.as_ref().unwrap())?;
 
         Ok(Self {
             account_info,
