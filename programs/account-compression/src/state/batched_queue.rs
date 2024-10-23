@@ -1,3 +1,4 @@
+use crate::bytes_to_struct;
 use crate::utils::constants::DEFAULT_BATCH_SIZE;
 use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
 use aligned_sized::aligned_sized;
@@ -190,6 +191,10 @@ impl BatchedQueue {
 pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usize> {
     let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
         account.get_size_parameters(queue_type)?;
+    #[cfg(target_os = "solana")]
+    {
+        msg!("queue_account_size account {:?}", account);
+    }
     println!("account {:?}", account);
     let account_size = if queue_type != QueueType::Output as u64 {
         0
@@ -214,7 +219,8 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
         + batches_size
         + value_vecs_size
         + bloom_filter_stores_size
-        + hashchain_store_size;
+        + hashchain_store_size
+        + 8;
     Ok(size)
 }
 impl BatchedQueueAccount {
@@ -269,8 +275,8 @@ impl BatchedQueue {
 }
 
 #[derive(Debug)]
-pub struct ZeroCopyBatchedQueueAccount<'a> {
-    pub account: &'a mut BatchedQueueAccount,
+pub struct ZeroCopyBatchedQueueAccount {
+    account: *mut BatchedQueueAccount,
     pub batches: ManuallyDrop<BoundedVec<Batch>>,
     pub value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     pub bloomfilter_stores: Vec<ManuallyDrop<BoundedVec<u8>>>,
@@ -278,58 +284,89 @@ pub struct ZeroCopyBatchedQueueAccount<'a> {
     pub hashchain_store: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 }
 
-impl<'a> ZeroCopyBatchedQueueAccount<'a> {
+impl ZeroCopyBatchedQueueAccount {
+    pub fn get_account(&self) -> &BatchedQueueAccount {
+        unsafe { &*self.account }
+    }
+
+    pub fn get_account_mut(&mut self) -> &mut BatchedQueueAccount {
+        unsafe { &mut *self.account }
+    }
     // TODO: add discriminator check
     // TODO: add from_account_info,  and from_account_loader
-    pub fn from_account(
-        account: &'a mut BatchedQueueAccount,
-        account_data: &mut [u8],
-    ) -> Result<ZeroCopyBatchedQueueAccount<'a>> {
-        let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
-            queue_from_account(account, account_data)?;
-        Ok(ZeroCopyBatchedQueueAccount {
-            account,
-            batches,
-            value_vecs,
-            bloomfilter_stores,
-            hashchain_store,
-        })
+    pub fn from_account(account_data: &mut [u8]) -> Result<ZeroCopyBatchedQueueAccount> {
+        let account = bytes_to_struct::<BatchedQueueAccount, false>(account_data);
+        unsafe {
+            let (num_value_stores, num_stores, num_hashchain_stores) =
+                (*account).get_size_parameters()?;
+
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = queue_from_account(
+                num_value_stores,
+                num_stores,
+                num_hashchain_stores,
+                account_data,
+            )?;
+            return Ok(ZeroCopyBatchedQueueAccount {
+                account,
+                batches,
+                value_vecs,
+                bloomfilter_stores,
+                hashchain_store,
+            });
+        }
     }
 
     pub fn init_from_account(
-        account: &'a mut BatchedQueueAccount,
+        metadata: QueueMetadata,
+        num_batches_output_queue: u64,
+        output_queue_batch_size: u64,
+        output_queue_zkp_batch_size: u64,
         account_data: &mut [u8],
         num_iters: u64,
         bloomfilter_capacity: u64,
-    ) -> Result<ZeroCopyBatchedQueueAccount<'a>> {
-        let (batches, value_vecs, bloomfilter_stores, hashchain_store) = init_queue_from_account(
-            &account.queue,
-            account.metadata.queue_type,
-            account_data,
-            num_iters,
-            bloomfilter_capacity,
-            &mut 0,
-        )?;
-        Ok(ZeroCopyBatchedQueueAccount {
-            account,
-            batches,
-            value_vecs,
-            bloomfilter_stores,
-            hashchain_store,
-        })
+    ) -> Result<ZeroCopyBatchedQueueAccount> {
+        let account = bytes_to_struct::<BatchedQueueAccount, true>(account_data);
+        unsafe {
+            (*account).init(
+                metadata,
+                num_batches_output_queue,
+                output_queue_batch_size,
+                output_queue_zkp_batch_size,
+            );
+            msg!("post init account {:?}", *account);
+
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
+                init_queue_from_account(
+                    &(*account).queue,
+                    (*account).metadata.queue_type,
+                    account_data,
+                    num_iters,
+                    bloomfilter_capacity,
+                    &mut 0,
+                )?;
+            Ok(ZeroCopyBatchedQueueAccount {
+                account,
+                batches,
+                value_vecs,
+                bloomfilter_stores,
+                hashchain_store,
+            })
+        }
     }
 
     pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
-        insert_into_current_batch(
-            self.account.metadata.queue_type,
-            &mut self.account.queue,
-            &mut self.batches,
-            &mut self.value_vecs,
-            &mut self.bloomfilter_stores,
-            &mut self.hashchain_store,
-            value,
-        )?;
-        self.account.next_index += 1;
+        unsafe {
+            insert_into_current_batch(
+                (*self.account).metadata.queue_type,
+                &mut (*self.account).queue,
+                &mut self.batches,
+                &mut self.value_vecs,
+                &mut self.bloomfilter_stores,
+                &mut self.hashchain_store,
+                value,
+            )?;
+            (*self.account).next_index += 1;
+        }
         Ok(())
     }
 
@@ -352,7 +389,7 @@ impl<'a> ZeroCopyBatchedQueueAccount<'a> {
         //     println!("batch id: {:?}", batch.id);
         //     err!(AccountCompressionErrorCode::BatchNotReady)
         // }
-        queue_get_next_full_batch(&mut self.account.queue, &mut self.batches)
+        unsafe { queue_get_next_full_batch(&mut (*self.account).queue, &mut self.batches) }
     }
 }
 
@@ -542,7 +579,9 @@ pub fn insert_into_current_batch<'a>(
 }
 
 pub fn queue_from_account(
-    account: &BatchedQueueAccount,
+    num_value_stores: usize,
+    num_stores: usize,
+    num_hashchain_stores: usize,
     account_data: &mut [u8],
 ) -> Result<(
     ManuallyDrop<BoundedVec<Batch>>,
@@ -550,7 +589,6 @@ pub fn queue_from_account(
     Vec<ManuallyDrop<BoundedVec<u8>>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 )> {
-    let (num_value_stores, num_stores, num_hashchain_stores) = account.get_size_parameters()?;
     let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
     let batches = BoundedVec::deserialize(account_data, &mut start_offset);
     let value_vecs =
@@ -580,7 +618,7 @@ pub fn batched_queue_from_account(
             "batched_queue_from_account: is output queue start_offset: {:?}",
             start_offset
         );
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>();
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>(); // TODO: check why I don't need discriminator here
     }
     let batches = BoundedVec::deserialize(account_data, start_offset);
     let value_vecs = BoundedVec::deserialize_multiple(num_value_stores, account_data, start_offset);
@@ -762,19 +800,20 @@ pub fn assert_queue_inited(
     }
 }
 pub fn assert_queue_zero_copy_inited(
-    account: &mut BatchedQueueAccount,
     account_data: &mut [u8],
     ref_account: BatchedQueueAccount,
     num_iters: u64,
 ) {
+    let mut zero_copy_account =
+        ZeroCopyBatchedQueueAccount::from_account(account_data).expect("from_account failed");
     let num_batches = ref_account.queue.num_batches as usize;
-    let queue = account.queue.clone();
-    let queue_type = account.metadata.queue_type as u64;
-
-    let mut zero_copy_account = ZeroCopyBatchedQueueAccount::from_account(account, account_data)
-        .expect("from_account failed");
+    let queue = zero_copy_account.get_account().queue.clone();
+    let queue_type = zero_copy_account.get_account().metadata.queue_type as u64;
+    println!("queue {:?}", queue);
+    println!("zero_copy_account {:?}", zero_copy_account);
     assert_eq!(
-        zero_copy_account.account.metadata, ref_account.metadata,
+        zero_copy_account.get_account().metadata,
+        ref_account.metadata,
         "metadata mismatch"
     );
     assert_queue_inited(
@@ -836,29 +875,26 @@ pub mod tests {
         let bloomfilter_capacity = 20_000 * 8;
         let bloomfilter_num_iters = 3;
         for queue_type in vec![QueueType::Output] {
-            let (mut account, mut account_data) = get_test_account_and_account_data(
+            let (ref_account, mut account_data) = get_test_account_and_account_data(
                 batch_size,
                 num_batches,
                 queue_type,
                 bloomfilter_capacity,
             );
-            let ref_account = account.clone();
             ZeroCopyBatchedQueueAccount::init_from_account(
-                &mut account,
+                ref_account.metadata,
+                num_batches,
+                batch_size,
+                10,
                 &mut account_data,
                 bloomfilter_num_iters,
                 bloomfilter_capacity,
             )
             .unwrap();
 
-            assert_queue_zero_copy_inited(
-                &mut account,
-                &mut account_data,
-                ref_account,
-                bloomfilter_num_iters,
-            );
+            assert_queue_zero_copy_inited(&mut account_data, ref_account, bloomfilter_num_iters);
             let mut zero_copy_account =
-                ZeroCopyBatchedQueueAccount::from_account(&mut account, &mut account_data).unwrap();
+                ZeroCopyBatchedQueueAccount::from_account(&mut account_data).unwrap();
             println!("zero_copy_account     {:?}", zero_copy_account);
             let value = [1u8; 32];
             zero_copy_account.insert_into_current_batch(&value).unwrap();
