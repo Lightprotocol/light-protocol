@@ -2,6 +2,7 @@ pub use light_macros::*;
 pub use light_sdk_macros::*;
 
 pub mod account_info;
+pub mod account_meta;
 pub mod address;
 pub mod compressed_account;
 pub mod constants;
