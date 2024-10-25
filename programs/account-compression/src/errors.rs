@@ -67,4 +67,5 @@ pub enum AccountCompressionErrorCode {
     BatchAlreadyInserted,
     InvalidBloomFilterCapacity,
     InvalidCircuitBatchSize,
+    InvalidDiscriminator,
 }

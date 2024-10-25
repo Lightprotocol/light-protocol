@@ -104,6 +104,7 @@ impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
         let old_root = self.merkle_tree.root();
 
         for leaf in leaves.iter() {
+            println!("leaf: {:?}", leaf);
             let index = self.merkle_tree.get_leaf_index(&leaf).unwrap();
             let proof = self.merkle_tree.get_proof_of_leaf(index, true).unwrap();
             merkle_proofs.push(proof.to_vec());

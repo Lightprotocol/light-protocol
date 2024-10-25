@@ -199,7 +199,7 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
     let account_size = if queue_type != QueueType::Output as u64 {
         0
     } else {
-        std::mem::size_of::<BatchedQueueAccount>()
+        std::mem::size_of::<BatchedQueueAccount>() + 8
     };
 
     let batches_size = (std::mem::size_of::<BoundedVecMetadata>() + std::mem::size_of::<Batch>())
@@ -233,9 +233,11 @@ impl BatchedQueueAccount {
         num_batches: u64,
         batch_size: u64,
         zkp_batch_size: u64,
+        bloom_filter_capacity: u64,
     ) {
         self.metadata = meta_data;
         self.queue.init(num_batches, batch_size, zkp_batch_size);
+        self.queue.bloom_filter_capacity = bloom_filter_capacity;
     }
 }
 
@@ -332,8 +334,8 @@ impl ZeroCopyBatchedQueueAccount {
                 num_batches_output_queue,
                 output_queue_batch_size,
                 output_queue_zkp_batch_size,
+                bloomfilter_capacity,
             );
-            msg!("post init account {:?}", *account);
 
             let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
                 init_queue_from_account(
@@ -371,24 +373,6 @@ impl ZeroCopyBatchedQueueAccount {
     }
 
     pub fn get_next_full_batch(&mut self) -> Result<(&mut Batch, u8)> {
-        // println!(
-        //     "next_full_batch_index: {:?}",
-        //     self.account.next_full_batch_index
-        // );
-        // println!("batches.len(): {:?}", self.batches.len());
-        // let batches_len = self.batches.len();
-        // let batch = self
-        //     .batches
-        //     .get_mut(self.account.next_full_batch_index as usize)
-        //     .unwrap();
-        // if batch.is_ready_to_update_tree() {
-        //     self.account.next_full_batch_index += 1;
-        //     self.account.next_full_batch_index %= batches_len as u64;
-        //     Ok(batch)
-        // } else {
-        //     println!("batch id: {:?}", batch.id);
-        //     err!(AccountCompressionErrorCode::BatchNotReady)
-        // }
         unsafe { queue_get_next_full_batch(&mut (*self.account).queue, &mut self.batches) }
     }
 }
@@ -449,6 +433,10 @@ pub fn insert_into_current_batch<'a>(
         ..(len as u64 + account.currently_processing_batch_index)
     {
         let index = index as usize % len;
+        #[cfg(target_os = "solana")]
+        {
+            msg!("index {:?}", index);
+        }
 
         let mut bloomfilter_stores = bloomfilter_stores.get_mut(index);
         let mut value_store = value_vecs.get_mut(index);
@@ -589,7 +577,7 @@ pub fn queue_from_account(
     Vec<ManuallyDrop<BoundedVec<u8>>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 )> {
-    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>();
+    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>() + 8;
     let batches = BoundedVec::deserialize(account_data, &mut start_offset);
     let value_vecs =
         BoundedVec::deserialize_multiple(num_value_stores, account_data, &mut start_offset);
@@ -618,7 +606,7 @@ pub fn batched_queue_from_account(
             "batched_queue_from_account: is output queue start_offset: {:?}",
             start_offset
         );
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>(); // TODO: check why I don't need discriminator here
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + 8;
     }
     let batches = BoundedVec::deserialize(account_data, start_offset);
     let value_vecs = BoundedVec::deserialize_multiple(num_value_stores, account_data, start_offset);
@@ -655,8 +643,11 @@ pub fn init_queue_from_account(
     }
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
+    msg!("num_value_stores {:?}", num_value_stores);
+    msg!("num_stores {:?}", num_stores);
+    msg!("hashchain_store_capacity {:?}", hashchain_store_capacity);
     if queue_type == QueueType::Output as u64 {
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>();
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + 8;
     }
 
     let mut batches = BoundedVec::init(
@@ -695,9 +686,10 @@ pub fn init_queue_from_account(
         true,
     )
     .map_err(ProgramError::from)?;
+
     let hashchain_store = BoundedVec::init_multiple(
+        account.num_batches as usize,
         hashchain_store_capacity,
-        account.get_num_zkp_batches() as usize,
         account_data,
         start_offset,
         false,
@@ -865,6 +857,7 @@ pub mod tests {
         };
         let account_data: Vec<u8> =
             vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
+        // struct_to_bytes::<BatchedQueueAccount, true>(&account, &mut account_data);
         (account, account_data)
     }
     #[test]
@@ -895,7 +888,6 @@ pub mod tests {
             assert_queue_zero_copy_inited(&mut account_data, ref_account, bloomfilter_num_iters);
             let mut zero_copy_account =
                 ZeroCopyBatchedQueueAccount::from_account(&mut account_data).unwrap();
-            println!("zero_copy_account     {:?}", zero_copy_account);
             let value = [1u8; 32];
             zero_copy_account.insert_into_current_batch(&value).unwrap();
             // assert!(zero_copy_account.insert_into_current_batch(&value).is_ok());

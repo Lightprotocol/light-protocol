@@ -22,12 +22,6 @@ pub struct Batch {
     pub batch_size: u64,
     /// Number of inserted elements in the zkp batch.
     num_inserted: u64,
-    // /// Hash chain of the values inserted in the batch.
-    // // TODO: remove user_hash_chain and prover_hash_chain
-    // pub user_hash_chain: [u8; 32],
-    // /// To enable update of the batch in multiple proofs the prover hash chain
-    // /// is used to save intermediate state.
-    // pub prover_hash_chain: [u8; 32],
     state: BatchState,
     pub zkp_batch_size: u64,
     current_zkp_batch_index: u64,
@@ -167,21 +161,11 @@ impl Batch {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
                 .map_err(ProgramError::from)?;
+        msg!("blooom filter created");
         bloom_filter.insert(value).map_err(ProgramError::from)?;
-        println!("value inserted into bloom filter");
+        msg!("value inserted into bloom filter");
 
         self.add_to_hash_chain(value, hashchain_store)?;
-        // if self.num_inserted == self.zkp_batch_size {
-        //     self.num_inserted = 0;
-        // }
-        // self.num_inserted += 1;
-        // if self.num_inserted == self.zkp_batch_size {
-        //     self.current_zkp_batch_index += 1;
-        // }
-        // if self.get_num_zkp_batches() == self.current_zkp_batch_index {
-        //     self.advance_state_to_ready_to_update_tree()?;
-        //     self.num_inserted = 0;
-        // }
         Ok(())
     }
 

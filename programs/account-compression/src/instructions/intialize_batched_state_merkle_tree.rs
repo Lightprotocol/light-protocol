@@ -163,6 +163,24 @@ pub fn bytes_to_struct<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes[8..].as_mut_ptr() as *mut T
 }
 
+pub fn struct_to_bytes<T: Clone + Copy + Discriminator, const INIT: bool>(s: &T, bytes: &mut [u8]) {
+    // Ensure the slice has enough space to hold the struct
+    assert!(bytes.len() >= std::mem::size_of::<T>());
+
+    if INIT {
+        bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
+    } else if T::DISCRIMINATOR != bytes[0..8] {
+        panic!("Discriminator mismatch");
+    }
+
+    // Copy the struct data (excluding the discriminator part) into the bytes slice
+    let struct_bytes = unsafe {
+        std::slice::from_raw_parts((s as *const T) as *const u8, std::mem::size_of::<T>())
+    };
+
+    bytes[8..8 + struct_bytes.len()].copy_from_slice(struct_bytes);
+}
+
 pub fn init_batched_state_merkle_tree_accounts<'a>(
     owner: Pubkey,
     params: InitStateTreeAccountsInstructionData,

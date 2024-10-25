@@ -3,10 +3,14 @@ use crate::{
     batched_queue::ZeroCopyBatchedQueueAccount,
     bytes_to_struct,
     errors::AccountCompressionErrorCode,
-    utils::constants::{DEFAULT_BATCH_SIZE, HEIGHT_26_SUBTREE_ZERO_HASH},
+    utils::{
+        check_signer_is_registered_or_authority::GroupAccess,
+        constants::{DEFAULT_BATCH_SIZE, HEIGHT_26_SUBTREE_ZERO_HASH},
+    },
 };
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_hasher::{Hasher, Poseidon};
 use light_verifier::{verify_batch_append, verify_batch_update, CompressedProof};
@@ -31,6 +35,16 @@ pub struct BatchedMerkleTreeMetadata {
     // Next Merkle tree to be used after rollover.
     pub next_merkle_tree: Pubkey,
     pub tree_type: u64,
+}
+
+impl GroupAccess for ZeroCopyBatchedMerkleTreeAccount {
+    fn get_owner(&self) -> &Pubkey {
+        &self.get_account().metadata.access_metadata.owner
+    }
+
+    fn get_program_owner(&self) -> &Pubkey {
+        &self.get_account().metadata.access_metadata.program_owner
+    }
 }
 
 #[repr(u64)]
@@ -133,13 +147,13 @@ pub struct ZeroCopyBatchedMerkleTreeAccount {
 /// 2. new root (send to chain and )
 /// 3. start index (get from batch)
 /// 4. end index (get from batch start index plus batch size)
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, BorshSerialize, BorshDeserialize)]
 pub struct InstructionDataBatchUpdateProofInputs {
     pub public_inputs: BatchProofInputsIx,
     pub compressed_proof: CompressedProof,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, BorshSerialize, BorshDeserialize)]
 pub struct BatchProofInputsIx {
     pub new_root: [u8; 32],
     pub output_hash_chain: [u8; 32],
@@ -147,13 +161,13 @@ pub struct BatchProofInputsIx {
     pub new_subtrees_hash: [u8; 32],
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, BorshSerialize, BorshDeserialize)]
 pub struct InstructionDataBatchAppendProofInputs {
     pub public_inputs: AppendBatchProofInputsIx,
     pub compressed_proof: CompressedProof,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, BorshDeserialize, BorshSerialize)]
 pub struct AppendBatchProofInputsIx {
     pub new_root: [u8; 32],
     pub new_subtrees_hash: [u8; 32],
@@ -167,11 +181,11 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         unsafe { self.account.as_mut() }.unwrap()
     }
 
+    // TODO: add from_account_mut
     // TODO: add from_account_info,  and from_account_loader
     pub fn from_account(account_data: &mut [u8]) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
             let account = bytes_to_struct::<BatchedMerkleTreeAccount, false>(account_data);
-            println!("account {:?}", account);
             if account_data.len() != (*account).size()? {
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
@@ -468,6 +482,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
      *  -
      */
 
+    // TODO: adjust
     // TODO: add security test
     pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
         unsafe {
@@ -1267,12 +1282,6 @@ mod tests {
                     .batches
                     .get(next_full_batch as usize)
                     .unwrap();
-                let leaves_hashchain = output_zero_copy_account
-                    .hashchain_store
-                    .get(next_full_batch as usize)
-                    .unwrap()
-                    .get(batch.get_num_inserted_zkps() as usize)
-                    .unwrap();
                 let leaves = output_zero_copy_account
                     .value_vecs
                     .get(next_full_batch as usize)
@@ -1291,13 +1300,6 @@ mod tests {
                     )
                     .await
                     .unwrap();
-                // let start = batch.get_num_inserted_zkps() as usize * batch.zkp_batch_size as usize;
-                // let end = start + batch.zkp_batch_size as usize;
-                // for i in start..end {
-                //     // Storing the leaf in the output queue indexer so that it
-                //     // can be inserted into the input queue later.
-                //     mock_indexer.active_leaves.push(leaves[i]);
-                // }
 
                 let instruction_data = InstructionDataBatchAppendProofInputs {
                     public_inputs: AppendBatchProofInputsIx {
