@@ -213,9 +213,9 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	}
 
 	leaves := make([]*big.Int, batchSize)
+	nullifiers := make([]*big.Int, batchSize)
 	merkleProofs := make([][]big.Int, batchSize)
 	pathIndices := make([]uint32, batchSize)
-	emptyLeaf := big.NewInt(0)
 
 	usedIndices := make(map[uint32]bool)
 
@@ -245,10 +245,15 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 
 	for i := 0; i < batchSize; i++ {
 		merkleProofs[i] = tree.Update(int(pathIndices[i]), *leaves[i])
-		tree.Update(int(pathIndices[i]), *emptyLeaf)
+		// mock tx hash (actual tx hash is the hash of all tx input and output
+		// hashes)
+		txHash, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+		nullifier, _ := poseidon.Hash([]*big.Int{leaves[i], txHash})
+		nullifiers[i] = nullifier
+		tree.Update(int(pathIndices[i]), *nullifier)
 	}
 
-	leavesHashchainHash := calculateHashChain(leaves, batchSize)
+	leavesHashchainHash := calculateHashChain(nullifiers, batchSize)
 	newRoot := tree.Root.Value()
 
 	publicInputHash := calculateHashChain([]*big.Int{
@@ -261,6 +266,7 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 		OldRoot:             &oldRoot,
 		NewRoot:             &newRoot,
 		LeavesHashchainHash: leavesHashchainHash,
+		Nullifiers:          nullifiers,
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,

@@ -10,6 +10,7 @@ pub struct BatchUpdateCircuitInputs {
     pub public_input_hash: BigInt,
     pub old_root: BigInt,
     pub new_root: BigInt,
+    pub nullifiers: Vec<BigInt>,
     pub leaves_hashchain_hash: BigInt,
     pub leaves: Vec<BigInt>,
     pub merkle_proofs: Vec<Vec<BigInt>>,
@@ -38,6 +39,8 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     // get from photon
     current_root: [u8; 32],
     // get from photon
+    tx_hashes: Vec<[u8; 32]>,
+    // get from photon
     leaves: Vec<[u8; 32]>,
     // get from account
     leaves_hashchain: [u8; 32],
@@ -54,6 +57,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     // Hence we patch the proofs with the changelog.
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = vec![];
+    let mut nullifiers = vec![];
     for (i, (_leaf, (merkle_proof, index))) in leaves
         .iter()
         .zip(merkle_proofs.iter().zip(path_indices.iter()))
@@ -70,9 +74,10 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         }
 
         let merkle_proof = bounded_vec_merkle_proof.to_array().unwrap();
-
+        let nullifier = Poseidon::hashv(&[&leaves[i], &tx_hashes[i]]).unwrap();
+        nullifiers.push(nullifier);
         let (root, changelog_entry) =
-            comput_root_from_merkle_proof([0u8; 32], &merkle_proof, *index);
+            comput_root_from_merkle_proof(nullifier, &merkle_proof, *index);
         new_root = root;
 
         changelog.push(changelog_entry);
@@ -90,6 +95,10 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         public_input_hash: BigInt::from_be_bytes(&public_input_hash),
         old_root: BigInt::from_be_bytes(&old_root),
         new_root: BigInt::from_be_bytes(&new_root),
+        nullifiers: nullifiers
+            .iter()
+            .map(|tx_hash| BigInt::from_bytes_be(Sign::Plus, tx_hash))
+            .collect(),
         leaves_hashchain_hash: BigInt::from_be_bytes(&leaves_hashchain),
         leaves: leaves
             .iter()

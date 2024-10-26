@@ -1,6 +1,6 @@
 use std::fmt::Error;
 
-use light_hasher::Poseidon;
+use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use reqwest::Client;
@@ -23,6 +23,13 @@ pub struct MockIndexer<const HEIGHT: usize> {
     /// Indices of leaves which in merkle tree which are active.
     pub output_queue_leaves: Vec<[u8; 32]>,
     pub active_leaves: Vec<[u8; 32]>,
+    pub tx_events: Vec<MockTxEvent>,
+}
+
+pub struct MockTxEvent {
+    pub tx_hash: [u8; 32],
+    pub inputs: Vec<[u8; 32]>,
+    pub outputs: Vec<[u8; 32]>,
 }
 
 impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
@@ -34,12 +41,12 @@ impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
             input_queue_leaves,
             output_queue_leaves: vec![],
             active_leaves: vec![],
+            tx_events: vec![],
         }
     }
     pub async fn get_batched_append_proof(
         &mut self,
         next_index: usize,
-        // leaves_hashchain: [u8; 32],
         leaves: Vec<[u8; 32]>,
         num_zkp_updates: u32,
         batch_size: u32,
@@ -102,7 +109,8 @@ impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
         println!("self.input_queue_leaves: {:?}", self.input_queue_leaves);
         let leaves = self.input_queue_leaves[..batch_size as usize].to_vec();
         let old_root = self.merkle_tree.root();
-
+        let mut nullifiers = Vec::new();
+        let mut tx_hashes = Vec::new();
         for leaf in leaves.iter() {
             println!("leaf: {:?}", leaf);
             let index = self.merkle_tree.get_leaf_index(&leaf).unwrap();
@@ -110,12 +118,23 @@ impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
             merkle_proofs.push(proof.to_vec());
             path_indices.push(index as u32);
             self.input_queue_leaves.remove(0);
-            self.merkle_tree.update(&[0u8; 32], index).unwrap();
+            let event = self
+                .tx_events
+                .iter()
+                .find(|tx_event| tx_event.inputs.contains(&leaf))
+                .expect("No event for leaf found.");
+            let nullifier = Poseidon::hashv(&[leaf, &event.tx_hash]).unwrap();
+            tx_hashes.push(event.tx_hash);
+            nullifiers.push(nullifier);
+            self.merkle_tree.update(&nullifier, index).unwrap();
         }
-        let local_leaves_hashchain = calculate_hash_chain(&leaves);
+        // local_leaves_hashchain is only used for a test assertion.
+        let local_leaves_hashchain = calculate_hash_chain(&nullifiers);
         assert_eq!(leaves_hashchain, local_leaves_hashchain);
+        // TODO: adapt update circuit to allow for non-zero updates
         let inputs = get_batch_update_inputs::<HEIGHT>(
             old_root,
+            tx_hashes,
             leaves,
             leaves_hashchain,
             merkle_proofs,
@@ -123,8 +142,11 @@ impl<const HEIGHT: usize> MockIndexer<HEIGHT> {
             batch_size,
         );
         let client = Client::new();
+        let circuit_inputs_new_root =
+            bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
         let inputs = update_inputs_string(&inputs);
         let new_root = self.merkle_tree.root();
+        assert_eq!(circuit_inputs_new_root, new_root);
 
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

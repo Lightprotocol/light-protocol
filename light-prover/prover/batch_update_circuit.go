@@ -23,9 +23,10 @@ type BatchUpdateCircuit struct {
 	NewRoot             frontend.Variable `gnark:",private"`
 	LeavesHashchainHash frontend.Variable `gnark:",private"`
 
-	Leaves       []frontend.Variable   `gnark:"input"`
-	MerkleProofs [][]frontend.Variable `gnark:"input"`
-	PathIndices  []frontend.Variable   `gnark:"input"`
+	Nullifiers   []frontend.Variable   `gnark:"private"`
+	Leaves       []frontend.Variable   `gnark:"private"`
+	MerkleProofs [][]frontend.Variable `gnark:"private"`
+	PathIndices  []frontend.Variable   `gnark:"private"`
 
 	Height    uint32
 	BatchSize uint32
@@ -40,17 +41,16 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
 	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
 
-	calculatedHashchainHash := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
-	api.AssertIsEqual(calculatedHashchainHash, circuit.LeavesHashchainHash)
+	nullifierHashChainHash := createHashChain(api, int(circuit.BatchSize), circuit.Nullifiers)
+	api.AssertIsEqual(nullifierHashChainHash, circuit.LeavesHashchainHash)
 
-	emptyLeaf := frontend.Variable(0)
 	newRoot := circuit.OldRoot
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
 		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
 			OldLeaf:     circuit.Leaves[i],
-			NewLeaf:     emptyLeaf,
+			NewLeaf:     circuit.Nullifiers[i],
 			PathIndex:   circuit.PathIndices[i],
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
@@ -66,6 +66,7 @@ type BatchUpdateParameters struct {
 	PublicInputHash     *big.Int
 	OldRoot             *big.Int
 	NewRoot             *big.Int
+	Nullifiers          []*big.Int
 	LeavesHashchainHash *big.Int
 	Leaves              []*big.Int
 	MerkleProofs        [][]big.Int
@@ -85,6 +86,9 @@ func (p *BatchUpdateParameters) TreeDepth() uint32 {
 func (p *BatchUpdateParameters) ValidateShape() error {
 	if len(p.Leaves) != int(p.BatchSize) {
 		return fmt.Errorf("wrong number of leaves: %d, expected: %d", len(p.Leaves), p.BatchSize)
+	}
+	if len(p.Nullifiers) != int(p.BatchSize) {
+		return fmt.Errorf("wrong number of tx hashes: %d, expected: %d", len(p.Nullifiers), p.BatchSize)
 	}
 	if len(p.MerkleProofs) != int(p.BatchSize) {
 		return fmt.Errorf("wrong number of merkle proofs: %d", len(p.MerkleProofs))
@@ -128,12 +132,14 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 	newRoot := frontend.Variable(params.NewRoot)
 	leavesHashchainHash := frontend.Variable(params.LeavesHashchainHash)
 
+	nullifiers := make([]frontend.Variable, len(params.Nullifiers))
 	leaves := make([]frontend.Variable, len(params.Leaves))
 	pathIndices := make([]frontend.Variable, len(params.PathIndices))
 	merkleProofs := make([][]frontend.Variable, len(params.MerkleProofs))
 
 	for i := 0; i < len(params.Leaves); i++ {
 		leaves[i] = frontend.Variable(params.Leaves[i])
+		nullifiers[i] = frontend.Variable(params.Nullifiers[i])
 		pathIndices[i] = frontend.Variable(params.PathIndices[i])
 		merkleProofs[i] = make([]frontend.Variable, len(params.MerkleProofs[i]))
 		for j := 0; j < len(params.MerkleProofs[i]); j++ {
@@ -145,6 +151,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 		PublicInputHash:     publicInputHash,
 		OldRoot:             oldRoot,
 		NewRoot:             newRoot,
+		Nullifiers:          nullifiers,
 		LeavesHashchainHash: leavesHashchainHash,
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
@@ -168,6 +175,7 @@ func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Pro
 
 func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
 	leaves := make([]frontend.Variable, batchSize)
+	nullifiers := make([]frontend.Variable, batchSize)
 	pathIndices := make([]frontend.Variable, batchSize)
 	merkleProofs := make([][]frontend.Variable, batchSize)
 
@@ -179,6 +187,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
+		Nullifiers:          nullifiers,
 		LeavesHashchainHash: frontend.Variable(0),
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
@@ -192,6 +201,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 
 func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
 	leaves := make([]frontend.Variable, batchSize)
+	nullifiers := make([]frontend.Variable, batchSize)
 	oldMerkleProofs := make([][]frontend.Variable, batchSize)
 	newMerkleProofs := make([][]frontend.Variable, batchSize)
 
@@ -201,9 +211,16 @@ func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, 
 	}
 
 	circuit := BatchUpdateCircuit{
-		Height:       treeHeight,
-		Leaves:       leaves,
-		MerkleProofs: newMerkleProofs,
+		Height:              treeHeight,
+		Nullifiers:          nullifiers,
+		Leaves:              leaves,
+		MerkleProofs:        newMerkleProofs,
+		PathIndices:         make([]frontend.Variable, batchSize),
+		OldRoot:             frontend.Variable(0),
+		NewRoot:             frontend.Variable(0),
+		LeavesHashchainHash: frontend.Variable(0),
+		BatchSize:           batchSize,
+		PublicInputHash:     frontend.Variable(0),
 	}
 
 	fmt.Println("Compiling circuit")

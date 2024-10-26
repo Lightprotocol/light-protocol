@@ -57,17 +57,21 @@ async fn prove_batch_update() {
     const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let num_insertions = 10;
+    let tx_hash = [0u8; 32];
 
     info!("initializing merkle tree");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
-    for i in 0..2 {
+    for _ in 0..2 {
         let mut leaves = vec![];
+        let mut nullifiers = vec![];
         for i in 0..num_insertions {
             let mut bn: [u8; 32] = [0; 32];
             bn[31] = i as u8;
             let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
             leaves.push(leaf);
             merkle_tree.append(&leaf).unwrap();
+            let nullifier = Poseidon::hashv(&[&leaf, &tx_hash]).unwrap();
+            nullifiers.push(nullifier);
         }
 
         let mut merkle_proofs = vec![];
@@ -78,14 +82,15 @@ async fn prove_batch_update() {
             path_indices.push(index as u32);
         }
         let root = merkle_tree.root();
-        let leaves_hashchain = calculate_hash_chain(&leaves);
+        let leaves_hashchain = calculate_hash_chain(&nullifiers);
         let inputs = get_batch_update_inputs::<HEIGHT>(
             root,
+            vec![tx_hash; num_insertions],
             leaves,
             leaves_hashchain,
             merkle_proofs,
             path_indices,
-            num_insertions,
+            num_insertions as u32,
         );
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
@@ -104,7 +109,7 @@ async fn prove_batch_update() {
 #[tokio::test]
 async fn prove_batch_append() {
     init_logger();
-    spawn_prover(false, &[ProofType::BatchAppend]).await;
+    spawn_prover(true, &[ProofType::BatchAppend]).await;
     const HEIGHT: usize = 26;
     const CANOPY: usize = 0;
     let num_insertions = 10;
