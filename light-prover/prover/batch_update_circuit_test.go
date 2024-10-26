@@ -24,7 +24,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
 			LeavesHashchainHash: frontend.Variable(0),
-			Nullifiers:          make([]frontend.Variable, batchSize),
+			TxHashes:            make([]frontend.Variable, batchSize),
 			Leaves:              make([]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
@@ -41,7 +41,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
 			LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),
-			Nullifiers:          make([]frontend.Variable, batchSize),
+			TxHashes:            make([]frontend.Variable, batchSize),
 			Leaves:              make([]frontend.Variable, batchSize),
 			MerkleProofs:        make([][]frontend.Variable, batchSize),
 			PathIndices:         make([]frontend.Variable, batchSize),
@@ -51,7 +51,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 
 		for i := 0; i < batchSize; i++ {
 			witness.Leaves[i] = frontend.Variable(params.Leaves[i])
-			witness.Nullifiers[i] = frontend.Variable(params.Nullifiers[i])
+			witness.TxHashes[i] = frontend.Variable(params.TxHashes[i])
 			witness.PathIndices[i] = frontend.Variable(params.PathIndices[i])
 			witness.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 			for j := 0; j < treeDepth; j++ {
@@ -172,7 +172,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		witness := createBatchUpdateWitness(params, 0, batchSize)
 
 		// Swap two tx hashes to create an invalid order
-		witness.Nullifiers[0], witness.Nullifiers[1] = witness.Nullifiers[1], witness.Nullifiers[0]
+		witness.TxHashes[0], witness.TxHashes[1] = witness.TxHashes[1], witness.TxHashes[0]
 
 		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.Error(err)
@@ -185,7 +185,7 @@ func createBatchUpdateCircuit(treeDepth, batchSize int) BatchUpdateCircuit {
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
 		LeavesHashchainHash: frontend.Variable(0),
-		Nullifiers:          make([]frontend.Variable, batchSize),
+		TxHashes:            make([]frontend.Variable, batchSize),
 		Leaves:              make([]frontend.Variable, batchSize),
 		MerkleProofs:        make([][]frontend.Variable, batchSize),
 		PathIndices:         make([]frontend.Variable, batchSize),
@@ -206,7 +206,7 @@ func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count i
 		OldRoot:             frontend.Variable(params.OldRoot),
 		NewRoot:             frontend.Variable(params.NewRoot),
 		LeavesHashchainHash: frontend.Variable(params.LeavesHashchainHash),
-		Nullifiers:          make([]frontend.Variable, count),
+		TxHashes:            make([]frontend.Variable, count),
 		Leaves:              make([]frontend.Variable, count),
 		MerkleProofs:        make([][]frontend.Variable, count),
 		PathIndices:         make([]frontend.Variable, count),
@@ -215,7 +215,7 @@ func createBatchUpdateWitness(params *BatchUpdateParameters, startIndex, count i
 	}
 
 	for i := 0; i < count; i++ {
-		witness.Nullifiers[i] = frontend.Variable(params.Nullifiers[i])
+		witness.TxHashes[i] = frontend.Variable(params.TxHashes[i])
 		witness.Leaves[i] = frontend.Variable(params.Leaves[i])
 		witness.PathIndices[i] = frontend.Variable(params.PathIndices[i])
 		witness.MerkleProofs[i] = make([]frontend.Variable, int(params.Height))
