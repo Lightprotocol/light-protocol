@@ -424,7 +424,6 @@ pub async fn create_nullify_batch_ix_data(
     let instruction_data = InstructionDataBatchUpdateProofInputs {
         public_inputs: BatchProofInputsIx {
             new_root,
-            output_hash_chain: *leaves_hashchain,
             old_root_index: old_root_index as u16,
             new_subtrees_hash,
         },

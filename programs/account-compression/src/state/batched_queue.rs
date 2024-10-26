@@ -245,6 +245,7 @@ impl BatchedQueue {
     pub fn init(&mut self, num_batches: u64, batch_size: u64, zkp_batch_size: u64) {
         self.num_batches = num_batches;
         self.batch_size = batch_size;
+        // TODO: check that batch size is divisible by zkp_batch_size
         self.zkp_batch_size = zkp_batch_size;
     }
 
@@ -263,7 +264,7 @@ impl BatchedQueue {
         let num_stores =
             if queue_type == QueueType::Input as u64 || queue_type == QueueType::Address as u64 {
                 num_batches
-            } else if queue_type == QueueType::Output as u64 {
+            } else if queue_type == QueueType::Output as u64 && self.bloom_filter_capacity == 0 {
                 0
             } else {
                 return err!(AccountCompressionErrorCode::InvalidQueueType);
@@ -276,6 +277,7 @@ impl BatchedQueue {
     }
 }
 
+/// Batched output queue
 #[derive(Debug)]
 pub struct ZeroCopyBatchedQueueAccount {
     account: *mut BatchedQueueAccount,
@@ -366,6 +368,7 @@ impl ZeroCopyBatchedQueueAccount {
                 &mut self.bloomfilter_stores,
                 &mut self.hashchain_store,
                 value,
+                None,
             )?;
             (*self.account).next_index += 1;
         }
@@ -415,6 +418,7 @@ pub fn insert_into_current_batch<'a>(
     bloomfilter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
     hashchain_store: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     value: &[u8; 32],
+    leaves_hash_value: Option<&[u8; 32]>,
 ) -> Result<(Option<u32>, Option<u64>)> {
     let len = batches.len();
     let mut inserted = false;
@@ -472,6 +476,7 @@ pub fn insert_into_current_batch<'a>(
             println!("clearing");
             if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
                 println!("clearing bloomfilter store");
+                // TODO: think about whether we can move it to forester because this is really expensive
                 (*blomfilter_stores)
                     .as_mut_slice()
                     .iter_mut()
@@ -501,22 +506,19 @@ pub fn insert_into_current_batch<'a>(
         // TODO: remove unwraps
         if !inserted && current_batch.get_state() == BatchState::CanBeFilled {
             let insert_result = match queue_type {
-                QueueType::Address => current_batch.insert_and_store(
-                    value,
-                    bloomfilter_stores.unwrap().as_mut_slice(),
-                    value_store.unwrap(),
-                    hashchain_store.unwrap(),
-                ),
+                // QueueType::Address => current_batch.insert_and_store(
+                //     value,
+                //     bloomfilter_stores.unwrap().as_mut_slice(),
+                //     value_store.unwrap(),
+                //     hashchain_store.unwrap(),
+                // ),
                 QueueType::Input => current_batch.insert(
                     value,
+                    leaves_hash_value.unwrap(),
                     bloomfilter_stores.unwrap().as_mut_slice(),
                     hashchain_store.unwrap(),
                 ),
-                QueueType::Output => current_batch.store_and_hash(
-                    value,
-                    value_store.unwrap(),
-                    hashchain_store.unwrap(),
-                ),
+                QueueType::Output => current_batch.store_value(value, value_store.unwrap()),
 
                 _ => err!(AccountCompressionErrorCode::InvalidQueueType),
             };

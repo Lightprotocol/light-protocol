@@ -102,10 +102,6 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
             let batch_size = end - start;
             leaves_processed += batch_size;
 
-            // let batch_leaves = leaves[start..end]
-            //     .iter()
-            //     .map(|x| &x.1)
-            //     .collect::<Vec<&[u8; 32]>>();
             match merkle_tree_acc_discriminator {
                 StateMerkleTreeAccount::DISCRIMINATOR => append_v0(
                     ctx,

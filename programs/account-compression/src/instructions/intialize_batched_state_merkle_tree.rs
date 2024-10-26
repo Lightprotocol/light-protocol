@@ -153,6 +153,7 @@ pub fn bytes_to_struct<T: Clone + Copy + Discriminator, const INIT: bool>(
     assert!(bytes.len() >= std::mem::size_of::<T>());
 
     if INIT {
+        // TODO: add check that bytes are zero
         bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
     } else if T::DISCRIMINATOR != bytes[0..8] {
         msg!("discriminator: {:?}", T::DISCRIMINATOR);

@@ -34,6 +34,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     elements: &'a [[u8; 32]],
     queue_type: QueueType,
 ) -> Result<()> {
+    // TODO: pass tx hash with instruction data
+    let tx_hash = [0u8; 32];
+
     if elements.is_empty() {
         return err!(AccountCompressionErrorCode::InputElementsEmpty);
     }
@@ -86,14 +89,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
         );
         return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
     }
-    // if elements.len() != queue_map.len() {
-    //     msg!(
-    //         "Number of queue map elements does not match, expected {}, got {}",
-    //         elements.len(),
-    //         queue_map.len(),
-    //     );
-    //     return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
-    // }
 
     light_heap::bench_sbf_end!("acp_create_queue_map");
 
@@ -102,7 +97,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
         let rollover_fee = match queue_bundle.queue_type {
             QueueType::NullifierQueue => process_queue_bundle_v0(&ctx, &queue_bundle),
             QueueType::AddressQueue => process_queue_bundle_v0(&ctx, &queue_bundle),
-            QueueType::Input => process_queue_bundle_v1(&ctx, &queue_bundle),
+            QueueType::Input => process_queue_bundle_v1(&ctx, &queue_bundle, &tx_hash),
             _ => {
                 msg!("Queue type {:?} is not supported", queue_bundle.queue_type);
                 return err!(AccountCompressionErrorCode::InvalidQueueType);
@@ -160,6 +155,7 @@ fn process_queue_bundle_v0<'a, 'b, 'c, 'info>(
 fn process_queue_bundle_v1<'a, 'b, 'c, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     queue_bundle: &QueueBundle<'_, '_>,
+    tx_hash: &[u8; 32],
 ) -> Result<u64> {
     msg!("Processing queue bundle v1");
     let account_data = &mut queue_bundle.accounts[0].try_borrow_mut_data()?;
@@ -179,7 +175,7 @@ fn process_queue_bundle_v1<'a, 'b, 'c, 'info>(
     for element in queue_bundle.elements.iter() {
         msg!("element {:?}", element);
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v1");
-        merkle_tree.insert_into_current_batch(element)?;
+        merkle_tree.insert_nullifier_into_current_batch(element, tx_hash)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v1");
     }
     Ok(rollover_fee)
