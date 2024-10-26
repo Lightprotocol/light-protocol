@@ -246,7 +246,7 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-#[proc_macro_derive(LightHasher, attributes(skip, truncate))]
+#[proc_macro_derive(LightHasher, attributes(skip, truncate, nested))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     hasher::hasher(input)

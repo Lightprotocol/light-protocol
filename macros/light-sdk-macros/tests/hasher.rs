@@ -1,12 +1,13 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
-use light_hasher::{DataHasher, Poseidon};
+use light_hasher::{bytes::AsByteVec, DataHasher, Poseidon};
 use light_sdk_macros::LightHasher;
 
 #[derive(LightHasher)]
 pub struct MyAccount {
     pub a: bool,
     pub b: u64,
+    #[nested]
     pub c: MyNestedStruct,
     #[truncate]
     pub d: [u8; 32],
@@ -75,4 +76,27 @@ fn test_light_hasher() {
             201, 4, 181, 26, 146, 6, 1, 95, 107, 239, 19, 233, 80
         ]
     );
+}
+
+#[test]
+fn test_nested_struct_hashing() {
+    let nested_struct = MyNestedStruct {
+        a: i32::MIN,
+        b: u32::MAX,
+        c: "wao".to_string(),
+    };
+
+    // Manual implementation of AsByteVec for comparison
+    let manual_bytes: Vec<Vec<u8>> = vec![
+        nested_struct.a.to_le_bytes().to_vec(),
+        nested_struct.b.to_le_bytes().to_vec(),
+        light_utils::hash_to_bn254_field_size_be(nested_struct.c.as_bytes()).unwrap().0.to_vec(),
+    ];
+
+    // Compare manual implementation with macro-generated one
+    assert_eq!(nested_struct.as_byte_vec(), manual_bytes);
+
+    // Test hashing
+    let hash_result = nested_struct.hash::<Poseidon>().unwrap();
+    assert_eq!(hash_result.len(), 32);
 }
