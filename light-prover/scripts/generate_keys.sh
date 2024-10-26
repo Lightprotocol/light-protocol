@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -a HEIGHTS=("10" "26")
+declare -a HEIGHTS=( "26")
 DEFAULT_HEIGHT="26"
 PROVING_KEYS_DIR="./proving-keys"
 VERIFIER_DIR="../circuit-lib/verifier/src/verifying_keys"

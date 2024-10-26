@@ -10,6 +10,7 @@ type BatchUpdateProofInputsJSON struct {
 	PublicInputHash     string     `json:"publicInputHash"`
 	OldRoot             string     `json:"oldRoot"`
 	NewRoot             string     `json:"newRoot"`
+	Nullifiers          []string   `json:"nullifiers"`
 	LeavesHashchainHash string     `json:"leavesHashchainHash"`
 	Leaves              []string   `json:"leaves"`
 	MerkleProofs        [][]string `json:"newMerkleProofs"`
@@ -41,18 +42,17 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePro
 	paramsJson.Height = p.Height
 	paramsJson.BatchSize = p.BatchSize
 
+	paramsJson.Nullifiers = make([]string, len(p.Nullifiers))
 	paramsJson.Leaves = make([]string, len(p.Leaves))
+	paramsJson.PathIndices = make([]uint32, len(p.PathIndices))
+	paramsJson.MerkleProofs = make([][]string, len(p.MerkleProofs))
+	// TODO: add assert that all slices are of the same length
 	for i := 0; i < len(p.Leaves); i++ {
 		paramsJson.Leaves[i] = toHex(p.Leaves[i])
-	}
+		paramsJson.Nullifiers[i] = toHex(p.Nullifiers[i])
 
-	paramsJson.PathIndices = make([]uint32, len(p.PathIndices))
-	for i := 0; i < len(p.PathIndices); i++ {
 		paramsJson.PathIndices[i] = p.PathIndices[i]
-	}
 
-	paramsJson.MerkleProofs = make([][]string, len(p.MerkleProofs))
-	for i := 0; i < len(p.MerkleProofs); i++ {
 		paramsJson.MerkleProofs[i] = make([]string, len(p.MerkleProofs[i]))
 		for j := 0; j < len(p.MerkleProofs[i]); j++ {
 			paramsJson.MerkleProofs[i][j] = toHex(&p.MerkleProofs[i][j])
@@ -95,10 +95,16 @@ func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateProofInputsJSON
 		return err
 	}
 
+	p.Nullifiers = make([]*big.Int, len(params.Nullifiers))
 	p.Leaves = make([]*big.Int, len(params.Leaves))
 	for i := 0; i < len(params.Leaves); i++ {
 		p.Leaves[i] = new(big.Int)
 		err = fromHex(p.Leaves[i], params.Leaves[i])
+		if err != nil {
+			return err
+		}
+		p.Nullifiers[i] = new(big.Int)
+		err = fromHex(p.Nullifiers[i], params.Nullifiers[i])
 		if err != nil {
 			return err
 		}
