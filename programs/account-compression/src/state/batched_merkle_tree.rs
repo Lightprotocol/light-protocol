@@ -1312,8 +1312,16 @@ mod tests {
                     let tx_hash = create_hash_chain_from_vec(vec![leaf].to_vec()).unwrap();
                     // Index input queue insert event
                     mock_indexer.input_queue_leaves.push(leaf);
+                    mock_indexer.tx_events.push(MockTxEvent {
+                        inputs: vec![leaf],
+                        outputs: vec![],
+                        tx_hash,
+                    });
                     merkle_tree_zero_copy_account
-                        .insert_into_current_batch(&leaf.to_vec().try_into().unwrap(), &tx_hash)
+                        .insert_nullifier_into_current_batch(
+                            &leaf.to_vec().try_into().unwrap(),
+                            &tx_hash,
+                        )
                         .unwrap();
 
                     assert_input_queue_insert(
@@ -1473,7 +1481,6 @@ mod tests {
                 let (proof, new_root, new_subtree_hash) = mock_indexer
                     .get_batched_append_proof(
                         next_index as usize,
-                        // *leaves_hashchain,
                         leaves.clone(),
                         batch.get_num_inserted_zkps() as u32,
                         batch.zkp_batch_size as u32,
