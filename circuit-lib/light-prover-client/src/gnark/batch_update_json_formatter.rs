@@ -24,6 +24,8 @@ pub struct BatchUpdateProofInputsJson {
     pub height: u32,
     #[serde(rename(serialize = "batchSize"))]
     pub batch_size: u32,
+    #[serde(rename(serialize = "txHashes"))]
+    pub tx_hashes: Vec<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -38,7 +40,6 @@ impl BatchUpdateProofInputsJson {
         let old_root = big_int_to_string(&inputs.old_root);
         let new_root = big_int_to_string(&inputs.new_root);
         let leaves_hashchain_hash = big_int_to_string(&inputs.leaves_hashchain_hash);
-
         let leaves = inputs
             .leaves
             .iter()
@@ -54,6 +55,11 @@ impl BatchUpdateProofInputsJson {
         let path_indices = inputs.path_indices.clone();
         let height = inputs.height;
         let batch_size = inputs.batch_size;
+        let tx_hashes = inputs
+            .tx_hashes
+            .iter()
+            .map(big_int_to_string)
+            .collect::<Vec<String>>();
 
         Self {
             public_input_hash,
@@ -65,6 +71,7 @@ impl BatchUpdateProofInputsJson {
             path_indices,
             height,
             batch_size,
+            tx_hashes,
         }
     }
 
