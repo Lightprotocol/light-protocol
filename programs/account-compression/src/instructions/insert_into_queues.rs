@@ -159,7 +159,7 @@ fn process_queue_bundle_v1<'a, 'b, 'c, 'info>(
 ) -> Result<u64> {
     msg!("Processing queue bundle v1");
     let account_data = &mut queue_bundle.accounts[0].try_borrow_mut_data()?;
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_account(account_data)?;
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
     msg!("Checking signer");
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,

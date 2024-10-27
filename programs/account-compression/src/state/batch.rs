@@ -122,6 +122,9 @@ impl Batch {
         value: &[u8; 32],
         value_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
+        if self.state != BatchState::CanBeFilled {
+            return err!(AccountCompressionErrorCode::BatchNotReady);
+        }
         value_store.push(*value).map_err(ProgramError::from)?;
         if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
             self.num_inserted = 0;
@@ -207,8 +210,8 @@ impl Batch {
     pub fn get_num_zkp_batches(&self) -> u64 {
         self.batch_size / self.zkp_batch_size
     }
-    // TODO: rename
-    pub fn mark_as_inserted(
+
+    pub fn mark_as_inserted_in_merkle_tree(
         &mut self,
         sequence_number: u64,
         root_index: u32,
@@ -220,14 +223,11 @@ impl Batch {
         let num_zkp_batches = self.get_num_zkp_batches();
 
         self.num_inserted_zkps += 1;
-        println!("num_zkp_batches: {}", num_zkp_batches);
-        println!("num_inserted_zkps: {}", self.num_inserted_zkps);
 
         // Batch has been successfully inserted into the tree.
         if self.num_inserted_zkps == num_zkp_batches {
             self.current_zkp_batch_index = 0;
             self.state = BatchState::Inserted;
-            msg!("Batch marked as inserted into the tree.");
             self.num_inserted_zkps = 0;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
@@ -246,23 +246,81 @@ impl Batch {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     fn get_test_batch() -> Batch {
         Batch::new(3, 160_000, 500, 100)
     }
 
+    /// simulate zkp batch insertion
+    fn test_mark_as_inserted(mut batch: Batch) {
+        let mut sequence_number = 10;
+        let mut root_index = 20;
+        let root_history_length = 23;
+        for i in 0..batch.get_num_zkp_batches() {
+            sequence_number += i as u64;
+            root_index += i as u32;
+            batch
+                .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_length)
+                .unwrap();
+            if i != batch.get_num_zkp_batches() - 1 {
+                assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+                assert_eq!(batch.get_num_inserted(), 0);
+                assert_eq!(batch.get_current_zkp_batch_index(), 5);
+                assert_eq!(batch.get_num_inserted_zkps(), i + 1);
+            } else {
+                assert_eq!(batch.get_state(), BatchState::Inserted);
+                assert_eq!(batch.get_num_inserted(), 0);
+                assert_eq!(batch.get_current_zkp_batch_index(), 0);
+                assert_eq!(batch.get_num_inserted_zkps(), 0);
+            }
+        }
+        assert_eq!(batch.get_state(), BatchState::Inserted);
+        assert_eq!(batch.get_num_inserted(), 0);
+        let mut ref_batch = get_test_batch();
+        ref_batch.state = BatchState::Inserted;
+        ref_batch.root_index = root_index;
+        ref_batch.sequence_number = sequence_number - 1 + root_history_length as u64;
+        assert_eq!(batch, ref_batch);
+    }
+
     #[test]
     fn test_store_value() {
         let mut batch = get_test_batch();
 
-        let value = [1u8; 32];
         let mut value_store = BoundedVec::with_capacity(batch.batch_size as usize);
 
-        assert!(batch.store_value(&value, &mut value_store).is_ok());
-        let ref_batch = get_test_batch();
-        assert_eq!(batch, ref_batch);
-        assert_eq!(*value_store.get(0).unwrap(), value);
+        let mut ref_batch = get_test_batch();
+        for i in 0..batch.batch_size {
+            ref_batch.num_inserted %= ref_batch.zkp_batch_size;
+
+            let mut value = [0u8; 32];
+            value[24..].copy_from_slice(&i.to_be_bytes());
+            assert!(batch.store_value(&value, &mut value_store).is_ok());
+            ref_batch.num_inserted += 1;
+            if ref_batch.num_inserted == ref_batch.zkp_batch_size {
+                ref_batch.current_zkp_batch_index += 1;
+            }
+            if ref_batch.current_zkp_batch_index == ref_batch.get_num_zkp_batches() {
+                ref_batch.state = BatchState::ReadyToUpdateTree;
+                ref_batch.num_inserted = 0;
+            }
+            assert_eq!(batch, ref_batch);
+            assert_eq!(*value_store.get(i as usize).unwrap(), value);
+        }
+        let result = batch.store_value(&[1u8; 32], &mut value_store);
+        assert_eq!(
+            result.unwrap_err(),
+            AccountCompressionErrorCode::BatchNotReady.into()
+        );
+        assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+        assert_eq!(batch.get_num_inserted(), 0);
+        assert_eq!(batch.get_current_zkp_batch_index(), 5);
+        assert_eq!(batch.get_num_zkp_batches(), 5);
+        assert_eq!(batch.get_num_inserted_zkps(), 0);
+
+        test_mark_as_inserted(batch);
     }
 
     #[test]
@@ -276,6 +334,7 @@ mod tests {
 
         let mut ref_batch = get_test_batch();
         for i in 0..batch.batch_size {
+            ref_batch.num_inserted %= ref_batch.zkp_batch_size;
             let mut value = [0u8; 32];
             value[24..].copy_from_slice(&i.to_be_bytes());
             let ref_hash_chain = if i % batch.zkp_batch_size == 0 {
@@ -292,17 +351,20 @@ mod tests {
                 store: &mut store,
             };
             assert!(bloomfilter.contains(&value));
+            batch.check_non_inclusion(&value, &mut store).unwrap_err();
+
             ref_batch.num_inserted += 1;
             assert_eq!(*hashchain_store.last().unwrap(), ref_hash_chain);
             if ref_batch.num_inserted == ref_batch.zkp_batch_size {
                 ref_batch.current_zkp_batch_index += 1;
-                ref_batch.num_inserted = 0;
             }
             if i == batch.batch_size - 1 {
                 ref_batch.state = BatchState::ReadyToUpdateTree;
+                ref_batch.num_inserted = 0;
             }
             assert_eq!(batch, ref_batch);
         }
+        test_mark_as_inserted(batch);
     }
 
     #[test]
@@ -331,7 +393,6 @@ mod tests {
         assert_eq!(hashchain_store[0], ref_hash_chain);
     }
 
-    // TODO: test for different value and hashchain value
     #[test]
     fn test_check_non_inclusion() {
         let mut batch = get_test_batch();
@@ -349,5 +410,20 @@ mod tests {
             .insert(&value, &value, &mut store, &mut hashchain_store)
             .unwrap();
         assert!(batch.check_non_inclusion(&value, &mut store).is_err());
+    }
+
+    #[test]
+    fn test_getters() {
+        let mut batch = get_test_batch();
+        assert_eq!(batch.get_num_zkp_batches(), 5);
+        assert_eq!(batch.get_hashchain_store_len(), 5);
+        assert_eq!(batch.get_state(), BatchState::CanBeFilled);
+        assert_eq!(batch.get_num_inserted(), 0);
+        assert_eq!(batch.get_current_zkp_batch_index(), 0);
+        assert_eq!(batch.get_num_inserted_zkps(), 0);
+        batch.advance_state_to_ready_to_update_tree().unwrap();
+        assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+        batch.advance_state_to_inserted().unwrap();
+        assert_eq!(batch.get_state(), BatchState::Inserted);
     }
 }

@@ -16,10 +16,10 @@ pub struct BatchAppend<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: in from_account.
+    /// CHECK: in from_bytes_mut.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-    /// CHECK: in from_account.
+    /// CHECK: in from_bytes_mut.
     #[account(mut)]
     pub output_queue: AccountInfo<'info>,
 }
@@ -38,7 +38,7 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     instruction_data: InstructionDataBatchAppendProofInputs,
 ) -> Result<()> {
     let account_data = &mut ctx.accounts.merkle_tree.try_borrow_mut_data()?;
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_account(account_data)?;
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
     check_signer_is_registered_or_authority::<BatchAppend, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         &merkle_tree,

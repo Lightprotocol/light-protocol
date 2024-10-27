@@ -146,7 +146,7 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     Ok(())
 }
 
-pub fn bytes_to_struct<T: Clone + Copy + Discriminator, const INIT: bool>(
+pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes: &mut [u8],
 ) -> *mut T {
     // Ensure the slice has at least as many bytes as needed for MyStruct
@@ -164,7 +164,10 @@ pub fn bytes_to_struct<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes[8..].as_mut_ptr() as *mut T
 }
 
-pub fn struct_to_bytes<T: Clone + Copy + Discriminator, const INIT: bool>(s: &T, bytes: &mut [u8]) {
+pub fn struct_to_bytes_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
+    s: &T,
+    bytes: &mut [u8],
+) {
     // Ensure the slice has enough space to hold the struct
     assert!(bytes.len() >= std::mem::size_of::<T>());
 
@@ -234,7 +237,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             associated_merkle_tree: mt_pubkey,
         };
 
-        ZeroCopyBatchedQueueAccount::init_from_account(
+        ZeroCopyBatchedQueueAccount::init(
             metadata,
             num_batches_output_queue,
             params.output_queue_batch_size,
@@ -260,7 +263,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         associated_queue: output_queue_pubkey,
     };
     msg!("initing mt_account: ");
-    ZeroCopyBatchedMerkleTreeAccount::init_from_account(
+    ZeroCopyBatchedMerkleTreeAccount::init(
         metadata,
         params.root_history_capacity,
         num_batches_input_queue,
@@ -279,8 +282,8 @@ pub fn assert_mt_zero_copy_inited(
     ref_account: BatchedMerkleTreeAccount,
     num_iters: u64,
 ) {
-    let mut zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::from_account(account_data).expect("from_account failed");
+    let mut zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)
+        .expect("from_bytes_mut failed");
     let queue = zero_copy_account.get_account().queue.clone();
     let ref_queue = ref_account.queue.clone();
     let queue_type = QueueType::Input as u64;

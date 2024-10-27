@@ -163,7 +163,7 @@ fn append_v1<'a, 'b, 'c: 'info, 'info>(
     leaves: &[(u8, [u8; 32])],
 ) -> Result<u64> {
     let account_data = &mut merkle_tree_acc_info.try_borrow_mut_data()?;
-    let output_queue_zero_copy = &mut ZeroCopyBatchedQueueAccount::from_account(account_data)?;
+    let output_queue_zero_copy = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(account_data)?;
     check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
         ctx,
         output_queue_zero_copy.get_account(),

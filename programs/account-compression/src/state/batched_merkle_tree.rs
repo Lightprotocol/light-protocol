@@ -1,7 +1,7 @@
 use crate::{
     batch::BatchState,
     batched_queue::ZeroCopyBatchedQueueAccount,
-    bytes_to_struct,
+    bytes_to_struct_checked,
     errors::AccountCompressionErrorCode,
     utils::{
         check_signer_is_registered_or_authority::GroupAccess,
@@ -182,14 +182,15 @@ impl ZeroCopyBatchedMerkleTreeAccount {
 
     // TODO: add from_account_mut
     // TODO: add from_account_info,  and from_account_loader
-    pub fn from_account(account_data: &mut [u8]) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
+    pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
-            let account = bytes_to_struct::<BatchedMerkleTreeAccount, false>(account_data);
+            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, false>(account_data);
             if account_data.len() != (*account).size()? {
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
             let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>() + 8;
-            let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset);
+            let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset)
+                .map_err(ProgramError::from)?;
             let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
                 batched_queue_from_account(
                     &(*account).queue,
@@ -209,7 +210,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         }
     }
 
-    pub fn init_from_account(
+    pub fn init(
         metadata: MerkleTreeMetadata,
         root_history_capacity: u32,
         num_batches_input_queue: u64,
@@ -221,7 +222,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         bloomfilter_capacity: u64,
     ) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
-            let account = bytes_to_struct::<BatchedMerkleTreeAccount, true>(account_data);
+            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, true>(account_data);
             (*account).metadata = metadata;
             (*account).root_history_capacity = root_history_capacity;
             (*account).height = height;
@@ -290,7 +291,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         instruction_data: InstructionDataBatchAppendProofInputs,
     ) -> Result<()> {
         let mut queue_account =
-            ZeroCopyBatchedQueueAccount::from_account(queue_account_data).unwrap();
+            ZeroCopyBatchedQueueAccount::from_bytes_mut(queue_account_data).unwrap();
 
         let batch_index = queue_account
             .get_account()
@@ -367,7 +368,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let root_history_capacity = account.root_history_capacity;
         let sequence_number = account.sequence_number;
         self.root_history.push(new_root);
-        full_batch.mark_as_inserted(
+        full_batch.mark_as_inserted_in_merkle_tree(
             sequence_number,
             self.root_history.last_index() as u32,
             root_history_capacity,
@@ -422,7 +423,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let root_history_capacity = self.get_account().root_history_capacity;
         let full_batch = self.batches.get_mut(batch_index as usize).unwrap();
 
-        full_batch.mark_as_inserted(
+        full_batch.mark_as_inserted_in_merkle_tree(
             sequence_number,
             self.root_history.last_index() as u32,
             root_history_capacity,
@@ -739,7 +740,7 @@ mod tests {
             // let root_history_length = merkle_tree_zero_copy_account.root_history.len() as u32;
             // let sequence_number = pre_account.sequence_number;
             // expected_batch
-            //     .mark_as_inserted(sequence_number, root_index, root_history_length)
+            //     .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_length)
             //     .unwrap();
 
             expected_batch.advance_state_to_can_be_filled().unwrap();
@@ -879,9 +880,9 @@ mod tests {
         reference_merkle_tree: &mut MerkleTree<Poseidon>,
     ) -> Result<MockTxEvent> {
         let mut output_zero_copy_account =
-            ZeroCopyBatchedQueueAccount::from_account(output_queue_account_data).unwrap();
+            ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data).unwrap();
         let mut merkle_tree_zero_copy_account =
-            ZeroCopyBatchedMerkleTreeAccount::from_account(merkle_tree_account_data).unwrap();
+            ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(merkle_tree_account_data).unwrap();
         let flattened_inputs = instruction_data
             .inputs
             .iter()
@@ -929,7 +930,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_simulate_transactions() {
-        spawn_prover(false, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;
+        spawn_prover(true, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;
         let mut mock_indexer = mock_indexer::MockIndexer::<26>::new();
 
         let num_tx = 220000;
@@ -1051,13 +1052,13 @@ mod tests {
                 };
 
                 let merkle_tree_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
                 println!(
                     "input queue: {:?}",
                     merkle_tree_zero_copy_account.batches[0].get_num_inserted()
                 );
                 let output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
                 let mut pre_mt_data = mt_account_data.clone();
 
@@ -1102,7 +1103,7 @@ mod tests {
                 num_output_values += number_of_outputs;
                 num_input_values += number_of_inputs;
                 let merkle_tree_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_data).unwrap();
                 in_ready_for_update = merkle_tree_zero_copy_account
                     .batches
                     .iter()
@@ -1135,10 +1136,10 @@ mod tests {
                 println!("Num output values: {}", num_output_values);
                 let mut pre_mt_account_data = mt_account_data.clone();
                 let old_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
                 let (input_res, root, new_subtrees_hash) = {
                     let mut zero_copy_account =
-                        ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                        ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                             .unwrap();
                     println!("batches {:?}", zero_copy_account.batches);
 
@@ -1208,7 +1209,7 @@ mod tests {
                 // One root changed one didn't
 
                 let zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                         .unwrap();
 
                 assert_merkle_tree_update(
@@ -1233,10 +1234,10 @@ mod tests {
 
                 let mut pre_mt_account_data = mt_account_data.clone();
                 let mut zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                         .unwrap();
                 let output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
 
                 let next_index = zero_copy_account.get_account().next_index;
@@ -1299,13 +1300,14 @@ mod tests {
                 println!("num_output_values: {}", num_output_values);
                 println!("num_input_values: {}", num_input_values);
                 let output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut pre_output_queue_state).unwrap();
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut pre_output_queue_state)
+                        .unwrap();
                 let old_output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
 
                 let old_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
 
                 println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
                 println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
@@ -1325,7 +1327,7 @@ mod tests {
             }
         }
         let output_zero_copy_account =
-            ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data).unwrap();
+            ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data).unwrap();
         println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
         println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
         println!("num_output_updates: {}", num_output_updates);
@@ -1412,7 +1414,7 @@ mod tests {
             // Output queue
             {
                 let mut output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
                 if rng.gen_bool(0.5) {
                     println!("Output insert -----------------------------");
@@ -1453,7 +1455,7 @@ mod tests {
             // Input queue
             {
                 let mut merkle_tree_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
 
                 if rng.gen_bool(0.5) && !mock_indexer.active_leaves.is_empty() {
                     println!("Input insert -----------------------------");
@@ -1502,10 +1504,10 @@ mod tests {
                 println!("Num output values: {}", num_output_values);
                 let mut pre_mt_account_data = mt_account_data.clone();
                 let old_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
                 let (input_res, root, new_subtrees_hash) = {
                     let mut zero_copy_account =
-                        ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                        ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                             .unwrap();
                     println!("batches {:?}", zero_copy_account.batches);
 
@@ -1575,7 +1577,7 @@ mod tests {
                 // One root changed one didn't
 
                 let zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                         .unwrap();
 
                 assert_merkle_tree_update(
@@ -1600,10 +1602,10 @@ mod tests {
                 println!("Num output values: {}", num_output_values);
                 let mut pre_mt_account_data = mt_account_data.clone();
                 let mut zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut pre_mt_account_data)
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                         .unwrap();
                 let output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
 
                 let next_index = zero_copy_account.get_account().next_index;
@@ -1680,13 +1682,14 @@ mod tests {
                 println!("num_output_values: {}", num_output_values);
                 println!("num_input_values: {}", num_input_values);
                 let output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut pre_output_queue_state).unwrap();
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut pre_output_queue_state)
+                        .unwrap();
                 let old_output_zero_copy_account =
-                    ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data)
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
 
                 let old_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_account(&mut mt_account_data).unwrap();
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
 
                 println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
                 println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
@@ -1706,7 +1709,7 @@ mod tests {
             }
         }
         let output_zero_copy_account =
-            ZeroCopyBatchedQueueAccount::from_account(&mut output_queue_account_data).unwrap();
+            ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data).unwrap();
         println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
         println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
         println!("num_output_updates: {}", num_output_updates);
