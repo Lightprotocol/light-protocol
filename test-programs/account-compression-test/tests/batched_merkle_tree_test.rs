@@ -335,9 +335,9 @@ pub async fn create_append_batch_ix_data(
     output_queue_account_data: &mut [u8],
 ) -> InstructionDataBatchAppendProofInputs {
     let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::from_account(mt_account_data).unwrap();
+        ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(mt_account_data).unwrap();
     let output_zero_copy_account =
-        ZeroCopyBatchedQueueAccount::from_account(output_queue_account_data).unwrap();
+        ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data).unwrap();
 
     let next_index = zero_copy_account.get_account().next_index;
     let next_full_batch = output_zero_copy_account
@@ -384,7 +384,7 @@ pub async fn create_nullify_batch_ix_data(
     account_data: &mut [u8],
 ) -> InstructionDataBatchUpdateProofInputs {
     let zero_copy_account: ZeroCopyBatchedMerkleTreeAccount =
-        ZeroCopyBatchedMerkleTreeAccount::from_account(account_data).unwrap();
+        ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data).unwrap();
     println!("batches {:?}", zero_copy_account.batches);
 
     let old_root_index = zero_copy_account.root_history.last_index();
