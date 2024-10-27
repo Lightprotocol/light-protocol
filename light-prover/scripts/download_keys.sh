@@ -21,7 +21,7 @@ BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 APPEND_BUCKET="bafybeiev4q77to62svq535gzndnetvngcnkruhcqw4zdfsjl5ohker7z2u"
 
 # keys for update circuit for tree of height 26
-UPDATE_BUCKET="bafybeieigh4im5ca4omziuugxjrupjisluhoscodah7z2whlamtyg4wgty"
+UPDATE_BUCKET="bafybeic3lzc2sl37f77qpzqdjhp2cwwalo7k65sp4iqmm4wpxeiaghkkju"
 
 LIGHTWEIGHT_FILES=(
   "inclusion_26_1.key"
