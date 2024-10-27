@@ -122,6 +122,7 @@ impl BatchedMerkleTreeAccount {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ZeroCopyBatchedMerkleTreeAccount {
     account: *mut BatchedMerkleTreeAccount,
     pub root_history: ManuallyDrop<CyclicBoundedVec<[u8; 32]>>,
@@ -422,7 +423,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         tx_hash: &[u8; 32],
     ) -> Result<()> {
         let nullifier = Poseidon::hashv(&[value, tx_hash]).map_err(ProgramError::from)?;
-
+        println!("nullifier: {:?}", nullifier);
         self.insert_into_current_batch(value, &nullifier)
     }
 
@@ -587,160 +588,206 @@ mod tests {
     /// 3.
     pub fn assert_input_queue_insert(
         mut pre_account: BatchedMerkleTreeAccount,
-        pre_batches: ManuallyDrop<BoundedVec<Batch>>,
+        mut pre_batches: ManuallyDrop<BoundedVec<Batch>>,
         pre_roots: Vec<[u8; 32]>,
         mut pre_hashchains: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-        merkle_tree_zero_copy_account: &mut ZeroCopyBatchedMerkleTreeAccount,
-        insert_value: [u8; 32],
+        mut merkle_tree_zero_copy_account: ZeroCopyBatchedMerkleTreeAccount,
+        insert_values: Vec<[u8; 32]>,
         tx_hash: [u8; 32],
+        input_is_in_tree: Vec<bool>,
     ) -> Result<()> {
-        let current_batch_index = merkle_tree_zero_copy_account
-            .get_account()
-            .queue
-            .currently_processing_batch_index as usize;
-        let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+        for (i, insert_value) in insert_values.iter().enumerate() {
+            if !input_is_in_tree[i] {
+                continue;
+            }
+            println!("insert_value: {:?}", insert_value);
+            let post_roots: Vec<[u8; 32]> = merkle_tree_zero_copy_account
+                .root_history
+                .iter()
+                .cloned()
+                .collect();
+            assert_eq!(post_roots, pre_roots, "Root buffer changed.");
 
-        // if the currently processing batch changed it should
-        // increment by one and the old batch should be ready to
-        // update
-        if current_batch_index != pre_account.queue.currently_processing_batch_index as usize {
-            println!("merkle_tree_zero_copy_account.batches
+            let current_batch_index = merkle_tree_zero_copy_account
+                .get_account()
+                .queue
+                .currently_processing_batch_index as usize;
+            let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+            let expected_batch = &mut pre_batches[inserted_batch_index];
+
+            if expected_batch.get_state() == BatchState::Inserted {
+                pre_hashchains[inserted_batch_index].clear();
+                expected_batch.sequence_number = 0;
+                expected_batch.advance_state_to_can_be_filled().unwrap();
+            }
+
+            // New value exists in the current batch bloom filter
+            let mut bloomfilter = light_bloom_filter::BloomFilter::new(
+                merkle_tree_zero_copy_account.batches[inserted_batch_index].num_iters as usize,
+                merkle_tree_zero_copy_account.batches[inserted_batch_index].bloomfilter_capacity,
+                merkle_tree_zero_copy_account.bloomfilter_stores[inserted_batch_index]
+                    .as_mut_slice(),
+            )
+            .unwrap();
+            assert!(bloomfilter.contains(&insert_value));
+            let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
+            let nullifier = Poseidon::hashv(&[insert_value.as_slice(), &tx_hash]).unwrap();
+            expected_batch.add_to_hash_chain(&nullifier, &mut pre_hashchain)?;
+
+            // New value does not exist in the other batch bloomfilters
+            for (i, batch) in merkle_tree_zero_copy_account.batches.iter_mut().enumerate() {
+                // Skip current batch it is already checked above
+                if i == inserted_batch_index {
+                    continue;
+                }
+                let mut bloomfilter = light_bloom_filter::BloomFilter::new(
+                    batch.num_iters as usize,
+                    batch.bloomfilter_capacity,
+                    merkle_tree_zero_copy_account.bloomfilter_stores[i].as_mut_slice(),
+                )
+                .unwrap();
+                assert!(!bloomfilter.contains(&insert_value));
+            }
+            // if the currently processing batch changed it should
+            // increment by one and the old batch should be ready to
+            // update
+            if expected_batch.get_num_zkp_batches() == expected_batch.get_current_zkp_batch_index()
+            {
+                println!("merkle_tree_zero_copy_account.batches
                                 [pre_account.queue.currently_processing_batch_index as usize] : {:?}",merkle_tree_zero_copy_account.batches
                                 [pre_account.queue.currently_processing_batch_index as usize]);
-            assert_eq!(
-                merkle_tree_zero_copy_account.batches
-                    [pre_account.queue.currently_processing_batch_index as usize]
-                    .get_state(),
-                BatchState::ReadyToUpdateTree
-            );
-            pre_account.queue.currently_processing_batch_index += 1;
-            pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+                assert_eq!(
+                    merkle_tree_zero_copy_account.batches
+                        [pre_account.queue.currently_processing_batch_index as usize]
+                        .get_state(),
+                    BatchState::ReadyToUpdateTree
+                );
+                pre_account.queue.currently_processing_batch_index += 1;
+                pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+                assert_eq!(
+                    merkle_tree_zero_copy_account.batches[inserted_batch_index],
+                    *expected_batch
+                );
+                assert_eq!(
+                    merkle_tree_zero_copy_account.hashchain_store[inserted_batch_index]
+                        .last()
+                        .unwrap(),
+                    pre_hashchain.last().unwrap(),
+                    "Hashchain store inconsistent."
+                );
+            }
         }
-        let mut expected_batch = pre_batches[inserted_batch_index].clone();
 
-        if expected_batch.get_state() == BatchState::Inserted {
-            pre_hashchains[inserted_batch_index].clear();
-            expected_batch.sequence_number = 0;
-            expected_batch.advance_state_to_can_be_filled().unwrap();
-        }
         assert_eq!(
             *merkle_tree_zero_copy_account.get_account(),
             pre_account,
             "BatchedMerkleTreeAccount changed."
         );
-        let post_roots: Vec<[u8; 32]> = merkle_tree_zero_copy_account
-            .root_history
-            .iter()
-            .cloned()
-            .collect();
-        assert_eq!(post_roots, pre_roots, "Root buffer changed.");
-
-        // New value exists in the current batch bloom filter
-        let mut bloomfilter = light_bloom_filter::BloomFilter::new(
-            merkle_tree_zero_copy_account.batches[inserted_batch_index].num_iters as usize,
-            merkle_tree_zero_copy_account.batches[inserted_batch_index].bloomfilter_capacity,
-            merkle_tree_zero_copy_account.bloomfilter_stores[inserted_batch_index].as_mut_slice(),
-        )
-        .unwrap();
-        assert!(bloomfilter.contains(&insert_value));
-        let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
-        let nullifier = Poseidon::hashv(&[&insert_value, &tx_hash]).unwrap();
-        expected_batch.add_to_hash_chain(&nullifier, &mut pre_hashchain)?;
-        // assert_ne!(expected_batch.user_hash_chain, previous_hashchain);
-        // assert_eq!(
-        //     merkle_tree_zero_copy_account.hashchain_store[inserted_batch_index]
-        //         .last()
-        //         .unwrap(),
-        //     pre_hashchain.last().unwrap(),
-        //     "Hashchain store inconsistent."
-        // );
+        let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+        let mut expected_batch = pre_batches[inserted_batch_index].clone();
         assert_eq!(
             merkle_tree_zero_copy_account.batches[inserted_batch_index],
             expected_batch
         );
-
-        // New value does not exist in the other batch bloomfilters
-        for (i, batch) in merkle_tree_zero_copy_account.batches.iter_mut().enumerate() {
-            // Skip current batch it is already checked above
-            if i == inserted_batch_index {
-                continue;
-            }
-            let mut bloomfilter = light_bloom_filter::BloomFilter::new(
-                batch.num_iters as usize,
-                batch.bloomfilter_capacity,
-                merkle_tree_zero_copy_account.bloomfilter_stores[i].as_mut_slice(),
-            )
-            .unwrap();
-            assert!(!bloomfilter.contains(&insert_value));
-        }
+        let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
+        assert_eq!(
+            merkle_tree_zero_copy_account.hashchain_store[inserted_batch_index], *pre_hashchain,
+            "Hashchain store inconsistent."
+        );
         Ok(())
     }
 
+    /// Expected behavior for insert into output queue:
+    /// - add value to value array
+    /// - batch.num_inserted += 1
+    /// - if batch is full after insertion advance state to ReadyToUpdateTree
     pub fn assert_output_queue_insert(
         mut pre_account: BatchedQueueAccount,
-        pre_batches: ManuallyDrop<BoundedVec<Batch>>,
+        mut pre_batches: ManuallyDrop<BoundedVec<Batch>>,
         mut pre_value_store: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-        output_zero_copy_account: &mut ZeroCopyBatchedQueueAccount,
-        insert_value: [u8; 32],
+        mut output_zero_copy_account: ZeroCopyBatchedQueueAccount,
+        insert_values: Vec<[u8; 32]>,
     ) -> Result<()> {
-        let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
-        let current_batch_index = output_zero_copy_account
-            .get_account()
-            .queue
-            .currently_processing_batch_index as usize;
-        // if the currently processing batch changed it should
-        // increment by one and the old batch should be ready to
-        // update
-        if current_batch_index != pre_account.queue.currently_processing_batch_index as usize {
-            println!("merkle_tree_zero_copy_account.batches
+        for batch in output_zero_copy_account.batches.iter_mut() {
+            println!("output_zero_copy_account.batch: {:?}", batch);
+        }
+        for batch in pre_batches.iter() {
+            println!("pre_batch: {:?}", batch);
+        }
+        for insert_value in insert_values.iter() {
+            // There are no hash stores
+            for hash_store_batch in output_zero_copy_account.hashchain_store.iter() {
+                assert_eq!(hash_store_batch.len(), 0);
+            }
+            // There are no bloomfilters
+            for hash_store_batch in output_zero_copy_account.bloomfilter_stores.iter() {
+                assert_eq!(hash_store_batch.len(), 0);
+            }
+            // let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+            // let mut expected_batch = &mut pre_batches[inserted_batch_index];
+            // if the currently processing batch changed it should
+            // increment by one and the old batch should be ready to
+            // update
+
+            let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+            let mut expected_batch = &mut pre_batches[inserted_batch_index];
+            let mut pre_value_store = pre_value_store.get_mut(inserted_batch_index).unwrap();
+
+            if expected_batch.get_state() == BatchState::Inserted {
+                expected_batch.advance_state_to_can_be_filled().unwrap();
+                pre_value_store.clear();
+            }
+            pre_account.next_index += 1;
+            println!("expected_batch: {:?}", expected_batch);
+            expected_batch.store_value(&insert_value, &mut pre_value_store)?;
+
+            let other_batch = if inserted_batch_index == 0 { 1 } else { 0 };
+            // assert_eq!(
+            //     output_zero_copy_account.batches[other_batch],
+            //     pre_batches[other_batch]
+            // );
+            assert!(output_zero_copy_account.value_vecs[inserted_batch_index]
+                .as_mut_slice()
+                .to_vec()
+                .contains(&insert_value));
+            assert!(!output_zero_copy_account.value_vecs[other_batch]
+                .as_mut_slice()
+                .to_vec()
+                .contains(&insert_value));
+            if expected_batch.get_num_zkp_batches() == expected_batch.get_current_zkp_batch_index()
+            {
+                println!("merkle_tree_zero_copy_account.batches
                                 [pre_account.queue.currently_processing_batch_index as usize] : {:?}",output_zero_copy_account.batches
                                 [pre_account.queue.currently_processing_batch_index as usize]);
-            assert!(
-                output_zero_copy_account.batches
-                    [pre_account.queue.currently_processing_batch_index as usize]
-                    .get_state()
-                    == BatchState::ReadyToUpdateTree
-            );
-            pre_account.queue.currently_processing_batch_index += 1;
-            pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+                assert!(
+                    output_zero_copy_account.batches
+                        [pre_account.queue.currently_processing_batch_index as usize]
+                        .get_state()
+                        == BatchState::ReadyToUpdateTree
+                );
+                pre_account.queue.currently_processing_batch_index += 1;
+                pre_account.queue.currently_processing_batch_index %= pre_account.queue.num_batches;
+                println!(
+                    "incremented pre_account.queue.currently_processing_batch_index: {:?}",
+                    pre_account.queue.currently_processing_batch_index
+                );
+                assert_eq!(
+                    output_zero_copy_account.batches[inserted_batch_index],
+                    *expected_batch
+                );
+            }
         }
-        let mut expected_batch = pre_batches[inserted_batch_index].clone();
-        // let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
-        let mut pre_value_store = pre_value_store.get_mut(inserted_batch_index).unwrap();
-
-        if expected_batch.get_state() == BatchState::Inserted {
-            expected_batch.advance_state_to_can_be_filled().unwrap();
-            pre_value_store.clear();
-        }
-        // TODO: make only is_inserted true if it was recently inserted, replace with state enum
-        pre_account.next_index += 1;
+        let inserted_batch_index = pre_account.queue.currently_processing_batch_index as usize;
+        let expected_batch = &pre_batches[inserted_batch_index];
+        assert_eq!(
+            output_zero_copy_account.batches[inserted_batch_index],
+            *expected_batch
+        );
         assert_eq!(
             *output_zero_copy_account.get_account(),
             pre_account,
             "ZeroCopyBatchedQueueAccount changed."
         );
-
-        println!("expected_batch: {:?}", expected_batch);
-        expected_batch.store_value(&insert_value, &mut pre_value_store)?;
-
-        assert_eq!(
-            output_zero_copy_account.batches[inserted_batch_index],
-            expected_batch
-        );
-
-        let other_batch = if inserted_batch_index == 0 { 1 } else { 0 };
-        assert_eq!(
-            output_zero_copy_account.batches[other_batch],
-            pre_batches[other_batch]
-        );
-        assert!(output_zero_copy_account.value_vecs[inserted_batch_index]
-            .as_mut_slice()
-            .to_vec()
-            .contains(&insert_value));
-        assert!(!output_zero_copy_account.value_vecs[other_batch]
-            .as_mut_slice()
-            .to_vec()
-            .contains(&insert_value));
         Ok(())
     }
 
@@ -769,9 +816,11 @@ mod tests {
         let tx_hash = create_hash_chain_from_vec(flattened_inputs)?;
 
         for input in instruction_data.inputs.iter() {
+            println!("simulate_transaction: input loop input {:?}", input);
             // zkp inclusion in Merkle tree
             let inclusion = reference_merkle_tree.get_leaf_index(input);
             if inclusion.is_none() {
+                println!("simulate_transaction: inclusion is none");
                 let mut included = false;
 
                 for (batch_index, value_vec) in
@@ -782,23 +831,23 @@ mod tests {
                         if *value == *input {
                             included = true;
                             *value = [0u8; 32];
-                        }
-                        // For completeness (not possible in this simulation
-                        // function)
-                        // If value has already been inserted into the
-                        // tree but inclusion is proven by index,
-                        // insert it into the nullifier queue.
-                        let batch = output_zero_copy_account.batches.get(batch_index).unwrap();
-                        if batch.value_is_inserted_in_merkle_tree(value_index as u64) {
-                            merkle_tree_zero_copy_account
-                                .insert_nullifier_into_current_batch(input, &tx_hash)?;
+                            // For completeness (not possible in this simulation
+                            // function)
+                            // If value has already been inserted into the
+                            // tree but inclusion is proven by index,
+                            // insert it into the nullifier queue.
+                            // let batch = output_zero_copy_account.batches.get(batch_index).unwrap();
+                            // if batch.value_is_inserted_in_merkle_tree(value_index as u64) {
+                            //     merkle_tree_zero_copy_account
+                            //         .insert_nullifier_into_current_batch(input, &tx_hash)?;
+                            // }
                         }
                     }
                 }
                 if !included {
                     panic!("Value not included in any output queue or trees.");
                 }
-                continue;
+                // continue;
             } else {
                 println!("insert input into batch");
                 merkle_tree_zero_copy_account
@@ -888,6 +937,7 @@ mod tests {
                 };
 
                 let mut inputs = vec![];
+                let mut input_is_in_tree = vec![];
                 let mut retries = min(10, mock_indexer.active_leaves.len());
                 while inputs.len() < number_of_inputs && retries > 0 {
                     let leaf = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
@@ -895,17 +945,14 @@ mod tests {
                     if inserted.is_some() {
                         inputs.push(leaf);
                         mock_indexer.input_queue_leaves.push(leaf);
+                        input_is_in_tree.push(true);
                     } else if rng.gen_bool(0.1) {
                         inputs.push(leaf);
+                        input_is_in_tree.push(false);
                         println!("input not inserted into tree");
                     }
-
                     retries -= 1;
                 }
-                // if inputs.is_empty() && !mock_indexer.active_leaves.is_empty() {
-                //     inputs.push(mock_indexer.active_leaves.remove(0));
-                //     println!("adding leaf to input queue");
-                // }
                 let number_of_inputs = inputs.len();
                 println!("number_of_inputs: {}", number_of_inputs);
 
@@ -924,6 +971,18 @@ mod tests {
                     ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                         .unwrap();
                 let mut pre_mt_data = mt_account_data.clone();
+                let pre_output_account = output_zero_copy_account.get_account().clone();
+                let pre_output_batches = output_zero_copy_account.batches.clone();
+                let pre_output_value_stores = output_zero_copy_account.value_vecs.clone();
+
+                let pre_mt_account = merkle_tree_zero_copy_account.get_account().clone();
+                let pre_batches = merkle_tree_zero_copy_account.batches.clone();
+                let pre_roots = merkle_tree_zero_copy_account
+                    .root_history
+                    .iter()
+                    .cloned()
+                    .collect();
+                let pre_mt_hashchains = merkle_tree_zero_copy_account.hashchain_store.clone();
 
                 if !outputs.is_empty() || !inputs.is_empty() {
                     println!("Simulating tx with inputs: {:?}", instruction_data);
@@ -934,50 +993,55 @@ mod tests {
                         &mut mock_indexer.merkle_tree,
                     )
                     .unwrap();
-                    mock_indexer.tx_events.push(event);
+                    mock_indexer.tx_events.push(event.clone());
+
+                    if !outputs.is_empty() {
+                        assert_output_queue_insert(
+                            pre_output_account,
+                            pre_output_batches,
+                            pre_output_value_stores,
+                            output_zero_copy_account.clone(),
+                            outputs.clone(),
+                        )
+                        .unwrap();
+                    }
+                    if !inputs.is_empty() {
+                        let merkle_tree_zero_copy_account =
+                            ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_data)
+                                .unwrap();
+                        assert_input_queue_insert(
+                            pre_mt_account,
+                            pre_batches,
+                            pre_roots,
+                            pre_mt_hashchains,
+                            merkle_tree_zero_copy_account,
+                            inputs,
+                            event.tx_hash,
+                            input_is_in_tree,
+                        )
+                        .unwrap();
+                    }
+                    for i in 0..number_of_outputs {
+                        mock_indexer.active_leaves.push(outputs[i]);
+                    }
+
+                    num_output_values += number_of_outputs;
+                    num_input_values += number_of_inputs;
+                    let merkle_tree_zero_copy_account =
+                        ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_data).unwrap();
+                    in_ready_for_update = merkle_tree_zero_copy_account
+                        .batches
+                        .iter()
+                        .any(|batch| batch.get_state() == BatchState::ReadyToUpdateTree);
+                    out_ready_for_update = output_zero_copy_account
+                        .batches
+                        .iter()
+                        .any(|batch| batch.get_state() == BatchState::ReadyToUpdateTree);
+
+                    mt_account_data = pre_mt_data.clone();
                 } else {
                     println!("Skipping simulate tx for no inputs or outputs");
                 }
-                // if !outputs.is_empty() {
-                //     assert_output_queue_insert(
-                //         pre_output_account,
-                //         pre_output_batches,
-                //         pre_output_hashchains,
-                //         &mut output_zero_copy_account,
-                //         outputs[0],
-                //     )
-                //     .unwrap();
-                // }
-                // if !inputs.is_empty() {
-                //     assert_input_queue_insert(
-                //         pre_mt_account,
-                //         pre_batches,
-                //         pre_roots,
-                //         pre_mt_hashchains,
-                //         &mut merkle_tree_zero_copy_account,
-                //         inputs,
-                //         mock_indexer.tx_events.last().unwrap().tx_hash,
-                //     )
-                //     .unwrap();
-                // }
-                for i in 0..number_of_outputs {
-                    mock_indexer.active_leaves.push(outputs[i]);
-                }
-
-                num_output_values += number_of_outputs;
-                num_input_values += number_of_inputs;
-                let merkle_tree_zero_copy_account =
-                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_data).unwrap();
-                in_ready_for_update = merkle_tree_zero_copy_account
-                    .batches
-                    .iter()
-                    .any(|batch| batch.get_state() == BatchState::ReadyToUpdateTree);
-                out_ready_for_update = output_zero_copy_account
-                    .batches
-                    .iter()
-                    .any(|batch| batch.get_state() == BatchState::ReadyToUpdateTree);
-
-                mt_account_data = pre_mt_data.clone();
             }
 
             // Get random leaf that is not in the input queue.
@@ -1258,11 +1322,12 @@ mod tests {
                 if rng.gen_bool(0.5) {
                     println!("Output insert -----------------------------");
                     println!("num_output_values: {}", num_output_values);
-                    let rnd_bytes = get_rnd_bytes(&mut rng);
+                    let mut rnd_bytes = get_rnd_bytes(&mut rng);
 
                     let pre_account = output_zero_copy_account.get_account().clone();
                     let pre_batches = output_zero_copy_account.batches.clone();
                     let pre_value_store = output_zero_copy_account.value_vecs.clone();
+
                     output_zero_copy_account
                         .insert_into_current_batch(&rnd_bytes)
                         .unwrap();
@@ -1270,8 +1335,8 @@ mod tests {
                         pre_account,
                         pre_batches,
                         pre_value_store,
-                        &mut output_zero_copy_account,
-                        rnd_bytes,
+                        output_zero_copy_account.clone(),
+                        vec![rnd_bytes],
                     )
                     .unwrap();
                     num_output_values += 1;
@@ -1324,16 +1389,22 @@ mod tests {
                         )
                         .unwrap();
 
-                    assert_input_queue_insert(
-                        pre_account,
-                        pre_batches,
-                        pre_roots,
-                        pre_hashchains,
-                        &mut merkle_tree_zero_copy_account,
-                        leaf,
-                        tx_hash,
-                    )
-                    .unwrap();
+                    {
+                        let merkle_tree_zero_copy_account =
+                            ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data)
+                                .unwrap();
+                        assert_input_queue_insert(
+                            pre_account,
+                            pre_batches,
+                            pre_roots,
+                            pre_hashchains,
+                            merkle_tree_zero_copy_account,
+                            vec![leaf],
+                            tx_hash,
+                            vec![true],
+                        )
+                        .unwrap();
+                    }
                     num_input_values += 1;
                 }
 

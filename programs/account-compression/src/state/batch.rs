@@ -237,7 +237,7 @@ impl Batch {
     /// Check if the value is inserted in the merkle tree.
     pub fn value_is_inserted_in_merkle_tree(&self, value_index: u64) -> bool {
         let last_inserted_index = self.get_current_zkp_batch_index() * self.zkp_batch_size;
-        value_index < last_inserted_index
+        value_index >= last_inserted_index
     }
 }
 

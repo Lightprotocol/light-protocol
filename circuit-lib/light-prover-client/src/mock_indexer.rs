@@ -26,6 +26,7 @@ pub struct MockIndexer<const HEIGHT: usize> {
     pub tx_events: Vec<MockTxEvent>,
 }
 
+#[derive(Debug, Clone)]
 pub struct MockTxEvent {
     pub tx_hash: [u8; 32],
     pub inputs: Vec<[u8; 32]>,

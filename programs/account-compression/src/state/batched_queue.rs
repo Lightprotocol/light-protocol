@@ -174,7 +174,7 @@ impl BatchedQueue {
 }
 
 /// Batched output queue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ZeroCopyBatchedQueueAccount {
     account: *mut BatchedQueueAccount,
     pub batches: ManuallyDrop<BoundedVec<Batch>>,
@@ -314,46 +314,35 @@ pub fn insert_into_current_batch<'a>(
     value: &[u8; 32],
     leaves_hash_value: Option<&[u8; 32]>,
 ) -> Result<(Option<u32>, Option<u64>)> {
+    msg!("Inserting value {:?} into current batch.", value);
     let len = batches.len();
-    let mut inserted = false;
     let mut root_index = None;
     let mut sequence_number = None;
-    // insertion mode
-    // Try to insert into the current queue.
-    // In case the current queue fails, try to insert into the next queue.
-    // Check every queue.
-    for index in account.currently_processing_batch_index
-        ..(len as u64 + account.currently_processing_batch_index)
+    let currently_processing_batch_index = account.currently_processing_batch_index as usize;
+    // Insert value into current batch.
     {
-        let index = index as usize % len;
+        let mut bloomfilter_stores = bloomfilter_stores.get_mut(currently_processing_batch_index);
+        let mut value_store = value_vecs.get_mut(currently_processing_batch_index);
+        let mut hashchain_store = hashchain_store.get_mut(currently_processing_batch_index);
 
-        let mut bloomfilter_stores = bloomfilter_stores.get_mut(index);
-        let mut value_store = value_vecs.get_mut(index);
-        let mut hashchain_store = hashchain_store.get_mut(index);
-
-        let current_batch = batches.get_mut(index).unwrap();
+        let current_batch = batches.get_mut(currently_processing_batch_index).unwrap();
         let mut wipe = false;
-        if current_batch.get_state() == BatchState::Inserted
-            && index == account.currently_processing_batch_index as usize
-        {
+        if current_batch.get_state() == BatchState::Inserted {
             current_batch.advance_state_to_can_be_filled()?;
             wipe = true;
         }
-        if index == account.currently_processing_batch_index as usize
-            && current_batch.get_state() == BatchState::ReadyToUpdateTree
-        {
+        // We expect to insert into the current batch.
+        if current_batch.get_state() == BatchState::ReadyToUpdateTree {
             for batch in batches.iter_mut() {
-                println!("batch {:?}", batch);
+                msg!("batch {:?}", batch);
             }
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
 
-        let queue_type = QueueType::from(queue_type);
-
-        // TODO: implement more efficient bloom filter wipe this will not work onchain
         if wipe {
             if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
-                // TODO: think about whether we can move it to forester because this is really expensive
+                // TODO: consider to move it to forester because this is
+                // expensive
                 (*blomfilter_stores)
                     .as_mut_slice()
                     .iter_mut()
@@ -379,51 +368,42 @@ pub fn insert_into_current_batch<'a>(
             }
         }
 
-        if !inserted && current_batch.get_state() == BatchState::CanBeFilled {
-            let insert_result = match queue_type {
-                // QueueType::Address => current_batch.insert_and_store(
-                //     value,
-                //     bloomfilter_stores.unwrap().as_mut_slice(),
-                //     value_store.unwrap(),
-                //     hashchain_store.unwrap(),
-                // ),
-                QueueType::Input => current_batch.insert(
-                    value,
-                    leaves_hash_value.unwrap(),
-                    bloomfilter_stores.unwrap().as_mut_slice(),
-                    hashchain_store.unwrap(),
-                ),
-                QueueType::Output => current_batch.store_value(value, value_store.unwrap()),
-                _ => err!(AccountCompressionErrorCode::InvalidQueueType),
-            };
-            match insert_result {
-                Ok(_) => {
-                    inserted = true;
-                    // For the output queue we only need to insert. For address
-                    // and input queues we need to prove non-inclusion as well
-                    // hence check every bloomfilter.
-                    if QueueType::Output == queue_type {
-                        break;
-                    }
-                }
-                Err(error) => {
-                    msg!("batch 0 {:?}", batches[0]);
-                    msg!("batch 1 {:?}", batches[1]);
-                    msg!("insertion failed {:?}", error);
-                    return Err(error);
-                }
-            }
-        } else if bloomfilter_stores.is_some() {
-            current_batch.check_non_inclusion(value, bloomfilter_stores.unwrap().as_mut_slice())?;
+        let queue_type = QueueType::from(queue_type);
+        match queue_type {
+            // QueueType::Address => current_batch.insert_and_store(
+            //     value,
+            //     bloomfilter_stores.unwrap().as_mut_slice(),
+            //     value_store.unwrap(),
+            //     hashchain_store.unwrap(),
+            // ),
+            QueueType::Input => current_batch.insert(
+                value,
+                leaves_hash_value.unwrap(),
+                bloomfilter_stores.unwrap().as_mut_slice(),
+                hashchain_store.unwrap(),
+            ),
+            QueueType::Output => current_batch.store_value(value, value_store.unwrap()),
+            _ => err!(AccountCompressionErrorCode::InvalidQueueType),
+        }?;
+    }
+    println!(
+        "currently_processing_batch_index: {:?}",
+        currently_processing_batch_index
+    );
+    // If queue has bloomfilters check non-inclusion of value in bloomfilters of
+    // other batches. (Current batch is already checked by insertion.)
+    if !bloomfilter_stores.is_empty() {
+        for index in currently_processing_batch_index + 1..(len + currently_processing_batch_index)
+        {
+            let index = index % len;
+            println!("non-inclusion index: {:?}", index);
+            let bloomfilter_stores = bloomfilter_stores.get_mut(index).unwrap().as_mut_slice();
+            let current_batch = batches.get_mut(index).unwrap();
+
+            current_batch.check_non_inclusion(value, bloomfilter_stores)?;
         }
     }
 
-    if !inserted {
-        msg!("batch 0 {:?}", batches[0]);
-        msg!("batch 1 {:?}", batches[1]);
-        msg!("Both batches are not ready to insert");
-        return err!(AccountCompressionErrorCode::BatchInsertFailed);
-    }
     if batches[account.currently_processing_batch_index as usize].get_state()
         == BatchState::ReadyToUpdateTree
     {
