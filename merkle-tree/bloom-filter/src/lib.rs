@@ -52,8 +52,6 @@ impl<'a> BloomFilter<'a> {
     ) -> Result<Self, BloomFilterError> {
         // Capacity is in bits while store is in bytes.
         if store.len() * 8 != capacity as usize {
-            println!("store len: {}", store.len());
-            println!("capacity: {}", capacity);
             return Err(BloomFilterError::InvalidStoreCapacity);
         }
         Ok(Self {

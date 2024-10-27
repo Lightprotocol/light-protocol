@@ -12,8 +12,6 @@ solana = ["solana-program"]
 [dependencies]
 light-bounded-vec = { path = "../bounded-vec", version = "1.1.0" }
 light-utils = { path = "../../utils", version = "1.1.0" }
-bitvec = "1.0.1"
-fastmurmur3 = "0.2.0"
 memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"

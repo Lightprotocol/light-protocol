@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn test_subtrees() {
         let tree_depth = 4;
-        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0); // Replace TestHasher with your specific hasher.
+        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0);
 
         let subtrees = tree.get_subtrees();
         for (i, subtree) in subtrees.iter().enumerate() {

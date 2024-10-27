@@ -412,9 +412,6 @@ where
         start_offset: &mut usize,
         with_len: bool,
     ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
-        println!("capacity: {}", capacity);
-        println!("size of T: {}", std::mem::size_of::<T>());
-        println!("total size: {}", capacity * std::mem::size_of::<T>());
         let vector_size = capacity * std::mem::size_of::<T>();
         if vector_size % 8 != 0 {
             return Err(BoundedVecError::UnalignedMemory(
@@ -422,7 +419,6 @@ where
             ));
         }
         let full_vector_size = vector_size + std::mem::size_of::<BoundedVecMetadata>();
-        println!("full vector size: {}", full_vector_size);
         if full_vector_size > account_data.len().saturating_sub(*start_offset) {
             return Err(BoundedVecError::InsufficientMemoryAllocated(
                 account_data.len().saturating_sub(*start_offset),
