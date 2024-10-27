@@ -10,7 +10,7 @@ pub struct BatchUpdateCircuitInputs {
     pub public_input_hash: BigInt,
     pub old_root: BigInt,
     pub new_root: BigInt,
-    pub nullifiers: Vec<BigInt>,
+    pub tx_hashes: Vec<BigInt>,
     pub leaves_hashchain_hash: BigInt,
     pub leaves: Vec<BigInt>,
     pub merkle_proofs: Vec<Vec<BigInt>>,
@@ -91,7 +91,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         public_input_hash: BigInt::from_be_bytes(&public_input_hash),
         old_root: BigInt::from_be_bytes(&old_root),
         new_root: BigInt::from_be_bytes(&new_root),
-        nullifiers: nullifiers
+        tx_hashes: tx_hashes
             .iter()
             .map(|tx_hash| BigInt::from_bytes_be(Sign::Plus, tx_hash))
             .collect(),

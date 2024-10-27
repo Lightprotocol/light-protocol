@@ -24,8 +24,8 @@ pub struct BatchUpdateProofInputsJson {
     pub height: u32,
     #[serde(rename(serialize = "batchSize"))]
     pub batch_size: u32,
-    #[serde(rename(serialize = "nullifiers"))]
-    pub nullifiers: Vec<String>,
+    #[serde(rename(serialize = "txHashes"))]
+    pub tx_hashes: Vec<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -55,8 +55,8 @@ impl BatchUpdateProofInputsJson {
         let path_indices = inputs.path_indices.clone();
         let height = inputs.height;
         let batch_size = inputs.batch_size;
-        let nullifiers = inputs
-            .nullifiers
+        let tx_hashes = inputs
+            .tx_hashes
             .iter()
             .map(big_int_to_string)
             .collect::<Vec<String>>();
@@ -71,7 +71,7 @@ impl BatchUpdateProofInputsJson {
             path_indices,
             height,
             batch_size,
-            nullifiers,
+            tx_hashes,
         }
     }
 

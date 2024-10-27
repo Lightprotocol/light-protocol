@@ -80,7 +80,7 @@ async fn prove_inclusion() {
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
 
-    info!("initializing merkle tree");
+    info!("initializing merkle tree for update.");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     for _ in 0..2 {
         let mut leaves = vec![];
@@ -128,7 +128,7 @@ async fn prove_inclusion() {
 
     let num_insertions = 10;
 
-    info!("initializing merkle tree");
+    info!("initializing merkle tree for append.");
     let merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
 
     let old_subtrees = merkle_tree.get_subtrees();
