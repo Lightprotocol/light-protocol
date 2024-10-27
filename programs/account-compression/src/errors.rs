@@ -68,4 +68,6 @@ pub enum AccountCompressionErrorCode {
     InvalidBloomFilterCapacity,
     InvalidCircuitBatchSize,
     InvalidDiscriminator,
+    #[msg("batch_size is not divisible by zkp_batch_size")]
+    BatchSizeNotDivisibleByZkpBatchSize,
 }

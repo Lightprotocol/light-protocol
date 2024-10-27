@@ -153,12 +153,9 @@ impl Batch {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
                 .map_err(ProgramError::from)?;
-        msg!("blooom filter created");
         bloom_filter
             .insert(bloomfilter_value)
             .map_err(ProgramError::from)?;
-        msg!("value inserted into bloom filter");
-
         self.add_to_hash_chain(hashchain_value, hashchain_store)?;
         Ok(())
     }
@@ -168,11 +165,6 @@ impl Batch {
         value: &[u8; 32],
         hashchain_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
-        println!(
-            "add value to hashchain {}: {:?}",
-            hashchain_store.len(),
-            value
-        );
         if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
             hashchain_store.push(*value).map_err(ProgramError::from)?;
             self.num_inserted = 0;
@@ -201,7 +193,6 @@ impl Batch {
                 .map_err(ProgramError::from)?;
         if bloom_filter.contains(value) {
             msg!("Value already exists in the bloom filter.");
-            println!("value already exists in the bloom filter.");
             return err!(AccountCompressionErrorCode::BatchInsertFailed);
         }
         Ok(())
@@ -241,6 +232,12 @@ impl Batch {
 
     pub fn get_hashchain_store_len(&self) -> usize {
         self.batch_size as usize / self.zkp_batch_size as usize
+    }
+
+    /// Check if the value is inserted in the merkle tree.
+    pub fn value_is_inserted_in_merkle_tree(&self, value_index: u64) -> bool {
+        let last_inserted_index = self.get_current_zkp_batch_index() * self.zkp_batch_size;
+        value_index < last_inserted_index
     }
 }
 

@@ -148,20 +148,26 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
 
 pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes: &mut [u8],
-) -> *mut T {
+) -> Result<*mut T> {
     // Ensure the slice has at least as many bytes as needed for MyStruct
     assert!(bytes.len() >= std::mem::size_of::<T>());
 
     if INIT {
-        // TODO: add check that bytes are zero
+        if bytes[0..8] != [0; 8] {
+            msg!("Discriminator bytes must be zero for initialization.");
+            return err!(AccountCompressionErrorCode::InvalidDiscriminator);
+        }
         bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
     } else if T::DISCRIMINATOR != bytes[0..8] {
-        msg!("discriminator: {:?}", T::DISCRIMINATOR);
-        msg!("bytes: {:?}", bytes[0..128].to_vec());
-        panic!("Discriminator mismatch");
+        msg!(
+            "Expected discriminator: {:?}, actual {:?} ",
+            T::DISCRIMINATOR,
+            bytes[0..8].to_vec()
+        );
+        return err!(AccountCompressionErrorCode::InvalidDiscriminator);
     }
 
-    bytes[8..].as_mut_ptr() as *mut T
+    Ok(bytes[8..].as_mut_ptr() as *mut T)
 }
 
 pub fn struct_to_bytes_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
@@ -331,11 +337,109 @@ pub mod tests {
         batched_merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
         batched_queue::{
             assert_queue_zero_copy_inited, get_output_queue_account_size,
-            get_output_queue_account_size_default,
+            get_output_queue_account_size_default, BatchedQueue,
         },
     };
 
     use super::*;
+    pub fn get_output_queue_account_default(
+        owner: Pubkey,
+        program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
+        rollover_threshold: Option<u64>,
+        index: u64,
+        batch_size: u64,
+        zkp_batch_size: u64,
+        additional_bytes: u64,
+        rent: u64,
+        associated_merkle_tree: Pubkey,
+    ) -> BatchedQueueAccount {
+        let height = 26;
+        let rollover_fee = match rollover_threshold {
+            Some(rollover_threshold) => {
+                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
+                    .map_err(ProgramError::from)
+                    .unwrap();
+                rollover_fee
+            }
+            None => 0,
+        };
+        let metadata = QueueMetadata {
+            next_queue: Pubkey::default(),
+            access_metadata: AccessMetadata {
+                owner,
+                program_owner: program_owner.unwrap_or_default(),
+                forester: forester.unwrap_or_default(),
+            },
+            rollover_metadata: RolloverMetadata {
+                close_threshold: u64::MAX,
+                index,
+                rolledover_slot: u64::MAX,
+                rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
+                rollover_fee,
+                network_fee: 5000,
+                additional_bytes,
+            },
+            queue_type: QueueType::Output as u64,
+            associated_merkle_tree,
+        };
+        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
+        BatchedQueueAccount {
+            metadata,
+            queue,
+            next_index: 0,
+        }
+    }
+
+    pub fn get_output_queue(
+        owner: Pubkey,
+        program_owner: Option<Pubkey>,
+        forester: Option<Pubkey>,
+        rollover_threshold: Option<u64>,
+        index: u64,
+        batch_size: u64,
+        zkp_batch_size: u64,
+        additional_bytes: u64,
+        rent: u64,
+        associated_merkle_tree: Pubkey,
+        network_fee: u64,
+    ) -> BatchedQueueAccount {
+        let height = 26;
+        let rollover_fee = match rollover_threshold {
+            Some(rollover_threshold) => {
+                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
+                    .map_err(ProgramError::from)
+                    .unwrap();
+                rollover_fee
+            }
+            None => 0,
+        };
+        let metadata = QueueMetadata {
+            next_queue: Pubkey::default(),
+            access_metadata: AccessMetadata {
+                owner,
+                program_owner: program_owner.unwrap_or_default(),
+                forester: forester.unwrap_or_default(),
+            },
+            rollover_metadata: RolloverMetadata {
+                close_threshold: u64::MAX,
+                index,
+                rolledover_slot: u64::MAX,
+                rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
+                rollover_fee,
+                network_fee,
+                additional_bytes,
+            },
+            queue_type: QueueType::Output as u64,
+            associated_merkle_tree,
+        };
+        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
+        BatchedQueueAccount {
+            metadata,
+            queue,
+            next_index: 0,
+        }
+    }
 
     #[test]
     fn test_account_init() {
@@ -367,7 +471,7 @@ pub mod tests {
             additional_bytes_rent,
         )
         .unwrap();
-        let ref_output_queue_account = BatchedQueueAccount::get_output_queue_default(
+        let ref_output_queue_account = get_output_queue_account_default(
             owner,
             None,
             None,
@@ -473,7 +577,7 @@ pub mod tests {
                 additional_bytes_rent,
             )
             .unwrap();
-            let ref_output_queue_account = BatchedQueueAccount::get_output_queue(
+            let ref_output_queue_account = get_output_queue(
                 owner,
                 program_owner,
                 forester,

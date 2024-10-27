@@ -1,18 +1,15 @@
 use crate::bytes_to_struct_checked;
-use crate::utils::constants::DEFAULT_BATCH_SIZE;
+use crate::utils::constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH};
 use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_bounded_vec::{BoundedVec, BoundedVecMetadata};
-use light_utils::fee::compute_rollover_fee;
 use std::mem::ManuallyDrop;
 use std::u64;
 
 use super::batch::BatchState;
-use super::{AccessMetadata, RolloverMetadata};
 
 // TODO: implement update that verifies multiple proofs
-// TODO: implement mock circuit logic as well to sanity check
 /// Memory layout:
 /// 1. QueueMetadata
 /// 2. num_batches: u64
@@ -31,106 +28,6 @@ pub struct BatchedQueueAccount {
     /// next_index in queue is ahead or equal to next index in the associated
     /// batched Merkle tree account.
     pub next_index: u64,
-}
-
-impl BatchedQueueAccount {
-    pub fn get_output_queue_default(
-        owner: Pubkey,
-        program_owner: Option<Pubkey>,
-        forester: Option<Pubkey>,
-        rollover_threshold: Option<u64>,
-        index: u64,
-        batch_size: u64,
-        zkp_batch_size: u64,
-        additional_bytes: u64,
-        rent: u64,
-        associated_merkle_tree: Pubkey,
-    ) -> Self {
-        let height = 26;
-        let rollover_fee = match rollover_threshold {
-            Some(rollover_threshold) => {
-                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
-                    .map_err(ProgramError::from)
-                    .unwrap();
-                rollover_fee
-            }
-            None => 0,
-        };
-        let metadata = QueueMetadata {
-            next_queue: Pubkey::default(),
-            access_metadata: AccessMetadata {
-                owner,
-                program_owner: program_owner.unwrap_or_default(),
-                forester: forester.unwrap_or_default(),
-            },
-            rollover_metadata: RolloverMetadata {
-                close_threshold: u64::MAX,
-                index,
-                rolledover_slot: u64::MAX,
-                rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
-                rollover_fee,
-                network_fee: 5000,
-                additional_bytes,
-            },
-            queue_type: QueueType::Output as u64,
-            associated_merkle_tree,
-        };
-        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
-        BatchedQueueAccount {
-            metadata,
-            queue,
-            next_index: 0,
-        }
-    }
-    pub fn get_output_queue(
-        owner: Pubkey,
-        program_owner: Option<Pubkey>,
-        forester: Option<Pubkey>,
-        rollover_threshold: Option<u64>,
-        index: u64,
-        batch_size: u64,
-        zkp_batch_size: u64,
-        additional_bytes: u64,
-        rent: u64,
-        associated_merkle_tree: Pubkey,
-        network_fee: u64,
-    ) -> Self {
-        let height = 26;
-        let rollover_fee = match rollover_threshold {
-            Some(rollover_threshold) => {
-                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
-                    .map_err(ProgramError::from)
-                    .unwrap();
-                rollover_fee
-            }
-            None => 0,
-        };
-        let metadata = QueueMetadata {
-            next_queue: Pubkey::default(),
-            access_metadata: AccessMetadata {
-                owner,
-                program_owner: program_owner.unwrap_or_default(),
-                forester: forester.unwrap_or_default(),
-            },
-            rollover_metadata: RolloverMetadata {
-                close_threshold: u64::MAX,
-                index,
-                rolledover_slot: u64::MAX,
-                rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
-                rollover_fee,
-                network_fee,
-                additional_bytes,
-            },
-            queue_type: QueueType::Output as u64,
-            associated_merkle_tree,
-        };
-        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
-        BatchedQueueAccount {
-            metadata,
-            queue,
-            next_index: 0,
-        }
-    }
 }
 
 #[account(zero_copy)]
@@ -153,10 +50,9 @@ pub struct BatchedQueue {
 
 impl BatchedQueue {
     pub fn get_num_zkp_batches(&self) -> u64 {
-        println!("batch_size: {:?}", self.batch_size);
-        println!("zkp_batch_size: {:?}", self.zkp_batch_size);
         self.batch_size / self.zkp_batch_size
     }
+
     pub fn get_output_queue_default(batch_size: u64, zkp_batch_size: u64) -> Self {
         BatchedQueue {
             num_batches: 2,
@@ -191,15 +87,10 @@ impl BatchedQueue {
 pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usize> {
     let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
         account.get_size_parameters(queue_type)?;
-    #[cfg(target_os = "solana")]
-    {
-        msg!("queue_account_size account {:?}", account);
-    }
-    println!("account {:?}", account);
     let account_size = if queue_type != QueueType::Output as u64 {
         0
     } else {
-        std::mem::size_of::<BatchedQueueAccount>() + 8
+        std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH
     };
 
     let batches_size = (std::mem::size_of::<BoundedVecMetadata>() + std::mem::size_of::<Batch>())
@@ -214,15 +105,15 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
     let hashchain_store_size = (std::mem::size_of::<BoundedVecMetadata>()
         + 32 * account.get_num_zkp_batches() as usize)
         * num_hashchain_store;
-    println!("hashchain_store_size: {:?}", hashchain_store_size);
     let size = account_size
         + batches_size
         + value_vecs_size
         + bloom_filter_stores_size
         + hashchain_store_size
-        + 8;
+        + DISCRIMINATOR_LENGTH;
     Ok(size)
 }
+
 impl BatchedQueueAccount {
     pub fn get_size_parameters(&self) -> Result<(usize, usize, usize)> {
         self.queue.get_size_parameters(self.metadata.queue_type)
@@ -234,19 +125,24 @@ impl BatchedQueueAccount {
         batch_size: u64,
         zkp_batch_size: u64,
         bloom_filter_capacity: u64,
-    ) {
+    ) -> Result<()> {
         self.metadata = meta_data;
-        self.queue.init(num_batches, batch_size, zkp_batch_size);
+        self.queue.init(num_batches, batch_size, zkp_batch_size)?;
         self.queue.bloom_filter_capacity = bloom_filter_capacity;
+        Ok(())
     }
 }
 
 impl BatchedQueue {
-    pub fn init(&mut self, num_batches: u64, batch_size: u64, zkp_batch_size: u64) {
+    pub fn init(&mut self, num_batches: u64, batch_size: u64, zkp_batch_size: u64) -> Result<()> {
         self.num_batches = num_batches;
         self.batch_size = batch_size;
         // TODO: check that batch size is divisible by zkp_batch_size
+        if batch_size % zkp_batch_size != 0 {
+            return err!(AccountCompressionErrorCode::BatchSizeNotDivisibleByZkpBatchSize);
+        }
         self.zkp_batch_size = zkp_batch_size;
+        Ok(())
     }
 
     pub fn get_size_parameters(&self, queue_type: u64) -> Result<(usize, usize, usize)> {
@@ -296,15 +192,14 @@ impl ZeroCopyBatchedQueueAccount {
     pub fn get_account_mut(&mut self) -> &mut BatchedQueueAccount {
         unsafe { &mut *self.account }
     }
-    // TODO: add discriminator check
-    // TODO: add from_account_info,  and from_account_loader
+
     pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedQueueAccount> {
-        let account = bytes_to_struct_checked::<BatchedQueueAccount, false>(account_data);
+        let account = bytes_to_struct_checked::<BatchedQueueAccount, false>(account_data)?;
         unsafe {
             let (num_value_stores, num_stores, num_hashchain_stores) =
                 (*account).get_size_parameters()?;
 
-            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = queue_from_account(
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = queue_from_bytes(
                 num_value_stores,
                 num_stores,
                 num_hashchain_stores,
@@ -329,7 +224,7 @@ impl ZeroCopyBatchedQueueAccount {
         num_iters: u64,
         bloomfilter_capacity: u64,
     ) -> Result<ZeroCopyBatchedQueueAccount> {
-        let account = bytes_to_struct_checked::<BatchedQueueAccount, true>(account_data);
+        let account = bytes_to_struct_checked::<BatchedQueueAccount, true>(account_data)?;
         unsafe {
             (*account).init(
                 metadata,
@@ -337,17 +232,16 @@ impl ZeroCopyBatchedQueueAccount {
                 output_queue_batch_size,
                 output_queue_zkp_batch_size,
                 bloomfilter_capacity,
-            );
+            )?;
 
-            let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
-                init_queue_from_account(
-                    &(*account).queue,
-                    (*account).metadata.queue_type,
-                    account_data,
-                    num_iters,
-                    bloomfilter_capacity,
-                    &mut 0,
-                )?;
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = init_queue(
+                &(*account).queue,
+                (*account).metadata.queue_type,
+                account_data,
+                num_iters,
+                bloomfilter_capacity,
+                &mut 0,
+            )?;
             Ok(ZeroCopyBatchedQueueAccount {
                 account,
                 batches,
@@ -424,11 +318,6 @@ pub fn insert_into_current_batch<'a>(
     let mut inserted = false;
     let mut root_index = None;
     let mut sequence_number = None;
-    println!("len {:?}", len);
-    println!(
-        "account.currently_processing_batch_index {:?}",
-        account.currently_processing_batch_index
-    );
     // insertion mode
     // Try to insert into the current queue.
     // In case the current queue fails, try to insert into the next queue.
@@ -437,18 +326,12 @@ pub fn insert_into_current_batch<'a>(
         ..(len as u64 + account.currently_processing_batch_index)
     {
         let index = index as usize % len;
-        #[cfg(target_os = "solana")]
-        {
-            msg!("index {:?}", index);
-        }
 
         let mut bloomfilter_stores = bloomfilter_stores.get_mut(index);
         let mut value_store = value_vecs.get_mut(index);
         let mut hashchain_store = hashchain_store.get_mut(index);
 
         let current_batch = batches.get_mut(index).unwrap();
-        println!("index {:?}", index);
-        println!("current batch {:?}", current_batch);
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted
             && index == account.currently_processing_batch_index as usize
@@ -466,16 +349,10 @@ pub fn insert_into_current_batch<'a>(
         }
 
         let queue_type = QueueType::from(queue_type);
-        println!(
-            "pre current_batch_index {:?}",
-            account.currently_processing_batch_index
-        );
-        println!("get num inserted {:?}", current_batch.get_num_inserted());
+
         // TODO: implement more efficient bloom filter wipe this will not work onchain
         if wipe {
-            println!("clearing");
             if let Some(blomfilter_stores) = bloomfilter_stores.as_mut() {
-                println!("clearing bloomfilter store");
                 // TODO: think about whether we can move it to forester because this is really expensive
                 (*blomfilter_stores)
                     .as_mut_slice()
@@ -490,20 +367,18 @@ pub fn insert_into_current_batch<'a>(
                         root_index = Some(current_batch.root_index);
                         sequence_number = Some(current_batch.sequence_number);
                     } else {
-                        panic!("root_index is already set this is a bug.");
+                        unreachable!("root_index is already set this is a bug.");
                     }
                 }
             }
             if let Some(value_store) = value_store.as_mut() {
-                println!("clearing value store");
                 (*value_store).clear();
             }
             if let Some(hashchain_store) = hashchain_store.as_mut() {
-                println!("clearing hashchain store");
                 (*hashchain_store).clear();
             }
         }
-        // TODO: remove unwraps
+
         if !inserted && current_batch.get_state() == BatchState::CanBeFilled {
             let insert_result = match queue_type {
                 // QueueType::Address => current_batch.insert_and_store(
@@ -549,25 +424,16 @@ pub fn insert_into_current_batch<'a>(
         msg!("Both batches are not ready to insert");
         return err!(AccountCompressionErrorCode::BatchInsertFailed);
     }
-    println!(
-        "batches[account.currently_processing_batch_index as usize].get_num_inserted() {:?}",
-        batches[account.currently_processing_batch_index as usize].get_num_inserted()
-    );
-    println!(
-        "post current_batch_index {:?}",
-        account.currently_processing_batch_index
-    );
     if batches[account.currently_processing_batch_index as usize].get_state()
         == BatchState::ReadyToUpdateTree
     {
-        println!("batch is full icrementing currently_processing_batch_index");
         account.currently_processing_batch_index += 1;
         account.currently_processing_batch_index %= len as u64;
     }
     Ok((root_index, sequence_number))
 }
 
-pub fn queue_from_account(
+pub fn queue_from_bytes(
     num_value_stores: usize,
     num_stores: usize,
     num_hashchain_stores: usize,
@@ -578,7 +444,7 @@ pub fn queue_from_account(
     Vec<ManuallyDrop<BoundedVec<u8>>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 )> {
-    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>() + 8;
+    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
     let batches =
         BoundedVec::deserialize(account_data, &mut start_offset).map_err(ProgramError::from)?;
     let value_vecs =
@@ -593,7 +459,7 @@ pub fn queue_from_account(
     Ok((batches, value_vecs, bloomfilter_stores, hashchain_store))
 }
 
-pub fn batched_queue_from_account(
+pub fn batched_queue_bytes(
     account: &BatchedQueue,
     account_data: &mut [u8],
     queue_type: u64,
@@ -607,11 +473,7 @@ pub fn batched_queue_from_account(
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
     if queue_type == QueueType::Output as u64 {
-        println!(
-            "batched_queue_from_account: is output queue start_offset: {:?}",
-            start_offset
-        );
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + 8;
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
     }
     let batches =
         BoundedVec::deserialize(account_data, start_offset).map_err(ProgramError::from)?;
@@ -627,7 +489,7 @@ pub fn batched_queue_from_account(
     Ok((batches, value_vecs, bloomfilter_stores, hashchain_store))
 }
 
-pub fn init_queue_from_account(
+pub fn init_queue(
     account: &BatchedQueue,
     queue_type: u64,
     account_data: &mut [u8],
@@ -652,11 +514,9 @@ pub fn init_queue_from_account(
     }
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
-    msg!("num_value_stores {:?}", num_value_stores);
-    msg!("num_stores {:?}", num_stores);
-    msg!("hashchain_store_capacity {:?}", hashchain_store_capacity);
+
     if queue_type == QueueType::Output as u64 {
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + 8;
+        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
     }
 
     let mut batches = BoundedVec::init(
@@ -735,6 +595,7 @@ pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> us
     };
     queue_account_size(&account.queue, QueueType::Output as u64).unwrap()
 }
+
 pub fn assert_queue_inited(
     queue: BatchedQueue,
     ref_queue: BatchedQueue,
@@ -800,6 +661,7 @@ pub fn assert_queue_inited(
         assert_eq!(vec.len(), 0, "batch_size mismatch");
     }
 }
+
 pub fn assert_queue_zero_copy_inited(
     account_data: &mut [u8],
     ref_account: BatchedQueueAccount,
@@ -810,8 +672,6 @@ pub fn assert_queue_zero_copy_inited(
     let num_batches = ref_account.queue.num_batches as usize;
     let queue = zero_copy_account.get_account().queue.clone();
     let queue_type = zero_copy_account.get_account().metadata.queue_type as u64;
-    println!("queue {:?}", queue);
-    println!("zero_copy_account {:?}", zero_copy_account);
     assert_eq!(
         zero_copy_account.get_account().metadata,
         ref_account.metadata,
@@ -866,9 +726,9 @@ pub mod tests {
         };
         let account_data: Vec<u8> =
             vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
-        // struct_to_bytes::<BatchedQueueAccount, true>(&account, &mut account_data);
         (account, account_data)
     }
+
     #[test]
     fn test_output_queue_account() {
         let batch_size = 100;

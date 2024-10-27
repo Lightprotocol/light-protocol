@@ -5,7 +5,7 @@ use crate::{
     errors::AccountCompressionErrorCode,
     utils::{
         check_signer_is_registered_or_authority::GroupAccess,
-        constants::{DEFAULT_BATCH_SIZE, HEIGHT_26_SUBTREE_ZERO_HASH},
+        constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH, HEIGHT_26_SUBTREE_ZERO_HASH},
     },
 };
 use aligned_sized::aligned_sized;
@@ -19,8 +19,8 @@ use std::mem::ManuallyDrop;
 use super::{
     batch::Batch,
     batched_queue::{
-        batched_queue_from_account, init_queue_from_account, insert_into_current_batch,
-        queue_account_size, BatchedQueue,
+        batched_queue_bytes, init_queue, insert_into_current_batch, queue_account_size,
+        BatchedQueue,
     },
     AccessMetadata, MerkleTreeMetadata, QueueType, RolloverMetadata,
 };
@@ -73,19 +73,10 @@ impl BatchedMerkleTreeAccount {
         let account_size = std::mem::size_of::<Self>();
         let root_history_size = std::mem::size_of::<CyclicBoundedVecMetadata>()
             + std::mem::size_of::<[u8; 32]>() * self.root_history_capacity as usize;
-        #[cfg(target_os = "solana")]
-        {
-            msg!("size of root history: {}", root_history_size);
-            msg!("account size: {}", account_size);
-            msg!(
-                "queue size: {}",
-                queue_account_size(&self.queue, QueueType::Input as u64)?
-            );
-        }
         let size = account_size
             + root_history_size
             + queue_account_size(&self.queue, QueueType::Input as u64)?
-            + 8; // discriminator;
+            + DISCRIMINATOR_LENGTH;
         Ok(size)
     }
 
@@ -180,24 +171,22 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         unsafe { self.account.as_mut() }.unwrap()
     }
 
-    // TODO: add from_account_mut
-    // TODO: add from_account_info,  and from_account_loader
     pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
-            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, false>(account_data);
+            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, false>(account_data)?;
             if account_data.len() != (*account).size()? {
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
-            let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>() + 8;
+            let mut start_offset =
+                std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
             let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset)
                 .map_err(ProgramError::from)?;
-            let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
-                batched_queue_from_account(
-                    &(*account).queue,
-                    account_data,
-                    QueueType::Input as u64,
-                    &mut start_offset,
-                )?;
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = batched_queue_bytes(
+                &(*account).queue,
+                account_data,
+                QueueType::Input as u64,
+                &mut start_offset,
+            )?;
             Ok(ZeroCopyBatchedMerkleTreeAccount {
                 account,
                 root_history,
@@ -222,7 +211,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         bloomfilter_capacity: u64,
     ) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
-            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, true>(account_data);
+            let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, true>(account_data)?;
             (*account).metadata = metadata;
             (*account).root_history_capacity = root_history_capacity;
             (*account).height = height;
@@ -232,21 +221,17 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 num_batches_input_queue,
                 input_queue_batch_size,
                 input_queue_zkp_batch_size,
-            );
+            )?;
             (*account).queue.bloom_filter_capacity = bloomfilter_capacity;
-            msg!("mt account : {:?}", (*account));
+
             if account_data.len() != (*account).size()? {
                 msg!("merkle_tree_account: {:?}", (*account));
                 msg!("account_data.len(): {}", account_data.len());
                 msg!("account.size(): {}", (*account).size()?);
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
-            let mut start_offset = std::mem::size_of::<BatchedMerkleTreeAccount>() + 8;
-            println!("start_offset: {}", start_offset);
-            println!(
-                "cycle bounded vec size: {}",
-                std::mem::size_of::<CyclicBoundedVecMetadata>()
-            );
+            let mut start_offset =
+                std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
             let root_history = CyclicBoundedVec::init(
                 (*account).root_history_capacity as usize,
                 account_data,
@@ -254,21 +239,15 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 false,
             )
             .map_err(ProgramError::from)?;
-            msg!("pre init queue from account mt account:");
-            msg!("input bloomfilter capacity : {:?}", bloomfilter_capacity);
-            msg!(
-                "queue bloomfilter capacity : {:?}",
-                (*account).queue.bloom_filter_capacity
-            );
-            let (batches, value_vecs, bloomfilter_stores, hashchain_store) =
-                init_queue_from_account(
-                    &(*account).queue,
-                    QueueType::Input as u64,
-                    account_data,
-                    num_iters,
-                    bloomfilter_capacity,
-                    &mut start_offset,
-                )?;
+
+            let (batches, value_vecs, bloomfilter_stores, hashchain_store) = init_queue(
+                &(*account).queue,
+                QueueType::Input as u64,
+                account_data,
+                num_iters,
+                bloomfilter_capacity,
+                &mut start_offset,
+            )?;
             Ok(ZeroCopyBatchedMerkleTreeAccount {
                 account,
                 root_history,
@@ -280,9 +259,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         }
     }
 
-    // TODO: consider storing subtrees in mt account so that the append proofs
-    // are independed from the indexer
-    // TODO: when proving inclusion by index in
+    // Note: when proving inclusion by index in
     // value array we need to insert the value into a bloomfilter once it is
     // inserted into the tree. Check this with get_num_inserted_zkps
     pub fn update_output_queue(
@@ -314,9 +291,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let start_index = num_zkps * circuit_batch_size;
         let end_index = start_index + circuit_batch_size as u64;
 
-        // TODO: for proving inclusion by index in value array we need to check
-        // that this value has not been appended yet if it has been appended we
-        // need to insert the value into the input queue
         let leaves_hashchain = {
             let values = queue_account.value_vecs.get(batch_index as usize).unwrap();
             let mut leaves_hashchain = values[start_index as usize];
@@ -327,22 +301,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         };
 
         let start_index = self.get_account().next_index;
-
-        /*
-         * old_subtree_hashchain,
-        new_subtree_hashchain,
-        merkle_tree.root(),
-        leaves_hashchain,
-        start_index,
-         */
-        println!("old_subtree_hash: {:?}", old_subtree_hash);
-        println!(
-            "new_subtrees_hash: {:?}",
-            instruction_data.public_inputs.new_subtrees_hash
-        );
-        println!("new_root: {:?}", new_root);
-        println!("leaves_hashchain: {:?}", leaves_hashchain);
-        println!("start_index: {:?}", start_index);
         let mut start_index_bytes = [0u8; 32];
         start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
         let public_input_hash = create_hash_chain([
@@ -353,16 +311,12 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             start_index_bytes,
         ])?;
 
-        println!("public input hash {:?}", public_input_hash);
-
         self.update::<5>(
             circuit_batch_size as usize,
             instruction_data.compressed_proof,
             public_input_hash,
         )?;
         let account = self.get_account_mut();
-        println!("previous batched index: {}", account.next_index);
-        println!("circut_batch_size: {}", circuit_batch_size);
         account.next_index += circuit_batch_size;
         account.subtree_hash = instruction_data.public_inputs.new_subtrees_hash;
         let root_history_capacity = account.root_history_capacity;
@@ -406,18 +360,15 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             .get(instruction_data.public_inputs.old_root_index as usize)
             .unwrap();
         let new_root = instruction_data.public_inputs.new_root;
-        println!("old_root: {:?}", old_root);
-        println!("new_root: {:?}", new_root);
-        println!("leaves_hashchain: {:?}", leaves_hashchain);
+
+        // TODO: add new_subtrees_hash to circuit public inputs
         let public_input_hash = create_hash_chain([*old_root, new_root, *leaves_hashchain])?;
-        println!("public_input_hash: {:?}", public_input_hash);
         let circuit_batch_size = self.get_account().queue.zkp_batch_size;
         self.update::<3>(
             circuit_batch_size as usize,
             instruction_data.compressed_proof,
             public_input_hash,
         )?;
-        // TODO: add new subtrees hash to public input hash once circuit is updated
         self.root_history.push(new_root);
         let sequence_number = self.get_account().sequence_number;
         let root_history_capacity = self.get_account().root_history_capacity;
@@ -428,7 +379,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             self.root_history.last_index() as u32,
             root_history_capacity,
         )?;
-        // TODO: search for bloomfilter that can be cleared
+        // TODO(optimization): search for bloomfilter that can be cleared
 
         if full_batch.get_state() == BatchState::Inserted {
             let account = self.get_account_mut();
@@ -460,28 +411,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         Ok(())
     }
 
-    /*
-     * Indexer:
-     *
-     * Input state:
-     * - input queue elements are taken from the PublicTransactionEventV2
-     * Output state:
-     * - can be read either from the output queue or from PublicTransactionEvent
-     *
-     * New addresses:
-     * - new addresses are taken from the PublicTransactionEventV2
-     *
-     * Indexer forester:
-     * - forester indexer doesn't care about the output state itself just the hashes
-     * -
-     * - input queue elements are taken from the PublicTransactionEventV2
-     * -
-     *
-     *  Event:
-     *  - create a transaction event V2, which adds Destination mt pubkey for inputs
-     *  -
-     */
-
     /// State nullification:
     /// - value is committed to bloomfilter for non-inclusion proof
     /// - nullifier is Hash(value, tx_hash), committed to leaves hashchain
@@ -497,8 +426,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         self.insert_into_current_batch(value, &nullifier)
     }
 
-    // TODO: adjust
-    // TODO: add security test
     fn insert_into_current_batch(
         &mut self,
         value: &[u8; 32],
@@ -531,13 +458,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                     }
                 }
                 /*
-                 * Note on security for length of
-                 * root buffer, bloomfilter and output batch arrays:
-                 * Example on input and output number of batches and root buffer length:
-                 * - 2 root buffer length
-                 * - 4 bloom filters in the input (nullifier) queue
-                 * - 2 large output batches so that these don’t switch roots too often
-                 *
+                 * Note on security for root buffer:
                  * Account {
                  *   bloomfilter: [B0, B1, B2],
                  *     roots: [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9],
@@ -560,51 +481,15 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                  * -> R5 -> A0.2
                  * -> R6 -> A0.3
                  * -> R7 -> A0.4 - final A0 (append batch 0) root
-                 *
-                 * TODO: benchmark how much zeroing out costs
-                 * Timeslot 2:
-                 * - advance root to index 4 and zero out all other roots
-                 * - insert into B0 until full
-                 * - update tree with B1, don't clear B1 yet
-                 * -> R0 -> B0
-                 * -> R1 -> B1
-                 * B1.sequence_number = 11
-                 * B1.root_index = 1
-                 *
-                 * Timeslot 3:
-                 * -> R0 -> B0
-                 * -> R1 -> B1
-                 * - clear B0
-                 *
-                 * Timeslot 3:
-                 * -> R0 -> B0
-                 * -> R1 -> B1
-                 * - clear B0
-                 * - advance root to index 0
-                 * - insert into B0 until full
-                 * - update tree with B2, don't clear B2 yet
-                 * -> R0 -> B2
-                 *
-                 * Timeslot 4:
-                 * -> R0 -> B2
-                 * -> R1 -> B1
-                 * - clear B0
-                 * - insert into B0 until full
-                 * - update tree with B3, don't clear B3 yet
-                 * -> R1 -> B3 (B1 is save to clear now)
-                 *
-                 * Timeslot 5:
-                 * -> R0 -> B2
-                 * -> R1 -> B3
-                 * - clear B1
-                 * - insert into B1 until full
-                 * - update tree with B0, don't clear B0 yet
-                 * -> R0 -> B0 (B2 is save to clear now)
+                 * TODO: complete this example
                  */
             }
         }
-
         Ok(())
+    }
+
+    pub fn get_root_index(&self) -> u32 {
+        self.root_history.last_index() as u32
     }
 }
 
@@ -677,6 +562,7 @@ pub fn get_merkle_tree_account_size(
 
 #[cfg(test)]
 mod tests {
+    #![allow(warnings)]
 
     use std::{cmp::min, ops::Deref};
 
@@ -735,14 +621,6 @@ mod tests {
         if expected_batch.get_state() == BatchState::Inserted {
             pre_hashchains[inserted_batch_index].clear();
             expected_batch.sequence_number = 0;
-            // TODO:_ add a function get_root_index();
-            // let root_index = merkle_tree_zero_copy_account.root_history.last_index() as u32;
-            // let root_history_length = merkle_tree_zero_copy_account.root_history.len() as u32;
-            // let sequence_number = pre_account.sequence_number;
-            // expected_batch
-            //     .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_length)
-            //     .unwrap();
-
             expected_batch.advance_state_to_can_be_filled().unwrap();
         }
         assert_eq!(
@@ -767,7 +645,6 @@ mod tests {
         assert!(bloomfilter.contains(&insert_value));
         let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
         let nullifier = Poseidon::hashv(&[&insert_value, &tx_hash]).unwrap();
-        // let previous_hashchain = expected_batch.user_hash_chain;
         expected_batch.add_to_hash_chain(&nullifier, &mut pre_hashchain)?;
         // assert_ne!(expected_batch.user_hash_chain, previous_hashchain);
         // assert_eq!(
@@ -897,14 +774,24 @@ mod tests {
             if inclusion.is_none() {
                 let mut included = false;
 
-                // TODO: insert into batch regardless if the batch is already
-                // part of the Merkle tree (don't skip the check though)
-                for value_vec in output_zero_copy_account.value_vecs.iter_mut() {
-                    for value in value_vec.iter_mut() {
+                for (batch_index, value_vec) in
+                    output_zero_copy_account.value_vecs.iter_mut().enumerate()
+                {
+                    for (value_index, value) in value_vec.iter_mut().enumerate() {
                         // TODO: test double spending
                         if *value == *input {
                             included = true;
                             *value = [0u8; 32];
+                        }
+                        // For completeness (not possible in this simulation
+                        // function)
+                        // If value has already been inserted into the
+                        // tree but inclusion is proven by index,
+                        // insert it into the nullifier queue.
+                        let batch = output_zero_copy_account.batches.get(batch_index).unwrap();
+                        if batch.value_is_inserted_in_merkle_tree(value_index as u64) {
+                            merkle_tree_zero_copy_account
+                                .insert_nullifier_into_current_batch(input, &tx_hash)?;
                         }
                     }
                 }
@@ -913,7 +800,7 @@ mod tests {
                 }
                 continue;
             } else {
-                println!("1insert input into batch");
+                println!("insert input into batch");
                 merkle_tree_zero_copy_account
                     .insert_nullifier_into_current_batch(input, &tx_hash)?;
             }
@@ -976,30 +863,6 @@ mod tests {
             println!("tx: {}", tx);
             println!("num_input_updates: {}", num_input_updates);
             println!("num_output_updates: {}", num_output_updates);
-            /*
-            Issue:
-            - values committed to the output queue shall be spendable immediately
-            - we usually insert values that we spend into the nullifier queue
-            - if we insert values from the output queue into the input queue
-                and insert the input queue batch before the output queue
-                we might try to nullify leaves which don't exist yet.
-
-            Solution:
-            - second leaves hashchain for leaves which are zeroed out already
-            - we hash the index of the leaf in the value array
-            - don't insert the value into the nullifier queue
-                -> all values in the nullifier queue are in part of the tree
-
-            // TODO:
-            - modify the batch append circuit to allow to skip leaves in the leaveshashchain
-            - for every leaf select
-
-            circuit implementation:
-            - problem naive solutions result in squared complexity
-
-            Other solution:
-            - generate leaves hashchain when updating the tree (downside this limits the batch size to ~1500 (800 CU per poseidon hash))
-             */
             {
                 println!("Simulate tx {} -----------------------------", tx);
                 println!("Num inserted values: {}", num_input_values);
@@ -1088,11 +951,12 @@ mod tests {
                 // if !inputs.is_empty() {
                 //     assert_input_queue_insert(
                 //         pre_mt_account,
-                //         pre_mt_batches,
-                //         pre_mt_roots,
+                //         pre_batches,
+                //         pre_roots,
                 //         pre_mt_hashchains,
                 //         &mut merkle_tree_zero_copy_account,
-                //         inputs[0],
+                //         inputs,
+                //         mock_indexer.tx_events.last().unwrap().tx_hash,
                 //     )
                 //     .unwrap();
                 // }
@@ -1386,31 +1250,6 @@ mod tests {
             println!("tx: {}", tx);
             println!("num_input_updates: {}", num_input_updates);
             println!("num_output_updates: {}", num_output_updates);
-            /*
-            Issue:
-            - values committed to the output queue shall be spendable immediately
-            - we usually insert values that we spend into the nullifier queue
-            - if we insert values from the output queue into the input queue
-                and insert the input queue batch before the output queue
-                we might try to nullify leaves which don't exist yet.
-
-            Solution:
-            - second leaves hashchain for leaves which are zeroed out already
-            - we hash the index of the leaf in the value array
-            - don't insert the value into the nullifier queue
-                -> all values in the nullifier queue are in part of the tree
-
-            // TODO:
-            - modify the batch append circuit to allow to skip leaves in the leaveshashchain
-            - for every leaf select
-
-            circuit implementation:
-            - problem naive solutions result in squared complexity
-
-            Other solution:
-            - generate leaves hashchain when updating the tree (downside this limits the batch size to ~1500 (800 CU per poseidon hash))
-             */
-
             // Output queue
             {
                 let mut output_zero_copy_account =

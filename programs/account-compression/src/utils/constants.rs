@@ -48,3 +48,5 @@ pub const HEIGHT_26_SUBTREE_ZERO_HASH: [u8; 32] = [
     188, 233, 66, 171, 225, 7, 89, 158, 104, 225, 167, 38,
 ];
 pub const DEFAULT_BATCH_SIZE: u64 = 50;
+
+pub const DISCRIMINATOR_LENGTH: usize = 8;
