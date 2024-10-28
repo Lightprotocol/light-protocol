@@ -942,7 +942,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
 
     let expected_right_most_leaf = reference_tree
         .merkle_tree
-        .get_leaf(reference_tree.merkle_tree.rightmost_index - 1);
+        .leaf(reference_tree.merkle_tree.rightmost_index - 1);
 
     let _expected_right_most_leaf = [
         30, 164, 22, 238, 180, 2, 24, 181, 64, 193, 207, 184, 219, 233, 31, 109, 84, 232, 162, 158,
