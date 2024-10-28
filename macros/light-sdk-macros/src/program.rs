@@ -54,7 +54,7 @@ impl ToTokens for InstructionParam {
 ///
 /// The mapping is going to look like:
 ///
-/// ```
+/// ```ignore
 /// instruction_one -> - name: name
 ///                      ty: String
 ///                    - name: num
