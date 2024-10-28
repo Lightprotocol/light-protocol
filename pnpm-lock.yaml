@@ -252,14 +252,14 @@ importers:
         specifier: ^5.1.0
         version: 5.1.5
       '@types/chai':
-        specifier: ^4.3.0
-        version: 4.3.17
+        specifier: ^5.0.0
+        version: 5.0.0
       '@types/mocha':
         specifier: ^10.0.7
         version: 10.0.7
       chai:
-        specifier: ^4.3.4
-        version: 4.4.1
+        specifier: ^5.1.2
+        version: 5.1.2
       mocha:
         specifier: ^10.7.3
         version: 10.7.3
@@ -302,14 +302,14 @@ importers:
         specifier: ^5.1.5
         version: 5.1.5
       '@types/chai':
-        specifier: ^4.3.17
-        version: 4.3.17
+        specifier: ^5.0.0
+        version: 5.0.0
       '@types/mocha':
         specifier: ^10.0.7
         version: 10.0.7
       chai:
-        specifier: ^5.1.1
-        version: 5.1.1
+        specifier: ^5.1.2
+        version: 5.1.2
       mocha:
         specifier: ^10.7.3
         version: 10.7.3
@@ -397,10 +397,6 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.0(@types/node@22.5.5)(@vitest/browser@1.6.0)(terser@5.31.0)
-
-  hasher.rs/src/main/wasm: {}
-
-  hasher.rs/src/main/wasm-simd: {}
 
   js/compressed-token:
     dependencies:
@@ -3227,8 +3223,8 @@ packages:
   '@types/chai@4.3.16':
     resolution: {integrity: sha512-PatH4iOdyh3MyWtmHVFXLWCCIhUbopaltqddG9BzB+gMIzee2MJrvd+jouii9Z3wzQJruGWAm7WOMjgfG8hQlQ==}
 
-  '@types/chai@4.3.17':
-    resolution: {integrity: sha512-zmZ21EWzR71B4Sscphjief5djsLre50M6lI622OSySTmn9DB3j+C3kWroHfBQWXbOBwbgg/M8CG/hUxDLIloow==}
+  '@types/chai@5.0.0':
+    resolution: {integrity: sha512-+DwhEHAaFPPdJ2ral3kNHFQXnTfscEEFsUxzD+d7nlcLrFK23JtNjH71RGasTcHb88b4vVi4mTyfpf8u2L8bdA==}
 
   '@types/cli-progress@3.11.5':
     resolution: {integrity: sha512-D4PbNRbviKyppS5ivBGyFO29POlySLmA2HyUFE4p5QGazAMM3CwkKWcvTl8gvElSuxRh6FPKL8XmidX873ou4g==}
@@ -4131,8 +4127,8 @@ packages:
     resolution: {integrity: sha512-13sOfMv2+DWduEU+/xbun3LScLoqN17nBeTLUsmDfKdoiC1fr0n9PU4guu4AhRcOVFk/sW8LyZWHuhWtQZiF+g==}
     engines: {node: '>=4'}
 
-  chai@5.1.1:
-    resolution: {integrity: sha512-pT1ZgP8rPNqUgieVaEY+ryQr6Q4HXNg8Ei9UnLUrjN4IA7dvQC5JB+/kxVcPNDHyBcc/26CXPkbNzq3qwrOEKA==}
+  chai@5.1.2:
+    resolution: {integrity: sha512-aGtmf24DW6MLHHG5gCx4zaI3uBq3KRtxeVs0DjFH6Z0rDNbsvTxFASFvdj79pxjxZ8/5u3PIiN3IwEIQkiiuPw==}
     engines: {node: '>=12'}
 
   chalk-template@1.1.0:
@@ -4967,6 +4963,7 @@ packages:
   eslint@8.57.0:
     resolution: {integrity: sha512-dZ6+mexnaTIbSBZWgou51U6OmzIhYM2VcNdtiTtI7qPNZm35Akpr0f6vtw3w1Kmn5PYo+tZVfh13WrhpS6oLqQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
 
   espree@9.6.1:
@@ -11818,7 +11815,7 @@ snapshots:
 
   '@types/chai@4.3.16': {}
 
-  '@types/chai@4.3.17': {}
+  '@types/chai@5.0.0': {}
 
   '@types/cli-progress@3.11.5':
     dependencies:
@@ -12285,7 +12282,7 @@ snapshots:
     dependencies:
       '@vitest/spy': 2.1.1
       '@vitest/utils': 2.1.1
-      chai: 5.1.1
+      chai: 5.1.2
       tinyrainbow: 1.2.0
 
   '@vitest/mocker@2.1.1(@vitest/spy@2.1.1)(vite@5.0.4(@types/node@22.5.5)(terser@5.31.0))':
@@ -12957,7 +12954,7 @@ snapshots:
       pathval: 1.1.1
       type-detect: 4.0.8
 
-  chai@5.1.1:
+  chai@5.1.2:
     dependencies:
       assertion-error: 2.0.1
       check-error: 2.1.1
@@ -14275,7 +14272,7 @@ snapshots:
 
   fancy-test@2.0.42:
     dependencies:
-      '@types/chai': 4.3.17
+      '@types/chai': 5.0.0
       '@types/lodash': 4.14.199
       '@types/node': 22.5.5
       '@types/sinon': 10.0.16
@@ -17770,7 +17767,7 @@ snapshots:
       '@vitest/snapshot': 2.1.1
       '@vitest/spy': 2.1.1
       '@vitest/utils': 2.1.1
-      chai: 5.1.1
+      chai: 5.1.2
       debug: 4.3.7
       magic-string: 0.30.11
       pathe: 1.1.2
