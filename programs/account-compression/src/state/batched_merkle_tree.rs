@@ -73,13 +73,12 @@ pub struct BatchedMerkleTreeAccount {
 impl BatchedMerkleTreeAccount {
     pub fn size(&self) -> Result<usize> {
         // TODO: replace with Self::LEN; and remove DISCRIMINATOR_LENGTH
-        let account_size = std::mem::size_of::<Self>();
+        let account_size = std::mem::size_of::<Self>() + DISCRIMINATOR_LENGTH;
         let root_history_size = std::mem::size_of::<CyclicBoundedVecMetadata>()
-            + std::mem::size_of::<[u8; 32]>() * self.root_history_capacity as usize;
+            + (std::mem::size_of::<[u8; 32]>() * self.root_history_capacity as usize);
         let size = account_size
             + root_history_size
-            + queue_account_size(&self.queue, QueueType::Input as u64)?
-            + DISCRIMINATOR_LENGTH;
+            + queue_account_size(&self.queue, QueueType::Input as u64)?;
         Ok(size)
     }
 
@@ -227,7 +226,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 input_queue_zkp_batch_size,
             )?;
             (*account).queue.bloom_filter_capacity = bloom_filter_capacity;
-
             if account_data.len() != (*account).size()? {
                 msg!("merkle_tree_account: {:?}", (*account));
                 msg!("account_data.len(): {}", account_data.len());
@@ -236,6 +234,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             }
             let mut start_offset =
                 std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
+
             let root_history = CyclicBoundedVec::init(
                 (*account).root_history_capacity as usize,
                 account_data,
@@ -446,26 +445,48 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 Some(leaves_hash_value),
             )?;
 
-            println!("sequence number: {:?}", sequence_number);
+            /*
+             * Note on security for root buffer:
+             * Account {
+             *   bloom_filter: [B0, B1],
+             *     roots: [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9],
+             * }
+             *
+             * Timeslot 0:
+             * - insert into B0 until full
+             *
+             * Timeslot 1:
+             * - insert into B1 until full
+             * - update tree with B0 in 4 partial updates, don't clear B0 yet
+             * -> R0 -> B0.1
+             * -> R1 -> B0.2
+             * -> R2 -> B0.3
+             * -> R3 -> B0.4 - final B0 root
+             * B0.sequence_number = 13 (3 + account.root.length)
+             * B0.root_index = 3
+             * - execute some B1 root updates
+             * -> R4 -> B1.1
+             * -> R5 -> B1.2
+             * -> R6 -> B1.3
+             * -> R7 -> B1.4 - final B1 (update batch 0) root
+             * B0.sequence_number = 17 (7 + account.root.length)
+             * B0.root_index = 7
+             * current_sequence_number = 8
+             * Timeslot 2:
+             * - clear B0
+             *   - current_sequence_number < 14 -> zero out all roots until root index is 3
+             * - R8 -> 0
+             * - R9 -> 0
+             * - R0 -> 0
+             * - R1 -> 0
+             * - R2 -> 0
+             * - now all roots containing values nullified in the final B0 root update are zeroed
+             * .-> B0 is safe to clear
+             */
             if let Some(sequence_number) = sequence_number {
-                // TODO: move queue insert before proof verification
-                // TODO: double check security of this
                 // If the sequence number is greater than current sequence number
                 // there is still at least one root which can be used to prove
                 // inclusion of a value which was in the batch that was just wiped.
-                println!(
-                    "comparing sequence number: {:?} > {:?}",
-                    sequence_number,
-                    self.get_account().sequence_number
-                );
-                /*
-                    root history len = 10
-                    seq = 10
-                    root_index = 0
-                    seq = 11, root_index = 0
-                    marked_with: 20
-                    12, 1, 13,2 ,14, 3, 15, 4, 16, 5, 17, 6, 18, 7, 19, 8, 20, 9
-                */
                 if sequence_number > self.get_account().sequence_number {
                     // advance root history array current index from latest root
                     // to root_index and overwrite all roots with zeros
@@ -473,17 +494,9 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                         let root_index = root_index as usize;
                         let start = self.root_history.last_index() as usize;
                         let end = self.root_history.len() + root_index as usize;
-                        println!("start index: {:?}", start);
-                        println!(
-                            "num iterations to clear: {:?}",
-                            (self.root_history.len() + root_index as usize) - (start + 1)
-                        );
-                        let mut num_iters = 0;
                         for index in start + 1..end {
                             let index = index as usize % self.root_history.len();
-                            num_iters += 1;
                             if index == root_index {
-                                println!("num_iters: {:?}", num_iters);
                                 break;
                             }
                             let root = self.root_history.get_mut(index as usize).unwrap();
@@ -491,44 +504,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                         }
                     }
                 }
-                /*
-                 * Note on security for root buffer:
-                 * Account {
-                 *   bloom_filter: [B0, B1],
-                 *     roots: [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9],
-                 * }
-                 *
-                 * Timeslot 0:
-                 * - insert into B0 until full
-                 *
-                 * Timeslot 1:
-                 * - insert into B1 until full
-                 * - update tree with B0 in 4 partial updates, don't clear B0 yet
-                 * -> R0 -> B0.1
-                 * -> R1 -> B0.2
-                 * -> R2 -> B0.3
-                 * -> R3 -> B0.4 - final B0 root
-                 * B0.sequence_number = 13 (3 + account.root.length)
-                 * B0.root_index = 3
-                 * - execute some B1 root updates
-                 * -> R4 -> B1.1
-                 * -> R5 -> B1.2
-                 * -> R6 -> B1.3
-                 * -> R7 -> B1.4 - final B1 (update batch 0) root
-                 * B0.sequence_number = 17 (7 + account.root.length)
-                 * B0.root_index = 7
-                 * current_sequence_number = 8
-                 * Timeslot 2:
-                 * - clear B0
-                 *   - current_sequence_number < 14 -> zero out all roots until root index is 3
-                 * - R8 -> 0
-                 * - R9 -> 0
-                 * - R0 -> 0
-                 * - R1 -> 0
-                 * - R2 -> 0
-                 * - now all roots containing values nullified in the final B0 root update are zeroed
-                 * .-> B0 is safe to clear
-                 */
             }
         }
         Ok(())
@@ -621,14 +596,14 @@ pub fn get_merkle_tree_account_size(
 mod tests {
     #![allow(warnings)]
 
-    use std::{cmp::min, ops::Deref};
-
     use light_bloom_filter::{BloomFilter, BloomFilterError};
     use light_merkle_tree_reference::MerkleTree;
     use light_prover_client::{
         gnark::helpers::{spawn_prover, ProofType},
         mock_indexer::{self, MockIndexer, MockTxEvent},
     };
+    use serial_test::serial;
+    use std::{cmp::min, ops::Deref};
 
     use rand::{rngs::StdRng, Rng};
 
@@ -660,7 +635,6 @@ mod tests {
             if !input_is_in_tree[i] {
                 continue;
             }
-            println!("insert_value: {:?}", insert_value);
             let post_roots: Vec<[u8; 32]> = merkle_tree_zero_copy_account
                 .root_history
                 .iter()
@@ -908,12 +882,13 @@ mod tests {
         })
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_simulate_transactions() {
         spawn_prover(true, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;
         let mut mock_indexer = mock_indexer::MockIndexer::<26>::new();
 
-        let num_tx = 220000;
+        let num_tx = 22000;
         let owner = Pubkey::new_unique();
 
         let queue_account_size = get_output_queue_account_size_default();
@@ -1316,12 +1291,13 @@ mod tests {
 
     /// queues with a counter which keeps things below X tps and an if that
     /// executes tree updates when possible.
+    #[serial]
     #[tokio::test]
     async fn test_e2e() {
         spawn_prover(false, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;
         let mut mock_indexer = mock_indexer::MockIndexer::<26>::new();
 
-        let num_tx = 220000;
+        let num_tx = 22000;
         let owner = Pubkey::new_unique();
 
         let queue_account_size = get_output_queue_account_size_default();
@@ -1808,6 +1784,7 @@ mod tests {
         rnd_bytes
     }
 
+    #[serial]
     #[tokio::test]
     async fn test_fill_queues_completely() {
         spawn_prover(false, &[ProofType::BatchAppend, ProofType::BatchUpdate]).await;

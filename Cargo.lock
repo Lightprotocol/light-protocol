@@ -33,6 +33,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
+ "serial_test",
  "solana-sdk",
  "solana-security-txt",
  "tokio",

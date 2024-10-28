@@ -677,8 +677,8 @@ pub mod tests {
         let batch_size = 100;
         // 1 batch in progress, 1 batch ready to be processed
         let num_batches = 2;
-        let bloom_filter_capacity = 20_000 * 8;
-        let bloom_filter_num_iters = 3;
+        let bloom_filter_capacity = 0;
+        let bloom_filter_num_iters = 0;
         for queue_type in vec![QueueType::Output] {
             let (ref_account, mut account_data) = get_test_account_and_account_data(
                 batch_size,

@@ -273,7 +273,7 @@ mod tests {
         let mut ref_batch = get_test_batch();
         ref_batch.state = BatchState::Inserted;
         ref_batch.root_index = root_index;
-        ref_batch.sequence_number = sequence_number - 1 + root_history_length as u64;
+        ref_batch.sequence_number = sequence_number + root_history_length as u64;
         assert_eq!(batch, ref_batch);
     }
 
@@ -370,6 +370,7 @@ mod tests {
         assert!(batch
             .add_to_hash_chain(&value, &mut hashchain_store)
             .is_ok());
+        assert!(batch.finalize_insert().is_ok());
         let mut ref_batch = get_test_batch();
         let user_hash_chain = value;
         ref_batch.num_inserted = 1;
@@ -380,6 +381,8 @@ mod tests {
         assert!(batch
             .add_to_hash_chain(&value, &mut hashchain_store)
             .is_ok());
+        assert!(batch.finalize_insert().is_ok());
+
         ref_batch.num_inserted = 2;
         assert_eq!(batch, ref_batch);
         assert_eq!(hashchain_store[0], ref_hash_chain);
