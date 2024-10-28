@@ -90,7 +90,10 @@ fn test_nested_struct_hashing() {
     let manual_bytes: Vec<Vec<u8>> = vec![
         nested_struct.a.to_le_bytes().to_vec(),
         nested_struct.b.to_le_bytes().to_vec(),
-        light_utils::hash_to_bn254_field_size_be(nested_struct.c.as_bytes()).unwrap().0.to_vec(),
+        light_utils::hash_to_bn254_field_size_be(nested_struct.c.as_bytes())
+            .unwrap()
+            .0
+            .to_vec(),
     ];
 
     // Compare manual implementation with macro-generated one

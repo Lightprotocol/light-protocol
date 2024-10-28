@@ -83,8 +83,8 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use syn::parse_quote;
     use prettyplease::unparse;
+    use syn::parse_quote;
 
     #[test]
     fn test_light_hasher() {
@@ -114,8 +114,7 @@ mod tests {
         };
 
         let output = hasher(input).unwrap();
-  
-        
+
         let syntax_tree: syn::File = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
         println!("{}", formatted_output);
