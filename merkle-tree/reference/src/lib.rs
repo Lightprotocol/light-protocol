@@ -210,7 +210,7 @@ where
         Ok(canopy)
     }
 
-    pub fn get_leaf(&self, leaf_index: usize) -> [u8; 32] {
+    pub fn leaf(&self, leaf_index: usize) -> [u8; 32] {
         self.layers[0]
             .get(leaf_index)
             .cloned()

@@ -911,7 +911,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     if let Err(e) = result {
         return Err(e);
     }
-
     result
 }
 
