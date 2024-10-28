@@ -4,7 +4,7 @@
     "nx": "^19.6.2",
     "playwright": "^1.46.1",
     "prettier": "^3.3.3",
-    "snarkjs": "^0.7.4",
+    "snarkjs": "^0.7.5",
     "syncpack": "^13.0.0",
     "typescript": "^5.5.4"
   },
