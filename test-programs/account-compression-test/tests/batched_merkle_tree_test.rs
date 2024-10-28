@@ -208,7 +208,7 @@ async fn test_init_state_merkle_tree() {
         false,
         ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::BatchAppend, ProofType::BatchUpdate],
+            circuits: vec![ProofType::BatchAppendTest, ProofType::BatchUpdateTest],
         },
     )
     .await;

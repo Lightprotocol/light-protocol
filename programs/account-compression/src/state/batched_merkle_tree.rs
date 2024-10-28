@@ -885,7 +885,7 @@ mod tests {
             true,
             ProverConfig {
                 run_mode: None,
-                circuits: vec![ProofType::BatchAppend, ProofType::BatchUpdate],
+                circuits: vec![ProofType::BatchAppendTest, ProofType::BatchUpdateTest],
             },
         )
         .await;
@@ -1301,7 +1301,7 @@ mod tests {
             false,
             ProverConfig {
                 run_mode: None,
-                circuits: vec![ProofType::BatchAppend, ProofType::BatchUpdate],
+                circuits: vec![ProofType::BatchAppendTest, ProofType::BatchUpdateTest],
             },
         )
         .await;
@@ -1801,7 +1801,7 @@ mod tests {
             false,
             ProverConfig {
                 run_mode: None,
-                circuits: vec![ProofType::BatchAppend, ProofType::BatchUpdate],
+                circuits: vec![ProofType::BatchAppendTest, ProofType::BatchUpdateTest],
             },
         )
         .await;

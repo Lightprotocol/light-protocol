@@ -6,11 +6,11 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use reqwest::Client;
 
 use crate::{
-    batch_append::calculate_hash_chain,
-    batch_append_2::get_batch_append2_inputs,
+    batch_append_with_subtrees::calculate_hash_chain,
+    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
     batch_update::get_batch_update_inputs,
     gnark::{
-        batch_append_2_json_formatter::BatchAppend2ProofInputsJson,
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
         batch_update_json_formatter::update_inputs_string,
         constants::{PROVE_PATH, SERVER_ADDRESS},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -80,10 +80,10 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         for (i, leaf) in leaves.iter().enumerate() {
             if old_leaves[i] == [0u8; 32] {
                 let index = account_next_index + i;
-                self.merkle_tree.update(&leaf, index).unwrap();
+                self.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let circuit_inputs = get_batch_append2_inputs::<HEIGHT>(
+        let circuit_inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
             old_root,
             start_index as u32,
             leaves,
@@ -97,7 +97,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             self.merkle_tree.root()
         );
         let client = Client::new();
-        let inputs_json = BatchAppend2ProofInputsJson::from_inputs(&circuit_inputs).to_string();
+        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

@@ -455,7 +455,7 @@ async fn prove_batch_address_append() {
     use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
     init_logger();
-
+    println!("spawning prover");
     spawn_prover(
         true,
         ProverConfig {
