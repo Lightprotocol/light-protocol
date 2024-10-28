@@ -8,7 +8,7 @@ use crate::{
         get_merkle_tree_account_size, BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
     },
     batched_queue::{
-        assert_queue_inited, get_output_queue_account_size, BatchedQueueAccount,
+        assert_queue_inited, get_output_queue_account_size, BatchedQueue, BatchedQueueAccount,
         ZeroCopyBatchedQueueAccount,
     },
     errors::AccountCompressionErrorCode,
@@ -50,7 +50,7 @@ pub struct InitStateTreeAccountsInstructionData {
     pub program_owner: Option<Pubkey>,
     pub forester: Option<Pubkey>,
     pub additional_bytes: u64,
-    pub bloomfilter_num_iters: u64,
+    pub bloom_filter_num_iters: u64,
     pub input_queue_batch_size: u64,
     pub output_queue_batch_size: u64,
     pub input_queue_zkp_batch_size: u64,
@@ -69,7 +69,7 @@ impl default::Default for InitStateTreeAccountsInstructionData {
             program_owner: None,
             forester: None,
             additional_bytes: 1,
-            bloomfilter_num_iters: 3,
+            bloom_filter_num_iters: 3,
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             output_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: 10,
@@ -170,27 +170,6 @@ pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool
     Ok(bytes[8..].as_mut_ptr() as *mut T)
 }
 
-pub fn struct_to_bytes_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
-    s: &T,
-    bytes: &mut [u8],
-) {
-    // Ensure the slice has enough space to hold the struct
-    assert!(bytes.len() >= std::mem::size_of::<T>());
-
-    if INIT {
-        bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
-    } else if T::DISCRIMINATOR != bytes[0..8] {
-        panic!("Discriminator mismatch");
-    }
-
-    // Copy the struct data (excluding the discriminator part) into the bytes slice
-    let struct_bytes = unsafe {
-        std::slice::from_raw_parts((s as *const T) as *const u8, std::mem::size_of::<T>())
-    };
-
-    bytes[8..8 + struct_bytes.len()].copy_from_slice(struct_bytes);
-}
-
 pub fn init_batched_state_merkle_tree_accounts<'a>(
     owner: Pubkey,
     params: InitStateTreeAccountsInstructionData,
@@ -277,7 +256,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         params.input_queue_zkp_batch_size,
         height,
         mt_account_data,
-        params.bloomfilter_num_iters,
+        params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
     )?;
     Ok(())
@@ -321,11 +300,59 @@ pub fn assert_mt_zero_copy_inited(
         ref_queue,
         queue_type,
         &mut zero_copy_account.value_vecs,
-        &mut zero_copy_account.bloomfilter_stores,
+        &mut zero_copy_account.bloom_filter_stores,
         &mut zero_copy_account.batches,
         num_batches,
         num_iters,
     );
+}
+pub fn get_output_queue_account_default(
+    owner: Pubkey,
+    program_owner: Option<Pubkey>,
+    forester: Option<Pubkey>,
+    rollover_threshold: Option<u64>,
+    index: u64,
+    batch_size: u64,
+    zkp_batch_size: u64,
+    additional_bytes: u64,
+    rent: u64,
+    associated_merkle_tree: Pubkey,
+) -> BatchedQueueAccount {
+    let height = 26;
+    let rollover_fee = match rollover_threshold {
+        Some(rollover_threshold) => {
+            let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
+                .map_err(ProgramError::from)
+                .unwrap();
+            rollover_fee
+        }
+        None => 0,
+    };
+    let metadata = QueueMetadata {
+        next_queue: Pubkey::default(),
+        access_metadata: AccessMetadata {
+            owner,
+            program_owner: program_owner.unwrap_or_default(),
+            forester: forester.unwrap_or_default(),
+        },
+        rollover_metadata: RolloverMetadata {
+            close_threshold: u64::MAX,
+            index,
+            rolledover_slot: u64::MAX,
+            rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
+            rollover_fee,
+            network_fee: 5000,
+            additional_bytes,
+        },
+        queue_type: QueueType::Output as u64,
+        associated_merkle_tree,
+    };
+    let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
+    BatchedQueueAccount {
+        metadata,
+        queue,
+        next_index: 0,
+    }
 }
 
 #[cfg(test)]
@@ -342,54 +369,6 @@ pub mod tests {
     };
 
     use super::*;
-    pub fn get_output_queue_account_default(
-        owner: Pubkey,
-        program_owner: Option<Pubkey>,
-        forester: Option<Pubkey>,
-        rollover_threshold: Option<u64>,
-        index: u64,
-        batch_size: u64,
-        zkp_batch_size: u64,
-        additional_bytes: u64,
-        rent: u64,
-        associated_merkle_tree: Pubkey,
-    ) -> BatchedQueueAccount {
-        let height = 26;
-        let rollover_fee = match rollover_threshold {
-            Some(rollover_threshold) => {
-                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
-                    .map_err(ProgramError::from)
-                    .unwrap();
-                rollover_fee
-            }
-            None => 0,
-        };
-        let metadata = QueueMetadata {
-            next_queue: Pubkey::default(),
-            access_metadata: AccessMetadata {
-                owner,
-                program_owner: program_owner.unwrap_or_default(),
-                forester: forester.unwrap_or_default(),
-            },
-            rollover_metadata: RolloverMetadata {
-                close_threshold: u64::MAX,
-                index,
-                rolledover_slot: u64::MAX,
-                rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
-                rollover_fee,
-                network_fee: 5000,
-                additional_bytes,
-            },
-            queue_type: QueueType::Output as u64,
-            associated_merkle_tree,
-        };
-        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
-        BatchedQueueAccount {
-            metadata,
-            queue,
-            next_index: 0,
-        }
-    }
 
     pub fn get_output_queue(
         owner: Pubkey,
@@ -504,7 +483,7 @@ pub mod tests {
         assert_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,
-            params.bloomfilter_num_iters,
+            params.bloom_filter_num_iters,
         );
     }
 
@@ -533,7 +512,7 @@ pub mod tests {
                 program_owner,
                 forester,
                 additional_bytes: rng.gen_range(0..1000),
-                bloomfilter_num_iters: rng.gen_range(0..1000),
+                bloom_filter_num_iters: rng.gen_range(0..1000),
                 input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
                 output_queue_batch_size: rng.gen_range(1..1000) * output_queue_zkp_batch_size,
                 input_queue_zkp_batch_size, //TODO: randomize 100,500,1000
@@ -611,8 +590,54 @@ pub mod tests {
             assert_mt_zero_copy_inited(
                 &mut mt_account_data,
                 ref_mt_account,
-                params.bloomfilter_num_iters,
+                params.bloom_filter_num_iters,
             );
         }
+    }
+
+    /// Tests:
+    /// 1. functional init
+    /// 2. failing init again
+    /// 3. functional deserialize
+    /// 4. failing deserialize invalid data
+    /// 5. failing deserialize invalid discriminator
+    #[test]
+    fn test_bytes_to_struct() {
+        #[account]
+        #[derive(Debug, PartialEq, Copy)]
+        pub struct MyStruct {
+            pub data: u64,
+        }
+        let mut bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
+        let mut empty_bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
+
+        // Test 1 functional init.
+        let inited_struct = bytes_to_struct_checked::<MyStruct, true>(&mut bytes).unwrap();
+        unsafe {
+            (*inited_struct).data = 1;
+        }
+        assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
+        assert_eq!(bytes[8..].to_vec(), vec![1, 0, 0, 0, 0, 0, 0, 0]);
+        // Test 2 failing init again.
+        assert_eq!(
+            bytes_to_struct_checked::<MyStruct, true>(&mut bytes).unwrap_err(),
+            AccountCompressionErrorCode::InvalidDiscriminator.into()
+        );
+
+        // Test 3 functional deserialize.
+        let inited_struct =
+            unsafe { *bytes_to_struct_checked::<MyStruct, false>(&mut bytes).unwrap() };
+        assert_eq!(inited_struct, MyStruct { data: 1 });
+        // Test 4 failing deserialize invalid data.
+        assert_eq!(
+            bytes_to_struct_checked::<MyStruct, false>(&mut empty_bytes).unwrap_err(),
+            AccountCompressionErrorCode::InvalidDiscriminator.into()
+        );
+        // Test 5 failing deserialize invalid discriminator.
+        bytes[0] = 0;
+        assert_eq!(
+            bytes_to_struct_checked::<MyStruct, false>(&mut bytes).unwrap_err(),
+            AccountCompressionErrorCode::InvalidDiscriminator.into()
+        );
     }
 }

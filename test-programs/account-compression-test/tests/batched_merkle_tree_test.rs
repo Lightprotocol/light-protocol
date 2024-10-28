@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::assert_mt_zero_copy_inited;
 use account_compression::batched_merkle_tree::{
     create_hash_chain, get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
     InstructionDataBatchAppendProofInputs, InstructionDataBatchUpdateProofInputs,
@@ -10,6 +9,7 @@ use account_compression::batched_queue::{
     assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
     ZeroCopyBatchedQueueAccount,
 };
+use account_compression::{assert_mt_zero_copy_inited, get_output_queue_account_default};
 use account_compression::{
     batched_merkle_tree::BatchedMerkleTreeAccount, InitStateTreeAccountsInstructionData, ID,
 };
@@ -136,11 +136,11 @@ async fn test_init_state_merkle_tree() {
         assert_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
-            params.bloomfilter_num_iters,
+            params.bloom_filter_num_iters,
         );
         println!("post assert_mt_zero_copy_inited");
 
-        let ref_output_queue_account = BatchedQueueAccount::get_output_queue_default(
+        let ref_output_queue_account = get_output_queue_account_default(
             owner,
             None,
             None,

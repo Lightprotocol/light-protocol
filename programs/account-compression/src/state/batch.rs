@@ -23,11 +23,11 @@ pub struct Batch {
     state: BatchState,
     current_zkp_batch_index: u64,
     num_inserted_zkps: u64,
-    /// Number of iterations for the bloomfilter.
+    /// Number of iterations for the bloom_filter.
     pub num_iters: u64,
-    /// Theoretical capacity of the bloomfilter. We want to make it much larger
+    /// Theoretical capacity of the bloom_filter. We want to make it much larger
     /// than batch_size to avoid false positives.
-    pub bloomfilter_capacity: u64,
+    pub bloom_filter_capacity: u64,
     pub batch_size: u64,
     pub zkp_batch_size: u64,
     /// Sequence number when it is save to clear the batch without advancing to
@@ -41,13 +41,13 @@ pub struct Batch {
 impl Batch {
     pub fn new(
         num_iters: u64,
-        bloomfilter_capacity: u64,
+        bloom_filter_capacity: u64,
         batch_size: u64,
         zkp_batch_size: u64,
     ) -> Self {
         Batch {
             num_iters,
-            bloomfilter_capacity,
+            bloom_filter_capacity,
             batch_size,
             num_inserted: 0,
             state: BatchState::CanBeFilled,
@@ -126,38 +126,30 @@ impl Batch {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
         value_store.push(*value).map_err(ProgramError::from)?;
+
         if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
             self.num_inserted = 0;
         }
-        self.num_inserted += 1;
-        if self.num_inserted == self.zkp_batch_size {
-            self.current_zkp_batch_index += 1;
-        }
-        if self.get_num_zkp_batches() == self.current_zkp_batch_index {
-            self.advance_state_to_ready_to_update_tree()?;
-            self.num_inserted = 0;
-        }
-
-        Ok(())
+        self.finalize_insert()
     }
 
     /// Inserts into the bloom filter and hashes the value.
     /// (used by input/nullifier queue)
     pub fn insert(
         &mut self,
-        bloomfilter_value: &[u8; 32],
+        bloom_filter_value: &[u8; 32],
         hashchain_value: &[u8; 32],
         store: &mut [u8],
         hashchain_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
         let mut bloom_filter =
-            BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
+            BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;
         bloom_filter
-            .insert(bloomfilter_value)
+            .insert(bloom_filter_value)
             .map_err(ProgramError::from)?;
         self.add_to_hash_chain(hashchain_value, hashchain_store)?;
-        Ok(())
+        self.finalize_insert()
     }
 
     pub fn add_to_hash_chain(
@@ -173,7 +165,10 @@ impl Batch {
                 Poseidon::hashv(&[last_hashchain, value.as_slice()]).map_err(ProgramError::from)?;
             *hashchain_store.last_mut().unwrap() = hashchain;
         }
+        Ok(())
+    }
 
+    pub fn finalize_insert(&mut self) -> Result<()> {
         self.num_inserted += 1;
         if self.num_inserted == self.zkp_batch_size {
             self.current_zkp_batch_index += 1;
@@ -189,7 +184,7 @@ impl Batch {
     /// (used by nullifier queue)
     pub fn check_non_inclusion(&mut self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
         let mut bloom_filter =
-            BloomFilter::new(self.num_iters as usize, self.bloomfilter_capacity, store)
+            BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;
         if bloom_filter.contains(value) {
             msg!("Value already exists in the bloom filter.");
@@ -223,7 +218,7 @@ impl Batch {
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
-            self.sequence_number = sequence_number - 1 + root_history_length as u64;
+            self.sequence_number = sequence_number + root_history_length as u64;
             self.root_index = root_index;
         }
 
@@ -342,12 +337,12 @@ mod tests {
             assert!(batch
                 .insert(&value, &value, &mut store, &mut hashchain_store)
                 .is_ok());
-            let mut bloomfilter = BloomFilter {
+            let mut bloom_filter = BloomFilter {
                 num_iters: batch.num_iters as usize,
-                capacity: batch.bloomfilter_capacity,
+                capacity: batch.bloom_filter_capacity,
                 store: &mut store,
             };
-            assert!(bloomfilter.contains(&value));
+            assert!(bloom_filter.contains(&value));
             batch.check_non_inclusion(&value, &mut store).unwrap_err();
 
             ref_batch.num_inserted += 1;
