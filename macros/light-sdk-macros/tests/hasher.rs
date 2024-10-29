@@ -34,7 +34,6 @@ pub struct MyNestedNonHashableStruct {
 mod tests {
     use super::*;
 
-    // Helper functions
     fn create_test_nested_struct() -> MyNestedStruct {
         MyNestedStruct {
             a: i32::MIN,
@@ -57,13 +56,11 @@ mod tests {
         }
     }
 
-    // Basic functionality tests
     #[test]
     fn test_byte_representation() {
-        // Tests basic byte vector generation and comparison with manual implementation
         let nested_struct = create_test_nested_struct();
 
-        // Manual implementation of AsByteVec for comparison
+        // Manual implementation of AsByteVec
         let manual_bytes: Vec<Vec<u8>> = vec![
             nested_struct.a.to_le_bytes().to_vec(),
             nested_struct.b.to_le_bytes().to_vec(),
@@ -73,17 +70,14 @@ mod tests {
                 .to_vec(),
         ];
 
-        // Compare manual implementation with macro-generated one
         assert_eq!(nested_struct.as_byte_vec(), manual_bytes);
 
-        // Test hashing
         let hash_result = nested_struct.hash::<Poseidon>().unwrap();
         assert_eq!(hash_result.len(), 32);
     }
 
     #[test]
     fn test_boundary_values() {
-        // Tests hashing with zero/minimum values
         let nested = MyNestedStruct {
             a: 0,
             b: 0,
@@ -106,20 +100,17 @@ mod tests {
         assert_eq!(hash.len(), 32);
     }
 
-    // Attribute tests
     mod attribute_tests {
         use super::*;
 
         #[test]
         fn test_array_truncation() {
-            // Tests #[truncate] with fixed-size arrays
             #[derive(LightHasher)]
             struct TruncatedStruct {
                 #[truncate]
                 data: [u8; 32],
             }
 
-            // Create arrays with different values
             let single = TruncatedStruct {
                 data: [1u8; 32], // All 1s
             };
@@ -131,7 +122,7 @@ mod tests {
             let mixed = TruncatedStruct {
                 data: {
                     let mut data = [1u8; 32];
-                    data[0] = 2u8; // Change first byte to make it different
+                    data[0] = 2u8; // Change first byte
                     data
                 },
             };
@@ -142,7 +133,6 @@ mod tests {
 
             let mixed_hash = mixed.hash::<Poseidon>().unwrap();
 
-            // Now the hashes should be different
             assert_ne!(single_hash, double_hash);
             assert_ne!(single_hash, mixed_hash);
             assert_ne!(double_hash, mixed_hash);
@@ -150,39 +140,31 @@ mod tests {
 
         #[test]
         fn test_truncation_longer_array() {
-            // Tests #[truncate] with dynamic-sized String
             #[derive(LightHasher)]
             struct LongTruncatedStruct {
                 #[truncate]
                 data: String,
             }
 
-            // Create data larger than BN254 field size
-            let large_data = "a".repeat(64); // 64 'a' characters
+            let large_data = "a".repeat(64);
             let truncated = LongTruncatedStruct {
                 data: large_data.clone(),
             };
 
-            // Create another struct with different data that should produce different hash
             let mut modified_data = large_data.clone();
-            modified_data.push('b'); // Add character - should change hash since String is hashed as one unit
+            modified_data.push('b');
             let truncated2 = LongTruncatedStruct {
                 data: modified_data,
             };
 
             let hash1 = truncated.hash::<Poseidon>().unwrap();
-
             let hash2 = truncated2.hash::<Poseidon>().unwrap();
-            // Hashes should be different because String is treated as a single unit
-            assert_ne!(
-                hash1, hash2,
-                "Hashes should be different for different strings"
-            );
+
+            assert_ne!(hash1, hash2);
         }
 
         #[test]
         fn test_multiple_truncates() {
-            // Tests multiple #[truncate] fields in one struct
             #[derive(LightHasher)]
             struct MultiTruncate {
                 #[truncate]
@@ -213,7 +195,6 @@ mod tests {
 
         #[test]
         fn test_nested_with_truncate() {
-            // Tests combination of #[nested] and #[truncate]
             #[derive(LightHasher)]
             struct NestedTruncate {
                 #[nested]
@@ -233,13 +214,11 @@ mod tests {
         }
     }
 
-    // Nesting and composition tests
     mod nesting_tests {
         use super::*;
 
         #[test]
         fn test_recursive_nesting() {
-            // Tests nested structs with manual hash comparison
             let nested_struct = create_test_nested_struct();
 
             #[derive(LightHasher)]
@@ -255,7 +234,6 @@ mod tests {
                 two: nested_struct,
             };
 
-            // Manual implementation for comparison
             let manual_hash = Poseidon::hashv(&[
                 &test_nested_struct.one.hash::<Poseidon>().unwrap(),
                 &test_nested_struct.two.hash::<Poseidon>().unwrap(),
@@ -267,7 +245,6 @@ mod tests {
 
         #[test]
         fn test_nested_option() {
-            // Tests Option<T> where T is a nested struct
             #[derive(LightHasher)]
             struct NestedOption {
                 opt: Option<MyNestedStruct>,
@@ -288,8 +265,6 @@ mod tests {
 
         #[test]
         fn test_nested_field_count() {
-            // Tests that nested structs count as single field
-            // Inner struct with 12 fields (maximum)
             #[derive(LightHasher)]
             struct InnerMaxFields {
                 f1: u64,
@@ -306,7 +281,6 @@ mod tests {
                 f12: u64,
             }
 
-            // Should succeed since nested counts as 1 field
             #[derive(LightHasher)]
             struct OuterWithNested {
                 #[nested]
@@ -341,7 +315,6 @@ mod tests {
 
         #[test]
         fn test_empty_struct() {
-            // Tests that empty structs fail to hash
             #[derive(LightHasher)]
             struct EmptyStruct {}
 
@@ -353,8 +326,7 @@ mod tests {
 
         #[test]
         fn test_poseidon_width_limits() {
-            // Tests maximum field limit and overflow behavior
-            // Test struct with maximum allowed fields (12)
+            // Max allowed: 12 fields
             #[derive(LightHasher)]
             struct MaxFields {
                 f1: u64,
@@ -386,10 +358,9 @@ mod tests {
                 f12: 12,
             };
 
-            // Should succeed
             assert!(max_fields.hash::<Poseidon>().is_ok());
 
-            // Test struct exceeding maximum fields (13)
+            // 13 fields
             #[derive(LightHasher)]
             struct TooManyFields {
                 f1: u64,
@@ -427,10 +398,8 @@ mod tests {
         }
     }
 
-    // Test with reference values
     #[test]
-    fn test_option_hashing() {
-        // Tests Option<T> hashing
+    fn test_option_hashing_with_reference_values() {
         let account_none = create_test_account(None);
         assert_eq!(
             account_none.hash::<Poseidon>().unwrap(),
