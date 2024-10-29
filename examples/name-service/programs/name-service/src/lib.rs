@@ -97,7 +97,7 @@ pub struct CreateRecord<'info> {
     pub cpi_signer: AccountInfo<'info>,
 
     #[light_account(init, seeds = [b"name-service", name.as_bytes()])]
-    pub record: LightAccount<NameRecord>,
+    pub record: LightAccount<'info, NameRecord>,
 }
 
 #[light_accounts]
@@ -116,7 +116,7 @@ pub struct UpdateRecord<'info> {
         seeds = [b"name-service", record.name.as_bytes()],
         constraint = record.owner == signer.key() @ CustomError::Unauthorized
     )]
-    pub record: LightAccount<NameRecord>,
+    pub record: LightAccount<'info, NameRecord>,
 }
 
 #[light_accounts]
@@ -135,5 +135,5 @@ pub struct DeleteRecord<'info> {
         seeds = [b"name-service", record.name.as_bytes()],
         constraint = record.owner == signer.key() @ CustomError::Unauthorized
     )]
-    pub record: LightAccount<NameRecord>,
+    pub record: LightAccount<'info, NameRecord>,
 }

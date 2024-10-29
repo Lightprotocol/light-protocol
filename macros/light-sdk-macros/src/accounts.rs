@@ -249,7 +249,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
     } else {
         quote! {
             #[derive(::light_sdk::LightAccounts)]
-            pub struct #light_accounts_name {
+            pub struct #light_accounts_name<'info> {
                 #light_accounts_fields
             }
         }
@@ -555,39 +555,12 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
     let expanded = quote! {
         impl #impl_gen ::light_sdk::compressed_account::LightAccounts for #strct_name #type_gen #where_clause {
             fn try_light_accounts(
-                inputs: Vec<Vec<u8>>,
-                merkle_context: ::light_sdk::merkle_context::PackedMerkleContext,
-                merkle_tree_root_index: u16,
-                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
-                address_merkle_tree_root_index: u16,
-                remaining_accounts: &[::anchor_lang::prelude::AccountInfo],
+                accounts: &'info [::light_sdk::account_info::LightAccountInfo],
             ) -> Result<Self> {
-                let unpacked_address_merkle_context =
-                     ::light_sdk::program_merkle_context::unpack_address_merkle_context(
-                         address_merkle_context, remaining_accounts);
-
                 #(#try_from_slice_calls)*
                 Ok(Self {
                     #(#field_idents),*
                 })
-            }
-
-            fn new_address_params(&self) -> Vec<::light_sdk::address::NewAddressParamsPacked> {
-                let mut new_address_params = Vec::new();
-                #(#new_address_params_calls)*
-                new_address_params
-            }
-
-            fn input_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::PackedCompressedAccountWithMerkleContext>> {
-                let mut accounts = Vec::new();
-                #(#input_account_calls)*
-                Ok(accounts)
-            }
-
-            fn output_accounts(&self, remaining_accounts: &[::anchor_lang::prelude::AccountInfo]) -> Result<Vec<::light_sdk::compressed_account::OutputCompressedAccountWithPackedContext>> {
-                let mut accounts = Vec::new();
-                #(#output_account_calls)*
-                Ok(accounts)
             }
         }
     };

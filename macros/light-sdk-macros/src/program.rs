@@ -194,38 +194,29 @@ impl VisitMut for LightProgramTransform {
 
         // Inject an `inputs: Vec<Vec<u8>>` argument to all instructions. The
         // purpose of that additional argument is passing compressed accounts.
-        let inputs_arg: FnArg = parse_quote! { inputs: Vec<Vec<u8>> };
+        let inputs_arg: FnArg = parse_quote! { inputs: Vec<u8> };
         i.sig.inputs.insert(1, inputs_arg);
 
-        // Inject Merkle context related arguments.
-        let proof_arg: FnArg = parse_quote! { proof: ::light_sdk::proof::CompressedProof };
-        i.sig.inputs.insert(2, proof_arg);
-        let merkle_context_arg: FnArg =
-            parse_quote! { merkle_context: ::light_sdk::merkle_context::PackedMerkleContext };
-        i.sig.inputs.insert(3, merkle_context_arg);
-        let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
-        i.sig.inputs.insert(5, address_merkle_context_arg);
-        let address_merkle_tree_root_index_arg: FnArg =
-            parse_quote! { address_merkle_tree_root_index: u16 };
-        i.sig.inputs.insert(6, address_merkle_tree_root_index_arg);
-
-        // Inject a `LightContext` into the function body.
+        // Deserialize `LightInstructionData` and inject a `LightContext` into
+        // the function body.
+        let deser_inputs_stmt: Stmt = parse_quote! {
+            let inputs = LightInstructionData::deserialize(&inputs)?;
+        };
+        i.block.stmts.insert(0, deser_inputs_stmt);
+        let account_infos_stmt: Stmt = parse_quote! {
+            let account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
+        };
+        i.block.stmts.insert(1, account_infos_stmt);
         let light_context_stmt: Stmt = parse_quote! {
             let mut ctx: ::light_sdk::context::LightContext<
                 #accounts_ident,
                 #light_accounts_ident
             > = ::light_sdk::context::LightContext::new(
                 ctx,
-                inputs,
-                merkle_context,
-                merkle_tree_root_index,
-                address_merkle_context,
-                address_merkle_tree_root_index,
+                &account_infos,
             )?;
         };
-        i.block.stmts.insert(0, light_context_stmt);
+        i.block.stmts.insert(2, light_context_stmt);
 
         // Pack all instruction inputs in a struct, which then can be used in
         // `check_constrants` and `derive_address_seeds`.
@@ -242,18 +233,18 @@ impl VisitMut for LightProgramTransform {
         let inputs_pack_stmt: Stmt = parse_quote! {
             let inputs = #inputs_ident { #(#input_idents),* };
         };
-        i.block.stmts.insert(1, inputs_pack_stmt);
+        i.block.stmts.insert(3, inputs_pack_stmt);
 
         // Inject `check_constraints` and `derive_address_seeds` calls right
         // after.
         let check_constraints_stmt: Stmt = parse_quote! {
             ctx.check_constraints(&inputs)?;
         };
-        i.block.stmts.insert(2, check_constraints_stmt);
+        i.block.stmts.insert(4, check_constraints_stmt);
         let derive_address_seed_stmt: Stmt = parse_quote! {
             ctx.derive_address_seeds(address_merkle_context, &inputs);
         };
-        i.block.stmts.insert(3, derive_address_seed_stmt);
+        i.block.stmts.insert(5, derive_address_seed_stmt);
 
         // Once we are done with calling `check_constraints` and
         // `derive_address_seeds`, we can unpack the inputs, so developers can
@@ -264,12 +255,23 @@ impl VisitMut for LightProgramTransform {
         let inputs_unpack_stmt: Stmt = parse_quote! {
             let #inputs_ident { #(#input_idents),* } = inputs;
         };
-        i.block.stmts.insert(4, inputs_unpack_stmt);
+        i.block.stmts.insert(6, inputs_unpack_stmt);
 
         // Inject `verify` statements at the end of the function.
         let stmts_len = i.block.stmts.len();
+        // let verify_stmt: Stmt = parse_quote! {
+        //     ctx.verify(proof)?;
+        // };
         let verify_stmt: Stmt = parse_quote! {
-            ctx.verify(proof)?;
+            verify_comressed_accounts(
+                &ctx,
+                inputs.proof,
+                &[],
+                None,
+                false,
+                None,
+                &crate::ID
+            )?;
         };
         i.block.stmts.insert(stmts_len - 1, verify_stmt);
     }
