@@ -3,7 +3,7 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 use light_hasher::{bytes::AsByteVec, DataHasher, Hasher, Poseidon};
 use light_sdk_macros::LightHasher;
 
-#[derive(LightHasher, Clone)]
+#[derive(LightHasher)]
 pub struct MyAccount {
     pub a: bool,
     pub b: u64,
@@ -16,7 +16,7 @@ pub struct MyAccount {
     pub f: Option<usize>,
 }
 
-#[derive(LightHasher, Clone)]
+#[derive(LightHasher)]
 pub struct MyNestedStruct {
     pub a: i32,
     pub b: u32,
@@ -24,7 +24,6 @@ pub struct MyNestedStruct {
     pub c: String,
 }
 
-#[derive(Clone)]
 pub struct MyNestedNonHashableStruct {
     pub a: PhantomData<()>,
     pub b: Rc<RefCell<usize>>,
@@ -230,8 +229,8 @@ mod tests {
             }
 
             let test_nested_struct = TestNestedStruct {
-                one: nested_struct.clone(),
-                two: nested_struct,
+                one: nested_struct,
+                two: create_test_nested_struct(),
             };
 
             let manual_hash = Poseidon::hashv(&[
