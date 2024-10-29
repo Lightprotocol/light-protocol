@@ -20,6 +20,7 @@ members = [
     "xtask",
     "examples/mixed-accounts/programs/*",
     "examples/name-service/programs/*",
+    "examples/subscription/programs/*",
     "examples/token-escrow/programs/*",
     "test-programs/*",
     "forester-utils",

@@ -1,0 +1,40 @@
+[package]
+name = "subscription"
+version = "0.7.0"
+description = "Subscription service"
+edition = "2021"
+rust-version = "1.75.0" 
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "name_service"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = ["idl-build"]
+test-sbf = []
+bench-sbf = []
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+
+[dependencies]
+anchor-lang = { workspace=true}
+borsh = { workspace = true }
+light-hasher = { workspace = true, features = ["solana"] }
+light-macros = { workspace = true }
+light-sdk = { workspace = true }
+light-sdk-macros = { workspace = true }
+light-utils = { workspace = true }
+light-verifier = { workspace = true }
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = { workspace = true }
+
+[dev-dependencies]
+light-client = { workspace = true , features = ["devenv"]}
+light-test-utils = { path = "../../../../test-utils", version = "1.2.0", features = ["devenv"] }
+solana-program-test = { workspace = true }
+tokio = "1.36.0"
