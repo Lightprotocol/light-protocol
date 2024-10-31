@@ -61,7 +61,7 @@ impl LightAccountMeta {
     pub fn new_mut(
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
-        output_merkle_tree_index: Option<u8>,
+        output_merkle_tree: &Pubkey,
         address_merkle_context: Option<&AddressMerkleContext>,
         address_merkle_tree_root_index: Option<u16>,
         remaining_accounts: &mut RemainingAccounts,
@@ -73,8 +73,7 @@ impl LightAccountMeta {
 
         // If no output Merkle tree was specified, use the one used for the
         // input account.
-        let output_merkle_tree_index =
-            output_merkle_tree_index.unwrap_or(merkle_context.merkle_tree_pubkey_index);
+        let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
 
         Self {
             lamports: Some(compressed_account.compressed_account.lamports),

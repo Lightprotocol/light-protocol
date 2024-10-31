@@ -370,7 +370,7 @@ where
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
         rpc_result.root_indices[0],
-        None,
+        &merkle_tree_pubkey,
         None,
         None,
         remaining_accounts,
