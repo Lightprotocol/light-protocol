@@ -12,4 +12,6 @@ pub enum LightSdkError {
     ExpectedRootIndex,
     #[msg("Expected address root index to be provided")]
     ExpectedAddressRootIndex,
+    #[msg("Accounts with a specified input are expected to have data")]
+    ExpectedData,
 }

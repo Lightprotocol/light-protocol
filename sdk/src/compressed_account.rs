@@ -11,6 +11,7 @@ use crate::{
         derive_address_from_params, derive_address_seed, unpack_new_address_params,
         PackedNewAddressParams,
     },
+    error::LightSdkError,
     merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts},
 };
 
@@ -40,7 +41,7 @@ where
             if let Some(data) = account_info.data {
                 T::try_from_slice(data)?
             } else {
-                T::default()
+                return Err(LightSdkError::ExpectedData.into());
             }
         } else {
             T::default()
