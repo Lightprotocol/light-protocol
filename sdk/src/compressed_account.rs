@@ -36,7 +36,7 @@ impl<'info, T> LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn new(account_info: &'info LightAccountInfo) -> Result<Self> {
+    pub fn from_light_account_info(account_info: &'info LightAccountInfo) -> Result<Self> {
         let account_state = if account_info.input.is_some() {
             if let Some(data) = account_info.data {
                 T::try_from_slice(data)?

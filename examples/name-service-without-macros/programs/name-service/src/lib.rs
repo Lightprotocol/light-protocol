@@ -168,7 +168,7 @@ pub struct LightCreateRecord<'a> {
 
 impl<'a> LightAccounts<'a> for LightCreateRecord<'a> {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::new(&accounts[0])?;
+        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
         Ok(Self { record })
     }
 }
@@ -192,7 +192,7 @@ pub struct LightUpdateRecord<'a> {
 
 impl<'a> LightAccounts<'a> for LightUpdateRecord<'a> {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::new(&accounts[0])?;
+        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
         Ok(Self { record })
     }
 }
@@ -216,7 +216,7 @@ pub struct LightDeleteRecord<'a> {
 
 impl<'a> LightAccounts<'a> for LightDeleteRecord<'a> {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::new(&accounts[0])?;
+        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
         Ok(Self { record })
     }
 }
