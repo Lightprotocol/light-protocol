@@ -216,6 +216,7 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	txHashes := make([]*big.Int, batchSize)
 	merkleProofs := make([][]big.Int, batchSize)
 	pathIndices := make([]uint32, batchSize)
+	oldLeaves := make([]*big.Int, batchSize)
 
 	usedIndices := make(map[uint32]bool)
 
@@ -237,18 +238,30 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 				}
 			}
 		}
-
-		tree.Update(int(pathIndices[i]), *leaf)
+		oldLeaf := big.NewInt(int64(0))
+		// TODO: add option for test data to test nullifying mixed inserted and
+		// uninserted leaves
+		// This sets the first leaf to 0 to test nullification
+		// of mixed inserted and uninserted leaves
+		if i == 0 {
+			oldLeaves[i] = oldLeaf
+		} else {
+			oldLeaves[i] = leaves[i]
+		}
+		tree.Update(int(pathIndices[i]), *oldLeaves[i])
 	}
 
 	oldRoot := tree.Root.Value()
+
 	nullifiers := make([]*big.Int, batchSize)
 	for i := 0; i < batchSize; i++ {
-		merkleProofs[i] = tree.Update(int(pathIndices[i]), *leaves[i])
+
+		merkleProofs[i] = tree.GetProofByIndex(int(pathIndices[i]))
+
 		// mock tx hash (actual tx hash is the hash of all tx input and output
 		// hashes)
 		txHash, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
-		nullifier, _ := poseidon.Hash([]*big.Int{leaves[i], txHash})
+		nullifier, _ := poseidon.Hash([]*big.Int{leaves[i], big.NewInt(int64(pathIndices[i])), txHash})
 		txHashes[i] = txHash
 		nullifiers[i] = nullifier
 		tree.Update(int(pathIndices[i]), *nullifier)
@@ -268,11 +281,89 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 		NewRoot:             &newRoot,
 		LeavesHashchainHash: leavesHashchainHash,
 		TxHashes:            txHashes,
+		OldLeaves:           oldLeaves,
 		Leaves:              leaves,
 		PathIndices:         pathIndices,
 		MerkleProofs:        merkleProofs,
 		Height:              uint32(treeDepth),
 		BatchSize:           uint32(batchSize),
 		Tree:                &tree,
+	}
+}
+
+func BuildTestBatchAppend2Tree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex *uint32, enableRandom bool) *BatchAppend2Parameters {
+	var tree merkletree.PoseidonTree
+
+	if previousTree == nil {
+		tree = merkletree.NewTree(treeDepth)
+	} else {
+		tree = *previousTree.DeepCopy()
+	}
+
+	leaves := make([]*big.Int, batchSize)
+	merkleProofs := make([][]big.Int, batchSize)
+	pathIndices := make([]uint32, batchSize)
+	oldLeaves := make([]*big.Int, batchSize)
+	usedIndices := make(map[uint32]bool)
+
+	for i := 0; i < batchSize; i++ {
+		leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+		leaves[i] = leaf
+		// Sequential filling
+		pathIndices[i] = *startIndex + uint32(i)
+
+		//  by default all old leaves are zero
+		oldLeaf := big.NewInt(int64(0))
+		oldLeaves[i] = oldLeaf
+		tree.Update(int(pathIndices[i]), *oldLeaves[i])
+
+		// If enabled add random already nullified leaves
+		if enableRandom && rand.Float32() < 0.5 {
+			// Random filling with uniqueness check
+			for {
+				index := uint32(rand.Intn(len(pathIndices)))
+				if !usedIndices[index] {
+					usedIndices[index] = true
+					leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
+					oldLeaves[i] = leaf
+					tree.Update(int(pathIndices[i]), *leaf)
+					break
+				}
+			}
+		}
+
+	}
+	oldRoot := tree.Root.Value()
+
+	for i := 0; i < batchSize; i++ {
+		merkleProofs[i] = tree.GetProofByIndex(int(pathIndices[i]))
+		// Only append if old leaf is zero
+		if oldLeaves[i].Cmp(big.NewInt(0)) == 0 {
+			tree.Update(int(pathIndices[i]), *leaves[i])
+		}
+	}
+
+	leavesHashchainHash := calculateHashChain(leaves, batchSize)
+	newRoot := tree.Root.Value()
+
+	publicInputHash := calculateHashChain([]*big.Int{
+		&oldRoot,
+		&newRoot,
+		leavesHashchainHash,
+		big.NewInt(int64(*startIndex)),
+	},
+		4)
+	return &BatchAppend2Parameters{
+		PublicInputHash:     publicInputHash,
+		OldRoot:             &oldRoot,
+		NewRoot:             &newRoot,
+		LeavesHashchainHash: leavesHashchainHash,
+		OldLeaves:           oldLeaves,
+		Leaves:              leaves,
+		MerkleProofs:        merkleProofs,
+		Height:              uint32(treeDepth),
+		BatchSize:           uint32(batchSize),
+		Tree:                &tree,
+		StartIndex:          *startIndex,
 	}
 }
