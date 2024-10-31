@@ -369,7 +369,6 @@ where
 
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
-        None,
         rpc_result.root_indices[0],
         None,
         None,

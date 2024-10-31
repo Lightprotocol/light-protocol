@@ -60,7 +60,6 @@ impl LightAccountMeta {
     #[allow(clippy::too_many_arguments)]
     pub fn new_mut(
         compressed_account: &CompressedAccountWithMerkleContext,
-        lamports: Option<u64>,
         merkle_tree_root_index: u16,
         output_merkle_tree_index: Option<u8>,
         address_merkle_context: Option<&AddressMerkleContext>,
@@ -78,7 +77,7 @@ impl LightAccountMeta {
             output_merkle_tree_index.unwrap_or(merkle_context.merkle_tree_pubkey_index);
 
         Self {
-            lamports,
+            lamports: Some(compressed_account.compressed_account.lamports),
             address: compressed_account.compressed_account.address,
             data: compressed_account
                 .compressed_account
