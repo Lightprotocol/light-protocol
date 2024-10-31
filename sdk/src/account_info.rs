@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::Result, AnchorDeserialize, AnchorSerialize};
+use anchor_lang::prelude::Result;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Information about compressed account which is being initialized.
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(Debug)]
 pub struct LightInputAccountInfo {
     /// Lamports.
     pub lamports: Option<u64>,
@@ -20,7 +20,7 @@ pub struct LightInputAccountInfo {
 }
 
 /// Information about compressed account which is being mutated.
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(Debug)]
 pub struct LightAccountInfo<'a> {
     /// Input account.
     pub(crate) input: Option<LightInputAccountInfo>,
