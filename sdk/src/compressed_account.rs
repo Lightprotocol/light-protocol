@@ -61,14 +61,11 @@ where
         remaining_accounts: &[AccountInfo],
     ) {
         if let Some(mut new_address_params) = self.account_info.new_address {
-            let seed = derive_address_seed(seeds, program_id);
-            let mut unpacked_new_address_params =
-                unpack_new_address_params(new_address_params, remaining_accounts);
-
-            new_address_params.seed = seed;
-            unpacked_new_address_params.seed = seed;
+            new_address_params.seed = derive_address_seed(seeds, program_id);
             self.new_address_params = Some(new_address_params);
 
+            let unpacked_new_address_params =
+                unpack_new_address_params(new_address_params, remaining_accounts);
             let address = derive_address_from_params(unpacked_new_address_params);
 
             self.address = Some(address);
