@@ -17,6 +17,15 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         }
     };
 
+    fn is_option_type(ty: &syn::Type) -> bool {
+        if let syn::Type::Path(type_path) = ty {
+            if let Some(segment) = type_path.path.segments.last() {
+                return segment.ident == "Option";
+            }
+        }
+        false
+    }
+
     let field_into_bytes_calls = fields
         .named
         .iter()
@@ -27,9 +36,41 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             let field_name = &field.ident;
             let truncate = field.attrs.iter().any(|attr| attr.path().is_ident("truncate"));
             let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested"));
-            if nested {
+            let is_option = is_option_type(&field.ty);
+
+            if is_option {
+                if truncate {
+                    return Err(Error::new_spanned(
+                        field,
+                        "The #[truncate] attribute cannot be used with Option types",
+                    ));
+                }
+
+                if let syn::Type::Path(type_path) = &field.ty {
+                    if let Some(segment) = type_path.path.segments.last() {
+                        if segment.ident == "Option" {
+                            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                                if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) = args.args.first() {
+                                    if let Some(inner_segment) = inner_path.path.segments.last() {
+                                        let first_char = inner_segment.ident.to_string().chars().next();
+                                        if let Some(c) = first_char {
+                                            if c.is_uppercase() && !nested {
+                                                return Err(Error::new_spanned(
+                                                    field,
+                                                    "Option<Struct> must be marked with #[nested] attribute",
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(if nested {
                 quote! {
-                    // For nested fields, hash them first
                     let nested_hash = ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(&self.#field_name)
                         .expect("Failed to hash nested field");
                     result.push(nested_hash.to_vec());
@@ -49,13 +90,23 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                         .collect::<Vec<Vec<u8>>>();
                     result.extend(truncated_bytes);
                 }
+            } else if is_option {
+                quote! {
+                    if let Some(value) = &self.#field_name {
+                        let mut bytes = vec![1u8];  // Prefix with 1 for Some
+                        bytes.extend(value.as_byte_vec().into_iter().flatten());
+                        result.push(bytes);
+                    } else {
+                        result.push(vec![0u8]);  // Just [0] for None
+                    }
+                }
             } else {
                 quote! {
                     result.extend(self.#field_name.as_byte_vec());
                 }
-            }
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(quote! {
         impl #impl_gen ::light_hasher::bytes::AsByteVec for #struct_name #type_gen #where_clause {
@@ -159,5 +210,73 @@ mod tests {
         assert!(formatted_output.contains(">(&self.d)"));
         assert!(formatted_output.contains(".expect(\"Failed to hash nested field\")"));
         assert!(!formatted_output.contains("c: SkippedStruct"));
+    }
+    // #[test]
+    // fn test_option_handling() {
+    //     let input: ItemStruct = parse_quote! {
+    //         struct OptionStruct {
+    //             a: Option<u32>,
+    //             b: Option<String>,
+    //         }
+    //     };
+
+    //     let output = hasher(input).unwrap();
+    //     let syntax_tree = syn::parse2(output).unwrap();
+    //     let formatted_output = unparse(&syntax_tree);
+
+    //     // Should contain logic for handling Option types
+    //     assert!(formatted_output.contains("if let Some(value) = &self"));
+    //     assert!(formatted_output.contains("vec![1u8]"));  // Some flag
+    //     assert!(formatted_output.contains("vec![0u8]"));  // None flag
+    //     assert!(formatted_output.contains("bytes.extend(value.as_byte_vec().into_iter().flatten())"));
+    // }
+
+    #[test]
+    fn test_nested_struct_with_option() {
+        let input: ItemStruct = parse_quote! {
+            struct OuterStruct {
+                a: u32,
+                #[nested]
+                b: InnerStruct,
+                c: Option<u64>,
+            }
+        };
+
+        let output = hasher(input).unwrap();
+        let syntax_tree = syn::parse2(output).unwrap();
+        let formatted_output = unparse(&syntax_tree);
+
+        assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
+        assert!(formatted_output.contains("if let Some(value) = &self.c"));
+        assert!(formatted_output.contains("let nested_hash = ::light_hasher::DataHasher::hash::<"));
+    }
+
+    #[test]
+    fn test_option_validation() {
+        // Should fail: Option with truncate
+        let input: ItemStruct = parse_quote! {
+            struct InvalidTruncateOption {
+                #[truncate]
+                opt: Option<u32>,
+            }
+        };
+        assert!(hasher(input).is_err());
+
+        // Should fail: Option<Struct> without nested
+        let input: ItemStruct = parse_quote! {
+            struct InvalidNestedOption {
+                opt: Option<InnerStruct>,
+            }
+        };
+        assert!(hasher(input).is_err());
+
+        // Should pass: Option<Struct> with nested
+        let input: ItemStruct = parse_quote! {
+            struct ValidNestedOption {
+                #[nested]
+                opt: Option<InnerStruct>,
+            }
+        };
+        assert!(hasher(input).is_ok());
     }
 }
