@@ -289,34 +289,44 @@ mod tests {
             assert_eq!(test_nested_struct.hash::<Poseidon>().unwrap(), manual_hash);
         }
 
-        // #[test]
-        // fn test_nested_option() {
-        //     #[derive(LightHasher)]
-        //     struct NestedOption {
-        //         opt: Option<MyNestedStruct>,
-        //     }
+        #[test]
+        fn test_nested_option() {
+            #[derive(LightHasher)]
+            struct NestedOption {
+                #[nested]
+                opt: Option<MyNestedStruct>,
+            }
 
-        //     let with_some = NestedOption {
-        //         opt: Some(create_test_nested_struct()),
-        //     };
-        //     let with_none = NestedOption { opt: None };
+            let with_some = NestedOption {
+                opt: Some(create_test_nested_struct()),
+            };
+            let with_none = NestedOption { opt: None };
 
-        //     // Manual implementation for comparison
-        //     let some_bytes = {
-        //         let mut bytes = vec![1u8];  // Prefix with 1 for Some
-        //         bytes.extend(with_some.opt.as_ref().unwrap().as_byte_vec().into_iter().flatten());
-        //         vec![bytes]
-        //     };
-        //     let none_bytes = vec![vec![0u8]];  // Just [0] for None
+            // Manual implementation for comparison
+            // TODO(swen): Check that we can overwrite first byte from 6 to 1 for Some
+            // TODO(swen): Check that we can set 32 bytes to 0 for None
+            // let some_bytes = vec![with_some.opt.as_ref().unwrap().hash::<Poseidon>().unwrap().to_vec()];
+            let some_bytes = {
+                let mut bytes = with_some
+                    .opt
+                    .as_ref()
+                    .unwrap()
+                    .hash::<Poseidon>()
+                    .unwrap()
+                    .to_vec();
+                bytes[0] = 1u8; // Overwrite first byte with 1 for Some
+                vec![bytes]
+            };
+            let none_bytes = vec![vec![0u8; 32]]; // 32 zero bytes for None
 
-        //     assert_eq!(with_some.as_byte_vec(), some_bytes);
-        //     assert_eq!(with_none.as_byte_vec(), none_bytes);
+            assert_eq!(with_some.as_byte_vec(), some_bytes);
+            assert_eq!(with_none.as_byte_vec(), none_bytes);
 
-        //     let some_hash = with_some.hash::<Poseidon>().unwrap();
-        //     let none_hash = with_none.hash::<Poseidon>().unwrap();
+            let some_hash = with_some.hash::<Poseidon>().unwrap();
+            let none_hash = with_none.hash::<Poseidon>().unwrap();
 
-        //     assert_ne!(some_hash, none_hash);
-        // }
+            assert_ne!(some_hash, none_hash);
+        }
 
         #[test]
         fn test_nested_field_count() {
@@ -454,7 +464,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_option_hashing_with_reference_values() {
         let account_none = create_test_account(None);
         assert_eq!(
@@ -469,8 +478,8 @@ mod tests {
         assert_eq!(
             account_some.hash::<Poseidon>().unwrap(),
             [
-                21, 178, 66, 188, 152, 166, 98, 224, 150, 92, 94, 231, 230, 26, 88, 1, 86, 22, 89,
-                72, 69, 230, 168, 55, 224, 148, 49, 76, 112, 6, 85, 248
+                39, 77, 212, 128, 109, 176, 236, 140, 193, 215, 20, 225, 100, 163, 117, 142, 64,
+                175, 8, 76, 111, 97, 176, 17, 232, 235, 5, 146, 113, 75, 85, 244
             ]
         );
     }
