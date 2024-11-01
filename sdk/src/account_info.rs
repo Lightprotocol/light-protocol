@@ -59,7 +59,8 @@ impl<'a> LightAccountInfo<'a> {
         let account_info = LightAccountInfo {
             input,
             owner: Some(*program_id),
-            lamports: meta.lamports,
+            // Needs to be assigned by the program.
+            lamports: None,
             // NOTE(vadorovsky): A `clone()` here is unavoidable.
             // What we have here is an immutable reference to `LightAccountMeta`,
             // from which we can take an immutable reference to `data`.
