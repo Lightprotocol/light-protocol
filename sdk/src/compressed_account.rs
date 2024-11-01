@@ -84,9 +84,9 @@ where
         match self.account_info.input.as_ref() {
             Some(input) => {
                 let data = match input.data {
-                    Some(ref data) => {
+                    Some(data) => {
                         let account = T::try_from_slice(data)?;
-                        Some(serialize_and_hash_account_data2(&account)?)
+                        Some(hash_input_account(&account)?)
                     }
                     None => None,
                 };
@@ -112,7 +112,7 @@ where
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
         match self.account_info.output_merkle_tree_index {
             Some(merkle_tree_index) => {
-                let data = serialize_and_hash_account_data(&self.account_state)?;
+                let data = serialize_and_hash_output_account(&self.account_state)?;
                 Ok(Some(OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
                         owner: self.account_info.owner.unwrap_or(*program_id),
@@ -273,20 +273,11 @@ pub struct OutputCompressedAccountWithPackedContext {
     pub merkle_tree_index: u8,
 }
 
-pub fn serialize_and_hash_account_data<T>(account: &T) -> Result<CompressedAccountData>
-where
-    T: AnchorSerialize + DataHasher + Discriminator,
-{
-    let data = account.try_to_vec()?;
-    let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
-    Ok(CompressedAccountData {
-        discriminator: T::discriminator(),
-        data,
-        data_hash,
-    })
-}
-
-pub fn serialize_and_hash_account_data2<T>(account: &T) -> Result<CompressedAccountData>
+/// Hashes a compressed account.
+///
+/// This function should be used for input accounts, where including only a
+/// hash is sufficient.
+pub fn hash_input_account<T>(account: &T) -> Result<CompressedAccountData>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
 {
@@ -295,6 +286,23 @@ where
         discriminator: T::discriminator(),
         // Sending only data hash to the system program is sufficient.
         data: Vec::new(),
+        data_hash,
+    })
+}
+
+/// Serializes and hashes a compressed account.
+///
+/// This function should be used for output accounts, where data has to be
+/// included for system-program to log in the ledger.
+pub fn serialize_and_hash_output_account<T>(account: &T) -> Result<CompressedAccountData>
+where
+    T: AnchorSerialize + DataHasher + Discriminator,
+{
+    let data = account.try_to_vec()?;
+    let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
+    Ok(CompressedAccountData {
+        discriminator: T::discriminator(),
+        data,
         data_hash,
     })
 }
