@@ -18,5 +18,6 @@ pub mod proof;
 pub mod state;
 pub mod token;
 pub mod traits;
+pub mod transfer;
 pub mod utils;
 pub mod verify;

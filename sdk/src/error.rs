@@ -14,4 +14,12 @@ pub enum LightSdkError {
     ExpectedAddressRootIndex,
     #[msg("Accounts with a specified input are expected to have data")]
     ExpectedData,
+    #[msg("Cannot transfer lamports from an account without input")]
+    TransferFromNoInput,
+    #[msg("Cannot transfer from an account without lamports")]
+    TransferFromNoLamports,
+    #[msg("Account, from which a transfer was attempted, has insufficient amount of lamports")]
+    TransferFromInsufficientLamports,
+    #[msg("Integer overflow resulting from too large resulting amount")]
+    TransferIntegerOverflow,
 }

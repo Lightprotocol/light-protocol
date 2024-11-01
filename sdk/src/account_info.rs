@@ -103,6 +103,10 @@ impl<'a> LightAccountInfo<'a> {
         };
         Ok(account_info)
     }
+
+    pub fn compress_and_add_sol(&mut self, lamports: u64) {
+        self.lamports = Some(lamports);
+    }
 }
 
 pub fn convert_metas_to_infos<'a, 'b>(
