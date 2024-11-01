@@ -30,6 +30,9 @@ pub struct LightAccountMeta {
     /// Address Merkle tree root index. Set only when adding or updating the
     /// address.
     pub address_merkle_tree_root_index: Option<u16>,
+    /// Account is read only.
+    /// (not used for now, just a placeholder)
+    pub read_only: bool,
 }
 
 impl LightAccountMeta {
@@ -54,6 +57,7 @@ impl LightAccountMeta {
             output_merkle_tree_index: Some(output_merkle_tree_index),
             address_merkle_context,
             address_merkle_tree_root_index,
+            read_only: false,
         }
     }
 
@@ -64,6 +68,7 @@ impl LightAccountMeta {
         output_merkle_tree: &Pubkey,
         address_merkle_context: Option<&AddressMerkleContext>,
         address_merkle_tree_root_index: Option<u16>,
+        read_only: bool,
         remaining_accounts: &mut RemainingAccounts,
     ) -> Self {
         let merkle_context =
@@ -88,6 +93,7 @@ impl LightAccountMeta {
             output_merkle_tree_index: Some(output_merkle_tree_index),
             address_merkle_context,
             address_merkle_tree_root_index,
+            read_only,
         }
     }
 
@@ -112,6 +118,7 @@ impl LightAccountMeta {
             output_merkle_tree_index: None,
             address_merkle_context: None,
             address_merkle_tree_root_index: None,
+            read_only: false,
         }
     }
 }
