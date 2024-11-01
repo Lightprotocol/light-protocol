@@ -8,7 +8,7 @@ license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "name_service"
+name = "name_service_without_macros"
 
 [features]
 no-entrypoint = []

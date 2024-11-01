@@ -18,7 +18,7 @@ use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
-use name_service::{CustomError, NameRecord, RData};
+use name_service_without_macros::{CustomError, NameRecord, RData};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
@@ -28,8 +28,8 @@ use solana_sdk::transaction::{Transaction, TransactionError};
 #[tokio::test]
 async fn test_name_service() {
     let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        String::from("name_service"),
-        name_service::ID,
+        String::from("name_service_without_macros"),
+        name_service_without_macros::ID,
     )]))
     .await;
     let payer = rpc.get_payer().insecure_clone();
@@ -58,7 +58,10 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
+    let address_seed = derive_address_seed(
+        &[b"name-service", name.as_bytes()],
+        &name_service_without_macros::ID,
+    );
     let address = derive_address(&address_seed, &address_merkle_context);
 
     let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
@@ -111,7 +114,8 @@ async fn test_name_service() {
     }
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -188,7 +192,8 @@ async fn test_name_service() {
     }
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -305,22 +310,22 @@ where
         accounts: Some(vec![account]),
     };
     let inputs = inputs.serialize().unwrap();
-    let instruction_data = name_service::instruction::CreateRecord {
+    let instruction_data = name_service_without_macros::instruction::CreateRecord {
         inputs,
         name: name.to_string(),
         rdata: rdata.clone(),
     };
 
-    let cpi_signer = find_cpi_signer(&name_service::ID);
+    let cpi_signer = find_cpi_signer(&name_service_without_macros::ID);
 
-    let accounts = name_service::accounts::CreateRecord {
+    let accounts = name_service_without_macros::accounts::CreateRecord {
         signer: payer.pubkey(),
         light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
         noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service::ID,
+        self_program: name_service_without_macros::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
@@ -328,7 +333,7 @@ where
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
-        program_id: name_service::ID,
+        program_id: name_service_without_macros::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
@@ -381,21 +386,21 @@ where
         accounts: Some(vec![compressed_account]),
     };
     let inputs = inputs.serialize().unwrap();
-    let instruction_data = name_service::instruction::UpdateRecord {
+    let instruction_data = name_service_without_macros::instruction::UpdateRecord {
         inputs,
         new_rdata: new_rdata.clone(),
     };
 
-    let cpi_signer = find_cpi_signer(&name_service::ID);
+    let cpi_signer = find_cpi_signer(&name_service_without_macros::ID);
 
-    let accounts = name_service::accounts::UpdateRecord {
+    let accounts = name_service_without_macros::accounts::UpdateRecord {
         signer: payer.pubkey(),
         light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
         noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service::ID,
+        self_program: name_service_without_macros::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
@@ -403,7 +408,7 @@ where
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
-        program_id: name_service::ID,
+        program_id: name_service_without_macros::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
@@ -453,18 +458,18 @@ where
         accounts: Some(vec![compressed_account]),
     };
     let inputs = inputs.serialize().unwrap();
-    let instruction_data = name_service::instruction::DeleteRecord { inputs };
+    let instruction_data = name_service_without_macros::instruction::DeleteRecord { inputs };
 
-    let cpi_signer = find_cpi_signer(&name_service::ID);
+    let cpi_signer = find_cpi_signer(&name_service_without_macros::ID);
 
-    let accounts = name_service::accounts::DeleteRecord {
+    let accounts = name_service_without_macros::accounts::DeleteRecord {
         signer: payer.pubkey(),
         light_system_program: *light_system_program,
         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
         account_compression_authority: *account_compression_authority,
         registered_program_pda: *registered_program_pda,
         noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service::ID,
+        self_program: name_service_without_macros::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
@@ -472,7 +477,7 @@ where
     let remaining_accounts = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
-        program_id: name_service::ID,
+        program_id: name_service_without_macros::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
