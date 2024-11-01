@@ -38,8 +38,8 @@ where
 {
     pub fn from_light_account_info(account_info: &'info LightAccountInfo) -> Result<Self> {
         let account_state = if account_info.input.is_some() {
-            if let Some(data) = account_info.data {
-                T::try_from_slice(data)?
+            if let Some(ref data) = account_info.data {
+                T::try_from_slice(data.borrow().as_slice())?
             } else {
                 return Err(LightSdkError::ExpectedData.into());
             }
@@ -83,8 +83,8 @@ where
         // TODO(vadorovsky): Support zero-copy serialization.
         match self.account_info.input.as_ref() {
             Some(input) => {
-                let data = match self.account_info.data {
-                    Some(data) => {
+                let data = match input.data {
+                    Some(ref data) => {
                         let account = T::try_from_slice(data)?;
                         Some(serialize_and_hash_account_data2(&account)?)
                     }
