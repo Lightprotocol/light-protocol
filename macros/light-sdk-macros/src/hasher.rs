@@ -64,7 +64,8 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 quote! {
                     match &self.#field_name {
                         Some(value) => {
-                            let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&value.as_bytes())
+                            let bytes = value.as_byte_vec().into_iter().flatten().collect::<Vec<_>>();
+                            let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
                                 .expect("Could not truncate to BN254 field size");
                             result.push(bytes.to_vec());
                         }
@@ -78,7 +79,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     match &self.#field_name {
                         Some(value) => {
                             let mut bytes = vec![1u8];
-                            bytes.extend_from_slice(&value.to_le_bytes());
+                            bytes.extend(value.as_byte_vec().into_iter().flatten());
                             result.push(bytes);
                         }
                         None => {
@@ -88,18 +89,13 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 }
             } else if truncate {
                 quote! {
-                    let truncated_bytes = self
-                        .#field_name
-                        .as_byte_vec()
-                        .iter()
-                        .map(|bytes| {
-                            let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(bytes).expect(
-                                "Could not truncate the field #field_name to the BN254 prime field"
-                            );
-                            bytes.to_vec()
-                        })
-                        .collect::<Vec<Vec<u8>>>();
-                    result.extend(truncated_bytes);
+                    let bytes = {
+                        let value = &self.#field_name;
+                        let bytes = value.as_byte_vec();
+                        let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])
+                            .expect("Could not truncate to BN254 field size");
+                        result.push(hash.to_vec());
+                    };
                 }
             } else {
                 quote! {
@@ -201,11 +197,14 @@ mod tests {
         let output = hasher(input).unwrap();
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
+
         assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
         assert!(formatted_output.contains("impl ::light_hasher::DataHasher for OuterStruct"));
         assert!(formatted_output.contains("result.extend(self.a.as_byte_vec())"));
         assert!(formatted_output
-            .contains("let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(bytes)"));
+            .contains("let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])"));
+        assert!(formatted_output.contains("let value = &self.b;"));
+        assert!(formatted_output.contains("let bytes = value.as_byte_vec();"));
         assert!(formatted_output.contains("let nested_hash = ::light_hasher::DataHasher::hash::<"));
         assert!(formatted_output.contains("::light_hasher::Poseidon,"));
         assert!(formatted_output.contains(">(&self.d)"));
@@ -224,10 +223,11 @@ mod tests {
         let output = hasher(input).unwrap();
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
-
         // Basic Option should prepend 1 for Some
         assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
-        assert!(formatted_output.contains("bytes.extend_from_slice(&value.to_le_bytes())"));
+        assert!(
+            formatted_output.contains("bytes.extend(value.as_byte_vec().into_iter().flatten());")
+        );
         // None case should be single zero byte
         assert!(formatted_output.contains("result.push(vec![0])"));
     }
