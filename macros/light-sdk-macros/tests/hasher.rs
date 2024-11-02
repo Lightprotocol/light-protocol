@@ -302,22 +302,14 @@ mod tests {
             };
             let with_none = NestedOption { opt: None };
 
-            // Manual implementation for comparison
-            // TODO(swen): Check that we can overwrite first byte from 6 to 1 for Some
-            // TODO(swen): Check that we can set 32 bytes to 0 for None
-            // let some_bytes = vec![with_some.opt.as_ref().unwrap().hash::<Poseidon>().unwrap().to_vec()];
-            let some_bytes = {
-                let mut bytes = with_some
-                    .opt
-                    .as_ref()
-                    .unwrap()
-                    .hash::<Poseidon>()
-                    .unwrap()
-                    .to_vec();
-                bytes[0] = 1u8; // Overwrite first byte with 1 for Some
-                vec![bytes]
-            };
-            let none_bytes = vec![vec![0u8; 32]]; // 32 zero bytes for None
+            let some_bytes = vec![with_some
+                .opt
+                .as_ref()
+                .unwrap()
+                .hash::<Poseidon>()
+                .unwrap()
+                .to_vec()];
+            let none_bytes = vec![vec![0]];
 
             assert_eq!(with_some.as_byte_vec(), some_bytes);
             assert_eq!(with_none.as_byte_vec(), none_bytes);

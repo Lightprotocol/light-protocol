@@ -44,13 +44,12 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     quote! {
                         match &self.#field_name {
                             Some(value) => {
-                                let mut nested_hash = ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(value)
+                                let nested_hash = ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(value)
                                     .expect("Failed to hash nested field");
-                                nested_hash[0] = 1; // Mark as Some
                                 result.push(nested_hash.to_vec());
                             }
                             None => {
-                                result.push([0u8; 32].to_vec());
+                                result.push(vec![0]);
                             }
                         }
                     }
@@ -65,13 +64,12 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 quote! {
                     match &self.#field_name {
                         Some(value) => {
-                            let (mut bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&value.as_bytes())
+                            let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&value.as_bytes())
                                 .expect("Could not truncate to BN254 field size");
-                            bytes[0] = 1; // Mark as Some
                             result.push(bytes.to_vec());
                         }
                         None => {
-                            result.push([0u8; 32].to_vec());
+                            result.push(vec![0]);
                         }
                     }
                 }
@@ -79,18 +77,12 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 quote! {
                     match &self.#field_name {
                         Some(value) => {
-                            let bytes = value.to_le_bytes();
-                            // if bytes.len() == 32 {
-                            //     if !::light_utils::is_smaller_than_bn254_field_size_be(&bytes) {
-                            //         panic!("Option value too large - use #[truncate] to handle large values");
-                            //     }
-                            // }
-                            let mut result_bytes = vec![1u8]; // Mark as Some
-                            result_bytes.extend_from_slice(&bytes);
-                            result.push(result_bytes);
+                            let mut bytes = vec![1u8];
+                            bytes.extend_from_slice(&value.to_le_bytes());
+                            result.push(bytes);
                         }
                         None => {
-                            result.push(vec![0]); // Just a single byte for None
+                            result.push(vec![0]);
                         }
                     }
                 }
@@ -222,7 +214,6 @@ mod tests {
     }
     #[test]
     fn test_option_handling() {
-        // Test normal Option handling
         let input: ItemStruct = parse_quote! {
             struct OptionStruct {
                 a: Option<u32>,
@@ -233,22 +224,68 @@ mod tests {
         let output = hasher(input).unwrap();
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
-        println!("{}", formatted_output);
 
-        assert!(formatted_output.contains("match &self"));
-        assert!(formatted_output.contains("let mut result_bytes = vec![1u8]"));
+        // Basic Option should prepend 1 for Some
+        assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
+        assert!(formatted_output.contains("bytes.extend_from_slice(&value.to_le_bytes())"));
+        // None case should be single zero byte
         assert!(formatted_output.contains("result.push(vec![0])"));
-        assert!(formatted_output.contains("result_bytes.extend_from_slice(&bytes)"));
-
-        // Test Option with truncate for large values
+    }
+    #[test]
+    fn test_option_with_attributes() {
         let input: ItemStruct = parse_quote! {
-            struct LargeOptionStruct {
+            struct TruncateOptionStruct {
                 #[truncate]
-                a: Option<[u8; 64]>, // Deliberately larger than 32 bytes
+                a: Option<String>,
             }
         };
-        assert!(hasher(input).is_ok());
+
+        let output = hasher(input).unwrap();
+        let formatted_output = unparse(&syn::parse2(output).unwrap());
+
+        assert!(formatted_output.contains("hash_to_bn254_field_size_be"));
+        assert!(formatted_output.contains("result.push(vec![0])"));
+
+        let input: ItemStruct = parse_quote! {
+            struct NestedOptionStruct {
+                #[nested]
+                a: Option<InnerStruct>,
+            }
+        };
+
+        let output = hasher(input).unwrap();
+        let formatted_output = unparse(&syn::parse2(output).unwrap());
+
+        assert!(formatted_output.contains("DataHasher::hash::<"));
+        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
+        assert!(formatted_output.contains("result.push(vec![0])"));
     }
+
+    #[test]
+    fn test_mixed_options() {
+        let input: ItemStruct = parse_quote! {
+            struct MixedOptionsStruct {
+                #[nested]
+                a: Option<InnerStruct>,
+                #[truncate]
+                b: Option<String>,
+                c: Option<u32>,
+            }
+        };
+
+        let output = hasher(input).unwrap();
+        let formatted_output = unparse(&syn::parse2(output).unwrap());
+
+        assert!(formatted_output.matches("result.push(vec![0])").count() >= 3);
+        // nested
+        assert!(formatted_output.contains("DataHasher::hash::<"));
+        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
+        assert!(formatted_output.contains(">(value)"));
+        // truncate
+        assert!(formatted_output.contains("hash_to_bn254_field_size_be"));
+        assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
+    }
+
     #[test]
     fn test_nested_struct_with_option() {
         let input: ItemStruct = parse_quote! {
@@ -267,12 +304,11 @@ mod tests {
 
         assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
         assert!(formatted_output.contains("match &self.c"));
-        assert!(formatted_output.contains("result.push([0u8; 32].to_vec())"));
+        assert!(formatted_output.contains("result.push(vec![0])"));
     }
 
     #[test]
     fn test_option_validation() {
-        // Test nested Option<Struct>
         let input: ItemStruct = parse_quote! {
             struct NestedOptionStruct {
                 #[nested]
