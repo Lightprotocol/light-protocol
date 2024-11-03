@@ -3,7 +3,7 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 use light_hasher::{bytes::AsByteVec, DataHasher, Hasher, Poseidon};
 use light_sdk_macros::LightHasher;
 
-#[derive(LightHasher)]
+#[derive(LightHasher, Clone)]
 pub struct MyAccount {
     pub a: bool,
     pub b: u64,
@@ -16,7 +16,7 @@ pub struct MyAccount {
     pub f: Option<usize>,
 }
 
-#[derive(LightHasher)]
+#[derive(LightHasher, Clone)]
 pub struct MyNestedStruct {
     pub a: i32,
     pub b: u32,
@@ -24,6 +24,7 @@ pub struct MyNestedStruct {
     pub c: String,
 }
 
+#[derive(Clone)]
 pub struct MyNestedNonHashableStruct {
     pub a: PhantomData<()>,
     pub b: Rc<RefCell<usize>>,
@@ -1069,5 +1070,148 @@ mod tests {
                 "Different length truncated values should hash differently"
             );
         }
+    }
+
+    #[test]
+    fn test_truncate_byte_representation() {
+        #[derive(LightHasher)]
+        struct TruncateTest {
+            #[truncate]
+            data: String,
+            #[truncate]
+            array: [u8; 64],
+        }
+
+        let test_struct = TruncateTest {
+            data: "test".to_string(),
+            array: [42u8; 64],
+        };
+
+        let manual_bytes = vec![
+            light_utils::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
+                .unwrap()
+                .0
+                .to_vec(),
+            light_utils::hash_to_bn254_field_size_be(&test_struct.array)
+                .unwrap()
+                .0
+                .to_vec(),
+        ];
+
+        assert_eq!(test_struct.as_byte_vec(), manual_bytes);
+    }
+
+    #[test]
+    fn test_byte_representation_combinations() {
+        #[derive(LightHasher)]
+        struct BasicOption {
+            opt: Option<u64>,
+        }
+
+        let with_some = BasicOption { opt: Some(42) };
+        let with_none = BasicOption { opt: None };
+
+        let manual_some = vec![{
+            let mut bytes = vec![1u8];
+            bytes.extend_from_slice(&42u64.to_le_bytes());
+            bytes
+        }];
+        let manual_none = vec![vec![0]];
+        assert_eq!(with_some.as_byte_vec(), manual_some);
+        assert_eq!(with_none.as_byte_vec(), manual_none);
+
+        // Option + Truncate
+        #[derive(LightHasher)]
+        struct OptionTruncate {
+            #[truncate]
+            opt: Option<String>,
+        }
+
+        let with_some = OptionTruncate {
+            opt: Some("test".to_string()),
+        };
+        let with_none = OptionTruncate { opt: None };
+
+        let manual_some = vec![light_utils::hash_to_bn254_field_size_be("test".as_bytes())
+            .unwrap()
+            .0
+            .to_vec()];
+        let manual_none = vec![vec![0]];
+
+        assert_eq!(with_some.as_byte_vec(), manual_some);
+        assert_eq!(with_none.as_byte_vec(), manual_none);
+
+        // Option + Nested
+        #[derive(LightHasher)]
+        struct OptionNested {
+            #[nested]
+            opt: Option<MyNestedStruct>,
+        }
+
+        let nested = MyNestedStruct {
+            a: 1,
+            b: 2,
+            c: "test".to_string(),
+        };
+        let with_some = OptionNested {
+            opt: Some(nested.clone()),
+        };
+        let with_none = OptionNested { opt: None };
+
+        let manual_some = vec![with_some
+            .opt
+            .as_ref()
+            .unwrap()
+            .hash::<Poseidon>()
+            .unwrap()
+            .to_vec()];
+        let manual_none = vec![vec![0]];
+
+        assert_eq!(with_some.as_byte_vec(), manual_some);
+        assert_eq!(with_none.as_byte_vec(), manual_none);
+
+        // All combined
+        #[derive(LightHasher)]
+        struct Combined {
+            basic: Option<u64>,
+            #[truncate]
+            trunc: Option<String>,
+            #[nested]
+            nest: Option<MyNestedStruct>,
+        }
+
+        let with_some = Combined {
+            basic: Some(42),
+            trunc: Some("test".to_string()),
+            nest: Some(nested),
+        };
+        let with_none = Combined {
+            basic: None,
+            trunc: None,
+            nest: None,
+        };
+
+        let manual_some = vec![
+            {
+                let mut bytes = vec![1u8];
+                bytes.extend_from_slice(&42u64.to_le_bytes());
+                bytes
+            },
+            light_utils::hash_to_bn254_field_size_be("test".as_bytes())
+                .unwrap()
+                .0
+                .to_vec(),
+            with_some
+                .nest
+                .as_ref()
+                .unwrap()
+                .hash::<Poseidon>()
+                .unwrap()
+                .to_vec(),
+        ];
+        let manual_none = vec![vec![0], vec![0], vec![0]];
+
+        assert_eq!(with_some.as_byte_vec(), manual_some);
+        assert_eq!(with_none.as_byte_vec(), manual_none);
     }
 }
