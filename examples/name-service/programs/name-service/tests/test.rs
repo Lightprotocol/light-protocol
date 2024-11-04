@@ -19,7 +19,7 @@ use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
-use name_service::{CustomError, NameRecord, NestedData, RData};
+use name_service::{CustomError, NameRecord, RData};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
