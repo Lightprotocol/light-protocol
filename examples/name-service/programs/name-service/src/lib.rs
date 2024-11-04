@@ -5,7 +5,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
     compressed_account::LightAccount, light_account, light_accounts, light_program,
-    merkle_context::PackedAddressMerkleContext,
+    merkle_context::PackedAddressMerkleContext, LightHasher,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
@@ -23,6 +23,7 @@ pub mod name_service {
         ctx.light_accounts.record.owner = ctx.accounts.signer.key();
         ctx.light_accounts.record.name = name;
         ctx.light_accounts.record.rdata = rdata;
+        ctx.light_accounts.record.nested = NestedData::default();
 
         Ok(())
     }
@@ -76,6 +77,44 @@ pub struct NameRecord {
     #[truncate]
     pub name: String,
     pub rdata: RData,
+    #[nested]
+    pub nested: NestedData,
+}
+
+// Illustrates nested hashing feature.
+#[derive(LightHasher, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct NestedData {
+    pub one: u16,
+    pub two: u16,
+    pub three: u16,
+    pub four: u16,
+    pub five: u16,
+    pub six: u16,
+    pub seven: u16,
+    pub eight: u16,
+    pub nine: u16,
+    pub ten: u16,
+    pub eleven: u16,
+    pub twelve: u16,
+}
+
+impl Default for NestedData {
+    fn default() -> Self {
+        Self {
+            one: 1,
+            two: 2,
+            three: 3,
+            four: 4,
+            five: 5,
+            six: 6,
+            seven: 7,
+            eight: 8,
+            nine: 9,
+            ten: 10,
+            eleven: 11,
+            twelve: 12,
+        }
+    }
 }
 
 #[error_code]

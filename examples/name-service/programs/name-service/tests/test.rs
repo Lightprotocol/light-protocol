@@ -125,7 +125,7 @@ async fn test_name_service() {
             ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
         ));
     }
-
+    use name_service::NestedData;
     // Check that it was created correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
     assert_eq!(compressed_accounts.len(), 1);
@@ -139,6 +139,8 @@ async fn test_name_service() {
     let record = NameRecord::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.name, "example.io");
     assert_eq!(record.rdata, rdata_1);
+    assert_eq!(record.nested.one, 1);
+    assert_eq!(record.nested.twelve, 12);
 
     // Update the record to example.io -> 2001:db8::1.
     let rdata_2 = RData::AAAA(Ipv6Addr::new(8193, 3512, 0, 0, 0, 0, 0, 1));
