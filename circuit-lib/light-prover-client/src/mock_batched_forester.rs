@@ -20,7 +20,7 @@ use crate::{
 // TODO: rename to MockBatchedForester
 pub struct MockBatchedForester<const HEIGHT: usize> {
     pub merkle_tree: MerkleTree<Poseidon>,
-    pub input_queue_leaves: Vec<[u8; 32]>,
+    pub input_queue_leaves: Vec<([u8; 32], usize)>,
     /// Indices of leaves which in merkle tree which are active.
     pub output_queue_leaves: Vec<[u8; 32]>,
     pub active_leaves: Vec<[u8; 32]>,
@@ -52,26 +52,38 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
     pub async fn get_batched_append_proof(
         &mut self,
         account_next_index: usize,
-        leaves: Vec<[u8; 32]>,
         num_zkp_updates: u32,
         batch_size: u32,
+        leaves_hashchain: [u8; 32],
+        max_num_zkp_updates: u32,
     ) -> Result<(CompressedProof, [u8; 32]), Error> {
+        let leaves = self.output_queue_leaves.to_vec();
         let start = num_zkp_updates as usize * batch_size as usize;
         let end = start + batch_size as usize;
         let leaves = leaves[start..end].to_vec();
-        // let sub_trees = self.merkle_tree.get_subtrees().try_into().unwrap();
+        // if batch is complete, remove leaves from mock output queue
+        if num_zkp_updates == max_num_zkp_updates - 1 {
+            for _ in 0..max_num_zkp_updates * batch_size {
+                self.output_queue_leaves.remove(0);
+            }
+        }
         let local_leaves_hashchain = calculate_hash_chain(&leaves);
+        assert_eq!(leaves_hashchain, local_leaves_hashchain);
         let old_root = self.merkle_tree.root();
-        let start_index = self.merkle_tree.get_next_index().saturating_sub(1);
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
         for i in account_next_index..account_next_index + batch_size as usize {
-            if account_next_index > i {
-            } else {
-                self.merkle_tree.append(&[0u8; 32]).unwrap();
+            match self.merkle_tree.get_leaf(i) {
+                Ok(leaf) => {
+                    old_leaves.push(leaf);
+                }
+                Err(_) => {
+                    old_leaves.push([0u8; 32]);
+                    if i <= self.merkle_tree.get_next_index() {
+                        self.merkle_tree.append(&[0u8; 32]).unwrap();
+                    }
+                }
             }
-            let old_leaf = self.merkle_tree.get_leaf(i).unwrap();
-            old_leaves.push(old_leaf);
             let proof = self.merkle_tree.get_proof_of_leaf(i, true).unwrap();
             merkle_proofs.push(proof.to_vec());
         }
@@ -85,7 +97,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         }
         let circuit_inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
             old_root,
-            start_index as u32,
+            account_next_index as u32,
             leaves,
             local_leaves_hashchain,
             old_leaves,
@@ -136,15 +148,17 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let mut nullifiers = Vec::new();
         let mut tx_hashes = Vec::new();
         let mut old_leaves = Vec::new();
-        for leaf in leaves.iter() {
-            let index = self.merkle_tree.get_leaf_index(leaf).unwrap();
-            if self.merkle_tree.get_next_index() <= index {
+        for (leaf, index) in leaves.iter() {
+            let index = *index;
+            // + 2 because next index is + 1 and we need to init the leaf in
+            //   pos[index]
+            if self.merkle_tree.get_next_index() < index + 2 {
                 old_leaves.push([0u8; 32]);
             } else {
-                old_leaves.push(leaf.clone());
+                old_leaves.push(*leaf);
             }
             // Handle case that we nullify a leaf which has not been inserted yet.
-            while self.merkle_tree.get_next_index() <= index {
+            while self.merkle_tree.get_next_index() < index + 2 {
                 self.merkle_tree.append(&[0u8; 32]).unwrap();
             }
             let proof = self.merkle_tree.get_proof_of_leaf(index, true).unwrap();
@@ -158,24 +172,17 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 .expect("No event for leaf found.");
             let index_bytes = index.to_be_bytes();
             let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &event.tx_hash]).unwrap();
-            println!("leaf: {:?}", leaf);
-            println!("index: {:?}", index);
-            println!("index_bytes: {:?}", index_bytes);
-            println!("tx_hash: {:?}", event.tx_hash);
-            println!("nullifier: {:?}", nullifier);
             tx_hashes.push(event.tx_hash);
             nullifiers.push(nullifier);
-
             self.merkle_tree.update(&nullifier, index).unwrap();
         }
         // local_leaves_hashchain is only used for a test assertion.
         let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-        // TODO: adapt update circuit to allow for non-zero updates
         let inputs = get_batch_update_inputs::<HEIGHT>(
             old_root,
             tx_hashes,
-            leaves,
+            leaves.iter().map(|(leaf, _)| *leaf).collect(),
             leaves_hashchain,
             old_leaves,
             merkle_proofs,

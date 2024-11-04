@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::batched_merkle_tree::{
-    create_hash_chain, get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
+    get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
     InstructionDataBatchAppendProofInputs, InstructionDataBatchUpdateProofInputs,
     ZeroCopyBatchedMerkleTreeAccount,
 };
@@ -364,21 +364,25 @@ pub async fn create_append_batch_ix_data(
         .clone()
         .to_vec();
     println!("batch append leaves {:?}", leaves);
-    let (proof, new_root, new_subtree_hash) = mock_indexer
+    let leaves_hashchain = output_zero_copy_account
+        .hashchain_store
+        .get(next_full_batch as usize)
+        .unwrap()
+        .get(batch.get_num_inserted_zkps() as usize)
+        .unwrap();
+    let (proof, new_root) = mock_indexer
         .get_batched_append_proof(
             next_index as usize,
-            leaves.clone(),
             batch.get_num_inserted_zkps() as u32,
             batch.zkp_batch_size as u32,
+            *leaves_hashchain,
+            batch.get_num_zkp_batches() as u32,
         )
         .await
         .unwrap();
 
     InstructionDataBatchAppendProofInputs {
-        public_inputs: AppendBatchProofInputsIx {
-            new_root,
-            new_subtrees_hash: new_subtree_hash,
-        },
+        public_inputs: AppendBatchProofInputsIx { new_root },
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
@@ -427,13 +431,10 @@ pub async fn create_nullify_batch_ix_data(
         )
         .await
         .unwrap();
-    let new_subtrees = mock_indexer.merkle_tree.get_subtrees();
-    let new_subtrees_hash = create_hash_chain::<26>(new_subtrees.try_into().unwrap()).unwrap();
     let instruction_data = InstructionDataBatchUpdateProofInputs {
         public_inputs: BatchProofInputsIx {
             new_root,
             old_root_index: old_root_index as u16,
-            new_subtrees_hash,
         },
         compressed_proof: CompressedProof {
             a: proof.a,
