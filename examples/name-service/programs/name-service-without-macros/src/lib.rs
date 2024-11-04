@@ -27,14 +27,16 @@ pub mod name_service {
         rdata: RData,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
-        let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
+        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
 
-        light_accounts.record.derive_address(
-            &[b"name-service", name.as_bytes()],
+        msg!("name: {}", name);
+        account_infos[0].derive_address(
+            &[b"name-serice", name.as_bytes()],
             &crate::ID,
             ctx.remaining_accounts,
-        );
+        )?;
+
+        let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
 
         light_accounts.record.owner = ctx.accounts.signer.key();
         light_accounts.record.name = name;

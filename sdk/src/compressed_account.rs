@@ -3,14 +3,10 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result};
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
-use solana_program::account_info::AccountInfo;
 
 use crate::{
     account_info::LightAccountInfo,
-    address::{
-        derive_address_from_params, derive_address_seed, unpack_new_address_params,
-        PackedNewAddressParams,
-    },
+    address::PackedNewAddressParams,
     error::LightSdkError,
     merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts},
 };
@@ -28,8 +24,6 @@ where
 {
     account_state: T,
     account_info: &'info LightAccountInfo<'info>,
-    new_address_params: Option<PackedNewAddressParams>,
-    address: Option<[u8; 32]>,
 }
 
 impl<'info, T> LightAccount<'info, T>
@@ -49,58 +43,28 @@ where
         Ok(Self {
             account_state,
             account_info,
-            new_address_params: None,
-            address: None,
         })
     }
 
-    pub fn derive_address(
-        &mut self,
-        seeds: &[&[u8]],
-        program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
-    ) {
-        if let Some(mut new_address_params) = self.account_info.new_address {
-            new_address_params.seed = derive_address_seed(seeds, program_id);
-            self.new_address_params = Some(new_address_params);
-
-            let unpacked_new_address_params =
-                unpack_new_address_params(new_address_params, remaining_accounts);
-            let address = derive_address_from_params(unpacked_new_address_params);
-
-            self.address = Some(address);
-        }
-    }
-
     pub fn new_address_params(&self) -> Option<PackedNewAddressParams> {
-        self.new_address_params
+        self.account_info.new_address
     }
 
     pub fn input_compressed_account(
         &self,
         program_id: &Pubkey,
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
-        // TODO(vadorovsky): Support zero-copy serialization.
-        match self.account_info.input.as_ref() {
-            Some(input) => {
-                let data = match input.data {
+        match self.account_info.input_compressed_account(program_id)? {
+            Some(mut input) => {
+                let data = match input.compressed_account.data {
                     Some(data) => {
-                        let account = T::try_from_slice(data)?;
+                        let account = T::try_from_slice(data.data.as_slice())?;
                         Some(hash_input_account(&account)?)
                     }
                     None => None,
                 };
-                Ok(Some(PackedCompressedAccountWithMerkleContext {
-                    compressed_account: CompressedAccount {
-                        owner: *program_id,
-                        lamports: input.lamports.unwrap_or(0),
-                        address: input.address,
-                        data,
-                    },
-                    merkle_context: input.merkle_context,
-                    root_index: input.root_index,
-                    read_only: false,
-                }))
+                input.compressed_account.data = data;
+                Ok(Some(input))
             }
             None => Ok(None),
         }
@@ -110,18 +74,12 @@ where
         &self,
         program_id: &Pubkey,
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
-        match self.account_info.output_merkle_tree_index {
-            Some(merkle_tree_index) => {
+        match self.account_info.output_compressed_account(program_id)? {
+            Some(mut account) => {
                 let data = serialize_and_hash_output_account(&self.account_state)?;
-                Ok(Some(OutputCompressedAccountWithPackedContext {
-                    compressed_account: CompressedAccount {
-                        owner: self.account_info.owner.unwrap_or(*program_id),
-                        lamports: self.account_info.lamports.unwrap_or(0),
-                        address: self.address,
-                        data: Some(data),
-                    },
-                    merkle_tree_index,
-                }))
+                account.compressed_account.data = Some(data);
+
+                Ok(Some(account))
             }
             None => Ok(None),
         }

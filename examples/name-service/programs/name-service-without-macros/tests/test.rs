@@ -8,7 +8,7 @@ use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeA
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
-use light_sdk::address::{derive_address, derive_address_seed};
+use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
 use light_sdk::instruction_data::LightInstructionData;
@@ -58,11 +58,13 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(
+    let (address, address_seed) = derive_address(
         &[b"name-service", name.as_bytes()],
+        &address_merkle_context,
         &name_service_without_macros::ID,
     );
-    let address = derive_address(&address_seed, &address_merkle_context);
+    println!("address: {address:?}");
+    println!("address seed: {address_seed:?}");
 
     let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(

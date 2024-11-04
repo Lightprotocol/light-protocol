@@ -1,10 +1,19 @@
 use std::{cell::RefCell, rc::Rc};
 
 use anchor_lang::prelude::Result;
-use solana_program::pubkey::Pubkey;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::{
-    account_meta::LightAccountMeta, address::PackedNewAddressParams, error::LightSdkError,
+    account_meta::LightAccountMeta,
+    address::{
+        derive_address_from_params, derive_address_seed, unpack_new_address_params,
+        PackedNewAddressParams,
+    },
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
+        PackedCompressedAccountWithMerkleContext,
+    },
+    error::LightSdkError,
     merkle_context::PackedMerkleContext,
 };
 
@@ -34,8 +43,14 @@ pub struct LightAccountInfo<'a> {
     pub owner: Option<Pubkey>,
     /// Lamports.
     pub lamports: Option<u64>,
+    /// Discriminator.
+    pub discriminator: Option<[u8; 8]>,
     /// Account data.
     pub data: Option<Rc<RefCell<Vec<u8>>>>,
+    /// Data hash.
+    pub data_hash: Option<[u8; 32]>,
+    /// Address.
+    pub address: Option<[u8; 32]>,
     /// New Merkle tree index. Set only if you want to change the tree.
     pub output_merkle_tree_index: Option<u8>,
     /// New address parameters.
@@ -61,6 +76,8 @@ impl<'a> LightAccountInfo<'a> {
             owner: Some(*program_id),
             // Needs to be assigned by the program.
             lamports: None,
+            // Needs to be assigned by the program.
+            discriminator: None,
             // NOTE(vadorovsky): A `clone()` here is unavoidable.
             // What we have here is an immutable reference to `LightAccountMeta`,
             // from which we can take an immutable reference to `data`.
@@ -83,6 +100,9 @@ impl<'a> LightAccountInfo<'a> {
                 .data
                 .as_ref()
                 .map(|data| Rc::new(RefCell::new(data.clone()))),
+            // Needs to be assigned by the program.
+            data_hash: None,
+            address: meta.address,
             output_merkle_tree_index: meta.output_merkle_tree_index,
             new_address: match meta.address_merkle_context {
                 Some(address_merkle_tree_meta) => {
@@ -106,6 +126,99 @@ impl<'a> LightAccountInfo<'a> {
 
     pub fn compress_and_add_sol(&mut self, lamports: u64) {
         self.lamports = Some(lamports);
+    }
+
+    pub fn derive_address(
+        &mut self,
+        seeds: &[&[u8]],
+        program_id: &Pubkey,
+        remaining_accounts: &[AccountInfo],
+    ) -> Result<()> {
+        match self.new_address {
+            Some(ref mut params) => {
+                anchor_lang::prelude::msg!("program_id: {:?}", program_id);
+                params.seed = derive_address_seed(seeds, program_id);
+                let unpacked_params = unpack_new_address_params(params, remaining_accounts);
+
+                anchor_lang::prelude::msg!("params: {:?}", unpacked_params);
+                self.address = Some(derive_address_from_params(unpacked_params));
+                Ok(())
+            }
+            None => Err(LightSdkError::ExpectedAddressParams.into()),
+        }
+    }
+
+    /// Converts the given [LightAccountInfo] into a
+    /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
+    /// light-system program.
+    pub fn input_compressed_account(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+        match self.input.as_ref() {
+            Some(input) => {
+                let data = match input.data {
+                    Some(_) => {
+                        let discriminator = self
+                            .discriminator
+                            .ok_or(LightSdkError::ExpectedDiscriminator)?;
+                        let data_hash = self.data_hash.ok_or(LightSdkError::ExpectedHash)?;
+                        Some(CompressedAccountData {
+                            discriminator,
+                            data: Vec::new(),
+                            data_hash,
+                        })
+                    }
+                    None => None,
+                };
+                Ok(Some(PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: *program_id,
+                        lamports: input.lamports.unwrap_or(0),
+                        address: input.address,
+                        data,
+                    },
+                    merkle_context: input.merkle_context,
+                    root_index: input.root_index,
+                    read_only: false,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub fn output_compressed_account(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
+        match self.output_merkle_tree_index {
+            Some(merkle_tree_index) => {
+                let data = match self.data {
+                    Some(_) => {
+                        let discriminator = self
+                            .discriminator
+                            .ok_or(LightSdkError::ExpectedDiscriminator)?;
+                        let data_hash = self.data_hash.ok_or(LightSdkError::ExpectedHash)?;
+                        Some(CompressedAccountData {
+                            discriminator,
+                            data: Vec::new(),
+                            data_hash,
+                        })
+                    }
+                    None => None,
+                };
+                Ok(Some(OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: self.owner.unwrap_or(*program_id),
+                        lamports: self.lamports.unwrap_or(0),
+                        address: self.address,
+                        data,
+                    },
+                    merkle_tree_index,
+                }))
+            }
+            None => Ok(None),
+        }
     }
 }
 

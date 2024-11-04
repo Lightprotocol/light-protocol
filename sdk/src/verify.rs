@@ -285,12 +285,14 @@ where
 
     for light_account in light_accounts {
         if let Some(new_address_param) = light_account.new_address_params() {
+            anchor_lang::prelude::msg!("new address param: {:?}", new_address_param);
             new_address_params.push(new_address_param);
         }
         if let Some(input_account) = light_account.input_compressed_account(program_id)? {
             input_compressed_accounts_with_merkle_context.push(input_account);
         }
         if let Some(output_account) = light_account.output_compressed_account(program_id)? {
+            anchor_lang::prelude::msg!("output acc: {:?}", output_account);
             output_compressed_accounts.push(output_account);
         }
     }
