@@ -118,6 +118,9 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var updateTestKeys []string = []string{
 		keysDir + "update_26_10.key",
 	}
+	var append2TestKeys []string = []string{
+		keysDir + "append2_26_10.key",
+	}
 
 	switch runMode {
 	case Forester: // inclusion + non-inclusion

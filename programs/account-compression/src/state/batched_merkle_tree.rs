@@ -418,9 +418,12 @@ impl ZeroCopyBatchedMerkleTreeAccount {
     pub fn insert_nullifier_into_current_batch(
         &mut self,
         value: &[u8; 32],
+        leaf_index: u64,
         tx_hash: &[u8; 32],
     ) -> Result<()> {
-        let nullifier = Poseidon::hashv(&[value, tx_hash]).map_err(ProgramError::from)?;
+        let leaf_index_bytes = leaf_index.to_be_bytes();
+        let nullifier =
+            Poseidon::hashv(&[value, &leaf_index_bytes, tx_hash]).map_err(ProgramError::from)?;
         self.insert_into_current_batch(value, &nullifier)
     }
 
@@ -620,17 +623,41 @@ mod tests {
     pub fn assert_input_queue_insert(
         mut pre_account: BatchedMerkleTreeAccount,
         mut pre_batches: ManuallyDrop<BoundedVec<Batch>>,
+        mut pre_value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
         pre_roots: Vec<[u8; 32]>,
         mut pre_hashchains: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
         mut merkle_tree_zero_copy_account: ZeroCopyBatchedMerkleTreeAccount,
         insert_values: Vec<[u8; 32]>,
+        leaf_indices: Vec<u64>,
         tx_hash: [u8; 32],
         input_is_in_tree: Vec<bool>,
     ) -> Result<()> {
         for (i, insert_value) in insert_values.iter().enumerate() {
             if !input_is_in_tree[i] {
-                continue;
+                let value_vec_index = leaf_indices[i] as usize % pre_value_vecs[0].len();
+                println!("leaf index: {}", leaf_indices[i]);
+                println!("pre_value_vecs[0].len(): {}", pre_value_vecs[0].len());
+                println!("value_vec_index: {}", value_vec_index);
+                println!("value_vecs: {:?}", pre_value_vecs);
+                println!("insert_value: {:?}", insert_value);
+                println!(
+                    "index of insert_value: {:?}",
+                    pre_value_vecs[0].iter().position(|x| x == insert_value)
+                );
+                assert!(
+                    pre_value_vecs
+                        .iter()
+                        .any(|value_vec| if value_vec.len() > value_vec_index {
+                            (value_vec[value_vec_index] == *insert_value)
+                        } else {
+                            false
+                        }),
+                    "Value not in value vec."
+                );
             }
+
+            let leaf_index = leaf_indices[i];
+
             let post_roots: Vec<[u8; 32]> = merkle_tree_zero_copy_account
                 .root_history
                 .iter()
@@ -661,7 +688,15 @@ mod tests {
             .unwrap();
             assert!(bloom_filter.contains(&insert_value));
             let mut pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
-            let nullifier = Poseidon::hashv(&[insert_value.as_slice(), &tx_hash]).unwrap();
+            println!(
+                "reference nullifier inputs: {:?} index {:?} tx hash {:?}",
+                insert_value,
+                leaf_index.to_be_bytes(),
+                tx_hash
+            );
+            let nullifier =
+                Poseidon::hashv(&[insert_value.as_slice(), &leaf_index.to_be_bytes(), &tx_hash])
+                    .unwrap();
             expected_batch.add_to_hash_chain(&nullifier, &mut pre_hashchain)?;
             expected_batch.finalize_insert()?;
 
@@ -833,9 +868,12 @@ mod tests {
             println!("simulate_transaction: input loop input {:?}", input);
             // zkp inclusion in Merkle tree
             let inclusion = reference_merkle_tree.get_leaf_index(input);
-            if inclusion.is_none() {
+            let leaf_index = if inclusion.is_none() {
                 println!("simulate_transaction: inclusion is none");
                 let mut included = false;
+                let mut leaf_index = 0;
+                let next_index = merkle_tree_zero_copy_account.get_account().next_index;
+                let batch_size = output_zero_copy_account.get_account().queue.batch_size;
 
                 for (batch_index, value_vec) in
                     output_zero_copy_account.value_vecs.iter_mut().enumerate()
@@ -845,29 +883,29 @@ mod tests {
                         if *value == *input {
                             included = true;
                             *value = [0u8; 32];
-                            // For completeness (not possible in this simulation
-                            // function)
-                            // If value has already been inserted into the
-                            // tree but inclusion is proven by index,
-                            // insert it into the nullifier queue.
-                            // let batch = output_zero_copy_account.batches.get(batch_index).unwrap();
-                            // if batch.value_is_inserted_in_merkle_tree(value_index as u64) {
-                            //     merkle_tree_zero_copy_account
-                            //         .insert_nullifier_into_current_batch(input, &tx_hash)?;
-                            // }
+                            println!("value index {:?}, next index {:?}", value_index, next_index);
+                            leaf_index =
+                                value_index as u64 + next_index + batch_size * batch_index as u64;
                         }
                     }
                 }
                 if !included {
                     panic!("Value not included in any output queue or trees.");
                 }
-                // continue;
+                leaf_index
             } else {
-                println!("insert input into batch");
-                merkle_tree_zero_copy_account
-                    .insert_nullifier_into_current_batch(input, &tx_hash)?;
-            }
+                inclusion.unwrap() as u64
+            };
+
+            println!("insert input into batch leaf_index: {}", leaf_index);
+            println!(
+                "input {:?} leaf index : {:?}, tx hash {:?}",
+                input, leaf_index, tx_hash
+            );
+            merkle_tree_zero_copy_account
+                .insert_nullifier_into_current_batch(input, leaf_index, &tx_hash)?;
         }
+
         for output in instruction_data.outputs.iter() {
             output_zero_copy_account.insert_into_current_batch(output)?;
         }
@@ -960,16 +998,45 @@ mod tests {
 
                 let mut inputs = vec![];
                 let mut input_is_in_tree = vec![];
+                let mut leaf_indices = vec![];
                 let mut retries = min(10, mock_indexer.active_leaves.len());
                 while inputs.len() < number_of_inputs && retries > 0 {
-                    let leaf = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
+                    let (leaf_array_index, leaf) =
+                        get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
                     let inserted = mock_indexer.merkle_tree.get_leaf_index(&leaf);
-                    if inserted.is_some() {
+                    if let Some(leaf_index) = inserted {
                         inputs.push(leaf);
+                        leaf_indices.push(leaf_index as u64);
                         mock_indexer.input_queue_leaves.push(leaf);
                         input_is_in_tree.push(true);
                     } else if rng.gen_bool(0.1) {
                         inputs.push(leaf);
+                        let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                            &mut output_queue_account_data,
+                        )
+                        .unwrap();
+                        let mut leaf_array_index = 0;
+                        for (i, vec) in output_queue.value_vecs.iter().enumerate() {
+                            let pos = vec.iter().position(|value| *value == leaf);
+                            if let Some(pos) = pos {
+                                leaf_array_index = pos;
+                                break;
+                            }
+                            if i == output_queue.value_vecs.len() - 1 {
+                                panic!("Leaf not found in output queue.");
+                            }
+                        }
+                        // TODO: check that this is correct
+                        let leaf_index: u64 = mock_indexer.merkle_tree.get_next_index() as u64
+                            + leaf_array_index as u64
+                            - 1;
+                        println!(
+                            "mock_indexer.merkle_tree.get_next_index(): {}",
+                            mock_indexer.merkle_tree.get_next_index()
+                        );
+                        println!("leaf_array_index: {}", leaf_array_index);
+                        println!("non inserted leaf_index: {}", leaf_index);
+                        leaf_indices.push(leaf_index);
                         input_is_in_tree.push(false);
                         println!("input not inserted into tree");
                     }
@@ -999,6 +1066,8 @@ mod tests {
 
                 let pre_mt_account = merkle_tree_zero_copy_account.get_account().clone();
                 let pre_batches = merkle_tree_zero_copy_account.batches.clone();
+                let pre_value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>> =
+                    output_zero_copy_account.value_vecs.clone();
                 let pre_roots = merkle_tree_zero_copy_account
                     .root_history
                     .iter()
@@ -1034,10 +1103,12 @@ mod tests {
                         assert_input_queue_insert(
                             pre_mt_account,
                             pre_batches,
+                            pre_value_vecs,
                             pre_roots,
                             pre_mt_hashchains,
                             merkle_tree_zero_copy_account,
                             inputs,
+                            leaf_indices,
                             event.tx_hash,
                             input_is_in_tree,
                         )
@@ -1064,18 +1135,6 @@ mod tests {
                 } else {
                     println!("Skipping simulate tx for no inputs or outputs");
                 }
-            }
-
-            // Get random leaf that is not in the input queue.
-            pub fn get_random_leaf(
-                rng: &mut StdRng,
-                active_leaves: &mut Vec<[u8; 32]>,
-            ) -> [u8; 32] {
-                if active_leaves.len() == 0 {
-                    return [0u8; 32];
-                }
-                // get random leaf from vector and remove it
-                active_leaves.remove(rng.gen_range(0..active_leaves.len()))
             }
 
             if in_ready_for_update && rng.gen_bool(1.0) {
@@ -1287,9 +1346,16 @@ mod tests {
     }
 
     // Get random leaf that is not in the input queue.
-    pub fn get_random_leaf(rng: &mut StdRng, active_leaves: &mut Vec<[u8; 32]>) -> [u8; 32] {
+    pub fn get_random_leaf(
+        rng: &mut StdRng,
+        active_leaves: &mut Vec<[u8; 32]>,
+    ) -> (usize, [u8; 32]) {
+        if active_leaves.len() == 0 {
+            return (0, [0u8; 32]);
+        }
+        let index = rng.gen_range(0..active_leaves.len());
         // get random leaf from vector and remove it
-        active_leaves.remove(rng.gen_range(0..active_leaves.len()))
+        (index, active_leaves.remove(index))
     }
 
     /// queues with a counter which keeps things below X tps and an if that
@@ -1390,7 +1456,7 @@ mod tests {
 
                 if rng.gen_bool(0.5) && !mock_indexer.active_leaves.is_empty() {
                     println!("Input insert -----------------------------");
-                    let leaf = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
+                    let (_, leaf) = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
 
                     let pre_batches: ManuallyDrop<BoundedVec<Batch>> =
                         merkle_tree_zero_copy_account.batches.clone();
@@ -1412,6 +1478,7 @@ mod tests {
                     merkle_tree_zero_copy_account
                         .insert_nullifier_into_current_batch(
                             &leaf.to_vec().try_into().unwrap(),
+                            0,
                             &tx_hash,
                         )
                         .unwrap();
@@ -1423,10 +1490,12 @@ mod tests {
                         assert_input_queue_insert(
                             pre_account,
                             pre_batches,
+                            vec![],
                             pre_roots,
                             pre_hashchains,
                             merkle_tree_zero_copy_account,
                             vec![leaf],
+                            vec![0],
                             tx_hash,
                             vec![true],
                         )
@@ -1988,7 +2057,8 @@ mod tests {
                     ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
 
                 println!("Input insert -----------------------------");
-                let leaf = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
+                let (_, leaf) = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
+                let leaf_index = mock_indexer.merkle_tree.get_leaf_index(&leaf).unwrap();
 
                 let pre_batches: ManuallyDrop<BoundedVec<Batch>> =
                     merkle_tree_zero_copy_account.batches.clone();
@@ -2010,16 +2080,19 @@ mod tests {
                 merkle_tree_zero_copy_account
                     .insert_nullifier_into_current_batch(
                         &leaf.to_vec().try_into().unwrap(),
+                        leaf_index as u64,
                         &tx_hash,
                     )
                     .unwrap();
                 assert_input_queue_insert(
                     pre_account,
                     pre_batches,
+                    vec![],
                     pre_roots,
                     pre_hashchains,
                     merkle_tree_zero_copy_account,
                     vec![leaf],
+                    vec![leaf_index as u64],
                     tx_hash,
                     vec![true],
                 )
@@ -2035,6 +2108,7 @@ mod tests {
                             .unwrap();
                     let result = merkle_tree_zero_copy_account.insert_nullifier_into_current_batch(
                         &leaf.to_vec().try_into().unwrap(),
+                        leaf_index as u64,
                         &tx_hash,
                     );
                     result.unwrap_err();
@@ -2053,6 +2127,7 @@ mod tests {
                             .unwrap();
                     let result = merkle_tree_zero_copy_account.insert_nullifier_into_current_batch(
                         &first_value.to_vec().try_into().unwrap(),
+                        leaf_index as u64,
                         &tx_hash,
                     );
                     // assert_eq!(
@@ -2071,7 +2146,7 @@ mod tests {
                 let rnd_bytes = get_rnd_bytes(&mut rng);
                 let tx_hash = get_rnd_bytes(&mut rng);
                 let result = merkle_tree_zero_copy_account
-                    .insert_nullifier_into_current_batch(&rnd_bytes, &tx_hash);
+                    .insert_nullifier_into_current_batch(&rnd_bytes, 0, &tx_hash);
                 assert_eq!(
                     result.unwrap_err(),
                     AccountCompressionErrorCode::BatchNotReady.into()
@@ -2124,7 +2199,8 @@ mod tests {
 
                 let value = &get_rnd_bytes(&mut rng);
                 let tx_hash = &get_rnd_bytes(&mut rng);
-                merkle_tree_zero_copy_account.insert_nullifier_into_current_batch(value, tx_hash);
+                merkle_tree_zero_copy_account
+                    .insert_nullifier_into_current_batch(value, 0, tx_hash);
                 {
                     let post_batch = merkle_tree_zero_copy_account
                         .batches

@@ -175,7 +175,9 @@ fn process_queue_bundle_v1<'info>(
     for element in queue_bundle.elements.iter() {
         msg!("element {:?}", element);
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v1");
-        merkle_tree.insert_nullifier_into_current_batch(element, tx_hash)?;
+        // TODO: pass leaf indices with instruction data
+        let leaf_index = 0;
+        merkle_tree.insert_nullifier_into_current_batch(element, leaf_index, tx_hash)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v1");
     }
     Ok(rollover_fee)

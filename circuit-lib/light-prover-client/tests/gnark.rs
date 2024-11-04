@@ -295,7 +295,7 @@ async fn prove_batch_two_append() {
         let body = response_result.text().await.unwrap();
         assert!(
             status.is_success(),
-            "Batch append proof generation failed. Status: {}, Body: {}",
+            "Batch append2 proof generation failed. Status: {}, Body: {}",
             status,
             body
         );
