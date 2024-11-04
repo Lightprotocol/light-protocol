@@ -16,6 +16,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
+    use light_hasher::Discriminator;
     use light_sdk::account_info::convert_metas_to_infos;
 
     use super::*;
@@ -29,12 +30,12 @@ pub mod name_service {
         let inputs = LightInstructionData::deserialize(&inputs)?;
         let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
 
-        msg!("name: {}", name);
         account_infos[0].derive_address(
-            &[b"name-serice", name.as_bytes()],
+            &[b"name-service", name.as_bytes()],
             &crate::ID,
             ctx.remaining_accounts,
         )?;
+        account_infos[0].set_discriminator(NameRecord::discriminator());
 
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
 
@@ -61,7 +62,10 @@ pub mod name_service {
         new_rdata: RData,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
+        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
+
+        account_infos[0].set_discriminator(NameRecord::discriminator());
+
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
@@ -88,7 +92,10 @@ pub mod name_service {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
+        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
+
+        account_infos[0].set_discriminator(NameRecord::discriminator());
+
         let light_accounts = LightDeleteRecord::try_light_accounts(&account_infos)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {

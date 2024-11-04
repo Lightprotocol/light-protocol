@@ -148,6 +148,10 @@ impl<'a> LightAccountInfo<'a> {
         }
     }
 
+    pub fn set_discriminator(&mut self, discriminator: [u8; 8]) {
+        self.discriminator = Some(discriminator);
+    }
+
     /// Converts the given [LightAccountInfo] into a
     /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
     /// light-system program.

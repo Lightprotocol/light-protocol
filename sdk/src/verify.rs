@@ -237,6 +237,11 @@ pub fn verify<'info, 'a, 'b, 'c, T>(
 where
     T: AnchorSerialize,
 {
+    anchor_lang::prelude::msg!(
+        "light program: {}",
+        ctx.accounts.get_light_system_program().key()
+    );
+    anchor_lang::prelude::msg!("expedted: {}", PROGRAM_ID_LIGHT_SYSTEM);
     if ctx.accounts.get_light_system_program().key() != PROGRAM_ID_LIGHT_SYSTEM {
         return err!(LightSdkError::InvalidLightSystemProgram);
     }

@@ -300,7 +300,6 @@ where
     };
     let account = LightAccountMeta::new_init(
         None,
-        None,
         &env.merkle_tree_pubkey,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
@@ -378,8 +377,6 @@ where
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
-        None,
-        None,
         false,
         remaining_accounts,
     );
@@ -451,7 +448,6 @@ where
 
     let compressed_account = LightAccountMeta::new_close(
         compressed_account,
-        None,
         rpc_result.root_indices[0],
         remaining_accounts,
     );
