@@ -16,6 +16,8 @@ pub struct BatchUpdateProofInputsJson {
     pub leaves_hashchain_hash: String,
     #[serde(rename(serialize = "leaves"))]
     pub leaves: Vec<String>,
+    #[serde(rename(serialize = "oldLeaves"))]
+    pub old_leaves: Vec<String>,
     #[serde(rename(serialize = "newMerkleProofs"))]
     pub merkle_proofs: Vec<Vec<String>>,
     #[serde(rename(serialize = "pathIndices"))]
@@ -45,7 +47,7 @@ impl BatchUpdateProofInputsJson {
             .iter()
             .map(big_int_to_string)
             .collect::<Vec<String>>();
-
+        let old_leaves = inputs.old_leaves.iter().map(big_int_to_string).collect();
         let merkle_proofs = inputs
             .merkle_proofs
             .iter()
@@ -67,6 +69,7 @@ impl BatchUpdateProofInputsJson {
             new_root,
             leaves_hashchain_hash,
             leaves,
+            old_leaves,
             merkle_proofs,
             path_indices,
             height,

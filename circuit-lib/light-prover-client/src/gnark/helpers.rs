@@ -49,6 +49,7 @@ pub enum ProofType {
     BatchUpdate,
     BatchAppendTest,
     BatchUpdateTest,
+    BatchAppend2Test,
 }
 
 impl Display for ProofType {
@@ -64,6 +65,7 @@ impl Display for ProofType {
                 ProofType::BatchUpdate => "update",
                 ProofType::BatchAppendTest => "append-test",
                 ProofType::BatchUpdateTest => "update-test",
+                ProofType::BatchAppend2Test => "append2-test",
             }
         )
     }

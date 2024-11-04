@@ -14,15 +14,15 @@ import (
 )
 
 type BatchAppend2Circuit struct {
-	PublicInputHash     frontend.Variable `gnark:"public"`
-	OldRoot             frontend.Variable `gnark:"private"`
-	NewRoot             frontend.Variable `gnark:"private"`
-	LeavesHashchainHash frontend.Variable `gnark:"private"`
-	StartIndex          frontend.Variable `gnark:"private"`
+	PublicInputHash     frontend.Variable `gnark:",public"`
+	OldRoot             frontend.Variable `gnark:",private"`
+	NewRoot             frontend.Variable `gnark:",private"`
+	LeavesHashchainHash frontend.Variable `gnark:",private"`
+	StartIndex          frontend.Variable `gnark:",private"`
 
-	OldLeaves    []frontend.Variable   `gnark:"private"`
-	Leaves       []frontend.Variable   `gnark:"private"`
-	MerkleProofs [][]frontend.Variable `gnark:"private"`
+	OldLeaves    []frontend.Variable   `gnark:",private"`
+	Leaves       []frontend.Variable   `gnark:",private"`
+	MerkleProofs [][]frontend.Variable `gnark:",private"`
 
 	Height    uint32
 	BatchSize uint32

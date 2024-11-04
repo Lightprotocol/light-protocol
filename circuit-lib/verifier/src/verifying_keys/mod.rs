@@ -22,6 +22,9 @@ pub mod append_26_100;
 pub mod append_26_1000;
 pub mod append_26_500;
 
+pub mod append2_26_1;
+pub mod append2_26_10;
+
 pub mod update_26_1;
 pub mod update_26_10;
 pub mod update_26_100;

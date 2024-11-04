@@ -104,13 +104,16 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var updateTestKeys []string = []string{
 		keysDir + "update_26_10.key",
 	}
+	var append2TestKeys []string = []string{
+		keysDir + "append2_26_10.key",
+	}
 
 	switch runMode {
 	case Forester: // inclusion + non-inclusion
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 	case ForesterTest: // append-test + update-test
-		keys = append(keys, appendTestKeys...)
+		keys = append(keys, append2TestKeys...)
 		keys = append(keys, updateTestKeys...)
 	case Rpc: // inclusion + non-inclusion + combined
 		keys = append(keys, inclusionKeys...)
@@ -128,10 +131,8 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, appendTestKeys...)
 		keys = append(keys, updateTestKeys...)
+		keys = append(keys, append2TestKeys...)
 	}
-
-	fmt.Println("Keys: ", keys)
-	fmt.Println("Circuits: ", circuits)
 
 	for _, circuit := range circuits {
 		switch circuit {
@@ -149,6 +150,8 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 			keys = append(keys, appendTestKeys...)
 		case "update-test":
 			keys = append(keys, updateTestKeys...)
+		case "append2-test":
+			keys = append(keys, append2TestKeys...)
 		}
 	}
 
@@ -158,7 +161,6 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*ProvingSystemV1, []*ProvingSystemV2, error) {
 	var pssv1 []*ProvingSystemV1
 	var pssv2 []*ProvingSystemV2
-
 	keys := GetKeys(keysDirPath, runMode, circuits)
 
 	for _, key := range keys {
