@@ -223,12 +223,10 @@ mod tests {
         let output = hasher(input).unwrap();
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
-        // Basic Option should prepend 1 for Some
         assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
         assert!(
             formatted_output.contains("bytes.extend(value.as_byte_vec().into_iter().flatten());")
         );
-        // None case should be single zero byte
         assert!(formatted_output.contains("result.push(vec![0])"));
     }
     #[test]
