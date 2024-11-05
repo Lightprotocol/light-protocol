@@ -89,35 +89,59 @@ export async function initTestEnv({
       recipientPublicKey: payer.publicKey,
     });
   };
-  // We cannot await this promise directly because it will hang the process
-  startTestValidator({
-    additionalPrograms,
-    skipSystemAccounts,
-    limitLedgerSize,
-    rpcPort,
-    gossipHost,
-  });
-  await waitForServers([{ port: rpcPort, path: "/health" }]);
-  await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
-  await initAccounts();
+  try {
+    // We cannot await this promise directly because it will hang the process
+    startTestValidator({
+      additionalPrograms,
+      skipSystemAccounts,
+      limitLedgerSize, 
+      rpcPort,
+      gossipHost,
+    });
+    console.log("waiting for server...");
+    await waitForServers([{ port: rpcPort, path: "/health" }]);
+    console.log("waiting for server stability...");
+    await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
+    console.log("server up...");
+    try {
+      await initAccounts();
+    } catch (error: any) {
+      throw new Error(`Failed to initialize accounts: ${error.message}`);
+    }
 
-  if (indexer) {
-    const config = getConfig();
-    config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
-    setConfig(config);
-    await startIndexer(
-      `http://127.0.0.1:${rpcPort}`,
-      indexerPort,
-      checkPhotonVersion,
-      photonDatabaseUrl,
-    );
-  }
+    console.log("indexer?", indexer);
+    if (indexer) {
+      console.log("Starting photon indexer...");
+      const config = getConfig();
+      config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
+      setConfig(config);
+      try {
+        await startIndexer(
+          `http://127.0.0.1:${rpcPort}`,
+          indexerPort,
+          checkPhotonVersion,
+          photonDatabaseUrl,
+        );
+      } catch (error: any) {
+        throw new Error(`Failed to start indexer: ${error.message}`);
+      }
+    }
+    console.log("prover?", prover);
 
-  if (prover) {
-    const config = getConfig();
-    config.proverUrl = `http://127.0.0.1:${proverPort}`;
-    setConfig(config);
-    await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
+    if (prover) {
+      console.log("Starting prover...");
+      const config = getConfig();
+      config.proverUrl = `http://127.0.0.1:${proverPort}`;
+      setConfig(config);
+      try {
+        await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
+      } catch (error: any) {
+        throw new Error(`Failed to start prover: ${error.message}`);
+      }
+    }
+    console.log("done");
+  } catch (error: any) {
+    throw new Error(`Failed to initialize test environment: ${error.message}`);
   }
 }
 
