@@ -24,6 +24,7 @@ where
 {
     account_state: T,
     account_info: &'info LightAccountInfo<'info>,
+    input_hash: [u8; 32],
 }
 
 impl<'info, T> LightAccount<'info, T>
@@ -40,9 +41,13 @@ where
         } else {
             T::default()
         };
+        let input_hash = account_state
+            .hash::<Poseidon>()
+            .map_err(ProgramError::from)?;
         Ok(Self {
             account_state,
             account_info,
+            input_hash,
         })
     }
 
@@ -58,14 +63,10 @@ where
             Some(input) => {
                 let data = {
                     let discriminator = T::discriminator();
-                    let data_hash = self
-                        .account_state
-                        .hash::<Poseidon>()
-                        .map_err(ProgramError::from)?;
                     Some(CompressedAccountData {
                         discriminator,
                         data: Vec::new(),
-                        data_hash,
+                        data_hash: self.input_hash,
                     })
                 };
                 Ok(Some(PackedCompressedAccountWithMerkleContext {

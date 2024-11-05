@@ -63,8 +63,6 @@ async fn test_name_service() {
         &address_merkle_context,
         &name_service_without_macros::ID,
     );
-    println!("address: {address:?}");
-    println!("address seed: {address_seed:?}");
 
     let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
@@ -119,6 +117,7 @@ async fn test_name_service() {
     let compressed_accounts =
         test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
+    println!("COMPRESSED ACCS: {:?}", compressed_accounts);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
         .compressed_account
