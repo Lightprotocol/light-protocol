@@ -5,7 +5,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
     compressed_account::LightAccount, light_account, light_accounts, light_program,
-    merkle_context::PackedAddressMerkleContext, LightHasher,
+    merkle_context::PackedAddressMerkleContext,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
@@ -76,8 +76,6 @@ pub struct NameRecord {
     #[truncate]
     pub name: String,
     pub rdata: RData,
-    #[nested]
-    pub nested: NestedData,
 }
 
 #[error_code]

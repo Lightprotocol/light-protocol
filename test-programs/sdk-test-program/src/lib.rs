@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
     compressed_account::LightAccount, light_account, light_accounts, light_program,
-    merkle_context::PackedAddressMerkleContext,
+    merkle_context::PackedAddressMerkleContext, LightHasher,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
@@ -85,7 +85,7 @@ pub struct WithCompressedAccount<'info> {
     #[fee_payer]
     pub signer: Signer<'info>,
     #[self_program]
-    pub self_program: Program<'info, crate::program::MixedAccounts>,
+    pub self_program: Program<'info, crate::program::SdkTest>,
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signed: AccountInfo<'info>,
