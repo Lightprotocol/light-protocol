@@ -38,7 +38,7 @@ pub mod name_service {
 
         let address_merkle_context = accounts[0]
             .address_merkle_context
-            .ok_or(LightSdkError::ExpectedAddressParams)?;
+            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
         let address_merkle_context =
             unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
         let (address, address_seed) = derive_address(
@@ -47,11 +47,11 @@ pub mod name_service {
             &crate::ID,
         );
 
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_init(
             &accounts[0],
-            Some(NameRecord::discriminator()),
-            Some(address),
-            Some(address_seed),
+            NameRecord::discriminator(),
+            address,
+            address_seed,
             &crate::ID,
         )?];
 
@@ -84,11 +84,9 @@ pub mod name_service {
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_mut(
             &accounts[0],
-            Some(NameRecord::discriminator()),
-            None,
-            None,
+            NameRecord::discriminator(),
             &crate::ID,
         )?];
 
@@ -122,11 +120,9 @@ pub mod name_service {
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_close(
             &accounts[0],
-            Some(NameRecord::discriminator()),
-            None,
-            None,
+            NameRecord::discriminator(),
             &crate::ID,
         )?];
 

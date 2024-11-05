@@ -8,10 +8,8 @@ pub enum LightSdkError {
     InvalidLightSystemProgram,
     #[msg("Expected accounts in the instruction")]
     ExpectedAccounts,
-    #[msg("Expected root index to be provided")]
-    ExpectedRootIndex,
-    #[msg("Address, address seed and address Merkle context are co-dependent on each other")]
-    ExpectedAddressParams,
+    #[msg("Expected address Merkle context to be provided")]
+    ExpectedAddressMerkleContext,
     #[msg("Expected address root index to be provided")]
     ExpectedAddressRootIndex,
     #[msg("Accounts with a specified input are expected to have data")]
@@ -20,6 +18,10 @@ pub enum LightSdkError {
     ExpectedDiscriminator,
     #[msg("Accounts with specified data are expected to have a hash")]
     ExpectedHash,
+    #[msg("`mut` and `close` accounts are expected to have a Merkle context")]
+    ExpectedMerkleContext,
+    #[msg("Expected root index to be provided")]
+    ExpectedRootIndex,
     #[msg("Cannot transfer lamports from an account without input")]
     TransferFromNoInput,
     #[msg("Cannot transfer from an account without lamports")]
