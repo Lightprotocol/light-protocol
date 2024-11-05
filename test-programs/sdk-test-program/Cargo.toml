@@ -1,5 +1,5 @@
 [package]
-name = "mixed-accounts"
+name = "sdk-test"
 version = "0.7.0"
 description = "Created with Anchor"
 edition = "2021"
@@ -8,7 +8,7 @@ license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "mixed_accounts"
+name = "sdk_test"
 
 [features]
 no-entrypoint = []
@@ -35,6 +35,6 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 light-client = { workspace = true , features = ["devenv"]}
-light-test-utils = { path = "../../../../test-utils", version = "1.2.0", features = ["devenv"] }
+light-test-utils = { path = "../../test-utils", version = "1.2.0", features = ["devenv"] }
 solana-program-test = { workspace = true }
 tokio = { workspace = true }

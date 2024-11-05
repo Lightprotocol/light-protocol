@@ -18,7 +18,6 @@ members = [
     "test-utils",
     "utils",
     "xtask",
-    "examples/mixed-accounts/programs/*",
     "examples/name-service/programs/*",
     "examples/token-escrow/programs/*",
     "test-programs/*",

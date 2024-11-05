@@ -4045,25 +4045,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixed-accounts"
-version = "0.7.0"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.3",
- "light-client",
- "light-hasher",
- "light-macros",
- "light-sdk",
- "light-sdk-macros",
- "light-test-utils",
- "light-utils",
- "light-verifier",
- "solana-program-test",
- "solana-sdk",
- "tokio",
-]
-
-[[package]]
 name = "mockall"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5751,6 +5732,25 @@ name = "sdd"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0495e4577c672de8254beb68d01a9b62d0e8a13c099edecdbedccce3223cd29f"
+
+[[package]]
+name = "sdk-test"
+version = "0.7.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-macros",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
 
 [[package]]
 name = "security-framework"

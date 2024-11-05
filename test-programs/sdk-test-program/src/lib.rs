@@ -8,7 +8,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[light_program]
 #[program]
-pub mod mixed_accounts {
+pub mod sdk_test {
     use super::*;
 
     pub fn with_compressed_account<'info>(
@@ -16,6 +16,7 @@ pub mod mixed_accounts {
         name: String,
     ) -> Result<()> {
         ctx.light_accounts.my_compressed_account.name = name;
+        ctx.light_accounts.my_compressed_account.nested = NestedData::default();
         Ok(())
     }
 
@@ -32,6 +33,44 @@ pub mod mixed_accounts {
 #[derive(Clone, Debug, Default)]
 pub struct MyCompressedAccount {
     name: String,
+    #[nested]
+    pub nested: NestedData,
+}
+
+// Illustrates nested hashing feature.
+#[derive(LightHasher, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct NestedData {
+    pub one: u16,
+    pub two: u16,
+    pub three: u16,
+    pub four: u16,
+    pub five: u16,
+    pub six: u16,
+    pub seven: u16,
+    pub eight: u16,
+    pub nine: u16,
+    pub ten: u16,
+    pub eleven: u16,
+    pub twelve: u16,
+}
+
+impl Default for NestedData {
+    fn default() -> Self {
+        Self {
+            one: 1,
+            two: 2,
+            three: 3,
+            four: 4,
+            five: 5,
+            six: 6,
+            seven: 7,
+            eight: 8,
+            nine: 9,
+            ten: 10,
+            eleven: 11,
+            twelve: 12,
+        }
+    }
 }
 
 #[account]
