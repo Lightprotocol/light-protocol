@@ -55,7 +55,7 @@ pub mod name_service {
             &crate::ID,
         )?];
 
-        let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
+        let mut light_accounts = LightCreateRecord::try_light_accounts(account_infos)?;
 
         light_accounts.record.owner = ctx.accounts.signer.key();
         light_accounts.record.name = name;
@@ -92,7 +92,7 @@ pub mod name_service {
             &crate::ID,
         )?];
 
-        let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
+        let mut light_accounts = LightCreateRecord::try_light_accounts(account_infos)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
@@ -130,7 +130,7 @@ pub mod name_service {
             &crate::ID,
         )?];
 
-        let light_accounts = LightDeleteRecord::try_light_accounts(&account_infos)?;
+        let light_accounts = LightDeleteRecord::try_light_accounts(account_infos)?;
 
         if light_accounts.record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
