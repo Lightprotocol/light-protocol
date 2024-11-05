@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-type BatchAppend2ProofInputsJSON struct {
+type BatchAppendWithProofsInputsJSON struct {
 	PublicInputHash     string     `json:"publicInputHash"`
 	OldRoot             string     `json:"oldRoot"`
 	NewRoot             string     `json:"newRoot"`
@@ -18,13 +18,13 @@ type BatchAppend2ProofInputsJSON struct {
 	BatchSize           uint32     `json:"batchSize"`
 }
 
-func (p *BatchAppend2Parameters) MarshalJSON() ([]byte, error) {
-	paramsJSON := p.createBatchAppend2ParametersJSON()
+func (p *BatchAppendWithProofsParameters) MarshalJSON() ([]byte, error) {
+	paramsJSON := p.createBatchAppendWithProofsParametersJSON()
 	return json.Marshal(paramsJSON)
 }
 
-func (p *BatchAppend2Parameters) createBatchAppend2ParametersJSON() BatchAppend2ProofInputsJSON {
-	paramsJSON := BatchAppend2ProofInputsJSON{
+func (p *BatchAppendWithProofsParameters) createBatchAppendWithProofsParametersJSON() BatchAppendWithProofsInputsJSON {
+	paramsJSON := BatchAppendWithProofsInputsJSON{
 		PublicInputHash:     toHex(p.PublicInputHash),
 		OldRoot:             toHex(p.OldRoot),
 		NewRoot:             toHex(p.NewRoot),
@@ -51,8 +51,8 @@ func (p *BatchAppend2Parameters) createBatchAppend2ParametersJSON() BatchAppend2
 	return paramsJSON
 }
 
-func (p *BatchAppend2Parameters) UnmarshalJSON(data []byte) error {
-	var params BatchAppend2ProofInputsJSON
+func (p *BatchAppendWithProofsParameters) UnmarshalJSON(data []byte) error {
+	var params BatchAppendWithProofsInputsJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (p *BatchAppend2Parameters) UnmarshalJSON(data []byte) error {
 	return p.updateWithJSON(params)
 }
 
-func (p *BatchAppend2Parameters) updateWithJSON(params BatchAppend2ProofInputsJSON) error {
+func (p *BatchAppendWithProofsParameters) updateWithJSON(params BatchAppendWithProofsInputsJSON) error {
 	var err error
 
 	p.StartIndex = params.StartIndex

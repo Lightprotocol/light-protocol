@@ -2,7 +2,6 @@
 
 set -e
 
-# Ensure required commands are available
 command -v git >/dev/null 2>&1 || { echo >&2 "git is required but it's not installed. Aborting."; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but it's not installed. Aborting."; exit 1; }
 command -v wc >/dev/null 2>&1 || { echo >&2 "wc is required but it's not installed. Aborting."; exit 1; }
@@ -18,10 +17,11 @@ fi
 BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
 # keys for append circuit for trees of height 4, 10, 26 
-APPEND_BUCKET="bafybeiev4q77to62svq535gzndnetvngcnkruhcqw4zdfsjl5ohker7z2u"
+APPEND_WITH_PROOFS_BUCKET="bafybeiaddn7t2pcbmthkvfvenxin7vcmpyweplew3er5shbrlauypue4g4"
+APPEND_WITH_SUBTREES_BUCKET="bafybeieyujtdrhp52unqkwvzn36o4hh4brsw52juaftceaki4gfypszbxa"
 
 # keys for update circuit for tree of height 26
-UPDATE_BUCKET="bafybeic3lzc2sl37f77qpzqdjhp2cwwalo7k65sp4iqmm4wpxeiaghkkju"
+UPDATE_BUCKET="bafybeievf2qdaex4cskdfk24uifq4244ne42w3dghwnnfp4ybsve6mw2pa"
 
 LIGHTWEIGHT_FILES=(
   "inclusion_26_1.key"
@@ -54,8 +54,10 @@ LIGHTWEIGHT_FILES=(
   "combined_26_4_1.vkey"
   "combined_26_4_2.key"
   "combined_26_4_2.vkey"
-  "append_26_10.key"
-  "append_26_10.vkey"
+  "append-with-proofs_26_10.key"
+  "append-with-proofs_26_10.vkey"
+  "append-with-subtrees_26_10.key"
+  "append-with-subtrees_26_10.vkey"
   "update_26_10.key"
   "update_26_10.vkey"
 )
@@ -91,16 +93,26 @@ FULL_FILES=(
   "combined_26_4_1.vkey"
   "combined_26_4_2.key"
   "combined_26_4_2.vkey"
-  "append_26_1.key"
-  "append_26_1.vkey"
-  "append_26_10.key"
-  "append_26_10.vkey"
-  "append_26_100.key"
-  "append_26_100.vkey"
-  "append_26_500.key"
-  "append_26_500.vkey"
-  "append_26_1000.key"
-  "append_26_1000.vkey"
+  "append-with-proofs_26_1.key"
+  "append-with-proofs_26_1.vkey"
+  "append-with-proofs_26_10.key"
+  "append-with-proofs_26_10.vkey"
+  "append-with-proofs_26_100.key"
+  "append-with-proofs_26_100.vkey"
+  "append-with-proofs_26_500.key"
+  "append-with-proofs_26_500.vkey"
+  "append-with-proofs_26_1000.key"
+  "append-with-proofs_26_1000.vkey"
+  "append-with-subtrees_26_1.key"
+  "append-with-subtrees_26_1.vkey"
+  "append-with-subtrees_26_10.key"
+  "append-with-subtrees_26_10.vkey"
+  "append-with-subtrees_26_100.key"
+  "append-with-subtrees_26_100.vkey"
+  "append-with-subtrees_26_500.key"
+  "append-with-subtrees_26_500.vkey"
+  "append-with-subtrees_26_1000.key"
+  "append-with-subtrees_26_1000.vkey"
   "update_26_1.key"
   "update_26_1.vkey"
   "update_26_10.key"
@@ -116,8 +128,10 @@ FULL_FILES=(
 download_file() {
   local FILE="$1"
   local BUCKET_URL
-  if [[ $FILE == append* ]]; then
-    BUCKET_URL="https://${APPEND_BUCKET}.ipfs.w3s.link/${FILE}"
+  if [[ $FILE == append-with-proofs* ]]; then
+    BUCKET_URL="https://${APPEND_WITH_PROOFS_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif [[ $FILE == append-with-subtrees* ]]; then
+      BUCKET_URL="https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
   elif [[ $FILE == update* ]]; then
     BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
   else

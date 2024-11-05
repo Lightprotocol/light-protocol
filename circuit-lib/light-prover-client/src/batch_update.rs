@@ -1,4 +1,4 @@
-use crate::{batch_append::calculate_hash_chain, helpers::bigint_to_u8_32};
+use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
@@ -58,7 +58,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     let mut new_root = [0u8; 32];
     let old_root = current_root;
     // We need a changelog because all subsequent proofs change after one update.
-    // Hence we patch the proofs with the changelog.
+    // Hence, we patch the proofs with the changelog.
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = vec![];
     let mut nullifiers = vec![];

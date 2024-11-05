@@ -1,10 +1,12 @@
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::batch_append::{calculate_hash_chain, get_batch_append_inputs};
-use light_prover_client::batch_append_2::get_batch_append2_inputs;
+use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
+use light_prover_client::batch_append_with_subtrees::{
+    calculate_hash_chain, get_batch_append_with_subtrees_inputs,
+};
 use light_prover_client::batch_update::get_batch_update_inputs;
-use light_prover_client::gnark::batch_append_2_json_formatter::BatchAppend2ProofInputsJson;
-use light_prover_client::gnark::batch_append_json_formatter::append_inputs_string;
+use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
+use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::{
@@ -154,7 +156,7 @@ async fn prove_batch_append() {
         true,
         ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::BatchAppendTest],
+            circuits: vec![ProofType::BatchAppendWithSubtreesTest],
         },
     )
     .await;
@@ -183,7 +185,7 @@ async fn prove_batch_append() {
         let leaves_hashchain = calculate_hash_chain(&leaves);
 
         // Generate inputs for batch append operation
-        let inputs = get_batch_append_inputs::<HEIGHT>(
+        let inputs = get_batch_append_with_subtrees_inputs::<HEIGHT>(
             merkle_tree.layers[0].len(),
             old_subtrees.try_into().unwrap(),
             leaves,
@@ -222,7 +224,7 @@ async fn prove_batch_two_append() {
         true,
         ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::BatchAppend2Test],
+            circuits: vec![ProofType::BatchAppendWithProofsTest],
         },
     )
     .await;
@@ -266,8 +268,8 @@ async fn prove_batch_two_append() {
         let root = merkle_tree.root();
         let leaves_hashchain = calculate_hash_chain(&leaves);
 
-        // Generate inputs for BatchAppend2Circuit
-        let inputs = get_batch_append2_inputs::<HEIGHT>(
+        // Generate inputs for BatchAppendWithProofsCircuit
+        let inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
             root,
             (i * num_insertions) as u32,
             leaves.clone(),
@@ -279,7 +281,7 @@ async fn prove_batch_two_append() {
 
         // Serialize inputs to JSON
         let client = Client::new();
-        let inputs_json = BatchAppend2ProofInputsJson::from_inputs(&inputs).to_string();
+        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&inputs).to_string();
         // Send proof request to server
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
@@ -293,7 +295,7 @@ async fn prove_batch_two_append() {
         let body = response_result.text().await.unwrap();
         assert!(
             status.is_success(),
-            "Batch append2 proof generation failed. Status: {}, Body: {}",
+            "Batch append proof generation failed. Status: {}, Body: {}",
             status,
             body
         );

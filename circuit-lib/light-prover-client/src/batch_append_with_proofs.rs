@@ -5,12 +5,12 @@ use num_bigint::{BigInt, Sign};
 use serde::Serialize;
 
 use crate::{
-    batch_append::calculate_hash_chain, batch_update::comput_root_from_merkle_proof,
+    batch_append_with_subtrees::calculate_hash_chain, batch_update::comput_root_from_merkle_proof,
     helpers::bigint_to_u8_32,
 };
 
 #[derive(Debug, Clone, Serialize)]
-pub struct BatchAppend2CircuitInputs {
+pub struct BatchAppendWithProofsCircuitInputs {
     pub public_input_hash: BigInt,
     pub old_root: BigInt,
     pub new_root: BigInt,
@@ -23,13 +23,13 @@ pub struct BatchAppend2CircuitInputs {
     pub batch_size: u32,
 }
 
-impl BatchAppend2CircuitInputs {
+impl BatchAppendWithProofsCircuitInputs {
     pub fn public_inputs_arr(&self) -> [u8; 32] {
         bigint_to_u8_32(&self.public_input_hash).unwrap()
     }
 }
 
-pub fn get_batch_append2_inputs<const HEIGHT: usize>(
+pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     // get this from Merkle tree account
     current_root: [u8; 32],
     // get this from Merkle tree account
@@ -43,7 +43,7 @@ pub fn get_batch_append2_inputs<const HEIGHT: usize>(
     old_leaves: Vec<[u8; 32]>,
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     batch_size: u32,
-) -> BatchAppend2CircuitInputs {
+) -> BatchAppendWithProofsCircuitInputs {
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
@@ -98,7 +98,7 @@ pub fn get_batch_append2_inputs<const HEIGHT: usize>(
     println!("new root {:?}", new_root);
     println!("leaves hashchain {:?}", leaves_hashchain);
     println!("start index {:?}", start_index_bytes);
-    BatchAppend2CircuitInputs {
+    BatchAppendWithProofsCircuitInputs {
         public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
         old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
         new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),

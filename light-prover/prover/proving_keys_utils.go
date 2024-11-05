@@ -83,13 +83,22 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "combined_26_4_2.key",
 	}
 
-	var appendKeys []string = []string{
-		keysDir + "append_26_1.key",
-		keysDir + "append_26_10.key",
-		keysDir + "append_26_100.key",
-		keysDir + "append_26_500.key",
-		keysDir + "append_26_1000.key",
+	var appendWithSubtreesKeys []string = []string{
+		keysDir + "append-with-subtrees_26_1.key",
+		keysDir + "append-with-subtrees_26_10.key",
+		keysDir + "append-with-subtrees_26_100.key",
+		keysDir + "append-with-subtrees_26_500.key",
+		keysDir + "append-with-subtrees_26_1000.key",
 	}
+
+	var appendWithProofsKeys []string = []string{
+		keysDir + "append-with-proofs_26_1.key",
+		keysDir + "append-with-proofs_26_10.key",
+		keysDir + "append-with-proofs_26_100.key",
+		keysDir + "append-with-proofs_26_500.key",
+		keysDir + "append-with-proofs_26_1000.key",
+	}
+
 	var updateKeys []string = []string{
 		keysDir + "update_26_1.key",
 		keysDir + "update_26_10.key",
@@ -98,14 +107,16 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "update_26_1000.key",
 	}
 
-	var appendTestKeys []string = []string{
-		keysDir + "append_26_10.key",
+	var appendWithSubtreesTestKeys []string = []string{
+		keysDir + "append-with-subtrees_26_10.key",
 	}
+
+	var appendWithProofsTestKeys []string = []string{
+		keysDir + "append-with-proofs_26_10.key",
+	}
+
 	var updateTestKeys []string = []string{
 		keysDir + "update_26_10.key",
-	}
-	var append2TestKeys []string = []string{
-		keysDir + "append2_26_10.key",
 	}
 
 	switch runMode {
@@ -113,7 +124,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 	case ForesterTest: // append-test + update-test
-		keys = append(keys, append2TestKeys...)
+		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, updateTestKeys...)
 	case Rpc: // inclusion + non-inclusion + combined
 		keys = append(keys, inclusionKeys...)
@@ -123,15 +134,15 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
-		keys = append(keys, appendKeys...)
+		keys = append(keys, appendWithSubtreesKeys...)
 		keys = append(keys, updateKeys...)
 	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
-		keys = append(keys, appendTestKeys...)
+		keys = append(keys, appendWithSubtreesTestKeys...)
 		keys = append(keys, updateTestKeys...)
-		keys = append(keys, append2TestKeys...)
+		keys = append(keys, appendWithProofsTestKeys...)
 	}
 
 	for _, circuit := range circuits {
@@ -142,16 +153,18 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 			keys = append(keys, nonInclusionKeys...)
 		case "combined":
 			keys = append(keys, combinedKeys...)
-		case "append":
-			keys = append(keys, appendKeys...)
+		case "append-with-subtrees":
+			keys = append(keys, appendWithSubtreesKeys...)
+		case "append-with-subtrees-test":
+			keys = append(keys, appendWithSubtreesTestKeys...)
+		case "append-with-proofs":
+			keys = append(keys, appendWithProofsKeys...)
+		case "append-with-proofs-test":
+			keys = append(keys, appendWithProofsTestKeys...)
 		case "update":
 			keys = append(keys, updateKeys...)
-		case "append-test":
-			keys = append(keys, appendTestKeys...)
 		case "update-test":
 			keys = append(keys, updateTestKeys...)
-		case "append2-test":
-			keys = append(keys, append2TestKeys...)
 		}
 	}
 

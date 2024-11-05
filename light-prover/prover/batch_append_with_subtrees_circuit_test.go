@@ -9,7 +9,7 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestBatchAppendCircuit(t *testing.T) {
+func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	t.Run("Successful proofs", func(t *testing.T) {
@@ -249,8 +249,8 @@ func TestBatchAppendCircuit(t *testing.T) {
 	})
 }
 
-func createCircuit(params *BatchAppendParameters) BatchAppendCircuit {
-	circuit := BatchAppendCircuit{
+func createCircuit(params *BatchAppendParameters) BatchAppendWithSubtreesCircuit {
+	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),
@@ -273,8 +273,8 @@ func createCircuit(params *BatchAppendParameters) BatchAppendCircuit {
 	return circuit
 }
 
-func createWitness(params *BatchAppendParameters) *BatchAppendCircuit {
-	witness := &BatchAppendCircuit{
+func createWitness(params *BatchAppendParameters) *BatchAppendWithSubtreesCircuit {
+	witness := &BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldSubTreeHashChain: frontend.Variable(params.OldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(params.NewSubTreeHashChain),
@@ -297,7 +297,7 @@ func createWitness(params *BatchAppendParameters) *BatchAppendCircuit {
 	return witness
 }
 
-func BenchmarkBatchAppendCircuit(b *testing.B) {
+func BenchmarkBatchAppendWithSubtreesCircuit(b *testing.B) {
 	params := BuildAndUpdateBatchAppendParameters(26, 1000, 0, nil)
 	circuit := createCircuit(&params)
 	witness := createWitness(&params)

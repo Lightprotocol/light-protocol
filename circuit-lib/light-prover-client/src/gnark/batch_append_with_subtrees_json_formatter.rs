@@ -1,10 +1,10 @@
-use crate::batch_append::BatchAppendCircuitInputs;
+use crate::batch_append_with_subtrees::BatchAppendWithSubtreesCircuitInputs;
 use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
 use num_traits::ToPrimitive;
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
-pub struct BatchAppendJsonStruct {
+pub struct BatchAppendWithSubtreesJsonStruct {
     #[serde(rename(serialize = "publicInputHash"))]
     pub public_input_hash: String,
     #[serde(rename(serialize = "oldSubTreeHashChain"))]
@@ -25,8 +25,8 @@ pub struct BatchAppendJsonStruct {
     pub subtrees: Vec<String>,
 }
 
-impl BatchAppendJsonStruct {
-    pub fn from_append_inputs(inputs: &BatchAppendCircuitInputs) -> Self {
+impl BatchAppendWithSubtreesJsonStruct {
+    pub fn from_append_inputs(inputs: &BatchAppendWithSubtreesCircuitInputs) -> Self {
         let public_input_hash = big_int_to_string(&inputs.public_input_hash);
         let old_sub_tree_hash_chain = big_int_to_string(&inputs.old_sub_tree_hash_chain);
         let new_sub_tree_hash_chain = big_int_to_string(&inputs.new_sub_tree_hash_chain);
@@ -66,15 +66,18 @@ impl BatchAppendJsonStruct {
     }
 }
 
-pub fn append_inputs_string(inputs: &BatchAppendCircuitInputs) -> String {
-    let json_struct = BatchAppendJsonStruct::from_append_inputs(inputs);
+pub fn append_inputs_string(inputs: &BatchAppendWithSubtreesCircuitInputs) -> String {
+    let json_struct = BatchAppendWithSubtreesJsonStruct::from_append_inputs(inputs);
     json_struct.to_string()
 }
 
-pub fn new_with_append_inputs() -> (BatchAppendJsonStruct, BatchAppendCircuitInputs) {
-    let append_inputs = BatchAppendCircuitInputs::default();
+pub fn new_with_append_inputs() -> (
+    BatchAppendWithSubtreesJsonStruct,
+    BatchAppendWithSubtreesCircuitInputs,
+) {
+    let append_inputs = BatchAppendWithSubtreesCircuitInputs::default();
 
-    let json_struct = BatchAppendJsonStruct {
+    let json_struct = BatchAppendWithSubtreesJsonStruct {
         public_input_hash: big_int_to_string(&append_inputs.public_input_hash),
         old_sub_tree_hash_chain: big_int_to_string(&append_inputs.old_sub_tree_hash_chain),
         new_sub_tree_hash_chain: big_int_to_string(&append_inputs.new_sub_tree_hash_chain),

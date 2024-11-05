@@ -1,11 +1,11 @@
 use serde::Serialize;
 
-use crate::batch_append_2::BatchAppend2CircuitInputs;
+use crate::batch_append_with_proofs::BatchAppendWithProofsCircuitInputs;
 
 use super::helpers::{big_int_to_string, create_json_from_struct};
 
 #[derive(Debug, Clone, Serialize)]
-pub struct BatchAppend2ProofInputsJson {
+pub struct BatchAppendWithProofsInputsJson {
     #[serde(rename = "publicInputHash")]
     public_input_hash: String,
     #[serde(rename = "oldRoot")]
@@ -28,8 +28,8 @@ pub struct BatchAppend2ProofInputsJson {
     batch_size: u32,
 }
 
-impl BatchAppend2ProofInputsJson {
-    pub fn from_inputs(inputs: &BatchAppend2CircuitInputs) -> Self {
+impl BatchAppendWithProofsInputsJson {
+    pub fn from_inputs(inputs: &BatchAppendWithProofsCircuitInputs) -> Self {
         Self {
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             old_root: big_int_to_string(&inputs.old_root),

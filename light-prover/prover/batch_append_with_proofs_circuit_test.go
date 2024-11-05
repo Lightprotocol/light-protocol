@@ -8,16 +8,16 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestBatchAppend2Circuit(t *testing.T) {
+func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	t.Run("Valid batch update - full HashchainHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
 		startIndex := uint32(0)
-		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, &startIndex, false)
+		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, &startIndex, false)
 
-		circuit := BatchAppend2Circuit{
+		circuit := BatchAppendWithProofsCircuit{
 			PublicInputHash:     frontend.Variable(0),
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
@@ -34,7 +34,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 			circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		witness := BatchAppend2Circuit{
+		witness := BatchAppendWithProofsCircuit{
 			PublicInputHash:     frontend.Variable(params.PublicInputHash),
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
@@ -66,9 +66,9 @@ func TestBatchAppend2Circuit(t *testing.T) {
 		batchSize := 1000
 		startIndex := uint32(0)
 		enable := true
-		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, &startIndex, enable)
+		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, &startIndex, enable)
 
-		circuit := BatchAppend2Circuit{
+		circuit := BatchAppendWithProofsCircuit{
 			PublicInputHash:     frontend.Variable(0),
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
@@ -85,7 +85,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 			circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		witness := BatchAppend2Circuit{
+		witness := BatchAppendWithProofsCircuit{
 			PublicInputHash:     frontend.Variable(params.PublicInputHash),
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
@@ -120,7 +120,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 		var tree = merkletree.NewTree(int(treeDepth))
 	// 		for i := 0; i < totalLeaves/batchSize; i++ {
 	// 			startIndex := uint32(i * batchSize)
-	// 			params := BuildTestBatchAppend2Tree(treeDepth, batchSize, &tree, &startIndex)
+	// 			params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, &tree, &startIndex)
 
 	// 			circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 			witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -143,7 +143,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 
 	// 		for _, tc := range testCases {
 	// 			t.Run(fmt.Sprintf("Depth:%d_Batch:%d", tc.treeDepth, tc.batchSize), func(t *testing.T) {
-	// 				params := BuildTestBatchAppend2Tree(tc.treeDepth, tc.batchSize, nil, nil)
+	// 				params := BuildTestBatchAppendWithProofsTree(tc.treeDepth, tc.batchSize, nil, nil)
 	// 				circuit := createBatchAppend2Circuit(tc.treeDepth, tc.batchSize)
 	// 				witness := createBatchAppend2Witness(params, 0, tc.batchSize)
 
@@ -156,7 +156,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 	t.Run("Invalid NewRoot", func(t *testing.T) {
 	// 		treeDepth := 10
 	// 		batchSize := 5
-	// 		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, nil)
+	// 		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, nil)
 
 	// 		circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 		witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -171,7 +171,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 	t.Run("Invalid LeavesHashchainHash", func(t *testing.T) {
 	// 		treeDepth := 10
 	// 		batchSize := 5
-	// 		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, nil)
+	// 		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, nil)
 
 	// 		circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 		witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -186,7 +186,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 	t.Run("Invalid leaf", func(t *testing.T) {
 	// 		treeDepth := 10
 	// 		batchSize := 5
-	// 		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, nil)
+	// 		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, nil)
 
 	// 		circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 		witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -201,7 +201,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 	t.Run("Invalid order of leaves", func(t *testing.T) {
 	// 		treeDepth := 10
 	// 		batchSize := 5
-	// 		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, nil)
+	// 		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, nil)
 
 	// 		circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 		witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -215,7 +215,7 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	// 	t.Run("Invalid tx hash", func(t *testing.T) {
 	// 		treeDepth := 10
 	// 		batchSize := 5
-	// 		params := BuildTestBatchAppend2Tree(treeDepth, batchSize, nil, nil)
+	// 		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, nil)
 
 	// 		circuit := createBatchAppend2Circuit(treeDepth, batchSize)
 	// 		witness := createBatchAppend2Witness(params, 0, batchSize)
@@ -228,8 +228,8 @@ func TestBatchAppend2Circuit(t *testing.T) {
 	//	})
 }
 
-func createBatchAppend2Circuit(treeDepth, batchSize int) BatchAppend2Circuit {
-	circuit := BatchAppend2Circuit{
+func createBatchAppendWithProofCircuit(treeDepth, batchSize int) BatchAppendWithProofsCircuit {
+	circuit := BatchAppendWithProofsCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
@@ -249,8 +249,8 @@ func createBatchAppend2Circuit(treeDepth, batchSize int) BatchAppend2Circuit {
 	return circuit
 }
 
-func createBatchAppend2Witness(params *BatchAppend2Parameters, startIndex, count int) BatchAppend2Circuit {
-	witness := BatchAppend2Circuit{
+func createBatchAppendWithProofWitness(params *BatchAppendWithProofsParameters, startIndex, count int) BatchAppendWithProofsCircuit {
+	witness := BatchAppendWithProofsCircuit{
 		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldRoot:             frontend.Variable(params.OldRoot),
 		NewRoot:             frontend.Variable(params.NewRoot),

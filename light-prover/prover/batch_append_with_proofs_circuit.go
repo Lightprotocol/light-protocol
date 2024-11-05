@@ -13,7 +13,7 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
-type BatchAppend2Circuit struct {
+type BatchAppendWithProofsCircuit struct {
 	PublicInputHash     frontend.Variable `gnark:",public"`
 	OldRoot             frontend.Variable `gnark:",private"`
 	NewRoot             frontend.Variable `gnark:",private"`
@@ -28,7 +28,7 @@ type BatchAppend2Circuit struct {
 	BatchSize uint32
 }
 
-func (circuit *BatchAppend2Circuit) Define(api frontend.API) error {
+func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 
 	hashChainInputs := make([]frontend.Variable, int(4))
 	hashChainInputs[0] = circuit.OldRoot
@@ -71,7 +71,7 @@ func (circuit *BatchAppend2Circuit) Define(api frontend.API) error {
 	return nil
 }
 
-type BatchAppend2Parameters struct {
+type BatchAppendWithProofsParameters struct {
 	PublicInputHash     *big.Int
 	OldRoot             *big.Int
 	NewRoot             *big.Int
@@ -85,14 +85,14 @@ type BatchAppend2Parameters struct {
 	Tree                *merkle_tree.PoseidonTree
 }
 
-func (p *BatchAppend2Parameters) TreeDepth() uint32 {
+func (p *BatchAppendWithProofsParameters) TreeDepth() uint32 {
 	if len(p.MerkleProofs) == 0 {
 		return 0
 	}
 	return uint32(len(p.MerkleProofs[0]))
 }
 
-func (p *BatchAppend2Parameters) ValidateShape() error {
+func (p *BatchAppendWithProofsParameters) ValidateShape() error {
 	if len(p.Leaves) != int(p.BatchSize) {
 		return fmt.Errorf("wrong number of leaves: %d, expected: %d", len(p.Leaves), p.BatchSize)
 	}
@@ -110,9 +110,9 @@ func (p *BatchAppend2Parameters) ValidateShape() error {
 	return nil
 }
 
-func SetupBatchAppend2(height uint32, batchSize uint32) (*ProvingSystemV2, error) {
+func SetupBatchAppendWithProofs(height uint32, batchSize uint32) (*ProvingSystemV2, error) {
 	fmt.Println("Setting up batch update")
-	ccs, err := R1CSBatchAppend2(height, batchSize)
+	ccs, err := R1CSBatchAppendWithProof(height, batchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func SetupBatchAppend2(height uint32, batchSize uint32) (*ProvingSystemV2, error
 		ConstraintSystem: ccs}, nil
 }
 
-func (ps *ProvingSystemV2) ProveBatchAppend2(params *BatchAppend2Parameters) (*Proof, error) {
+func (ps *ProvingSystemV2) ProveBatchAppendWithProofs(params *BatchAppendWithProofsParameters) (*Proof, error) {
 	if err := params.ValidateShape(); err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend2(params *BatchAppend2Parameters) (*P
 		}
 	}
 
-	assignment := BatchAppend2Circuit{
+	assignment := BatchAppendWithProofsCircuit{
 		PublicInputHash:     publicInputHash,
 		OldRoot:             oldRoot,
 		NewRoot:             newRoot,
@@ -178,7 +178,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend2(params *BatchAppend2Parameters) (*P
 	return &Proof{proof}, nil
 }
 
-func R1CSBatchAppend2(height uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
+func R1CSBatchAppendWithProof(height uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
 	leaves := make([]frontend.Variable, batchSize)
 	txHashes := make([]frontend.Variable, batchSize)
 	pathIndices := make([]frontend.Variable, batchSize)
@@ -188,7 +188,7 @@ func R1CSBatchAppend2(height uint32, batchSize uint32) (constraint.ConstraintSys
 		merkleProofs[i] = make([]frontend.Variable, height)
 	}
 
-	circuit := BatchAppend2Circuit{
+	circuit := BatchAppendWithProofsCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
@@ -204,7 +204,7 @@ func R1CSBatchAppend2(height uint32, batchSize uint32) (constraint.ConstraintSys
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func ImportBatchAppend2Setup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
+func ImportBatchAppendWithProofSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
 	leaves := make([]frontend.Variable, batchSize)
 	txHashes := make([]frontend.Variable, batchSize)
 	oldMerkleProofs := make([][]frontend.Variable, batchSize)
@@ -215,7 +215,7 @@ func ImportBatchAppend2Setup(treeHeight uint32, batchSize uint32, pkPath string,
 		newMerkleProofs[i] = make([]frontend.Variable, treeHeight)
 	}
 
-	circuit := BatchAppend2Circuit{
+	circuit := BatchAppendWithProofsCircuit{
 		Height:              treeHeight,
 		OldLeaves:           txHashes,
 		Leaves:              leaves,

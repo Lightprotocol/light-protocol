@@ -47,9 +47,9 @@ pub enum ProofType {
     Combined,
     BatchAppend,
     BatchUpdate,
-    BatchAppendTest,
+    BatchAppendWithSubtreesTest,
     BatchUpdateTest,
-    BatchAppend2Test,
+    BatchAppendWithProofsTest,
 }
 
 impl Display for ProofType {
@@ -63,9 +63,9 @@ impl Display for ProofType {
                 ProofType::Combined => "combined",
                 ProofType::BatchAppend => "append",
                 ProofType::BatchUpdate => "update",
-                ProofType::BatchAppendTest => "append-test",
+                ProofType::BatchAppendWithSubtreesTest => "append-with-subtrees-test",
                 ProofType::BatchUpdateTest => "update-test",
-                ProofType::BatchAppend2Test => "append2-test",
+                ProofType::BatchAppendWithProofsTest => "append-with-proofs-test",
             }
         )
     }

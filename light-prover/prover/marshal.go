@@ -179,9 +179,9 @@ func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 }
 
 func ReadSystemFromFile(path string) (interface{}, error) {
-	if strings.Contains(strings.ToLower(path), "append2") {
+	if strings.Contains(strings.ToLower(path), "append-with-proofs") {
 		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAppend2CircuitType
+		ps.CircuitType = BatchAppendWithProofsCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
@@ -192,9 +192,9 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 			return nil, err
 		}
 		return ps, nil
-	} else if strings.Contains(strings.ToLower(path), "append") {
+	} else if strings.Contains(strings.ToLower(path), "append-with-subtrees") {
 		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAppendCircuitType
+		ps.CircuitType = BatchAppendWithSubtreesCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
