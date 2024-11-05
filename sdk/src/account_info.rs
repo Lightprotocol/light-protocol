@@ -55,7 +55,7 @@ pub struct LightAccountInfo<'a> {
     /// New Merkle tree index. Set only if you want to change the tree.
     pub output_merkle_tree_index: Option<u8>,
     /// New address parameters.
-    pub new_address: Option<PackedNewAddressParams>,
+    pub new_address_params: Option<PackedNewAddressParams>,
 }
 
 impl<'a> LightAccountInfo<'a> {
@@ -149,7 +149,7 @@ impl<'a> LightAccountInfo<'a> {
             data_hash: None,
             address,
             output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address,
+            new_address_params: new_address,
         };
         Ok(account_info)
     }
@@ -164,7 +164,7 @@ impl<'a> LightAccountInfo<'a> {
         program_id: &Pubkey,
         remaining_accounts: &[AccountInfo],
     ) -> Result<()> {
-        match self.new_address {
+        match self.new_address_params {
             Some(ref mut params) => {
                 params.seed = derive_address_seed(seeds, program_id);
                 let unpacked_params = unpack_new_address_params(params, remaining_accounts);

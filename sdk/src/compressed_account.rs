@@ -52,7 +52,7 @@ where
     }
 
     pub fn new_address_params(&self) -> Option<PackedNewAddressParams> {
-        self.account_info.new_address
+        self.account_info.new_address_params
     }
 
     pub fn input_compressed_account(

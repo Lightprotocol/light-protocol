@@ -58,7 +58,7 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let (address, address_seed) = derive_address(
+    let (address, _) = derive_address(
         &[b"name-service", name.as_bytes()],
         &address_merkle_context,
         &name_service_without_macros::ID,
@@ -117,7 +117,6 @@ async fn test_name_service() {
     let compressed_accounts =
         test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
-    println!("COMPRESSED ACCS: {:?}", compressed_accounts);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
         .compressed_account
