@@ -17,7 +17,7 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 #[program]
 pub mod name_service {
     use light_hasher::Discriminator;
-    use light_sdk::account_info::convert_metas_to_infos;
+    use light_sdk::error::LightSdkError;
 
     use super::*;
 
@@ -28,14 +28,17 @@ pub mod name_service {
         rdata: RData,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
-
-        account_infos[0].derive_address(
-            &[b"name-service", name.as_bytes()],
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+            &accounts[0],
+            Some(NameRecord::discriminator()),
+            Some(&[b"name-service", name.as_bytes()]),
             &crate::ID,
             ctx.remaining_accounts,
-        )?;
-        account_infos[0].set_discriminator(NameRecord::discriminator());
+        )?];
 
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
 
@@ -62,9 +65,17 @@ pub mod name_service {
         new_rdata: RData,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
-
-        account_infos[0].set_discriminator(NameRecord::discriminator());
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+            &accounts[0],
+            Some(NameRecord::discriminator()),
+            None,
+            &crate::ID,
+            ctx.remaining_accounts,
+        )?];
 
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
 
@@ -92,9 +103,17 @@ pub mod name_service {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
-        let mut account_infos = convert_metas_to_infos(&inputs.accounts, &crate::ID)?;
-
-        account_infos[0].set_discriminator(NameRecord::discriminator());
+        let accounts = inputs
+            .accounts
+            .as_ref()
+            .ok_or(LightSdkError::ExpectedAccounts)?;
+        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
+            &accounts[0],
+            Some(NameRecord::discriminator()),
+            None,
+            &crate::ID,
+            ctx.remaining_accounts,
+        )?];
 
         let light_accounts = LightDeleteRecord::try_light_accounts(&account_infos)?;
 

@@ -10,7 +10,7 @@ pub enum LightSdkError {
     ExpectedAccounts,
     #[msg("Expected root index to be provided")]
     ExpectedRootIndex,
-    #[msg("Address parameters are expected when deriving the address")]
+    #[msg("Address, address seed and address Merkle context are co-dependent on each other")]
     ExpectedAddressParams,
     #[msg("Expected address root index to be provided")]
     ExpectedAddressRootIndex,

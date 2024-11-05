@@ -71,7 +71,7 @@ where
 {
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
-        account_infos: &'a [LightAccountInfo],
+        account_infos: &'a mut [LightAccountInfo],
     ) -> Result<Self> {
         let light_accounts = U::try_light_accounts(account_infos)?;
         Ok(Self {

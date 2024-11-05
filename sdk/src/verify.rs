@@ -288,7 +288,7 @@ where
         Vec::with_capacity(light_accounts.len());
     let mut output_compressed_accounts = Vec::with_capacity(light_accounts.len());
 
-    for light_account in light_accounts {
+    for light_account in light_accounts.iter() {
         if let Some(new_address_param) = light_account.new_address_params() {
             anchor_lang::prelude::msg!("new address param: {:?}", new_address_param);
             new_address_params.push(new_address_param);

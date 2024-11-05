@@ -6,7 +6,7 @@ use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 use crate::{
     account_meta::LightAccountMeta,
     address::{
-        derive_address_from_params, derive_address_seed, unpack_new_address_params,
+        derive_address, derive_address_from_params, derive_address_seed, unpack_new_address_params,
         PackedNewAddressParams,
     },
     compressed_account::{
@@ -15,6 +15,7 @@ use crate::{
     },
     error::LightSdkError,
     merkle_context::PackedMerkleContext,
+    program_merkle_context::unpack_address_merkle_context,
 };
 
 /// Information about compressed account which is being initialized.
@@ -58,7 +59,13 @@ pub struct LightAccountInfo<'a> {
 }
 
 impl<'a> LightAccountInfo<'a> {
-    pub fn from_meta(meta: &'a LightAccountMeta, program_id: &Pubkey) -> Result<Self> {
+    pub fn from_meta(
+        meta: &'a LightAccountMeta,
+        discriminator: Option<[u8; 8]>,
+        new_address_seeds: Option<&[&[u8]]>,
+        program_id: &Pubkey,
+        remaining_accounts: &[AccountInfo],
+    ) -> Result<Self> {
         let input = match meta.merkle_context {
             Some(merkle_context) => Some(LightInputAccountInfo {
                 lamports: meta.lamports,
@@ -71,13 +78,51 @@ impl<'a> LightAccountInfo<'a> {
             }),
             None => None,
         };
+
+        // `new_address_seeds` depends on `meta.address_merkle_context`.
+        // We can't create an address without knowing in which Merkle tree.
+        //
+        // When all of them are defined, we request a creation of a new
+        // address.
+        // When none of them is defined, we don't do that.
+        // When only a subset of them is defined, we raise an error.
+        let (address, new_address) = match (new_address_seeds, meta.address_merkle_context) {
+            (Some(seeds), Some(address_merkle_context)) => {
+                let unpacked_merkle_context =
+                    unpack_address_merkle_context(address_merkle_context, remaining_accounts);
+                let (address, seed) = derive_address(seeds, &unpacked_merkle_context, program_id);
+                let new_address = PackedNewAddressParams {
+                    seed,
+                    address_merkle_tree_account_index: address_merkle_context
+                        .address_merkle_tree_pubkey_index,
+                    address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+                    address_merkle_tree_root_index: meta
+                        .address_merkle_tree_root_index
+                        .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
+                };
+                (Some(address), Some(new_address))
+            }
+            (None, None) => (None, None),
+            // If no seeds are provided and there is no address Merkle context,
+            // don't do anything.
+            (None, Some(_)) => (None, None),
+            (Some(_), None) => return Err(LightSdkError::ExpectedAddressParams.into()),
+        };
+
+        let address = match address {
+            Some(address) => Some(address),
+            // If we didn't derive a new address, just take the one which was
+            // submitted by the client.
+            None => meta.address,
+        };
+
         let account_info = LightAccountInfo {
             input,
             owner: Some(*program_id),
             // Needs to be assigned by the program.
             lamports: None,
             // Needs to be assigned by the program.
-            discriminator: None,
+            discriminator,
             // NOTE(vadorovsky): A `clone()` here is unavoidable.
             // What we have here is an immutable reference to `LightAccountMeta`,
             // from which we can take an immutable reference to `data`.
@@ -102,24 +147,9 @@ impl<'a> LightAccountInfo<'a> {
                 .map(|data| Rc::new(RefCell::new(data.clone()))),
             // Needs to be assigned by the program.
             data_hash: None,
-            address: meta.address,
+            address,
             output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address: match meta.address_merkle_context {
-                Some(address_merkle_tree_meta) => {
-                    Some(PackedNewAddressParams {
-                        // Seed has to be overwritten later.
-                        seed: [0u8; 32],
-                        address_merkle_tree_account_index: address_merkle_tree_meta
-                            .address_merkle_tree_pubkey_index,
-                        address_queue_account_index: address_merkle_tree_meta
-                            .address_queue_pubkey_index,
-                        address_merkle_tree_root_index: meta
-                            .address_merkle_tree_root_index
-                            .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
-                    })
-                }
-                None => None,
-            },
+            new_address,
         };
         Ok(account_info)
     }
@@ -136,20 +166,14 @@ impl<'a> LightAccountInfo<'a> {
     ) -> Result<()> {
         match self.new_address {
             Some(ref mut params) => {
-                anchor_lang::prelude::msg!("program_id: {:?}", program_id);
                 params.seed = derive_address_seed(seeds, program_id);
                 let unpacked_params = unpack_new_address_params(params, remaining_accounts);
 
-                anchor_lang::prelude::msg!("params: {:?}", unpacked_params);
                 self.address = Some(derive_address_from_params(unpacked_params));
                 Ok(())
             }
             None => Err(LightSdkError::ExpectedAddressParams.into()),
         }
-    }
-
-    pub fn set_discriminator(&mut self, discriminator: [u8; 8]) {
-        self.discriminator = Some(discriminator);
     }
 
     /// Converts the given [LightAccountInfo] into a
@@ -223,25 +247,5 @@ impl<'a> LightAccountInfo<'a> {
             }
             None => Ok(None),
         }
-    }
-}
-
-pub fn convert_metas_to_infos<'a, 'b>(
-    metas: &'a Option<Vec<LightAccountMeta>>,
-    program_id: &'b Pubkey,
-) -> Result<Vec<LightAccountInfo<'a>>>
-where
-    'a: 'b,
-{
-    match metas {
-        Some(metas) => {
-            let mut infos = Vec::with_capacity(metas.len());
-            for meta in metas {
-                let info = LightAccountInfo::from_meta(meta, program_id)?;
-                infos.push(info);
-            }
-            Ok(infos)
-        }
-        None => Ok(Vec::new()),
     }
 }

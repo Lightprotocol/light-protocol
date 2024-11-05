@@ -30,7 +30,7 @@ impl<'info, T> LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn from_light_account_info(account_info: &'info LightAccountInfo) -> Result<Self> {
+    pub fn from_light_account_info(account_info: &'info LightAccountInfo<'info>) -> Result<Self> {
         let account_state = if account_info.input.is_some() {
             if let Some(ref data) = account_info.data {
                 T::try_from_slice(data.borrow().as_slice())?
@@ -54,17 +54,31 @@ where
         &self,
         program_id: &Pubkey,
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
-        match self.account_info.input_compressed_account(program_id)? {
-            Some(mut input) => {
-                let data = match input.compressed_account.data {
-                    Some(data) => {
-                        let account = T::try_from_slice(data.data.as_slice())?;
-                        Some(hash_input_account(&account)?)
-                    }
-                    None => None,
+        match self.account_info.input.as_ref() {
+            Some(input) => {
+                let data = {
+                    let discriminator = T::discriminator();
+                    let data_hash = self
+                        .account_state
+                        .hash::<Poseidon>()
+                        .map_err(ProgramError::from)?;
+                    Some(CompressedAccountData {
+                        discriminator,
+                        data: Vec::new(),
+                        data_hash,
+                    })
                 };
-                input.compressed_account.data = data;
-                Ok(Some(input))
+                Ok(Some(PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: *program_id,
+                        lamports: input.lamports.unwrap_or(0),
+                        address: input.address,
+                        data,
+                    },
+                    merkle_context: input.merkle_context,
+                    root_index: input.root_index,
+                    read_only: false,
+                }))
             }
             None => Ok(None),
         }
@@ -74,12 +88,29 @@ where
         &self,
         program_id: &Pubkey,
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
-        match self.account_info.output_compressed_account(program_id)? {
-            Some(mut account) => {
-                let data = serialize_and_hash_output_account(&self.account_state)?;
-                account.compressed_account.data = Some(data);
-
-                Ok(Some(account))
+        match self.account_info.output_merkle_tree_index {
+            Some(merkle_tree_index) => {
+                let data = {
+                    let discriminator = T::discriminator();
+                    let data_hash = self
+                        .account_state
+                        .hash::<Poseidon>()
+                        .map_err(ProgramError::from)?;
+                    Some(CompressedAccountData {
+                        discriminator,
+                        data: self.account_state.try_to_vec()?,
+                        data_hash,
+                    })
+                };
+                Ok(Some(OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: self.account_info.owner.unwrap_or(*program_id),
+                        lamports: self.account_info.lamports.unwrap_or(0),
+                        address: self.account_info.address,
+                        data,
+                    },
+                    merkle_tree_index,
+                }))
             }
             None => Ok(None),
         }

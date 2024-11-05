@@ -83,41 +83,14 @@ pub fn unpack_new_address_params(
 /// );
 /// ```
 pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
-    #[cfg(target_os = "solana")]
-    {
-        anchor_lang::prelude::msg!("derive: seeds: {:?}", seeds);
-        anchor_lang::prelude::msg!("derive: program_id: {:?}", program_id);
-    }
-    #[cfg(not(target_os = "solana"))]
-    {
-        println!("derive: seeds: {seeds:?}");
-        println!("derive: program_id: {program_id:?}");
-    }
-
     let mut inputs = Vec::with_capacity(seeds.len() + 1);
 
     let program_id = program_id.to_bytes();
     inputs.push(program_id.as_slice());
 
     inputs.extend(seeds);
-    #[cfg(target_os = "solana")]
-    {
-        anchor_lang::prelude::msg!("derive: inputs: {:?}", inputs);
-    }
-    #[cfg(not(target_os = "solana"))]
-    {
-        println!("derive: inputs: {inputs:?}");
-    }
 
     let seed = hashv_to_bn254_field_size_be(inputs.as_slice());
-    #[cfg(target_os = "solana")]
-    {
-        anchor_lang::prelude::msg!("derive: seed: {:?}", seed);
-    }
-    #[cfg(not(target_os = "solana"))]
-    {
-        println!("derive: seed: {seed:?}");
-    }
     seed
 }
 
@@ -159,9 +132,6 @@ pub fn derive_address(
     address_merkle_context: &AddressMerkleContext,
     program_id: &Pubkey,
 ) -> ([u8; 32], [u8; 32]) {
-    println!("seeds: {seeds:?}");
-    println!("address mc: {address_merkle_context:?}");
-    println!("program_id: {program_id:?}");
     let address_seed = derive_address_seed(seeds, program_id);
     let address = derive_address_from_seed(&address_seed, address_merkle_context);
 
