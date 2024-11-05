@@ -48,6 +48,7 @@ impl BatchAppend2ProofInputsJson {
         }
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         create_json_from_struct(&self)
     }

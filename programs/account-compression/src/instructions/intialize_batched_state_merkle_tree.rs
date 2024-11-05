@@ -292,10 +292,6 @@ pub fn assert_mt_zero_copy_inited(
         light_hasher::Poseidon::zero_bytes()[26],
         "root_history not initialized"
     );
-    assert_eq!(
-        zero_copy_account.get_account().subtree_hash,
-        ref_account.subtree_hash
-    );
 
     assert_queue_inited(
         queue,
@@ -308,6 +304,7 @@ pub fn assert_mt_zero_copy_inited(
         num_iters,
     );
 }
+
 pub fn get_output_queue_account_default(
     owner: Pubkey,
     program_owner: Option<Pubkey>,

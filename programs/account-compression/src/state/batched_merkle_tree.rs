@@ -5,7 +5,7 @@ use crate::{
     errors::AccountCompressionErrorCode,
     utils::{
         check_signer_is_registered_or_authority::GroupAccess,
-        constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH, HEIGHT_26_SUBTREE_ZERO_HASH},
+        constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH},
     },
     InitStateTreeAccountsInstructionData,
 };
@@ -66,7 +66,6 @@ pub struct BatchedMerkleTreeAccount {
     pub next_index: u64,
     pub height: u32,
     pub root_history_capacity: u32,
-    pub subtree_hash: [u8; 32],
     pub queue: BatchedQueue,
 }
 
@@ -109,7 +108,6 @@ impl BatchedMerkleTreeAccount {
                 ),
                 associated_queue,
             },
-            subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
             sequence_number: 0,
             tree_type: BatchedTreeType::State as u64,
             next_index: 0,
@@ -216,7 +214,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             (*account).root_history_capacity = root_history_capacity;
             (*account).height = height;
             (*account).tree_type = BatchedTreeType::State as u64;
-            (*account).subtree_hash = HEIGHT_26_SUBTREE_ZERO_HASH;
             (*account).queue.init(
                 num_batches_input_queue,
                 input_queue_batch_size,
@@ -284,21 +281,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let new_root = instruction_data.public_inputs.new_root;
         let num_zkps = full_batch.get_num_inserted_zkps();
 
-        // let start_index = num_zkps * circuit_batch_size;
-        // let end_index = start_index + circuit_batch_size;
-
-        // let leaves_hashchain = {
-        //     let values = queue_account.value_vecs.get(batch_index as usize).unwrap();
-        //     let mut leaves_hashchain = values[start_index as usize];
-        //     for i in start_index as usize + 1..end_index as usize {
-        //         leaves_hashchain = Poseidon::hashv(&[&leaves_hashchain, &values[i]]).unwrap();
-        //     }
-        //     leaves_hashchain
-        // };
-        println!(
-            "update output queue self.hashchain_store : {:?}",
-            queue_account.hashchain_store
-        );
         let leaves_hashchain = queue_account
             .hashchain_store
             .get(batch_index as usize)
@@ -311,13 +293,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
         let public_input_hash =
             create_hash_chain([*old_root, new_root, *leaves_hashchain, start_index_bytes])?;
-        println!("old_root: {:?}", old_root);
-        println!("new_root: {:?}", new_root);
-        println!("leaves_hashchain: {:?}", leaves_hashchain);
-        println!("start_index: {:?}", start_index);
-        println!("public_input_hash: {:?}", public_input_hash);
-        println!("compressed_proof: {:?}", instruction_data.compressed_proof);
-        println!("circuit_batch_size: {:?}", circuit_batch_size);
 
         self.update::<5>(
             circuit_batch_size as usize,
@@ -368,7 +343,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             .unwrap();
         let new_root = instruction_data.public_inputs.new_root;
 
-        // TODO: add new_subtrees_hash to circuit public inputs
         let public_input_hash = create_hash_chain([*old_root, new_root, *leaves_hashchain])?;
         let circuit_batch_size = self.get_account().queue.zkp_batch_size;
         let sequence_number = self.get_account().sequence_number;
@@ -429,10 +403,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let leaf_index_bytes = leaf_index.to_be_bytes();
         let nullifier =
             Poseidon::hashv(&[value, &leaf_index_bytes, tx_hash]).map_err(ProgramError::from)?;
-        println!("program: nullifier: {:?}", nullifier);
-        println!("program: leaf_index: {:?}", leaf_index);
-        println!("program: leaf_index_bytes: {:?}", leaf_index_bytes);
-        println!("program: tx_hash: {:?}", tx_hash);
         self.insert_into_current_batch(value, &nullifier)
     }
 
@@ -549,7 +519,6 @@ pub fn get_merkle_tree_account_size_default() -> usize {
         tree_type: BatchedTreeType::State as u64,
         height: 26,
         root_history_capacity: 20,
-        subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
         queue: BatchedQueue {
             currently_processing_batch_index: 0,
             num_batches: 4,
@@ -589,7 +558,6 @@ pub fn get_merkle_tree_account_size(
         tree_type: BatchedTreeType::State as u64,
         height: 26,
         root_history_capacity,
-        subtree_hash: HEIGHT_26_SUBTREE_ZERO_HASH,
         queue: BatchedQueue {
             num_batches: 4,
             batch_size,
@@ -646,30 +614,6 @@ mod tests {
         for (i, insert_value) in insert_values.iter().enumerate() {
             if !input_is_in_tree[i] {
                 let value_vec_index = array_indices[i];
-                println!(
-                    "input queue assert not in tree: leaf index: {}",
-                    leaf_indices[i]
-                );
-                println!(
-                    "input queue assert not in tree: pre_value_vecs[0].len(): {}",
-                    pre_value_vecs[0].len()
-                );
-                println!(
-                    "input queue assert not in tree: value_vec_index: {}",
-                    value_vec_index
-                );
-                println!(
-                    "input queue assert not in tree: value_vecs: {:?}",
-                    pre_value_vecs
-                );
-                println!(
-                    "input queue assert not in tree: insert_value: {:?}",
-                    insert_value
-                );
-                println!(
-                    "index of insert_value: {:?}",
-                    pre_value_vecs[0].iter().position(|x| x == insert_value)
-                );
                 assert!(
                     pre_value_vecs.iter_mut().any(|value_vec| {
                         if value_vec.len() > value_vec_index {

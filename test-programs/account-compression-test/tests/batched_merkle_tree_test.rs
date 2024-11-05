@@ -267,7 +267,7 @@ async fn test_init_state_merkle_tree() {
             let mut leaf = [0u8; 32];
             leaf[31] = counter as u8;
             nullifiers.push(leaf);
-            mock_indexer.input_queue_leaves.push(leaf);
+            mock_indexer.input_queue_leaves.push((leaf, i));
             counter += 1;
         }
 
