@@ -17,7 +17,10 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 #[program]
 pub mod name_service {
     use light_hasher::Discriminator;
-    use light_sdk::error::LightSdkError;
+    use light_sdk::{
+        address::derive_address, error::LightSdkError,
+        program_merkle_context::unpack_address_merkle_context,
+    };
 
     use super::*;
 
@@ -32,12 +35,24 @@ pub mod name_service {
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
+
+        let address_merkle_context = accounts[0]
+            .address_merkle_context
+            .ok_or(LightSdkError::ExpectedAddressParams)?;
+        let address_merkle_context =
+            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+        let (address, address_seed) = derive_address(
+            &[b"name-service", name.as_bytes()],
+            &address_merkle_context,
+            &crate::ID,
+        );
+
         let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta(
             &accounts[0],
             Some(NameRecord::discriminator()),
-            Some(&[b"name-service", name.as_bytes()]),
+            Some(address),
+            Some(address_seed),
             &crate::ID,
-            ctx.remaining_accounts,
         )?];
 
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
@@ -73,8 +88,8 @@ pub mod name_service {
             &accounts[0],
             Some(NameRecord::discriminator()),
             None,
+            None,
             &crate::ID,
-            ctx.remaining_accounts,
         )?];
 
         let mut light_accounts = LightCreateRecord::try_light_accounts(&account_infos)?;
@@ -111,8 +126,8 @@ pub mod name_service {
             &accounts[0],
             Some(NameRecord::discriminator()),
             None,
+            None,
             &crate::ID,
-            ctx.remaining_accounts,
         )?];
 
         let light_accounts = LightDeleteRecord::try_light_accounts(&account_infos)?;

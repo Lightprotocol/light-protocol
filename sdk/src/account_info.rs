@@ -6,7 +6,7 @@ use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 use crate::{
     account_meta::LightAccountMeta,
     address::{
-        derive_address, derive_address_from_params, derive_address_seed, unpack_new_address_params,
+        derive_address_from_params, derive_address_seed, unpack_new_address_params,
         PackedNewAddressParams,
     },
     compressed_account::{
@@ -15,7 +15,6 @@ use crate::{
     },
     error::LightSdkError,
     merkle_context::PackedMerkleContext,
-    program_merkle_context::unpack_address_merkle_context,
 };
 
 /// Information about compressed account which is being initialized.
@@ -62,9 +61,9 @@ impl<'a> LightAccountInfo<'a> {
     pub fn from_meta(
         meta: &'a LightAccountMeta,
         discriminator: Option<[u8; 8]>,
-        new_address_seeds: Option<&[&[u8]]>,
+        new_address: Option<[u8; 32]>,
+        new_address_seed: Option<[u8; 32]>,
         program_id: &Pubkey,
-        remaining_accounts: &[AccountInfo],
     ) -> Result<Self> {
         let input = match meta.merkle_context {
             Some(merkle_context) => Some(LightInputAccountInfo {
@@ -79,35 +78,37 @@ impl<'a> LightAccountInfo<'a> {
             None => None,
         };
 
-        // `new_address_seeds` depends on `meta.address_merkle_context`.
+        // `new_address` and `new_address_seeds` are co-dependent. And when
+        // they're defined, they need `meta.address_merkle_context` to be
+        // defined.
         // We can't create an address without knowing in which Merkle tree.
         //
         // When all of them are defined, we request a creation of a new
         // address.
         // When none of them is defined, we don't do that.
         // When only a subset of them is defined, we raise an error.
-        let (address, new_address) = match (new_address_seeds, meta.address_merkle_context) {
-            (Some(seeds), Some(address_merkle_context)) => {
-                let unpacked_merkle_context =
-                    unpack_address_merkle_context(address_merkle_context, remaining_accounts);
-                let (address, seed) = derive_address(seeds, &unpacked_merkle_context, program_id);
-                let new_address = PackedNewAddressParams {
-                    seed,
-                    address_merkle_tree_account_index: address_merkle_context
-                        .address_merkle_tree_pubkey_index,
-                    address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-                    address_merkle_tree_root_index: meta
-                        .address_merkle_tree_root_index
-                        .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
-                };
-                (Some(address), Some(new_address))
-            }
-            (None, None) => (None, None),
-            // If no seeds are provided and there is no address Merkle context,
-            // don't do anything.
-            (None, Some(_)) => (None, None),
-            (Some(_), None) => return Err(LightSdkError::ExpectedAddressParams.into()),
-        };
+        let (address, new_address_params) =
+            match (new_address, new_address_seed, meta.address_merkle_context) {
+                (Some(address), Some(seed), Some(address_merkle_context)) => {
+                    let new_address = PackedNewAddressParams {
+                        seed,
+                        address_merkle_tree_account_index: address_merkle_context
+                            .address_merkle_tree_pubkey_index,
+                        address_queue_account_index: address_merkle_context
+                            .address_queue_pubkey_index,
+                        address_merkle_tree_root_index: meta
+                            .address_merkle_tree_root_index
+                            .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
+                    };
+                    (Some(address), Some(new_address))
+                }
+                (None, None, None) => (None, None),
+                // If no seeds are provided and there is no address Merkle context,
+                // don't do anything.
+                (None, None, Some(_)) => (None, None),
+                // Otherwise, throw an error.
+                _ => return Err(LightSdkError::ExpectedAddressParams.into()),
+            };
 
         let address = match address {
             Some(address) => Some(address),
@@ -149,7 +150,7 @@ impl<'a> LightAccountInfo<'a> {
             data_hash: None,
             address,
             output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address_params: new_address,
+            new_address_params,
         };
         Ok(account_info)
     }
