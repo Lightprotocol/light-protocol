@@ -1,7 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use std::net::{Ipv4Addr, Ipv6Addr};
-
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
@@ -19,11 +17,9 @@ use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
 use sdk_test::{MyCompressedAccount, NestedData};
-use solana_sdk::instruction::{Instruction, InstructionError};
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::instruction::Instruction;
+use solana_sdk::signature::{Signer, Keypair};
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
-use solana_sdk::transaction::{Transaction, TransactionError};
 
 #[tokio::test]
 async fn test_sdk_test() {
