@@ -16,7 +16,24 @@ pub mod sdk_test {
         name: String,
     ) -> Result<()> {
         ctx.light_accounts.my_compressed_account.name = name;
+        Ok(())
+    }
+
+    pub fn with_nested_data<'info>(
+        ctx: LightContext<'_, '_, '_, 'info, WithNestedData<'info>>,
+        one: u16,
+    ) -> Result<()> {
+
         ctx.light_accounts.my_compressed_account.nested = NestedData::default();
+        ctx.light_accounts.my_compressed_account.nested.one = one;
+        Ok(())
+    }
+
+    pub fn update_nested_data<'info>(
+        ctx: LightContext<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        nested_data: NestedData,
+    ) -> Result<()> {
+        ctx.light_accounts.my_compressed_account.nested = nested_data;
         Ok(())
     }
 
@@ -88,7 +105,7 @@ pub struct WithCompressedAccount<'info> {
     pub self_program: Program<'info, crate::program::SdkTest>,
     /// CHECK: Checked in light-system-program.
     #[authority]
-    pub cpi_signed: AccountInfo<'info>,
+    pub cpi_signer: AccountInfo<'info>,
 
     #[light_account(
         init,
@@ -96,6 +113,45 @@ pub struct WithCompressedAccount<'info> {
     )]
     pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
+
+#[light_accounts]
+#[instruction(one: u16)]
+pub struct WithNestedData<'info> {
+    #[account(mut)]
+    #[fee_payer]
+    pub signer: Signer<'info>,
+    #[self_program]
+    pub self_program: Program<'info, crate::program::SdkTest>,
+    /// CHECK: Checked in light-system-program.
+    #[authority]
+    pub cpi_signer: AccountInfo<'info>,
+
+    #[light_account(
+        init,
+        seeds = [b"compressed".as_slice()],
+    )]
+    pub my_compressed_account: LightAccount<MyCompressedAccount>,
+}
+
+
+#[light_accounts]
+pub struct UpdateNestedData<'info> {
+    #[account(mut)]
+    #[fee_payer]
+    pub signer: Signer<'info>,
+    #[self_program]
+    pub self_program: Program<'info, crate::program::SdkTest>,
+    /// CHECK: Checked in light-system-program.
+    #[authority]
+    pub cpi_signer: AccountInfo<'info>,
+
+    #[light_account(
+        mut,
+        seeds = [b"compressed".as_slice()],
+    )]
+    pub my_compressed_account: LightAccount<MyCompressedAccount>,
+}
+
 
 #[derive(Accounts)]
 #[instruction(name: String)]

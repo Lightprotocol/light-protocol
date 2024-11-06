@@ -1,7 +1,7 @@
 [package]
 name = "sdk-test"
 version = "0.7.0"
-description = "Created with Anchor"
+description = "Test program for Light SDK and Light Macros"
 edition = "2021"
 rust-version = "1.75.0" 
 license = "Apache-2.0"
