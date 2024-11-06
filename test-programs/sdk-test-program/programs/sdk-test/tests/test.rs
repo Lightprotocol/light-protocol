@@ -9,7 +9,6 @@ use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::address::{derive_address, derive_address_seed};
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_sdk::error::LightSdkError;
 use light_sdk::merkle_context::{
     pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
     PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
@@ -63,7 +62,7 @@ async fn test_sdk_test() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(&[b"sdk_test"], &sdk_test::ID);
+    let address_seed = derive_address_seed(&[b"compressed"], &sdk_test::ID);
     let address = derive_address(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
@@ -77,7 +76,7 @@ async fn test_sdk_test() {
     .0;
 
     with_nested_data(
-        1, // one
+        "test".to_string(),
         &mut rpc,
         &mut test_indexer,
         &env,
@@ -149,7 +148,7 @@ async fn test_sdk_test() {
 }
 
 async fn with_nested_data<R>(
-    one: u16,
+    name: String,
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
@@ -182,7 +181,7 @@ where
         merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
-        one,
+        name,
     };
 
     let cpi_signer = find_cpi_signer(&sdk_test::ID);

@@ -4,7 +4,7 @@ use light_sdk::{
     merkle_context::PackedAddressMerkleContext, LightHasher,
 };
 
-declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
+declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[light_program]
 #[program]
@@ -21,10 +21,10 @@ pub mod sdk_test {
 
     pub fn with_nested_data<'info>(
         ctx: LightContext<'_, '_, '_, 'info, WithNestedData<'info>>,
-        one: u16,
+        name: String,
     ) -> Result<()> {
+        ctx.light_accounts.my_compressed_account.name = name;
         ctx.light_accounts.my_compressed_account.nested = NestedData::default();
-        ctx.light_accounts.my_compressed_account.nested.one = one;
         Ok(())
     }
 
@@ -108,13 +108,12 @@ pub struct WithCompressedAccount<'info> {
 
     #[light_account(
         init,
-        seeds = [b"compressed".as_slice(), name.as_bytes()],
+        seeds = [b"compressed".as_slice()],
     )]
     pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
 #[light_accounts]
-#[instruction(one: u16)]
 pub struct WithNestedData<'info> {
     #[account(mut)]
     #[fee_payer]
@@ -124,7 +123,6 @@ pub struct WithNestedData<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-
     #[light_account(
         init,
         seeds = [b"compressed".as_slice()],
@@ -142,7 +140,6 @@ pub struct UpdateNestedData<'info> {
     /// CHECK: Checked in light-system-program.
     #[authority]
     pub cpi_signer: AccountInfo<'info>,
-
     #[light_account(
         mut,
         seeds = [b"compressed".as_slice()],
