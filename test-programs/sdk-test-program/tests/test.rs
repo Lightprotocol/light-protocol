@@ -19,7 +19,7 @@ use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
-use sdk_test::MyCompressedAccount;
+use sdk_test::{MyCompressedAccount, NestedData};
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
@@ -110,9 +110,26 @@ async fn test_sdk_test() {
         &mut rpc,
         &mut test_indexer,
         &mut remaining_accounts,
-        NestedData { one: 2 },
+        NestedData {
+            one: 2,
+            two: 3,
+            three: 3,
+            four: 4,
+            five: 5,
+            six: 6,
+            seven: 7,
+            eight: 8,
+            nine: 9,
+            ten: 10,
+            eleven: 11,
+            twelve: 12,
+        },
         &payer,
         compressed_account,
+        &address_merkle_context,
+        &account_compression_authority,
+        &registered_program_pda,
+        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
