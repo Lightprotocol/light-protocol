@@ -3,13 +3,10 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
-use light_sdk::account_info::LightAccountInfo;
 use light_sdk::{
-    compressed_account::{LightAccount, LightAccounts},
-    instruction_data::LightInstructionData,
-    light_system_accounts,
-    verify::verify_compressed_accounts,
-    LightDiscriminator, LightHasher, LightTraits,
+    compressed_account::LightAccount, instruction_data::LightInstructionData,
+    light_system_accounts, verify::verify_light_accounts, LightDiscriminator, LightHasher,
+    LightTraits,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
@@ -47,29 +44,19 @@ pub mod name_service {
             &crate::ID,
         );
 
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_init(
+        let mut record: LightAccount<'_, NameRecord> = LightAccount::from_meta_init(
             &accounts[0],
             NameRecord::discriminator(),
             address,
             address_seed,
             &crate::ID,
-        )?];
-
-        let mut light_accounts = LightCreateRecord::try_light_accounts(account_infos)?;
-
-        light_accounts.record.owner = ctx.accounts.signer.key();
-        light_accounts.record.name = name;
-        light_accounts.record.rdata = rdata;
-
-        verify_compressed_accounts(
-            &ctx,
-            inputs.proof,
-            &[light_accounts.record],
-            None,
-            false,
-            None,
-            &crate::ID,
         )?;
+
+        record.owner = ctx.accounts.signer.key();
+        record.name = name;
+        record.rdata = rdata;
+
+        verify_light_accounts(&ctx, inputs.proof, &[record], None, false, None, &crate::ID)?;
 
         Ok(())
     }
@@ -79,34 +66,26 @@ pub mod name_service {
         inputs: Vec<u8>,
         new_rdata: RData,
     ) -> Result<()> {
+        // Deserialize the Light Protocol related data.
         let inputs = LightInstructionData::deserialize(&inputs)?;
+        // Require accounts to be provided.
         let accounts = inputs
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_mut(
-            &accounts[0],
-            NameRecord::discriminator(),
-            &crate::ID,
-        )?];
 
-        let mut light_accounts = LightCreateRecord::try_light_accounts(account_infos)?;
+        // Convert `LightAccountMeta` to `LightAccount`.
+        let mut record: LightAccount<'_, NameRecord> =
+            LightAccount::from_meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
-        if light_accounts.record.owner != ctx.accounts.signer.key() {
+        // Check the ownership of the `record`.
+        if record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
         }
 
-        light_accounts.record.rdata = new_rdata;
+        record.rdata = new_rdata;
 
-        verify_compressed_accounts(
-            &ctx,
-            inputs.proof,
-            &[light_accounts.record],
-            None,
-            false,
-            None,
-            &crate::ID,
-        )?;
+        verify_light_accounts(&ctx, inputs.proof, &[record], None, false, None, &crate::ID)?;
 
         Ok(())
     }
@@ -120,27 +99,15 @@ pub mod name_service {
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
-        let account_infos: &[LightAccountInfo] = &[LightAccountInfo::from_meta_close(
-            &accounts[0],
-            NameRecord::discriminator(),
-            &crate::ID,
-        )?];
 
-        let light_accounts = LightDeleteRecord::try_light_accounts(account_infos)?;
+        let record: LightAccount<'_, NameRecord> =
+            LightAccount::from_meta_close(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
-        if light_accounts.record.owner != ctx.accounts.signer.key() {
+        if record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
         }
 
-        verify_compressed_accounts(
-            &ctx,
-            inputs.proof,
-            &[light_accounts.record],
-            None,
-            false,
-            None,
-            &crate::ID,
-        )?;
+        verify_light_accounts(&ctx, inputs.proof, &[record], None, false, None, &crate::ID)?;
 
         Ok(())
     }
@@ -205,13 +172,6 @@ pub struct LightCreateRecord<'a> {
     pub record: LightAccount<'a, NameRecord>,
 }
 
-impl<'a> LightAccounts<'a> for LightCreateRecord<'a> {
-    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
-        Ok(Self { record })
-    }
-}
-
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct UpdateRecord<'info> {
@@ -229,13 +189,6 @@ pub struct LightUpdateRecord<'a> {
     pub record: LightAccount<'a, NameRecord>,
 }
 
-impl<'a> LightAccounts<'a> for LightUpdateRecord<'a> {
-    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
-        Ok(Self { record })
-    }
-}
-
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct DeleteRecord<'info> {
@@ -251,11 +204,4 @@ pub struct DeleteRecord<'info> {
 
 pub struct LightDeleteRecord<'a> {
     pub record: LightAccount<'a, NameRecord>,
-}
-
-impl<'a> LightAccounts<'a> for LightDeleteRecord<'a> {
-    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self> {
-        let record: LightAccount<NameRecord> = LightAccount::from_light_account_info(&accounts[0])?;
-        Ok(Self { record })
-    }
 }

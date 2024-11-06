@@ -253,7 +253,7 @@ where
     Ok(())
 }
 
-pub fn verify_compressed_accounts<'info, T>(
+pub fn verify_light_accounts<'info, T>(
     ctx: &Context<
         '_,
         '_,

@@ -6,6 +6,7 @@ use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     account_info::LightAccountInfo,
+    account_meta::LightAccountMeta,
     address::PackedNewAddressParams,
     error::LightSdkError,
     merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts},
@@ -22,16 +23,90 @@ pub struct LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
+    /// State of the output account which can be modified by the developer in
+    /// the program code.
     account_state: T,
-    account_info: &'info LightAccountInfo<'info>,
-    input_hash: [u8; 32],
+    /// Account information.
+    account_info: LightAccountInfo<'info>,
+    /// Hash of the input account.
+    input_hash: Option<[u8; 32]>,
 }
 
 impl<'info, T> LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn from_light_account_info(account_info: &'info LightAccountInfo<'info>) -> Result<Self> {
+    pub fn from_meta_init(
+        meta: &'info LightAccountMeta,
+        discriminator: [u8; 8],
+        new_address: [u8; 32],
+        new_address_seed: [u8; 32],
+        program_id: &Pubkey,
+    ) -> Result<Self> {
+        let account_state = T::default();
+        let account_info = LightAccountInfo::from_meta_init(
+            meta,
+            discriminator,
+            new_address,
+            new_address_seed,
+            program_id,
+        )?;
+        Ok(Self {
+            account_state,
+            account_info,
+            input_hash: None,
+        })
+    }
+
+    pub fn from_meta_mut(
+        meta: &'info LightAccountMeta,
+        discriminator: [u8; 8],
+        program_id: &Pubkey,
+    ) -> Result<Self> {
+        let account_info = LightAccountInfo::from_meta_mut(meta, discriminator, program_id)?;
+        let account_state = T::try_from_slice(
+            account_info
+                .data
+                .as_ref()
+                .ok_or(LightSdkError::ExpectedData)?
+                .borrow()
+                .as_slice(),
+        )?;
+        let input_hash = account_state
+            .hash::<Poseidon>()
+            .map_err(ProgramError::from)?;
+        Ok(Self {
+            account_state,
+            account_info,
+            input_hash: Some(input_hash),
+        })
+    }
+
+    pub fn from_meta_close(
+        meta: &'info LightAccountMeta,
+        discriminator: [u8; 8],
+        program_id: &Pubkey,
+    ) -> Result<Self> {
+        let account_info = LightAccountInfo::from_meta_mut(meta, discriminator, program_id)?;
+        let account_state = T::try_from_slice(
+            account_info
+                .data
+                .as_ref()
+                .ok_or(LightSdkError::ExpectedData)?
+                .borrow()
+                .as_slice(),
+        )?;
+        let input_hash = account_state
+            .hash::<Poseidon>()
+            .map_err(ProgramError::from)?;
+        Ok(Self {
+            account_state,
+            account_info,
+            input_hash: Some(input_hash),
+        })
+    }
+
+    pub fn from_light_account_info(account_info: LightAccountInfo<'info>) -> Result<Self> {
         let account_state = if account_info.input.is_some() {
             if let Some(ref data) = account_info.data {
                 T::try_from_slice(data.borrow().as_slice())?
@@ -47,7 +122,7 @@ where
         Ok(Self {
             account_state,
             account_info,
-            input_hash,
+            input_hash: Some(input_hash),
         })
     }
 
@@ -66,7 +141,7 @@ where
                     Some(CompressedAccountData {
                         discriminator,
                         data: Vec::new(),
-                        data_hash: self.input_hash,
+                        data_hash: self.input_hash.ok_or(LightSdkError::ExpectedHash)?,
                     })
                 };
                 Ok(Some(PackedCompressedAccountWithMerkleContext {
