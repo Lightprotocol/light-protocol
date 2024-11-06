@@ -93,8 +93,6 @@ async fn test_sdk_test() {
     .await
     .unwrap();
 
-    println!("done");
-
     // Check that it was created correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
@@ -108,57 +106,29 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
-    println!("done 2");
-    // update_record(
-    //     &mut rpc,
-    //     &mut test_indexer,
-    //     &mut remaining_accounts,
-    //     &rdata_2,
-    //     &payer,
-    //     compressed_account,
-    //     &address_merkle_context,
-    //     &account_compression_authority,
-    //     &registered_program_pda,
-    //     &PROGRAM_ID_LIGHT_SYSTEM,
-    // )
-    // .await
-    // .unwrap();
-
-    // {
-    //     let result = update_record(
-    //         &mut rpc,
-    //         &mut test_indexer,
-    //         &mut remaining_accounts,
-    //         &rdata_2,
-    //         &payer,
-    //         compressed_account,
-    //         &address_merkle_context,
-    //         &account_compression_authority,
-    //         &registered_program_pda,
-    //         &Pubkey::new_unique(),
-    //     )
-    //     .await;
-    //     assert!(matches!(
-    //         result,
-    //         Err(RpcError::TransactionError(
-    //             TransactionError::InstructionError(0, InstructionError::Custom(error))
-    //         ))if error == u32::from(LightSdkError::InvalidLightSystemProgram)
-    //     ));
-    // }
+    update_nested_data(
+        &mut rpc,
+        &mut test_indexer,
+        &mut remaining_accounts,
+        NestedData { one: 2 },
+        &payer,
+        compressed_account,
+    )
+    .await
+    .unwrap();
 
     // Check that it was updated correctly.
-    // let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
-    // assert_eq!(compressed_accounts.len(), 1);
-    // let compressed_account = &compressed_accounts[0];
-    // let record = &compressed_account
-    //     .compressed_account
-    //     .data
-    //     .as_ref()
-    //     .unwrap()
-    //     .data;
-    // let record = NameRecord::deserialize(&mut &record[..]).unwrap();
-    // assert_eq!(record.name, "example.io");
-    // assert_eq!(record.rdata, rdata_2);
+    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
+    assert_eq!(compressed_accounts.len(), 1);
+    let compressed_account = &compressed_accounts[0];
+    let record = &compressed_account
+        .compressed_account
+        .data
+        .as_ref()
+        .unwrap()
+        .data;
+    let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
+    assert_eq!(record.nested.one, 2);
 }
 
 async fn with_nested_data<R>(
@@ -227,80 +197,80 @@ where
     Ok(())
 }
 
-// async fn update_record<R>(
-//     rpc: &mut R,
-//     test_indexer: &mut TestIndexer<R>,
-//     remaining_accounts: &mut RemainingAccounts,
-//     new_rdata: &RData,
-//     payer: &Keypair,
-//     compressed_account: &CompressedAccountWithMerkleContext,
-//     address_merkle_context: &PackedAddressMerkleContext,
-//     account_compression_authority: &Pubkey,
-//     registered_program_pda: &Pubkey,
-//     light_system_program: &Pubkey,
-// ) -> Result<(), RpcError>
-// where
-//     R: RpcConnection + MerkleTreeExt,
-// {
-//     let hash = compressed_account.hash().unwrap();
-//     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
+async fn update_nested_data<R>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<R>,
+    remaining_accounts: &mut RemainingAccounts,
+    nested_data: NestedData,
+    payer: &Keypair,
+    compressed_account: &CompressedAccountWithMerkleContext,
+    address_merkle_context: &PackedAddressMerkleContext,
+    account_compression_authority: &Pubkey,
+    registered_program_pda: &Pubkey,
+    light_system_program: &Pubkey,
+) -> Result<(), RpcError>
+where
+    R: RpcConnection + MerkleTreeExt,
+{
+    let hash = compressed_account.hash().unwrap();
+    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-//     let rpc_result = test_indexer
-//         .create_proof_for_compressed_accounts(
-//             Some(&[hash]),
-//             Some(&[merkle_tree_pubkey]),
-//             None,
-//             None,
-//             rpc,
-//         )
-//         .await;
+    let rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&[hash]),
+            Some(&[merkle_tree_pubkey]),
+            None,
+            None,
+            rpc,
+        )
+        .await;
 
-//     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
 
-//     let inputs = vec![
-//         compressed_account
-//             .compressed_account
-//             .data
-//             .clone()
-//             .unwrap()
-//             .data,
-//     ];
+    let inputs = vec![
+        compressed_account
+            .compressed_account
+            .data
+            .clone()
+            .unwrap()
+            .data,
+    ];
 
-//     let instruction_data = name_service::instruction::UpdateRecord {
-//         inputs,
-//         proof: rpc_result.proof,
-//         merkle_context,
-//         merkle_tree_root_index: rpc_result.root_indices[0],
-//         address_merkle_context: *address_merkle_context,
-//         address_merkle_tree_root_index: 0,
-//         new_rdata: new_rdata.clone(),
-//     };
+    let instruction_data = sdk_test::instruction::UpdateNestedData {
+        inputs,
+        proof: rpc_result.proof,
+        merkle_context,
+        merkle_tree_root_index: rpc_result.root_indices[0],
+        address_merkle_context: *address_merkle_context,
+        address_merkle_tree_root_index: 0,
+        nested_data,
+    };
 
-//     let cpi_signer = find_cpi_signer(&name_service::ID);
+    let cpi_signer = find_cpi_signer(&sdk_test::ID);
 
-//     let accounts = name_service::accounts::UpdateRecord {
-//         signer: payer.pubkey(),
-//         light_system_program: *light_system_program,
-//         account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-//         account_compression_authority: *account_compression_authority,
-//         registered_program_pda: *registered_program_pda,
-//         noop_program: PROGRAM_ID_NOOP,
-//         self_program: name_service::ID,
-//         cpi_signer,
-//         system_program: solana_sdk::system_program::id(),
-//     };
+    let accounts = sdk_test::accounts::UpdateNestedData {
+        signer: payer.pubkey(),
+        light_system_program: *light_system_program,
+        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
+        account_compression_authority: *account_compression_authority,
+        registered_program_pda: *registered_program_pda,
+        noop_program: PROGRAM_ID_NOOP,
+        self_program: sdk_test::ID,
+        cpi_signer,
+        system_program: solana_sdk::system_program::id(),
+    };
 
-//     let remaining_accounts = remaining_accounts.to_account_metas();
+    let remaining_accounts = remaining_accounts.to_account_metas();
 
-//     let instruction = Instruction {
-//         program_id: name_service::ID,
-//         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-//         data: instruction_data.data(),
-//     };
+    let instruction = Instruction {
+        program_id: sdk_test::ID,
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    };
 
-//     let event = rpc
-//         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
-//         .await?;
-//     test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
-//     Ok(())
-// }
+    let event = rpc
+        .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
+        .await?;
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    Ok(())
+}
