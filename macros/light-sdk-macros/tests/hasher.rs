@@ -155,8 +155,25 @@ mod tests {
                 f: Some(0),
             };
 
+            let manual_account_bytes: Vec<Vec<u8>> = vec![
+                vec![u8::from(zero_account.a)],
+                zero_account.b.to_le_bytes().to_vec(),
+                zero_account.c.hash::<Poseidon>().unwrap().to_vec(),
+                light_utils::hash_to_bn254_field_size_be(&zero_account.d)
+                    .unwrap()
+                    .0
+                    .to_vec(),
+                {
+                    let mut bytes = vec![1u8];
+                    bytes.extend_from_slice(&zero_account.f.unwrap().to_le_bytes());
+                    bytes
+                },
+            ];
+            let account_bytes: Vec<&[u8]> =
+                manual_account_bytes.iter().map(|v| v.as_slice()).collect();
+            let manual_account_hash = Poseidon::hashv(&account_bytes).unwrap();
             let hash = zero_account.hash::<Poseidon>().unwrap();
-            assert_eq!(hash.len(), 32);
+            assert_eq!(hash, manual_account_hash);
         }
     }
 

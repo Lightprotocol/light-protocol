@@ -155,8 +155,31 @@ mod tests {
         let output = hasher(input).unwrap();
 
         let formatted_output = unparse(&syn::parse2(output).unwrap());
-
-        assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for MyAccount"));
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for MyAccount {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        result.extend(self.a.as_byte_vec());
+        result.extend(self.b.as_byte_vec());
+        result.extend(self.c.as_byte_vec());
+        result.extend(self.d.as_byte_vec());
+        result
+    }
+}
+impl ::light_hasher::DataHasher for MyAccount {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+        assert_eq!(formatted_output.trim(), expected_output.trim());
     }
     #[test]
     fn test_nested_struct() {
@@ -173,12 +196,33 @@ mod tests {
         let syntax_tree: syn::File = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
 
-        assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
-        assert!(formatted_output.contains("impl ::light_hasher::DataHasher for OuterStruct"));
-        assert!(formatted_output.contains("let nested_hash = ::light_hasher::DataHasher::hash::<"));
-        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
-        assert!(formatted_output.contains(">(&self.b)"));
-        assert!(formatted_output.contains("result.push(nested_hash.to_vec());"));
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for OuterStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        result.extend(self.a.as_byte_vec());
+        let nested_hash = ::light_hasher::DataHasher::hash::<
+            ::light_hasher::Poseidon,
+        >(&self.b)
+            .expect("Failed to hash nested field");
+        result.push(nested_hash.to_vec());
+        result
+    }
+}
+impl ::light_hasher::DataHasher for OuterStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+        assert_eq!(formatted_output.trim(), expected_output.trim());
     }
     #[test]
     fn test_nested_struct_with_attributes() {
@@ -198,17 +242,28 @@ mod tests {
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
 
-        assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
-        assert!(formatted_output.contains("impl ::light_hasher::DataHasher for OuterStruct"));
-        assert!(formatted_output.contains("result.extend(self.a.as_byte_vec())"));
-        assert!(formatted_output
-            .contains("let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])"));
-        assert!(formatted_output.contains("let value = &self.b;"));
-        assert!(formatted_output.contains("let bytes = value.as_byte_vec();"));
-        assert!(formatted_output.contains("let nested_hash = ::light_hasher::DataHasher::hash::<"));
-        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
-        assert!(formatted_output.contains(">(&self.d)"));
-        assert!(formatted_output.contains(".expect(\"Failed to hash nested field\")"));
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for OuterStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        result.extend(self.a.as_byte_vec());
+        let bytes = {
+            let value = &self.b;
+            let bytes = value.as_byte_vec();
+            let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])
+                .expect("Could not truncate to BN254 field size");
+            result.push(hash.to_vec());
+        };
+        let nested_hash = ::light_hasher::DataHasher::hash::<
+            ::light_hasher::Poseidon,
+        >(&self.d)
+            .expect("Failed to hash nested field");
+        result.push(nested_hash.to_vec());
+        result
+    }
+}"#;
+
+        assert_eq!(formatted_output.contains(expected_output), true);
         assert!(!formatted_output.contains("c: SkippedStruct"));
     }
     #[test]
@@ -223,14 +278,52 @@ mod tests {
         let output = hasher(input).unwrap();
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
-        assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
-        assert!(
-            formatted_output.contains("bytes.extend(value.as_byte_vec().into_iter().flatten());")
-        );
-        assert!(formatted_output.contains("result.push(vec![0])"));
+
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for OptionStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        match &self.a {
+            Some(value) => {
+                let mut bytes = vec![1u8];
+                bytes.extend(value.as_byte_vec().into_iter().flatten());
+                result.push(bytes);
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        match &self.b {
+            Some(value) => {
+                let mut bytes = vec![1u8];
+                bytes.extend(value.as_byte_vec().into_iter().flatten());
+                result.push(bytes);
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        result
+    }
+}
+impl ::light_hasher::DataHasher for OptionStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+        assert_eq!(formatted_output.trim(), expected_output.trim());
     }
     #[test]
     fn test_option_with_attributes() {
+        // Test truncate option
         let input: ItemStruct = parse_quote! {
             struct TruncateOptionStruct {
                 #[truncate]
@@ -241,9 +334,44 @@ mod tests {
         let output = hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        assert!(formatted_output.contains("hash_to_bn254_field_size_be"));
-        assert!(formatted_output.contains("result.push(vec![0])"));
+        let expected_truncate = r#"impl ::light_hasher::bytes::AsByteVec for TruncateOptionStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        match &self.a {
+            Some(value) => {
+                let bytes = value
+                    .as_byte_vec()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                    .expect("Could not truncate to BN254 field size");
+                result.push(bytes.to_vec());
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        result
+    }
+}
+impl ::light_hasher::DataHasher for TruncateOptionStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+        assert_eq!(formatted_output.trim(), expected_truncate.trim());
 
+        // Test nested option
         let input: ItemStruct = parse_quote! {
             struct NestedOptionStruct {
                 #[nested]
@@ -254,9 +382,39 @@ mod tests {
         let output = hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        assert!(formatted_output.contains("DataHasher::hash::<"));
-        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
-        assert!(formatted_output.contains("result.push(vec![0])"));
+        let expected_nested = r#"impl ::light_hasher::bytes::AsByteVec for NestedOptionStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        match &self.a {
+            Some(value) => {
+                let nested_hash = ::light_hasher::DataHasher::hash::<
+                    ::light_hasher::Poseidon,
+                >(value)
+                    .expect("Failed to hash nested field");
+                result.push(nested_hash.to_vec());
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        result
+    }
+}
+impl ::light_hasher::DataHasher for NestedOptionStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+        assert_eq!(formatted_output.trim(), expected_nested.trim());
     }
 
     #[test]
@@ -274,14 +432,65 @@ mod tests {
         let output = hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        assert!(formatted_output.matches("result.push(vec![0])").count() >= 3);
-        // nested
-        assert!(formatted_output.contains("DataHasher::hash::<"));
-        assert!(formatted_output.contains("::light_hasher::Poseidon,"));
-        assert!(formatted_output.contains(">(value)"));
-        // truncate
-        assert!(formatted_output.contains("hash_to_bn254_field_size_be"));
-        assert!(formatted_output.contains("let mut bytes = vec![1u8]"));
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for MixedOptionsStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        match &self.a {
+            Some(value) => {
+                let nested_hash = ::light_hasher::DataHasher::hash::<
+                    ::light_hasher::Poseidon,
+                >(value)
+                    .expect("Failed to hash nested field");
+                result.push(nested_hash.to_vec());
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        match &self.b {
+            Some(value) => {
+                let bytes = value
+                    .as_byte_vec()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                    .expect("Could not truncate to BN254 field size");
+                result.push(bytes.to_vec());
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        match &self.c {
+            Some(value) => {
+                let mut bytes = vec![1u8];
+                bytes.extend(value.as_byte_vec().into_iter().flatten());
+                result.push(bytes);
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        result
+    }
+}
+impl ::light_hasher::DataHasher for MixedOptionsStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+
+        assert_eq!(formatted_output.trim(), expected_output.trim());
     }
 
     #[test]
@@ -300,9 +509,49 @@ mod tests {
         let syntax_tree = syn::parse2(output).unwrap();
         let formatted_output = unparse(&syntax_tree);
 
-        assert!(formatted_output.contains("impl ::light_hasher::bytes::AsByteVec for OuterStruct"));
-        assert!(formatted_output.contains("match &self.c"));
-        assert!(formatted_output.contains("result.push(vec![0])"));
+        let expected_output = r#"impl ::light_hasher::bytes::AsByteVec for OuterStruct {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        use ::light_hasher::bytes::AsByteVec;
+        let mut result: Vec<Vec<u8>> = Vec::new();
+        result.extend(self.a.as_byte_vec());
+        let nested_hash = ::light_hasher::DataHasher::hash::<
+            ::light_hasher::Poseidon,
+        >(&self.b)
+            .expect("Failed to hash nested field");
+        result.push(nested_hash.to_vec());
+        match &self.c {
+            Some(value) => {
+                let bytes = value
+                    .as_byte_vec()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>();
+                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                    .expect("Could not truncate to BN254 field size");
+                result.push(bytes.to_vec());
+            }
+            None => {
+                result.push(vec![0]);
+            }
+        }
+        result
+    }
+}
+impl ::light_hasher::DataHasher for OuterStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+    where
+        H: ::light_hasher::Hasher,
+    {
+        use ::light_hasher::bytes::AsByteVec;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        let bytes = self.as_byte_vec();
+        let nested_bytes: Vec<_> = bytes.iter().map(|v| v.as_slice()).collect();
+        H::hashv(&nested_bytes)
+    }
+}"#;
+
+        assert_eq!(formatted_output.trim(), expected_output.trim());
     }
 
     #[test]
