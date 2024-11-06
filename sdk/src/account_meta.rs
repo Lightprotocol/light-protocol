@@ -65,7 +65,6 @@ impl LightAccountMeta {
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
         output_merkle_tree: &Pubkey,
-        read_only: bool,
         remaining_accounts: &mut RemainingAccounts,
     ) -> Self {
         let merkle_context =
@@ -88,7 +87,7 @@ impl LightAccountMeta {
             output_merkle_tree_index: Some(output_merkle_tree_index),
             address_merkle_context: None,
             address_merkle_tree_root_index: None,
-            read_only,
+            read_only: false,
         }
     }
 

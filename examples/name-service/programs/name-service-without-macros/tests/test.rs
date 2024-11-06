@@ -375,7 +375,6 @@ where
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
-        false,
         remaining_accounts,
     );
 
