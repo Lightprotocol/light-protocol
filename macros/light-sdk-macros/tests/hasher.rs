@@ -11,8 +11,6 @@ pub struct MyAccount {
     pub c: MyNestedStruct,
     #[truncate]
     pub d: [u8; 32],
-    #[skip]
-    pub e: MyNestedNonHashableStruct,
     pub f: Option<usize>,
 }
 
@@ -32,41 +30,42 @@ pub struct MyNestedNonHashableStruct {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     /// LightHasher Tests
-    ///
+    /// 
     /// Basic (Success):
     /// - test_byte_representation: assert_eq! nested struct hash matches manual hash
     /// - test_zero_values: assert_eq! zero-value field hash matches manual hash
-    ///
+    /// 
     /// Truncate (Success):
     /// - test_array_truncation: assert_ne! between different array hashes
     /// - test_truncation_longer_array: assert_ne! between different long string hashes
     /// - test_multiple_truncates: assert_ne! between multiple truncated field hashes
     /// - test_nested_with_truncate: assert_eq! nested + truncated field hash matches manual hash
-    ///
+    /// 
     /// Nested (Success):
     /// - test_recursive_nesting: assert_eq! recursive nested struct hash matches manual hash
     /// - test_nested_option: assert_eq! Option<NestedStruct> hash matches manual hash
     /// - test_nested_field_count: assert!(is_ok()) with 12 nested fields
-    ///
+    /// 
     /// Errors (Failure):
     /// - test_empty_struct: assert!(is_err()) on empty struct
     /// - test_poseidon_width_limits: assert!(is_err()) with >12 fields
     /// - test_max_array_length: assert!(is_err()) on array exceeding max size
-    ///
+    /// 
     /// Options (Success):
     /// - test_option_hashing_with_reference_values: assert_eq! against reference hashes
     /// - test_basic_option_variants: assert_eq! basic type hashes match manual hash
     /// - test_truncated_option_variants: assert_eq! truncated Option hash matches manual hash
     /// - test_nested_option_variants: assert_eq! nested Option hash matches manual hash
     /// - test_mixed_option_combinations: assert_eq! combined Option hash matches manual hash
-    ///
+    /// 
     /// Uniqueness (Success):
     /// - test_option_value_uniqueness: assert_ne! between None/Some(0)/Some(1) hashes
     /// - test_field_order_uniqueness: assert_ne! between different field orders
     /// - test_truncated_option_uniqueness: assert_ne! between None/Some truncated hashes
-    ///
+    /// 
     /// Bytes (Success):
     /// - test_truncate_byte_representation: assert_eq! truncated bytes match expected
     /// - test_byte_representation_combinations: assert_eq! bytes match expected
@@ -87,10 +86,6 @@ mod tests {
                 b: u64::MAX,
                 c: create_nested_struct(),
                 d: [u8::MAX; 32],
-                e: MyNestedNonHashableStruct {
-                    a: PhantomData,
-                    b: Rc::new(RefCell::new(usize::MAX)),
-                },
                 f,
             }
         }
@@ -171,10 +166,6 @@ mod tests {
                 b: 0,
                 c: nested,
                 d: [0; 32],
-                e: MyNestedNonHashableStruct {
-                    a: PhantomData,
-                    b: Rc::new(RefCell::new(0)),
-                },
                 f: Some(0),
             };
 
@@ -527,6 +518,21 @@ mod tests {
             let result = test_struct.hash::<Poseidon>();
             assert!(result.is_err(), "Oversized array should fail to hash");
         }
+
+        #[test]
+        fn test_option_array_error() {
+            #[derive(LightHasher)]
+            struct OptionArray {
+                data: Option<[u8; 32]>,
+            }
+
+            let test_struct = OptionArray {
+                data: Some([0u8; 32]),
+            };
+
+            let result = test_struct.hash::<Poseidon>();
+            assert!(result.is_err(), "Option<[u8;32]> should fail to hash without truncate");
+        }
     }
 
     mod option_handling {
@@ -562,22 +568,18 @@ mod tests {
                 small: Option<u32>,
                 large: Option<u64>,
                 empty_str: Option<String>,
-                #[skip]
-                long_str: Option<String>,
             }
 
             let test_struct = BasicOptions {
                 small: Some(42),
                 large: Some(u64::MAX),
                 empty_str: Some("".to_string()),
-                long_str: Some("a".repeat(100)),
             };
 
             let none_struct = BasicOptions {
                 small: None,
                 large: None,
                 empty_str: None,
-                long_str: None,
             };
 
             let manual_bytes = vec![
@@ -618,24 +620,6 @@ mod tests {
                     226, 134, 78, 236, 236, 150, 197, 174, 124, 238, 109, 179, 27, 165, 153, 170
                 ]
             );
-
-            #[derive(LightHasher)]
-            struct BasicOptionsNoSkip {
-                small: Option<u32>,
-                large: Option<u64>,
-                empty_str: Option<String>,
-                long_str: Option<String>,
-            }
-
-            let test_struct_no_skip = BasicOptionsNoSkip {
-                small: Some(42),
-                large: Some(u64::MAX),
-                empty_str: Some("".to_string()),
-                long_str: Some("a".repeat(100)),
-            };
-
-            // Hash should fail due to long string
-            assert!(test_struct_no_skip.hash::<Poseidon>().is_err());
         }
 
         #[test]
@@ -927,7 +911,7 @@ mod tests {
 
     mod option_uniqueness {
         use super::*;
-
+// TODO: split into multi tests to ensure ne is attributable
         #[test]
         fn test_option_value_uniqueness() {
             #[derive(LightHasher)]

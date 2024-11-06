@@ -29,15 +29,19 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
     let field_into_bytes_calls = fields
         .named
         .iter()
-        .filter(|field| {
-            !field.attrs.iter().any(|attr| attr.path().is_ident("skip"))
-        })
         .map(|field| {
             let field_name = &field.ident;
             let truncate = field.attrs.iter().any(|attr| attr.path().is_ident("truncate"));
             let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested"));
-            let is_option = is_option_type(&field.ty);
+            
+            if truncate && nested {
+                return Err(Error::new_spanned(
+                    field,
+                    "Field cannot have both #[nested] and #[truncate] attributes",
+                ));
+            }
 
+            let is_option = is_option_type(&field.ty);
 
             Ok(if nested {
                 if is_option {
@@ -231,8 +235,6 @@ impl ::light_hasher::DataHasher for OuterStruct {
                 a: u32,
                 #[truncate]
                 b: InnerStruct,
-                #[skip]
-                c: SkippedStruct,
                 #[nested]
                 d: NestedStruct,
             }
@@ -264,7 +266,6 @@ impl ::light_hasher::DataHasher for OuterStruct {
 }"#;
 
         assert_eq!(formatted_output.contains(expected_output), true);
-        assert!(!formatted_output.contains("c: SkippedStruct"));
     }
     #[test]
     fn test_option_handling() {
