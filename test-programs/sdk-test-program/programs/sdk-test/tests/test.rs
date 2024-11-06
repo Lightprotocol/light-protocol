@@ -18,8 +18,8 @@ use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccoun
 use light_test_utils::{RpcConnection, RpcError};
 use sdk_test::{MyCompressedAccount, NestedData};
 use solana_sdk::instruction::Instruction;
-use solana_sdk::signature::{Signer, Keypair};
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::{Keypair, Signer};
 
 #[tokio::test]
 async fn test_sdk_test() {

@@ -33,6 +33,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "account-compression-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "ark-bn254",
+ "ark-ff",
+ "light-bounded-vec",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hash-set",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "memoffset 0.9.1",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1438,6 +1473,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "compressed-token-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-prover-client",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "tokio",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1940,6 +2000,36 @@ dependencies = [
  "once_cell",
  "os_pipe",
  "shared_child",
+]
+
+[[package]]
+name = "e2e-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-registry",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "solana-client",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-concurrent-merkle-tree 0.2.0",
+ "spl-token",
+ "tokio",
 ]
 
 [[package]]
@@ -5219,6 +5309,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
+name = "registry-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "forester-utils",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-prover-client",
+ "light-registry",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "reqwest 0.11.27",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "tokio",
+]
+
+[[package]]
 name = "relative-path"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7934,6 +8053,58 @@ checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "system-cpi-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-token",
+ "light-hasher",
+ "light-prover-client",
+ "light-registry",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "reqwest 0.11.27",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "tokio",
+]
+
+[[package]]
+name = "system-test"
+version = "1.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-prover-client",
+ "light-registry",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "quote",
+ "reqwest 0.11.27",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "tokio",
 ]
 
 [[package]]
