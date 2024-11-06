@@ -23,7 +23,6 @@ pub mod sdk_test {
         ctx: LightContext<'_, '_, '_, 'info, WithNestedData<'info>>,
         one: u16,
     ) -> Result<()> {
-
         ctx.light_accounts.my_compressed_account.nested = NestedData::default();
         ctx.light_accounts.my_compressed_account.nested.one = one;
         Ok(())
@@ -133,7 +132,6 @@ pub struct WithNestedData<'info> {
     pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
-
 #[light_accounts]
 pub struct UpdateNestedData<'info> {
     #[account(mut)]
@@ -151,7 +149,6 @@ pub struct UpdateNestedData<'info> {
     )]
     pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
-
 
 #[derive(Accounts)]
 #[instruction(name: String)]

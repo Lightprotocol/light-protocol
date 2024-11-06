@@ -28,11 +28,9 @@ use solana_sdk::transaction::{Transaction, TransactionError};
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        String::from("sdk_test"),
-        sdk_test::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_v2(Some(vec![(String::from("sdk_test"), sdk_test::ID)]))
+            .await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
@@ -96,7 +94,7 @@ async fn test_sdk_test() {
     .unwrap();
 
     println!("done");
-   
+
     // Check that it was created correctly.
     let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
