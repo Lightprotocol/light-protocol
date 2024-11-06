@@ -33,20 +33,43 @@ pub struct MyNestedNonHashableStruct {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Test suite for LightHasher derive macro
+    /// LightHasher Tests
     ///
-    /// Tests cover:
-    /// - Basic hashing: Byte representation, boundary values
-    /// - Attribute behavior:
-    ///   - #[truncate]: Arrays, strings, multiple fields
-    ///   - #[nested]: Recursive nesting, field counts
-    /// - Option handling:
-    ///   - Basic, truncated and nested variants
-    ///   - Uniqueness: None vs Some(0), different Some values, partial Some/None
-    ///   - Field ordering: Different field positions produce unique hashes
-    ///   - Truncated options: None vs empty, different values, varying lengths
-    /// - Error cases: Empty structs, Poseidon width limits
+    /// Basic (Success):
+    /// - test_byte_representation: assert_eq! nested struct hash matches manual hash
+    /// - test_zero_values: assert_eq! zero-value field hash matches manual hash
+    ///
+    /// Truncate (Success):
+    /// - test_array_truncation: assert_ne! between different array hashes
+    /// - test_truncation_longer_array: assert_ne! between different long string hashes
+    /// - test_multiple_truncates: assert_ne! between multiple truncated field hashes
+    /// - test_nested_with_truncate: assert_eq! nested + truncated field hash matches manual hash
+    ///
+    /// Nested (Success):
+    /// - test_recursive_nesting: assert_eq! recursive nested struct hash matches manual hash
+    /// - test_nested_option: assert_eq! Option<NestedStruct> hash matches manual hash
+    /// - test_nested_field_count: assert!(is_ok()) with 12 nested fields
+    ///
+    /// Errors (Failure):
+    /// - test_empty_struct: assert!(is_err()) on empty struct
+    /// - test_poseidon_width_limits: assert!(is_err()) with >12 fields
+    /// - test_max_array_length: assert!(is_err()) on array exceeding max size
+    ///
+    /// Options (Success):
+    /// - test_option_hashing_with_reference_values: assert_eq! against reference hashes
+    /// - test_basic_option_variants: assert_eq! basic type hashes match manual hash
+    /// - test_truncated_option_variants: assert_eq! truncated Option hash matches manual hash
+    /// - test_nested_option_variants: assert_eq! nested Option hash matches manual hash
+    /// - test_mixed_option_combinations: assert_eq! combined Option hash matches manual hash
+    ///
+    /// Uniqueness (Success):
+    /// - test_option_value_uniqueness: assert_ne! between None/Some(0)/Some(1) hashes
+    /// - test_field_order_uniqueness: assert_ne! between different field orders
+    /// - test_truncated_option_uniqueness: assert_ne! between None/Some truncated hashes
+    ///
+    /// Bytes (Success):
+    /// - test_truncate_byte_representation: assert_eq! truncated bytes match expected
+    /// - test_byte_representation_combinations: assert_eq! bytes match expected
     mod fixtures {
         use super::*;
 
@@ -140,7 +163,7 @@ mod tests {
         }
 
         #[test]
-        fn test_boundary_values() {
+        fn test_zero_values() {
             let nested = create_zero_nested();
 
             let zero_account = MyAccount {
@@ -491,6 +514,18 @@ mod tests {
             };
 
             assert!(too_many.hash::<Poseidon>().is_err());
+        }
+
+        #[test]
+        fn test_max_array_length() {
+            #[derive(LightHasher)]
+            struct OversizedArray {
+                data: [u8; 32],
+            }
+
+            let test_struct = OversizedArray { data: [255u8; 32] };
+            let result = test_struct.hash::<Poseidon>();
+            assert!(result.is_err(), "Oversized array should fail to hash");
         }
     }
 
