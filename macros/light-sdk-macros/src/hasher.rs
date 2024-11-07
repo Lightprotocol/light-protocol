@@ -32,8 +32,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         .map(|field| {
             let field_name = &field.ident;
             let truncate = field.attrs.iter().any(|attr| attr.path().is_ident("truncate"));
-            let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested"));
-            
+            let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested")); 
             if truncate && nested {
                 return Err(Error::new_spanned(
                     field,

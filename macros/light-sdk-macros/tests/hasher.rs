@@ -33,42 +33,46 @@ mod tests {
 
     use super::*;
     /// LightHasher Tests
-    /// 
-    /// Basic (Success):
+    ///
+    /// 1. Basic Hashing (Success):
     /// - test_byte_representation: assert_eq! nested struct hash matches manual hash
     /// - test_zero_values: assert_eq! zero-value field hash matches manual hash
-    /// 
-    /// Truncate (Success):
-    /// - test_array_truncation: assert_ne! between different array hashes
-    /// - test_truncation_longer_array: assert_ne! between different long string hashes
-    /// - test_multiple_truncates: assert_ne! between multiple truncated field hashes
-    /// - test_nested_with_truncate: assert_eq! nested + truncated field hash matches manual hash
-    /// 
-    /// Nested (Success):
-    /// - test_recursive_nesting: assert_eq! recursive nested struct hash matches manual hash
-    /// - test_nested_option: assert_eq! Option<NestedStruct> hash matches manual hash
-    /// - test_nested_field_count: assert!(is_ok()) with 12 nested fields
-    /// 
-    /// Errors (Failure):
+    ///
+    /// 2. Attribute Behavior:
+    ///   a. Truncate (Success):
+    ///   - test_array_truncation: assert_ne! between different array hashes
+    ///   - test_truncation_longer_array: assert_ne! between different long string hashes
+    ///   - test_multiple_truncates: assert_ne! between multiple truncated field hashes
+    ///   - test_nested_with_truncate: assert_eq! nested + truncated field hash matches manual hash
+    ///   
+    ///   b. Nested (Success):
+    ///   - test_recursive_nesting: assert_eq! recursive nested struct hash matches manual hash
+    ///   - test_nested_option: assert_eq! Option<NestedStruct> hash matches manual hash
+    ///   - test_nested_field_count: assert!(is_ok()) with 12 nested fields
+    ///
+    /// 3. Error Cases (Failure):
     /// - test_empty_struct: assert!(is_err()) on empty struct
     /// - test_poseidon_width_limits: assert!(is_err()) with >12 fields
     /// - test_max_array_length: assert!(is_err()) on array exceeding max size
-    /// 
-    /// Options (Success):
+    /// - test_option_array_error: assert!(is_err()) on Option<[u8;32]> without truncate
+    ///
+    /// 4. Option Handling (Success):
     /// - test_option_hashing_with_reference_values: assert_eq! against reference hashes
     /// - test_basic_option_variants: assert_eq! basic type hashes match manual hash
     /// - test_truncated_option_variants: assert_eq! truncated Option hash matches manual hash
     /// - test_nested_option_variants: assert_eq! nested Option hash matches manual hash
     /// - test_mixed_option_combinations: assert_eq! combined Option hash matches manual hash
-    /// 
-    /// Uniqueness (Success):
+    /// - test_nested_struct_with_options: assert_eq! nested struct with options hash matches manual hash
+    ///
+    /// 5. Option Uniqueness (Success):
     /// - test_option_value_uniqueness: assert_ne! between None/Some(0)/Some(1) hashes
     /// - test_field_order_uniqueness: assert_ne! between different field orders
     /// - test_truncated_option_uniqueness: assert_ne! between None/Some truncated hashes
-    /// 
-    /// Bytes (Success):
+    ///
+    /// 6. Byte Representation (Success):
     /// - test_truncate_byte_representation: assert_eq! truncated bytes match expected
     /// - test_byte_representation_combinations: assert_eq! bytes match expected
+    ///
     mod fixtures {
         use super::*;
 
@@ -531,7 +535,10 @@ mod tests {
             };
 
             let result = test_struct.hash::<Poseidon>();
-            assert!(result.is_err(), "Option<[u8;32]> should fail to hash without truncate");
+            assert!(
+                result.is_err(),
+                "Option<[u8;32]> should fail to hash without truncate"
+            );
         }
     }
 
@@ -911,7 +918,7 @@ mod tests {
 
     mod option_uniqueness {
         use super::*;
-// TODO: split into multi tests to ensure ne is attributable
+        // TODO: split into multi tests to ensure ne is attributable
         #[test]
         fn test_option_value_uniqueness() {
             #[derive(LightHasher)]
