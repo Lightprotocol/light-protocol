@@ -19,3 +19,4 @@ solana-program = { workspace = true, optional = true }
 tokio = { workspace = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"]  }
 light-prover-client = { path = "../light-prover-client", version = "1.2.0" }
+serial_test = "3.1.1"
