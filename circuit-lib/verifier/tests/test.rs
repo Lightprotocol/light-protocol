@@ -19,7 +19,7 @@ mod test {
     async fn prove_inclusion() {
         init_logger();
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![ProofType::Inclusion],
