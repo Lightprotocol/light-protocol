@@ -41,6 +41,6 @@ light-utils = {path = "../../utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}
 light-registry = { workspace = true}
 solana-cli-output = { workspace = true }
-serde_json = "1.0.114"
+serde_json = "1.0.132"
 solana-sdk = { workspace = true }
 quote.workspace = true

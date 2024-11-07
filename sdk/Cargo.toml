@@ -55,7 +55,7 @@ solana-sdk = { workspace = true }
 solana-banks-interface = { workspace = true }
 solana-cli-output = { workspace = true }
 solana-program-test = { workspace = true }
-serde_json = "1.0.114"
+serde_json = "1.0.132"
 reqwest = "0.12"
 tokio = { workspace = true }
 light-prover-client = { version = "1.2.0", path = "../circuit-lib/light-prover-client" }
