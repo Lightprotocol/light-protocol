@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-type BatchAppendParametersJSON struct {
+type BatchAppendWithSubtreesParametersJSON struct {
 	PublicInputHash     string   `json:"publicInputHash"`
 	OldSubTreeHashChain string   `json:"oldSubTreeHashChain"`
 	NewSubTreeHashChain string   `json:"newSubTreeHashChain"`
@@ -28,12 +28,12 @@ func ParseBatchAppendInput(inputJSON string) (BatchAppendParameters, error) {
 }
 
 func (p *BatchAppendParameters) MarshalJSON() ([]byte, error) {
-	paramsJson := p.CreateBatchAppendParametersJSON()
+	paramsJson := p.CreateBatchAppendWithSubtreesParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *BatchAppendParameters) CreateBatchAppendParametersJSON() BatchAppendParametersJSON {
-	paramsJson := BatchAppendParametersJSON{
+func (p *BatchAppendParameters) CreateBatchAppendWithSubtreesParametersJSON() BatchAppendWithSubtreesParametersJSON {
+	paramsJson := BatchAppendWithSubtreesParametersJSON{
 		PublicInputHash:     toHex(p.PublicInputHash),
 		OldSubTreeHashChain: toHex(p.OldSubTreeHashChain),
 		NewSubTreeHashChain: toHex(p.NewSubTreeHashChain),
@@ -57,7 +57,7 @@ func (p *BatchAppendParameters) CreateBatchAppendParametersJSON() BatchAppendPar
 }
 
 func (p *BatchAppendParameters) UnmarshalJSON(data []byte) error {
-	var params BatchAppendParametersJSON
+	var params BatchAppendWithSubtreesParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (p *BatchAppendParameters) UnmarshalJSON(data []byte) error {
 	return p.UpdateWithJSON(params)
 }
 
-func (p *BatchAppendParameters) UpdateWithJSON(params BatchAppendParametersJSON) error {
+func (p *BatchAppendParameters) UpdateWithJSON(params BatchAppendWithSubtreesParametersJSON) error {
 	var err error
 
 	p.TreeHeight = params.TreeHeight

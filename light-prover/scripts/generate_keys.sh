@@ -20,9 +20,12 @@ generate_circuit() {
 
     local compressed_accounts
     local circuit_type_rs
-    if [ "$circuit_type" == "append" ]; then
+    if [ "$circuit_type" == "append-with-subtrees" ]; then
         compressed_accounts=$append_batch_size
-        circuit_type_rs="append"
+        circuit_type_rs="append_with_subtrees"
+    elif [ "$circuit_type" == "append-with-proofs" ]; then
+        compressed_accounts=$append_batch_size
+        circuit_type_rs="append_with_proofs"
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$update_batch_size
         circuit_type_rs="update"
@@ -63,7 +66,14 @@ main() {
     declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
     for height in "${HEIGHTS[@]}"; do
         for batch_size in "${append_batch_sizes_arr[@]}"; do
-            generate_circuit "append" "$height" "$batch_size" "0" "0" "0"
+            generate_circuit "append-with-proofs" "$height" "$batch_size" "0" "0" "0"
+        done
+    done
+
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append-with-subtrees" "$height" "$batch_size" "0" "0" "0"
         done
     done
 

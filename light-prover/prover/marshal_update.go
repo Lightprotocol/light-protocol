@@ -13,6 +13,7 @@ type BatchUpdateProofInputsJSON struct {
 	TxHashes            []string   `json:"txHashes"`
 	LeavesHashchainHash string     `json:"leavesHashchainHash"`
 	Leaves              []string   `json:"leaves"`
+	OldLeaves           []string   `json:"oldLeaves"`
 	MerkleProofs        [][]string `json:"newMerkleProofs"`
 	PathIndices         []uint32   `json:"pathIndices"`
 	Height              uint32     `json:"height"`
@@ -46,8 +47,10 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePro
 	paramsJson.Leaves = make([]string, len(p.Leaves))
 	paramsJson.PathIndices = make([]uint32, len(p.PathIndices))
 	paramsJson.MerkleProofs = make([][]string, len(p.MerkleProofs))
+	paramsJson.OldLeaves = make([]string, len(p.OldLeaves))
 	// TODO: add assert that all slices are of the same length
 	for i := 0; i < len(p.Leaves); i++ {
+		paramsJson.OldLeaves[i] = toHex(p.OldLeaves[i])
 		paramsJson.Leaves[i] = toHex(p.Leaves[i])
 		paramsJson.TxHashes[i] = toHex(p.TxHashes[i])
 
@@ -97,6 +100,7 @@ func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateProofInputsJSON
 
 	p.TxHashes = make([]*big.Int, len(params.TxHashes))
 	p.Leaves = make([]*big.Int, len(params.Leaves))
+	p.OldLeaves = make([]*big.Int, len(params.OldLeaves))
 	for i := 0; i < len(params.Leaves); i++ {
 		p.Leaves[i] = new(big.Int)
 		err = fromHex(p.Leaves[i], params.Leaves[i])
@@ -105,6 +109,11 @@ func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateProofInputsJSON
 		}
 		p.TxHashes[i] = new(big.Int)
 		err = fromHex(p.TxHashes[i], params.TxHashes[i])
+		if err != nil {
+			return err
+		}
+		p.OldLeaves[i] = new(big.Int)
+		err = fromHex(p.OldLeaves[i], params.OldLeaves[i])
 		if err != nil {
 			return err
 		}

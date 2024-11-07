@@ -122,6 +122,12 @@ func (tree *PoseidonTree) Update(index int, value big.Int) []big.Int {
 	return proof
 }
 
+func (tree *PoseidonTree) GetProofByIndex(index int) []big.Int {
+	proof := make([]big.Int, tree.Root.depth())
+	tree.Root.writeProof(index, proof)
+	return proof
+}
+
 func NewTree(depth int) PoseidonTree {
 	initHashes := make([]big.Int, depth+1)
 	for i := 1; i <= depth; i++ {

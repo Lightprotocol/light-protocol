@@ -145,10 +145,12 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		proof, proofError = handler.nonInclusionProof(buf)
 	case prover.CombinedCircuitType:
 		proof, proofError = handler.combinedProof(buf)
-	case prover.BatchAppendCircuitType:
-		proof, proofError = handler.batchAppendProof(buf)
+	case prover.BatchAppendWithSubtreesCircuitType:
+		proof, proofError = handler.batchAppendWithSubtreesHandler(buf)
 	case prover.BatchUpdateCircuitType:
 		proof, proofError = handler.batchUpdateProof(buf)
+	case prover.BatchAppendWithProofsCircuitType:
+		proof, proofError = handler.batchAppendWithProofsHandler(buf)
 	default:
 		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
 	}
@@ -175,7 +177,40 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error) {
+func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Proof, *Error) {
+	var params prover.BatchAppendWithProofsParameters
+	err := json.Unmarshal(buf, &params)
+	if err != nil {
+		logging.Logger().Info().Msg("Error during JSON unmarshalling")
+		logging.Logger().Info().Msg(err.Error())
+		return nil, malformedBodyError(err)
+	}
+
+	treeHeight := params.Height
+	batchSize := params.BatchSize
+
+	var ps *prover.ProvingSystemV2
+	for _, provingSystem := range handler.provingSystemsV2 {
+		if provingSystem.CircuitType == prover.BatchAppendWithProofsCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+			ps = provingSystem
+			break
+		}
+	}
+
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	}
+
+	proof, err := ps.ProveBatchAppendWithProofs(&params)
+	if err != nil {
+		logging.Logger().Err(err).Msg("Error during proof generation")
+		return nil, provingError(err)
+	}
+
+	return proof, nil
+}
+
+func (handler proveHandler) batchAppendWithSubtreesHandler(buf []byte) (*prover.Proof, *Error) {
 	var params prover.BatchAppendParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
@@ -188,7 +223,7 @@ func (handler proveHandler) batchAppendProof(buf []byte) (*prover.Proof, *Error)
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendCircuitType && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
+		if provingSystem.CircuitType == prover.BatchAppendWithSubtreesCircuitType && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
 			ps = provingSystem
 			break
 		}

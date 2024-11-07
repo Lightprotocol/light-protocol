@@ -8,11 +8,12 @@ import (
 type CircuitType string
 
 const (
-	CombinedCircuitType     CircuitType = "combined"
-	InclusionCircuitType    CircuitType = "inclusion"
-	NonInclusionCircuitType CircuitType = "non-inclusion"
-	BatchAppendCircuitType  CircuitType = "append"
-	BatchUpdateCircuitType  CircuitType = "update"
+	CombinedCircuitType                CircuitType = "combined"
+	InclusionCircuitType               CircuitType = "inclusion"
+	NonInclusionCircuitType            CircuitType = "non-inclusion"
+	BatchAppendWithSubtreesCircuitType CircuitType = "append-with-subtrees"
+	BatchAppendWithProofsCircuitType   CircuitType = "append-with-proofs"
+	BatchUpdateCircuitType             CircuitType = "update"
 )
 
 func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
@@ -30,8 +31,10 @@ func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNu
 
 func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
 	switch circuit {
-	case BatchAppendCircuitType:
+	case BatchAppendWithSubtreesCircuitType:
 		return SetupBatchAppend(height, batchSize)
+	case BatchAppendWithProofsCircuitType:
+		return SetupBatchAppendWithProofs(height, batchSize)
 	case BatchUpdateCircuitType:
 		return SetupBatchUpdate(height, batchSize)
 	default:
@@ -52,6 +55,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	_, hasNewSubTreeHashChain := inputs["newSubTreeHashChain"]
 	_, hasLeaves := inputs["leaves"]
 	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
+	_, hasOldLeaves := inputs["oldLeaves"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return CombinedCircuitType, nil
@@ -60,9 +64,11 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	} else if hasNewAddresses {
 		return NonInclusionCircuitType, nil
 	} else if hasOldSubTreeHashChain && hasNewSubTreeHashChain && hasLeaves {
-		return BatchAppendCircuitType, nil
+		return BatchAppendWithSubtreesCircuitType, nil
 	} else if hasNewMerkleProofs {
 		return BatchUpdateCircuitType, nil
+	} else if hasOldLeaves {
+		return BatchAppendWithProofsCircuitType, nil
 	}
 	return "", fmt.Errorf("unknown schema")
 }

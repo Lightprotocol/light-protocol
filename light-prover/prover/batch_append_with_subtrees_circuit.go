@@ -3,7 +3,7 @@ package prover
 import (
 	"fmt"
 	"light/light-prover/logging"
-	merkle_tree "light/light-prover/merkle-tree"
+	merkletree "light/light-prover/merkle-tree"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -14,7 +14,7 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
-type BatchAppendCircuit struct {
+type BatchAppendWithSubtreesCircuit struct {
 	// Public inputs
 	PublicInputHash     frontend.Variable `gnark:",public"`
 	OldSubTreeHashChain frontend.Variable `gnark:",private"`
@@ -27,11 +27,12 @@ type BatchAppendCircuit struct {
 	Leaves   []frontend.Variable `gnark:",private"`
 	Subtrees []frontend.Variable `gnark:",private"`
 
-	BatchSize  uint32
+	BatchSize uint32
+	// TODO: rename to height
 	TreeHeight uint32
 }
 
-func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
+func (circuit *BatchAppendWithSubtreesCircuit) Define(api frontend.API) error {
 	if err := circuit.validateInputs(); err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func (circuit *BatchAppendCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func (circuit *BatchAppendCircuit) validateInputs() error {
+func (circuit *BatchAppendWithSubtreesCircuit) validateInputs() error {
 	if len(circuit.Leaves) != int(circuit.BatchSize) {
 		return fmt.Errorf("leaves length (%d) does not match batch size (%d)", len(circuit.Leaves), circuit.BatchSize)
 	}
@@ -73,7 +74,7 @@ func (circuit *BatchAppendCircuit) validateInputs() error {
 	return nil
 }
 
-func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Variable, []frontend.Variable) {
+func (circuit *BatchAppendWithSubtreesCircuit) batchAppend(api frontend.API) (frontend.Variable, []frontend.Variable) {
 	currentSubtrees := make([]frontend.Variable, len(circuit.Subtrees))
 	copy(currentSubtrees, circuit.Subtrees)
 
@@ -86,7 +87,7 @@ func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Varia
 		newRoot, currentSubtrees = circuit.append(api, leaf, currentSubtrees, indexBits)
 
 		// Increment the binary representation of the index
-		indexBits = circuit.incrementBits(api, indexBits)
+		indexBits = incrementBits(api, indexBits)
 	}
 
 	return newRoot, currentSubtrees
@@ -123,17 +124,17 @@ func (circuit *BatchAppendCircuit) batchAppend(api frontend.API) (frontend.Varia
 // Returns:
 // - The new root hash of the Merkle tree.
 // - The updated subtrees after insertion.
-func (circuit *BatchAppendCircuit) append(api frontend.API, leaf frontend.Variable, subtrees []frontend.Variable, indexBits []frontend.Variable) (frontend.Variable, []frontend.Variable) {
+func (circuit *BatchAppendWithSubtreesCircuit) append(api frontend.API, leaf frontend.Variable, subtrees []frontend.Variable, indexBits []frontend.Variable) (frontend.Variable, []frontend.Variable) {
 	currentNode := leaf
 
 	for i := 0; i < int(circuit.TreeHeight); i++ {
 		isRight := indexBits[i]
 		subtrees[i] = api.Select(isRight, subtrees[i], currentNode)
-		sibling := api.Select(isRight, subtrees[i], circuit.getZeroValue(api, i))
+		sibling := api.Select(isRight, subtrees[i], circuit.getZeroValue(i))
 
 		currentNode = abstractor.Call(api, MerkleRootGadget{
 			Hash:   currentNode,
-			Index:  isRight,
+			Index:  []frontend.Variable{isRight},
 			Path:   []frontend.Variable{sibling},
 			Height: 1,
 		})
@@ -164,7 +165,7 @@ func (circuit *BatchAppendCircuit) append(api frontend.API, leaf frontend.Variab
 // i=2: 1⊕1=0, carry=1∧1=1 -> 1010, carry=1
 // i=3: 0⊕1=1, carry=0∧1=0 -> 1000, carry=0
 // Final result: 1000 (8 in decimal)
-func (circuit *BatchAppendCircuit) incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
+func incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
 	carry := frontend.Variable(1)
 	for i := 0; i < len(bits); i++ {
 		// XOR operation implements binary addition without carry
@@ -176,7 +177,7 @@ func (circuit *BatchAppendCircuit) incrementBits(api frontend.API, bits []fronte
 	return bits
 }
 
-func (circuit *BatchAppendCircuit) getZeroValue(api frontend.API, level int) frontend.Variable {
+func (circuit *BatchAppendWithSubtreesCircuit) getZeroValue(level int) frontend.Variable {
 	return frontend.Variable(new(big.Int).SetBytes(ZERO_BYTES[level][:]))
 }
 
@@ -190,7 +191,7 @@ type BatchAppendParameters struct {
 	Leaves              []*big.Int `json:"leaves"`
 	Subtrees            []*big.Int `json:"subtrees"`
 	TreeHeight          uint32     `json:"treeHeight"`
-	tree                *merkle_tree.PoseidonTree
+	tree                *merkletree.PoseidonTree
 }
 
 func (p *BatchAppendParameters) BatchSize() uint32 {
@@ -228,7 +229,7 @@ func SetupBatchAppend(treeHeight uint32, batchSize uint32) (*ProvingSystemV2, er
 }
 
 func ImportBatchAppendSetup(treeDepth uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
-	circuit := BatchAppendCircuit{
+	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),
@@ -269,7 +270,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 		return nil, err
 	}
 
-	circuit := BatchAppendCircuit{
+	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldSubTreeHashChain: frontend.Variable(params.OldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(params.NewSubTreeHashChain),
@@ -303,7 +304,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 }
 
 func (ps *ProvingSystemV2) VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash *big.Int, proof *Proof) error {
-	publicWitness := BatchAppendCircuit{
+	publicWitness := BatchAppendWithSubtreesCircuit{
 		OldSubTreeHashChain: frontend.Variable(oldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(newSubTreeHashChain),
 		NewRoot:             frontend.Variable(newRoot),
@@ -324,7 +325,7 @@ func (ps *ProvingSystemV2) VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHash
 }
 
 func R1CSBatchAppend(treeDepth uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
-	circuit := BatchAppendCircuit{
+	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
 		NewSubTreeHashChain: frontend.Variable(0),

@@ -16,11 +16,17 @@ pub mod combined_26_3_2;
 pub mod combined_26_4_1;
 pub mod combined_26_4_2;
 
-pub mod append_26_1;
-pub mod append_26_10;
-pub mod append_26_100;
-pub mod append_26_1000;
-pub mod append_26_500;
+pub mod append_with_proofs_26_1;
+pub mod append_with_proofs_26_10;
+pub mod append_with_proofs_26_100;
+pub mod append_with_proofs_26_1000;
+pub mod append_with_proofs_26_500;
+
+pub mod append_with_subtrees_26_1;
+pub mod append_with_subtrees_26_10;
+pub mod append_with_subtrees_26_100;
+pub mod append_with_subtrees_26_1000;
+pub mod append_with_subtrees_26_500;
 
 pub mod update_26_1;
 pub mod update_26_10;

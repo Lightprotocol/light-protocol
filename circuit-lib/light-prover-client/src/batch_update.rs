@@ -1,4 +1,4 @@
-use crate::{batch_append::calculate_hash_chain, helpers::bigint_to_u8_32};
+use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
@@ -13,6 +13,7 @@ pub struct BatchUpdateCircuitInputs {
     pub tx_hashes: Vec<BigInt>,
     pub leaves_hashchain_hash: BigInt,
     pub leaves: Vec<BigInt>,
+    pub old_leaves: Vec<BigInt>,
     pub merkle_proofs: Vec<Vec<BigInt>>,
     pub path_indices: Vec<u32>,
     pub height: u32,
@@ -35,6 +36,7 @@ impl BatchUpdateInputs<'_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_batch_update_inputs<const HEIGHT: usize>(
     // get from photon
     current_root: [u8; 32],
@@ -45,6 +47,8 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     // get from account
     leaves_hashchain: [u8; 32],
     // get from photon
+    old_leaves: Vec<[u8; 32]>,
+    // get from photon
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     // get from photon
     path_indices: Vec<u32>,
@@ -54,7 +58,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     let mut new_root = [0u8; 32];
     let old_root = current_root;
     // We need a changelog because all subsequent proofs change after one update.
-    // Hence we patch the proofs with the changelog.
+    // Hence, we patch the proofs with the changelog.
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = vec![];
     let mut nullifiers = vec![];
@@ -74,7 +78,8 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         }
 
         let merkle_proof = bounded_vec_merkle_proof.to_array().unwrap();
-        let nullifier = Poseidon::hashv(&[&leaves[i], &tx_hashes[i]]).unwrap();
+        let index_bytes = index.to_be_bytes();
+        let nullifier = Poseidon::hashv(&[&leaves[i], &index_bytes, &tx_hashes[i]]).unwrap();
         nullifiers.push(nullifier);
         let (root, changelog_entry) =
             comput_root_from_merkle_proof(nullifier, &merkle_proof, *index);
@@ -97,6 +102,10 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
             .collect(),
         leaves_hashchain_hash: BigInt::from_be_bytes(&leaves_hashchain),
         leaves: leaves
+            .iter()
+            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+            .collect(),
+        old_leaves: old_leaves
             .iter()
             .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
             .collect(),

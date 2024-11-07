@@ -227,7 +227,6 @@ fn verify<const N: usize>(
     let proof_a = decompress_g1(&proof.a).map_err(|_| crate::DecompressG1Failed)?;
     let proof_b = decompress_g2(&proof.b).map_err(|_| crate::DecompressG2Failed)?;
     let proof_c = decompress_g1(&proof.c).map_err(|_| crate::DecompressG1Failed)?;
-
     let mut verifier = Groth16Verifier::new(&proof_a, &proof_b, &proof_c, public_inputs, vk)
         .map_err(|_| CreateGroth16VerifierFailed)?;
     verifier.verify().map_err(|_| {
@@ -243,4 +242,112 @@ fn verify<const N: usize>(
         ProofVerificationFailed
     })?;
     Ok(())
+}
+
+#[inline(never)]
+pub fn verify_batch_append(
+    batch_size: usize,
+    public_input_hash: [u8; 32],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    match batch_size {
+        1 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_subtrees_26_1::VERIFYINGKEY,
+        ),
+        10 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_subtrees_26_10::VERIFYINGKEY,
+        ),
+        100 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_subtrees_26_100::VERIFYINGKEY,
+        ),
+        500 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_subtrees_26_500::VERIFYINGKEY,
+        ),
+        1000 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_subtrees_26_1000::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
+}
+
+#[inline(never)]
+pub fn verify_batch_append2(
+    batch_size: usize,
+    public_input_hash: [u8; 32],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    match batch_size {
+        1 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_proofs_26_1::VERIFYINGKEY,
+        ),
+        10 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_proofs_26_10::VERIFYINGKEY,
+        ),
+        100 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_proofs_26_100::VERIFYINGKEY,
+        ),
+        500 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_proofs_26_500::VERIFYINGKEY,
+        ),
+        1000 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::append_with_proofs_26_1000::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
+}
+
+#[inline(never)]
+pub fn verify_batch_update(
+    batch_size: usize,
+    public_input_hash: [u8; 32],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    match batch_size {
+        1 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::update_26_1::VERIFYINGKEY,
+        ),
+        10 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::update_26_10::VERIFYINGKEY,
+        ),
+        100 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::update_26_100::VERIFYINGKEY,
+        ),
+        500 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::update_26_500::VERIFYINGKEY,
+        ),
+        1000 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::update_26_1000::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
 }

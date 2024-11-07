@@ -6,7 +6,7 @@ use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 
 #[derive(Clone, Debug, Default)]
-pub struct BatchAppendCircuitInputs {
+pub struct BatchAppendWithSubtreesCircuitInputs {
     pub public_input_hash: BigInt,
     pub old_sub_tree_hash_chain: BigInt,
     pub new_sub_tree_hash_chain: BigInt,
@@ -18,14 +18,14 @@ pub struct BatchAppendCircuitInputs {
     pub subtrees: Vec<BigInt>,
 }
 
-impl BatchAppendCircuitInputs {
+impl BatchAppendWithSubtreesCircuitInputs {
     pub fn public_inputs_arr(&self) -> [u8; 32] {
         bigint_to_u8_32(&self.public_input_hash).unwrap()
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct BatchAppendInputs<'a>(pub &'a [BatchAppendCircuitInputs]);
+pub struct BatchAppendInputs<'a>(pub &'a [BatchAppendWithSubtreesCircuitInputs]);
 
 impl BatchAppendInputs<'_> {
     pub fn public_inputs(&self) -> Vec<[u8; 32]> {
@@ -34,7 +34,7 @@ impl BatchAppendInputs<'_> {
     }
 }
 
-pub fn get_batch_append_inputs<const HEIGHT: usize>(
+pub fn get_batch_append_with_subtrees_inputs<const HEIGHT: usize>(
     // get either from photon or mt account
     next_index: usize,
     // get from photon
@@ -43,7 +43,7 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     leaves: Vec<[u8; 32]>,
     // get from queue
     leaves_hashchain: [u8; 32],
-) -> BatchAppendCircuitInputs {
+) -> BatchAppendWithSubtreesCircuitInputs {
     let mut bigint_leaves = vec![];
     let old_subtrees = sub_trees;
     let old_subtree_hashchain = calculate_hash_chain(&old_subtrees);
@@ -67,7 +67,7 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         start_index,
     ]);
 
-    BatchAppendCircuitInputs {
+    BatchAppendWithSubtreesCircuitInputs {
         subtrees: old_subtrees
             .iter()
             .map(|subtree| BigInt::from_bytes_be(Sign::Plus, subtree))

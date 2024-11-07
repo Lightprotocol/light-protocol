@@ -3685,6 +3685,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
+ "serial_test",
  "solana-program",
  "sysinfo",
  "thiserror",
