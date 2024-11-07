@@ -40,6 +40,10 @@ jobs:
     strategy:
       matrix:
         include:
+          - program: sdk-test-program
+            sub-tests: '[
+              "cargo-test-sbf -p sdk-test -- --test-threads=1"
+            ]'
           - program: account-compression
             sub-tests: '[
               "cargo-test-sbf -p account-compression-test"

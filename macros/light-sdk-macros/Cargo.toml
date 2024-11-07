@@ -16,6 +16,7 @@ light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0" }
 
 [dev-dependencies]
 light-utils = { path = "../../utils", version = "1.1.0" }
+prettyplease = "0.2.25"
 
 [lib]
 proc-macro = true

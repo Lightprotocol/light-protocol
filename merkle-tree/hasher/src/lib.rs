@@ -11,7 +11,8 @@ pub use keccak::Keccak;
 pub use poseidon::Poseidon;
 pub use sha256::Sha256;
 
-use crate::{errors::HasherError, zero_bytes::ZeroBytes};
+pub use crate::errors::HasherError;
+use crate::zero_bytes::ZeroBytes;
 
 pub const HASH_BYTES: usize = 32;
 

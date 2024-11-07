@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-name_service = "7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz"
+sdk_test = "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
 
 [registry]
 url = "https://api.apr.dev"
