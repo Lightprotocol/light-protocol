@@ -1,5 +1,3 @@
-use std::{mem, slice};
-
 /// A trait providing [`as_byte_vec()`](AsByteVec::as_byte_vec) method for types which
 /// are used inside compressed accounts.
 pub trait AsByteVec {
@@ -16,28 +14,11 @@ macro_rules! impl_as_byte_vec_for_integer_type {
     };
 }
 
-macro_rules! impl_as_byte_vec_for_primitive_type {
-    ($int_ty:ty) => {
-        impl AsByteVec for $int_ty {
-            fn as_byte_vec(&self) -> Vec<Vec<u8>> {
-                let len = mem::size_of_val(self);
-                let self_ptr: *const Self = self;
-                // SAFETY:
-                // - All the primitive types we implement this macro for have
-                //   an exact size (`len`). There is no chance of reads out of
-                //   bounds.
-                // - Casting Rust primitives to bytes works fine, there is no
-                //   chance of undefined behavior.
-                // - Unfortunately, there is no way to achieve the similar
-                //   result with fully safe code. If we tried to do anything
-                //   like `&self.to_le_bytes()` or `self.to_le_bytes().as_slice()`,
-                //   compiler would complain with "cannot return reference to
-                //   temporary value".
-                let self_byte_slice = unsafe { slice::from_raw_parts(self_ptr.cast::<u8>(), len) };
-                vec![self_byte_slice.to_vec()]
-            }
-        }
-    };
+// Special implementation for `bool` since bool doesn't implement `ToLeBytes`.
+impl AsByteVec for bool {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        vec![vec![*self as u8]]
+    }
 }
 
 impl_as_byte_vec_for_integer_type!(i8);
@@ -52,8 +33,6 @@ impl_as_byte_vec_for_integer_type!(isize);
 impl_as_byte_vec_for_integer_type!(usize);
 impl_as_byte_vec_for_integer_type!(i128);
 impl_as_byte_vec_for_integer_type!(u128);
-
-impl_as_byte_vec_for_primitive_type!(bool);
 
 impl<T> AsByteVec for Option<T>
 where
