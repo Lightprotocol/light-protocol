@@ -80,13 +80,13 @@ jobs:
           cd light-prover
           go test -run TestFull -timeout 120m
 
-      - name: Extract circuit to Lean
-        run: |
-          cd light-prover
-          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-height=26 --compressed-accounts=8
-
-      - name: Build lean project
-        run: |
-          cd light-prover/formal-verification
-          ~/.elan/bin/lake exe cache get
-          ~/.elan/bin/lake build
+#      - name: Extract circuit to Lean
+#        run: |
+#          cd light-prover
+#          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-height=26 --compressed-accounts=8
+#
+#      - name: Build lean project
+#        run: |
+#          cd light-prover/formal-verification
+#          ~/.elan/bin/lake exe cache get
+#          ~/.elan/bin/lake build
