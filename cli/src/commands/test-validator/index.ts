@@ -106,15 +106,6 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
 
-    if (
-      !flags["skip-prover"] &&
-      !flags["prover-run-mode"] &&
-      !flags["circuit"]
-    ) {
-      this.log("Please specify --prover-run-mode or --circuit.");
-      return;
-    }
-
     if (flags["stop"] === true) {
       await stopTestEnv({
         indexer: !flags["skip-indexer"],

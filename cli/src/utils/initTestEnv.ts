@@ -87,15 +87,6 @@ export async function initTestEnv({
     | "full-test";
   circuits?: string[];
 }) {
-  const initAccounts = async () => {
-    const anchorProvider = await setAnchorProvider();
-    const payer = await getPayer();
-    await airdropSol({
-      connection: anchorProvider.connection,
-      lamports: 100e9,
-      recipientPublicKey: payer.publicKey,
-    });
-  };
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
     additionalPrograms,
@@ -106,7 +97,6 @@ export async function initTestEnv({
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
-  await initAccounts();
 
   if (indexer) {
     const config = getConfig();

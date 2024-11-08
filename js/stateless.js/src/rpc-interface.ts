@@ -44,6 +44,11 @@ export interface GetCompressedAccountsByOwnerConfig {
     limit?: BN;
 }
 
+export interface CompressedMintTokenHolders {
+    balance: BN;
+    owner: PublicKey;
+}
+
 export interface LatestNonVotingSignaturesPaginated {
     context: { slot: number };
     value: {
@@ -122,6 +127,11 @@ export type CompressedProofWithContext = {
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     mint?: PublicKey;
+    cursor?: string;
+    limit?: BN;
+}
+
+export interface GetCompressedMintTokenHoldersOptions {
     cursor?: string;
     limit?: BN;
 }
@@ -431,6 +441,16 @@ export const TokenBalanceListResult = pick({
     cursor: nullable(string()),
 });
 
+export const CompressedMintTokenHoldersResult = pick({
+    cursor: nullable(string()),
+    items: array(
+        pick({
+            balance: BNFromInt,
+            owner: PublicKeyFromString,
+        }),
+    ),
+});
+
 export const AccountProofResult = pick({
     hash: array(number()),
     root: array(number()),
@@ -523,6 +543,11 @@ export interface CompressionApiInterface {
         owner: PublicKey,
         config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>>;
+
+    getCompressedMintTokenHolders(
+        mint: PublicKey,
+        options?: GetCompressedMintTokenHoldersOptions,
+    ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>>;
 
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
