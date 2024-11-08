@@ -700,5 +700,4 @@ describe('rpc-interop', () => {
             ),
         );
     });
-    
 });

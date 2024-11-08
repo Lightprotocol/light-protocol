@@ -1136,7 +1136,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         mint: PublicKey,
         options?: GetCompressedMintTokenHoldersOptions,
     ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
-
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedMintTokenHolders',
