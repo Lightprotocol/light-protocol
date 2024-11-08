@@ -12,12 +12,14 @@ mod test {
     };
     use light_verifier::{verify_merkle_proof_zkp, CompressedProof};
     use reqwest::Client;
+    use serial_test::serial;
 
+    #[serial]
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![ProofType::Inclusion],
