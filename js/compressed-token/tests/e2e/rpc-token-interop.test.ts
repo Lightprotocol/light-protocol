@@ -251,7 +251,7 @@ describe('rpc-interop token', () => {
 
         // Get second holder using cursor
         const secondPage = await rpc.getCompressedMintTokenHolders(mint, {
-            cursor: firstPage.value.cursor ?? undefined,
+            cursor: firstPage.value.cursor!,
             limit: bn(1),
         });
         assert.equal(secondPage.value.items.length, 1);
