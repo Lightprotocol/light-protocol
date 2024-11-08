@@ -261,7 +261,7 @@ describe('rpc-interop token', () => {
             ...firstPage.value.items,
             ...secondPage.value.items,
         ];
-        assert.equal(allHolders.length, 2);
+        assert.equal(allHolders.length, 2);       
 
         const hasCharlie = allHolders.some(
             holder => holder.owner.toBase58() === charlie.publicKey.toBase58(),
@@ -270,7 +270,7 @@ describe('rpc-interop token', () => {
             holder => holder.owner.toBase58() === bob.publicKey.toBase58(),
         );
 
-        // TODO: Confirm that pagination is expected to not return both holders individually if using cursor and limit
-        assert.isNotTrue(hasCharlie && hasBob);
+
+        assert.isTrue(hasCharlie && hasBob);
     });
 });
