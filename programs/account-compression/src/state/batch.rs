@@ -36,6 +36,7 @@ pub struct Batch {
     // TODO: don't zero out roots completely but just overwrite one non-zero
     // byte to zero
     pub root_index: u32,
+    pub start_index: u64,
 }
 
 impl Batch {
@@ -44,6 +45,7 @@ impl Batch {
         bloom_filter_capacity: u64,
         batch_size: u64,
         zkp_batch_size: u64,
+        start_index: u64,
     ) -> Self {
         Batch {
             num_iters,
@@ -56,6 +58,7 @@ impl Batch {
             num_inserted_zkps: 0,
             sequence_number: 0,
             root_index: 0,
+            start_index,
         }
     }
 
@@ -126,11 +129,17 @@ impl Batch {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
         value_store.push(*value).map_err(ProgramError::from)?;
+        Ok(())
+    }
 
-        if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
-            self.num_inserted = 0;
-        }
-        self.finalize_insert()
+    pub fn store_and_hash_value(
+        &mut self,
+        value: &[u8; 32],
+        value_store: &mut BoundedVec<[u8; 32]>,
+        hashchain_store: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<()> {
+        self.store_value(value, value_store)?;
+        self.add_to_hash_chain(value, hashchain_store)
     }
 
     /// Inserts into the bloom filter and hashes the value.
@@ -148,8 +157,7 @@ impl Batch {
         bloom_filter
             .insert(bloom_filter_value)
             .map_err(ProgramError::from)?;
-        self.add_to_hash_chain(hashchain_value, hashchain_store)?;
-        self.finalize_insert()
+        self.add_to_hash_chain(hashchain_value, hashchain_store)
     }
 
     pub fn add_to_hash_chain(
@@ -165,18 +173,17 @@ impl Batch {
                 Poseidon::hashv(&[last_hashchain, value.as_slice()]).map_err(ProgramError::from)?;
             *hashchain_store.last_mut().unwrap() = hashchain;
         }
-        Ok(())
-    }
 
-    pub fn finalize_insert(&mut self) -> Result<()> {
         self.num_inserted += 1;
         if self.num_inserted == self.zkp_batch_size {
             self.current_zkp_batch_index += 1;
         }
+
         if self.get_num_zkp_batches() == self.current_zkp_batch_index {
             self.advance_state_to_ready_to_update_tree()?;
             self.num_inserted = 0;
         }
+
         Ok(())
     }
 
@@ -242,7 +249,7 @@ mod tests {
     use super::*;
 
     fn get_test_batch() -> Batch {
-        Batch::new(3, 160_000, 500, 100)
+        Batch::new(3, 160_000, 500, 100, 0)
     }
 
     /// simulate zkp batch insertion
@@ -282,6 +289,7 @@ mod tests {
         let mut batch = get_test_batch();
 
         let mut value_store = BoundedVec::with_capacity(batch.batch_size as usize);
+        let mut hashchain_store = BoundedVec::with_capacity(batch.get_hashchain_store_len());
 
         let mut ref_batch = get_test_batch();
         for i in 0..batch.batch_size {
@@ -289,7 +297,9 @@ mod tests {
 
             let mut value = [0u8; 32];
             value[24..].copy_from_slice(&i.to_be_bytes());
-            assert!(batch.store_value(&value, &mut value_store).is_ok());
+            assert!(batch
+                .store_and_hash_value(&value, &mut value_store, &mut hashchain_store)
+                .is_ok());
             ref_batch.num_inserted += 1;
             if ref_batch.num_inserted == ref_batch.zkp_batch_size {
                 ref_batch.current_zkp_batch_index += 1;
@@ -301,7 +311,7 @@ mod tests {
             assert_eq!(batch, ref_batch);
             assert_eq!(*value_store.get(i as usize).unwrap(), value);
         }
-        let result = batch.store_value(&[1u8; 32], &mut value_store);
+        let result = batch.store_and_hash_value(&[1u8; 32], &mut value_store, &mut hashchain_store);
         assert_eq!(
             result.unwrap_err(),
             AccountCompressionErrorCode::BatchNotReady.into()
@@ -370,7 +380,6 @@ mod tests {
         assert!(batch
             .add_to_hash_chain(&value, &mut hashchain_store)
             .is_ok());
-        assert!(batch.finalize_insert().is_ok());
         let mut ref_batch = get_test_batch();
         let user_hash_chain = value;
         ref_batch.num_inserted = 1;
@@ -381,7 +390,6 @@ mod tests {
         assert!(batch
             .add_to_hash_chain(&value, &mut hashchain_store)
             .is_ok());
-        assert!(batch.finalize_insert().is_ok());
 
         ref_batch.num_inserted = 2;
         assert_eq!(batch, ref_batch);
