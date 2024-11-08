@@ -899,12 +899,6 @@ export type AccountCompression = {
                         type: 'u32';
                     },
                     {
-                        name: 'subtreeHash';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
                         name: 'queue';
                         type: {
                             defined: 'BatchedQueue';
@@ -2478,12 +2472,6 @@ export const IDL: AccountCompression = {
                     {
                         name: 'rootHistoryCapacity',
                         type: 'u32',
-                    },
-                    {
-                        name: 'subtreeHash',
-                        type: {
-                            array: ['u8', 32],
-                        },
                     },
                     {
                         name: 'queue',
