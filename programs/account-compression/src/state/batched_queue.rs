@@ -241,6 +241,7 @@ impl ZeroCopyBatchedQueueAccount {
     }
 
     pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
+        let current_index = self.get_account().next_index;
         unsafe {
             insert_into_current_batch(
                 (*self.account).metadata.queue_type,
@@ -251,6 +252,7 @@ impl ZeroCopyBatchedQueueAccount {
                 &mut self.hashchain_store,
                 value,
                 None,
+                Some(current_index),
             )?;
             (*self.account).next_index += 1;
         }
@@ -269,6 +271,7 @@ pub fn insert_into_current_batch(
     hashchain_store: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     value: &[u8; 32],
     leaves_hash_value: Option<&[u8; 32]>,
+    current_index: Option<u64>,
 ) -> Result<(Option<u32>, Option<u64>)> {
     let len = batches.len();
     let mut root_index = None;
@@ -284,6 +287,9 @@ pub fn insert_into_current_batch(
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted {
             current_batch.advance_state_to_can_be_filled()?;
+            if let Some(current_index) = current_index {
+                current_batch.start_index = current_index;
+            }
             wipe = true;
         }
         // We expect to insert into the current batch.
@@ -335,9 +341,13 @@ pub fn insert_into_current_batch(
                 value,
                 leaves_hash_value.unwrap(),
                 bloom_filter_stores.unwrap().as_mut_slice(),
+                hashchain_store.as_mut().unwrap(),
+            ),
+            QueueType::Output => current_batch.store_and_hash_value(
+                value,
+                value_store.unwrap(),
                 hashchain_store.unwrap(),
             ),
-            QueueType::Output => current_batch.store_value(value, value_store.unwrap()),
             _ => err!(AccountCompressionErrorCode::InvalidQueueType),
         }?;
     }
@@ -461,13 +471,14 @@ pub fn init_queue(
     )
     .map_err(ProgramError::from)?;
 
-    for _ in 0..account.num_batches {
+    for i in 0..account.num_batches {
         batches
             .push(Batch::new(
                 num_iters,
                 bloom_filter_capacity,
                 account.batch_size,
                 account.zkp_batch_size,
+                account.batch_size * i,
             ))
             .map_err(ProgramError::from)?;
     }
@@ -558,12 +569,13 @@ pub fn assert_queue_inited(
 ) {
     assert_eq!(queue, ref_queue, "queue mismatch");
     assert_eq!(batches.len(), num_batches, "batches mismatch");
-    for batch in batches.iter() {
+    for (i, batch) in batches.iter().enumerate() {
         let ref_batch = Batch::new(
             num_iters,
             ref_queue.bloom_filter_capacity,
             ref_queue.batch_size,
             ref_queue.zkp_batch_size,
+            ref_queue.batch_size * i as u64,
         );
 
         assert_eq!(batch, &ref_batch, "batch mismatch");
