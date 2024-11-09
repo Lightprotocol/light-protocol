@@ -1,6 +1,7 @@
 use std::default;
 
 use anchor_lang::{prelude::*, Discriminator};
+use light_hasher::Hasher;
 use light_utils::fee::compute_rollover_fee;
 
 use crate::{
@@ -286,13 +287,10 @@ pub fn assert_mt_zero_copy_inited(
         "root_history_capacity mismatch"
     );
 
-    assert!(
-        zero_copy_account.root_history.is_empty(),
-        "root_history not empty"
-    );
     assert_eq!(
-        zero_copy_account.get_account().subtree_hash,
-        ref_account.subtree_hash
+        *zero_copy_account.root_history.get(0).unwrap(),
+        light_hasher::Poseidon::zero_bytes()[26],
+        "root_history not initialized"
     );
 
     assert_queue_inited(
@@ -306,6 +304,7 @@ pub fn assert_mt_zero_copy_inited(
         num_iters,
     );
 }
+
 pub fn get_output_queue_account_default(
     owner: Pubkey,
     program_owner: Option<Pubkey>,

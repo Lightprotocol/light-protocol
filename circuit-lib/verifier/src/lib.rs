@@ -45,7 +45,7 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
 }
 
 use VerifierError::*;
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -284,7 +284,7 @@ pub fn verify_batch_append(
 }
 
 #[inline(never)]
-pub fn verify_batch_append2(
+pub fn verify_batch_append_with_proofs(
     batch_size: usize,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,
