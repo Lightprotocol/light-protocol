@@ -268,7 +268,7 @@ async fn prove_batch_two_append() {
         let mut merkle_proofs = vec![];
         for index in current_index..current_index + num_insertions {
             let proof = merkle_tree.get_proof_of_leaf(index, true).unwrap();
-            let leaf = merkle_tree.get_leaf(index);
+            let leaf = merkle_tree.leaf(index);
             old_leaves.push(leaf);
             merkle_proofs.push(proof.to_vec());
         }

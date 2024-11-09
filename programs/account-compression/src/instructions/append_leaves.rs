@@ -116,7 +116,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                 BatchedQueueAccount::DISCRIMINATOR => {
                     append_v1(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
-                _ => return err!(AccountCompressionErrorCode::InvalidDiscriminator),
+                _ => return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
             }
         };
         transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;
