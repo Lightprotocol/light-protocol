@@ -776,7 +776,7 @@ where
             .unwrap();
 
         let changelog_index = merkle_tree.changelog_index();
-        let old_leaf = reference_tree.get_leaf(i);
+        let old_leaf = reference_tree.leaf(i);
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
@@ -799,7 +799,7 @@ where
             .unwrap();
 
         let changelog_index = merkle_tree.changelog_index();
-        let old_leaf = reference_tree.get_leaf(i);
+        let old_leaf = reference_tree.leaf(i);
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
@@ -820,7 +820,7 @@ where
             .unwrap();
 
         let changelog_index = merkle_tree.changelog_index();
-        let old_leaf = reference_tree.get_leaf(i);
+        let old_leaf = reference_tree.leaf(i);
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
@@ -1388,7 +1388,7 @@ async fn test_spl_compat() {
 
             let root = concurrent_mt.root();
             let changelog_index = concurrent_mt.changelog_index();
-            let old_leaf = reference_tree.get_leaf(0);
+            let old_leaf = reference_tree.leaf(0);
             let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
 
             concurrent_mt
@@ -1412,7 +1412,7 @@ async fn test_spl_compat() {
 
         let root = concurrent_mt.root();
         let changelog_index = concurrent_mt.changelog_index();
-        let old_leaf = reference_tree.get_leaf(i);
+        let old_leaf = reference_tree.leaf(i);
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         concurrent_mt
@@ -1547,7 +1547,7 @@ where
 
         // Update random leaf.
         let leaf_index = rng.gen_range(0..reference_tree_1.leaves().len());
-        let old_leaf = reference_tree_1.get_leaf(leaf_index);
+        let old_leaf = reference_tree_1.leaf(leaf_index);
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
@@ -1620,7 +1620,7 @@ where
 
         // Update random leaf.
         let leaf_index = rng.gen_range(0..reference_tree_1.leaves().len());
-        let old_leaf = reference_tree_1.get_leaf(leaf_index);
+        let old_leaf = reference_tree_1.leaf(leaf_index);
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
@@ -2402,7 +2402,7 @@ fn test_subtree_updates() {
             Some(index) => {
                 let change_log_index = con_mt.changelog_index();
                 let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
-                let old_leaf = ref_mt.get_leaf(index);
+                let old_leaf = ref_mt.leaf(index);
                 let current_root = con_mt.root();
                 spl_concurrent_mt
                     .set_leaf(
@@ -2432,7 +2432,7 @@ fn test_subtree_updates() {
     // test rightmost leaf edge case
     let change_log_index = con_mt.changelog_index();
     let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
-    let old_leaf = ref_mt.get_leaf(index);
+    let old_leaf = ref_mt.leaf(index);
     let current_root = con_mt.root();
     spl_concurrent_mt
         .set_leaf(
@@ -2950,7 +2950,7 @@ where
 
         // Update random leaf.
         let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
-        let old_leaf = reference_tree.get_leaf(leaf_index);
+        let old_leaf = reference_tree.leaf(leaf_index);
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
@@ -3194,7 +3194,7 @@ where
         } else {
             // Update random leaf.
             let leaf_index = rng.gen_range(1..reference_tree.leaves().len());
-            let old_leaf = reference_tree.get_leaf(leaf_index);
+            let old_leaf = reference_tree.leaf(leaf_index);
             let new_leaf: [u8; 32] = Fr::rand(&mut rng)
                 .into_bigint()
                 .to_bytes_be()
