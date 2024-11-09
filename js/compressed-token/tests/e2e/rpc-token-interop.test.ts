@@ -47,7 +47,7 @@ describe('rpc-interop token', () => {
         await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
 
         await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
-    }, 30000);
+    });
 
     it('getCompressedTokenAccountsByOwner should match', async () => {
         const senderAccounts = (
@@ -271,5 +271,5 @@ describe('rpc-interop token', () => {
         );
 
         assert.isTrue(hasCharlie && hasBob);
-    }, 30000);
+    });
 });
