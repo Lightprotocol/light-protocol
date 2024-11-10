@@ -38,9 +38,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     tx_hash: Option<[u8; 32]>,
     check_proof_by_index: &Option<Vec<bool>>,
 ) -> Result<()> {
-    // TODO: pass tx hash with instruction data
-    let tx_hash = [0u8; 32];
-
     if elements.is_empty() {
         return err!(AccountCompressionErrorCode::InputElementsEmpty);
     }

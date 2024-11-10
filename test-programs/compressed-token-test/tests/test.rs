@@ -1732,7 +1732,7 @@ async fn test_revoke_failing() {
 
     // 1. Invalid root indices.
     {
-        let invalid_root_indices = vec![0];
+        let invalid_root_indices = vec![Some(0)];
 
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
@@ -3558,7 +3558,8 @@ async fn test_invalid_inputs() {
     // Test 10: invalid root indices
     {
         let mut root_indices = proof_rpc_result.root_indices.clone();
-        root_indices[0] += 1;
+        let root_index = root_indices[0].as_mut().unwrap();
+        *root_index += 1;
         let res = perform_transfer_failing_test(
             &mut rpc,
             change_out_compressed_account_0,
@@ -3630,7 +3631,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
     payer: &Keypair,
     proof: &Option<CompressedProof>,
-    root_indices: &[u16],
+    root_indices: &[Option<u16>],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     invalid_mint: bool,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {

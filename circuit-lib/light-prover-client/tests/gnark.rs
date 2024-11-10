@@ -75,7 +75,7 @@ async fn prove_inclusion() {
 async fn prove_batch_update() {
     init_logger();
     spawn_prover(
-        true,
+        false,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::BatchUpdateTest],
@@ -127,6 +127,7 @@ async fn prove_batch_update() {
         );
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
+        println!("inputs: {}", inputs);
 
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

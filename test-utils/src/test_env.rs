@@ -945,7 +945,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     index: u64,
 ) -> Result<Signature, RpcError> {
     use light_registry::account_compression_cpi::sdk::create_initialize_address_merkle_tree_and_queue_instruction as create_initialize_address_merkle_tree_and_queue_instruction_registry;
-
+    println!("merkle_tree_config: {:?}", merkle_tree_config);
     let size =
         account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
     let account_create_ix = create_account_instruction(

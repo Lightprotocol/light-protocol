@@ -2,7 +2,7 @@
 
 use account_compression::batched_merkle_tree::{
     get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
-    InstructionDataBatchAppendProofInputs, InstructionDataBatchUpdateProofInputs,
+    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     ZeroCopyBatchedMerkleTreeAccount,
 };
 use account_compression::batched_queue::{
@@ -54,7 +54,6 @@ async fn test_init_state_merkle_tree() {
 
     {
         let params = InitStateTreeAccountsInstructionData::default();
-        println!("params {:?}", params);
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
@@ -156,13 +155,11 @@ async fn test_init_state_merkle_tree() {
             total_rent,
             merkle_tree_pubkey,
         );
-        println!("pre assert_queue_zero_copy_inited");
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
             ref_output_queue_account,
             0,
         );
-        println!("post assert_queue_zero_copy_inited");
     }
     let mut mock_indexer = MockBatchedForester::<26>::default();
 
@@ -363,7 +360,7 @@ pub async fn create_append_batch_ix_data(
     mock_indexer: &mut MockBatchedForester<26>,
     mt_account_data: &mut [u8],
     output_queue_account_data: &mut [u8],
-) -> InstructionDataBatchAppendProofInputs {
+) -> InstructionDataBatchAppendInputs {
     let zero_copy_account =
         ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(mt_account_data).unwrap();
     let output_zero_copy_account =
@@ -403,7 +400,7 @@ pub async fn create_append_batch_ix_data(
         .await
         .unwrap();
 
-    InstructionDataBatchAppendProofInputs {
+    InstructionDataBatchAppendInputs {
         public_inputs: AppendBatchProofInputsIx { new_root },
         compressed_proof: CompressedProof {
             a: proof.a,
@@ -416,7 +413,7 @@ pub async fn create_append_batch_ix_data(
 pub async fn create_nullify_batch_ix_data(
     mock_indexer: &mut MockBatchedForester<26>,
     account_data: &mut [u8],
-) -> InstructionDataBatchUpdateProofInputs {
+) -> InstructionDataBatchNullifyInputs {
     let zero_copy_account: ZeroCopyBatchedMerkleTreeAccount =
         ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data).unwrap();
     println!("batches {:?}", zero_copy_account.batches);
@@ -453,7 +450,7 @@ pub async fn create_nullify_batch_ix_data(
         )
         .await
         .unwrap();
-    let instruction_data = InstructionDataBatchUpdateProofInputs {
+    let instruction_data = InstructionDataBatchNullifyInputs {
         public_inputs: BatchProofInputsIx {
             new_root,
             old_root_index: old_root_index as u16,

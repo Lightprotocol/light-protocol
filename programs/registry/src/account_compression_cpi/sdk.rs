@@ -2,6 +2,9 @@
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
+use account_compression::batched_merkle_tree::{
+    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+};
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
@@ -286,7 +289,7 @@ pub fn create_initialize_merkle_tree_instruction(
 pub fn create_initialize_batched_merkle_tree_instruction(
     payer: Pubkey,
     merkle_tree_pubkey: Pubkey,
-    nullifier_queue_pubkey: Pubkey,
+    queue_pubkey: Pubkey,
     cpi_context_pubkey: Pubkey,
     params: InitStateTreeAccountsInstructionData,
 ) -> Instruction {
@@ -298,12 +301,76 @@ pub fn create_initialize_batched_merkle_tree_instruction(
         authority: payer,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
-        queue: nullifier_queue_pubkey,
+        queue: queue_pubkey,
         cpi_authority,
         account_compression_program: account_compression::ID,
         protocol_config_pda,
         light_system_program: Some(LightSystemProgram::id()),
         cpi_context_account: Some(cpi_context_pubkey),
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_append_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    output_queue_pubkey: Pubkey,
+    epoch: u64,
+    data: InstructionDataBatchAppendInputs,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchAppend {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        output_queue: output_queue_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchAppend {
+        bump,
+        data: data.try_to_vec().unwrap(),
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_nullify_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    epoch: u64,
+    data: InstructionDataBatchNullifyInputs,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchNullify {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchNullify {
+        bump,
+        data: data.try_to_vec().unwrap(),
     };
     Instruction {
         program_id: crate::ID,

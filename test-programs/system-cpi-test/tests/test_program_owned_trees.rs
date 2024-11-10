@@ -70,6 +70,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
+            1,
         )
         .await;
 
@@ -135,6 +136,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
             None,
+            1,
         )
         .await;
     let recipient_keypair = Keypair::new();

@@ -269,18 +269,9 @@ impl ZeroCopyBatchedQueueAccount {
         for (batch_index, batch) in self.batches.iter().enumerate() {
             if batch.value_is_inserted_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
-                msg!(
-                    "self.value_vecs[batch_index] {:?}",
-                    self.value_vecs[batch_index]
-                );
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
                     .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
-                msg!("element {:?}", element);
-                msg!("index {:?}", index);
-                msg!("value {:?}", value);
-                msg!("checked {:?}", checked);
-                msg!("leaf_index {:?}", leaf_index);
                 if *value == [0; 32] && !checked {
                 } else if element == value {
                     *element = [0; 32];

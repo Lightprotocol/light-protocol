@@ -10,7 +10,7 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
-use batched_merkle_tree::InstructionDataBatchUpdateProofInputs;
+use batched_merkle_tree::InstructionDataBatchNullifyInputs;
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -25,7 +25,7 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
-    use batched_merkle_tree::InstructionDataBatchAppendProofInputs;
+    use batched_merkle_tree::InstructionDataBatchAppendInputs;
     use errors::AccountCompressionErrorCode;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
@@ -218,7 +218,7 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        let instruction_data = InstructionDataBatchUpdateProofInputs::try_from_slice(&data)
+        let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_nullify_leaves(&ctx, instruction_data)?;
         Ok(())
@@ -228,7 +228,7 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        let instruction_data = InstructionDataBatchAppendProofInputs::try_from_slice(&data)
+        let instruction_data = InstructionDataBatchAppendInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_append_leaves(&ctx, instruction_data)?;
         Ok(())

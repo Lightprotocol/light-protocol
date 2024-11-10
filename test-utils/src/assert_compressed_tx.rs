@@ -1,4 +1,9 @@
+use account_compression::batched_merkle_tree::{
+    BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
+};
+use account_compression::batched_queue::BatchedQueueAccount;
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
+use anchor_lang::Discriminator;
 use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
@@ -122,12 +127,39 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
     input_compressed_account_hashes: &[[u8; 32]],
 ) {
     for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
-        let nullifier_queue = unsafe {
-            get_hash_set::<QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue).await
-        };
-        assert!(nullifier_queue
-            .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
-            .unwrap());
+        match snapshots[i].version {
+            1 => {
+                let nullifier_queue = unsafe {
+                    get_hash_set::<QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue)
+                        .await
+                };
+                assert!(nullifier_queue
+                    .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
+                    .unwrap());
+            }
+            2 => {
+                let mut merkle_tree_account = rpc
+                    .get_account(snapshots[i].accounts.merkle_tree)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let mut merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
+                        .unwrap();
+                let mut batches = merkle_tree.batches.clone();
+                batches.iter_mut().enumerate().any(|(i, batch)| {
+                    batch
+                        .check_non_inclusion(
+                            hash,
+                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
+                        )
+                        .is_err()
+                });
+            }
+            _ => {
+                panic!("assert_nullifiers_exist_in_hash_sets: invalid version");
+            }
+        }
     }
 }
 
@@ -181,10 +213,10 @@ pub fn assert_public_transaction_event(
     );
     for account in event.output_compressed_accounts.iter() {
         assert!(
-            output_merkle_tree_accounts
-                .iter()
-                .any(|x| x.merkle_tree == event.pubkey_array[account.merkle_tree_index as usize]),
-            // output_merkle_tree_accounts[account.merkle_tree_index as usize].merkle_tree,
+            output_merkle_tree_accounts.iter().any(|x| x.merkle_tree
+                == event.pubkey_array[account.merkle_tree_index as usize]
+                // handle output queue
+                || x.nullifier_queue == event.pubkey_array[account.merkle_tree_index as usize]),
             "assert_public_transaction_event: output state merkle tree account index mismatch"
         );
     }
@@ -219,7 +251,12 @@ pub fn assert_public_transaction_event(
                 merkle_tree_pubkey
             );
         } else {
-            index.as_mut().unwrap().seq += 1;
+            let seq = &mut index.as_mut().unwrap().seq;
+            // The output queue doesn't have a sequence number hence we set it
+            // u64::MAX to mark it as a batched queue
+            if *seq != u64::MAX {
+                *seq += 1;
+            }
         }
     }
     for sequence_number in updated_sequence_numbers.iter() {
@@ -236,6 +273,7 @@ pub struct MerkleTreeTestSnapShot {
     pub merkle_tree_account_lamports: u64,
     pub queue_account_lamports: u64,
     pub cpi_context_account_lamports: u64,
+    pub version: u64,
 }
 
 // TODO: add assert that changelog, seq number is updated correctly
@@ -254,47 +292,60 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
     deduped_snapshots.dedup();
     let mut sequence_numbers = Vec::new();
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
-        let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-            rpc,
-            snapshot.accounts.merkle_tree,
-        )
-        .await;
-        println!("sequence number: {:?}", merkle_tree.next_index() as u64);
-        println!("next index: {:?}", snapshot.next_index);
-        println!("prev sequence number: {:?}", snapshot.num_added_accounts);
-        sequence_numbers.push(MerkleTreeSequenceNumber {
-            pubkey: snapshot.accounts.merkle_tree,
-            seq: merkle_tree.sequence_number() as u64,
-        });
-        if merkle_tree.root() == snapshot.root {
-            println!("deduped_snapshots: {:?}", deduped_snapshots);
-            println!("i: {:?}", i);
-            panic!("merkle tree root update failed, it should have updated but didn't");
-        }
-        assert_eq!(
-            merkle_tree.next_index(),
-            snapshot.next_index + snapshot.num_added_accounts
-        );
-        let test_indexer_merkle_tree = test_indexer
-            .get_state_merkle_trees_mut()
-            .iter_mut()
-            .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
-            .expect("merkle tree not found in test indexer");
+        match snapshot.version {
+            1 => {
+                let merkle_tree =
+                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                        rpc,
+                        snapshot.accounts.merkle_tree,
+                    )
+                    .await;
+                println!("sequence number: {:?}", merkle_tree.next_index() as u64);
+                println!("next index: {:?}", snapshot.next_index);
+                println!("prev sequence number: {:?}", snapshot.num_added_accounts);
+                sequence_numbers.push(MerkleTreeSequenceNumber {
+                    pubkey: snapshot.accounts.merkle_tree,
+                    seq: merkle_tree.sequence_number() as u64,
+                });
+                if merkle_tree.root() == snapshot.root {
+                    println!("deduped_snapshots: {:?}", deduped_snapshots);
+                    println!("i: {:?}", i);
+                    panic!("merkle tree root update failed, it should have updated but didn't");
+                }
+                assert_eq!(
+                    merkle_tree.next_index(),
+                    snapshot.next_index + snapshot.num_added_accounts
+                );
+                let test_indexer_merkle_tree = test_indexer
+                    .get_state_merkle_trees_mut()
+                    .iter_mut()
+                    .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
+                    .expect("merkle tree not found in test indexer");
 
-        if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
-            // The following lines are just println prints
-            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
-            for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
-                .iter()
-                .enumerate()
-            {
-                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
-            }
-            for i in 0..16 {
-                println!("root {} {:?}", i, merkle_tree.roots.get(i));
-            }
+                if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
+                    // The following lines are just println prints
+                    println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
+                    for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
+                        .iter()
+                        .enumerate()
+                    {
+                        println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
+                    }
+                    for i in 0..16 {
+                        println!("root {} {:?}", i, merkle_tree.roots.get(i));
+                    }
 
-            panic!("merkle tree root update failed");
+                    panic!("merkle tree root update failed");
+                }
+            }
+            2 => {
+                // TODO: assert batched merkle tree
+            }
+            _ => {
+                panic!(
+                    "assert_merkle_tree_after_tx: get_merkle_tree_snapshots: invalid discriminator"
+                );
+            }
         }
     }
     sequence_numbers
@@ -312,40 +363,95 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
 ) -> Vec<MerkleTreeTestSnapShot> {
     let mut snapshots = Vec::new();
     for account_bundle in accounts.iter() {
-        // TODO: match discriminator
-        let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-            rpc,
-            account_bundle.merkle_tree,
-        )
-        .await;
-        let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, account_bundle.merkle_tree).await;
-
-        let queue_account_lamports = match rpc
-            .get_account(account_bundle.nullifier_queue)
+        let mut account_data = rpc
+            .get_account(account_bundle.merkle_tree)
             .await
             .unwrap()
-        {
-            Some(x) => x.lamports,
-            None => 0,
-        };
-        let cpi_context_account_lamports =
-            match rpc.get_account(account_bundle.cpi_context).await.unwrap() {
-                Some(x) => x.lamports,
-                None => 0,
-            };
-        snapshots.push(MerkleTreeTestSnapShot {
-            accounts: *account_bundle,
-            root: merkle_tree.root(),
-            next_index: merkle_tree.next_index(),
-            num_added_accounts: accounts
-                .iter()
-                .filter(|x| x.merkle_tree == account_bundle.merkle_tree)
-                .count(),
-            merkle_tree_account_lamports: merkle_tree_account.account.lamports(),
-            queue_account_lamports,
-            cpi_context_account_lamports,
-        });
+            .unwrap();
+        match account_data.data[0..8].try_into().unwrap() {
+            StateMerkleTreeAccount::DISCRIMINATOR => {
+                // TODO: match discriminator
+                let merkle_tree =
+                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                        rpc,
+                        account_bundle.merkle_tree,
+                    )
+                    .await;
+                let merkle_tree_account =
+                    AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, account_bundle.merkle_tree)
+                        .await;
+
+                let queue_account_lamports = match rpc
+                    .get_account(account_bundle.nullifier_queue)
+                    .await
+                    .unwrap()
+                {
+                    Some(x) => x.lamports,
+                    None => 0,
+                };
+                let cpi_context_account_lamports =
+                    match rpc.get_account(account_bundle.cpi_context).await.unwrap() {
+                        Some(x) => x.lamports,
+                        None => 0,
+                    };
+                snapshots.push(MerkleTreeTestSnapShot {
+                    accounts: *account_bundle,
+                    root: merkle_tree.root(),
+                    next_index: merkle_tree.next_index(),
+                    num_added_accounts: accounts
+                        .iter()
+                        .filter(|x| x.merkle_tree == account_bundle.merkle_tree)
+                        .count(),
+                    merkle_tree_account_lamports: merkle_tree_account.account.lamports(),
+                    queue_account_lamports,
+                    cpi_context_account_lamports,
+                    version: 1,
+                });
+            }
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                let merkle_tree_account_lamports = account_data.lamports;
+                let merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut account_data.data)
+                        .unwrap();
+                let queue_account_lamports = match rpc
+                    .get_account(account_bundle.nullifier_queue)
+                    .await
+                    .unwrap()
+                {
+                    Some(x) => x.lamports,
+                    None => 0,
+                };
+                let cpi_context_account_lamports =
+                    match rpc.get_account(account_bundle.cpi_context).await.unwrap() {
+                        Some(x) => x.lamports,
+                        None => 0,
+                    };
+                let root = *merkle_tree.root_history.last().unwrap();
+
+                let output_queue = AccountZeroCopy::<BatchedQueueAccount>::new(
+                    rpc,
+                    account_bundle.nullifier_queue,
+                )
+                .await;
+
+                snapshots.push(MerkleTreeTestSnapShot {
+                    accounts: *account_bundle,
+                    root,
+                    next_index: output_queue.deserialized().next_index as usize,
+                    num_added_accounts: accounts
+                        .iter()
+                        .filter(|x| x.merkle_tree == account_bundle.merkle_tree)
+                        .count(),
+                    merkle_tree_account_lamports,
+                    queue_account_lamports,
+                    cpi_context_account_lamports,
+                    version: 2,
+                });
+            }
+            _ => {
+                panic!("get_merkle_tree_snapshots: invalid discriminator");
+            }
+        }
     }
     snapshots
 }

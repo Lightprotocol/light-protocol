@@ -88,7 +88,6 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 fn batch_append_leaves<'a, 'c: 'info, 'info>(
     ctx: &Context<'a, '_, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [(u8, [u8; 32])],
-    // zero_out_leaves: &'a [ZeroOutLeafIndex],
 ) -> Result<usize> {
     let mut leaves_processed: usize = 0;
     let len = ctx.remaining_accounts.len();

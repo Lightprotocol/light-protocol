@@ -222,6 +222,8 @@ pub fn process<
             &output_compressed_account_hashes,
             current_slot,
         );
+        msg!("tx_hash {:?}", tx_hash);
+        msg!("current_slot {:?}", current_slot);
 
         let leaf_indices: Vec<u32> = inputs
             .input_compressed_accounts_with_merkle_context
@@ -249,10 +251,18 @@ pub fn process<
         address_network_fee_bundle,
         output_network_fee_bundle,
     )?;
-
-    if !inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
+    let proof_input_input_compressed_account_hashes = input_compressed_account_hashes
+        .iter()
+        .enumerate()
+        .filter(|(x, _)| {
+            inputs.input_compressed_accounts_with_merkle_context[*x]
+                .merkle_context
+                .queue_index
+                .is_none()
+        })
+        .map(|x| *x.1)
+        .collect::<Vec<[u8; 32]>>();
+    if !proof_input_input_compressed_account_hashes.is_empty()
         || !inputs.new_address_params.is_empty()
     {
         bench_sbf_start!("cpda_verify_state_proof");
@@ -263,27 +273,22 @@ pub fn process<
                 b: proof.b,
                 c: proof.c,
             };
-            let input_compressed_account_hashes = input_compressed_account_hashes
-                .iter()
-                .enumerate()
-                .filter(|(x, _)| {
-                    inputs.input_compressed_accounts_with_merkle_context[*x]
-                        .merkle_context
-                        .queue_index
-                        .is_none()
-                })
-                .map(|x| *x.1)
-                .collect::<Vec<[u8; 32]>>();
 
             match verify_state_proof(
                 &input_compressed_account_roots,
-                &input_compressed_account_hashes,
+                &proof_input_input_compressed_account_hashes,
                 &new_address_roots,
                 &new_addresses,
                 &compressed_verifier_proof,
             ) {
                 Ok(_) => Ok(()),
                 Err(e) => {
+                    msg!("proof  {:?}", proof);
+                    msg!(
+                        "input_compressed_account_hashes {:?}",
+                        proof_input_input_compressed_account_hashes
+                    );
+                    msg!("input roots {:?}", input_compressed_account_roots);
                     msg!(
                         "input_compressed_accounts_with_merkle_context: {:?}",
                         inputs.input_compressed_accounts_with_merkle_context

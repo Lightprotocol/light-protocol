@@ -20,8 +20,7 @@ use std::mem::ManuallyDrop;
 use super::{
     batch::Batch,
     batched_queue::{
-        input_queue_bytes, init_queue, insert_into_current_batch, queue_account_size,
-        BatchedQueue,
+        init_queue, input_queue_bytes, insert_into_current_batch, queue_account_size, BatchedQueue,
     },
     AccessMetadata, MerkleTreeMetadata, QueueType, RolloverMetadata,
 };
@@ -47,6 +46,29 @@ impl GroupAccess for ZeroCopyBatchedMerkleTreeAccount {
     fn get_program_owner(&self) -> &Pubkey {
         &self.get_account().metadata.access_metadata.program_owner
     }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
+pub struct BatchAppendEvent {
+    pub id: [u8; 32],
+    pub batch_index: u64,
+    pub zkp_batch_index: u64,
+    pub batch_size: u64,
+    pub old_next_index: u64,
+    pub new_next_index: u64,
+    pub new_root: [u8; 32],
+    pub root_index: u32,
+    pub sequence_number: u64,
+}
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
+pub struct BatchNullifyEvent {
+    pub id: [u8; 32],
+    pub batch_index: u64,
+    pub zkp_batch_index: u64,
+    pub new_root: [u8; 32],
+    pub root_index: u32,
+    pub sequence_number: u64,
+    pub batch_size: u64,
 }
 
 #[repr(u64)]
@@ -142,7 +164,7 @@ pub struct ZeroCopyBatchedMerkleTreeAccount {
 /// 3. start index (get from batch)
 /// 4. end index (get from batch start index plus batch size)
 #[derive(Debug, PartialEq, Clone, Copy, BorshSerialize, BorshDeserialize)]
-pub struct InstructionDataBatchUpdateProofInputs {
+pub struct InstructionDataBatchNullifyInputs {
     pub public_inputs: BatchProofInputsIx,
     pub compressed_proof: CompressedProof,
 }
@@ -154,7 +176,7 @@ pub struct BatchProofInputsIx {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, BorshSerialize, BorshDeserialize)]
-pub struct InstructionDataBatchAppendProofInputs {
+pub struct InstructionDataBatchAppendInputs {
     pub public_inputs: AppendBatchProofInputsIx,
     pub compressed_proof: CompressedProof,
 }
@@ -265,8 +287,9 @@ impl ZeroCopyBatchedMerkleTreeAccount {
     pub fn update_output_queue(
         &mut self,
         queue_account_data: &mut [u8],
-        instruction_data: InstructionDataBatchAppendProofInputs,
-    ) -> Result<()> {
+        instruction_data: InstructionDataBatchAppendInputs,
+        id: [u8; 32],
+    ) -> Result<BatchAppendEvent> {
         let mut queue_account =
             ZeroCopyBatchedQueueAccount::from_bytes_mut(queue_account_data).unwrap();
 
@@ -306,9 +329,10 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let root_history_capacity = account.root_history_capacity;
         let sequence_number = account.sequence_number;
         self.root_history.push(new_root);
+        let root_index = self.root_history.last_index() as u32;
         full_batch.mark_as_inserted_in_merkle_tree(
             sequence_number,
-            self.root_history.last_index() as u32,
+            root_index,
             root_history_capacity,
         )?;
         if full_batch.get_state() == BatchState::Inserted {
@@ -316,13 +340,24 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             queue_account.get_account_mut().queue.next_full_batch_index %=
                 queue_account.get_account_mut().queue.num_batches;
         }
-        Ok(())
+        Ok(BatchAppendEvent {
+            id,
+            batch_index,
+            batch_size: circuit_batch_size,
+            zkp_batch_index: num_zkps,
+            old_next_index: start_index,
+            new_next_index: start_index + circuit_batch_size as u64,
+            new_root,
+            root_index,
+            sequence_number: self.get_account().sequence_number,
+        })
     }
 
     pub fn update_input_queue(
         &mut self,
-        instruction_data: InstructionDataBatchUpdateProofInputs,
-    ) -> Result<()> {
+        instruction_data: InstructionDataBatchNullifyInputs,
+        id: [u8; 32],
+    ) -> Result<BatchNullifyEvent> {
         let batch_index = self.get_account().queue.next_full_batch_index;
 
         let full_batch = self.batches.get(batch_index as usize).unwrap();
@@ -369,7 +404,15 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             account.queue.next_full_batch_index += 1;
             account.queue.next_full_batch_index %= account.queue.num_batches;
         }
-        Ok(())
+        Ok(BatchNullifyEvent {
+            id,
+            batch_index,
+            batch_size: circuit_batch_size,
+            zkp_batch_index: num_zkps,
+            new_root,
+            root_index: self.root_history.last_index() as u32,
+            sequence_number: self.get_account().sequence_number,
+        })
     }
 
     fn update<const QUEUE_TYPE: u64>(
@@ -1173,7 +1216,7 @@ mod tests {
                         )
                         .await
                         .unwrap();
-                    let instruction_data = InstructionDataBatchUpdateProofInputs {
+                    let instruction_data = InstructionDataBatchNullifyInputs {
                         public_inputs: BatchProofInputsIx {
                             new_root,
                             old_root_index: old_root_index as u16,
@@ -1186,7 +1229,8 @@ mod tests {
                     };
 
                     (
-                        zero_copy_account.update_input_queue(instruction_data),
+                        zero_copy_account
+                            .update_input_queue(instruction_data, mt_pubkey.to_bytes()),
                         new_root,
                     )
                 };
@@ -1257,7 +1301,7 @@ mod tests {
                     .await
                     .unwrap();
 
-                let instruction_data = InstructionDataBatchAppendProofInputs {
+                let instruction_data = InstructionDataBatchAppendInputs {
                     public_inputs: AppendBatchProofInputsIx { new_root },
                     compressed_proof: CompressedProof {
                         a: proof.a,
@@ -1269,8 +1313,11 @@ mod tests {
                 let mut pre_output_queue_state = output_queue_account_data.clone();
                 println!("Output update -----------------------------");
 
-                let output_res = zero_copy_account
-                    .update_output_queue(&mut pre_output_queue_state, instruction_data);
+                let output_res = zero_copy_account.update_output_queue(
+                    &mut pre_output_queue_state,
+                    instruction_data,
+                    mt_pubkey.to_bytes(),
+                );
                 assert!(output_res.is_ok());
 
                 assert_eq!(
@@ -1494,7 +1541,8 @@ mod tests {
                 println!("Num output values: {}", num_output_values);
                 let mut pre_mt_account_data = mt_account_data.clone();
                 in_ready_for_update = false;
-                perform_input_update(&mut pre_mt_account_data, &mut mock_indexer, true).await;
+                perform_input_update(&mut pre_mt_account_data, &mut mock_indexer, true, mt_pubkey)
+                    .await;
                 mt_account_data = pre_mt_account_data.clone();
 
                 num_input_updates += 1;
@@ -1555,7 +1603,7 @@ mod tests {
                     mock_indexer.active_leaves.push(leaves[i]);
                 }
 
-                let instruction_data = InstructionDataBatchAppendProofInputs {
+                let instruction_data = InstructionDataBatchAppendInputs {
                     public_inputs: AppendBatchProofInputsIx { new_root },
                     compressed_proof: CompressedProof {
                         a: proof.a,
@@ -1567,8 +1615,11 @@ mod tests {
                 let mut pre_output_queue_state = output_queue_account_data.clone();
                 println!("Output update -----------------------------");
 
-                let output_res = zero_copy_account
-                    .update_output_queue(&mut pre_output_queue_state, instruction_data);
+                let output_res = zero_copy_account.update_output_queue(
+                    &mut pre_output_queue_state,
+                    instruction_data,
+                    mt_pubkey.to_bytes(),
+                );
 
                 assert_eq!(
                     *zero_copy_account.root_history.last().unwrap(),
@@ -1623,6 +1674,7 @@ mod tests {
         mt_account_data: &mut [u8],
         mock_indexer: &mut MockBatchedForester<26>,
         enable_assert: bool,
+        mt_pubkey: Pubkey,
     ) {
         let mut cloned_mt_account_data = (*mt_account_data).to_vec();
         let old_zero_copy_account =
@@ -1651,7 +1703,7 @@ mod tests {
                 )
                 .await
                 .unwrap();
-            let instruction_data = InstructionDataBatchUpdateProofInputs {
+            let instruction_data = InstructionDataBatchNullifyInputs {
                 public_inputs: BatchProofInputsIx {
                     new_root,
                     old_root_index: old_root_index as u16,
@@ -1664,7 +1716,7 @@ mod tests {
             };
 
             (
-                zero_copy_account.update_input_queue(instruction_data),
+                zero_copy_account.update_input_queue(instruction_data, mt_pubkey.to_bytes()),
                 new_root,
             )
         };
@@ -1975,7 +2027,7 @@ mod tests {
                     mock_indexer.active_leaves.push(leaves[i]);
                 }
 
-                let instruction_data = InstructionDataBatchAppendProofInputs {
+                let instruction_data = InstructionDataBatchAppendInputs {
                     public_inputs: AppendBatchProofInputsIx { new_root },
                     compressed_proof: CompressedProof {
                         a: proof.a,
@@ -1986,8 +2038,11 @@ mod tests {
 
                 println!("Output update -----------------------------");
 
-                let output_res = zero_copy_account
-                    .update_output_queue(&mut pre_output_queue_state, instruction_data);
+                let output_res = zero_copy_account.update_output_queue(
+                    &mut pre_output_queue_state,
+                    instruction_data,
+                    mt_pubkey.to_bytes(),
+                );
                 assert!(output_res.is_ok());
 
                 assert_eq!(
@@ -2119,7 +2174,8 @@ mod tests {
             let num_updates = params.input_queue_batch_size / params.input_queue_zkp_batch_size * 4;
             for i in 0..num_updates {
                 println!("input update ----------------------------- {}", i);
-                perform_input_update(&mut mt_account_data, &mut mock_indexer, false).await;
+                perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey)
+                    .await;
                 println!(
                     "performed input queue batched update {} created root {:?}",
                     i,

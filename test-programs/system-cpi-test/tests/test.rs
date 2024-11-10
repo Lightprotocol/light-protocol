@@ -127,6 +127,7 @@ async fn only_test_create_pda() {
             &program_owned_cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
+            1,
         )
         .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
@@ -537,6 +538,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
+            1,
         )
         .await;
     let env_with_program_owned_state_merkle_tree = EnvAccounts {
@@ -584,6 +586,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_cpi_context_keypair,
             Some(ID),
             None,
+            1,
         )
         .await;
     let program_owned_address_merkle_tree_keypair = Keypair::new();
@@ -868,7 +871,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                 } else {
                     None
                 },
-                root_index: rpc_result.root_indices[0],
+                root_index: rpc_result.root_indices[0].unwrap(),
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
@@ -905,7 +908,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                 queue_pubkey_index: 1,
                 queue_index: None,
             },
-            root_index: rpc_result.root_indices[0],
+            root_index: rpc_result.root_indices[0].unwrap(),
             read_only: false,
         },
         token_transfer_data,

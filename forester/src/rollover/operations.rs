@@ -110,6 +110,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
+        _ => panic!("get tree fullness: Invalid tree type {:?}", tree_type),
     }
 }
 
@@ -134,6 +135,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await?
                 .unwrap(),
         ),
+        _ => panic!(
+            "is_tree_ready_for_rollover: Invalid tree type {:?}",
+            tree_type
+        ),
     };
 
     let is_already_rolled_over = match &account {
@@ -154,6 +159,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
         TreeType::Address => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
+        _ => panic!(
+            "is_tree_ready_for_rollover: Invalid tree type {:?}",
+            tree_type
+        ),
     }
 }
 

@@ -58,7 +58,7 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 
 func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var keys []string
-
+	fmt.Println("circuit", circuits)
 	var inclusionKeys []string = []string{
 		keysDir + "inclusion_26_1.key",
 		keysDir + "inclusion_26_2.key",

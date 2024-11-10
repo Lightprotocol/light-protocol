@@ -1,5 +1,10 @@
+use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
 use account_compression::batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
 use light_macros::pubkey;
+use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
+use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
+use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
+use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_system_program::sdk::compressed_account::QueueIndex;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
@@ -9,20 +14,21 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use crate::e2e_test_env::KeypairActionConfig;
+use crate::test_env::create_batched_state_merkle_tree;
 use crate::{
     spl::create_initialize_mint_instructions,
     test_env::create_address_merkle_tree_and_queue_account,
 };
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    rollover, AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData, NullifierQueueConfig, StateMerkleTreeConfig
 };
 use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof,
-    NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-    TokenDataWithContext,
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
+    IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts,
+    StateMerkleTreeBundle, TokenDataWithContext,
 };
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
-use light_client::rpc::RpcConnection;
+use light_client::rpc::{RpcConnection, RpcError};
 use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
@@ -252,7 +258,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .map(|x| {
                 self.state_merkle_trees
                     .iter()
-                    .find(|y| y.accounts.merkle_tree == *x)
+                    .find(|y| y.accounts.merkle_tree == *x || y.accounts.nullifier_queue == *x)
                     .unwrap()
                     .accounts
             })
@@ -261,6 +267,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
     fn add_event_and_compressed_accounts(
         &mut self,
+        slot: u64,
         event: &PublicTransactionEvent,
     ) -> (
         Vec<CompressedAccountWithMerkleContext>,
@@ -289,6 +296,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             // }
             println!("add_event_and_compressed_accounts: event {:?}", event);
             self.process_v1_compressed_account(
+                slot,
                 event,
                 i,
                 &mut token_compressed_accounts,
@@ -331,18 +339,20 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
     async fn create_proof_for_compressed_accounts2(
         &mut self,
-        compressed_accounts: Option<&[[u8; 32]]>,
-        state_merkle_tree_pubkeys: Option<&[Pubkey]>,
+        compressed_accounts: Option<Vec<[u8; 32]>>,
+        state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> (Option<ProofRpcResult>, Vec<([u8; 32], QueueIndex)>) {
+    ) -> BatchedTreeProofRpcResult {
         println!("pre compressed_accounts {:?}", compressed_accounts);
         println!(
             "pre state_merkle_tree_pubkeys {:?}",
             state_merkle_tree_pubkeys
         );
-        let mut proof_by_index = Vec::new();
+        let mut indices_to_remove = Vec::new();
+
+        // let mut proof_by_index = Vec::new();
         // for all accounts in batched trees, check whether values are in tree or queue
         let (compressed_accounts, state_merkle_tree_pubkeys) =
             if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
@@ -350,7 +360,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             {
                 println!("compressed_accounts {:?}", compressed_accounts);
                 println!("state_merkle_tree_pubkeys {:?}", state_merkle_tree_pubkeys);
-                let mut indices_to_remove = Vec::new();
                 for (i, (compressed_account, state_merkle_tree_pubkey)) in compressed_accounts
                     .iter()
                     .zip(state_merkle_tree_pubkeys.iter())
@@ -373,13 +382,13 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             let index = value_array.iter().position(|x| *x == *compressed_account);
                             println!("index {:?}", index);
                             if let Some(index) = index {
-                                proof_by_index.push((
-                                    *compressed_account,
-                                    QueueIndex {
-                                        index: index as u16,
-                                        queue_id: j as u8,
-                                    },
-                                ));
+                                // proof_by_index.push((
+                                //     i as u16,
+                                //     QueueIndex {
+                                //         index: index as u16,
+                                //         queue_id: j as u8,
+                                //     },
+                                // ));
                                 indices_to_remove.push(i);
                             }
                         }
@@ -405,7 +414,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             } else {
                 (None, None)
             };
-        println!("proof_by_index {:?}", proof_by_index);
         println!("post compressed_accounts {:?}", compressed_accounts);
         println!(
             "post state_merkle_tree_pubkeys {:?}",
@@ -413,7 +421,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         );
         let rpc_result = if (compressed_accounts.is_some()
             && !compressed_accounts.as_ref().unwrap().is_empty())
-            || (compressed_accounts.is_some() && !compressed_accounts.as_ref().unwrap().is_empty())
+            || address_merkle_tree_pubkeys.is_some()
         {
             Some(
                 self.create_proof_for_compressed_accounts(
@@ -428,7 +436,27 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         } else {
             None
         };
-        (rpc_result, proof_by_index)
+        let address_root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
+            rpc_result.address_root_indices.clone()
+        } else {
+            Vec::new()
+        };
+        let root_indices = {
+            let mut root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
+                rpc_result.root_indices.clone()
+            } else {
+                Vec::new()
+            };
+            for index in indices_to_remove {
+                root_indices.insert(index, None);
+            }
+            root_indices
+        };
+        BatchedTreeProofRpcResult {
+            proof: rpc_result.map(|x| x.proof),
+            root_indices,
+            address_root_indices,
+        }
         // (None, proof_by_index)
     }
 
@@ -517,8 +545,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                let root_indices = root_indices.iter().map(|x| Some(*x)).collect::<Vec<_>>();
                 return ProofRpcResult {
-                    root_indices: root_indices.clone(),
+                    root_indices,
                     address_root_indices: address_root_indices.clone(),
                     proof: CompressedProof {
                         a: proof_a,
@@ -530,7 +559,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 if let Some(ref prover_config) = self.prover_config {
-                    spawn_prover(true, prover_config.clone()).await;
+                    spawn_prover(false, prover_config.clone()).await;
                 }
                 retries -= 1;
             }
@@ -665,8 +694,9 @@ impl<R: RpcConnection> TestIndexer<R> {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
                 rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
-                // TODO: check which version
                 version,
+                output_queue_elements: vec![],
+                input_leaf_indices: vec![],
             });
         }
 
@@ -746,28 +776,52 @@ impl<R: RpcConnection> TestIndexer<R> {
         cpi_context_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
         forester: Option<Pubkey>,
+        version: u64,
     ) {
-        create_state_merkle_tree_and_queue_account(
-            &self.payer,
-            true,
-            rpc,
-            merkle_tree_keypair,
-            queue_keypair,
-            Some(cpi_context_keypair),
-            owning_program_id,
-            forester,
-            self.state_merkle_trees.len() as u64,
-            &StateMerkleTreeConfig::default(),
-            &NullifierQueueConfig::default(),
-        )
-        .await
-        .unwrap();
+        let rollover_fee = match version {
+            1 => {
+                create_state_merkle_tree_and_queue_account(
+                    &self.payer,
+                    true,
+                    rpc,
+                    merkle_tree_keypair,
+                    queue_keypair,
+                    Some(cpi_context_keypair),
+                    owning_program_id,
+                    forester,
+                    self.state_merkle_trees.len() as u64,
+                    &StateMerkleTreeConfig::default(),
+                    &NullifierQueueConfig::default(),
+                )
+                .await
+                .unwrap();
+            FeeConfig::default().state_merkle_tree_rollover as i64
+            }
+            2 => {
+                let params = InitStateTreeAccountsInstructionData::default();
 
+                create_batched_state_merkle_tree(
+                    &self.payer, 
+                    true,
+                    rpc,
+                    merkle_tree_keypair,
+                    queue_keypair,
+                    cpi_context_keypair,
+                    params,
+                ).await;
+                FeeConfig::batched().state_merkle_tree_rollover as i64
+            }
+            _ => panic!(
+                "add_state_merkle_tree: Version not supported, {}. Versions: 1 concurrent, 2 batched",
+                version
+            ),
+        };
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             nullifier_queue: queue_keypair.pubkey(),
             cpi_context: cpi_context_keypair.pubkey(),
         };
+        println!("created state_merkle_tree_account {:?}", state_merkle_tree_account);
         let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -776,9 +830,10 @@ impl<R: RpcConnection> TestIndexer<R> {
         self.state_merkle_trees.push(StateMerkleTreeBundle {
             merkle_tree,
             accounts: state_merkle_tree_account,
-            rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
-            // TODO: check which version
-            version: 0,
+            rollover_fee,
+            version,
+            output_queue_elements: vec![],
+            input_leaf_indices: vec![],
         });
     }
 
@@ -881,10 +936,10 @@ impl<R: RpcConnection> TestIndexer<R> {
     /// adds the output_compressed_accounts to the compressed_accounts
     /// removes the input_compressed_accounts from the compressed_accounts
     /// adds the input_compressed_accounts to the nullified_compressed_accounts
-    pub fn add_lamport_compressed_accounts(&mut self, event_bytes: Vec<u8>) {
+    pub fn add_lamport_compressed_accounts(&mut self, slot: u64, event_bytes: Vec<u8>) {
         let event_bytes = event_bytes.clone();
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
-        self.add_event_and_compressed_accounts(&event);
+        self.add_event_and_compressed_accounts(slot, &event);
     }
 
     /// deserializes an event
@@ -893,8 +948,8 @@ impl<R: RpcConnection> TestIndexer<R> {
     /// adds the input_compressed_accounts to the nullified_compressed_accounts
     /// deserialiazes token data from the output_compressed_accounts
     /// adds the token_compressed_accounts to the token_compressed_accounts
-    pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
-        self.add_event_and_compressed_accounts(event);
+    pub fn add_compressed_accounts_with_token_data(&mut self, slot: u64, event: &PublicTransactionEvent) {
+        self.add_event_and_compressed_accounts(slot,event);
     }
 
     /// returns the compressed sol balance of the owner pubkey
@@ -920,12 +975,17 @@ impl<R: RpcConnection> TestIndexer<R> {
 
     fn process_v1_compressed_account(
         &mut self,
+        slot: u64,
         event: &PublicTransactionEvent,
         i: usize,
         token_compressed_accounts: &mut Vec<TokenDataWithContext>,
         compressed_accounts: &mut Vec<CompressedAccountWithMerkleContext>,
     ) {
         if event.input_compressed_account_hashes.len() > i {
+            
+            let tx_hash: [u8; 32] = create_tx_hash(&event.input_compressed_account_hashes, &event.output_compressed_account_hashes, slot);
+            println!("tx_hash {:?}", tx_hash);
+            println!("slot {:?}", slot);
             let hash = event.input_compressed_account_hashes[i];
             let index = self.compressed_accounts.iter().position(|x| {
                 x.compressed_account
@@ -936,10 +996,12 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .unwrap()
                     == hash
             });
-            if let Some(index) = index {
+            let leaf_index = if let Some(index) = index {
                 self.nullified_compressed_accounts
                     .push(self.compressed_accounts[index].clone());
+                let leaf_index = self.compressed_accounts[index].merkle_context.leaf_index;
                 self.compressed_accounts.remove(index);
+                leaf_index
             } else {
                 let index = self
                     .token_compressed_accounts
@@ -957,7 +1019,20 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .expect("input compressed account not found");
                 self.token_nullified_compressed_accounts
                     .push(self.token_compressed_accounts[index].clone());
+                let leaf_index = self.token_compressed_accounts[index].compressed_account.merkle_context.leaf_index;
                 self.token_compressed_accounts.remove(index);
+                leaf_index
+            };
+            let bundle = self
+                .state_merkle_trees
+                .iter_mut()
+                .find(|x| x.accounts.merkle_tree == event.pubkey_array[i])
+                .unwrap();
+            // Store leaf indices of input accounts for batched trees
+            if bundle.version == 2 {
+                let leaf_hash = event.input_compressed_account_hashes[i];
+                bundle.input_leaf_indices.push((leaf_index,leaf_hash, tx_hash));
+
             }
         }
         if event.output_compressed_accounts.len() > i {
@@ -1052,19 +1127,19 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .unwrap()
             };
             let is_batched = seq.seq == u64::MAX;
+            
             println!("Output is batched {:?}", is_batched);
             if !is_batched {
                 let merkle_tree = &mut self
-                    .state_merkle_trees
-                    .iter_mut()
-                    .find(|x| {
-                        x.accounts.merkle_tree
-                            == event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize]
-                    })
-                    .unwrap()
-                    .merkle_tree;
-                merkle_tree
+                .state_merkle_trees
+                .iter_mut()
+                .find(|x| {
+                    x.accounts.merkle_tree
+                        == event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                })
+                .unwrap();
+                merkle_tree.merkle_tree
                     .append(
                         &compressed_account
                             .compressed_account
@@ -1078,8 +1153,18 @@ impl<R: RpcConnection> TestIndexer<R> {
                     )
                     .expect("insert failed");
             } else {
+                let merkle_tree = &mut self
+                    .state_merkle_trees
+                    .iter_mut()
+                    .find(|x| {
+                        x.accounts.nullifier_queue
+                            == event.pubkey_array
+                                [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                    })
+                    .unwrap();
                 // TODO: store this for inputs
                 // pub input_queue_leaves: Vec<([u8; 32], usize)>,
+                merkle_tree.output_queue_elements.push(event.output_compressed_account_hashes[i]);
             }
         }
     }

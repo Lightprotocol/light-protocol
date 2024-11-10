@@ -517,16 +517,17 @@ pub mod light_registry {
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
-        let account = ctx.accounts.merkle_tree.load()?;
-        let metadata = account.metadata;
-        check_forester(
-            &metadata,
-            ctx.accounts.authority.key(),
-            ctx.accounts.merkle_tree.key(),
-            &mut ctx.accounts.registered_forester_pda,
-            account.queue.batch_size,
-        )?;
-
+        {
+            let account = ctx.accounts.merkle_tree.load()?;
+            let metadata = account.metadata.clone();
+            check_forester(
+                &metadata,
+                ctx.accounts.authority.key(),
+                ctx.accounts.merkle_tree.key(),
+                &mut ctx.accounts.registered_forester_pda,
+                account.queue.batch_size,
+            )?;
+        }
         process_batch_nullify(&ctx, bump, data)
     }
 
@@ -535,17 +536,17 @@ pub mod light_registry {
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
-        // TODO: check association
-        let queue_account = ctx.accounts.output_queue.load()?;
-        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
-        check_forester(
-            &metadata,
-            ctx.accounts.authority.key(),
-            ctx.accounts.output_queue.key(),
-            &mut ctx.accounts.registered_forester_pda,
-            queue_account.queue.batch_size,
-        )?;
-
+        {
+            let queue_account = ctx.accounts.output_queue.load()?;
+            let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+            check_forester(
+                &metadata,
+                ctx.accounts.authority.key(),
+                ctx.accounts.output_queue.key(),
+                &mut ctx.accounts.registered_forester_pda,
+                queue_account.queue.batch_size,
+            )?;
+        }
         process_batch_append(&ctx, bump, data)
     }
 }

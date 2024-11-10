@@ -5,6 +5,7 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
+use light_system_program::sdk::compressed_account::QueueIndex;
 use light_system_program::{
     errors::SystemProgramError,
     sdk::{
@@ -952,7 +953,7 @@ async fn invoke_test() {
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -986,7 +987,7 @@ async fn invoke_test() {
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -1726,7 +1727,7 @@ async fn batch_invoke_test() {
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -1760,7 +1761,7 @@ async fn batch_invoke_test() {
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -1778,19 +1779,24 @@ async fn batch_invoke_test() {
     // get zkp from server
     // create instruction as usual with correct zkp
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
-    let (_, proofs_by_index) = test_indexer
+    let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts2(
-            Some(&[compressed_account_with_context.hash().unwrap()]),
-            Some(&[compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![compressed_account_with_context.hash().unwrap()]),
+            Some(vec![
+                compressed_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut context,
         )
         .await;
+    // No proof since value is in output queue
+    assert!(proof_rpc_result.proof.is_none());
+    // No root index since value is in output queue
+    assert!(proof_rpc_result.root_indices[0].is_none());
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
-    println!("proofs_by_index[0].1 {:?}", proofs_by_index[0].1);
     let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
@@ -1798,9 +1804,13 @@ async fn batch_invoke_test() {
         &output_compressed_accounts,
         &[MerkleContext {
             merkle_tree_pubkey,
-            leaf_index: proofs_by_index[0].1.index as u32,
+            leaf_index: compressed_account_with_context.merkle_context.leaf_index,
             queue_pubkey: output_queue_pubkey,
-            queue_index: Some(proofs_by_index[0].1),
+            // Values are not used, it only has to be Some
+            queue_index: Some(QueueIndex {
+                index: 123,
+                queue_id: 200,
+            }),
         }],
         &[output_queue_pubkey],
         &[],
@@ -1848,7 +1858,11 @@ async fn batch_invoke_test() {
             merkle_tree_pubkey: output_queue_pubkey,
             leaf_index: 0,
             queue_pubkey: merkle_tree_pubkey,
-            queue_index: Some(proofs_by_index[0].1),
+            // queue_index: Some(proofs_by_index[0].1),
+            queue_index: Some(QueueIndex {
+                index: 123,
+                queue_id: 200,
+            }),
         }],
         &[output_queue_pubkey],
         &[],
@@ -1879,7 +1893,11 @@ async fn batch_invoke_test() {
             merkle_tree_pubkey: output_queue_pubkey,
             leaf_index: 2,
             queue_pubkey: merkle_tree_pubkey,
-            queue_index: Some(proofs_by_index[0].1),
+            // queue_index: Some(proofs_by_index[0].1),
+            queue_index: Some(QueueIndex {
+                index: 123,
+                queue_id: 200,
+            }),
         }],
         &[output_queue_pubkey],
         &[],
@@ -1950,13 +1968,13 @@ async fn batch_invoke_test() {
     {
         let compressed_account_with_context_1 = test_indexer.compressed_accounts[0].clone();
         let compressed_account_with_context_2 = test_indexer.compressed_accounts[1].clone();
-        let (proof_rpc_result, proofs_by_index) = test_indexer
+        let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts2(
-                Some(&[
+                Some(vec![
                     compressed_account_with_context_1.hash().unwrap(),
                     compressed_account_with_context_2.hash().unwrap(),
                 ]),
-                Some(&[
+                Some(vec![
                     compressed_account_with_context_1
                         .merkle_context
                         .merkle_tree_pubkey,
@@ -1989,9 +2007,13 @@ async fn batch_invoke_test() {
         ];
         let merkle_context_1 = compressed_account_with_context_1.merkle_context;
         let mut merkle_context_2 = compressed_account_with_context_2.merkle_context;
-        merkle_context_2.queue_index = Some(proofs_by_index[0].1);
+        // merkle_context_2.queue_index = Some(proofs_by_index[0].1);
+        // Queue index is not used it is just Some to signal that the value is not in the proof
+        merkle_context_2.queue_index = Some(QueueIndex {
+            index: 123,
+            queue_id: 200,
+        });
 
-        let proof_rpc_result = proof_rpc_result.unwrap();
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2004,7 +2026,7 @@ async fn batch_invoke_test() {
             ],
             &proof_rpc_result.root_indices,
             &Vec::new(),
-            Some(proof_rpc_result.proof),
+            proof_rpc_result.proof,
             None,
             false,
             None,

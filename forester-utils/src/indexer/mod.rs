@@ -13,9 +13,7 @@ use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
 use light_indexed_merkle_tree::reference::IndexedMerkleTree;
 use light_merkle_tree_reference::MerkleTree;
 use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, QueueIndex,
-};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
@@ -27,9 +25,17 @@ pub struct TokenDataWithContext {
 }
 
 #[derive(Debug, Default)]
+pub struct BatchedTreeProofRpcResult {
+    pub proof: Option<CompressedProof>,
+    // If none proof by index, if some included in zkp
+    pub root_indices: Vec<Option<u16>>,
+    pub address_root_indices: Vec<u16>,
+}
+
+#[derive(Debug, Default)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
-    pub root_indices: Vec<u16>,
+    pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }
 
@@ -52,6 +58,9 @@ pub struct StateMerkleTreeBundle {
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
     pub version: u64,
+    pub output_queue_elements: Vec<[u8; 32]>,
+    /// leaf index, leaf, tx hash
+    pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +105,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
 
     fn add_event_and_compressed_accounts(
         &mut self,
+        _slot: u64,
         _event: &PublicTransactionEvent,
     ) -> (
         Vec<CompressedAccountWithMerkleContext>,
@@ -147,12 +157,12 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts2(
         &mut self,
-        _compressed_accounts: Option<&[[u8; 32]]>,
-        _state_merkle_tree_pubkeys: Option<&[Pubkey]>,
+        _compressed_accounts: Option<Vec<[u8; 32]>>,
+        _state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         _new_addresses: Option<&[[u8; 32]]>,
         _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         _rpc: &mut R,
-    ) -> (Option<ProofRpcResult>, Vec<([u8; 32], QueueIndex)>) {
+    ) -> BatchedTreeProofRpcResult {
         unimplemented!()
     }
 

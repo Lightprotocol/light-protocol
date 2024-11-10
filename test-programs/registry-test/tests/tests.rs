@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
@@ -26,6 +28,9 @@ use light_test_utils::assert_epoch::{
 };
 use light_test_utils::e2e_test_env::init_program_test_env;
 use light_test_utils::rpc::ProgramTestRpcConnection;
+use light_test_utils::test_batch_forester::{
+    create_append_batch_ix_data, perform_batch_append, perform_batch_nullify,
+};
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
     deregister_program_with_registry_program, initialize_new_group,
@@ -522,6 +527,7 @@ async fn test_custom_forester() {
                     &cpi_context_keypair,
                     None,
                     Some(unregistered_forester_keypair.pubkey()),
+                    1,
                 )
                 .await;
 
@@ -565,6 +571,178 @@ async fn test_custom_forester() {
         )
         .await
         .unwrap();
+    }
+}
+
+#[serial]
+#[tokio::test]
+async fn test_custom_forester_batched() {
+    let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
+        None,
+        ProtocolConfig::default(),
+        true,
+    )
+    .await;
+
+    {
+        let mut instruction_data = None;
+        let unregistered_forester_keypair = Keypair::new();
+        rpc.airdrop_lamports(&unregistered_forester_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        // create work 1 item in address and nullifier queue each
+        let (mut state_merkle_tree_bundle, _, mut rpc) = {
+            let mut e2e_env = init_program_test_env(rpc, &env).await;
+            e2e_env.indexer.state_merkle_trees.clear();
+            // add state merkle tree to the indexer
+            e2e_env
+                .indexer
+                .add_state_merkle_tree(
+                    &mut e2e_env.rpc,
+                    &merkle_tree_keypair,
+                    &nullifier_queue_keypair,
+                    &cpi_context_keypair,
+                    None,
+                    None,
+                    2,
+                )
+                .await;
+            let state_merkle_tree_pubkey =
+                e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
+            let output_queue_pubkey = e2e_env.indexer.state_merkle_trees[0]
+                .accounts
+                .nullifier_queue;
+            let mut merkle_tree_account = e2e_env
+                .rpc
+                .get_account(state_merkle_tree_pubkey)
+                .await
+                .unwrap()
+                .unwrap();
+            let merkle_tree =
+                ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
+                    .unwrap();
+            // fill two output and one input batch
+            for i in 0..merkle_tree.get_account().queue.batch_size {
+                println!("\ntx {}", i);
+
+                e2e_env
+                    .compress_sol_deterministic(&unregistered_forester_keypair, 1_000_000, None)
+                    .await;
+                e2e_env
+                    .transfer_sol_deterministic(
+                        &unregistered_forester_keypair,
+                        &Pubkey::new_unique(),
+                        None,
+                    )
+                    .await
+                    .unwrap();
+                if i == 25 {
+                    instruction_data = Some(
+                        create_append_batch_ix_data(
+                            &mut e2e_env.rpc,
+                            &mut e2e_env.indexer.state_merkle_trees[0],
+                            state_merkle_tree_pubkey,
+                            output_queue_pubkey,
+                        )
+                        .await,
+                    );
+                }
+            }
+            {
+                let state_merkle_tree_pubkey =
+                    e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
+                let output_queue_pubkey = e2e_env.indexer.state_merkle_trees[0]
+                    .accounts
+                    .nullifier_queue;
+                let mut merkle_tree_account = e2e_env
+                    .rpc
+                    .get_account(state_merkle_tree_pubkey)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
+                        .unwrap();
+                println!("merkle_tree batches: {:?}", merkle_tree.batches);
+
+                let mut output_queue_account = e2e_env
+                    .rpc
+                    .get_account(output_queue_pubkey)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let output_queue =
+                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data)
+                        .unwrap();
+                println!("output_queue batches: {:?}", output_queue.batches);
+            }
+            (
+                e2e_env.indexer.state_merkle_trees[0].clone(),
+                e2e_env.indexer.address_merkle_trees[0].clone(),
+                e2e_env.rpc,
+            )
+        };
+
+        for i in 0..10 {
+            // Simulate concurrency since instruction data has been created before
+            let instruction_data = if i == 0 {
+                instruction_data.clone()
+            } else {
+                None
+            };
+            perform_batch_append(
+                &mut rpc,
+                &mut state_merkle_tree_bundle,
+                &env.forester,
+                0,
+                false,
+                instruction_data,
+            )
+            .await
+            .unwrap();
+        }
+        for i in 0..5 {
+            // Simulate concurrency since instruction data has been created before
+            // let instruction_data = if i == 0 {
+            //     instruction_data.clone()
+            // } else {
+            //     None
+            // };
+            perform_batch_nullify(
+                &mut rpc,
+                &mut state_merkle_tree_bundle,
+                &env.forester,
+                0,
+                false,
+                None,
+            )
+            .await
+            .unwrap();
+        }
+        // {
+        //     let result = nullify_compressed_accounts(
+        //         &mut rpc,
+        //         &payer,
+        //         &mut state_merkle_tree_bundle,
+        //         0,
+        //         true,
+        //     )
+        //     .await;
+        //     assert_rpc_error(result, 0, RegistryError::InvalidSigner.into()).unwrap();
+        // }
+        // // nullify with tree forester
+        // nullify_compressed_accounts(
+        //     &mut rpc,
+        //     &unregistered_forester_keypair,
+        //     &mut state_merkle_tree_bundle,
+        //     0,
+        //     true,
+        // )
+        // .await
+        // .unwrap();
     }
 }
 

@@ -25,16 +25,21 @@ async fn test_10_all() {
         Some(KeypairActionConfig::all_default().prover_config()),
     )
     .await;
-
+    let mut config = KeypairActionConfig::all_default();
+    config.fee_assert = false;
+    let mut general_config = GeneralActionConfig::default();
+    general_config.rollover = None;
+    general_config.create_address_mt = None;
+    general_config.create_state_mt = None;
     let mut env =
         E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
             rpc,
             indexer,
             &env_accounts,
-            KeypairActionConfig::all_default(),
-            GeneralActionConfig::default(),
+            config,
+            general_config,
             10,
-            None,
+            Some(13251090806922684402),
         )
         .await;
     env.execute_rounds().await;

@@ -193,11 +193,12 @@ impl Batch {
 
     /// Inserts into the bloom filter and hashes the value.
     /// (used by nullifier queue)
-    pub fn check_non_inclusion(&mut self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
+    pub fn check_non_inclusion(&self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;
         if bloom_filter.contains(value) {
+            #[cfg(target_os = "solana")]
             msg!("Value already exists in the bloom filter.");
             return err!(AccountCompressionErrorCode::BatchInsertFailed);
         }
