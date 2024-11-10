@@ -379,8 +379,7 @@ where
                     (*metadata).capacity() * std::mem::size_of::<T>(),
                 ));
             }
-            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
-                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            let full_vector_size = (*metadata).capacity() * std::mem::size_of::<T>();
             if account_data.len().saturating_sub(*start_offset) < full_vector_size {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),
@@ -995,8 +994,7 @@ where
                 ));
             }
 
-            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
-                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            let full_vector_size = (*metadata).capacity() * std::mem::size_of::<T>();
             if account_data.len().saturating_sub(*start_offset) < full_vector_size {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),

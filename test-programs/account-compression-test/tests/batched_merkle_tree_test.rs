@@ -53,16 +53,19 @@ async fn test_init_state_merkle_tree() {
     let payer = context.get_payer().insecure_clone();
 
     {
-        let params = InitStateTreeAccountsInstructionData::default();
+        let params = InitStateTreeAccountsInstructionData::test_default();
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
+            params.output_queue_num_batches,
         );
         let mt_account_size = get_merkle_tree_account_size(
             params.input_queue_batch_size,
             params.bloom_filter_capacity,
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
+            params.height,
+            params.input_queue_num_batches,
         );
         let queue_rent = context
             .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -134,6 +137,8 @@ async fn test_init_state_merkle_tree() {
             params.bloom_filter_capacity,
             params.root_history_capacity,
             output_queue_pubkey,
+            params.height,
+            params.input_queue_num_batches,
         );
         println!("pre assert_mt_zero_copy_inited");
         assert_mt_zero_copy_inited(
@@ -154,6 +159,8 @@ async fn test_init_state_merkle_tree() {
             params.additional_bytes,
             total_rent,
             merkle_tree_pubkey,
+            params.height,
+            params.output_queue_num_batches,
         );
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),

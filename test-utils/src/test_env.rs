@@ -422,7 +422,6 @@ pub async fn setup_test_programs_with_accounts(
 /// - registers a forester
 /// - advances to the active phase slot 2
 /// - active phase doesn't end
-// TODO(vadorovsky): ...in favor of this one.
 pub async fn setup_test_programs_with_accounts_v2(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> (
@@ -443,12 +442,25 @@ pub async fn setup_test_programs_with_accounts_v2(
     )
     .await
 }
-
-// TODO(vadorovsky): Remote this function...
 pub async fn setup_test_programs_with_accounts_with_protocol_config(
     additional_programs: Option<Vec<(String, Pubkey)>>,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
+) -> (ProgramTestRpcConnection, EnvAccounts) {
+    setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        additional_programs,
+        protocol_config,
+        register_forester_and_advance_to_active_phase,
+        InitStateTreeAccountsInstructionData::test_default(),
+    )
+    .await
+}
+
+pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+    protocol_config: ProtocolConfig,
+    register_forester_and_advance_to_active_phase: bool,
+    batched_tree_init_params: InitStateTreeAccountsInstructionData,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection { context };
@@ -469,6 +481,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
         protocol_config,
         register_forester_and_advance_to_active_phase,
         true,
+        batched_tree_init_params,
     )
     .await;
     (context, env_accounts)
@@ -496,12 +509,14 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
+    let params = InitStateTreeAccountsInstructionData::test_default();
     let env_accounts = initialize_accounts(
         &mut context,
         keypairs,
         protocol_config,
         register_forester_and_advance_to_active_phase,
         true,
+        params,
     )
     .await;
     (context, env_accounts)
@@ -509,8 +524,17 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
 
 pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> EnvAccounts {
     let mut rpc = SolanaRpcConnection::new(url, None);
+    let params = InitStateTreeAccountsInstructionData::test_default();
 
-    initialize_accounts(&mut rpc, keypairs, ProtocolConfig::default(), false, false).await
+    initialize_accounts(
+        &mut rpc,
+        keypairs,
+        ProtocolConfig::default(),
+        false,
+        false,
+        params,
+    )
+    .await
 }
 
 pub async fn initialize_accounts<R: RpcConnection>(
@@ -519,6 +543,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
     skip_register_programs: bool,
+    batched_tree_init_params: InitStateTreeAccountsInstructionData,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
     let protocol_config_pda = get_protocol_config_pda_address();
@@ -607,9 +632,9 @@ pub async fn initialize_accounts<R: RpcConnection>(
     )
     .await
     .unwrap();
-    let params = InitStateTreeAccountsInstructionData::default();
+
     assert_eq!(
-        params.additional_bytes,
+        batched_tree_init_params.additional_bytes,
         ProtocolConfig::default().cpi_context_size
     );
     create_batched_state_merkle_tree(
@@ -619,7 +644,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         &keypairs.batched_state_merkle_tree,
         &keypairs.batched_output_queue,
         &keypairs.batched_cpi_context,
-        params,
+        batched_tree_init_params,
     )
     .await
     .unwrap();
@@ -629,7 +654,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         keypairs.batched_state_merkle_tree.pubkey(),
         keypairs.batched_output_queue.pubkey(),
         keypairs.batched_cpi_context.pubkey(),
-        params,
+        batched_tree_init_params,
     )
     .await
     .unwrap();
@@ -1159,12 +1184,15 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
         params.bloom_filter_capacity,
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
     );
     let queue_rent = rpc
         .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -1268,6 +1296,8 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         params.bloom_filter_capacity,
         params.root_history_capacity,
         output_queue_pubkey,
+        params.height,
+        params.input_queue_num_batches,
     );
     println!("pre assert_mt_zero_copy_inited");
     assert_mt_zero_copy_inited(
@@ -1279,12 +1309,15 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
         params.bloom_filter_capacity,
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
     );
     let queue_rent = rpc
         .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -1310,6 +1343,8 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         params.additional_bytes,
         total_rent,
         merkle_tree_pubkey,
+        params.height,
+        params.output_queue_num_batches,
     );
     // TODO: return result instead of panic by assert
     assert_queue_zero_copy_inited(

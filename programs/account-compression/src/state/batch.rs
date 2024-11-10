@@ -245,7 +245,7 @@ impl Batch {
         let max_batch_leaf_index =
             self.get_num_zkp_batches() * self.zkp_batch_size + self.start_index;
         let min_batch_leaf_index = self.start_index;
-        Ok(leaf_index < max_batch_leaf_index && max_batch_leaf_index >= min_batch_leaf_index)
+        Ok(leaf_index < max_batch_leaf_index && leaf_index >= min_batch_leaf_index)
     }
 
     pub fn get_value_index_in_batch(&self, leaf_index: u64) -> Result<u64> {

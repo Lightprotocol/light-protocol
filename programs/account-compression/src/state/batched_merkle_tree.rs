@@ -4,8 +4,7 @@ use crate::{
     bytes_to_struct_checked,
     errors::AccountCompressionErrorCode,
     utils::{
-        check_signer_is_registered_or_authority::GroupAccess,
-        constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH},
+        check_signer_is_registered_or_authority::GroupAccess, constants::TEST_DEFAULT_BATCH_SIZE,
     },
     InitStateTreeAccountsInstructionData,
 };
@@ -15,7 +14,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_hasher::{Hasher, Poseidon};
 use light_verifier::{verify_batch_append_with_proofs, verify_batch_update, CompressedProof};
-use std::mem::ManuallyDrop;
+use std::mem::{size_of, ManuallyDrop};
 
 use super::{
     batch::Batch,
@@ -95,10 +94,9 @@ pub struct BatchedMerkleTreeAccount {
 
 impl BatchedMerkleTreeAccount {
     pub fn size(&self) -> Result<usize> {
-        // TODO: replace with Self::LEN;
-        let account_size = std::mem::size_of::<Self>() + DISCRIMINATOR_LENGTH;
-        let root_history_size = std::mem::size_of::<CyclicBoundedVecMetadata>()
-            + (std::mem::size_of::<[u8; 32]>() * self.root_history_capacity as usize);
+        let account_size = Self::LEN;
+        let root_history_size = size_of::<CyclicBoundedVecMetadata>()
+            + (size_of::<[u8; 32]>() * self.root_history_capacity as usize);
         let size = account_size
             + root_history_size
             + queue_account_size(&self.queue, QueueType::Input as u64)?;
@@ -117,6 +115,8 @@ impl BatchedMerkleTreeAccount {
         bloom_filter_capacity: u64,
         root_history_capacity: u32,
         associated_queue: Pubkey,
+        height: u32,
+        num_batches: u64,
     ) -> Self {
         Self {
             metadata: MerkleTreeMetadata {
@@ -135,12 +135,13 @@ impl BatchedMerkleTreeAccount {
             sequence_number: 0,
             tree_type: TreeType::BatchedState as u64,
             next_index: 0,
-            height: 26,
+            height,
             root_history_capacity,
             queue: BatchedQueue::get_input_queue_default(
                 batch_size,
                 bloom_filter_capacity,
                 zkp_batch_size,
+                num_batches,
             ),
         }
     }
@@ -200,8 +201,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             if account_data.len() != (*account).size()? {
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
-            let mut start_offset =
-                std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
+            let mut start_offset = BatchedMerkleTreeAccount::LEN;
             let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset)
                 .map_err(ProgramError::from)?;
             let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
@@ -250,8 +250,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 msg!("account.size(): {}", (*account).size()?);
                 return err!(AccountCompressionErrorCode::SizeMismatch);
             }
-            let mut start_offset =
-                std::mem::size_of::<BatchedMerkleTreeAccount>() + DISCRIMINATOR_LENGTH;
+            let mut start_offset = BatchedMerkleTreeAccount::LEN;
 
             let mut root_history = CyclicBoundedVec::init(
                 (*account).root_history_capacity as usize,
@@ -538,6 +537,9 @@ impl ZeroCopyBatchedMerkleTreeAccount {
     pub fn get_root_index(&self) -> u32 {
         self.root_history.last_index() as u32
     }
+    pub fn get_root(&self) -> Option<[u8; 32]> {
+        self.root_history.last().map(|root| *root)
+    }
 }
 
 pub fn create_hash_chain<const T: usize>(inputs: [[u8; 32]; T]) -> Result<[u8; 32]> {
@@ -568,9 +570,9 @@ pub fn get_merkle_tree_account_size_default() -> usize {
         root_history_capacity: 20,
         queue: BatchedQueue {
             currently_processing_batch_index: 0,
-            num_batches: 4,
-            batch_size: DEFAULT_BATCH_SIZE,
-            bloom_filter_capacity: 200_000 * 8,
+            num_batches: 2,
+            batch_size: TEST_DEFAULT_BATCH_SIZE,
+            bloom_filter_capacity: 20_000 * 8,
             // next_index: 0,
             zkp_batch_size: 10,
             ..Default::default()
@@ -587,6 +589,8 @@ pub fn get_merkle_tree_account_size_from_params(
         params.bloom_filter_capacity,
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
     )
 }
 
@@ -595,6 +599,8 @@ pub fn get_merkle_tree_account_size(
     bloom_filter_capacity: u64,
     zkp_batch_size: u64,
     root_history_capacity: u32,
+    height: u32,
+    num_batches: u64,
 ) -> usize {
     // TODO: implement a default config for BatchedMerkleTreeAccount using a
     // default for BatchedInputQueue
@@ -603,10 +609,10 @@ pub fn get_merkle_tree_account_size(
         next_index: 0,
         sequence_number: 0,
         tree_type: TreeType::BatchedState as u64,
-        height: 26,
+        height,
         root_history_capacity,
         queue: BatchedQueue {
-            num_batches: 4,
+            num_batches,
             batch_size,
             bloom_filter_capacity,
             zkp_batch_size,
@@ -967,7 +973,7 @@ mod tests {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let params = crate::InitStateTreeAccountsInstructionData::default();
+        let params = crate::InitStateTreeAccountsInstructionData::test_default();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
@@ -1403,7 +1409,7 @@ mod tests {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let params = crate::InitStateTreeAccountsInstructionData::default();
+        let params = crate::InitStateTreeAccountsInstructionData::test_default();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
@@ -1884,7 +1890,7 @@ mod tests {
         for root_history_capacity in roothistory_capacity {
             let mut mock_indexer = mock_batched_forester::MockBatchedForester::<26>::default();
 
-            let mut params = crate::InitStateTreeAccountsInstructionData::default();
+            let mut params = crate::InitStateTreeAccountsInstructionData::test_default();
             params.output_queue_batch_size = params.input_queue_batch_size * 10;
             // Root history capacity which is greater than the input updates
             params.root_history_capacity = root_history_capacity;

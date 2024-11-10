@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::errors::AccountCompressionErrorCode;
+use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
@@ -926,7 +927,9 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    let (created_compressed_accounts, _) =
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -1063,7 +1066,8 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    test_indexer.add_event_and_compressed_accounts(slot, &event.0);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
@@ -1544,6 +1548,7 @@ async fn regenerate_accounts() {
         protocol_config,
         true,
         skip_register_programs,
+        InitStateTreeAccountsInstructionData::test_default(),
     )
     .await;
 
@@ -1694,13 +1699,15 @@ async fn batch_invoke_test() {
                 num_output_compressed_accounts: 1,
                 num_new_addresses: 0,
                 compress: 0,
-                fee_config: FeeConfig::batched(),
+                fee_config: FeeConfig::test_batched(),
             }),
         )
         .await
         .unwrap()
         .unwrap();
-    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    let (created_compressed_accounts, _) =
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -1833,13 +1840,14 @@ async fn batch_invoke_test() {
                 num_output_compressed_accounts: 1,
                 num_new_addresses: 0,
                 compress: 0,
-                fee_config: FeeConfig::batched(),
+                fee_config: FeeConfig::test_batched(),
             }),
         )
         .await
         .unwrap()
         .unwrap();
-    test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    test_indexer.add_event_and_compressed_accounts(slot, &event.0);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
@@ -1955,8 +1963,9 @@ async fn batch_invoke_test() {
             .await
             .unwrap()
             .unwrap();
+        let slot: u64 = context.get_slot().await.unwrap();
         let (created_compressed_accounts, _) =
-            test_indexer.add_event_and_compressed_accounts(&event.0);
+            test_indexer.add_event_and_compressed_accounts(slot, &event.0);
         assert_created_compressed_accounts(
             output_compressed_accounts.as_slice(),
             output_merkle_tree_pubkeys.as_slice(),
@@ -2035,22 +2044,11 @@ async fn batch_invoke_test() {
         println!("Combined Transaction with index and zkp -------------------------");
 
         let event = context
-            .create_and_send_transaction_with_event(
-                &[instruction],
-                &payer_pubkey,
-                &[&payer],
-                // Some(TransactionParams {
-                //     num_input_compressed_accounts: 1,
-                //     num_output_compressed_accounts: 1,
-                //     num_new_addresses: 0,
-                //     compress: 0,
-                //     fee_config: FeeConfig::batched(),
-                // }),
-                None,
-            )
+            .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[&payer], None)
             .await
             .unwrap()
             .unwrap();
-        test_indexer.add_event_and_compressed_accounts(&event.0);
+        let slot: u64 = context.get_slot().await.unwrap();
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
     }
 }

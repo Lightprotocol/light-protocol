@@ -75,4 +75,5 @@ pub enum AccountCompressionErrorCode {
     InputDeserializationFailed,
     InvalidBatch,
     LeafIndexNotInBatch,
+    UnsupportedParameters,
 }

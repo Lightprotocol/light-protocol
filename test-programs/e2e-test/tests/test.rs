@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::indexer::TestIndexer;
@@ -22,10 +23,18 @@ async fn test_10_all() {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
-        Some(KeypairActionConfig::all_default().prover_config()),
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+                ProofType::BatchUpdateTest,
+                ProofType::BatchAppendWithProofsTest,
+            ],
+        }),
     )
     .await;
-    let mut config = KeypairActionConfig::all_default();
+    let mut config = KeypairActionConfig::test_default();
     config.fee_assert = false;
     let mut general_config = GeneralActionConfig::default();
     general_config.rollover = None;
@@ -38,8 +47,8 @@ async fn test_10_all() {
             &env_accounts,
             config,
             general_config,
-            10,
-            Some(13251090806922684402),
+            10000,
+            None,
         )
         .await;
     env.execute_rounds().await;
@@ -64,7 +73,15 @@ async fn test_10000_all() {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
-        Some(KeypairActionConfig::all_default().prover_config()),
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+                ProofType::BatchUpdateTest,
+                ProofType::BatchUpdateTest,
+            ],
+        }),
     )
     .await;
 

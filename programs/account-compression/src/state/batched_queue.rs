@@ -1,4 +1,4 @@
-use crate::utils::constants::{DEFAULT_BATCH_SIZE, DISCRIMINATOR_LENGTH};
+use crate::utils::constants::TEST_DEFAULT_BATCH_SIZE;
 use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
 use crate::{bytes_to_struct_checked, InitStateTreeAccountsInstructionData};
 use aligned_sized::aligned_sized;
@@ -45,9 +45,13 @@ impl BatchedQueue {
         self.batch_size / self.zkp_batch_size
     }
 
-    pub fn get_output_queue_default(batch_size: u64, zkp_batch_size: u64) -> Self {
+    pub fn get_output_queue_default(
+        batch_size: u64,
+        zkp_batch_size: u64,
+        num_batches: u64,
+    ) -> Self {
         BatchedQueue {
-            num_batches: 2,
+            num_batches,
             zkp_batch_size,
             batch_size,
             currently_processing_batch_index: 0,
@@ -60,9 +64,10 @@ impl BatchedQueue {
         batch_size: u64,
         bloom_filter_capacity: u64,
         zkp_batch_size: u64,
+        num_batches: u64,
     ) -> Self {
         BatchedQueue {
-            num_batches: 4,
+            num_batches,
             zkp_batch_size,
             batch_size,
             currently_processing_batch_index: 0,
@@ -78,17 +83,16 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
     let account_size = if queue_type != QueueType::Output as u64 {
         0
     } else {
-        std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH
+        BatchedQueueAccount::LEN
     };
-
-    let batches_size = (std::mem::size_of::<BoundedVecMetadata>() + std::mem::size_of::<Batch>())
-        * account.num_batches as usize;
+    let batches_size = std::mem::size_of::<BoundedVecMetadata>()
+        + (std::mem::size_of::<Batch>() * account.num_batches as usize);
     let value_vecs_size = (std::mem::size_of::<BoundedVecMetadata>()
         + 32 * account.batch_size as usize)
         * num_value_vec;
-
+    // Bloomfilter capacity is in bits.
     let bloom_filter_stores_size = (std::mem::size_of::<BoundedVecMetadata>()
-        + account.bloom_filter_capacity as usize)
+        + account.bloom_filter_capacity as usize / 8)
         * num_bloom_filter_stores;
     let hashchain_store_size = (std::mem::size_of::<BoundedVecMetadata>()
         + 32 * account.get_num_zkp_batches() as usize)
@@ -97,8 +101,7 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
         + batches_size
         + value_vecs_size
         + bloom_filter_stores_size
-        + hashchain_store_size
-        + DISCRIMINATOR_LENGTH;
+        + hashchain_store_size;
     Ok(size)
 }
 
@@ -151,11 +154,7 @@ impl BatchedQueue {
         } else {
             return err!(AccountCompressionErrorCode::InvalidQueueType);
         };
-        Ok((
-            num_value_stores,
-            num_stores,
-            self.get_num_zkp_batches() as usize,
-        ))
+        Ok((num_value_stores, num_stores, num_batches))
     }
 }
 
@@ -416,7 +415,7 @@ pub fn output_queue_from_bytes(
     Vec<ManuallyDrop<BoundedVec<u8>>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
 )> {
-    let mut start_offset = std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
+    let mut start_offset = BatchedQueueAccount::LEN;
     let batches =
         BoundedVec::deserialize(account_data, &mut start_offset).map_err(ProgramError::from)?;
     let value_vecs =
@@ -446,7 +445,7 @@ pub fn input_queue_bytes(
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
     if queue_type == QueueType::Output as u64 {
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
+        *start_offset += BatchedQueueAccount::LEN;
     }
     let batches =
         BoundedVec::deserialize(account_data, start_offset).map_err(ProgramError::from)?;
@@ -486,11 +485,11 @@ pub fn init_queue(
         );
         return err!(AccountCompressionErrorCode::SizeMismatch);
     }
-    let (num_value_stores, num_stores, hashchain_store_capacity) =
+    let (num_value_stores, num_stores, num_hashchain_stores) =
         account.get_size_parameters(queue_type)?;
 
     if queue_type == QueueType::Output as u64 {
-        *start_offset += std::mem::size_of::<BatchedQueueAccount>() + DISCRIMINATOR_LENGTH;
+        *start_offset += BatchedQueueAccount::LEN;
     }
 
     let mut batches = BoundedVec::init(
@@ -532,8 +531,8 @@ pub fn init_queue(
     .map_err(ProgramError::from)?;
 
     let hashchain_store = BoundedVec::init_multiple(
-        account.num_batches as usize,
-        hashchain_store_capacity,
+        num_hashchain_stores,
+        account.get_num_zkp_batches() as usize,
         account_data,
         start_offset,
         false,
@@ -549,7 +548,7 @@ pub fn get_output_queue_account_size_default() -> usize {
         next_index: 0,
         queue: BatchedQueue {
             num_batches: 2,
-            batch_size: DEFAULT_BATCH_SIZE,
+            batch_size: TEST_DEFAULT_BATCH_SIZE,
             zkp_batch_size: 10,
             ..Default::default()
         },
@@ -564,7 +563,7 @@ pub fn get_output_queue_account_size_from_params(
         metadata: QueueMetadata::default(),
         next_index: 0,
         queue: BatchedQueue {
-            num_batches: 2,
+            num_batches: ix_data.output_queue_num_batches,
             batch_size: ix_data.output_queue_batch_size,
             zkp_batch_size: ix_data.output_queue_zkp_batch_size,
             ..Default::default()
@@ -573,12 +572,16 @@ pub fn get_output_queue_account_size_from_params(
     queue_account_size(&account.queue, QueueType::Output as u64).unwrap()
 }
 
-pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> usize {
+pub fn get_output_queue_account_size(
+    batch_size: u64,
+    zkp_batch_size: u64,
+    num_batches: u64,
+) -> usize {
     let account = BatchedQueueAccount {
         metadata: QueueMetadata::default(),
         next_index: 0,
         queue: BatchedQueue {
-            num_batches: 2,
+            num_batches,
             batch_size,
             zkp_batch_size,
             ..Default::default()

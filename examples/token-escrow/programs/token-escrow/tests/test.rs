@@ -303,7 +303,8 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
         )
         .await?
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     Ok(())
 }
 
@@ -461,7 +462,8 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
         )
         .await?
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     Ok(())
 }
 

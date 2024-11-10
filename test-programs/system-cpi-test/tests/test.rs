@@ -705,7 +705,8 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[payer], None)
         .await?
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot: u64 = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     Ok(())
 }
 
@@ -926,8 +927,8 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         .await;
     if expected_error_code == u32::MAX {
         let result = result?.unwrap();
-
-        test_indexer.add_compressed_accounts_with_token_data(&result.0);
+        let slot: u64 = rpc.get_slot().await.unwrap();
+        test_indexer.add_compressed_accounts_with_token_data(slot, &result.0);
         Ok(())
     } else {
         assert_rpc_error(result, 0, expected_error_code)

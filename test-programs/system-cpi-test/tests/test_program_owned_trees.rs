@@ -116,7 +116,8 @@ async fn test_program_owned_merkle_tree() {
         26,
     >(&mut rpc, program_owned_merkle_tree_pubkey)
     .await;
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot: u64 = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),

@@ -1,5 +1,3 @@
-use std::default;
-
 use anchor_lang::{prelude::*, Discriminator};
 use light_hasher::Hasher;
 use light_utils::fee::compute_rollover_fee;
@@ -19,7 +17,10 @@ use crate::{
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
-        constants::DEFAULT_BATCH_SIZE,
+        constants::{
+            DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE, DEFAULT_ZKP_BATCH_SIZE,
+            TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
+        },
     },
     AccessMetadata, MerkleTreeMetadata, QueueMetadata, QueueType, RegisteredProgram,
     RolloverMetadata,
@@ -51,30 +52,60 @@ pub struct InitStateTreeAccountsInstructionData {
     pub program_owner: Option<Pubkey>,
     pub forester: Option<Pubkey>,
     pub additional_bytes: u64,
-    pub bloom_filter_num_iters: u64,
     pub input_queue_batch_size: u64,
     pub output_queue_batch_size: u64,
     pub input_queue_zkp_batch_size: u64,
     pub output_queue_zkp_batch_size: u64,
-    pub root_history_capacity: u32,
+    pub bloom_filter_num_iters: u64,
     pub bloom_filter_capacity: u64,
+    pub root_history_capacity: u32,
     pub network_fee: Option<u64>,
     pub rollover_threshold: Option<u64>,
     pub close_threshold: Option<u64>,
+    pub input_queue_num_batches: u64,
+    pub output_queue_num_batches: u64,
+    pub height: u32,
 }
 
-impl default::Default for InitStateTreeAccountsInstructionData {
+impl InitStateTreeAccountsInstructionData {
+    pub fn test_default() -> Self {
+        Self {
+            index: 0,
+            program_owner: None,
+            forester: None,
+            additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            bloom_filter_num_iters: 3,
+            input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
+            output_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
+            input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            input_queue_num_batches: 2,
+            output_queue_num_batches: 2,
+            height: 26,
+            root_history_capacity: 20,
+            bloom_filter_capacity: 20_000 * 8,
+            network_fee: Some(5000),
+            rollover_threshold: Some(95),
+            close_threshold: None,
+        }
+    }
+}
+
+impl Default for InitStateTreeAccountsInstructionData {
     fn default() -> Self {
         Self {
             index: 0,
             program_owner: None,
             forester: None,
-            additional_bytes: 20 * 1024 + 8, // default value for cpi context account
+            additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
             bloom_filter_num_iters: 3,
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             output_queue_batch_size: DEFAULT_BATCH_SIZE,
-            input_queue_zkp_batch_size: 10,
-            output_queue_zkp_batch_size: 10,
+            input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            input_queue_num_batches: 2,
+            output_queue_num_batches: 2,
+            height: 26,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -103,12 +134,15 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
         params.bloom_filter_capacity,
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
     );
     // TODO: use actual size
     let queue_rent = check_account_balance_is_rent_exempt(
@@ -183,18 +217,18 @@ pub fn init_batched_state_merkle_tree_accounts(
     merkle_tree_rent: u64,
     additional_bytes_rent: u64,
 ) -> Result<()> {
-    if params.bloom_filter_capacity % 8 != 0 {
-        msg!(
-            "params.bloom_filter_capacity: {}",
-            params.bloom_filter_capacity
-        );
-        msg!("Blooms must be divisible by 8 or it will create unaligned memory.");
-        return err!(AccountCompressionErrorCode::InvalidBloomFilterCapacity);
+    #[cfg(feature = "test")]
+    validate_batched_tree_params(params);
+    #[cfg(not(feature = "test"))]
+    {
+        if params != InitStateTreeAccountsInstructionData::default() {
+            return err!(AccountCompressionErrorCode::UnsupportedParameters);
+        }
     }
 
-    let num_batches_input_queue = 4;
-    let num_batches_output_queue = 2;
-    let height = 26;
+    let num_batches_input_queue = params.input_queue_num_batches;
+    let num_batches_output_queue = params.output_queue_num_batches;
+    let height = params.height;
 
     // Output queue
     {
@@ -263,8 +297,44 @@ pub fn init_batched_state_merkle_tree_accounts(
     )?;
     Ok(())
 }
+
+pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData) {
+    assert!(params.input_queue_batch_size > 0);
+    assert!(params.output_queue_batch_size > 0);
+    assert_eq!(
+        params.input_queue_batch_size % params.input_queue_zkp_batch_size,
+        0
+    );
+    assert_eq!(
+        params.output_queue_batch_size % params.output_queue_zkp_batch_size,
+        0
+    );
+    assert!(match_circuit_size(params.input_queue_zkp_batch_size));
+    assert!(match_circuit_size(params.output_queue_zkp_batch_size));
+
+    assert!(params.bloom_filter_num_iters > 0);
+    assert!(params.bloom_filter_capacity > params.input_queue_batch_size * 8);
+    assert_eq!(params.bloom_filter_capacity % 8, 0);
+    assert!(params.bloom_filter_capacity > 0);
+    assert!(params.root_history_capacity > 0);
+    assert!(params.input_queue_batch_size > 0);
+    assert_eq!(params.input_queue_num_batches, 2);
+    assert_eq!(params.output_queue_num_batches, 2);
+    assert_eq!(params.close_threshold, None);
+    assert_eq!(params.height, 26);
+}
+
+pub fn match_circuit_size(size: u64) -> bool {
+    match size {
+        10 => true,
+        100 => true,
+        500 => true,
+        1000 => true,
+        _ => false,
+    }
+}
+
 pub fn assert_mt_zero_copy_inited(
-    // account: &mut BatchedMerkleTreeAccount,
     account_data: &mut [u8],
     ref_account: BatchedMerkleTreeAccount,
     num_iters: u64,
@@ -287,10 +357,9 @@ pub fn assert_mt_zero_copy_inited(
         ref_account.root_history_capacity as usize,
         "root_history_capacity mismatch"
     );
-
     assert_eq!(
         *zero_copy_account.root_history.get(0).unwrap(),
-        light_hasher::Poseidon::zero_bytes()[26],
+        light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
         "root_history not initialized"
     );
 
@@ -317,8 +386,9 @@ pub fn get_output_queue_account_default(
     additional_bytes: u64,
     rent: u64,
     associated_merkle_tree: Pubkey,
+    height: u32,
+    num_batches: u64,
 ) -> BatchedQueueAccount {
-    let height = 26;
     let rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => compute_rollover_fee(rollover_threshold, height, rent)
             .map_err(ProgramError::from)
@@ -344,7 +414,7 @@ pub fn get_output_queue_account_default(
         queue_type: QueueType::Output as u64,
         associated_merkle_tree,
     };
-    let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
+    let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size, num_batches);
     BatchedQueueAccount {
         metadata,
         queue,
@@ -355,9 +425,11 @@ pub fn get_output_queue_account_default(
 #[cfg(test)]
 pub mod tests {
 
+    use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
     use rand::{rngs::StdRng, Rng};
 
     use crate::{
+        batch::Batch,
         batched_merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
         batched_queue::{
             assert_queue_zero_copy_inited, get_output_queue_account_size,
@@ -379,8 +451,9 @@ pub mod tests {
         rent: u64,
         associated_merkle_tree: Pubkey,
         network_fee: u64,
+        num_batches: u64,
+        height: u32,
     ) -> BatchedQueueAccount {
-        let height = 26;
         let rollover_fee = match rollover_threshold {
             Some(rollover_threshold) => {
                 let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)
@@ -409,7 +482,7 @@ pub mod tests {
             queue_type: QueueType::Output as u64,
             associated_merkle_tree,
         };
-        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size);
+        let queue = BatchedQueue::get_output_queue_default(batch_size, zkp_batch_size, num_batches);
         BatchedQueueAccount {
             metadata,
             queue,
@@ -430,7 +503,7 @@ pub mod tests {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let params = InitStateTreeAccountsInstructionData::default();
+        let params = InitStateTreeAccountsInstructionData::test_default();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
@@ -458,6 +531,8 @@ pub mod tests {
             params.additional_bytes,
             merkle_tree_rent + additional_bytes_rent + queue_rent,
             mt_pubkey,
+            params.height,
+            params.output_queue_num_batches,
         );
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
@@ -476,6 +551,8 @@ pub mod tests {
             params.bloom_filter_capacity,
             params.root_history_capacity,
             output_queue_pubkey,
+            params.height,
+            params.input_queue_num_batches,
         );
         assert_mt_zero_copy_inited(
             &mut mt_account_data,
@@ -484,12 +561,12 @@ pub mod tests {
         );
     }
 
-    #[ignore = "Currently broken. Reveals a an invalid memory allocation."]
     #[test]
     fn test_rnd_account_init() {
         use rand::SeedableRng;
         let mut rng = StdRng::seed_from_u64(0);
         for _ in 0..10000 {
+            println!("next iter ------------------------------------");
             let owner = Pubkey::new_unique();
 
             let program_owner = if rng.gen_bool(0.5) {
@@ -513,19 +590,48 @@ pub mod tests {
                 bloom_filter_num_iters: rng.gen_range(0..1000),
                 input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
                 output_queue_batch_size: rng.gen_range(1..1000) * output_queue_zkp_batch_size,
-                input_queue_zkp_batch_size, //TODO: randomize 100,500,1000
+                input_queue_zkp_batch_size,
                 output_queue_zkp_batch_size,
                 // 8 bits per byte, divisible by 8 for aligned memory
                 bloom_filter_capacity: rng.gen_range(0..1000) * 8 * 8,
                 network_fee: Some(rng.gen_range(0..1000)),
                 rollover_threshold: Some(rng.gen_range(0..100)),
                 close_threshold: None,
-                root_history_capacity: rng.gen_range(0..1000),
+                root_history_capacity: rng.gen_range(1..1000),
+                input_queue_num_batches: rng.gen_range(1..1000),
+                output_queue_num_batches: rng.gen_range(1..1000),
+                height: rng.gen_range(1..32),
             };
             let queue_account_size = get_output_queue_account_size(
                 params.output_queue_batch_size,
                 params.output_queue_zkp_batch_size,
+                params.output_queue_num_batches,
             );
+
+            use std::mem::size_of;
+            {
+                let num_batches = params.output_queue_num_batches as usize;
+                let num_zkp_batches =
+                    params.output_queue_batch_size / params.output_queue_zkp_batch_size;
+                let batch_size = size_of::<Batch>() * num_batches + size_of::<BoundedVecMetadata>();
+                let value_vec_size = (params.output_queue_batch_size as usize * 32
+                    + size_of::<BoundedVecMetadata>())
+                    * num_batches;
+                let hash_chain_store_size =
+                    (num_zkp_batches as usize * 32 + size_of::<BoundedVecMetadata>()) * num_batches;
+                // Output queue
+                // Discriminator
+                let ref_queue_account_size = 
+                    // metadata
+                    BatchedQueueAccount::LEN
+                    + batch_size
+                    // 2 value vecs
+                    + value_vec_size
+                    // 2 hash chain stores
+                    + hash_chain_store_size;
+
+                assert_eq!(queue_account_size, ref_queue_account_size);
+            }
 
             let mut output_queue_account_data = vec![0; queue_account_size];
             let output_queue_pubkey = Pubkey::new_unique();
@@ -535,7 +641,32 @@ pub mod tests {
                 params.bloom_filter_capacity,
                 params.input_queue_zkp_batch_size,
                 params.root_history_capacity,
+                params.height,
+                params.input_queue_num_batches,
             );
+            {
+                let num_zkp_batches =
+                    params.input_queue_batch_size / params.input_queue_zkp_batch_size;
+                let num_batches = params.input_queue_num_batches as usize;
+                let batch_size = size_of::<Batch>() * num_batches + size_of::<BoundedVecMetadata>();
+                let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
+                    + size_of::<BoundedVecMetadata>())
+                    * num_batches;
+                let hash_chain_store_size =
+                    (num_zkp_batches as usize * 32 + size_of::<BoundedVecMetadata>()) * num_batches;
+                let root_history_size = params.root_history_capacity as usize * 32
+                    + size_of::<CyclicBoundedVecMetadata>();
+                // Output queue
+                let ref_account_size = 
+                    // metadata
+                    BatchedMerkleTreeAccount::LEN
+                    + root_history_size
+                    + batch_size
+                    + bloom_filter_size
+                    // 2 hash chain stores
+                    + hash_chain_store_size;
+                assert_eq!(mt_account_size, ref_account_size);
+            }
             let mut mt_account_data = vec![0; mt_account_size];
             let mt_pubkey = Pubkey::new_unique();
 
@@ -566,6 +697,8 @@ pub mod tests {
                 merkle_tree_rent + additional_bytes_rent + queue_rent,
                 mt_pubkey,
                 params.network_fee.unwrap_or_default(),
+                params.output_queue_num_batches,
+                params.height,
             );
             assert_queue_zero_copy_inited(
                 output_queue_account_data.as_mut_slice(),
@@ -584,6 +717,8 @@ pub mod tests {
                 params.bloom_filter_capacity,
                 params.root_history_capacity,
                 output_queue_pubkey,
+                params.height,
+                params.input_queue_num_batches,
             );
             assert_mt_zero_copy_inited(
                 &mut mt_account_data,

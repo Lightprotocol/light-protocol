@@ -170,7 +170,6 @@ fn process_queue_bundle_v1<'info>(
         ctx,
         merkle_tree,
     )?;
-    msg!("Checking rollover fee");
     let rollover_fee = merkle_tree
         .get_account()
         .metadata
@@ -183,8 +182,6 @@ fn process_queue_bundle_v1<'info>(
         .zip(queue_bundle.indices.iter())
         .zip(queue_bundle.checked.iter())
     {
-        msg!("element {:?}", element);
-        msg!("tx_hash {:?}", tx_hash);
         let tx_hash = tx_hash.ok_or(AccountCompressionErrorCode::TxHashUndefined)?;
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v1");
         // check for every account whether the value is still in the queue and zero it out.

@@ -3,7 +3,8 @@
 use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
 use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
+    NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
@@ -26,7 +27,7 @@ use light_test_utils::assert_epoch::{
     assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
     assert_report_work, fetch_epoch_and_forester_pdas,
 };
-use light_test_utils::e2e_test_env::init_program_test_env;
+use light_test_utils::e2e_test_env::{init_program_test_env, init_program_test_env_forester};
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_batch_forester::{
     create_append_batch_ix_data, perform_batch_append, perform_batch_nullify,
@@ -35,8 +36,9 @@ use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
     deregister_program_with_registry_program, initialize_new_group,
     register_program_with_registry_program, setup_accounts, setup_test_programs,
-    setup_test_programs_with_accounts_with_protocol_config, EnvAccountKeypairs,
-    GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
+    setup_test_programs_with_accounts_with_protocol_config,
+    setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
 };
 use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with_accounts};
 use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
@@ -577,12 +579,21 @@ async fn test_custom_forester() {
 #[serial]
 #[tokio::test]
 async fn test_custom_forester_batched() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
-        None,
-        ProtocolConfig::default(),
-        true,
-    )
-    .await;
+    let devnet = false;
+    let tree_params = if devnet {
+        InitStateTreeAccountsInstructionData::default()
+    } else {
+        InitStateTreeAccountsInstructionData::test_default()
+    };
+
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig::default(),
+            true,
+            tree_params,
+        )
+        .await;
 
     {
         let mut instruction_data = None;
@@ -595,7 +606,13 @@ async fn test_custom_forester_batched() {
         let cpi_context_keypair = Keypair::new();
         // create work 1 item in address and nullifier queue each
         let (mut state_merkle_tree_bundle, _, mut rpc) = {
-            let mut e2e_env = init_program_test_env(rpc, &env).await;
+            let mut e2e_env = if devnet {
+                let mut e2e_env = init_program_test_env_forester(rpc, &env).await;
+                e2e_env.keypair_action_config.fee_assert = false;
+                e2e_env
+            } else {
+                init_program_test_env(rpc, &env).await
+            };
             e2e_env.indexer.state_merkle_trees.clear();
             // add state merkle tree to the indexer
             e2e_env
@@ -639,7 +656,7 @@ async fn test_custom_forester_batched() {
                     )
                     .await
                     .unwrap();
-                if i == 25 {
+                if i == merkle_tree.get_account().queue.batch_size / 2 {
                     instruction_data = Some(
                         create_append_batch_ix_data(
                             &mut e2e_env.rpc,
@@ -685,8 +702,9 @@ async fn test_custom_forester_batched() {
                 e2e_env.rpc,
             )
         };
-
-        for i in 0..10 {
+        let num_output_zkp_batches =
+            tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
+        for i in 0..num_output_zkp_batches {
             // Simulate concurrency since instruction data has been created before
             let instruction_data = if i == 0 {
                 instruction_data.clone()
@@ -703,46 +721,20 @@ async fn test_custom_forester_batched() {
             )
             .await
             .unwrap();
+            // We only spent half of the output queue
+            if i < num_output_zkp_batches / 2 {
+                perform_batch_nullify(
+                    &mut rpc,
+                    &mut state_merkle_tree_bundle,
+                    &env.forester,
+                    0,
+                    false,
+                    None,
+                )
+                .await
+                .unwrap();
+            }
         }
-        for i in 0..5 {
-            // Simulate concurrency since instruction data has been created before
-            // let instruction_data = if i == 0 {
-            //     instruction_data.clone()
-            // } else {
-            //     None
-            // };
-            perform_batch_nullify(
-                &mut rpc,
-                &mut state_merkle_tree_bundle,
-                &env.forester,
-                0,
-                false,
-                None,
-            )
-            .await
-            .unwrap();
-        }
-        // {
-        //     let result = nullify_compressed_accounts(
-        //         &mut rpc,
-        //         &payer,
-        //         &mut state_merkle_tree_bundle,
-        //         0,
-        //         true,
-        //     )
-        //     .await;
-        //     assert_rpc_error(result, 0, RegistryError::InvalidSigner.into()).unwrap();
-        // }
-        // // nullify with tree forester
-        // nullify_compressed_accounts(
-        //     &mut rpc,
-        //     &unregistered_forester_keypair,
-        //     &mut state_merkle_tree_bundle,
-        //     0,
-        //     true,
-        // )
-        // .await
-        // .unwrap();
     }
 }
 
