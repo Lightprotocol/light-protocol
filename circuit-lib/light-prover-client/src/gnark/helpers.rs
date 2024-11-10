@@ -113,7 +113,7 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
 
             let _ = command.spawn().expect("Failed to start prover process");
 
-            let health_result = health_check(20, 5).await;
+            let health_result = health_check(20, 30).await;
             if health_result {
                 info!("Prover started successfully");
             } else {

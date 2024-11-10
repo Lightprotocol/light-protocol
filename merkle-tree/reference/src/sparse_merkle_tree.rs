@@ -14,10 +14,10 @@ impl<H, const HEIGHT: usize> SparseMerkleTree<H, HEIGHT>
 where
     H: Hasher,
 {
-    pub fn new(subtrees: [[u8; 32]; HEIGHT]) -> Self {
+    pub fn new(subtrees: [[u8; 32]; HEIGHT], next_index: usize) -> Self {
         Self {
             subtrees,
-            next_index: 0,
+            next_index,
             root: [0u8; 32],
             _hasher: PhantomData,
         }
@@ -81,16 +81,20 @@ mod test {
 
     #[test]
     fn test_sparse_merkle_tree() {
-        let height = 4;
-        let mut merkle_tree = SparseMerkleTree::<Poseidon, 4>::new_empty();
+        let height = 10;
+        let mut merkle_tree = SparseMerkleTree::<Poseidon, 10>::new_empty();
         let mut reference_merkle_tree = MerkleTree::<Poseidon>::new(height, 0);
-
-        let leaf = [1u8; 32];
-        merkle_tree.append(leaf);
-        reference_merkle_tree.append(&leaf).unwrap();
-        assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
-        let subtrees = merkle_tree.get_subtrees();
-        let reference_subtrees = reference_merkle_tree.get_subtrees();
-        assert_eq!(subtrees.to_vec(), reference_subtrees);
+        for i in 0..1 << height {
+            let mut leaf = [0u8; 32];
+            leaf[24..].copy_from_slice(&(i as u64).to_be_bytes());
+            println!("i: {}, leaf: {:?}", i, leaf);
+            merkle_tree.append(leaf);
+            reference_merkle_tree.append(&leaf).unwrap();
+            assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
+            assert_eq!(merkle_tree.get_next_index(), i + 1);
+            let subtrees = merkle_tree.get_subtrees();
+            let reference_subtrees = reference_merkle_tree.get_subtrees();
+            assert_eq!(subtrees.to_vec(), reference_subtrees);
+        }
     }
 }

@@ -117,6 +117,7 @@ pub fn output_compressed_accounts_write_access_check(
     Ok(())
 }
 
+// TODO: extend to match batched trees
 pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
@@ -160,6 +161,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     Ok((next_index, network_fee, seq))
 }
 
+// TODO: extend to match batched trees
 pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,

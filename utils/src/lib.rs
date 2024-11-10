@@ -13,7 +13,6 @@ use thiserror::Error;
 
 pub mod bigint;
 pub mod fee;
-pub mod offset;
 pub mod prime;
 pub mod rand;
 

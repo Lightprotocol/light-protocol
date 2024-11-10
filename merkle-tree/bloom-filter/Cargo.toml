@@ -1,7 +1,7 @@
 [package]
-name = "light-bounded-vec"
-version = "1.1.0"
-description = "Bounded and cyclic vector implementations"
+name = "light-bloom-filter"
+version = "0.1.0"
+description = "Experimental bloom filter."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
@@ -10,11 +10,13 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
-bytemuck = { version = "1.17", features = ["min_const_generics"] }
-memoffset = "0.9"
+bitvec = "1.0.1"
+fastmurmur3 = "0.2.0"
+num-bigint = "0.4"
+num-traits = "0.2"
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 
 [dev-dependencies]
 rand = "0.8"
-bytemuck = { version = "1.17", features = ["derive"] }
+light-utils = { path = "../../utils", version = "1.0.0" }

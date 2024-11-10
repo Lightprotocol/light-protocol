@@ -18,6 +18,8 @@ pub enum VerifierError {
     CreateGroth16VerifierFailed,
     #[error("ProofVerificationFailed")]
     ProofVerificationFailed,
+    #[error("InvalidBatchSize supported batch sizes are 1, 10, 100, 500, 1000")]
+    InvalidBatchSize,
 }
 
 #[cfg(feature = "solana")]
@@ -30,6 +32,7 @@ impl From<VerifierError> for u32 {
             VerifierError::InvalidPublicInputsLength => 13004,
             VerifierError::CreateGroth16VerifierFailed => 13005,
             VerifierError::ProofVerificationFailed => 13006,
+            VerifierError::InvalidBatchSize => 13007,
         }
     }
 }
@@ -42,7 +45,7 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
 }
 
 use VerifierError::*;
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -281,7 +284,7 @@ pub fn verify_batch_append(
 }
 
 #[inline(never)]
-pub fn verify_batch_append2(
+pub fn verify_batch_append_with_proofs(
     batch_size: usize,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,

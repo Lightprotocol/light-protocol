@@ -117,6 +117,10 @@ pub fn process<
             .input_compressed_accounts_with_merkle_context
             .is_empty()
         {
+            // TODO: separate input_compressed_account_hashes for inclusion with zkp
+            //      and inclusion by array index
+            // - inclusion by array index is zeroed in output insert
+            // - inclusion with zkp is used in state proof
             hash_input_compressed_accounts(
                 ctx.remaining_accounts,
                 &inputs.input_compressed_accounts_with_merkle_context,
@@ -202,6 +206,8 @@ pub fn process<
         bench_sbf_end!("cpda_verify_state_proof");
         // insert nullifiers (input compressed account hashes)---------------------------------------------------
         bench_sbf_start!("cpda_nullifiers");
+        // TODO: calculate and pass transctions hashchain hash for nullificiation
+        // TODO: move before collecting root hashes
         if !inputs
             .input_compressed_accounts_with_merkle_context
             .is_empty()
@@ -242,6 +248,7 @@ pub fn process<
     // Insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
+        // TODO: extend with input hashes inclusion proof in output queue array.
         insert_output_compressed_accounts_into_state_merkle_tree(
             &mut inputs.output_compressed_accounts,
             &ctx,

@@ -96,7 +96,7 @@ where
     Ok(update)
 }
 
-// TODO: unify these helpers with MockIndexer
+// TODO: unify these helpers with MockBatchedForester
 /// A mock function which imitates a relayer endpoint for updating the
 /// nullifier Merkle tree.
 fn relayer_update<H>(
@@ -633,8 +633,8 @@ pub fn functional_non_inclusion_test() {
     assert_eq!(indexed_array_element_1.next_index, 0);
     assert_eq!(indexed_array_element_1.index, 1);
 
-    let leaf_0 = relayer_merkle_tree.merkle_tree.get_leaf(0);
-    let leaf_1 = relayer_merkle_tree.merkle_tree.get_leaf(1);
+    let leaf_0 = relayer_merkle_tree.merkle_tree.leaf(0);
+    let leaf_1 = relayer_merkle_tree.merkle_tree.leaf(1);
     assert_eq!(
         leaf_0,
         Poseidon::hashv(&[

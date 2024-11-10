@@ -8,12 +8,12 @@ import (
 type CircuitType string
 
 const (
-	CombinedCircuitType                CircuitType = "combined"
-	InclusionCircuitType               CircuitType = "inclusion"
-	NonInclusionCircuitType            CircuitType = "non-inclusion"
+	CombinedCircuitType     CircuitType = "combined"
+	InclusionCircuitType    CircuitType = "inclusion"
+	NonInclusionCircuitType CircuitType = "non-inclusion"
 	BatchAppendWithSubtreesCircuitType CircuitType = "append-with-subtrees"
 	BatchAppendWithProofsCircuitType   CircuitType = "append-with-proofs"
-	BatchUpdateCircuitType             CircuitType = "update"
+	BatchUpdateCircuitType  CircuitType = "update"
 )
 
 func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
