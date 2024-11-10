@@ -10,7 +10,7 @@ use account_compression::{
     self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount,
     StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
-use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
+use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
 use forester_utils::{create_account_instruction, get_hash_set};
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
@@ -114,14 +114,13 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     );
     rpc.process_transaction_with_context(transaction).await
 }
-use anchor_lang::Discriminator;
+
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
     lamports: u64,
 ) {
-    println!("Setting next index to {}", next_index);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let discriminator = merkle_tree.data[0..8].try_into().unwrap();
     match discriminator {
@@ -166,7 +165,6 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     additional_rent: u64,
     num_signatures: u64,
 ) {
-    println!("rollover fee: {}", num_signatures * 5000);
     let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)
         .await

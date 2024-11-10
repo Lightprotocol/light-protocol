@@ -63,7 +63,6 @@ pub fn process<
     }
     // Sum check ---------------------------------------------------
     bench_sbf_start!("cpda_sum_check");
-    msg!("pre sum check");
     sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
@@ -71,7 +70,6 @@ pub fn process<
         &inputs.compress_or_decompress_lamports,
         &inputs.is_compress,
     )?;
-    msg!("post sum check");
     bench_sbf_end!("cpda_sum_check");
     // Compress or decompress lamports ---------------------------------------------------
     bench_sbf_start!("cpda_process_compression");
@@ -86,7 +84,6 @@ pub fn process<
         return err!(SystemProgramError::SolPoolPdaDefined);
     }
     bench_sbf_end!("cpda_process_compression");
-    msg!("compress decompress");
 
     // Allocate heap memory here so that we can free memory after function invocations.
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
@@ -117,10 +114,6 @@ pub fn process<
         .input_compressed_accounts_with_merkle_context
         .is_empty()
     {
-        // TODO: separate input_compressed_account_hashes for inclusion with zkp
-        //      and inclusion by array index
-        // - inclusion by array index is zeroed in output insert
-        // - inclusion with zkp is used in state proof
         hash_input_compressed_accounts(
             ctx.remaining_accounts,
             &inputs.input_compressed_accounts_with_merkle_context,
@@ -333,6 +326,15 @@ pub fn process<
     Ok(())
 }
 
+/// Network fee distribution:
+/// - if any account is created or modified -> transfer network fee (5000 lamports)
+/// (Previously we didn't charge for appends now we have to since values go into a queue.)
+/// - if an address is created -> transfer an additional network fee (5000 lamports)
+///
+/// Examples:
+/// 1. create account with address    network fee 10,000 lamports
+/// 2. token transfer                 network fee 5,000 lamports
+/// 3. mint to                        network fee 5,000 lamports
 #[inline(always)]
 fn transfer_network_fee<
     'a,

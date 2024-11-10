@@ -40,7 +40,6 @@ pub struct BatchedQueue {
 }
 
 impl BatchedQueue {
-    // TODO: add check that batch size is divisible by zkp_batch_size
     pub fn get_num_zkp_batches(&self) -> u64 {
         self.batch_size / self.zkp_batch_size
     }

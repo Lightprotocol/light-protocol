@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use crate::e2e_test_env::KeypairActionConfig;
-use crate::test_env::create_batched_state_merkle_tree;
+use crate::test_env::{create_batched_state_merkle_tree, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR};
 use crate::{
     spl::create_initialize_mint_instructions,
     test_env::create_address_merkle_tree_and_queue_account,
@@ -279,23 +279,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let event_inputs_len = event.input_compressed_account_hashes.len();
         let event_outputs_len = event.output_compressed_account_hashes.len();
         for i in 0..std::cmp::max(event_inputs_len, event_outputs_len) {
-            // if seq.seq == u64::MAX {
-            //     self.process_v1_compressed_account(
-            //         event,
-            //         i,
-            //         &mut token_compressed_accounts,
-            //         &mut compressed_accounts,
-            //     );
-            // } else {
-            //     self.process_v1_compressed_account(
-            //         event,
-            //         i,
-            //         &mut token_compressed_accounts,
-            //         &mut compressed_accounts,
-            //         seq.seq == u64::MAX
-            //     );
-            // }
-            println!("add_event_and_compressed_accounts: event {:?}", event);
             self.process_v1_compressed_account(
                 slot,
                 event,
@@ -304,7 +287,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 &mut compressed_accounts,
             );
         }
-        println!("event {:?}", event);
 
         self.events.push(event.clone());
         (compressed_accounts, token_compressed_accounts)
@@ -661,8 +643,10 @@ impl<R: RpcConnection> TestIndexer<R> {
                 STATE_MERKLE_TREE_HEIGHT as usize,
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
             ));
+            let test_batched_output_queue =
+                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
             let version = if state_merkle_tree_account.nullifier_queue
-                == pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU")
+                == test_batched_output_queue.pubkey()
             {
                 2
             } else {
@@ -746,6 +730,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_state_merkle_tree(
         &mut self,
         rpc: &mut R,
@@ -799,10 +784,6 @@ impl<R: RpcConnection> TestIndexer<R> {
             nullifier_queue: queue_keypair.pubkey(),
             cpi_context: cpi_context_keypair.pubkey(),
         };
-        println!(
-            "created state_merkle_tree_account {:?}",
-            state_merkle_tree_account
-        );
         let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -1051,7 +1032,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         }
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
-            // for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
+
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
                     == event.pubkey_array
@@ -1177,8 +1158,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                                 [event.output_compressed_accounts[i].merkle_tree_index as usize]
                     })
                     .unwrap();
-                // TODO: store this for inputs
-                // pub input_queue_leaves: Vec<([u8; 32], usize)>,
+
                 merkle_tree
                     .output_queue_elements
                     .push(event.output_compressed_account_hashes[i]);

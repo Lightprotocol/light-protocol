@@ -97,21 +97,15 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let full_batch_index = output_queue_account.queue.next_full_batch_index;
     let zkp_batch_size = output_queue_account.queue.zkp_batch_size;
     let max_num_zkp_updates = output_queue_account.queue.get_num_zkp_batches();
-    // let leaves = output_queue.value_vecs[full_batch_index as usize].clone();
+
     let leaves = bundle.output_queue_elements.to_vec();
 
     let num_inserted_zkps = output_queue.batches[full_batch_index as usize].get_num_inserted_zkps();
     let leaves_hashchain =
-        output_queue.hashchain_store[full_batch_index as usize][num_inserted_zkps as usize].clone();
-    println!(
-        "hashchain store {:?}",
-        output_queue.hashchain_store[full_batch_index as usize]
-    );
+        output_queue.hashchain_store[full_batch_index as usize][num_inserted_zkps as usize];
     let (proof, new_root) = {
         let start = num_inserted_zkps as usize * zkp_batch_size as usize;
         let end = start + zkp_batch_size as usize;
-        println!("start: {}, end: {}", start, end);
-        println!("leaves: {:?}", leaves);
         let batch_update_leaves = leaves[start..end].to_vec();
         // if batch is complete, remove leaves from mock output queue
         if num_inserted_zkps == max_num_zkp_updates - 1 {
@@ -242,7 +236,6 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
         )
         .await?
         .unwrap();
-    println!("event {:?}", res.0);
     Ok(res.1)
 }
 
@@ -260,7 +253,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let full_batch = &merkle_tree.batches[full_batch_index as usize];
     let zkp_batch_index = full_batch.get_num_inserted_zkps();
     let leaves_hashchain =
-        merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize].clone();
+        merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
     let mut merkle_proofs = vec![];
     let leaf_indices_tx_hashes = bundle.input_leaf_indices[..zkp_batch_size as usize].to_vec();
     let mut leaves = Vec::new();
@@ -298,11 +291,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         bundle.input_leaf_indices.remove(0);
         let index_bytes = index.to_be_bytes();
         use light_hasher::Hasher;
-        println!("leaf: {:?}", leaf);
-        println!("index: {:?}", index);
-        println!("tx_hash: {:?}", tx_hash);
         let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, tx_hash]).unwrap();
-        println!("nullifier: {:?}", nullifier);
         tx_hashes.push(*tx_hash);
         nullifiers.push(nullifier);
         bundle.merkle_tree.update(&nullifier, index).unwrap();
@@ -313,7 +302,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let inputs = get_batch_update_inputs::<26>(
         old_root,
         tx_hashes,
-        leaves.iter().map(|leaf| *leaf).collect(),
+        leaves.to_vec(),
         leaves_hashchain,
         old_leaves,
         merkle_proofs,

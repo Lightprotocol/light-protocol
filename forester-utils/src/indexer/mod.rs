@@ -27,7 +27,7 @@ pub struct TokenDataWithContext {
 #[derive(Debug, Default)]
 pub struct BatchedTreeProofRpcResult {
     pub proof: Option<CompressedProof>,
-    // If none proof by index, if some included in zkp
+    // If none -> proof by index, else included in zkp
     pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }

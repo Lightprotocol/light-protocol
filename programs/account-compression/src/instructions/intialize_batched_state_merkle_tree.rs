@@ -119,6 +119,15 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
     params: InitStateTreeAccountsInstructionData,
 ) -> Result<()> {
+    #[cfg(feature = "test")]
+    validate_batched_tree_params(params);
+    #[cfg(not(feature = "test"))]
+    {
+        if params != InitStateTreeAccountsInstructionData::default() {
+            return err!(AccountCompressionErrorCode::UnsupportedParameters);
+        }
+    }
+
     let owner = match ctx.accounts.registered_program_pda.as_ref() {
         Some(registered_program_pda) => {
             check_signer_is_registered_or_authority::<
@@ -129,7 +138,7 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
         }
         None => ctx.accounts.authority.key(),
     };
-    msg!("output_queue_account: ");
+
     let output_queue_pubkey = ctx.accounts.queue.key();
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
@@ -144,20 +153,18 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
         params.height,
         params.input_queue_num_batches,
     );
-    // TODO: use actual size
+
     let queue_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.queue.to_account_info(),
         queue_account_size,
     )?;
-
-    msg!("mt_account: ");
 
     let mt_pubkey = ctx.accounts.merkle_tree.key();
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.merkle_tree.to_account_info(),
         mt_account_size,
     )?;
-    msg!("queue_rent: {}", queue_rent);
+
     let additional_bytes_rent = (Rent::get()?).minimum_balance(params.additional_bytes as usize);
 
     let output_queue_account_data: AccountInfo<'info> = ctx.accounts.queue.to_account_info();
@@ -217,15 +224,6 @@ pub fn init_batched_state_merkle_tree_accounts(
     merkle_tree_rent: u64,
     additional_bytes_rent: u64,
 ) -> Result<()> {
-    #[cfg(feature = "test")]
-    validate_batched_tree_params(params);
-    #[cfg(not(feature = "test"))]
-    {
-        if params != InitStateTreeAccountsInstructionData::default() {
-            return err!(AccountCompressionErrorCode::UnsupportedParameters);
-        }
-    }
-
     let num_batches_input_queue = params.input_queue_num_batches;
     let num_batches_output_queue = params.output_queue_num_batches;
     let height = params.height;
@@ -325,13 +323,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
 }
 
 pub fn match_circuit_size(size: u64) -> bool {
-    match size {
-        10 => true,
-        100 => true,
-        500 => true,
-        1000 => true,
-        _ => false,
-    }
+    matches!(size, 10 | 100 | 500 | 1000)
 }
 
 pub fn assert_mt_zero_copy_inited(
@@ -620,8 +612,7 @@ pub mod tests {
                 let hash_chain_store_size =
                     (num_zkp_batches as usize * 32 + size_of::<BoundedVecMetadata>()) * num_batches;
                 // Output queue
-                // Discriminator
-                let ref_queue_account_size = 
+                let ref_queue_account_size =
                     // metadata
                     BatchedQueueAccount::LEN
                     + batch_size
@@ -657,7 +648,7 @@ pub mod tests {
                 let root_history_size = params.root_history_capacity as usize * 32
                     + size_of::<CyclicBoundedVecMetadata>();
                 // Output queue
-                let ref_account_size = 
+                let ref_account_size =
                     // metadata
                     BatchedMerkleTreeAccount::LEN
                     + root_history_size

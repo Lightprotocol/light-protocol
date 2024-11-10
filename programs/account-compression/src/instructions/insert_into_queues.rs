@@ -241,7 +241,7 @@ fn add_queue_bundle_v1<'a, 'info>(
     check_inserted: bool,
 ) -> Result<()> {
     // TODO: add address support
-    if queue_type == QueueType::Address {
+    if queue_type != QueueType::Output {
         msg!("Queue type Address is not supported for BatchedMerkleTreeAccount");
         return err!(AccountCompressionErrorCode::InvalidQueueType);
     }

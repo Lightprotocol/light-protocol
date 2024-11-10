@@ -253,10 +253,8 @@ pub fn assert_public_transaction_event(
         } else {
             let seq = &mut index.as_mut().unwrap().seq;
             // The output queue doesn't have a sequence number hence we set it
-            // u64::MAX to mark it as a batched queue
-            if *seq != u64::MAX {
-                *seq += 1;
-            }
+            // u64::MAX to mark it as a batched queue.
+            *seq = seq.saturating_add(1);
         }
     }
     for sequence_number in updated_sequence_numbers.iter() {
@@ -370,7 +368,6 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
             .unwrap();
         match account_data.data[0..8].try_into().unwrap() {
             StateMerkleTreeAccount::DISCRIMINATOR => {
-                // TODO: match discriminator
                 let merkle_tree =
                     get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
                         rpc,

@@ -349,7 +349,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
                 inputs.rpc,
             )
             .await;
-        println!("proof_rpc_res: {:?}", proof_rpc_res);
+
         root_indices = proof_rpc_res.root_indices;
         proof = proof_rpc_res.proof;
         let input_merkle_tree_accounts = inputs

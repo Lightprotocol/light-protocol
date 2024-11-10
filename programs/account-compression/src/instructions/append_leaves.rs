@@ -65,7 +65,6 @@ pub struct ZeroOutLeafIndex {
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: Vec<(u8, [u8; 32])>,
-    // zero_out_leaf_indices: Vec<ZeroOutLeafIndex>,
 ) -> Result<()> {
     let leaves_processed = batch_append_leaves(&ctx, &leaves)?;
     if leaves_processed != leaves.len() {

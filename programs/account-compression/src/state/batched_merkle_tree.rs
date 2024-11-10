@@ -345,7 +345,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             batch_size: circuit_batch_size,
             zkp_batch_index: num_zkps,
             old_next_index: start_index,
-            new_next_index: start_index + circuit_batch_size as u64,
+            new_next_index: start_index + circuit_batch_size,
             new_root,
             root_index,
             sequence_number: self.get_account().sequence_number,
@@ -447,8 +447,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let leaf_index_bytes = leaf_index.to_be_bytes();
         let nullifier = Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])
             .map_err(ProgramError::from)?;
-        msg!("leaf index bytes: {:?}", leaf_index);
-        msg!("nullifier: {:?}", nullifier);
         self.insert_into_current_batch(compressed_account_hash, &nullifier)
     }
 
@@ -538,7 +536,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         self.root_history.last_index() as u32
     }
     pub fn get_root(&self) -> Option<[u8; 32]> {
-        self.root_history.last().map(|root| *root)
+        self.root_history.last().copied()
     }
 }
 
@@ -1886,7 +1884,7 @@ mod tests {
             },
         )
         .await;
-        let roothistory_capacity = vec![17, 80];
+        let roothistory_capacity = vec![17, 80]; //
         for root_history_capacity in roothistory_capacity {
             let mut mock_indexer = mock_batched_forester::MockBatchedForester::<26>::default();
 
@@ -1933,7 +1931,7 @@ mod tests {
             let mut output_zero_copy_account =
                 ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account_data)
                     .unwrap();
-            let num_tx = 2 * params.output_queue_batch_size;
+            let num_tx = params.output_queue_num_batches * params.output_queue_batch_size;
 
             for tx in 0..num_tx {
                 // Output queue
@@ -2002,13 +2000,7 @@ mod tests {
                     .batches
                     .get(next_full_batch as usize)
                     .unwrap();
-                let leaves = output_zero_copy_account
-                    .value_vecs
-                    .get(next_full_batch as usize)
-                    .unwrap()
-                    .deref()
-                    .clone()
-                    .to_vec();
+                let leaves = mock_indexer.output_queue_leaves.clone();
                 let leaves_hashchain = output_zero_copy_account
                     .hashchain_store
                     .get(next_full_batch as usize)
@@ -2072,7 +2064,7 @@ mod tests {
                 num_output_updates += 1;
             }
 
-            let num_tx = 4 * params.input_queue_batch_size;
+            let num_tx = params.input_queue_num_batches * params.input_queue_batch_size;
             let mut first_value = [0u8; 32];
             for tx in 0..num_tx {
                 let mut merkle_tree_zero_copy_account =
@@ -2177,7 +2169,8 @@ mod tests {
             }
             // Root of the final batch of first input queue batch
             let mut first_input_batch_update_root_value = [0u8; 32];
-            let num_updates = params.input_queue_batch_size / params.input_queue_zkp_batch_size * 4;
+            let num_updates = params.input_queue_batch_size / params.input_queue_zkp_batch_size
+                * params.input_queue_num_batches;
             for i in 0..num_updates {
                 println!("input update ----------------------------- {}", i);
                 perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey)

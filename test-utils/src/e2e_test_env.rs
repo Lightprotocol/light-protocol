@@ -212,7 +212,7 @@ pub async fn init_program_test_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         Some(ProverConfig {
-            run_mode: None, //Some(ProverMode::Rpc),
+            run_mode: None,
             circuits: vec![
                 ProofType::BatchAppendWithProofsTest,
                 ProofType::BatchUpdateTest,
@@ -2060,7 +2060,7 @@ where
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
                 },
-                version: 0,
+                version: 1,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
                     STATE_MERKLE_TREE_HEIGHT as usize,
                     STATE_MERKLE_TREE_CANOPY_DEPTH as usize,

@@ -28,7 +28,7 @@ pub fn process_batch_nullify(ctx: &Context<BatchNullify>, bump: u8, data: Vec<u8
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
     let signer_seeds = &[&seeds[..]];
-    let accounts = account_compression::cpi::accounts::BatchNullifyLeaves {
+    let accounts = account_compression::cpi::accounts::BatchNullify {
         authority: ctx.accounts.cpi_authority.to_account_info(),
         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
         registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
@@ -41,6 +41,5 @@ pub fn process_batch_nullify(ctx: &Context<BatchNullify>, bump: u8, data: Vec<u8
         signer_seeds,
     );
 
-    // TODO: unify naming
-    account_compression::cpi::batch_nullify_leaves(cpi_ctx, data)
+    account_compression::cpi::batch_nullify(cpi_ctx, data)
 }

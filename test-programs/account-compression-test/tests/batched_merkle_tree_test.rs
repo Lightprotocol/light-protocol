@@ -140,13 +140,12 @@ async fn test_init_state_merkle_tree() {
             params.height,
             params.input_queue_num_batches,
         );
-        println!("pre assert_mt_zero_copy_inited");
+
         assert_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
-        println!("post assert_mt_zero_copy_inited");
 
         let ref_output_queue_account = get_output_queue_account_default(
             owner,
@@ -343,8 +342,8 @@ async fn test_init_state_merkle_tree() {
         let mut data = Vec::new();
         instruction_data.serialize(&mut data).unwrap();
 
-        let instruction = account_compression::instruction::BatchNullifyLeaves { data };
-        let accounts = account_compression::accounts::BatchNullifyLeaves {
+        let instruction = account_compression::instruction::BatchNullify { data };
+        let accounts = account_compression::accounts::BatchNullify {
             authority: context.get_payer().pubkey(),
             registered_program_pda: None,
             log_wrapper: NOOP_PROGRAM_ID,

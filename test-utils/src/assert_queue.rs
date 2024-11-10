@@ -1,5 +1,3 @@
-use std::u64;
-
 use account_compression::{QueueAccount, QueueMetadata, QueueType, RolloverMetadata};
 use forester_utils::{get_hash_set, AccountZeroCopy};
 use light_client::rpc::RpcConnection;

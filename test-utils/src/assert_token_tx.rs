@@ -169,10 +169,6 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
                 .owner,
             light_compressed_token::ID
         );
-        println!(
-            "output_merkle_tree_snapshots[i] {:?}",
-            output_merkle_tree_snapshots[i]
-        );
 
         if !test_indexer
             .get_token_compressed_accounts()

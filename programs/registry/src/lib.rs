@@ -519,7 +519,7 @@ pub mod light_registry {
     ) -> Result<()> {
         {
             let account = ctx.accounts.merkle_tree.load()?;
-            let metadata = account.metadata.clone();
+            let metadata = account.metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),

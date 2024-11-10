@@ -100,6 +100,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 ///    exist in input compressed accounts. An address may not be used in an
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn create_cpi_accounts_and_instruction_data<'a>(
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     output_compressed_account_indices: &mut [u32],

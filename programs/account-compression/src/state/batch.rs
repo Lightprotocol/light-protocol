@@ -442,22 +442,44 @@ mod tests {
         assert_eq!(batch.get_state(), BatchState::Inserted);
     }
 
+    /// 1. Failing test lowest value in eligble range - 1
+    /// 2. Functional test lowest value in eligble range
+    /// 3. Functional test highest value in eligble range
+    /// 4. Failing test eligble range + 1
     #[test]
     fn test_value_is_inserted_in_batch() {
         let mut batch = get_test_batch();
         batch.advance_state_to_ready_to_update_tree().unwrap();
         batch.advance_state_to_inserted().unwrap();
-
-        assert_eq!(batch.value_is_inserted_in_batch(0).unwrap(), true);
+        batch.start_index = 1;
+        let lowest_eligible_value = batch.start_index;
+        let highest_eligible_value =
+            batch.start_index + batch.get_num_zkp_batches() * batch.zkp_batch_size - 1;
+        // 1. Failing test lowest value in eligble range - 1
         assert_eq!(
             batch
-                .value_is_inserted_in_batch(batch.get_num_zkp_batches() * batch.zkp_batch_size - 1)
+                .value_is_inserted_in_batch(lowest_eligible_value - 1)
+                .unwrap(),
+            false
+        );
+        // 2. Functional test lowest value in eligble range
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(lowest_eligible_value)
                 .unwrap(),
             true
         );
+        // 3. Functional test highest value in eligble range
         assert_eq!(
             batch
-                .value_is_inserted_in_batch(batch.get_num_zkp_batches() * batch.zkp_batch_size)
+                .value_is_inserted_in_batch(highest_eligible_value)
+                .unwrap(),
+            true
+        );
+        // 4. Failing test eligble range + 1
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(highest_eligible_value + 1)
                 .unwrap(),
             false
         );

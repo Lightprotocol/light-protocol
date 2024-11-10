@@ -36,6 +36,7 @@ pub fn fetch_input_compressed_account_roots<
     for input_compressed_account_with_context in
         input_compressed_accounts_with_merkle_context.iter()
     {
+        // Skip accounts which prove inclusion by index in output queue.
         if input_compressed_account_with_context
             .merkle_context
             .queue_index

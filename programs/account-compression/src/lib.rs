@@ -170,7 +170,6 @@ pub mod account_compression {
     pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
         leaves: Vec<(u8, [u8; 32])>,
-        // zero_out_leaf_indices: Vec<ZeroOutLeafIndex>,
     ) -> Result<()> {
         process_append_leaves_to_merkle_trees(ctx, leaves)
     }
@@ -214,13 +213,13 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
-    pub fn batch_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
+    pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_batch_nullify_leaves(&ctx, instruction_data)?;
+        process_batch_nullify(&ctx, instruction_data)?;
         Ok(())
     }
 
