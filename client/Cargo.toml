@@ -46,3 +46,8 @@ num-traits = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
+
+# Photon API
+photon-api = { workspace = true }
+tracing = "0.1"
+bs58 = "0.5"

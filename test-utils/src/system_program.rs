@@ -341,7 +341,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         };
         let proof_rpc_res = inputs
             .test_indexer
-            .create_proof_for_compressed_accounts(
+            .get_validity_proof(
                 compressed_account_input_hashes,
                 state_input_merkle_trees,
                 inputs.created_addresses,

@@ -2,7 +2,7 @@
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::test_indexer::TestIndexer;
-use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_sdk::address::{derive_address, derive_address_seed};
@@ -161,7 +161,7 @@ where
     R: RpcConnection + MerkleTreeExt,
 {
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             None,
             None,
             Some(&[*address]),
@@ -228,13 +228,7 @@ where
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
-            None,
-            None,
-            rpc,
-        )
+        .get_validity_proof(Some(&[hash]), Some(&[merkle_tree_pubkey]), None, None, rpc)
         .await;
 
     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);

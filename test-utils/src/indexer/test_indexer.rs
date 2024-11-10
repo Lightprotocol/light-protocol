@@ -431,7 +431,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         &self.group_pda
     }
 
-    async fn create_proof_for_compressed_accounts(
+    async fn get_validity_proof(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,

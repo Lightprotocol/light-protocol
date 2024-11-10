@@ -225,7 +225,7 @@ pub async fn failing_transaction_inputs(
     let (root_indices, proof) =
         if input_compressed_account_hashes.is_some() || proof_input_derived_addresses.is_some() {
             let proof_rpc_res = test_indexer
-                .create_proof_for_compressed_accounts(
+                .get_validity_proof(
                     input_compressed_account_hashes,
                     input_state_merkle_trees,
                     proof_input_derived_addresses,
@@ -1024,7 +1024,7 @@ async fn invoke_test() {
     // create instruction as usual with correct zkp
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
     let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[compressed_account_with_context
                 .compressed_account
                 .hash::<Poseidon>(
@@ -1442,7 +1442,7 @@ async fn test_with_compression() {
 
     let compressed_account_with_context = test_indexer.compressed_accounts.last().unwrap().clone();
     let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[compressed_account_with_context
                 .compressed_account
                 .hash::<Poseidon>(

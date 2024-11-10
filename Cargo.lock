@@ -3502,6 +3502,7 @@ dependencies = [
  "async-trait",
  "bb8",
  "borsh 0.10.3",
+ "bs58 0.5.1",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
@@ -3511,6 +3512,7 @@ dependencies = [
  "log",
  "num-bigint 0.4.6",
  "num-traits",
+ "photon-api",
  "reqwest 0.11.27",
  "solana-banks-client",
  "solana-client",
@@ -3520,6 +3522,7 @@ dependencies = [
  "solana-transaction-status",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

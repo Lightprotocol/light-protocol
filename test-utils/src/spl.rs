@@ -360,7 +360,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         input_compressed_account_hashes
     );
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -510,7 +510,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -737,7 +737,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
     );
     println!("input compressed accounts: {:?}", input_compressed_accounts);
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -898,7 +898,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -1049,7 +1049,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -1321,7 +1321,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,

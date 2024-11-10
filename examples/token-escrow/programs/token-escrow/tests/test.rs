@@ -236,7 +236,7 @@ pub async fn perform_escrow<R: RpcConnection>(
         .unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[input_compressed_account_hash]),
             Some(&[compressed_input_account_with_context
                 .merkle_context
@@ -394,7 +394,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[input_compressed_account_hash]),
             Some(&[compressed_input_account_with_context
                 .merkle_context

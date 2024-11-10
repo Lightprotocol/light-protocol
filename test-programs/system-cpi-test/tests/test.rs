@@ -711,7 +711,7 @@ async fn perform_create_pda<R: RpcConnection>(
     let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             None,
             None,
             Some(&[address]),
@@ -840,13 +840,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         .accounts
         .cpi_context;
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&hashes),
-            Some(&merkle_tree_pubkeys),
-            None,
-            None,
-            rpc,
-        )
+        .get_validity_proof(Some(&hashes), Some(&merkle_tree_pubkeys), None, None, rpc)
         .await;
 
     let token_transfer_data = match token_account {

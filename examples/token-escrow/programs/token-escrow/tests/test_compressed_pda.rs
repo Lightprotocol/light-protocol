@@ -235,7 +235,7 @@ async fn create_escrow_ix<R: RpcConnection>(
     let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[input_compressed_account_hash]),
             Some(&[compressed_input_account_with_context
                 .merkle_context
@@ -449,7 +449,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
     // compressed pda will go first into the proof because in the program
     // the compressed pda program executes the transaction
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[compressed_pda_hash, token_escrow_account_hash]),
             Some(&[
                 compressed_escrow_pda.merkle_context.merkle_tree_pubkey,

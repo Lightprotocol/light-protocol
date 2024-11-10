@@ -1295,7 +1295,7 @@ async fn test_approve_failing() {
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -1720,7 +1720,7 @@ async fn test_revoke_failing() {
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -2426,7 +2426,7 @@ async fn test_failing_freeze() {
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -2573,7 +2573,7 @@ async fn test_failing_freeze() {
             .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
+            .get_validity_proof(
                 Some(&input_compressed_account_hashes),
                 Some(&input_merkle_tree_pubkeys),
                 None,
@@ -2690,7 +2690,7 @@ async fn test_failing_thaw() {
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&input_compressed_account_hashes),
             Some(&input_merkle_tree_pubkeys),
             None,
@@ -2828,7 +2828,7 @@ async fn test_failing_thaw() {
             .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
+            .get_validity_proof(
                 Some(&input_compressed_account_hashes),
                 Some(&input_merkle_tree_pubkeys),
                 None,
@@ -3182,7 +3182,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
         .collect::<Vec<_>>();
     let (root_indices, proof) = if !input_compressed_account_hashes.is_empty() {
         let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
+            .get_validity_proof(
                 Some(&input_compressed_account_hashes),
                 Some(&input_merkle_tree_pubkeys),
                 None,
@@ -3312,7 +3312,7 @@ async fn test_invalid_inputs() {
         .compressed_account
         .clone()];
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             Some(&[input_compressed_accounts[0].hash().unwrap()]),
             Some(&[input_compressed_accounts[0]
                 .merkle_context

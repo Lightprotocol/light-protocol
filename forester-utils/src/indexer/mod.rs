@@ -130,7 +130,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     }
 
     #[allow(async_fn_in_trait)]
-    async fn create_proof_for_compressed_accounts(
+    async fn get_validity_proof(
         &mut self,
         _compressed_accounts: Option<&[[u8; 32]]>,
         _state_merkle_tree_pubkeys: Option<&[Pubkey]>,

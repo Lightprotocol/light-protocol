@@ -48,7 +48,7 @@ use super::{
 #[derive(Debug)]
 pub struct TestIndexer<R>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
 {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
@@ -62,7 +62,7 @@ where
 
 impl<R> Indexer<R> for TestIndexer<R>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
 {
     fn add_event_and_compressed_accounts(
         &mut self,
@@ -211,7 +211,7 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
-    async fn create_proof_for_compressed_accounts(
+    async fn get_validity_proof(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[solana_sdk::pubkey::Pubkey]>,
@@ -321,7 +321,7 @@ where
 
 impl<R> TestIndexer<R>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
 {
     pub async fn new(
         state_merkle_tree_accounts: &[StateMerkleTreeAccounts],

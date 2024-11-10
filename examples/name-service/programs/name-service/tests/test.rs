@@ -302,7 +302,7 @@ where
     R: RpcConnection + MerkleTreeExt,
 {
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
+        .get_validity_proof(
             None,
             None,
             Some(&[*address]),
@@ -370,13 +370,7 @@ where
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
-            None,
-            None,
-            rpc,
-        )
+        .get_validity_proof(Some(&[hash]), Some(&[merkle_tree_pubkey]), None, None, rpc)
         .await;
 
     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
@@ -447,13 +441,7 @@ where
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
-            None,
-            None,
-            rpc,
-        )
+        .get_validity_proof(Some(&[hash]), Some(&[merkle_tree_pubkey]), None, None, rpc)
         .await;
 
     let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
