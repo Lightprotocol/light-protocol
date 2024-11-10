@@ -39,6 +39,9 @@ import {
     WithCursor,
     AddressWithTree,
     HashWithTree,
+    CompressedMintTokenHoldersResult,
+    CompressedMintTokenHolders,
+    GetCompressedMintTokenHoldersOptions,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -93,7 +96,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
         [propertyToCheck]: ownerOrDelegate.toBase58(),
         mint: options.mint?.toBase58(),
-        limit: options.limit,
+        limit: options.limit?.toNumber(),
         cursor: options.cursor,
     });
 
@@ -818,7 +821,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             {
                 owner: owner.toBase58(),
                 mint: options.mint?.toBase58(),
-                limit: options.limit,
+                limit: options.limit?.toNumber(),
                 cursor: options.cursor,
             },
         );
@@ -1129,6 +1132,32 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result;
     }
 
+    async getCompressedMintTokenHolders(
+        mint: PublicKey,
+        options?: GetCompressedMintTokenHoldersOptions,
+    ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getCompressedMintTokenHolders',
+            {
+                mint: mint.toBase58(),
+                cursor: options?.cursor,
+                limit: options?.limit?.toNumber(),
+            },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(CompressedMintTokenHoldersResult),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get mint token holders',
+            );
+        }
+
+        return res.result;
+    }
     /**
      * Fetch the latest compression signatures on the cluster. Results are
      * paginated.

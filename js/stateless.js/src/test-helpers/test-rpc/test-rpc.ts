@@ -16,8 +16,10 @@ import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import {
     AddressWithTree,
+    CompressedMintTokenHolders,
     CompressedTransaction,
     GetCompressedAccountsByOwnerConfig,
+    GetCompressedMintTokenHoldersOptions,
     HashWithTree,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
@@ -575,6 +577,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             newAddressProofs.push(proof);
         }
         return newAddressProofs;
+    }
+
+    async getCompressedMintTokenHolders(
+        _mint: PublicKey,
+        _options?: GetCompressedMintTokenHoldersOptions,
+    ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
+        throw new Error(
+            'getCompressedMintTokenHolders not implemented in test-rpc',
+        );
     }
 
     /**

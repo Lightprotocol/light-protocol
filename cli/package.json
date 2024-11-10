@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk-compression-cli",
-  "version": "0.18.1",
+  "version": "0.19.3",
   "description": "ZK Compression: Secure Scaling on Solana",
   "maintainers": [
     {
@@ -20,7 +20,14 @@
     "/test_bin",
     "./config.json",
     "/npm-shrinkwrap.json",
-    "/oclif.manifest.json"
+    "/oclif.manifest.json",
+    "!bin/proving-keys/append-with-proofs_26_10.key",
+    "!bin/proving-keys/append-with-proofs_26_10.vkey",
+    "!bin/proving-keys/append-with-subtrees_26_10.key",
+    "!bin/proving-keys/append-with-subtrees_26_10.vkey",
+    "!bin/proving-keys/update_26_10.key",
+    "!bin/proving-keys/update_26_10.vkey",
+    "!bin/cargo-generate"
   ],
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
