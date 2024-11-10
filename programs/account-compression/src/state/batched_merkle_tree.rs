@@ -557,8 +557,6 @@ pub fn create_hash_chain_from_vec(inputs: Vec<[u8; 32]>) -> Result<[u8; 32]> {
 }
 
 pub fn get_merkle_tree_account_size_default() -> usize {
-    // TODO: implement a default config for BatchedMerkleTreeAccount using a
-    // default for BatchedInputQueue
     let mt_account = BatchedMerkleTreeAccount {
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
@@ -600,8 +598,6 @@ pub fn get_merkle_tree_account_size(
     height: u32,
     num_batches: u64,
 ) -> usize {
-    // TODO: implement a default config for BatchedMerkleTreeAccount using a
-    // default for BatchedInputQueue
     let mt_account = BatchedMerkleTreeAccount {
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
@@ -908,7 +904,6 @@ mod tests {
                     output_zero_copy_account.value_vecs.iter_mut().enumerate()
                 {
                     for (value_index, value) in value_vec.iter_mut().enumerate() {
-                        // TODO: test double spending
                         if *value == *input {
                             let batch_start_index = output_zero_copy_account
                                 .batches
@@ -1022,7 +1017,6 @@ mod tests {
                 for _ in 0..number_of_outputs {
                     outputs.push(get_rnd_bytes(&mut rng));
                 }
-                // TODO: add full test for inputs
                 let number_of_inputs = if rng.gen_bool(0.5) {
                     let number_of_inputs = if !mock_indexer.active_leaves.is_empty() {
                         let x = min(mock_indexer.active_leaves.len(), 5);

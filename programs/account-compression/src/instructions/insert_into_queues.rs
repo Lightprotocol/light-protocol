@@ -26,7 +26,6 @@ pub struct InsertIntoQueues<'info> {
     pub system_program: Program<'info, System>,
 }
 
-// TODO: refactor and add rust native unit tests
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
@@ -50,7 +49,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     // and pay rollover fees only once.
     let mut current_index = 0;
     for (index, element) in elements.iter().enumerate() {
-        // TODO: remove unwrap
         let current_account_discriminator = ctx
             .remaining_accounts
             .get(current_index)
@@ -241,7 +239,7 @@ fn add_queue_bundle_v1<'a, 'info>(
     check_inserted: bool,
 ) -> Result<()> {
     // TODO: add address support
-    if queue_type != QueueType::Output {
+    if queue_type != QueueType::NullifierQueue {
         msg!("Queue type Address is not supported for BatchedMerkleTreeAccount");
         return err!(AccountCompressionErrorCode::InvalidQueueType);
     }

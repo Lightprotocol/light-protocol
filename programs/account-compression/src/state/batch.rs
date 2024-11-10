@@ -33,8 +33,6 @@ pub struct Batch {
     /// Sequence number when it is save to clear the batch without advancing to
     /// the saved root index.
     pub sequence_number: u64,
-    // TODO: don't zero out roots completely but just overwrite one non-zero
-    // byte to zero
     pub root_index: u32,
     pub start_index: u64,
     /// Placeholder for forester to signal that the bloom filter is wiped

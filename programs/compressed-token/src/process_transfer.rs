@@ -646,7 +646,6 @@ pub mod transfer_sdk {
         sort: bool,
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
-        // TODO: add bool whether input is included in proof or not
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,

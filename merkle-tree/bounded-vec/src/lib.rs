@@ -3,7 +3,7 @@ pub mod offset;
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     fmt,
-    mem::{self, ManuallyDrop},
+    mem::{self, size_of, ManuallyDrop},
     ops::{Index, IndexMut, Sub},
     ptr::{self, NonNull},
     slice::{self, Iter, IterMut, SliceIndex},

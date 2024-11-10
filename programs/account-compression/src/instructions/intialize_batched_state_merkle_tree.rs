@@ -191,9 +191,9 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
 pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
     bytes: &mut [u8],
 ) -> Result<*mut T> {
-    // TODO: throw error for size check
-    // Ensure the slice has at least as many bytes as needed for MyStruct
-    assert!(bytes.len() >= std::mem::size_of::<T>());
+    if bytes.len() < std::mem::size_of::<T>() {
+        return err!(AccountCompressionErrorCode::InvalidAccountSize);
+    }
 
     if INIT {
         if bytes[0..8] != [0; 8] {

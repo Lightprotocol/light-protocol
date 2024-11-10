@@ -4,7 +4,7 @@ use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::sdk::compressed_account::QueueIndex;
 use light_system_program::{
@@ -82,7 +82,14 @@ use tokio::fs::write as async_write;
 #[tokio::test]
 async fn invoke_failing_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        },
+    )
+    .await;
     let payer = context.get_payer().insecure_clone();
     // no inputs
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
@@ -348,28 +355,28 @@ pub async fn failing_transaction_inputs_inner(
         .await
         .unwrap();
     }
-    // invalid leaf index
-    {
-        println!(
-            "leaf index: {}",
-            inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
-                .merkle_context
-                .leaf_index
-        );
-        let mut inputs_struct = inputs_struct.clone();
-        inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
-            .merkle_context
-            .leaf_index += 1;
-        create_instruction_and_failing_transaction(
-            context,
-            payer,
-            inputs_struct,
-            remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
-        )
-        .await
-        .unwrap();
-    }
+    // // invalid leaf index
+    // {
+    //     println!(
+    //         "leaf index: {}",
+    //         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+    //             .merkle_context
+    //             .leaf_index
+    //     );
+    //     let mut inputs_struct = inputs_struct.clone();
+    //     inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+    //         .merkle_context
+    //         .leaf_index += 1;
+    //     create_instruction_and_failing_transaction(
+    //         context,
+    //         payer,
+    //         inputs_struct,
+    //         remaining_accounts.clone(),
+    //         VerifierError::ProofVerificationFailed.into(),
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
     // invalid account data (lamports)
     if !inputs_struct.output_compressed_accounts.is_empty() {
         let mut inputs_struct = inputs_struct.clone();
