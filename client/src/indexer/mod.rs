@@ -1,4 +1,4 @@
-use std::{fmt::Debug, future::Future};
+use std::fmt::Debug;
 
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
@@ -7,26 +7,21 @@ use light_indexed_merkle_tree::{
 };
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::ProofRpcResult, token::TokenDataWithMerkleContext,
+    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent, proof::ProofRpcResult, token::{TokenData, TokenDataWithMerkleContext}
 };
 use num_bigint::BigUint;
-use photon_api::models::{
-    GetCompressionSignaturesForAddressPostRequestParams,
-    GetCompressionSignaturesForOwnerPostRequestParams,
-    GetCompressionSignaturesForTokenOwnerPostRequestParams,
-    GetLatestCompressionSignaturesPostRequestParams, SignatureInfo, TransactionInfo,
-};
+use photon_api::models::GetLatestCompressionSignaturesPostRequestParams;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use serde_json::Value;
 
 use crate::rpc::RpcConnection;
 
 pub mod photon_indexer;
 pub mod test_indexer;
 
-pub use photon_indexer::PhotonIndexer;
-pub use test_indexer::TestIndexer;
+// pub use photon_indexer::PhotonIndexer;
+// pub use test_indexer::TestIndexer;
 
 #[derive(Error, Debug)]
 pub enum IndexerError {
@@ -48,8 +43,17 @@ pub enum IndexerError {
 /// - PhotonIndexer: Production implementation using remote RPC
 /// - TestIndexer: Test implementation with local state management
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
+
+      /// Gets new address proofs for a merkle tree and addresses
+      async fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError>;
+
     // Core Account Operations
-    /// Returns compressed accounts for a given owner public key, with optional filters and data slice
+    /// Returns compressed accounts for a given owner public key, with optional
+    /// filters and data slice
     fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
@@ -61,6 +65,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hash: String,
     ) -> Result<CompressedAccountWithMerkleContext, IndexerError>;
 
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError>;
     /// Fetches multiple compressed accounts by their hashes
     async fn get_multiple_compressed_accounts(
         &self,
@@ -74,10 +82,11 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     /// Gets total compressed balance for an owner
     async fn get_compressed_balance_by_owner(&self, owner: &Pubkey) -> Result<u64, IndexerError>;
 
-    // Proof Operations
+    // Proof Operations  
     /// Gets merkle proof context for a compressed account
-    async fn get_compressed_account_proof(&self, hash: String)
-        -> Result<MerkleProof, IndexerError>;
+    async fn get_compressed_account_proof(&self, hash: String) -> Result<MerkleProof, IndexerError>;
+
+  
 
     /// Gets merkle proof contexts for multiple compressed accounts
     async fn get_multiple_compressed_account_proofs(
@@ -85,7 +94,8 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    /// Gets validity proof for compressed accounts and new addresses with merkle tree context
+    /// Gets validity proof for compressed accounts and new addresses with
+    /// merkle tree context
     async fn get_validity_proof(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
@@ -96,7 +106,8 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     ) -> ProofRpcResult;
 
     // Transaction Operations
-    /// Gets transaction details with compression information including opened/closed accounts
+    /// Gets transaction details with compression information including
+    /// opened/closed accounts
     async fn get_transaction_with_compression_info(
         &self,
         signature: String,
@@ -118,6 +129,16 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
 
     /// Returns current indexer slot
     async fn get_indexer_slot(&self) -> Result<u64, IndexerError>;
+
+    /// Adds a transaction event and compressed accounts to the indexer state
+    fn add_event_and_compressed_accounts(
+        &mut self,
+        event: &PublicTransactionEvent,
+    ) -> (
+        Vec<CompressedAccountWithMerkleContext>,
+        Vec<TokenDataWithMerkleContext>,
+    );
+
 }
 
 #[derive(Debug, Clone)]
@@ -171,4 +192,22 @@ pub struct AddressMerkleTreeBundle {
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
+}
+
+#[derive(Debug, Clone)]
+pub struct TransactionInfo {
+    pub compression_info: CompressionInfo,
+    pub transaction: Value, // Using serde_json::Value for the "any" type
+}
+
+#[derive(Debug, Clone)]
+pub struct CompressionInfo {
+    pub closed_accounts: Vec<AccountWithTokenData>,
+    pub opened_accounts: Vec<AccountWithTokenData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AccountWithTokenData {
+    pub account: CompressedAccountWithMerkleContext,
+    pub optional_token_data: Option<TokenData>,
 }

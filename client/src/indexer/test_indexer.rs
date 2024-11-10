@@ -28,7 +28,7 @@ use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext,
     event::PublicTransactionEvent,
     merkle_context::MerkleContext,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::{CompressedProof, NewAddressProofWithContext, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
     ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT, PROGRAM_ID_LIGHT_SYSTEM,
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
@@ -37,12 +37,13 @@ use light_sdk::{
 use log::warn;
 use num_bigint::BigInt;
 use num_traits::FromBytes;
+use photon_api::models::GetLatestCompressionSignaturesPostRequestParams;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 
 use super::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle,
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, IndexerError, MerkleProof,
+    StateMerkleTreeAccounts, StateMerkleTreeBundle, TransactionInfo,
 };
 
 #[derive(Debug)]
@@ -64,6 +65,28 @@ impl<R> Indexer<R> for TestIndexer<R>
 where
     R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
 {
+    async fn get_multiple_compressed_account_proofs(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError> {
+        unimplemented!()
+    }
+
+    fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+        unimplemented!()
+    }
+
     fn add_event_and_compressed_accounts(
         &mut self,
         event: &PublicTransactionEvent,
@@ -316,6 +339,61 @@ where
             .filter(|x| x.compressed_account.owner == *owner)
             .cloned()
             .collect()
+    }
+
+    async fn get_compressed_account(
+        &self,
+        hash: String,
+    ) -> Result<CompressedAccountWithMerkleContext, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_multiple_compressed_accounts(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_compressed_account_balance(&self, hash: String) -> Result<u64, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_compressed_balance_by_owner(&self, owner: &Pubkey) -> Result<u64, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_compressed_account_proof(
+        &self,
+        hash: String,
+    ) -> Result<MerkleProof, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_latest_compression_signatures(
+        &self,
+        params: GetLatestCompressionSignaturesPostRequestParams,
+    ) -> Result<Vec<String>, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_latest_non_voting_signatures(&self) -> Result<Vec<String>, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_indexer_health(&self) -> Result<bool, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
+        unimplemented!()
+    }
+
+    async fn get_transaction_with_compression_info(
+        &self,
+        signature: String,
+    ) -> Result<TransactionInfo, IndexerError> {
+        unimplemented!()
     }
 }
 
