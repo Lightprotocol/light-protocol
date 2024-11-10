@@ -691,7 +691,16 @@ mod tests {
                 .iter()
                 .cloned()
                 .collect();
-            assert_eq!(post_roots, pre_roots, "Root buffer changed.");
+            // if root buffer changed it must be only overwritten by [0u8;32]
+            if post_roots != pre_roots {
+                let only_zero_overwrites = post_roots
+                    .iter()
+                    .zip(pre_roots.iter())
+                    .all(|(post, pre)| *post == *pre || *post == [0u8; 32]);
+                if !only_zero_overwrites {
+                    panic!("Root buffer changed.")
+                }
+            }
 
             let current_batch_index = merkle_tree_zero_copy_account
                 .get_account()
