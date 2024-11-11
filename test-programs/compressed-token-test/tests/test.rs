@@ -2189,7 +2189,7 @@ async fn failing_tests_burn() {
         let invalid_change_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
-            .queue_pubkey;
+            .nullifier_queue_pubkey;
         let (_, _, _, _, instruction) = create_burn_test_instruction(
             &sender,
             &mut rpc,
@@ -3654,7 +3654,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
             .iter()
             .map(|x| MerkleContext {
                 merkle_tree_pubkey: *merkle_tree_pubkey,
-                queue_pubkey: *nullifier_queue_pubkey,
+                nullifier_queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 queue_index: None,
             })

@@ -822,7 +822,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         );
     }
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
-    let nullifier_pubkey = compressed_account.merkle_context.queue_pubkey;
+    let nullifier_pubkey = compressed_account.merkle_context.nullifier_queue_pubkey;
     let cpi_context = match mode {
         WithInputAccountsMode::Freeze
         | WithInputAccountsMode::Thaw
