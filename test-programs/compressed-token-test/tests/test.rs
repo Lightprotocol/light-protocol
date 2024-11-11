@@ -1405,7 +1405,7 @@ async fn test_approve_failing() {
         let invalid_proof = CompressedProof {
             a: [0; 32],
             b: [0; 64],
-            c: [0; 32],
+            c: [1; 32],
         };
 
         let inputs = CreateApproveInstructionInputs {
@@ -2513,7 +2513,7 @@ async fn test_failing_freeze() {
         let invalid_proof = CompressedProof {
             a: [0; 32],
             b: [0; 64],
-            c: [0; 32],
+            c: [1; 32],
         };
 
         let inputs = CreateInstructionInputs {
@@ -2777,7 +2777,7 @@ async fn test_failing_thaw() {
         let invalid_proof = CompressedProof {
             a: [0; 32],
             b: [0; 64],
-            c: [0; 32],
+            c: [1; 32],
         };
 
         let inputs = CreateInstructionInputs {
