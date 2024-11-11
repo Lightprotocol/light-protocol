@@ -7,21 +7,30 @@ use light_indexed_merkle_tree::{
 };
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent, proof::ProofRpcResult, token::{TokenData, TokenDataWithMerkleContext}
+    compressed_account::CompressedAccountWithMerkleContext,
+    event::PublicTransactionEvent,
+    proof::ProofRpcResult,
+    token::{TokenData, TokenDataWithMerkleContext},
 };
 use num_bigint::BigUint;
-use photon_api::models::GetLatestCompressionSignaturesPostRequestParams;
+use photon_api::{
+    apis::default_api::{
+        GetCompressedAccountsByOwnerPostError, GetMultipleCompressedAccountProofsPostError,
+        GetMultipleNewAddressProofsV2PostError,
+    },
+    models::GetLatestCompressionSignaturesPostRequestParams,
+};
+use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
-use serde_json::Value;
 
 use crate::rpc::RpcConnection;
 
 pub mod photon_indexer;
 pub mod test_indexer;
 
-// pub use photon_indexer::PhotonIndexer;
-// pub use test_indexer::TestIndexer;
+pub use photon_indexer::PhotonIndexer;
+pub use test_indexer::TestIndexer;
 
 #[derive(Error, Debug)]
 pub enum IndexerError {
@@ -37,100 +46,150 @@ pub enum IndexerError {
     Unknown,
 }
 
+// impl<T> From<PhotonError<T>> for IndexerError {
+//     fn from(error: PhotonError<T>) -> Self {
+//         IndexerError::Custom(format!("{:?}", error))
+//     }
+// }
+
+impl From<GetCompressedAccountsByOwnerPostError> for IndexerError {
+    fn from(error: GetCompressedAccountsByOwnerPostError) -> Self {
+        IndexerError::Custom(format!("{:?}", error))
+    }
+}
+
+impl From<GetMultipleCompressedAccountProofsPostError> for IndexerError {
+    fn from(error: GetMultipleCompressedAccountProofsPostError) -> Self {
+        IndexerError::Custom(format!("{:?}", error))
+    }
+}
+
+impl From<GetMultipleNewAddressProofsV2PostError> for IndexerError {
+    fn from(error: GetMultipleNewAddressProofsV2PostError) -> Self {
+        IndexerError::Custom(format!("{:?}", error))
+    }
+}
+
+impl
+    From<
+        photon_api::apis::Error<
+            photon_api::apis::default_api::GetCompressedAccountsByOwnerPostError,
+        >,
+    > for IndexerError
+{
+    fn from(
+        e: photon_api::apis::Error<
+            photon_api::apis::default_api::GetCompressedAccountsByOwnerPostError,
+        >,
+    ) -> Self {
+        IndexerError::Custom(e.to_string())
+    }
+}
+
+impl From<photon_api::apis::Error<GetMultipleCompressedAccountProofsPostError>> for IndexerError {
+    fn from(e: photon_api::apis::Error<GetMultipleCompressedAccountProofsPostError>) -> Self {
+        IndexerError::Custom(e.to_string())
+    }
+}
+
+impl From<photon_api::apis::Error<GetMultipleNewAddressProofsV2PostError>> for IndexerError {
+    fn from(e: photon_api::apis::Error<GetMultipleNewAddressProofsV2PostError>) -> Self {
+        IndexerError::Custom(e.to_string())
+    }
+}
+
 /// Indexer trait defining interface for interacting with Light Protocol RPCs.
 ///
 /// Two implementations are provided:
 /// - PhotonIndexer: Production implementation using remote RPC
 /// - TestIndexer: Test implementation with local state management
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-
-      /// Gets new address proofs for a merkle tree and addresses
-      async fn get_multiple_new_address_proofs(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-        addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError>;
-
     // Core Account Operations
-    /// Returns compressed accounts for a given owner public key, with optional
-    /// filters and data slice
     fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext>;
 
-    /// Fetches a compressed account by its hash or address
-    async fn get_compressed_account(
+    fn get_compressed_account(
         &self,
         hash: String,
-    ) -> Result<CompressedAccountWithMerkleContext, IndexerError>;
+    ) -> impl std::future::Future<Output = Result<CompressedAccountWithMerkleContext, IndexerError>> + Send;
 
-    async fn get_rpc_compressed_accounts_by_owner(
+    fn get_rpc_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<String>, IndexerError>;
-    /// Fetches multiple compressed accounts by their hashes
-    async fn get_multiple_compressed_accounts(
+    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send;
+
+    fn get_multiple_compressed_accounts(
         &self,
         hashes: Vec<String>,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
+    ) -> impl std::future::Future<
+        Output = Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>,
+    > + Send;
 
     // Balance Operations
-    /// Gets token balance for a compressed account
-    async fn get_compressed_account_balance(&self, hash: String) -> Result<u64, IndexerError>;
+    fn get_compressed_account_balance(
+        &self,
+        hash: String,
+    ) -> impl std::future::Future<Output = Result<u64, IndexerError>> + Send;
 
-    /// Gets total compressed balance for an owner
-    async fn get_compressed_balance_by_owner(&self, owner: &Pubkey) -> Result<u64, IndexerError>;
+    fn get_compressed_balance_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> impl std::future::Future<Output = Result<u64, IndexerError>> + Send;
 
-    // Proof Operations  
-    /// Gets merkle proof context for a compressed account
-    async fn get_compressed_account_proof(&self, hash: String) -> Result<MerkleProof, IndexerError>;
+    // Proof Operations
+    fn get_compressed_account_proof(
+        &self,
+        hash: String,
+    ) -> impl std::future::Future<Output = Result<MerkleProof, IndexerError>> + Send;
 
-  
-
-    /// Gets merkle proof contexts for multiple compressed accounts
-    async fn get_multiple_compressed_account_proofs(
+    fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError>;
+    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send;
 
-    /// Gets validity proof for compressed accounts and new addresses with
-    /// merkle tree context
-    async fn get_validity_proof(
+    fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        addresses: Vec<[u8; 32]>,
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>> + Send;
+
+    fn get_validity_proof(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult;
+    ) -> impl std::future::Future<Output = ProofRpcResult> + Send;
 
     // Transaction Operations
-    /// Gets transaction details with compression information including
-    /// opened/closed accounts
-    async fn get_transaction_with_compression_info(
+    fn get_transaction_with_compression_info(
         &self,
         signature: String,
-    ) -> Result<TransactionInfo, IndexerError>;
+    ) -> impl std::future::Future<Output = Result<TransactionInfo, IndexerError>> + Send;
 
     // Signature Operations
-    /// Gets latest compression signatures with optional cursor and limit
-    async fn get_latest_compression_signatures(
+    fn get_latest_compression_signatures(
         &self,
         params: GetLatestCompressionSignaturesPostRequestParams,
-    ) -> Result<Vec<String>, IndexerError>;
+    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send;
 
-    /// Gets latest non-voting signatures with optional limit
-    async fn get_latest_non_voting_signatures(&self) -> Result<Vec<String>, IndexerError>;
+    fn get_latest_non_voting_signatures(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send;
 
     // Health Operations
-    /// Returns indexer health status
-    async fn get_indexer_health(&self) -> Result<bool, IndexerError>;
+    fn get_indexer_health(
+        &self,
+    ) -> impl std::future::Future<Output = Result<bool, IndexerError>> + Send;
 
-    /// Returns current indexer slot
-    async fn get_indexer_slot(&self) -> Result<u64, IndexerError>;
+    fn get_indexer_slot(
+        &self,
+    ) -> impl std::future::Future<Output = Result<u64, IndexerError>> + Send;
 
-    /// Adds a transaction event and compressed accounts to the indexer state
+    // State Management
     fn add_event_and_compressed_accounts(
         &mut self,
         event: &PublicTransactionEvent,
@@ -138,7 +197,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         Vec<CompressedAccountWithMerkleContext>,
         Vec<TokenDataWithMerkleContext>,
     );
-
 }
 
 #[derive(Debug, Clone)]

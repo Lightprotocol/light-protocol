@@ -3514,6 +3514,7 @@ dependencies = [
  "num-traits",
  "photon-api",
  "reqwest 0.11.27",
+ "serde_json",
  "solana-banks-client",
  "solana-client",
  "solana-program",

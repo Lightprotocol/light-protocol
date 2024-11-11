@@ -28,7 +28,7 @@ use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext,
     event::PublicTransactionEvent,
     merkle_context::MerkleContext,
-    proof::{CompressedProof, NewAddressProofWithContext, ProofRpcResult},
+    proof::{CompressedProof, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
     ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT, PROGRAM_ID_LIGHT_SYSTEM,
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
@@ -43,7 +43,7 @@ use solana_sdk::pubkey::Pubkey;
 
 use super::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, IndexerError, MerkleProof,
-    StateMerkleTreeAccounts, StateMerkleTreeBundle, TransactionInfo,
+    NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle, TransactionInfo,
 };
 
 #[derive(Debug)]
@@ -67,22 +67,22 @@ where
 {
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
+        _hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
         unimplemented!()
     }
 
     async fn get_rpc_compressed_accounts_by_owner(
         &self,
-        owner: &Pubkey,
+        _owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {
         unimplemented!()
     }
 
-    fn get_multiple_new_address_proofs(
+    async fn get_multiple_new_address_proofs(
         &self,
-        merkle_tree_pubkey: [u8; 32],
-        addresses: Vec<[u8; 32]>,
+        _merkle_tree_pubkey: [u8; 32],
+        _addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
         unimplemented!()
     }
@@ -343,36 +343,36 @@ where
 
     async fn get_compressed_account(
         &self,
-        hash: String,
+        _hash: String,
     ) -> Result<CompressedAccountWithMerkleContext, IndexerError> {
         unimplemented!()
     }
 
     async fn get_multiple_compressed_accounts(
         &self,
-        hashes: Vec<String>,
+        _hashes: Vec<String>,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
         unimplemented!()
     }
 
-    async fn get_compressed_account_balance(&self, hash: String) -> Result<u64, IndexerError> {
+    async fn get_compressed_account_balance(&self, _hash: String) -> Result<u64, IndexerError> {
         unimplemented!()
     }
 
-    async fn get_compressed_balance_by_owner(&self, owner: &Pubkey) -> Result<u64, IndexerError> {
+    async fn get_compressed_balance_by_owner(&self, _owner: &Pubkey) -> Result<u64, IndexerError> {
         unimplemented!()
     }
 
     async fn get_compressed_account_proof(
         &self,
-        hash: String,
+        _hash: String,
     ) -> Result<MerkleProof, IndexerError> {
         unimplemented!()
     }
 
     async fn get_latest_compression_signatures(
         &self,
-        params: GetLatestCompressionSignaturesPostRequestParams,
+        _params: GetLatestCompressionSignaturesPostRequestParams,
     ) -> Result<Vec<String>, IndexerError> {
         unimplemented!()
     }
@@ -391,7 +391,7 @@ where
 
     async fn get_transaction_with_compression_info(
         &self,
-        signature: String,
+        _signature: String,
     ) -> Result<TransactionInfo, IndexerError> {
         unimplemented!()
     }
@@ -494,13 +494,18 @@ where
                 .unwrap()
                 .merkle_tree;
             let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
-            let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
+            let proof: Vec<[u8; 32]> = merkle_tree
+                .get_proof_of_leaf(leaf_index, true)
+                .unwrap()
+                .to_vec();
+
             inclusion_proofs.push(InclusionMerkleProofInputs {
                 root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
                 leaf: BigInt::from_be_bytes(account),
                 path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
+
             let onchain_merkle_tree = rpc
                 .get_state_merkle_tree(merkle_tree_pubkeys[i])
                 .await
