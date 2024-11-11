@@ -1103,7 +1103,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         // eslint-disable-next-line no-constant-condition
         while (true) {
             const indexerSlot = await this.getIndexerSlot();
-
+            
+            console.log("indexerSlot", indexerSlot, "slot", slot)
             if (indexerSlot >= slot) {
                 return true;
             }

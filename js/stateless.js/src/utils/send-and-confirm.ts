@@ -64,12 +64,16 @@ export async function sendAndConfirmTx(
         lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
     };
 
+    console.time("confirming tx")
     const ctxAndRes = await rpc.confirmTransaction(
         transactionConfirmationStrategy0,
         confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
+    console.timeEnd("confirming tx")
     const slot = ctxAndRes.context.slot;
+    console.time("indexed slot")
     await rpc.confirmTransactionIndexed(slot);
+    console.timeEnd("indexed slot")
     return txId;
 }
 
@@ -95,12 +99,16 @@ export async function confirmTx(
         blockhash: blockHashCtx.blockhash,
         lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
     };
+    console.time("confirming tx")
     const res = await rpc.confirmTransaction(
         transactionConfirmationStrategy,
         confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
+    console.timeEnd("confirming tx")
     const slot = res.context.slot;
+    console.time("indexed slot")
     await rpc.confirmTransactionIndexed(slot);
+    console.timeEnd("indexed slot")
     return res;
 }
 

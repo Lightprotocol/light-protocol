@@ -28,8 +28,12 @@ export async function newAccountWithLamports(
     }
 
     const account = getTestKeypair(counter);
+    console.time("request airdrop")
     const sig = await rpc.requestAirdrop(account.publicKey, lamports);
+    console.timeEnd("request airdrop")
+    console.time("confirm airdrop")
     await confirmTx(rpc, sig);
+    console.timeEnd("confirm airdrop")
     return account;
 }
 

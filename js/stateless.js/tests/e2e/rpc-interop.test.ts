@@ -25,16 +25,27 @@ describe('rpc-interop', () => {
     let testRpc: TestRpc;
     let executedTxs = 0;
     beforeAll(async () => {
+        console.time("wasm init")
         const lightWasm = await WasmFactory.getInstance();
+        console.timeEnd("wasm init")
+
+        console.time("rpc init")
         rpc = createRpc();
+        console.timeEnd("rpc init")
 
+        console.time("test rpc init")
         testRpc = await getTestRpc(lightWasm);
+        console.timeEnd("test rpc init")
 
+        console.time("test accounts")
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
+        console.timeEnd("test accounts")
 
+        console.time("compress")
         await compress(rpc, payer, 1e9, payer.publicKey);
+        console.timeEnd("compress")
         executedTxs++;
     });
 
