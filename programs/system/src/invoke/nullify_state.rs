@@ -65,7 +65,7 @@ pub fn insert_nullifiers<
             check_proof_by_index.push(false);
         }
         let account_info =
-            &ctx.remaining_accounts[account.merkle_context.queue_pubkey_index as usize];
+            &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
         accounts.push(AccountMeta {
             pubkey: account_info.key(),
             is_signer: false,
@@ -78,7 +78,7 @@ pub fn insert_nullifiers<
         )?;
         if network_fee_bundle.is_none() && network_fee.is_some() {
             network_fee_bundle = Some((
-                account.merkle_context.queue_pubkey_index,
+                account.merkle_context.nullifier_queue_pubkey_index,
                 network_fee.unwrap(),
             ));
         }

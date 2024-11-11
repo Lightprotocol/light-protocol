@@ -314,7 +314,10 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         sum_input_amounts += account.token_data.amount;
         input_merkle_tree_context.push(MerkleContext {
             merkle_tree_pubkey: account.compressed_account.merkle_context.merkle_tree_pubkey,
-            queue_pubkey: account.compressed_account.merkle_context.queue_pubkey,
+            nullifier_queue_pubkey: account
+                .compressed_account
+                .merkle_context
+                .nullifier_queue_pubkey,
             leaf_index,
             queue_index: None,
         });

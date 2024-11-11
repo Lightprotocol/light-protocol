@@ -1053,7 +1053,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .unwrap()
             };
             println!("found merkle tree {:?}", merkle_tree.accounts.merkle_tree);
-            let queue_pubkey = merkle_tree.accounts.nullifier_queue;
+            let nullifier_queue_pubkey = merkle_tree.accounts.nullifier_queue;
             let merkle_tree_pubkey = merkle_tree.accounts.merkle_tree;
             // if data is some, try to deserialize token data, if it fails, add to compressed_accounts
             // if data is none add to compressed_accounts
@@ -1073,7 +1073,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                                     merkle_context: MerkleContext {
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
-                                        queue_pubkey,
+                                        nullifier_queue_pubkey,
                                         queue_index: None,
                                     },
                                 },
@@ -1087,7 +1087,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                             merkle_context: MerkleContext {
                                 leaf_index: event.output_leaf_indices[i],
                                 merkle_tree_pubkey,
-                                queue_pubkey,
+                                nullifier_queue_pubkey,
                                 queue_index: None,
                             },
                         };
@@ -1101,7 +1101,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                         merkle_context: MerkleContext {
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
-                            queue_pubkey,
+                            nullifier_queue_pubkey,
                             queue_index: None,
                         },
                     };
@@ -1119,7 +1119,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 event
                     .sequence_numbers
                     .iter()
-                    .find(|x| x.pubkey == queue_pubkey)
+                    .find(|x| x.pubkey == nullifier_queue_pubkey)
                     .unwrap()
             };
             let is_batched = seq.seq == u64::MAX;

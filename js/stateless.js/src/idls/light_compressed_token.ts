@@ -1230,7 +1230,7 @@ export type LightCompressedToken = {
                         type: 'u8';
                     },
                     {
-                        name: 'queuePubkeyIndex';
+                        name: 'nullifierQueuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -2688,7 +2688,7 @@ export const IDL: LightCompressedToken = {
                         type: 'u8',
                     },
                     {
-                        name: 'queuePubkeyIndex',
+                        name: 'nullifierQueuePubkeyIndex',
                         type: 'u8',
                     },
                     {

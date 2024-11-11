@@ -191,7 +191,7 @@ pub fn assert_created_compressed_accounts(
         assert!(output_merkle_tree_pubkeys
             .iter()
             .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey
-                || *x == output_account.merkle_context.queue_pubkey),);
+                || *x == output_account.merkle_context.nullifier_queue_pubkey),);
     }
 }
 

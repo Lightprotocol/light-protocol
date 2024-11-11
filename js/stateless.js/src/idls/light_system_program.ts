@@ -626,7 +626,7 @@ export type LightSystemProgram = {
                         type: 'u8';
                     },
                     {
-                        name: 'queuePubkeyIndex';
+                        name: 'nullifierQueuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -1561,7 +1561,7 @@ export const IDL: LightSystemProgram = {
                         type: 'u8',
                     },
                     {
-                        name: 'queuePubkeyIndex',
+                        name: 'nullifierQueuePubkeyIndex',
                         type: 'u8',
                     },
                     {

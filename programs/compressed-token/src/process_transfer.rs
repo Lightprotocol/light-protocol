@@ -893,7 +893,7 @@ pub mod transfer_sdk {
                     merkle_tree_pubkey_index: *remaining_accounts
                         .get(&input_merkle_context[i].merkle_tree_pubkey)
                         .unwrap() as u8,
-                    queue_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
                     queue_index,
                 },
@@ -904,17 +904,18 @@ pub mod transfer_sdk {
             input_token_data_with_context.push(token_data_with_context);
         }
         for (i, _) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].nullifier_queue_pubkey) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey, index);
+                    remaining_accounts
+                        .insert(input_merkle_context[i].nullifier_queue_pubkey, index);
                     index += 1;
                 }
             };
             input_token_data_with_context[i]
                 .merkle_context
-                .queue_pubkey_index = *remaining_accounts
-                .get(&input_merkle_context[i].queue_pubkey)
+                .nullifier_queue_pubkey_index = *remaining_accounts
+                .get(&input_merkle_context[i].nullifier_queue_pubkey)
                 .unwrap() as u8;
         }
         let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =

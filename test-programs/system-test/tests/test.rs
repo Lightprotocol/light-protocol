@@ -495,7 +495,7 @@ pub async fn failing_transaction_inputs_inner(
         remaining_accounts[inputs_struct.input_compressed_accounts_with_merkle_context
             [num_inputs - 1]
             .merkle_context
-            .queue_pubkey_index as usize] = AccountMeta {
+            .nullifier_queue_pubkey_index as usize] = AccountMeta {
             pubkey: env.address_merkle_tree_queue_pubkey,
             is_signer: false,
             is_writable: true,
@@ -517,7 +517,7 @@ pub async fn failing_transaction_inputs_inner(
         remaining_accounts[inputs_struct.input_compressed_accounts_with_merkle_context
             [num_inputs - 1]
             .merkle_context
-            .queue_pubkey_index as usize] = AccountMeta {
+            .nullifier_queue_pubkey_index as usize] = AccountMeta {
             pubkey: env.address_merkle_tree_pubkey,
             is_signer: false,
             is_writable: true,
