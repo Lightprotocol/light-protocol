@@ -9,8 +9,9 @@ use account_compression::{
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
 use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    create_batch_append_instruction, create_batch_nullify_instruction, create_nullify_instruction,
+    create_update_address_merkle_tree_instruction, CreateNullifyInstructionInputs,
+    UpdateAddressMerkleTreeInstructionInputs,
 };
 use light_registry::errors::RegistryError;
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
@@ -1043,7 +1044,6 @@ async fn failing_test_forester() {
             .await;
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
-        println!("here1");
     }
     // 3. FAIL: Update forester pda weight with invalid authority
     {
@@ -1063,7 +1063,6 @@ async fn failing_test_forester() {
             .await;
         let expected_error_code = anchor_lang::error::ErrorCode::ConstraintHasOne as u32;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
-        println!("here1");
     }
     // 4. FAIL: Nullify with invalid authority
     {
@@ -1086,7 +1085,6 @@ async fn failing_test_forester() {
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(result, 0, expected_error_code).unwrap();
-        println!("here1");
     }
     // 4 FAIL: update address Merkle tree failed
     {
@@ -1114,6 +1112,47 @@ async fn failing_test_forester() {
         instruction.accounts[0].pubkey =
             get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
         println!("here1");
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
+    }
+    // 4 FAIL: batch append failed
+    {
+        let expected_error_code = RegistryError::InvalidForester.into();
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_append_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.batched_state_merkle_tree,
+            env.batched_output_queue,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
+    }
+    // 4 FAIL: batch nullify failed
+    {
+        let expected_error_code = RegistryError::InvalidForester.into();
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_nullify_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.batched_state_merkle_tree,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])

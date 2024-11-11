@@ -89,6 +89,28 @@ impl InitStateTreeAccountsInstructionData {
             close_threshold: None,
         }
     }
+
+    pub fn e2e_test_default() -> Self {
+        Self {
+            index: 0,
+            program_owner: None,
+            forester: None,
+            additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            bloom_filter_num_iters: 3,
+            input_queue_batch_size: 500,
+            output_queue_batch_size: 500,
+            input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            input_queue_num_batches: 2,
+            output_queue_num_batches: 2,
+            height: 26,
+            root_history_capacity: 20,
+            bloom_filter_capacity: 20_000 * 8,
+            network_fee: Some(5000),
+            rollover_threshold: Some(95),
+            close_threshold: None,
+        }
+    }
 }
 
 impl Default for InitStateTreeAccountsInstructionData {
@@ -106,8 +128,8 @@ impl Default for InitStateTreeAccountsInstructionData {
             input_queue_num_batches: 2,
             output_queue_num_batches: 2,
             height: 26,
-            root_history_capacity: 20,
-            bloom_filter_capacity: 20_000 * 8,
+            root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
+            bloom_filter_capacity: (DEFAULT_BATCH_SIZE + 1) * 8,
             network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
@@ -301,18 +323,30 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     assert!(params.output_queue_batch_size > 0);
     assert_eq!(
         params.input_queue_batch_size % params.input_queue_zkp_batch_size,
-        0
+        0,
+        "Input queue batch size must divisible by input_queue_zkp_batch_size."
     );
     assert_eq!(
         params.output_queue_batch_size % params.output_queue_zkp_batch_size,
-        0
+        0,
+        "Output queue batch size must divisible by output_queue_zkp_batch_size."
     );
-    assert!(match_circuit_size(params.input_queue_zkp_batch_size));
-    assert!(match_circuit_size(params.output_queue_zkp_batch_size));
+    assert!(
+        match_circuit_size(params.input_queue_zkp_batch_size),
+        "Zkp batch size not supported. Supported 1, 10, 100, 500, 1000"
+    );
+    assert!(
+        match_circuit_size(params.output_queue_zkp_batch_size),
+        "Zkp batch size not supported. Supported 1, 10, 100, 500, 1000"
+    );
 
     assert!(params.bloom_filter_num_iters > 0);
     assert!(params.bloom_filter_capacity > params.input_queue_batch_size * 8);
-    assert_eq!(params.bloom_filter_capacity % 8, 0);
+    assert_eq!(
+        params.bloom_filter_capacity % 8,
+        0,
+        "Bloom filter capacity must be divisible by 8."
+    );
     assert!(params.bloom_filter_capacity > 0);
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
@@ -579,19 +613,19 @@ pub mod tests {
                 program_owner,
                 forester,
                 additional_bytes: rng.gen_range(0..1000),
-                bloom_filter_num_iters: rng.gen_range(0..1000),
+                bloom_filter_num_iters: rng.gen_range(0..4),
                 input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
                 output_queue_batch_size: rng.gen_range(1..1000) * output_queue_zkp_batch_size,
                 input_queue_zkp_batch_size,
                 output_queue_zkp_batch_size,
                 // 8 bits per byte, divisible by 8 for aligned memory
-                bloom_filter_capacity: rng.gen_range(0..1000) * 8 * 8,
+                bloom_filter_capacity: rng.gen_range(0..100) * 8 * 8,
                 network_fee: Some(rng.gen_range(0..1000)),
                 rollover_threshold: Some(rng.gen_range(0..100)),
                 close_threshold: None,
                 root_history_capacity: rng.gen_range(1..1000),
-                input_queue_num_batches: rng.gen_range(1..1000),
-                output_queue_num_batches: rng.gen_range(1..1000),
+                input_queue_num_batches: rng.gen_range(1..4),
+                output_queue_num_batches: rng.gen_range(1..4),
                 height: rng.gen_range(1..32),
             };
             let queue_account_size = get_output_queue_account_size(

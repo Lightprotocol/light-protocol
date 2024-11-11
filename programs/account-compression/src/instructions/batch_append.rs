@@ -47,6 +47,7 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     if ctx.accounts.output_queue.key() != associated_queue {
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
+
     let output_queue_data = &mut ctx.accounts.output_queue.try_borrow_mut_data()?;
     let event = merkle_tree.update_output_queue(
         output_queue_data,

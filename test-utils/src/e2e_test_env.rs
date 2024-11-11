@@ -530,8 +530,8 @@ where
                             );
                             println!("input batch_state {:?}", batch_state);
                             if batch_state == BatchState::ReadyToUpdateTree {
-                                println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES v2\n --------------------------------------------------");
-                                for _ in 0..TEST_DEFAULT_BATCH_SIZE / 20 {
+                                println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES batched (v2)\n --------------------------------------------------");
+                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
                                     perform_batch_nullify(
                                         &mut self.rpc,
                                         state_tree_bundle,
@@ -551,7 +551,7 @@ where
                             &self.foresters,
                             self.slot,
                         ) {
-                            println!("\n --------------------------------------------------\n\t\t Appending LEAVES v2\n --------------------------------------------------");
+                            println!("\n --------------------------------------------------\n\t\t Appending LEAVES batched (v2)\n --------------------------------------------------");
                             let mut queue_account =
                                 self.rpc.get_account(queue_pubkey).await.unwrap().unwrap();
                             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
@@ -573,7 +573,7 @@ where
                                 next_full_batch_index
                             );
                             if batch_state == BatchState::ReadyToUpdateTree {
-                                for _ in 0..TEST_DEFAULT_BATCH_SIZE / 20 {
+                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
                                     perform_batch_append(
                                         &mut self.rpc,
                                         state_tree_bundle,
@@ -2441,8 +2441,8 @@ impl KeypairActionConfig {
             compress_spl: Some(0.0),
             decompress_spl: Some(0.0),
             mint_spl: None,
-            transfer_spl: Some(0.0),
-            max_output_accounts: Some(10),
+            transfer_spl: Some(1.0),
+            max_output_accounts: Some(3),
             fee_assert: true,
             approve_spl: None,
             revoke_spl: None,

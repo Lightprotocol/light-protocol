@@ -2,9 +2,7 @@
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
-use account_compression::batched_merkle_tree::{
-    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
-};
+
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
@@ -321,7 +319,7 @@ pub fn create_batch_append_instruction(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
     epoch: u64,
-    data: InstructionDataBatchAppendInputs,
+    data: Vec<u8>,
 ) -> Instruction {
     let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
     let registered_program_pda = get_registered_program_pda(&crate::ID);
@@ -337,10 +335,7 @@ pub fn create_batch_append_instruction(
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
     };
-    let instruction_data = crate::instruction::BatchAppend {
-        bump,
-        data: data.try_to_vec().unwrap(),
-    };
+    let instruction_data = crate::instruction::BatchAppend { bump, data };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),
@@ -353,7 +348,7 @@ pub fn create_batch_nullify_instruction(
     derivation_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
     epoch: u64,
-    data: InstructionDataBatchNullifyInputs,
+    data: Vec<u8>,
 ) -> Instruction {
     let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
     let registered_program_pda = get_registered_program_pda(&crate::ID);
@@ -368,10 +363,7 @@ pub fn create_batch_nullify_instruction(
         account_compression_program: account_compression::ID,
         log_wrapper: NOOP_PUBKEY.into(),
     };
-    let instruction_data = crate::instruction::BatchNullify {
-        bump,
-        data: data.try_to_vec().unwrap(),
-    };
+    let instruction_data = crate::instruction::BatchNullify { bump, data };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),

@@ -110,7 +110,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
             leaves_processed += batch_size;
 
             match merkle_tree_acc_discriminator {
-                StateMerkleTreeAccount::DISCRIMINATOR => append_v0(
+                StateMerkleTreeAccount::DISCRIMINATOR => append_v1(
                     ctx,
                     merkle_tree_acc_info,
                     batch_size,
@@ -121,7 +121,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                         .as_slice(),
                 )?,
                 BatchedQueueAccount::DISCRIMINATOR => {
-                    append_v1(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
+                    append_v2(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
                 _ => return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
             }
@@ -131,7 +131,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
     Ok(leaves_processed)
 }
 
-fn append_v0<'a, 'b, 'c: 'info, 'info>(
+fn append_v1<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     merkle_tree_acc_info: &'info AccountInfo<'info>,
     batch_size: usize,
@@ -163,7 +163,7 @@ fn append_v0<'a, 'b, 'c: 'info, 'info>(
     Ok(rollover_fee)
 }
 
-fn append_v1<'a, 'b, 'c: 'info, 'info>(
+fn append_v2<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     merkle_tree_acc_info: &'info AccountInfo<'info>,
     batch_size: usize,

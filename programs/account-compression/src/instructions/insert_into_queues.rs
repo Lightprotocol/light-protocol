@@ -57,14 +57,14 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
             .try_into()
             .unwrap();
         match current_account_discriminator {
-            QueueAccount::DISCRIMINATOR => add_queue_bundle_v0(
+            QueueAccount::DISCRIMINATOR => add_queue_bundle_v1(
                 &mut current_index,
                 queue_type,
                 &mut queue_map,
                 element,
                 ctx.remaining_accounts,
             )?,
-            BatchedQueueAccount::DISCRIMINATOR => add_queue_bundle_v1(
+            BatchedQueueAccount::DISCRIMINATOR => add_queue_bundle_v2(
                 &mut current_index,
                 queue_type,
                 &mut queue_map,
@@ -97,9 +97,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
 
     for queue_bundle in queue_map.values() {
         let rollover_fee = match queue_bundle.queue_type {
-            QueueType::NullifierQueue => process_queue_bundle_v0(&ctx, queue_bundle),
-            QueueType::AddressQueue => process_queue_bundle_v0(&ctx, queue_bundle),
-            QueueType::Input => process_queue_bundle_v1(&ctx, queue_bundle, &tx_hash),
+            QueueType::NullifierQueue => process_queue_bundle_v1(&ctx, queue_bundle),
+            QueueType::AddressQueue => process_queue_bundle_v1(&ctx, queue_bundle),
+            QueueType::Input => process_queue_bundle_v2(&ctx, queue_bundle, &tx_hash),
             _ => {
                 msg!("Queue type {:?} is not supported", queue_bundle.queue_type);
                 return err!(AccountCompressionErrorCode::InvalidQueueType);
@@ -119,7 +119,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     Ok(())
 }
 
-fn process_queue_bundle_v0<'info>(
+fn process_queue_bundle_v1<'info>(
     ctx: &Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
     queue_bundle: &QueueBundle<'_, '_>,
 ) -> Result<u64> {
@@ -154,12 +154,11 @@ fn process_queue_bundle_v0<'info>(
     Ok(rollover_fee)
 }
 
-fn process_queue_bundle_v1<'info>(
+fn process_queue_bundle_v2<'info>(
     ctx: &Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
     queue_bundle: &QueueBundle<'_, '_>,
     tx_hash: &Option<[u8; 32]>,
 ) -> Result<u64> {
-    msg!("Processing queue bundle v1");
     let account_data = &mut queue_bundle.accounts[1].try_borrow_mut_data()?;
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
     let output_queue_account_data = &mut queue_bundle.accounts[0].try_borrow_mut_data()?;
@@ -181,7 +180,7 @@ fn process_queue_bundle_v1<'info>(
         .zip(queue_bundle.checked.iter())
     {
         let tx_hash = tx_hash.ok_or(AccountCompressionErrorCode::TxHashUndefined)?;
-        light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v1");
+        light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
         // check for every account whether the value is still in the queue and zero it out.
         // If checked fail if the value is not in the queue.
         output_queue.prove_inclusion_by_index_and_zero_out_leaf(
@@ -190,12 +189,12 @@ fn process_queue_bundle_v1<'info>(
             *checked,
         )?;
         merkle_tree.insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)?;
-        light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v1");
+        light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
     }
     Ok(rollover_fee)
 }
 
-fn add_queue_bundle_v0<'a, 'info>(
+fn add_queue_bundle_v1<'a, 'info>(
     remaining_accounts_index: &mut usize,
     queue_type: QueueType,
     queue_map: &mut std::collections::HashMap<Pubkey, QueueBundle<'a, 'info>>,
@@ -229,7 +228,7 @@ fn add_queue_bundle_v0<'a, 'info>(
     Ok(())
 }
 
-fn add_queue_bundle_v1<'a, 'info>(
+fn add_queue_bundle_v2<'a, 'info>(
     remaining_accounts_index: &mut usize,
     queue_type: QueueType,
     queue_map: &mut std::collections::HashMap<Pubkey, QueueBundle<'a, 'info>>,

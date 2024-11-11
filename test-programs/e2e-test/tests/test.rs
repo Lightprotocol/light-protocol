@@ -1,11 +1,15 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::InitStateTreeAccountsInstructionData;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
-use light_test_utils::test_env::setup_test_programs_with_accounts_with_protocol_config;
+use light_test_utils::test_env::{
+    setup_test_programs_with_accounts_with_protocol_config,
+    setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+};
 
 #[tokio::test]
 async fn test_10_all() {
@@ -17,8 +21,16 @@ async fn test_10_all() {
         report_work_phase_length: 100,
         ..ProtocolConfig::default()
     };
+    let params = InitStateTreeAccountsInstructionData::e2e_test_default();
+
     let (rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, true).await;
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            protocol_config,
+            true,
+            params,
+        )
+        .await;
 
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
@@ -47,7 +59,7 @@ async fn test_10_all() {
             &env_accounts,
             config,
             general_config,
-            10000,
+            10,
             None,
         )
         .await;
@@ -56,7 +68,7 @@ async fn test_10_all() {
 }
 
 //  cargo test-sbf -p e2e-test -- --nocapture --ignored --test test_10000_all > output.txt 2>&1
-#[ignore]
+#[ignore = "Not maintained for batched trees."]
 #[tokio::test]
 async fn test_10000_all() {
     let protocol_config = ProtocolConfig {

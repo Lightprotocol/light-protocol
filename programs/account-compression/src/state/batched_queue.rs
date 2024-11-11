@@ -285,6 +285,12 @@ impl ZeroCopyBatchedQueueAccount {
             Ok(())
         }
     }
+
+    pub fn get_batch_num_inserted_in_current_batch(&self) -> u64 {
+        let next_full_batch = self.get_account().queue.currently_processing_batch_index;
+        let batch = self.batches.get(next_full_batch as usize).unwrap();
+        batch.get_num_inserted() + batch.get_current_zkp_batch_index() * batch.zkp_batch_size
+    }
 }
 
 #[allow(clippy::ptr_arg)]
@@ -612,6 +618,7 @@ pub fn assert_queue_inited(
 
         assert_eq!(batch, &ref_batch, "batch mismatch");
     }
+
     if queue_type == QueueType::Input as u64 {
         assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
         assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
@@ -619,6 +626,7 @@ pub fn assert_queue_inited(
         assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
         assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
     }
+
     if queue_type == QueueType::Output as u64 {
         assert_eq!(
             bloom_filter_stores.capacity(),
@@ -638,9 +646,9 @@ pub fn assert_queue_inited(
         );
     }
 
-    for vec in bloom_filter_stores.iter() {
+    for vec in bloom_filter_stores {
         assert_eq!(
-            vec.capacity() * 8,
+            vec.metadata().capacity() * 8,
             queue.bloom_filter_capacity as usize,
             "bloom_filter_capacity mismatch"
         );
@@ -648,7 +656,7 @@ pub fn assert_queue_inited(
 
     for vec in value_vecs.iter() {
         assert_eq!(
-            vec.capacity(),
+            vec.metadata().capacity(),
             queue.batch_size as usize,
             "batch_size mismatch"
         );

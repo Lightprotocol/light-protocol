@@ -1,12 +1,19 @@
 use account_compression::{
+    assert_mt_zero_copy_inited,
     batched_merkle_tree::{
-        AppendBatchProofInputsIx, BatchAppendEvent, BatchNullifyEvent, BatchProofInputsIx,
+        get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchAppendEvent,
+        BatchNullifyEvent, BatchProofInputsIx, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
         ZeroCopyBatchedMerkleTreeAccount,
     },
-    batched_queue::ZeroCopyBatchedQueueAccount,
+    batched_queue::{
+        assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
+        ZeroCopyBatchedQueueAccount,
+    },
+    get_output_queue_account_default, InitStateTreeAccountsInstructionData,
 };
-use forester_utils::indexer::StateMerkleTreeBundle;
+use anchor_lang::AnchorSerialize;
+use forester_utils::{create_account_instruction, indexer::StateMerkleTreeBundle, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_prover_client::{
@@ -20,15 +27,21 @@ use light_prover_client::{
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
-use light_registry::account_compression_cpi::sdk::{
-    create_batch_append_instruction, create_batch_nullify_instruction,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_batch_append_instruction, create_batch_nullify_instruction,
+        create_initialize_batched_merkle_tree_instruction,
+    },
+    protocol_config::state::ProtocolConfig,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::CompressedProof;
 use reqwest::Client;
 use solana_sdk::{
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
+    transaction::Transaction,
 };
 pub async fn perform_batch_append<Rpc: RpcConnection>(
     rpc: &mut Rpc,
@@ -62,7 +75,7 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
         merkle_tree_pubkey,
         output_queue_pubkey,
         epoch,
-        data,
+        data.try_to_vec().unwrap(),
     );
     let res = rpc
         .create_and_send_transaction_with_event::<BatchAppendEvent>(
@@ -225,7 +238,7 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
         forester.pubkey(),
         merkle_tree_pubkey,
         epoch,
-        data,
+        data.try_to_vec().unwrap(),
     );
     let res = rpc
         .create_and_send_transaction_with_event::<BatchNullifyEvent>(
@@ -352,4 +365,189 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
             c: proof.c,
         },
     })
+}
+
+use anchor_lang::{InstructionData, ToAccountMetas};
+
+pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
+    payer: &Keypair,
+    registry: bool,
+    rpc: &mut R,
+    merkle_tree_keypair: &Keypair,
+    queue_keypair: &Keypair,
+    cpi_context_keypair: &Keypair,
+    params: InitStateTreeAccountsInstructionData,
+) -> Result<Signature, RpcError> {
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let create_queue_account_ix = create_account_instruction(
+        &payer.pubkey(),
+        queue_account_size,
+        queue_rent,
+        &account_compression::ID,
+        Some(queue_keypair),
+    );
+    let mt_rent = rpc
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+    let create_mt_account_ix = create_account_instruction(
+        &payer.pubkey(),
+        mt_account_size,
+        mt_rent,
+        &account_compression::ID,
+        Some(merkle_tree_keypair),
+    );
+    let rent_cpi_config = rpc
+        .get_minimum_balance_for_rent_exemption(ProtocolConfig::default().cpi_context_size as usize)
+        .await
+        .unwrap();
+    let create_cpi_context_instruction = create_account_instruction(
+        &payer.pubkey(),
+        ProtocolConfig::default().cpi_context_size as usize,
+        rent_cpi_config,
+        &light_system_program::ID,
+        Some(cpi_context_keypair),
+    );
+    let instruction = if registry {
+        create_initialize_batched_merkle_tree_instruction(
+            payer.pubkey(),
+            merkle_tree_keypair.pubkey(),
+            queue_keypair.pubkey(),
+            cpi_context_keypair.pubkey(),
+            params,
+        )
+    } else {
+        let instruction =
+            account_compression::instruction::InitializeBatchedStateMerkleTree { params };
+        let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+            authority: payer.pubkey(),
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: queue_keypair.pubkey(),
+            registered_program_pda: None,
+        };
+
+        Instruction {
+            program_id: account_compression::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction.data(),
+        }
+    };
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[
+            create_mt_account_ix,
+            create_queue_account_ix,
+            create_cpi_context_instruction,
+            instruction,
+        ],
+        Some(&payer.pubkey()),
+        &vec![
+            payer,
+            merkle_tree_keypair,
+            queue_keypair,
+            cpi_context_keypair,
+        ],
+        rpc.get_latest_blockhash().await.unwrap(),
+    );
+    rpc.process_transaction(transaction).await
+}
+
+pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
+    rpc: &mut R,
+    payer_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    output_queue_pubkey: Pubkey,
+    // TODO: assert cpi_context_account creation
+    _cpi_context_pubkey: Pubkey,
+    params: InitStateTreeAccountsInstructionData,
+) -> Result<(), RpcError> {
+    let mut merkle_tree =
+        AccountZeroCopy::<BatchedMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
+
+    let mut queue = AccountZeroCopy::<BatchedQueueAccount>::new(rpc, output_queue_pubkey).await;
+    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+        payer_pubkey,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.network_fee.unwrap_or_default(),
+        params.input_queue_batch_size,
+        params.input_queue_zkp_batch_size,
+        params.bloom_filter_capacity,
+        params.root_history_capacity,
+        output_queue_pubkey,
+        params.height,
+        params.input_queue_num_batches,
+    );
+
+    assert_mt_zero_copy_inited(
+        merkle_tree.account.data.as_mut_slice(),
+        ref_mt_account,
+        params.bloom_filter_num_iters,
+    );
+
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let mt_rent = rpc
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+    let additional_bytes_rent = rpc
+        .get_minimum_balance_for_rent_exemption(params.additional_bytes as usize)
+        .await
+        .unwrap();
+    let total_rent = queue_rent + mt_rent + additional_bytes_rent;
+    let ref_output_queue_account = get_output_queue_account_default(
+        payer_pubkey,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.additional_bytes,
+        total_rent,
+        merkle_tree_pubkey,
+        params.height,
+        params.output_queue_num_batches,
+    );
+
+    assert_queue_zero_copy_inited(
+        queue.account.data.as_mut_slice(),
+        ref_output_queue_account,
+        0, // output queue doesn't have a bloom filter hence no iterations
+    );
+    Ok(())
 }

@@ -47,7 +47,7 @@ impl GroupAccess for ZeroCopyBatchedMerkleTreeAccount {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct BatchAppendEvent {
     pub id: [u8; 32],
     pub batch_index: u64,
@@ -59,7 +59,7 @@ pub struct BatchAppendEvent {
     pub root_index: u32,
     pub sequence_number: u64,
 }
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct BatchNullifyEvent {
     pub id: [u8; 32],
     pub batch_index: u64,
@@ -210,6 +210,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 QueueType::Input as u64,
                 &mut start_offset,
             )?;
+
             Ok(ZeroCopyBatchedMerkleTreeAccount {
                 account,
                 root_history,
@@ -615,12 +616,69 @@ pub fn get_merkle_tree_account_size(
     };
     mt_account.size().unwrap()
 }
+pub fn assert_nullify_event(
+    event: BatchNullifyEvent,
+    new_root: [u8; 32],
+    old_zero_copy_account: &ZeroCopyBatchedMerkleTreeAccount,
+    mt_pubkey: Pubkey,
+) {
+    let batch_index = old_zero_copy_account
+        .get_account()
+        .queue
+        .next_full_batch_index;
+    let batch = old_zero_copy_account
+        .batches
+        .get(batch_index as usize)
+        .unwrap();
+    let ref_event = BatchNullifyEvent {
+        id: mt_pubkey.to_bytes(),
+        batch_index,
+        zkp_batch_index: batch.get_num_inserted_zkps(),
+        new_root,
+        root_index: (old_zero_copy_account.get_root_index() + 1)
+            % old_zero_copy_account.get_account().root_history_capacity,
+        sequence_number: old_zero_copy_account.get_account().sequence_number + 1,
+        batch_size: old_zero_copy_account.get_account().queue.zkp_batch_size,
+    };
+    assert_eq!(event, ref_event);
+}
 
+pub fn assert_batch_append_event_event(
+    event: BatchAppendEvent,
+    new_root: [u8; 32],
+    old_output_queue_account: &ZeroCopyBatchedQueueAccount,
+    old_zero_copy_account: &ZeroCopyBatchedMerkleTreeAccount,
+    mt_pubkey: Pubkey,
+) {
+    let batch_index = old_output_queue_account
+        .get_account()
+        .queue
+        .next_full_batch_index;
+    let batch = old_output_queue_account
+        .batches
+        .get(batch_index as usize)
+        .unwrap();
+    let ref_event = BatchAppendEvent {
+        id: mt_pubkey.to_bytes(),
+        batch_index,
+        zkp_batch_index: batch.get_num_inserted_zkps(),
+        new_root,
+        root_index: (old_zero_copy_account.get_root_index() + 1)
+            % old_zero_copy_account.get_account().root_history_capacity,
+        sequence_number: old_zero_copy_account.get_account().sequence_number + 1,
+        batch_size: old_zero_copy_account.get_account().queue.zkp_batch_size,
+        old_next_index: old_zero_copy_account.get_account().next_index,
+        new_next_index: old_zero_copy_account.get_account().next_index
+            + 1 * old_output_queue_account.get_account().queue.zkp_batch_size,
+    };
+    assert_eq!(event, ref_event);
+}
 #[cfg(test)]
 mod tests {
     #![allow(warnings)]
 
     use light_bloom_filter::{BloomFilter, BloomFilterError};
+    use light_concurrent_merkle_tree::event::NullifierEvent;
     use light_merkle_tree_reference::MerkleTree;
     use light_prover_client::{
         gnark::helpers::{spawn_prover, ProofType, ProverConfig},
@@ -973,7 +1031,7 @@ mod tests {
 
         let mt_account_size = get_merkle_tree_account_size_default();
         let mut mt_account_data = vec![0; mt_account_size];
-        let mt_pubkey = Pubkey::new_unique();
+        let mt_pubkey = crate::ID;
 
         let params = crate::InitStateTreeAccountsInstructionData::test_default();
 
@@ -1183,7 +1241,7 @@ mod tests {
                 let mut pre_mt_account_data = mt_account_data.clone();
                 let old_zero_copy_account =
                     ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut mt_account_data).unwrap();
-                let (input_res, root) = {
+                let (input_res, new_root) = {
                     let mut zero_copy_account =
                         ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                             .unwrap();
@@ -1244,6 +1302,7 @@ mod tests {
                 println!("Input update -----------------------------");
                 println!("res {:?}", input_res);
                 assert!(input_res.is_ok());
+                let nullify_event = input_res.unwrap();
                 in_ready_for_update = false;
                 // assert Merkle tree
                 // sequence number increased X
@@ -1254,13 +1313,13 @@ mod tests {
                 let zero_copy_account =
                     ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut pre_mt_account_data)
                         .unwrap();
-
+                assert_nullify_event(nullify_event, new_root, &old_zero_copy_account, mt_pubkey);
                 assert_merkle_tree_update(
                     old_zero_copy_account,
                     zero_copy_account,
                     None,
                     None,
-                    root,
+                    new_root,
                 );
                 mt_account_data = pre_mt_account_data.clone();
 
@@ -1326,6 +1385,7 @@ mod tests {
                     mt_pubkey.to_bytes(),
                 );
                 assert!(output_res.is_ok());
+                let batch_append_event = output_res.unwrap();
 
                 assert_eq!(
                     *zero_copy_account.root_history.last().unwrap(),
@@ -1343,6 +1403,13 @@ mod tests {
 
                 println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
                 println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
+                assert_batch_append_event_event(
+                    batch_append_event,
+                    new_root,
+                    &old_output_zero_copy_account,
+                    &old_zero_copy_account,
+                    mt_pubkey,
+                );
                 assert_merkle_tree_update(
                     old_zero_copy_account,
                     zero_copy_account,
@@ -1654,6 +1721,7 @@ mod tests {
 
                 println!("batch 0: {:?}", output_zero_copy_account.batches[0]);
                 println!("batch 1: {:?}", output_zero_copy_account.batches[1]);
+                let nullify_event = output_res.unwrap();
                 assert_merkle_tree_update(
                     old_zero_copy_account,
                     zero_copy_account,
@@ -1730,6 +1798,7 @@ mod tests {
         println!("Input update -----------------------------");
         println!("res {:?}", input_res);
         assert!(input_res.is_ok());
+        let event = input_res.unwrap();
 
         // assert Merkle tree
         // sequence number increased X

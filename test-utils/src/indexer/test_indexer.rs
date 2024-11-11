@@ -14,7 +14,8 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use crate::e2e_test_env::KeypairActionConfig;
-use crate::test_env::{create_batched_state_merkle_tree, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR};
+use crate::test_batch_forester::create_batched_state_merkle_tree;
+use crate::test_env::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR;
 use crate::{
     spl::create_initialize_mint_instructions,
     test_env::create_address_merkle_tree_and_queue_account,
@@ -635,7 +636,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         if let Some(ref prover_config) = prover_config {
             // TODO: remove restart input and check whether prover is already
             // running with correct config
-            spawn_prover(true, prover_config.clone()).await;
+            spawn_prover(false, prover_config.clone()).await;
         }
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {

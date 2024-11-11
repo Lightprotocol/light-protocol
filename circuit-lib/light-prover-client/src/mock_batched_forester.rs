@@ -17,6 +17,7 @@ use crate::{
     },
 };
 
+#[derive(Clone, Debug)]
 pub struct MockBatchedForester<const HEIGHT: usize> {
     pub merkle_tree: MerkleTree<Poseidon>,
     pub input_queue_leaves: Vec<([u8; 32], usize)>,

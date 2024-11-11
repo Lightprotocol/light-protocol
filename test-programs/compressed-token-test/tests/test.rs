@@ -3711,14 +3711,15 @@ async fn mint_with_batched_tree() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
+    let num_recipients = 25;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
         &payer,
         &mint,
-        vec![amount; 3],
-        vec![sender.pubkey(); 3],
+        vec![amount; num_recipients],
+        vec![sender.pubkey(); num_recipients],
     )
     .await;
 }
