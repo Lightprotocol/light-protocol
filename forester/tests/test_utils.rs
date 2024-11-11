@@ -1,11 +1,13 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester::config::{ExternalServicesConfig, GeneralConfig};
 use forester::metrics::register_metrics;
-use forester::photon_indexer::PhotonIndexer;
+// use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::ForesterConfig;
-use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
+// use light_client::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
+use light_client::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::PhotonIndexer;
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::TestIndexer;
