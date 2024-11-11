@@ -48,11 +48,14 @@ jobs:
       # concurrent merkle tree crate must run in isolation because otherwise it
       # tries to use the idl-build feature (which fails).
       - name: Test workspace (excluding light-concurrent-merkle-tree)
+        env:
+          LLVM_PROFILE_FILE: "target/coverage/prof/%p-%m.profraw"
+          RUST_MIN_STACK: 8388608
+          RUSTFLAGS: "-Cinstrument-coverage -D warnings"
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" \
-            cargo test --all-targets --workspace \
+          cargo test --all-targets --workspace \
             --exclude light-concurrent-merkle-tree \
             --exclude photon-api \
             --exclude forester \
@@ -60,7 +63,36 @@ jobs:
             --exclude mixed-accounts
 
       - name: Test light-concurrent-merkle-tree
+        env:
+          LLVM_PROFILE_FILE: "target/coverage/prof/%p-%m.profraw"
+          RUST_MIN_STACK: 8388608
+          RUSTFLAGS: "-Cinstrument-coverage -D warnings"
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --package light-concurrent-merkle-tree
+          cargo test --all-targets --package light-concurrent-merkle-tree
+
+      - name: Install grcov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: grcov
+
+      - name: Create coverage report
+        run: |
+         grcov \
+           --source-dir . \
+           --binary-path target/debug \
+           --branch \
+           --excl-start 'mod tests \{' \
+           --ignore 'tests/*' \
+           -t lcov \
+           -o lcov.info \
+           target/coverage/prof
+
+      - name: Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          verbose: true
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
