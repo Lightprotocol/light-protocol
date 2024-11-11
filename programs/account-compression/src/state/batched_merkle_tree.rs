@@ -669,7 +669,7 @@ pub fn assert_batch_append_event_event(
         batch_size: old_zero_copy_account.get_account().queue.zkp_batch_size,
         old_next_index: old_zero_copy_account.get_account().next_index,
         new_next_index: old_zero_copy_account.get_account().next_index
-            + 1 * old_output_queue_account.get_account().queue.zkp_batch_size,
+            + old_output_queue_account.get_account().queue.zkp_batch_size,
     };
     assert_eq!(event, ref_event);
 }
