@@ -84,6 +84,26 @@ export type AccountCompression = {
             };
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
         },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50';
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '10';
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50000';
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '500';
+        },
     ];
     instructions: [
         {
@@ -725,7 +745,7 @@ export type AccountCompression = {
             args: [];
         },
         {
-            name: 'batchNullifyLeaves';
+            name: 'batchNullify';
             accounts: [
                 {
                     name: 'authority';
@@ -1322,10 +1342,6 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
-                        name: 'bloomFilterNumIters';
-                        type: 'u64';
-                    },
-                    {
                         name: 'inputQueueBatchSize';
                         type: 'u64';
                     },
@@ -1342,12 +1358,16 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
-                        name: 'rootHistoryCapacity';
-                        type: 'u32';
+                        name: 'bloomFilterNumIters';
+                        type: 'u64';
                     },
                     {
                         name: 'bloomFilterCapacity';
                         type: 'u64';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u32';
                     },
                     {
                         name: 'networkFee';
@@ -1366,6 +1386,18 @@ export type AccountCompression = {
                         type: {
                             option: 'u64';
                         };
+                    },
+                    {
+                        name: 'inputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'outputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u32';
                     },
                 ];
             };
@@ -1638,6 +1670,10 @@ export type AccountCompression = {
             code: 6041;
             name: 'LeafIndexNotInBatch';
         },
+        {
+            code: 6042;
+            name: 'UnsupportedParameters';
+        },
     ];
 };
 
@@ -1726,6 +1762,26 @@ export const IDL: AccountCompression = {
                 array: ['u8', 32],
             },
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
+        },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50',
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '10',
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50000',
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '500',
         },
     ],
     instructions: [
@@ -2368,7 +2424,7 @@ export const IDL: AccountCompression = {
             args: [],
         },
         {
-            name: 'batchNullifyLeaves',
+            name: 'batchNullify',
             accounts: [
                 {
                     name: 'authority',
@@ -2965,10 +3021,6 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
-                        name: 'bloomFilterNumIters',
-                        type: 'u64',
-                    },
-                    {
                         name: 'inputQueueBatchSize',
                         type: 'u64',
                     },
@@ -2985,12 +3037,16 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
-                        name: 'rootHistoryCapacity',
-                        type: 'u32',
+                        name: 'bloomFilterNumIters',
+                        type: 'u64',
                     },
                     {
                         name: 'bloomFilterCapacity',
                         type: 'u64',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u32',
                     },
                     {
                         name: 'networkFee',
@@ -3009,6 +3065,18 @@ export const IDL: AccountCompression = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                    {
+                        name: 'inputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'outputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u32',
                     },
                 ],
             },
@@ -3280,6 +3348,10 @@ export const IDL: AccountCompression = {
         {
             code: 6041,
             name: 'LeafIndexNotInBatch',
+        },
+        {
+            code: 6042,
+            name: 'UnsupportedParameters',
         },
     ],
 };

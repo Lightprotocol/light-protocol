@@ -1,7 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
     NullifierQueueConfig, StateMerkleTreeConfig,
@@ -668,32 +667,6 @@ async fn test_custom_forester_batched() {
                         .await,
                     );
                 }
-            }
-            {
-                let state_merkle_tree_pubkey =
-                    e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
-                let output_queue_pubkey = e2e_env.indexer.state_merkle_trees[0]
-                    .accounts
-                    .nullifier_queue;
-                let mut merkle_tree_account = e2e_env
-                    .rpc
-                    .get_account(state_merkle_tree_pubkey)
-                    .await
-                    .unwrap()
-                    .unwrap();
-                let merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
-                        .unwrap();
-
-                let mut output_queue_account = e2e_env
-                    .rpc
-                    .get_account(output_queue_pubkey)
-                    .await
-                    .unwrap()
-                    .unwrap();
-                let output_queue =
-                    ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data)
-                        .unwrap();
             }
             (
                 e2e_env.indexer.state_merkle_trees[0].clone(),
