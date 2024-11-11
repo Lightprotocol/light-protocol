@@ -672,9 +672,9 @@ async fn test_epoch_double_registration() {
 
     let config = Arc::new(config);
 
-    let indexer: TestIndexer<SolanaRpcConnection> =
+    let mut indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
-
+    indexer.state_merkle_trees.remove(1);
     let indexer = Arc::new(Mutex::new(indexer));
 
     for _ in 0..10 {

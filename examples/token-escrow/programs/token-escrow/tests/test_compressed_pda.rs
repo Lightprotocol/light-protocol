@@ -52,7 +52,7 @@ async fn test_escrow_with_compressed_pda() {
     );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
-
+    test_indexer.state_merkle_trees.remove(1);
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,

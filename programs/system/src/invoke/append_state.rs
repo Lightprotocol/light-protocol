@@ -253,6 +253,7 @@ fn test_instruction_data_borsh_compat() {
     vec.push(1);
     vec.extend_from_slice(&[2u8; 32]);
     vec.push(3);
+    vec.extend_from_slice(&[4u8; 32]);
 
     let refe = vec![(1, [2u8; 32]), (3, [4u8; 32])];
     use anchor_lang::InstructionData;

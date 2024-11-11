@@ -501,6 +501,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 .send()
                 .await
                 .expect("Failed to execute request.");
+            println!("response_result {:?}", response_result);
             if response_result.status().is_success() {
                 let body = response_result.text().await.unwrap();
                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -636,7 +637,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         if let Some(ref prover_config) = prover_config {
             // TODO: remove restart input and check whether prover is already
             // running with correct config
-            spawn_prover(false, prover_config.clone()).await;
+            spawn_prover(true, prover_config.clone()).await;
         }
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
