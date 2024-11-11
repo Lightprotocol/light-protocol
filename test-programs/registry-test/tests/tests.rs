@@ -684,7 +684,6 @@ async fn test_custom_forester_batched() {
                 let merkle_tree =
                     ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
                         .unwrap();
-                println!("merkle_tree batches: {:?}", merkle_tree.batches);
 
                 let mut output_queue_account = e2e_env
                     .rpc
@@ -695,7 +694,6 @@ async fn test_custom_forester_batched() {
                 let output_queue =
                     ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data)
                         .unwrap();
-                println!("output_queue batches: {:?}", output_queue.batches);
             }
             (
                 e2e_env.indexer.state_merkle_trees[0].clone(),

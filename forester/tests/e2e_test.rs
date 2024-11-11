@@ -113,6 +113,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         Some(0),
     )
     .await;
+    // removing batched Merkle tree
+    env.indexer.state_merkle_trees.remove(1);
 
     let user_index = 0;
     let balance = env
@@ -370,7 +372,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         Some(0),
     )
     .await;
-
+    // removing batched Merkle tree
+    env.indexer.state_merkle_trees.remove(1);
     let user_index = 0;
     let balance = env
         .rpc
