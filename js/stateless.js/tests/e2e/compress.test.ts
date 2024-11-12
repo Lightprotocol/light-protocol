@@ -35,7 +35,7 @@ function txFees(
         const solanaBaseFee = tx.base === 0 ? bn(0) : bn(tx.base || 5000);
 
         /// Fee per output
-        const stateOutFee = (STATE_MERKLE_TREE_ROLLOVER_FEE.mul(bn(tx.out)));
+        const stateOutFee = STATE_MERKLE_TREE_ROLLOVER_FEE.mul(bn(tx.out));
 
         /// Fee per new address created
         const addrFee = tx.addr
@@ -43,7 +43,8 @@ function txFees(
             : bn(0);
 
         /// Fee if the tx nullifies at least one input account
-        const networkInFee = (tx.in || tx.out) ? STATE_MERKLE_TREE_NETWORK_FEE : bn(0);
+        const networkInFee =
+            tx.in || tx.out ? STATE_MERKLE_TREE_NETWORK_FEE : bn(0);
 
         /// Fee if the tx creates at least one address
         const networkAddressFee = tx.addr ? ADDRESS_TREE_NETWORK_FEE : bn(0);

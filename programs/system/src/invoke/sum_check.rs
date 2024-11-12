@@ -138,7 +138,7 @@ mod test {
         relay_fee: Option<u64>,
         compress_or_decompress_lamports: Option<u64>,
         is_compress: bool,
-    ) -> Result<()> {
+    ) -> Result<(usize, usize)> {
         let mut inputs = Vec::new();
         for i in input_amounts.iter() {
             inputs.push(PackedCompressedAccountWithMerkleContext {
@@ -178,7 +178,5 @@ mod test {
             &compress_or_decompress_lamports,
             &is_compress,
         )
-        .unwrap();
-        Ok(())
     }
 }

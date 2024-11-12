@@ -119,7 +119,6 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     let mut network_fee_bundle = None;
     let num_leaves = output_compressed_account_hashes.len();
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
-    let initial_capacity = instruction_data.capacity();
     let mut hashed_merkle_tree = [0u8; 32];
     let mut index_merkle_tree_account = 0;
     let number_of_merkle_trees =
@@ -242,7 +241,6 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
 
-    assert_eq!(instruction_data.len(), initial_capacity);
     Ok((instruction_data, network_fee_bundle))
 }
 
