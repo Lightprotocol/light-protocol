@@ -1,4 +1,7 @@
 use crate::test_env::NOOP_PROGRAM_ID;
+use account_compression::batched_merkle_tree::{
+    InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
 use account_compression::utils::constants::{

@@ -43,10 +43,15 @@ pub const NOOP_PUBKEY: [u8; 32] = [
     220, 23, 234, 203, 3, 205, 26, 35, 205, 126, 120, 124,
 ];
 
-pub const HEIGHT_26_SUBTREE_ZERO_HASH: [u8; 32] = [
-    30, 114, 220, 97, 73, 119, 54, 137, 202, 221, 15, 94, 251, 155, 251, 88, 112, 248, 135, 179,
-    188, 233, 66, 171, 225, 7, 89, 158, 104, 225, 167, 38,
-];
-pub const DEFAULT_BATCH_SIZE: u64 = 50;
+#[constant]
+pub const TEST_DEFAULT_BATCH_SIZE: u64 = 50;
 
-pub const DISCRIMINATOR_LENGTH: usize = 8;
+#[constant]
+pub const TEST_DEFAULT_ZKP_BATCH_SIZE: u64 = 10;
+
+#[constant]
+pub const DEFAULT_BATCH_SIZE: u64 = 50000;
+#[constant]
+pub const DEFAULT_ZKP_BATCH_SIZE: u64 = 500;
+
+pub const DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE: u64 = 20 * 1024 + 8;

@@ -21,6 +21,8 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
+use account_compression::{batched_merkle_tree::BatchedMerkleTreeAccount, StateMerkleTreeAccount};
+use anchor_lang::Discriminator;
 
 #[program]
 pub mod light_system_program {
@@ -35,7 +37,17 @@ pub mod light_system_program {
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
         // Check that Merkle tree is initialized.
-        ctx.accounts.associated_merkle_tree.load()?;
+        let data = ctx.accounts.associated_merkle_tree.data.borrow();
+
+        let mut discriminator_bytes = [0u8; 8];
+        discriminator_bytes.copy_from_slice(&data[0..8]);
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => Ok(()),
+            BatchedMerkleTreeAccount::DISCRIMINATOR => Ok(()),
+            _ => {
+                err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
+            }
+        }?;
         ctx.accounts
             .cpi_context_account
             .init(ctx.accounts.associated_merkle_tree.key());

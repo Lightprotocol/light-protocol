@@ -68,6 +68,9 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
+use account_compression::batch::BatchState;
+use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use light_compressed_token::token_data::AccountState;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
@@ -103,13 +106,14 @@ use crate::state_tree_rollover::assert_rolled_over_pair;
 use crate::system_program::{
     compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
 };
+use crate::test_batch_forester::{perform_batch_append, perform_batch_nullify};
 use crate::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
     EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
+    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE,
 };
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
@@ -136,7 +140,6 @@ use crate::indexer::TestIndexer;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
-use light_prover_client::gnark::helpers::ProverMode;
 
 pub struct User {
     pub keypair: Keypair,
@@ -209,8 +212,44 @@ pub async fn init_program_test_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
+            run_mode: None,
+            circuits: vec![
+                ProofType::BatchAppendWithProofsTest,
+                ProofType::BatchUpdateTest,
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+            ],
+        }),
+    )
+    .await;
+
+    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+        rpc,
+        indexer,
+        env_accounts,
+        KeypairActionConfig::all_default(),
+        GeneralActionConfig::default(),
+        10,
+        None,
+    )
+    .await
+}
+
+pub async fn init_program_test_env_forester(
+    rpc: ProgramTestRpcConnection,
+    env_accounts: &EnvAccounts,
+) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
+    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+        &env_accounts.forester.insecure_clone(),
+        env_accounts,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![
+                ProofType::BatchAppendWithProofs,
+                ProofType::BatchUpdate,
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+            ],
         }),
     )
     .await;
@@ -408,6 +447,8 @@ where
                 .create_state_mt
                 .unwrap_or_default(),
         ) {
+            println!("\n------------------------------------------------------\n");
+            println!("Creating new state Merkle tree");
             self.create_state_tree(rollover_threshold).await;
             self.stats.create_state_mt += 1;
         }
@@ -417,6 +458,9 @@ where
                 .create_address_mt
                 .unwrap_or_default(),
         ) {
+            println!("\n------------------------------------------------------\n");
+            println!("Creating new address Merkle tree");
+
             self.create_address_tree(rollover_threshold).await;
             self.stats.create_address_mt += 1;
         }
@@ -427,26 +471,127 @@ where
                 .unwrap_or_default(),
         ) {
             for state_tree_bundle in self.indexer.get_state_merkle_trees_mut().iter_mut() {
-                println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
-                // find forester which is eligible this slot for this tree
-                if let Some(payer) = Self::get_eligible_forester_for_queue(
-                    &state_tree_bundle.accounts.nullifier_queue,
-                    &self.foresters,
-                    self.slot,
-                ) {
-                    // TODO: add newly addeded trees to foresters
-                    nullify_compressed_accounts(
-                        &mut self.rpc,
-                        &payer,
-                        state_tree_bundle,
-                        self.epoch,
-                        false,
-                    )
-                    .await
-                    .unwrap();
-                } else {
-                    println!("No forester found for nullifier queue");
-                };
+                println!("state tree bundle version {}", state_tree_bundle.version);
+                match state_tree_bundle.version {
+                    1 => {
+                        println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES v1\n --------------------------------------------------");
+                        // find forester which is eligible this slot for this tree
+                        if let Some(payer) = Self::get_eligible_forester_for_queue(
+                            &state_tree_bundle.accounts.nullifier_queue,
+                            &self.foresters,
+                            self.slot,
+                        ) {
+                            // TODO: add newly addeded trees to foresters
+                            nullify_compressed_accounts(
+                                &mut self.rpc,
+                                &payer,
+                                state_tree_bundle,
+                                self.epoch,
+                                false,
+                            )
+                            .await
+                            .unwrap();
+                        } else {
+                            println!("No forester found for nullifier queue");
+                        };
+                    }
+                    2 => {
+                        let merkle_tree_pubkey = state_tree_bundle.accounts.merkle_tree;
+                        let queue_pubkey = state_tree_bundle.accounts.nullifier_queue;
+                        // Check input queue
+                        if let Some(payer) = Self::get_eligible_forester_for_queue(
+                            &state_tree_bundle.accounts.merkle_tree,
+                            &self.foresters,
+                            self.slot,
+                        ) {
+                            let mut merkle_tree_account = self
+                                .rpc
+                                .get_account(merkle_tree_pubkey)
+                                .await
+                                .unwrap()
+                                .unwrap();
+                            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(
+                                merkle_tree_account.data.as_mut_slice(),
+                            )
+                            .unwrap();
+                            let next_full_batch_index =
+                                merkle_tree.get_account().queue.next_full_batch_index;
+                            let batch = merkle_tree
+                                .batches
+                                .get(next_full_batch_index as usize)
+                                .unwrap();
+                            let batch_state = batch.get_state();
+                            println!(
+                                "output batch_state {:?}, {}, batch index {}",
+                                batch_state,
+                                batch.get_num_inserted()
+                                    + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
+                                next_full_batch_index
+                            );
+                            println!("input batch_state {:?}", batch_state);
+                            if batch_state == BatchState::ReadyToUpdateTree {
+                                println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES batched (v2)\n --------------------------------------------------");
+                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                                    perform_batch_nullify(
+                                        &mut self.rpc,
+                                        state_tree_bundle,
+                                        &payer,
+                                        self.epoch,
+                                        false,
+                                        None,
+                                    )
+                                    .await
+                                    .unwrap();
+                                }
+                            }
+                        }
+                        // Check output queue
+                        if let Some(payer) = Self::get_eligible_forester_for_queue(
+                            &state_tree_bundle.accounts.nullifier_queue,
+                            &self.foresters,
+                            self.slot,
+                        ) {
+                            println!("\n --------------------------------------------------\n\t\t Appending LEAVES batched (v2)\n --------------------------------------------------");
+                            let mut queue_account =
+                                self.rpc.get_account(queue_pubkey).await.unwrap().unwrap();
+                            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                                queue_account.data.as_mut_slice(),
+                            )
+                            .unwrap();
+                            let next_full_batch_index =
+                                output_queue.get_account().queue.next_full_batch_index;
+                            let batch = output_queue
+                                .batches
+                                .get(next_full_batch_index as usize)
+                                .unwrap();
+                            let batch_state = batch.get_state();
+                            println!(
+                                "output batch_state {:?}, {}, batch index {}",
+                                batch_state,
+                                batch.get_num_inserted()
+                                    + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
+                                next_full_batch_index
+                            );
+                            if batch_state == BatchState::ReadyToUpdateTree {
+                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                                    perform_batch_append(
+                                        &mut self.rpc,
+                                        state_tree_bundle,
+                                        &payer,
+                                        self.epoch,
+                                        false,
+                                        None,
+                                    )
+                                    .await
+                                    .unwrap();
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Version skipped {}", state_tree_bundle.version);
+                    }
+                }
             }
         }
 
@@ -692,11 +837,19 @@ where
                     .indexer
                     .get_state_merkle_trees()
                     .iter()
-                    .map(|state_merkle_tree_bundle| TreeAccounts {
-                        tree_type: TreeType::State,
-                        merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
-                        queue: state_merkle_tree_bundle.accounts.nullifier_queue,
-                        is_rolledover: false,
+                    .map(|state_merkle_tree_bundle| {
+                        let tree_type = match state_merkle_tree_bundle.version {
+                            1 => TreeType::State,
+                            2 => TreeType::BatchedState,
+                            _ => panic!("unsupported version {}", state_merkle_tree_bundle.version),
+                        };
+
+                        TreeAccounts {
+                            tree_type,
+                            merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
+                            queue: state_merkle_tree_bundle.accounts.nullifier_queue,
+                            is_rolledover: false,
+                        }
                     })
                     .collect::<Vec<TreeAccounts>>();
                 self.indexer.get_address_merkle_trees().iter().for_each(
@@ -826,12 +979,11 @@ where
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
-        let state_tree_account =
-            AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-                &mut self.rpc,
-                nullifier_queue_keypair.pubkey(),
-            )
-            .await;
+        let state_tree_account = AccountZeroCopy::<account_compression::QueueAccount>::new(
+            &mut self.rpc,
+            nullifier_queue_keypair.pubkey(),
+        )
+        .await;
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
@@ -845,7 +997,10 @@ where
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
                     cpi_context: cpi_context_keypair.pubkey(),
                 },
+                version: 1,
                 merkle_tree,
+                output_queue_elements: vec![],
+                input_leaf_indices: vec![],
             });
         // TODO: Add assert
     }
@@ -1092,9 +1247,14 @@ where
         tree_index: Option<usize>,
     ) -> Result<Signature, RpcError> {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
-            .accounts
-            .merkle_tree;
+        let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
+        let rollover_fee = bundle.rollover_fee;
+        let output_merkle_tree = match bundle.version {
+            1 => bundle.accounts.merkle_tree,
+            // Output queue for batched trees
+            2 => bundle.accounts.nullifier_queue,
+            _ => panic!("Unsupported version"),
+        };
         let recipients = vec![*to];
         let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
@@ -1102,7 +1262,10 @@ where
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
-                fee_config: FeeConfig::default(),
+                fee_config: FeeConfig {
+                    state_merkle_tree_rollover: rollover_fee as u64,
+                    ..Default::default()
+                },
             })
         } else {
             None
@@ -1219,16 +1382,25 @@ where
         tree_index: Option<usize>,
     ) {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
-        let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
-            .accounts
-            .merkle_tree;
+        let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
+        let rollover_fee = bundle.rollover_fee;
+        let output_merkle_tree = match bundle.version {
+            1 => bundle.accounts.merkle_tree,
+            // Output queue for batched trees
+            2 => bundle.accounts.nullifier_queue,
+            _ => panic!("Unsupported version"),
+        };
+
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
-                fee_config: FeeConfig::default(),
+                fee_config: FeeConfig {
+                    state_merkle_tree_rollover: rollover_fee as u64,
+                    ..Default::default()
+                },
             })
         } else {
             None
@@ -1888,10 +2060,13 @@ where
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
                 },
+                version: 1,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
                     STATE_MERKLE_TREE_HEIGHT as usize,
                     STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
                 )),
+                output_queue_elements: vec![],
+                input_leaf_indices: vec![],
             });
         Ok(())
     }
@@ -1970,11 +2145,17 @@ where
             ) as usize;
 
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);
-            pubkeys.push(
-                self.indexer.get_state_merkle_trees()[index]
-                    .accounts
-                    .merkle_tree,
-            );
+            let bundle = &self.indexer.get_state_merkle_trees()[index];
+            // For batched trees we need to use the output queue
+            if bundle.version == 2 {
+                pubkeys.push(bundle.accounts.nullifier_queue);
+            } else {
+                pubkeys.push(
+                    self.indexer.get_state_merkle_trees()[index]
+                        .accounts
+                        .merkle_tree,
+                );
+            }
         }
         pubkeys.sort();
         pubkeys
@@ -2260,8 +2441,8 @@ impl KeypairActionConfig {
             compress_spl: Some(0.0),
             decompress_spl: Some(0.0),
             mint_spl: None,
-            transfer_spl: Some(0.0),
-            max_output_accounts: Some(10),
+            transfer_spl: Some(1.0),
+            max_output_accounts: Some(3),
             fee_assert: true,
             approve_spl: None,
             revoke_spl: None,

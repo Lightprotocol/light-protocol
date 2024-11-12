@@ -70,5 +70,10 @@ pub enum AccountCompressionErrorCode {
     InvalidDiscriminator,
     #[msg("batch_size is not divisible by zkp_batch_size")]
     BatchSizeNotDivisibleByZkpBatchSize,
-    InvalidBatchIndex,
+    InclusionProofByIndexFailed,
+    TxHashUndefined,
+    InputDeserializationFailed,
+    InvalidBatch,
+    LeafIndexNotInBatch,
+    UnsupportedParameters,
 }

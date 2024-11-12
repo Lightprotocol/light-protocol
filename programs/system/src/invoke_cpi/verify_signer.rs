@@ -1,8 +1,10 @@
 use account_compression::{
-    utils::{check_discrimininator::check_discriminator, constants::CPI_AUTHORITY_PDA_SEED},
+    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+    utils::constants::CPI_AUTHORITY_PDA_SEED,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, Discriminator};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -117,48 +119,96 @@ pub fn output_compressed_accounts_write_access_check(
     Ok(())
 }
 
-// TODO: extend to match batched trees
 pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<(u32, Option<u64>, u64)> {
-    let (seq, next_index) = {
-        let merkle_tree = merkle_tree_acc_info.try_borrow_data()?;
-        check_discriminator::<StateMerkleTreeAccount>(&merkle_tree).map_err(ProgramError::from)?;
-        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-        )
-        .map_err(ProgramError::from)?;
+) -> Result<(u32, Option<u64>, u64, Pubkey)> {
+    let (seq, next_index, network_fee, program_owner, merkle_tree_pubkey) = {
+        let mut discriminator_bytes = [0u8; 8];
+        discriminator_bytes.copy_from_slice(&merkle_tree_acc_info.try_borrow_data()?[0..8]);
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => {
+                let (seq, next_index) = {
+                    let merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
+                    let merkle_tree =
+                        ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+                            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+                        )
+                        .map_err(ProgramError::from)?;
 
-        let seq = merkle_tree.sequence_number() as u64 + 1;
-        let next_index: u32 = merkle_tree.next_index().try_into().unwrap();
+                    let seq = merkle_tree.sequence_number() as u64 + 1;
+                    let next_index: u32 = merkle_tree.next_index().try_into().unwrap();
+                    (seq, next_index)
+                };
+                let merkle_tree =
+                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+                        .unwrap();
+                let merkle_tree_unpacked = merkle_tree.load()?;
+                (
+                    seq,
+                    next_index,
+                    merkle_tree_unpacked.metadata.rollover_metadata.network_fee,
+                    merkle_tree_unpacked.metadata.access_metadata.program_owner,
+                    merkle_tree_acc_info.key(),
+                )
+            }
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                let merkle_tree = &mut merkle_tree_acc_info.try_borrow_mut_data()?;
+                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(merkle_tree)
+                    .map_err(ProgramError::from)?;
+                let account = merkle_tree.get_account();
+                let seq = account.sequence_number + 1;
+                let next_index: u32 = account.next_index.try_into().unwrap();
 
-        (seq, next_index)
+                (
+                    seq,
+                    next_index,
+                    account.metadata.rollover_metadata.network_fee,
+                    account.metadata.access_metadata.program_owner,
+                    merkle_tree_acc_info.key(),
+                )
+            }
+            BatchedQueueAccount::DISCRIMINATOR => {
+                let merkle_tree = &mut merkle_tree_acc_info.try_borrow_mut_data()?;
+                let merkle_tree = ZeroCopyBatchedQueueAccount::from_bytes_mut(merkle_tree)
+                    .map_err(ProgramError::from)?;
+                let account = merkle_tree.get_account();
+                let seq = u64::MAX;
+                let next_index: u32 = account.next_index.try_into().unwrap();
+
+                (
+                    seq,
+                    next_index,
+                    account.metadata.rollover_metadata.network_fee,
+                    account.metadata.access_metadata.program_owner,
+                    account.metadata.associated_merkle_tree,
+                )
+            }
+            _ => {
+                return err!(crate::ErrorCode::AccountDiscriminatorMismatch);
+            }
+        }
     };
 
-    let merkle_tree =
-        AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
-    let merkle_tree_unpacked = merkle_tree.load()?;
-
-    let network_fee = if merkle_tree_unpacked.metadata.rollover_metadata.network_fee != 0 {
-        Some(merkle_tree_unpacked.metadata.rollover_metadata.network_fee)
+    let network_fee = if network_fee != 0 {
+        Some(network_fee)
     } else {
         None
     };
-    if merkle_tree_unpacked.metadata.access_metadata.program_owner != Pubkey::default() {
+    if program_owner != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.program_owner {
-                return Ok((next_index, network_fee, seq));
+            if *invoking_program == program_owner {
+                return Ok((next_index, network_fee, seq, merkle_tree_pubkey));
             }
         }
         msg!(
             "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
             invoking_program,
-            merkle_tree_unpacked.metadata.access_metadata.program_owner
+            program_owner
         );
         return Err(SystemProgramError::InvalidMerkleTreeOwner.into());
     }
-    Ok((next_index, network_fee, seq))
+    Ok((next_index, network_fee, seq, merkle_tree_pubkey))
 }
 
 // TODO: extend to match batched trees

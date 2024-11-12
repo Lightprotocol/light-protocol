@@ -84,6 +84,26 @@ export type AccountCompression = {
             };
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
         },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50';
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '10';
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50000';
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '500';
+        },
     ];
     instructions: [
         {
@@ -655,6 +675,28 @@ export type AccountCompression = {
                         };
                     };
                 },
+                {
+                    name: 'leafIndices';
+                    type: {
+                        vec: 'u32';
+                    };
+                },
+                {
+                    name: 'txHash';
+                    type: {
+                        option: {
+                            array: ['u8', 32];
+                        };
+                    };
+                },
+                {
+                    name: 'checkProofByIndex';
+                    type: {
+                        option: {
+                            vec: 'bool';
+                        };
+                    };
+                },
             ];
         },
         {
@@ -703,7 +745,7 @@ export type AccountCompression = {
             args: [];
         },
         {
-            name: 'batchNullifyLeaves';
+            name: 'batchNullify';
             accounts: [
                 {
                     name: 'authority';
@@ -897,12 +939,6 @@ export type AccountCompression = {
                     {
                         name: 'rootHistoryCapacity';
                         type: 'u32';
-                    },
-                    {
-                        name: 'subtreeHash';
-                        type: {
-                            array: ['u8', 32];
-                        };
                     },
                     {
                         name: 'queue';
@@ -1151,6 +1187,26 @@ export type AccountCompression = {
     ];
     types: [
         {
+            name: 'ZeroOutLeafIndex';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'treeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'batchIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
             name: 'AddressMerkleTreeConfig';
             type: {
                 kind: 'struct';
@@ -1286,10 +1342,6 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
-                        name: 'bloomFilterNumIters';
-                        type: 'u64';
-                    },
-                    {
                         name: 'inputQueueBatchSize';
                         type: 'u64';
                     },
@@ -1306,12 +1358,16 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
-                        name: 'rootHistoryCapacity';
-                        type: 'u32';
+                        name: 'bloomFilterNumIters';
+                        type: 'u64';
                     },
                     {
                         name: 'bloomFilterCapacity';
                         type: 'u64';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u32';
                     },
                     {
                         name: 'networkFee';
@@ -1330,6 +1386,18 @@ export type AccountCompression = {
                         type: {
                             option: 'u64';
                         };
+                    },
+                    {
+                        name: 'inputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'outputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u32';
                     },
                 ];
             };
@@ -1352,7 +1420,7 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'BatchedTreeType';
+            name: 'TreeType';
             type: {
                 kind: 'enum';
                 variants: [
@@ -1361,6 +1429,12 @@ export type AccountCompression = {
                     },
                     {
                         name: 'Address';
+                    },
+                    {
+                        name: 'BatchedState';
+                    },
+                    {
+                        name: 'BatchedAddress';
                     },
                 ];
             };
@@ -1576,6 +1650,30 @@ export type AccountCompression = {
             name: 'BatchSizeNotDivisibleByZkpBatchSize';
             msg: 'batch_size is not divisible by zkp_batch_size';
         },
+        {
+            code: 6037;
+            name: 'InclusionProofByIndexFailed';
+        },
+        {
+            code: 6038;
+            name: 'TxHashUndefined';
+        },
+        {
+            code: 6039;
+            name: 'InputDeserializationFailed';
+        },
+        {
+            code: 6040;
+            name: 'InvalidBatch';
+        },
+        {
+            code: 6041;
+            name: 'LeafIndexNotInBatch';
+        },
+        {
+            code: 6042;
+            name: 'UnsupportedParameters';
+        },
     ];
 };
 
@@ -1664,6 +1762,26 @@ export const IDL: AccountCompression = {
                 array: ['u8', 32],
             },
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
+        },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50',
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '10',
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50000',
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '500',
         },
     ],
     instructions: [
@@ -2236,6 +2354,28 @@ export const IDL: AccountCompression = {
                         },
                     },
                 },
+                {
+                    name: 'leafIndices',
+                    type: {
+                        vec: 'u32',
+                    },
+                },
+                {
+                    name: 'txHash',
+                    type: {
+                        option: {
+                            array: ['u8', 32],
+                        },
+                    },
+                },
+                {
+                    name: 'checkProofByIndex',
+                    type: {
+                        option: {
+                            vec: 'bool',
+                        },
+                    },
+                },
             ],
         },
         {
@@ -2284,7 +2424,7 @@ export const IDL: AccountCompression = {
             args: [],
         },
         {
-            name: 'batchNullifyLeaves',
+            name: 'batchNullify',
             accounts: [
                 {
                     name: 'authority',
@@ -2478,12 +2618,6 @@ export const IDL: AccountCompression = {
                     {
                         name: 'rootHistoryCapacity',
                         type: 'u32',
-                    },
-                    {
-                        name: 'subtreeHash',
-                        type: {
-                            array: ['u8', 32],
-                        },
                     },
                     {
                         name: 'queue',
@@ -2732,6 +2866,26 @@ export const IDL: AccountCompression = {
     ],
     types: [
         {
+            name: 'ZeroOutLeafIndex',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'treeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'batchIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
             name: 'AddressMerkleTreeConfig',
             type: {
                 kind: 'struct',
@@ -2867,10 +3021,6 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
-                        name: 'bloomFilterNumIters',
-                        type: 'u64',
-                    },
-                    {
                         name: 'inputQueueBatchSize',
                         type: 'u64',
                     },
@@ -2887,12 +3037,16 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
-                        name: 'rootHistoryCapacity',
-                        type: 'u32',
+                        name: 'bloomFilterNumIters',
+                        type: 'u64',
                     },
                     {
                         name: 'bloomFilterCapacity',
                         type: 'u64',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u32',
                     },
                     {
                         name: 'networkFee',
@@ -2911,6 +3065,18 @@ export const IDL: AccountCompression = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                    {
+                        name: 'inputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'outputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u32',
                     },
                 ],
             },
@@ -2933,7 +3099,7 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'BatchedTreeType',
+            name: 'TreeType',
             type: {
                 kind: 'enum',
                 variants: [
@@ -2942,6 +3108,12 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'Address',
+                    },
+                    {
+                        name: 'BatchedState',
+                    },
+                    {
+                        name: 'BatchedAddress',
                     },
                 ],
             },
@@ -3156,6 +3328,30 @@ export const IDL: AccountCompression = {
             code: 6036,
             name: 'BatchSizeNotDivisibleByZkpBatchSize',
             msg: 'batch_size is not divisible by zkp_batch_size',
+        },
+        {
+            code: 6037,
+            name: 'InclusionProofByIndexFailed',
+        },
+        {
+            code: 6038,
+            name: 'TxHashUndefined',
+        },
+        {
+            code: 6039,
+            name: 'InputDeserializationFailed',
+        },
+        {
+            code: 6040,
+            name: 'InvalidBatch',
+        },
+        {
+            code: 6041,
+            name: 'LeafIndexNotInBatch',
+        },
+        {
+            code: 6042,
+            name: 'UnsupportedParameters',
         },
     ],
 };

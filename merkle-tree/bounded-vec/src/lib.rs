@@ -3,7 +3,7 @@ pub mod offset;
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     fmt,
-    mem::{self, ManuallyDrop},
+    mem::{self, size_of, ManuallyDrop},
     ops::{Index, IndexMut, Sub},
     ptr::{self, NonNull},
     slice::{self, Iter, IterMut, SliceIndex},
@@ -21,8 +21,6 @@ pub enum BoundedVecError {
     ArraySize(usize, usize),
     #[error("The requested start index is out of bounds.")]
     IterFromOutOfBounds,
-    #[error("Input length {0} allocates unaligned memory. Must be a multiple of 8.")]
-    UnalignedMemory(usize),
     #[error("Memory allocated {0}, Memory required {0}")]
     InsufficientMemoryAllocated(usize, usize),
 }
@@ -34,8 +32,7 @@ impl From<BoundedVecError> for u32 {
             BoundedVecError::Full => 8001,
             BoundedVecError::ArraySize(_, _) => 8002,
             BoundedVecError::IterFromOutOfBounds => 8003,
-            BoundedVecError::UnalignedMemory(_) => 8004,
-            BoundedVecError::InsufficientMemoryAllocated(_, _) => 8005,
+            BoundedVecError::InsufficientMemoryAllocated(_, _) => 8004,
         }
     }
 }
@@ -364,26 +361,19 @@ where
         start_offset: &mut usize,
     ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
         unsafe {
-            if account_data.len().saturating_sub(*start_offset)
-                < std::mem::size_of::<BoundedVecMetadata>()
-            {
+            let meta_data_size = size_of::<BoundedVecMetadata>();
+            if account_data.len().saturating_sub(*start_offset) < meta_data_size {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),
-                    std::mem::size_of::<BoundedVecMetadata>(),
+                    meta_data_size,
                 ));
             }
             let metadata: *mut BoundedVecMetadata = read_ptr_at(account_data, start_offset);
-            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
-                return Err(BoundedVecError::UnalignedMemory(
-                    (*metadata).capacity() * std::mem::size_of::<T>(),
-                ));
-            }
-            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
-                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            let full_vector_size = (*metadata).capacity() * size_of::<T>();
             if account_data.len().saturating_sub(*start_offset) < full_vector_size {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),
-                    full_vector_size,
+                    full_vector_size + meta_data_size,
                 ));
             }
             Ok(ManuallyDrop::new(BoundedVec::from_raw_parts(
@@ -412,13 +402,8 @@ where
         start_offset: &mut usize,
         with_len: bool,
     ) -> Result<ManuallyDrop<BoundedVec<T>>, BoundedVecError> {
-        let vector_size = capacity * std::mem::size_of::<T>();
-        if vector_size % 8 != 0 {
-            return Err(BoundedVecError::UnalignedMemory(
-                capacity * std::mem::size_of::<T>(),
-            ));
-        }
-        let full_vector_size = vector_size + std::mem::size_of::<BoundedVecMetadata>();
+        let vector_size = capacity * size_of::<T>();
+        let full_vector_size = vector_size + size_of::<BoundedVecMetadata>();
         if full_vector_size > account_data.len().saturating_sub(*start_offset) {
             return Err(BoundedVecError::InsufficientMemoryAllocated(
                 account_data.len().saturating_sub(*start_offset),
@@ -434,7 +419,7 @@ where
         let meta: *mut BoundedVecMetadata = unsafe {
             read_ptr_at(
                 &*account_data,
-                &mut start_offset.sub(std::mem::size_of::<BoundedVecMetadata>()),
+                &mut start_offset.sub(size_of::<BoundedVecMetadata>()),
             )
         };
 
@@ -934,13 +919,9 @@ where
         start_offset: &mut usize,
         with_len: bool,
     ) -> Result<ManuallyDrop<Self>, BoundedVecError> {
-        let vector_size = capacity * std::mem::size_of::<T>();
-        if vector_size % 8 != 0 {
-            return Err(BoundedVecError::UnalignedMemory(
-                capacity * std::mem::size_of::<T>(),
-            ));
-        }
-        let full_vector_size = vector_size + std::mem::size_of::<CyclicBoundedVecMetadata>();
+        let vector_size = capacity * size_of::<T>();
+
+        let full_vector_size = vector_size + size_of::<CyclicBoundedVecMetadata>();
         if full_vector_size > account_data.len().saturating_sub(*start_offset) {
             return Err(BoundedVecError::InsufficientMemoryAllocated(
                 account_data.len().saturating_sub(*start_offset),
@@ -960,7 +941,7 @@ where
         let meta: *mut CyclicBoundedVecMetadata = unsafe {
             read_ptr_at(
                 &*account_data,
-                &mut start_offset.sub(std::mem::size_of::<CyclicBoundedVecMetadata>()),
+                &mut start_offset.sub(size_of::<CyclicBoundedVecMetadata>()),
             )
         };
         Ok(unsafe {
@@ -978,23 +959,17 @@ where
     ) -> Result<ManuallyDrop<CyclicBoundedVec<T>>, BoundedVecError> {
         unsafe {
             if account_data.len().saturating_sub(*start_offset)
-                < std::mem::size_of::<CyclicBoundedVecMetadata>()
+                < size_of::<CyclicBoundedVecMetadata>()
             {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),
-                    std::mem::size_of::<CyclicBoundedVecMetadata>(),
+                    size_of::<CyclicBoundedVecMetadata>(),
                 ));
             }
 
             let metadata: *mut CyclicBoundedVecMetadata = read_ptr_at(account_data, start_offset);
-            if ((*metadata).capacity() * std::mem::size_of::<T>()) % 8 != 0 {
-                return Err(BoundedVecError::UnalignedMemory(
-                    (*metadata).capacity() * std::mem::size_of::<T>(),
-                ));
-            }
 
-            let full_vector_size = std::mem::size_of::<BoundedVecMetadata>()
-                + ((*metadata).capacity() * std::mem::size_of::<T>());
+            let full_vector_size = (*metadata).capacity() * size_of::<T>();
             if account_data.len().saturating_sub(*start_offset) < full_vector_size {
                 return Err(BoundedVecError::InsufficientMemoryAllocated(
                     account_data.len().saturating_sub(*start_offset),
@@ -1968,18 +1943,6 @@ mod test {
     }
 
     #[test]
-    fn test_deserialize_fail_unaligned_memory() {
-        let mut account_data = vec![0u8; 64];
-        let mut start_offset = 0;
-        BoundedVec::<u64>::init(4, &mut account_data, &mut start_offset, false).unwrap();
-        let mut start_offset = 0;
-
-        let result =
-            BoundedVec::<UnalignedStruct>::deserialize(&mut account_data, &mut start_offset);
-        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
-    }
-
-    #[test]
     fn test_deserialize_multiple_pass() {
         let mut account_data = vec![0u8; 128];
         let mut start_offset = 0;
@@ -2016,23 +1979,6 @@ mod test {
         }
     }
 
-    #[allow(dead_code)]
-    #[derive(Clone, Copy)]
-    pub struct UnalignedStruct {
-        pub field: u8,
-    }
-
-    #[test]
-    fn test_init_fail_unaligned_memory() {
-        let mut account_data = vec![0u8; 64];
-        let mut start_offset = 0;
-
-        // Attempt to initialize a BoundedVec with unaligned capacity
-        let result =
-            BoundedVec::<UnalignedStruct>::init(3, &mut account_data, &mut start_offset, false);
-        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
-    }
-
     #[test]
     fn test_init_multiple_pass() {
         let mut account_data = vec![0u8; 128];
@@ -2054,21 +2000,6 @@ mod test {
                 assert!(vec.metadata().length() == i + 1);
             }
         }
-    }
-
-    #[test]
-    fn test_init_multiple_fail_unaligned_memory() {
-        let mut account_data = vec![0u8; 128];
-        let mut start_offset = 0;
-
-        let result = BoundedVec::<UnalignedStruct>::init_multiple(
-            2,
-            3,
-            &mut account_data,
-            &mut start_offset,
-            false,
-        );
-        assert!(matches!(result, Err(BoundedVecError::UnalignedMemory(_))));
     }
 
     #[test]
