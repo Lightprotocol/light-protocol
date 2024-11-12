@@ -82,7 +82,7 @@ pub struct PackedMerkleContext {
 }
 
 pub fn pack_merkle_contexts(
-    merkle_contexts: &[MerkleContext],
+    merkle_contexts: &[&MerkleContext],
     remaining_accounts: &mut RemainingAccounts,
 ) -> Vec<PackedMerkleContext> {
     merkle_contexts
@@ -102,10 +102,24 @@ pub fn pack_merkle_contexts(
 }
 
 pub fn pack_merkle_context(
-    merkle_context: MerkleContext,
+    merkle_context: &MerkleContext,
     remaining_accounts: &mut RemainingAccounts,
 ) -> PackedMerkleContext {
-    pack_merkle_contexts(&[merkle_context], remaining_accounts)[0]
+    let MerkleContext {
+        merkle_tree_pubkey,
+        nullifier_queue_pubkey,
+        leaf_index,
+        queue_index,
+    } = merkle_context;
+    let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
+    let nullifier_queue_pubkey_index = remaining_accounts.insert_or_get(*nullifier_queue_pubkey);
+
+    PackedMerkleContext {
+        merkle_tree_pubkey_index,
+        nullifier_queue_pubkey_index,
+        leaf_index: *leaf_index,
+        queue_index: *queue_index,
+    }
 }
 
 /// Context which contains the accounts necessary for emitting the output
@@ -198,8 +212,19 @@ pub fn pack_address_merkle_contexts(
 /// Returns a [`PackedAddressMerkleContext`] and fills up `remaining_accounts`
 /// based on the given `merkle_context`.
 pub fn pack_address_merkle_context(
-    address_merkle_context: AddressMerkleContext,
+    address_merkle_context: &AddressMerkleContext,
     remaining_accounts: &mut RemainingAccounts,
 ) -> PackedAddressMerkleContext {
-    pack_address_merkle_contexts(&[address_merkle_context], remaining_accounts)[0]
+    let AddressMerkleContext {
+        address_merkle_tree_pubkey,
+        address_queue_pubkey,
+    } = address_merkle_context;
+    let address_merkle_tree_pubkey_index =
+        remaining_accounts.insert_or_get(*address_merkle_tree_pubkey);
+    let address_queue_pubkey_index = remaining_accounts.insert_or_get(*address_queue_pubkey);
+
+    PackedAddressMerkleContext {
+        address_merkle_tree_pubkey_index,
+        address_queue_pubkey_index,
+    }
 }
