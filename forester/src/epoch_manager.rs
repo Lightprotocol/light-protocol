@@ -1041,6 +1041,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 )
                 .await
             }
+            _ => panic!(
+                "perform rollover: Invalid tree type {:?}",
+                tree_account.tree_type
+            ),
         };
 
         match result {

@@ -38,6 +38,6 @@ pub struct CompressedProof {
 #[derive(Debug)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
-    pub root_indices: Vec<u16>,
+    pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }

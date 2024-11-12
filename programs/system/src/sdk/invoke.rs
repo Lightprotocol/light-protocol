@@ -8,7 +8,8 @@ use solana_sdk::{
 };
 
 use super::compressed_account::{
-    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
+    PackedMerkleContext, QueueIndex,
 };
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
@@ -29,7 +30,7 @@ pub fn create_invoke_instruction(
     output_compressed_accounts: &[CompressedAccount],
     merkle_context: &[MerkleContext],
     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-    input_root_indices: &[u16],
+    input_root_indices: &[Option<u16>],
     new_address_params: &[NewAddressParams],
     proof: Option<CompressedProof>,
     compress_or_decompress_lamports: Option<u64>,
@@ -85,7 +86,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     new_address_params: &[NewAddressParams],
     merkle_context: &[MerkleContext],
     input_compressed_accounts: &[CompressedAccount],
-    input_root_indices: &[u16],
+    input_root_indices: &[Option<u16>],
     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
     output_compressed_accounts: &[CompressedAccount],
     proof: Option<CompressedProof>,
@@ -113,6 +114,16 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                 index += 1;
             }
         };
+        let root_index = if input_root_indices.len() > i {
+            input_root_indices[i]
+        } else {
+            None
+        };
+        let queue_index = if root_index.is_none() {
+            Some(QueueIndex::default())
+        } else {
+            None
+        };
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_context: PackedMerkleContext {
@@ -121,10 +132,10 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                     .unwrap() as u8,
                 nullifier_queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
-                queue_index: None,
+                queue_index,
             },
             read_only: false,
-            root_index: input_root_indices[i],
+            root_index: root_index.unwrap_or_default(),
         });
     }
 
@@ -274,7 +285,7 @@ mod test {
 
         let output_compressed_account_merkle_tree_pubkeys =
             vec![merkle_tree_pubkey, merkle_tree_pubkey_1];
-        let input_root_indices = vec![0, 1];
+        let input_root_indices = vec![Some(0), Some(1)];
         let proof = CompressedProof {
             a: [0u8; 32],
             b: [1u8; 64],
