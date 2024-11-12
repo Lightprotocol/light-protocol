@@ -8,6 +8,7 @@ pub mod account_compression_cpi;
 pub mod errors;
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub use account_compression_cpi::{
+    batch_append::*, batch_nullify::*, initialize_batched_state_tree::*,
     initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_state_tree::*,
     update_address_tree::*,
 };
@@ -21,6 +22,7 @@ pub mod utils;
 use account_compression::MerkleTreeMetadata;
 pub use selection::forester::*;
 
+use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
 use protocol_config::state::ProtocolConfig;
@@ -41,6 +43,8 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 
 #[program]
 pub mod light_registry {
+
+    use constants::DEFAULT_WORK_V1;
 
     use super::*;
 
@@ -370,6 +374,7 @@ pub mod light_registry {
             ctx.accounts.authority.key(),
             ctx.accounts.nullifier_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
         )?;
 
         process_nullify(
@@ -402,6 +407,7 @@ pub mod light_registry {
             ctx.accounts.authority.key(),
             ctx.accounts.queue.key(),
             &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
         )?;
         process_update_address_merkle_tree(
             &ctx,
@@ -427,6 +433,7 @@ pub mod light_registry {
             ctx.accounts.authority.key(),
             ctx.accounts.old_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
         )?;
 
         process_rollover_address_merkle_tree_and_queue(&ctx, bump)
@@ -442,6 +449,7 @@ pub mod light_registry {
             ctx.accounts.authority.key(),
             ctx.accounts.old_queue.key(),
             &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
         )?;
 
         check_cpi_context(
@@ -457,6 +465,90 @@ pub mod light_registry {
             ctx.accounts.light_system_program.as_ref().to_account_info(),
         )
     }
+
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        bump: u8,
+        params: InitStateTreeAccountsInstructionData,
+    ) -> Result<()> {
+        if let Some(network_fee) = params.network_fee {
+            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
+                return err!(RegistryError::InvalidNetworkFee);
+            }
+            if params.forester.is_some() {
+                msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
+                return err!(RegistryError::ForesterDefined);
+            }
+        } else if params.forester.is_none() {
+            msg!("Forester pubkey required for trees without a network fee.");
+            msg!("Trees without a network fee will not be serviced by light foresters.");
+            return err!(RegistryError::ForesterUndefined);
+        }
+        check_cpi_context(
+            ctx.accounts
+                .cpi_context_account
+                .as_ref()
+                .unwrap()
+                .to_account_info(),
+            &ctx.accounts.protocol_config_pda.config,
+        )?;
+
+        process_initialize_batched_state_merkle_tree(&ctx, bump, params)?;
+
+        process_initialize_cpi_context(
+            bump,
+            ctx.accounts.authority.to_account_info(),
+            ctx.accounts
+                .cpi_context_account
+                .as_ref()
+                .unwrap()
+                .to_account_info(),
+            ctx.accounts.merkle_tree.to_account_info(),
+            ctx.accounts
+                .light_system_program
+                .as_ref()
+                .unwrap()
+                .to_account_info(),
+        )
+    }
+
+    pub fn batch_nullify<'info>(
+        ctx: Context<'_, '_, '_, 'info, BatchNullify<'info>>,
+        bump: u8,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        {
+            let account = ctx.accounts.merkle_tree.load()?;
+            let metadata = account.metadata;
+            check_forester(
+                &metadata,
+                ctx.accounts.authority.key(),
+                ctx.accounts.merkle_tree.key(),
+                &mut ctx.accounts.registered_forester_pda,
+                account.queue.batch_size,
+            )?;
+        }
+        process_batch_nullify(&ctx, bump, data)
+    }
+
+    pub fn batch_append<'info>(
+        ctx: Context<'_, '_, '_, 'info, BatchAppend<'info>>,
+        bump: u8,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        {
+            let queue_account = ctx.accounts.output_queue.load()?;
+            let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+            check_forester(
+                &metadata,
+                ctx.accounts.authority.key(),
+                ctx.accounts.output_queue.key(),
+                &mut ctx.accounts.registered_forester_pda,
+                queue_account.queue.batch_size,
+            )?;
+        }
+        process_batch_append(&ctx, bump, data)
+    }
 }
 
 /// if registered_forester_pda is not None check forester eligibility and network_fee is not 0
@@ -467,13 +559,19 @@ pub fn check_forester(
     authority: Pubkey,
     queue: Pubkey,
     registered_forester_pda: &mut Option<Account<'_, ForesterEpochPda>>,
+    num_work_items: u64,
 ) -> Result<()> {
     if let Some(forester_pda) = registered_forester_pda.as_mut() {
         // Checks forester:
         // - signer
         // - eligibility
         // - increments work counter
-        ForesterEpochPda::check_forester_in_program(forester_pda, &authority, &queue)?;
+        ForesterEpochPda::check_forester_in_program(
+            forester_pda,
+            &authority,
+            &queue,
+            num_work_items,
+        )?;
         if metadata.rollover_metadata.network_fee == 0 {
             return err!(RegistryError::InvalidNetworkFee);
         }
