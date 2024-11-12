@@ -13,7 +13,7 @@ use crate::{
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_state_proof::{
-            fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
+            create_tx_hash, fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
             hash_input_compressed_accounts, verify_state_proof,
         },
     },
@@ -63,7 +63,7 @@ pub fn process<
     }
     // Sum check ---------------------------------------------------
     bench_sbf_start!("cpda_sum_check");
-    sum_check(
+    let (num_read_only_input_accounts, num_prove_by_index_input_accounts) = sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
@@ -93,7 +93,7 @@ pub fn process<
 
     let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
         vec![None; num_input_compressed_accounts + num_new_addresses];
-    let mut output_leaf_indices = vec![0u32; num_output_compressed_accounts];
+    let mut output_compressed_account_indices = vec![0u32; num_output_compressed_accounts];
     let mut output_compressed_account_hashes = vec![[0u8; 32]; num_output_compressed_accounts];
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
@@ -103,142 +103,58 @@ pub fn process<
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
     // Verify state and or address proof ---------------------------------------------------
+
+    // Allocate heap memory here because roots are only used for proof verification.
+    let mut new_address_roots = vec![[0u8; 32]; num_new_addresses];
+
+    // hash input compressed accounts ---------------------------------------------------
+    bench_sbf_start!("cpda_hash_input_compressed_accounts");
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
-        || !inputs.new_address_params.is_empty()
     {
-        // Allocate heap memory here because roots are only used for proof verification.
-        let mut new_address_roots = vec![[0u8; 32]; num_new_addresses];
-        let mut input_compressed_account_roots = vec![[0u8; 32]; num_input_compressed_accounts];
-        // hash input compressed accounts ---------------------------------------------------
-        bench_sbf_start!("cpda_hash_input_compressed_accounts");
-        if !inputs
-            .input_compressed_accounts_with_merkle_context
-            .is_empty()
-        {
-            // TODO: separate input_compressed_account_hashes for inclusion with zkp
-            //      and inclusion by array index
-            // - inclusion by array index is zeroed in output insert
-            // - inclusion with zkp is used in state proof
-            hash_input_compressed_accounts(
-                ctx.remaining_accounts,
-                &inputs.input_compressed_accounts_with_merkle_context,
-                &mut input_compressed_account_hashes,
-                &mut compressed_account_addresses,
-                &mut hashed_pubkeys,
-            )?;
-            // # Safety this is a safeguard for memory safety.
-            // This error should never be triggered.
-            if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-                msg!(
-                    "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
-                    hashed_pubkeys.capacity(),
-                    hashed_pubkeys_capacity
-                );
-                return err!(SystemProgramError::InvalidCapacity);
-            }
-            fetch_input_compressed_account_roots(
-                &inputs.input_compressed_accounts_with_merkle_context,
-                &ctx,
-                &mut input_compressed_account_roots,
-            )?;
+        hash_input_compressed_accounts(
+            ctx.remaining_accounts,
+            &inputs.input_compressed_accounts_with_merkle_context,
+            &mut input_compressed_account_hashes,
+            &mut compressed_account_addresses,
+            &mut hashed_pubkeys,
+        )?;
+        // # Safety this is a safeguard for memory safety.
+        // This error should never be triggered.
+        if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
+            msg!(
+                "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
+                hashed_pubkeys.capacity(),
+                hashed_pubkeys_capacity
+            );
+            return err!(SystemProgramError::InvalidCapacity);
         }
-
-        bench_sbf_end!("cpda_hash_input_compressed_accounts");
-        let mut new_addresses = vec![[0u8; 32]; num_new_addresses];
-        // Insert addresses into address merkle tree queue ---------------------------------------------------
-        if !new_addresses.is_empty() {
-            derive_new_addresses(
-                &inputs.new_address_params,
-                num_input_compressed_accounts,
-                ctx.remaining_accounts,
-                &mut compressed_account_addresses,
-                &mut new_addresses,
-            )?;
-            let network_fee_bundle = insert_addresses_into_address_merkle_tree_queue(
-                &ctx,
-                &new_addresses,
-                &inputs.new_address_params,
-                &invoking_program,
-            )?;
-            if let Some(network_fee_bundle) = network_fee_bundle {
-                let (remaining_account_index, network_fee) = network_fee_bundle;
-                transfer_lamports_cpi(
-                    ctx.accounts.get_fee_payer(),
-                    &ctx.remaining_accounts[remaining_account_index as usize],
-                    network_fee,
-                )?;
-            }
-            fetch_roots_address_merkle_tree(
-                &inputs.new_address_params,
-                &ctx,
-                &mut new_address_roots,
-            )?;
-        }
-        bench_sbf_start!("cpda_verify_state_proof");
-
-        let proof = match &inputs.proof {
-            Some(proof) => proof,
-            None => return err!(SystemProgramError::ProofIsNone),
-        };
-        let compressed_verifier_proof = CompressedVerifierProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        };
-        match verify_state_proof(
-            &input_compressed_account_roots,
-            &input_compressed_account_hashes,
-            &new_address_roots,
-            &new_addresses,
-            &compressed_verifier_proof,
-        ) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                msg!(
-                    "input_compressed_accounts_with_merkle_context: {:?}",
-                    inputs.input_compressed_accounts_with_merkle_context
-                );
-                Err(e)
-            }
-        }?;
-        bench_sbf_end!("cpda_verify_state_proof");
-        // insert nullifiers (input compressed account hashes)---------------------------------------------------
-        bench_sbf_start!("cpda_nullifiers");
-        // TODO: calculate and pass transctions hashchain hash for nullificiation
-        // TODO: move before collecting root hashes
-        if !inputs
-            .input_compressed_accounts_with_merkle_context
-            .is_empty()
-        {
-            let network_fee_bundle = insert_nullifiers(
-                &inputs,
-                &ctx,
-                &input_compressed_account_hashes,
-                &invoking_program,
-            )?;
-            if let Some(network_fee_bundle) = network_fee_bundle {
-                let (remaining_account_index, network_fee) = network_fee_bundle;
-                transfer_lamports_cpi(
-                    ctx.accounts.get_fee_payer(),
-                    &ctx.remaining_accounts[remaining_account_index as usize],
-                    network_fee,
-                )?;
-            }
-        }
-        bench_sbf_end!("cpda_nullifiers");
-    } else if inputs.proof.is_some() {
-        return err!(SystemProgramError::ProofIsSome);
-    } else if inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-        && inputs.new_address_params.is_empty()
-        && inputs.output_compressed_accounts.is_empty()
-    {
-        return err!(SystemProgramError::EmptyInputs);
     }
-    bench_sbf_end!("cpda_nullifiers");
+
+    bench_sbf_end!("cpda_hash_input_compressed_accounts");
+    let mut new_addresses = vec![[0u8; 32]; num_new_addresses];
+    // Insert addresses into address merkle tree queue ---------------------------------------------------
+    let address_network_fee_bundle = if !new_addresses.is_empty() {
+        derive_new_addresses(
+            &inputs.new_address_params,
+            num_input_compressed_accounts,
+            ctx.remaining_accounts,
+            &mut compressed_account_addresses,
+            &mut new_addresses,
+            // TODO: add readonly addresses here
+        )?;
+        fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
+
+        insert_addresses_into_address_merkle_tree_queue(
+            &ctx,
+            &new_addresses,
+            &inputs.new_address_params,
+            &invoking_program,
+        )?
+    } else {
+        None
+    };
 
     // Allocate space for sequence numbers with remaining account length as a
     // proxy. We cannot allocate heap memory in
@@ -246,13 +162,12 @@ pub fn process<
     // heap neutral.
     let mut sequence_numbers = Vec::with_capacity(ctx.remaining_accounts.len());
     // Insert leaves (output compressed account hashes) ---------------------------------------------------
-    if !inputs.output_compressed_accounts.is_empty() {
+    let output_network_fee_bundle = if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
-        // TODO: extend with input hashes inclusion proof in output queue array.
-        insert_output_compressed_accounts_into_state_merkle_tree(
+        let network_fee_bundle = insert_output_compressed_accounts_into_state_merkle_tree(
             &mut inputs.output_compressed_accounts,
             &ctx,
-            &mut output_leaf_indices,
+            &mut output_compressed_account_indices,
             &mut output_compressed_account_hashes,
             &mut compressed_account_addresses,
             &invoking_program,
@@ -270,10 +185,107 @@ pub fn process<
             return err!(SystemProgramError::InvalidCapacity);
         }
         bench_sbf_end!("cpda_append");
-    }
+        network_fee_bundle
+    } else {
+        None
+    };
     bench_sbf_start!("emit_state_transition_event");
     // Reduce the capacity of the sequence numbers vector.
     sequence_numbers.shrink_to_fit();
+
+    // insert nullifiers (input compressed account hashes)---------------------------------------------------
+    // Nullifiers need to be inserted befor proof verification because the
+    // in certain cases we zero out roots in batched input queues.
+    // These roots need to be zero prior to proof verification.
+    bench_sbf_start!("cpda_nullifiers");
+    let input_network_fee_bundle = if num_input_compressed_accounts > num_read_only_input_accounts {
+        // Access the current slot
+        let current_slot = Clock::get()?.slot;
+        let tx_hash = create_tx_hash(
+            &inputs.input_compressed_accounts_with_merkle_context,
+            &input_compressed_account_hashes,
+            &output_compressed_account_hashes,
+            current_slot,
+        );
+        // Insert nullifiers for compressed input account hashes into nullifier
+        // queue except read-only accounts.
+        insert_nullifiers(
+            &inputs.input_compressed_accounts_with_merkle_context,
+            &ctx,
+            &input_compressed_account_hashes,
+            &invoking_program,
+            tx_hash,
+        )?
+    } else {
+        None
+    };
+    bench_sbf_end!("cpda_nullifiers");
+
+    // Transfer network fee
+    transfer_network_fee(
+        &ctx,
+        input_network_fee_bundle,
+        address_network_fee_bundle,
+        output_network_fee_bundle,
+    )?;
+
+    if num_prove_by_index_input_accounts < num_input_compressed_accounts
+        || !inputs.new_address_params.is_empty()
+    {
+        bench_sbf_start!("cpda_verify_state_proof");
+        if let Some(proof) = inputs.proof.as_ref() {
+            bench_sbf_start!("cpda_verify_state_proof");
+            let compressed_verifier_proof = CompressedVerifierProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            };
+            let mut input_compressed_account_roots =
+                Vec::with_capacity(num_input_compressed_accounts);
+            fetch_input_compressed_account_roots(
+                &inputs.input_compressed_accounts_with_merkle_context,
+                &ctx,
+                &mut input_compressed_account_roots,
+            )?;
+            match verify_state_proof(
+                &inputs.input_compressed_accounts_with_merkle_context,
+                &input_compressed_account_roots,
+                &input_compressed_account_hashes,
+                &new_address_roots,
+                &new_addresses,
+                &compressed_verifier_proof,
+            ) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    msg!("proof  {:?}", proof);
+                    msg!(
+                        "input_compressed_account_hashes {:?}",
+                        input_compressed_account_hashes
+                    );
+                    msg!("input roots {:?}", input_compressed_account_roots);
+                    msg!(
+                        "input_compressed_accounts_with_merkle_context: {:?}",
+                        inputs.input_compressed_accounts_with_merkle_context
+                    );
+                    Err(e)
+                }
+            }?;
+            bench_sbf_end!("cpda_verify_state_proof");
+        } else {
+            return err!(SystemProgramError::ProofIsNone);
+        }
+    } else if inputs.proof.is_some() {
+        return err!(SystemProgramError::ProofIsSome);
+    } else if inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+        && inputs.new_address_params.is_empty()
+        && inputs.output_compressed_accounts.is_empty()
+    {
+        return err!(SystemProgramError::EmptyInputs);
+    }
+    bench_sbf_end!("cpda_nullifiers");
+
     // Emit state transition event ---------------------------------------------------
     bench_sbf_start!("emit_state_transition_event");
     emit_state_transition_event(
@@ -281,10 +293,71 @@ pub fn process<
         &ctx,
         input_compressed_account_hashes,
         output_compressed_account_hashes,
-        output_leaf_indices,
+        output_compressed_account_indices,
         sequence_numbers,
     )?;
     bench_sbf_end!("emit_state_transition_event");
 
+    Ok(())
+}
+
+/// Network fee distribution:
+/// - if any account is created or modified -> transfer network fee (5000 lamports)
+/// (Previously we didn't charge for appends now we have to since values go into a queue.)
+/// - if an address is created -> transfer an additional network fee (5000 lamports)
+///
+/// Examples:
+/// 1. create account with address    network fee 10,000 lamports
+/// 2. token transfer                 network fee 5,000 lamports
+/// 3. mint token                     network fee 5,000 lamports
+#[inline(always)]
+fn transfer_network_fee<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+>(
+    ctx: &Context<'a, 'b, 'c, 'info, A>,
+    input_network_fee_bundle: Option<(u8, u64)>,
+    address_network_fee_bundle: Option<(u8, u64)>,
+    output_network_fee_bundle: Option<(u8, u64)>,
+) -> Result<()> {
+    if let Some(network_fee_bundle) = input_network_fee_bundle {
+        let address_fee = if let Some(network_fee_bundle) = address_network_fee_bundle {
+            let (_, network_fee) = network_fee_bundle;
+            network_fee
+        } else {
+            0
+        };
+        let (remaining_account_index, mut network_fee) = network_fee_bundle;
+        network_fee += address_fee;
+        transfer_lamports_cpi(
+            ctx.accounts.get_fee_payer(),
+            &ctx.remaining_accounts[remaining_account_index as usize],
+            network_fee,
+        )?;
+    } else if let Some(network_fee_bundle) = output_network_fee_bundle {
+        let address_fee = if let Some(network_fee_bundle) = address_network_fee_bundle {
+            let (_, network_fee) = network_fee_bundle;
+            network_fee
+        } else {
+            0
+        };
+        let (remaining_account_index, mut network_fee) = network_fee_bundle;
+        network_fee += address_fee;
+        transfer_lamports_cpi(
+            ctx.accounts.get_fee_payer(),
+            &ctx.remaining_accounts[remaining_account_index as usize],
+            network_fee,
+        )?;
+    } else if let Some(network_fee_bundle) = address_network_fee_bundle {
+        let (remaining_account_index, network_fee) = network_fee_bundle;
+        transfer_lamports_cpi(
+            ctx.accounts.get_fee_payer(),
+            &ctx.remaining_accounts[remaining_account_index as usize],
+            network_fee,
+        )?;
+    }
     Ok(())
 }

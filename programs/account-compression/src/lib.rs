@@ -10,7 +10,7 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
-use batched_merkle_tree::InstructionDataBatchUpdateProofInputs;
+use batched_merkle_tree::InstructionDataBatchNullifyInputs;
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -25,7 +25,7 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
-    use batched_merkle_tree::InstructionDataBatchAppendProofInputs;
+    use batched_merkle_tree::InstructionDataBatchAppendInputs;
     use errors::AccountCompressionErrorCode;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
@@ -64,7 +64,9 @@ pub mod account_compression {
         process_insert_into_queues::<AddressMerkleTreeAccount>(
             ctx,
             addresses.as_slice(),
+            Vec::new(),
             QueueType::AddressQueue,
+            None,
         )
     }
 
@@ -190,11 +192,15 @@ pub mod account_compression {
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         nullifiers: Vec<[u8; 32]>,
+        leaf_indices: Vec<u32>,
+        tx_hash: Option<[u8; 32]>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
             &nullifiers,
+            leaf_indices,
             QueueType::NullifierQueue,
+            tx_hash,
         )
     }
 
@@ -204,14 +210,13 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
-    pub fn batch_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BatchNullifyLeaves<'info>>,
+    pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        // TODO: replace error code
-        let instruction_data = InstructionDataBatchUpdateProofInputs::try_from_slice(&data)
-            .map_err(|_| ProgramError::Custom(1))?;
-        process_batch_nullify_leaves(&ctx, instruction_data)?;
+        let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_nullify(&ctx, instruction_data)?;
         Ok(())
     }
 
@@ -219,9 +224,8 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
         data: Vec<u8>,
     ) -> Result<()> {
-        // TODO: replace error code
-        let instruction_data = InstructionDataBatchAppendProofInputs::try_from_slice(&data)
-            .map_err(|_| ProgramError::Custom(1))?;
+        let instruction_data = InstructionDataBatchAppendInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_append_leaves(&ctx, instruction_data)?;
         Ok(())
     }

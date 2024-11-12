@@ -49,6 +49,7 @@ use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexe
 use light_verifier::VerifierError;
 use rand::Rng;
 use solana_sdk::system_instruction;
+use serial_test::serial;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
@@ -1655,8 +1656,8 @@ async fn test_approve_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -1763,7 +1764,7 @@ async fn test_approve_failing() {
         let invalid_proof = CompressedProof {
             a: [0; 32],
             b: [0; 64],
-            c: [0; 32],
+            c: [1; 32],
         };
 
         let inputs = CreateApproveInstructionInputs {
@@ -2080,8 +2081,8 @@ async fn test_revoke_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -2090,7 +2091,7 @@ async fn test_revoke_failing() {
 
     // 1. Invalid root indices.
     {
-        let invalid_root_indices = vec![0];
+        let invalid_root_indices = vec![Some(0)];
 
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
@@ -2837,8 +2838,8 @@ async fn test_failing_freeze() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -3126,8 +3127,8 @@ async fn test_failing_thaw() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -3674,8 +3675,8 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
     let (root_indices, proof) = if !input_compressed_account_hashes.is_empty() {
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 rpc,
@@ -3815,10 +3816,12 @@ async fn test_invalid_inputs() {
         .clone()];
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_accounts[0].hash().unwrap()]),
-            Some(&[input_compressed_accounts[0]
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_accounts[0].hash().unwrap()]),
+            Some(vec![
+                input_compressed_accounts[0]
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut rpc,
@@ -4057,7 +4060,8 @@ async fn test_invalid_inputs() {
     // Test 10: invalid root indices
     {
         let mut root_indices = proof_rpc_result.root_indices.clone();
-        root_indices[0] += 1;
+        let root_index = root_indices[0].as_mut().unwrap();
+        *root_index += 1;
         let res = perform_transfer_failing_test(
             &mut rpc,
             change_out_compressed_account_0,
@@ -4129,7 +4133,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
     payer: &Keypair,
     proof: &Option<CompressedProof>,
-    root_indices: &[u16],
+    root_indices: &[Option<u16>],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     invalid_mint: bool,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
@@ -4190,4 +4194,35 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         latest_blockhash,
     );
     rpc.process_transaction(transaction).await
+}
+
+#[serial]
+#[tokio::test]
+async fn mint_with_batched_tree() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.batched_output_queue;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    let num_recipients = 25;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount; num_recipients],
+        vec![sender.pubkey(); num_recipients],
+    )
+    .await;
 }

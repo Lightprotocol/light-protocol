@@ -4,12 +4,13 @@ use crate::assert_rollover::{
     assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
     assert_rolledover_queues_metadata,
 };
+use account_compression::batched_merkle_tree::BatchedMerkleTreeAccount;
 use account_compression::NullifierQueueConfig;
 use account_compression::{
     self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount,
     StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
-use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
+use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
 use forester_utils::{create_account_instruction, get_hash_set};
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
@@ -121,26 +122,34 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     lamports: u64,
 ) {
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    {
-        let merkle_tree_deserialized =
-            &mut ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
-                &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
-            )
-            .unwrap();
-        unsafe {
-            *merkle_tree_deserialized.next_index = next_index as usize;
+    let discriminator = merkle_tree.data[0..8].try_into().unwrap();
+    match discriminator {
+        StateMerkleTreeAccount::DISCRIMINATOR => {
+            {
+                let merkle_tree_deserialized =
+                    &mut ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+                        &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+                    )
+                    .unwrap();
+                unsafe {
+                    *merkle_tree_deserialized.next_index = next_index as usize;
+                }
+            }
+
+            let mut account_share_data = AccountSharedData::from(merkle_tree);
+            account_share_data.set_lamports(lamports);
+            rpc.set_account(merkle_tree_pubkey, &account_share_data);
+            let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+            let merkle_tree_deserialized =
+                ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+                    &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+                )
+                .unwrap();
+            assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
         }
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {}
+        _ => panic!("Invalid discriminator"),
     }
-    let mut account_share_data = AccountSharedData::from(merkle_tree);
-    account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
-    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    let merkle_tree_deserialized =
-        ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
-            &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
-        )
-        .unwrap();
-    assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
 }
 
 #[allow(clippy::too_many_arguments)]

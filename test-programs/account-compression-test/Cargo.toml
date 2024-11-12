@@ -50,3 +50,4 @@ serde_json = "1.0.114"
 solana-sdk = { workspace = true }
 thiserror = "1.0"
 memoffset = "0.9.1"
+serial_test = "3.1.1"

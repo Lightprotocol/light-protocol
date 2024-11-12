@@ -33,10 +33,11 @@ pub struct Batch {
     /// Sequence number when it is save to clear the batch without advancing to
     /// the saved root index.
     pub sequence_number: u64,
-    // TODO: don't zero out roots completely but just overwrite one non-zero
-    // byte to zero
     pub root_index: u32,
     pub start_index: u64,
+    /// Placeholder for forester to signal that the bloom filter is wiped
+    /// already.
+    pub bloom_filter_is_wiped: bool,
 }
 
 impl Batch {
@@ -59,6 +60,7 @@ impl Batch {
             sequence_number: 0,
             root_index: 0,
             start_index,
+            bloom_filter_is_wiped: false,
         }
     }
 
@@ -189,11 +191,12 @@ impl Batch {
 
     /// Inserts into the bloom filter and hashes the value.
     /// (used by nullifier queue)
-    pub fn check_non_inclusion(&mut self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
+    pub fn check_non_inclusion(&self, value: &[u8; 32], store: &mut [u8]) -> Result<()> {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;
         if bloom_filter.contains(value) {
+            #[cfg(target_os = "solana")]
             msg!("Value already exists in the bloom filter.");
             return err!(AccountCompressionErrorCode::BatchInsertFailed);
         }
@@ -236,10 +239,17 @@ impl Batch {
         self.batch_size as usize / self.zkp_batch_size as usize
     }
 
-    /// Check if the value is inserted in the merkle tree.
-    pub fn value_is_inserted_in_merkle_tree(&self, value_index: u64) -> bool {
-        let last_inserted_index = self.get_current_zkp_batch_index() * self.zkp_batch_size;
-        value_index >= last_inserted_index
+    pub fn value_is_inserted_in_batch(&self, leaf_index: u64) -> Result<bool> {
+        let max_batch_leaf_index =
+            self.get_num_zkp_batches() * self.zkp_batch_size + self.start_index;
+        let min_batch_leaf_index = self.start_index;
+        Ok(leaf_index < max_batch_leaf_index && leaf_index >= min_batch_leaf_index)
+    }
+
+    pub fn get_value_index_in_batch(&self, leaf_index: u64) -> Result<u64> {
+        Ok(leaf_index
+            .checked_sub(self.start_index)
+            .ok_or(AccountCompressionErrorCode::LeafIndexNotInBatch)?)
     }
 }
 
@@ -428,5 +438,48 @@ mod tests {
         assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
         batch.advance_state_to_inserted().unwrap();
         assert_eq!(batch.get_state(), BatchState::Inserted);
+    }
+
+    /// 1. Failing test lowest value in eligble range - 1
+    /// 2. Functional test lowest value in eligble range
+    /// 3. Functional test highest value in eligble range
+    /// 4. Failing test eligble range + 1
+    #[test]
+    fn test_value_is_inserted_in_batch() {
+        let mut batch = get_test_batch();
+        batch.advance_state_to_ready_to_update_tree().unwrap();
+        batch.advance_state_to_inserted().unwrap();
+        batch.start_index = 1;
+        let lowest_eligible_value = batch.start_index;
+        let highest_eligible_value =
+            batch.start_index + batch.get_num_zkp_batches() * batch.zkp_batch_size - 1;
+        // 1. Failing test lowest value in eligble range - 1
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(lowest_eligible_value - 1)
+                .unwrap(),
+            false
+        );
+        // 2. Functional test lowest value in eligble range
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(lowest_eligible_value)
+                .unwrap(),
+            true
+        );
+        // 3. Functional test highest value in eligble range
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(highest_eligible_value)
+                .unwrap(),
+            true
+        );
+        // 4. Failing test eligble range + 1
+        assert_eq!(
+            batch
+                .value_is_inserted_in_batch(highest_eligible_value + 1)
+                .unwrap(),
+            false
+        );
     }
 }
