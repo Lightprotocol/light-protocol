@@ -13,11 +13,21 @@ use crate::{
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
     inputs: InstructionDataInvoke,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    input_compressed_account_hashes: Vec<[u8; 32]>,
+    mut input_compressed_account_hashes: Vec<[u8; 32]>,
     output_compressed_account_hashes: Vec<[u8; 32]>,
     output_leaf_indices: Vec<u32>,
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
+    // Do not include read-only accounts in the event.
+    for (i, account) in inputs
+        .input_compressed_accounts_with_merkle_context
+        .iter()
+        .enumerate()
+    {
+        if account.read_only {
+            input_compressed_account_hashes.remove(i);
+        }
+    }
     // Note: message is unimplemented
     // (if we compute the tx hash in indexer we don't need to modify the event.)
     let event = PublicTransactionEvent {

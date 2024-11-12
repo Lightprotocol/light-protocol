@@ -63,7 +63,7 @@ pub fn process<
     }
     // Sum check ---------------------------------------------------
     bench_sbf_start!("cpda_sum_check");
-    sum_check(
+    let (num_read_only_input_accounts, num_prove_by_index_input_accounts) = sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
@@ -93,7 +93,7 @@ pub fn process<
 
     let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
         vec![None; num_input_compressed_accounts + num_new_addresses];
-    let mut output_leaf_indices = vec![0u32; num_output_compressed_accounts];
+    let mut output_compressed_account_indices = vec![0u32; num_output_compressed_accounts];
     let mut output_compressed_account_hashes = vec![[0u8; 32]; num_output_compressed_accounts];
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
@@ -101,13 +101,12 @@ pub fn process<
     let hashed_pubkeys_capacity =
         1 + ctx.remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
-    let mut num_prove_by_index_accounts: usize = 0;
 
     // Verify state and or address proof ---------------------------------------------------
 
     // Allocate heap memory here because roots are only used for proof verification.
     let mut new_address_roots = vec![[0u8; 32]; num_new_addresses];
-    let mut input_compressed_account_roots = Vec::with_capacity(num_input_compressed_accounts);
+
     // hash input compressed accounts ---------------------------------------------------
     bench_sbf_start!("cpda_hash_input_compressed_accounts");
     if !inputs
@@ -131,12 +130,6 @@ pub fn process<
             );
             return err!(SystemProgramError::InvalidCapacity);
         }
-
-        fetch_input_compressed_account_roots(
-            &inputs.input_compressed_accounts_with_merkle_context,
-            &ctx,
-            &mut input_compressed_account_roots,
-        )?;
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
@@ -149,6 +142,7 @@ pub fn process<
             ctx.remaining_accounts,
             &mut compressed_account_addresses,
             &mut new_addresses,
+            // TODO: add readonly addresses here
         )?;
         fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
 
@@ -173,7 +167,7 @@ pub fn process<
         let network_fee_bundle = insert_output_compressed_accounts_into_state_merkle_tree(
             &mut inputs.output_compressed_accounts,
             &ctx,
-            &mut output_leaf_indices,
+            &mut output_compressed_account_indices,
             &mut output_compressed_account_hashes,
             &mut compressed_account_addresses,
             &invoking_program,
@@ -204,33 +198,23 @@ pub fn process<
     // in certain cases we zero out roots in batched input queues.
     // These roots need to be zero prior to proof verification.
     bench_sbf_start!("cpda_nullifiers");
-    let input_network_fee_bundle = if !inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-    {
+    let input_network_fee_bundle = if num_input_compressed_accounts > num_read_only_input_accounts {
         // Access the current slot
         let current_slot = Clock::get()?.slot;
         let tx_hash = create_tx_hash(
+            &inputs.input_compressed_accounts_with_merkle_context,
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
         );
-        msg!("tx_hash {:?}", tx_hash);
-        msg!("current_slot {:?}", current_slot);
-
-        let leaf_indices: Vec<u32> = inputs
-            .input_compressed_accounts_with_merkle_context
-            .iter()
-            .map(|x| x.merkle_context.leaf_index)
-            .collect();
+        // Insert nullifiers for compressed input account hashes into nullifier
+        // queue except read-only accounts.
         insert_nullifiers(
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx,
             &input_compressed_account_hashes,
-            &leaf_indices,
             &invoking_program,
             tx_hash,
-            &mut num_prove_by_index_accounts,
         )?
     } else {
         None
@@ -244,18 +228,8 @@ pub fn process<
         address_network_fee_bundle,
         output_network_fee_bundle,
     )?;
-    let proof_input_input_compressed_account_hashes = input_compressed_account_hashes
-        .iter()
-        .enumerate()
-        .filter(|(x, _)| {
-            inputs.input_compressed_accounts_with_merkle_context[*x]
-                .merkle_context
-                .queue_index
-                .is_none()
-        })
-        .map(|x| *x.1)
-        .collect::<Vec<[u8; 32]>>();
-    if !proof_input_input_compressed_account_hashes.is_empty()
+
+    if num_prove_by_index_input_accounts < num_input_compressed_accounts
         || !inputs.new_address_params.is_empty()
     {
         bench_sbf_start!("cpda_verify_state_proof");
@@ -266,10 +240,17 @@ pub fn process<
                 b: proof.b,
                 c: proof.c,
             };
-
+            let mut input_compressed_account_roots =
+                Vec::with_capacity(num_input_compressed_accounts);
+            fetch_input_compressed_account_roots(
+                &inputs.input_compressed_accounts_with_merkle_context,
+                &ctx,
+                &mut input_compressed_account_roots,
+            )?;
             match verify_state_proof(
+                &inputs.input_compressed_accounts_with_merkle_context,
                 &input_compressed_account_roots,
-                &proof_input_input_compressed_account_hashes,
+                &input_compressed_account_hashes,
                 &new_address_roots,
                 &new_addresses,
                 &compressed_verifier_proof,
@@ -279,7 +260,7 @@ pub fn process<
                     msg!("proof  {:?}", proof);
                     msg!(
                         "input_compressed_account_hashes {:?}",
-                        proof_input_input_compressed_account_hashes
+                        input_compressed_account_hashes
                     );
                     msg!("input roots {:?}", input_compressed_account_roots);
                     msg!(
@@ -290,12 +271,6 @@ pub fn process<
                 }
             }?;
             bench_sbf_end!("cpda_verify_state_proof");
-        }
-        // Proof can be None if all input compressed accounts are proven by index.
-        else if num_prove_by_index_accounts
-            == inputs.input_compressed_accounts_with_merkle_context.len()
-        {
-            // Do nothing
         } else {
             return err!(SystemProgramError::ProofIsNone);
         }
@@ -318,7 +293,7 @@ pub fn process<
         &ctx,
         input_compressed_account_hashes,
         output_compressed_account_hashes,
-        output_leaf_indices,
+        output_compressed_account_indices,
         sequence_numbers,
     )?;
     bench_sbf_end!("emit_state_transition_event");
@@ -334,7 +309,7 @@ pub fn process<
 /// Examples:
 /// 1. create account with address    network fee 10,000 lamports
 /// 2. token transfer                 network fee 5,000 lamports
-/// 3. mint to                        network fee 5,000 lamports
+/// 3. mint token                     network fee 5,000 lamports
 #[inline(always)]
 fn transfer_network_fee<
     'a,

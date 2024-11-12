@@ -35,7 +35,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     indices: Vec<u32>,
     queue_type: QueueType,
     tx_hash: Option<[u8; 32]>,
-    check_proof_by_index: &Option<Vec<bool>>,
 ) -> Result<()> {
     if elements.is_empty() {
         return err!(AccountCompressionErrorCode::InputElementsEmpty);
@@ -71,9 +70,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
                 element,
                 indices[index],
                 ctx.remaining_accounts,
-                check_proof_by_index
-                    .as_ref()
-                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?[index],
             )?,
             _ => {
                 msg!(
@@ -173,21 +169,16 @@ fn process_queue_bundle_v2<'info>(
         .rollover_metadata
         .rollover_fee
         * queue_bundle.elements.len() as u64;
-    for ((element, leaf_index), checked) in queue_bundle
+    for (element, leaf_index) in queue_bundle
         .elements
         .iter()
         .zip(queue_bundle.indices.iter())
-        .zip(queue_bundle.checked.iter())
     {
         let tx_hash = tx_hash.ok_or(AccountCompressionErrorCode::TxHashUndefined)?;
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
         // check for every account whether the value is still in the queue and zero it out.
         // If checked fail if the value is not in the queue.
-        output_queue.prove_inclusion_by_index_and_zero_out_leaf(
-            *leaf_index as u64,
-            element,
-            *checked,
-        )?;
+        output_queue.prove_inclusion_by_index_and_zero_out_leaf(*leaf_index as u64, element)?;
         merkle_tree.insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
     }
@@ -235,7 +226,6 @@ fn add_queue_bundle_v2<'a, 'info>(
     element: &'a [u8; 32],
     index: u32,
     remaining_accounts: &'info [AccountInfo<'info>],
-    check_inserted: bool,
 ) -> Result<()> {
     // TODO: add address support
     if queue_type != QueueType::NullifierQueue {
@@ -253,7 +243,6 @@ fn add_queue_bundle_v2<'a, 'info>(
         .metadata
         .associated_merkle_tree;
 
-    // TODO: add failing test
     if merkle_tree.key() != associated_merkle_tree {
         msg!(
             "Queue account {:?} is not associated with Merkle tree {:?}",
@@ -270,9 +259,6 @@ fn add_queue_bundle_v2<'a, 'info>(
     queue_map
         .entry(merkle_tree.key())
         .and_modify(|x| x.indices.push(index));
-    queue_map
-        .entry(merkle_tree.key())
-        .and_modify(|x| x.checked.push(check_inserted));
     *remaining_accounts_index += 2;
 
     Ok(())

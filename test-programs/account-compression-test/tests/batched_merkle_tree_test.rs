@@ -18,7 +18,7 @@ use anchor_lang::prelude::AccountMeta;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::mock_batched_forester::{MockBatchedForester, MockTxEvent};
-use light_system_program::invoke::verify_state_proof::create_tx_hash;
+use light_system_program::invoke::verify_state_proof::create_tx_hash_offchain;
 use light_test_utils::test_env::NOOP_PROGRAM_ID;
 use light_test_utils::{assert_rpc_error, create_account_instruction, RpcConnection, RpcError};
 use light_test_utils::{rpc::ProgramTestRpcConnection, AccountZeroCopy};
@@ -633,18 +633,17 @@ pub async fn perform_insert_into_input_queue(
         *counter += 1;
     }
     let slot = context.get_slot().await.unwrap();
-    let tx_hash = create_tx_hash(&leaves, &vec![], slot);
+    let tx_hash = create_tx_hash_offchain(&leaves, &vec![], slot);
     mock_indexer.tx_events.push(MockTxEvent {
         tx_hash,
         inputs: leaves.clone(),
         outputs: vec![],
     });
-    let num_leaves = leaves.len();
+
     let instruction = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: leaves,
         leaf_indices,
         tx_hash: Some(tx_hash),
-        check_proof_by_index: Some(vec![false; num_leaves]),
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),

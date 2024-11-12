@@ -4,7 +4,7 @@ use light_macros::pubkey;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
 use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_system_program::invoke::verify_state_proof::create_tx_hash;
+use light_system_program::invoke::verify_state_proof::{create_tx_hash, create_tx_hash_offchain};
 use light_system_program::sdk::compressed_account::QueueIndex;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
@@ -965,7 +965,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         compressed_accounts: &mut Vec<CompressedAccountWithMerkleContext>,
     ) {
         if event.input_compressed_account_hashes.len() > i {
-            let tx_hash: [u8; 32] = create_tx_hash(
+            let tx_hash: [u8; 32] = create_tx_hash_offchain(
                 &event.input_compressed_account_hashes,
                 &event.output_compressed_account_hashes,
                 slot,

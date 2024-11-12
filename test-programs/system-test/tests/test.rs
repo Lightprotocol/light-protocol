@@ -894,8 +894,15 @@ async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
+    )
+    .await;
 
     let payer_pubkey = payer.pubkey();
 

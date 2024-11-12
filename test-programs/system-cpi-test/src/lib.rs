@@ -143,7 +143,6 @@ pub mod system_cpi_test {
             vec![[1u8; 32]],
             vec![],
             None,
-            None,
         )?;
 
         Ok(())

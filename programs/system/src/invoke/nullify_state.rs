@@ -25,10 +25,8 @@ pub fn insert_nullifiers<
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     nullifiers: &'a [[u8; 32]],
-    leaf_indices: &'a [u32],
     invoking_program: &Option<Pubkey>,
     tx_hash: [u8; 32],
-    num_prove_by_index_accounts: &mut usize,
 ) -> Result<Option<(u8, u64)>> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
@@ -49,7 +47,8 @@ pub fn insert_nullifiers<
         AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
-    let mut check_proof_by_index = Vec::new();
+
+    let mut leaf_indices = Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
     // If the transaction contains at least one input compressed account a
     // network fee is paid. This network fee is paid in addition to the address
     // network fee. The network fee is paid once per transaction, defined in the
@@ -58,12 +57,12 @@ pub fn insert_nullifiers<
     // used.
     let mut network_fee_bundle = None;
     for account in input_compressed_accounts_with_merkle_context.iter() {
-        if account.merkle_context.queue_index.is_some() {
-            *num_prove_by_index_accounts += 1;
-            check_proof_by_index.push(true);
-        } else {
-            check_proof_by_index.push(false);
+        // Don't nullify read-only accounts.
+        if account.read_only {
+            continue;
         }
+        leaf_indices.push(account.merkle_context.leaf_index);
+
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
         accounts.push(AccountMeta {
@@ -97,9 +96,8 @@ pub fn insert_nullifiers<
 
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: nullifiers.to_vec(),
-        leaf_indices: leaf_indices.to_vec(),
+        leaf_indices,
         tx_hash: Some(tx_hash),
-        check_proof_by_index: Some(check_proof_by_index),
     };
 
     let data = instruction_data.data();

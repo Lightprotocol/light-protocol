@@ -67,7 +67,6 @@ pub mod account_compression {
             Vec::new(),
             QueueType::AddressQueue,
             None,
-            &None,
         )
     }
 
@@ -195,7 +194,6 @@ pub mod account_compression {
         nullifiers: Vec<[u8; 32]>,
         leaf_indices: Vec<u32>,
         tx_hash: Option<[u8; 32]>,
-        check_proof_by_index: Option<Vec<bool>>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
@@ -203,7 +201,6 @@ pub mod account_compression {
             leaf_indices,
             QueueType::NullifierQueue,
             tx_hash,
-            &check_proof_by_index,
         )
     }
 

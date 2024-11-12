@@ -1009,7 +1009,7 @@ mod tests {
     #[tokio::test]
     async fn test_simulate_transactions() {
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![
@@ -1453,7 +1453,7 @@ mod tests {
     #[tokio::test]
     async fn test_e2e() {
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![
@@ -1946,7 +1946,7 @@ mod tests {
     #[tokio::test]
     async fn test_fill_queues_completely() {
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![
