@@ -1,8 +1,6 @@
-use std::{marker::PhantomData, time::Duration};
-
 use crate::{
-    indexer::Indexer,
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
+    indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext},
+    rpc::merkle_tree::MerkleTreeExt,
     transaction_params::FeeConfig,
 };
 use borsh::BorshDeserialize;
@@ -40,16 +38,45 @@ use num_traits::FromBytes;
 use photon_api::models::GetLatestCompressionSignaturesPostRequestParams;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
+use std::{marker::PhantomData, time::Duration};
 
 use super::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, IndexerError, MerkleProof,
-    NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle, TransactionInfo,
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, RpcRequirements, StateMerkleTreeAccounts,
+    StateMerkleTreeBundle, TransactionInfo,
 };
 
+/// Reference implementation of the Indexer interface that provides local in-memory state
+/// for program testing purposes that don't use a test-ledger.
+///
+/// For testing with a local test-validator or Devnet cluster, use the PhotonIndexer.
+///
+/// # Interface Implementation
+/// Implements the same interface as PhotonIndexer, providing methods like:
+/// - get_compressed_account(), get_compressed_accounts_by_owner() for account lookups
+/// - get_validity_proof() for transaction proof verification
+/// - add_event_and_compressed_accounts() to track state changes locally
+///
+/// # Example Usage
+/// ```rust,ignore
+/// let test_indexer = TestIndexer::<SolanaRpcConnection>::new(
+///     state_merkle_trees,
+///     address_merkle_trees,
+///     true,  // enable inclusion proofs
+///     true,  // enable non-inclusion proofs
+/// ).await;
+///
+/// // Compare against production indexer
+/// let test_result = test_indexer.get_compressed_accounts_by_owner(&owner);
+/// let prod_result = photon_indexer.get_compressed_accounts_by_owner(&owner);
+/// assert_eq!(test_result, prod_result);
+/// ```
+///
+/// # Type Parameters
+/// * `R` - RPC client implementing both RpcConnection and MerkleTreeExt traits
 #[derive(Debug)]
 pub struct TestIndexer<R>
 where
-    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
+    R: RpcRequirements + MerkleTreeExt,
 {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
@@ -58,13 +85,187 @@ where
     pub token_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
-    _rpc: PhantomData<R>,
+    _phantom: PhantomData<R>,
 }
 
-impl<R> Indexer<R> for TestIndexer<R>
+impl<R> TestIndexer<R>
 where
-    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
+    R: RpcRequirements + MerkleTreeExt,
 {
+    /// Creates a new TestIndexer instance with the given merkle tree accounts and proof settings
+    ///
+    /// # Arguments
+    /// * `state_merkle_tree_accounts` - State merkle tree account configurations
+    /// * `address_merkle_tree_accounts` - Address merkle tree account configurations  
+    /// * `inclusion` - Enable inclusion proof verification
+    /// * `non_inclusion` - Enable non-inclusion proof verification
+    pub async fn new(
+        state_merkle_tree_accounts: &[StateMerkleTreeAccounts],
+        address_merkle_tree_accounts: &[AddressMerkleTreeAccounts],
+        inclusion: bool,
+        non_inclusion: bool,
+    ) -> Self {
+        let state_merkle_trees = state_merkle_tree_accounts
+            .iter()
+            .map(|accounts| {
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
+                    STATE_MERKLE_TREE_HEIGHT,
+                    STATE_MERKLE_TREE_CANOPY_DEPTH,
+                ));
+                StateMerkleTreeBundle {
+                    accounts: *accounts,
+                    merkle_tree,
+                    rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let address_merkle_trees = address_merkle_tree_accounts
+            .iter()
+            .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
+            .collect::<Vec<_>>();
+
+        let mut prover_config = ProverConfig {
+            circuits: vec![],
+            run_mode: None,
+        };
+
+        if inclusion {
+            prover_config.circuits.push(ProofType::Inclusion);
+        }
+        if non_inclusion {
+            prover_config.circuits.push(ProofType::NonInclusion);
+        }
+
+        spawn_prover(true, prover_config).await;
+        health_check(20, 1).await;
+
+        Self {
+            state_merkle_trees,
+            address_merkle_trees,
+            compressed_accounts: Vec::new(),
+            nullified_compressed_accounts: Vec::new(),
+            token_compressed_accounts: Vec::new(),
+            token_nullified_compressed_accounts: Vec::new(),
+            events: Vec::new(),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Adds a new address merkle tree bundle with default configuration
+    pub fn add_address_merkle_tree_bundle(
+        accounts: &AddressMerkleTreeAccounts,
+    ) -> AddressMerkleTreeBundle {
+        let mut merkle_tree = Box::new(
+            IndexedMerkleTree::<Poseidon, usize>::new(
+                ADDRESS_MERKLE_TREE_HEIGHT,
+                ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+            )
+            .unwrap(),
+        );
+        merkle_tree.init().unwrap();
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
+        indexed_array.init().unwrap();
+        AddressMerkleTreeBundle {
+            merkle_tree,
+            indexed_array,
+            accounts: *accounts,
+            rollover_fee: FeeConfig::default().address_queue_rollover,
+        }
+    }
+
+    /// Processes inclusion proofs for the given accounts and merkle trees
+    /// Returns the proof inputs and root indices
+    async fn process_inclusion_proofs(
+        &self,
+        merkle_tree_pubkeys: &[Pubkey],
+        accounts: &[[u8; 32]],
+        rpc: &mut R,
+    ) -> (BatchInclusionJsonStruct, Vec<u16>) {
+        let mut inclusion_proofs = Vec::new();
+        let mut root_indices = Vec::new();
+
+        for (i, account) in accounts.iter().enumerate() {
+            let merkle_tree = &self
+                .state_merkle_trees
+                .iter()
+                .find(|x| x.accounts.merkle_tree == merkle_tree_pubkeys[i])
+                .unwrap()
+                .merkle_tree;
+            let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
+            let proof: Vec<[u8; 32]> = merkle_tree
+                .get_proof_of_leaf(leaf_index, true)
+                .unwrap()
+                .to_vec();
+
+            inclusion_proofs.push(InclusionMerkleProofInputs {
+                root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
+                leaf: BigInt::from_be_bytes(account),
+                path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
+                path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+            });
+
+            let onchain_merkle_tree = rpc
+                .get_state_merkle_tree(merkle_tree_pubkeys[i])
+                .await
+                .unwrap();
+
+            root_indices.push(onchain_merkle_tree.root_index() as u16);
+        }
+
+        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+        let batch_inclusion_proof_inputs =
+            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
+
+        (batch_inclusion_proof_inputs, root_indices)
+    }
+
+    async fn process_non_inclusion_proofs(
+        &self,
+        address_merkle_tree_pubkeys: &[Pubkey],
+        addresses: &[[u8; 32]],
+        rpc: &mut R,
+    ) -> (BatchNonInclusionJsonStruct, Vec<u16>) {
+        let mut non_inclusion_proofs = Vec::new();
+        let mut address_root_indices = Vec::new();
+        for (i, address) in addresses.iter().enumerate() {
+            let address_tree = &self
+                .address_merkle_trees
+                .iter()
+                .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
+                .unwrap();
+            let proof_inputs = get_non_inclusion_proof_inputs(
+                address,
+                &address_tree.merkle_tree,
+                &address_tree.indexed_array,
+            );
+            non_inclusion_proofs.push(proof_inputs);
+            let onchain_address_merkle_tree = rpc
+                .get_address_merkle_tree(address_merkle_tree_pubkeys[i])
+                .await
+                .unwrap();
+            address_root_indices.push(onchain_address_merkle_tree.root_index() as u16);
+        }
+
+        let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
+        let batch_non_inclusion_proof_inputs =
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &non_inclusion_proof_inputs,
+            );
+        (batch_non_inclusion_proof_inputs, address_root_indices)
+    }
+
+    pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
+        self.add_event_and_compressed_accounts(event);
+    }
+}
+
+impl<R> Indexer for TestIndexer<R>
+where
+    R: RpcRequirements + MerkleTreeExt,
+{
+    type Rpc = R;
+
     async fn get_multiple_compressed_account_proofs(
         &self,
         _hashes: Vec<String>,
@@ -87,6 +288,13 @@ where
         unimplemented!()
     }
 
+    /// Processes a transaction event and updates the indexer state with new compressed accounts
+    ///
+    /// # Arguments
+    /// * `event` - Transaction event containing input/output compressed accounts and merkle tree updates
+    ///
+    /// # Returns
+    /// Tuple of (new compressed accounts, new token accounts) created by this event
     fn add_event_and_compressed_accounts(
         &mut self,
         event: &PublicTransactionEvent,
@@ -234,12 +442,19 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
+    /// Gets validity proof for compressed accounts and/or new addresses
+    ///
+    /// # Arguments
+    /// * `compressed_accounts` - Optional list of compressed account hashes (len must be 1,2,3,4,8)
+    /// * `state_merkle_tree_pubkeys` - Corresponding merkle trees for compressed accounts
+    /// * `new_addresses` - Optional list of new addresses (len must be 1,2)
+    /// * `address_merkle_tree_pubkeys` - Corresponding merkle trees for new addresses
     async fn get_validity_proof(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
-        state_merkle_tree_pubkeys: Option<&[solana_sdk::pubkey::Pubkey]>,
+        state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: Option<Vec<solana_sdk::pubkey::Pubkey>>,
+        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
@@ -329,7 +544,10 @@ where
         panic!("Failed to get proof from server");
     }
 
-    /// Returns compressed accounts owned by the given `owner`.
+    /// Returns all compressed accounts owned by the given public key
+    ///
+    /// # Arguments
+    /// * `owner` - Public key of the account owner
     fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
@@ -341,6 +559,10 @@ where
             .collect()
     }
 
+    /// Retrieves a compressed account by its hash
+    ///
+    /// # Arguments
+    /// * `hash` - Base58 encoded hash of the compressed account
     async fn get_compressed_account(
         &self,
         _hash: String,
@@ -355,14 +577,26 @@ where
         unimplemented!()
     }
 
+    /// Gets the SOL balance of a compressed account
+    ///
+    /// # Arguments
+    /// * `hash` - Base58 encoded hash of the compressed account
     async fn get_compressed_account_balance(&self, _hash: String) -> Result<u64, IndexerError> {
         unimplemented!()
     }
 
+    /// Gets the total SOL balance of all compressed accounts owned by the given public key
+    ///
+    /// # Arguments
+    /// * `owner` - Public key of the account owner
     async fn get_compressed_balance_by_owner(&self, _owner: &Pubkey) -> Result<u64, IndexerError> {
         unimplemented!()
     }
 
+    /// Gets merkle proof for a compressed account
+    ///
+    /// # Arguments
+    /// * `hash` - Base58 encoded hash of the compressed account
     async fn get_compressed_account_proof(
         &self,
         _hash: String,
@@ -370,6 +604,10 @@ where
         unimplemented!()
     }
 
+    /// Gets latest compression signatures with optional pagination
+    ///
+    /// # Arguments
+    /// * `params` - Optional parameters for filtering and pagination
     async fn get_latest_compression_signatures(
         &self,
         _params: GetLatestCompressionSignaturesPostRequestParams,
@@ -389,180 +627,14 @@ where
         unimplemented!()
     }
 
+    /// Gets transaction info with compression details
+    ///
+    /// # Arguments
+    /// * `signature` - Base58 encoded transaction signature
     async fn get_transaction_with_compression_info(
         &self,
         _signature: String,
     ) -> Result<TransactionInfo, IndexerError> {
         unimplemented!()
-    }
-}
-
-impl<R> TestIndexer<R>
-where
-    R: RpcConnection + MerkleTreeExt + Send + Sync + 'static,
-{
-    pub async fn new(
-        state_merkle_tree_accounts: &[StateMerkleTreeAccounts],
-        address_merkle_tree_accounts: &[AddressMerkleTreeAccounts],
-        inclusion: bool,
-        non_inclusion: bool,
-    ) -> Self {
-        let state_merkle_trees = state_merkle_tree_accounts
-            .iter()
-            .map(|accounts| {
-                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                    STATE_MERKLE_TREE_HEIGHT,
-                    STATE_MERKLE_TREE_CANOPY_DEPTH,
-                ));
-                StateMerkleTreeBundle {
-                    accounts: *accounts,
-                    merkle_tree,
-                    rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let address_merkle_trees = address_merkle_tree_accounts
-            .iter()
-            .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
-            .collect::<Vec<_>>();
-
-        let mut prover_config = ProverConfig {
-            circuits: vec![],
-            run_mode: None,
-        };
-
-        if inclusion {
-            prover_config.circuits.push(ProofType::Inclusion);
-        }
-        if non_inclusion {
-            prover_config.circuits.push(ProofType::NonInclusion);
-        }
-
-        spawn_prover(true, prover_config).await;
-
-        health_check(20, 1).await;
-
-        Self {
-            state_merkle_trees,
-            address_merkle_trees,
-            compressed_accounts: Vec::new(),
-            nullified_compressed_accounts: Vec::new(),
-            token_compressed_accounts: Vec::new(),
-            token_nullified_compressed_accounts: Vec::new(),
-            events: Vec::new(),
-            _rpc: PhantomData,
-        }
-    }
-
-    pub fn add_address_merkle_tree_bundle(
-        accounts: &AddressMerkleTreeAccounts,
-        // TODO: add config here
-    ) -> AddressMerkleTreeBundle {
-        let mut merkle_tree = Box::new(
-            IndexedMerkleTree::<Poseidon, usize>::new(
-                ADDRESS_MERKLE_TREE_HEIGHT,
-                ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-            )
-            .unwrap(),
-        );
-        merkle_tree.init().unwrap();
-        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
-        indexed_array.init().unwrap();
-        AddressMerkleTreeBundle {
-            merkle_tree,
-            indexed_array,
-            accounts: *accounts,
-            rollover_fee: FeeConfig::default().address_queue_rollover,
-        }
-    }
-
-    async fn process_inclusion_proofs(
-        &self,
-        merkle_tree_pubkeys: &[Pubkey],
-        accounts: &[[u8; 32]],
-        rpc: &mut R,
-    ) -> (BatchInclusionJsonStruct, Vec<u16>) {
-        let mut inclusion_proofs = Vec::new();
-        let mut root_indices = Vec::new();
-
-        for (i, account) in accounts.iter().enumerate() {
-            let merkle_tree = &self
-                .state_merkle_trees
-                .iter()
-                .find(|x| x.accounts.merkle_tree == merkle_tree_pubkeys[i])
-                .unwrap()
-                .merkle_tree;
-            let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
-            let proof: Vec<[u8; 32]> = merkle_tree
-                .get_proof_of_leaf(leaf_index, true)
-                .unwrap()
-                .to_vec();
-
-            inclusion_proofs.push(InclusionMerkleProofInputs {
-                root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
-                leaf: BigInt::from_be_bytes(account),
-                path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
-                path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
-            });
-
-            let onchain_merkle_tree = rpc
-                .get_state_merkle_tree(merkle_tree_pubkeys[i])
-                .await
-                .unwrap();
-
-            root_indices.push(onchain_merkle_tree.root_index() as u16);
-        }
-
-        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
-        let batch_inclusion_proof_inputs =
-            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
-
-        (batch_inclusion_proof_inputs, root_indices)
-    }
-
-    async fn process_non_inclusion_proofs(
-        &self,
-        address_merkle_tree_pubkeys: &[Pubkey],
-        addresses: &[[u8; 32]],
-        rpc: &mut R,
-    ) -> (BatchNonInclusionJsonStruct, Vec<u16>) {
-        let mut non_inclusion_proofs = Vec::new();
-        let mut address_root_indices = Vec::new();
-        for (i, address) in addresses.iter().enumerate() {
-            let address_tree = &self
-                .address_merkle_trees
-                .iter()
-                .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
-                .unwrap();
-            let proof_inputs = get_non_inclusion_proof_inputs(
-                address,
-                &address_tree.merkle_tree,
-                &address_tree.indexed_array,
-            );
-            non_inclusion_proofs.push(proof_inputs);
-            let onchain_address_merkle_tree = rpc
-                .get_address_merkle_tree(address_merkle_tree_pubkeys[i])
-                .await
-                .unwrap();
-            address_root_indices.push(onchain_address_merkle_tree.root_index() as u16);
-        }
-
-        let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
-        let batch_non_inclusion_proof_inputs =
-            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                &non_inclusion_proof_inputs,
-            );
-        (batch_non_inclusion_proof_inputs, address_root_indices)
-    }
-
-    /// deserializes an event
-    /// adds the output_compressed_accounts to the compressed_accounts
-    /// removes the input_compressed_accounts from the compressed_accounts
-    /// adds the input_compressed_accounts to the nullified_compressed_accounts
-    /// deserialiazes token data from the output_compressed_accounts
-    /// adds the token_compressed_accounts to the token_compressed_accounts
-    pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
-        self.add_event_and_compressed_accounts(event);
     }
 }

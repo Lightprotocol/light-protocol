@@ -32,6 +32,9 @@ pub mod test_indexer;
 pub use photon_indexer::PhotonIndexer;
 pub use test_indexer::TestIndexer;
 
+pub trait RpcRequirements: RpcConnection + Send + Sync + 'static {}
+impl<T> RpcRequirements for T where T: RpcConnection + Send + Sync + 'static {}
+
 #[derive(Error, Debug)]
 pub enum IndexerError {
     #[error("RPC Error: {0}")]
@@ -45,12 +48,6 @@ pub enum IndexerError {
     #[error("unknown error")]
     Unknown,
 }
-
-// impl<T> From<PhotonError<T>> for IndexerError {
-//     fn from(error: PhotonError<T>) -> Self {
-//         IndexerError::Custom(format!("{:?}", error))
-//     }
-// }
 
 impl From<GetCompressedAccountsByOwnerPostError> for IndexerError {
     fn from(error: GetCompressedAccountsByOwnerPostError) -> Self {
@@ -103,7 +100,9 @@ impl From<photon_api::apis::Error<GetMultipleNewAddressProofsV2PostError>> for I
 /// Two implementations are provided:
 /// - PhotonIndexer: Production implementation using remote RPC
 /// - TestIndexer: Test implementation with local state management
-pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
+pub trait Indexer: Sync + Send + Debug + 'static {
+    type Rpc: RpcRequirements;
+
     // Core Account Operations
     fn get_compressed_accounts_by_owner(
         &self,
@@ -161,7 +160,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
+        rpc: &mut Self::Rpc,
     ) -> impl std::future::Future<Output = ProofRpcResult> + Send;
 
     // Transaction Operations
