@@ -22,6 +22,7 @@ pub mod state_tree_rollover;
 pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
+pub mod test_batch_forester;
 
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;

@@ -29,7 +29,7 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
-    pub root_indices: &'a [u16],
+    pub root_indices: &'a [Option<u16>],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub input_compressed_accounts: &'a [CompressedAccount],

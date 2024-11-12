@@ -1357,6 +1357,8 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
+        leaf_indices: Vec::new(),
+        tx_hash: None,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1401,6 +1403,8 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
+        leaf_indices: Vec::new(),
+        tx_hash: None,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),

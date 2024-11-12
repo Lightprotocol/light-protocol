@@ -4,9 +4,11 @@ use crate::{
     AccountZeroCopy,
 };
 use account_compression::{
-    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
-    QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
+    batched_merkle_tree::BatchedMerkleTreeAccount, AddressMerkleTreeAccount,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
+use anchor_lang::Discriminator;
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
 use num_traits::Zero;
@@ -148,21 +150,42 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree: Pubkey,
 ) -> bool {
-    let account = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree).await;
+    let account = rpc.get_account(merkle_tree).await.unwrap().unwrap();
     let rent_exemption = rpc
-        .get_minimum_balance_for_rent_exemption(account.account.data.len())
+        .get_minimum_balance_for_rent_exemption(account.data.len())
         .await
         .unwrap();
-    let tree_meta_data = account.deserialized().metadata;
-    let tree =
-        get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(rpc, merkle_tree)
-            .await;
+    let discriminator = account.data[0..8].try_into().unwrap();
+    let (next_index, tree_meta_data, height) = match discriminator {
+        StateMerkleTreeAccount::DISCRIMINATOR => {
+            let account = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree).await;
 
+            let tree_meta_data = account.deserialized().metadata;
+            let tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                rpc,
+                merkle_tree,
+            )
+            .await;
+            (tree.next_index(), tree_meta_data, 26)
+        }
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            let account = AccountZeroCopy::<BatchedMerkleTreeAccount>::new(rpc, merkle_tree).await;
+
+            let tree_meta_data = account.deserialized();
+
+            (
+                tree_meta_data.next_index as usize,
+                tree_meta_data.metadata,
+                tree_meta_data.height,
+            )
+        }
+        _ => panic!("Invalid discriminator"),
+    };
     // rollover threshold is reached
-    tree.next_index()
-        >= ((1 << tree.height) * tree_meta_data.rollover_metadata.rollover_threshold / 100) as usize
+
+    next_index>= ((1 << height) * tree_meta_data.rollover_metadata.rollover_threshold / 100) as usize
         // hash sufficient funds for rollover
-        && account.account.lamports >= rent_exemption * 2
+        && account.lamports >= rent_exemption * 2
         // has not been rolled over
         && tree_meta_data.rollover_metadata.rolledover_slot == u64::MAX
 }
