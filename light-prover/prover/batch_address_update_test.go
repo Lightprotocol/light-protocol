@@ -22,6 +22,17 @@ func TestAddressAppendHardcoded4_1(t *testing.T) {
 	assert.NoError(err)
 }
 
+func TestAddressAppendHardcoded4_2(t *testing.T) {
+	assert := test.NewAssert(t)
+
+	params := get_test_data_2_insert()
+	circuit := createAddressCircuit(&params)
+	witness := createAddressWitness(&params)
+
+	err := test.IsSolved(circuit, witness, ecc.BN254.ScalarField())
+	assert.NoError(err)
+}
+
 func createAddressCircuit(params *BatchAddressTreeAppendParameters) *BatchAddressTreeAppendCircuit {
 	if params == nil {
 		panic("params cannot be nil")
