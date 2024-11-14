@@ -1,4 +1,7 @@
-use std::cell::{Ref, RefCell, RefMut};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    io::Bytes,
+};
 
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
@@ -14,7 +17,7 @@ use light_indexed_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt, ToBigUint};
-use num_traits::{FromBytes, Num};
+use num_traits::{FromBytes, FromPrimitive, Num};
 use rand::thread_rng;
 use thiserror::Error;
 
@@ -699,8 +702,7 @@ pub fn functional_non_inclusion_test() {
 // cargo test -- --nocapture print_test_data
 #[test]
 pub fn print_test_data() {
-    let mut relayer_indexing_array =
-        IndexedArray::<Poseidon, usize>::default();
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(4, 0).unwrap();
@@ -731,13 +733,13 @@ pub fn print_test_data() {
         "indexed mt with one append {:?}",
         relayer_merkle_tree.root()
     );
-    let root_bn = BigUint::from_bytes_be(& relayer_merkle_tree.root());
+    let root_bn = BigUint::from_bytes_be(&relayer_merkle_tree.root());
     println!("indexed mt with one append {:?}", root_bn);
 
     let proof = relayer_merkle_tree.get_proof_of_leaf(2, true).unwrap();
-  
-    let leaf = relayer_merkle_tree.merkle_tree.leaf(2);
-    let leaf_bn =  BigUint::from_bytes_be(&leaf);
+
+    let leaf = relayer_merkle_tree.merkle_tree.get_leaf(2);
+    let leaf_bn = BigUint::from_bytes_be(&leaf);
     println!("(30) leaf_hash[2] = {:?}", leaf_bn);
 
     let subtrees = relayer_merkle_tree.merkle_tree.get_subtrees();
@@ -748,7 +750,7 @@ pub fn print_test_data() {
 
     let res = relayer_merkle_tree.merkle_tree.verify(&leaf, &proof, 2);
     println!("verify leaf 2 {:?}", res);
-    
+
     println!(
         "indexed array state element 0 {:?}",
         relayer_indexing_array.get(0).unwrap()
@@ -777,7 +779,7 @@ pub fn print_test_data() {
         "indexed mt with two appends {:?}",
         relayer_merkle_tree.root()
     );
-    let root_bn = BigUint::from_bytes_be(& relayer_merkle_tree.root());
+    let root_bn = BigUint::from_bytes_be(&relayer_merkle_tree.root());
     println!("indexed mt with two appends {:?}", root_bn);
 
     println!(
@@ -800,8 +802,8 @@ pub fn print_test_data() {
     let address3 = 12_u32.to_biguint().unwrap();
 
     let non_inclusion_proof = relayer_merkle_tree
-    .get_non_inclusion_proof(&address3, &relayer_indexing_array)
-    .unwrap();
+        .get_non_inclusion_proof(&address3, &relayer_indexing_array)
+        .unwrap();
 
     relayer_merkle_tree
         .append(&address3, &mut relayer_indexing_array)
@@ -811,7 +813,7 @@ pub fn print_test_data() {
         "indexed mt with three appends {:?}",
         relayer_merkle_tree.root()
     );
- let root_bn = BigUint::from_bytes_be(& relayer_merkle_tree.root());
+    let root_bn = BigUint::from_bytes_be(&relayer_merkle_tree.root());
     println!("indexed mt with three appends {:?}", root_bn);
 
     println!("non inclusion proof address 3 {:?}", non_inclusion_proof);
@@ -898,6 +900,234 @@ pub fn print_test_data() {
     //     .unwrap();
 }
 
+#[test]
+pub fn print_circuit_test_data_batch_1() {
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
+    relayer_indexing_array.init().unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(4, 0).unwrap();
+    relayer_merkle_tree.init().unwrap();
+    let root = relayer_merkle_tree.root();
+    let root_bn = BigUint::from_bytes_be(&root);
+    println!("root {:?}", root_bn);
+    println!("indexed mt inited root {:?}", relayer_merkle_tree.root());
+
+    let address1 = 30_u32.to_biguint().unwrap();
+
+    let test_address: BigUint = BigUint::from_bytes_be(&[
+        171, 159, 63, 33, 62, 94, 156, 27, 61, 216, 203, 164, 91, 229, 110, 16, 230, 124, 129, 133,
+        222, 159, 99, 235, 50, 181, 94, 203, 105, 23, 82,
+    ]);
+
+    let non_inclusion_proof_0 = relayer_merkle_tree
+        .get_non_inclusion_proof(&test_address, &relayer_indexing_array)
+        .unwrap();
+    relayer_merkle_tree
+        .verify_non_inclusion_proof(&non_inclusion_proof_0)
+        .unwrap();
+
+    // println!("non inclusion proof init {:?}", non_inclusion_proof_0);
+    println!(
+        "OldRoot: {:?}",
+        BigUint::from_bytes_be(&non_inclusion_proof_0.root)
+    );
+    println!(
+        "LowElement value {:?}",
+        BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_lower_range_value)
+    );
+    println!(
+        "LowElementIndex {:?}",
+        BigUint::from_usize(non_inclusion_proof_0.leaf_index)
+    );
+    println!(
+        "LowElementNextIndex {:?}",
+        BigUint::from_usize(non_inclusion_proof_0.next_index)
+    );
+    println!(
+        "LowElementNextValue {:?}",
+        BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_higher_range_value)
+    );
+
+    relayer_merkle_tree
+        .append(&address1, &mut relayer_indexing_array)
+        .unwrap();
+
+    println!(
+        "NewRoot {:?}",
+        BigUint::from_bytes_be(&relayer_merkle_tree.root())
+    );
+
+    let proof = relayer_merkle_tree.get_proof_of_leaf(0, true).unwrap();
+    println!(
+        "LowElementProof {:?}",
+        proof
+            .to_vec()
+            .to_vec()
+            .iter()
+            .map(|x| BigUint::from_bytes_be(x))
+            .collect::<Vec<_>>()
+    );
+
+    let proof = relayer_merkle_tree.get_proof_of_leaf(2, true).unwrap();
+    println!(
+        "NewElementProof {:?}",
+        proof
+            .to_vec()
+            .iter()
+            .map(|x| BigUint::from_bytes_be(x))
+            .collect::<Vec<_>>()
+    );
+
+    println!("start index {:?}", 2);
+    println!("hashchain hash {:?}", test_address);
+    println!("tree height {}", relayer_merkle_tree.merkle_tree.height)
+}
+
+#[test]
+pub fn print_circuit_test_data_batch_2() {
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
+    relayer_indexing_array.init().unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(4, 0).unwrap();
+    relayer_merkle_tree.init().unwrap();
+    let root = relayer_merkle_tree.root();
+    let root_bn = BigUint::from_bytes_be(&root);
+    println!("root {:?}", root_bn);
+    println!("indexed mt inited root {:?}", relayer_merkle_tree.root());
+
+    // let address1 = 30_u32.to_biguint().unwrap();
+    let test_address_1: BigUint = 31_u32.to_biguint().unwrap();
+    let test_address_2: BigUint = 30_u32.to_biguint().unwrap();
+    let old_root = relayer_merkle_tree.root();
+    {
+        let non_inclusion_proof_0 = relayer_merkle_tree
+            .get_non_inclusion_proof(&test_address_1, &relayer_indexing_array)
+            .unwrap();
+        relayer_merkle_tree
+            .verify_non_inclusion_proof(&non_inclusion_proof_0)
+            .unwrap();
+
+        println!(
+            "OldRoot: {:?}",
+            BigUint::from_bytes_be(&non_inclusion_proof_0.root)
+        );
+        println!(
+            "LowElement value {:?}",
+            BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_lower_range_value)
+        );
+        println!(
+            "LowElementIndex {:?}",
+            BigUint::from_usize(non_inclusion_proof_0.leaf_index)
+        );
+        println!(
+            "LowElementNextIndex {:?}",
+            BigUint::from_usize(non_inclusion_proof_0.next_index)
+        );
+        println!(
+            "LowElementNextValue {:?}",
+            BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_higher_range_value)
+        );
+
+        relayer_merkle_tree
+            .append(&test_address_1, &mut relayer_indexing_array)
+            .unwrap();
+
+        let proof = relayer_merkle_tree.get_proof_of_leaf(0, true).unwrap();
+        println!(
+            "LowElementProof {:?}",
+            proof
+                .to_vec()
+                .to_vec()
+                .iter()
+                .map(|x| BigUint::from_bytes_be(x))
+                .collect::<Vec<_>>()
+        );
+
+        let proof = relayer_merkle_tree.get_proof_of_leaf(2, true).unwrap();
+        println!(
+            "NewElementProof {:?}",
+            proof
+                .to_vec()
+                .iter()
+                .map(|x| BigUint::from_bytes_be(x))
+                .collect::<Vec<_>>()
+        );
+    }
+    {
+        let non_inclusion_proof_0 = relayer_merkle_tree
+            .get_non_inclusion_proof(&test_address_2, &relayer_indexing_array)
+            .unwrap();
+        relayer_merkle_tree
+            .verify_non_inclusion_proof(&non_inclusion_proof_0)
+            .unwrap();
+
+        println!(
+            "LowElement value {:?}",
+            BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_lower_range_value)
+        );
+        println!(
+            "LowElementIndex {:?}",
+            BigUint::from_usize(non_inclusion_proof_0.leaf_index)
+        );
+        println!(
+            "LowElementNextIndex {:?}",
+            BigUint::from_usize(non_inclusion_proof_0.next_index)
+        );
+        println!(
+            "LowElementNextValue {:?}",
+            BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_higher_range_value)
+        );
+        relayer_merkle_tree
+            .append(&test_address_2, &mut relayer_indexing_array)
+            .unwrap();
+
+        println!(
+            "NewRoot {:?}",
+            BigUint::from_bytes_be(&relayer_merkle_tree.root())
+        );
+
+        let proof = relayer_merkle_tree.get_proof_of_leaf(0, true).unwrap();
+        println!(
+            "LowElementProof {:?}",
+            proof
+                .to_vec()
+                .to_vec()
+                .iter()
+                .map(|x| BigUint::from_bytes_be(x))
+                .collect::<Vec<_>>()
+        );
+
+        let proof = relayer_merkle_tree.get_proof_of_leaf(3, true).unwrap();
+        println!(
+            "NewElementProof {:?}",
+            proof
+                .to_vec()
+                .iter()
+                .map(|x| BigUint::from_bytes_be(x))
+                .collect::<Vec<_>>()
+        );
+    }
+    let hashchain_hash = Poseidon::hashv(
+        &[
+            &bigint_to_be_bytes_array::<32>(&test_address_1).unwrap()[..],
+            &bigint_to_be_bytes_array::<32>(&test_address_2).unwrap()[..],
+        ][..],
+    )
+    .unwrap();
+    println!("hashchain {:?}", BigUint::from_bytes_be(&hashchain_hash));
+    println!("tree height {}", relayer_merkle_tree.merkle_tree.height);
+    let new_root = relayer_merkle_tree.root();
+    let public_input_hash = Poseidon::hashv(&[
+        old_root.as_slice(),
+        new_root.as_slice(),
+        hashchain_hash.as_slice(),
+        &bigint_to_be_bytes_array::<32>(&2.to_biguint().unwrap()).unwrap()[..],
+    ]);
+    println!(
+        "public_input_hash {:?}",
+        BigUint::from_bytes_be(&hashchain_hash)
+    );
+}
 /// Performs conflicting Merkle tree updates where:
 ///
 /// 1. Party one inserts 30.

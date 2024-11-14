@@ -1,9 +1,10 @@
 package prover
 
 import (
-	merkletree "light/light-prover/merkle-tree"
 	"light/light-prover/prover/poseidon"
 	"math/big"
+
+	merkletree "light/light-prover/merkle-tree"
 
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
@@ -22,19 +23,15 @@ type BatchAddressTreeAppendCircuit struct {
 	StartIndex    frontend.Variable `gnark:",private"`
 
 	// Element values and linking information
-	LowElementValues         []frontend.Variable   `gnark:",private"`
-	OldLowElementNextIndices []frontend.Variable   `gnark:",private"`
-	OldLowElementNextValues  []frontend.Variable   `gnark:",private"`
-	LowElementNextIndices    []frontend.Variable   `gnark:",private"`
-	LowElementNextValues     []frontend.Variable   `gnark:",private"`
-	LowElementPathIndices    []frontend.Variable   `gnark:",private"`
-	LowElementProofs         [][]frontend.Variable `gnark:",private"`
+	LowElementValues      []frontend.Variable   `gnark:",private"`
+	LowElementNextIndices []frontend.Variable   `gnark:",private"`
+	LowElementNextValues  []frontend.Variable   `gnark:",private"`
+	LowElementIndices     []frontend.Variable   `gnark:",private"`
+	LowElementProofs      [][]frontend.Variable `gnark:",private"`
 
 	// New elements being inserted
-	NewElementValues      []frontend.Variable   `gnark:",private"`
-	NewElementNextValues  []frontend.Variable   `gnark:",private"`
-	NewElementNextIndices []frontend.Variable   `gnark:",private"`
-	NewElementProofs      [][]frontend.Variable `gnark:",private"`
+	NewElementValues []frontend.Variable   `gnark:",private"`
+	NewElementProofs [][]frontend.Variable `gnark:",private"`
 
 	// Circuit configuration
 	BatchSize  uint32
@@ -43,41 +40,28 @@ type BatchAddressTreeAppendCircuit struct {
 
 // Define implements the circuit's constraints and verification logic
 func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
-	var leafHashes []frontend.Variable
 	currentRoot := circuit.OldRoot
 
 	startIndexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
 	// Process each element in the batch
 	for i := uint32(0); i < circuit.BatchSize; i++ {
 		// Verify value ordering and proper linking between elements
-		abstractor.Call(api, LeafHashGadget{
+		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
 			LeafLowerRangeValue:  circuit.LowElementValues[i],
-			NextIndex:            circuit.OldLowElementNextIndices[i],
-			LeafHigherRangeValue: circuit.OldLowElementNextValues[i],
+			NextIndex:            circuit.LowElementNextIndices[i],
+			LeafHigherRangeValue: circuit.LowElementNextValues[i],
 			Value:                circuit.NewElementValues[i],
 		})
-
-		// Calculate hashes for current batch element
-		oldLowLeafHash := abstractor.Call(api, poseidon.Poseidon3{
-			In1: circuit.LowElementValues[i],
-			In2: circuit.OldLowElementNextIndices[i],
-			In3: circuit.OldLowElementNextValues[i],
-		})
-
+		newLowLeafNextIndex := api.Add(circuit.StartIndex, i)
+		// low leaf value stays the same
+		// next index is new value index = newLowLeafNextIndex
+		// next value is new value
 		lowLeafHash := abstractor.Call(api, poseidon.Poseidon3{
-			In1: circuit.LowElementNextValues[i],
-			In2: circuit.LowElementNextIndices[i],
+			In1: circuit.LowElementValues[i],
+			In2: newLowLeafNextIndex,
 			In3: circuit.NewElementValues[i],
 		})
-		leafHashes = append(leafHashes, lowLeafHash)
-
-		newLeafHash := abstractor.Call(api, poseidon.Poseidon3{
-			In1: circuit.NewElementValues[i],
-			In2: circuit.NewElementNextIndices[i],
-			In3: circuit.NewElementNextValues[i],
-		})
-		leafHashes = append(leafHashes, newLeafHash)
-		pathIndexBits := api.ToBinary(circuit.LowElementPathIndices[i], int(circuit.TreeHeight))
+		pathIndexBits := api.ToBinary(circuit.LowElementIndices[i], int(circuit.TreeHeight))
 
 		// Update Merkle root for both low and new elements
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
@@ -87,6 +71,14 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			PathIndex:   pathIndexBits,
 			MerkleProof: circuit.LowElementProofs[i],
 			Height:      int(circuit.TreeHeight),
+		})
+		// value = new value
+		// next value is low leaf next value
+		// next index is new value next index
+		newLeafHash := abstractor.Call(api, poseidon.Poseidon3{
+			In1: circuit.NewElementValues[i],
+			In2: circuit.LowElementNextIndices[i],
+			In3: circuit.LowElementNextValues[i],
 		})
 
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
@@ -104,11 +96,11 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	}
 
 	// Verify the final root matches
-	api.AssertIsEqual(currentRoot, circuit.NewRoot)
+	api.AssertIsEqual(circuit.NewRoot, currentRoot)
 
 	// Calculate and verify leaf hash chain
-	leavesHashChain := createHashChain(api, len(leafHashes), leafHashes)
-	api.AssertIsEqual(leavesHashChain, circuit.HashchainHash)
+	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.NewElementValues)
+	api.AssertIsEqual(circuit.HashchainHash, leavesHashChain)
 
 	// Verify public input hash
 	publicInputsHashChain := circuit.computePublicInputHash(api)
@@ -131,15 +123,18 @@ func (circuit *BatchAddressTreeAppendCircuit) computePublicInputHash(api fronten
 // BatchAddressTreeAppendParameters holds the parameters needed for batch address updates
 type BatchAddressTreeAppendParameters struct {
 	PublicInputHash *big.Int
-	OldRoot         frontend.Variable
-	NewRoot         frontend.Variable
+	OldRoot         *big.Int
+	NewRoot         *big.Int
 	HashchainHash   *big.Int
 	StartIndex      uint32
 
 	// Elements being modified or added
-	OldLowElements []merkletree.IndexedElement
-	LowElements    []merkletree.IndexedElement
-	NewElements    []merkletree.IndexedElement
+	LowElementValues      []big.Int
+	LowElementIndices     []big.Int
+	LowElementNextIndices []big.Int
+	LowElementNextValues  []big.Int
+
+	NewElementValues []big.Int
 
 	// Merkle proofs for verification
 	LowElementProofs [][]big.Int

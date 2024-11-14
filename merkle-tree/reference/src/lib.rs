@@ -253,8 +253,6 @@ where
             };
 
             computed_hash = H::hashv(&hashes)?;
-            let computed_hash_bn = num_bigint::BigUint::from_bytes_be(&computed_hash);
-            println!("computed_hash[{}] = {:?}", current_index, computed_hash_bn);
             // Move to the parent index for the next iteration
             current_index /= 2;
         }

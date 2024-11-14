@@ -16,6 +16,10 @@ use crate::{
 
 #[derive(Debug, Error)]
 pub enum IndexedReferenceMerkleTreeError {
+    #[error("NonInclusionProofFailedLowerBoundViolated")]
+    NonInclusionProofFailedLowerBoundViolated,
+    #[error("NonInclusionProofFailedHigherBoundViolated")]
+    NonInclusionProofFailedHigherBoundViolated,
     #[error(transparent)]
     Indexed(#[from] IndexedMerkleTreeError),
     #[error(transparent)]
@@ -162,13 +166,24 @@ where
         &self,
         proof: &NonInclusionProof,
     ) -> Result<(), IndexedReferenceMerkleTreeError> {
+        let value_big_int = BigUint::from_bytes_be(&proof.value);
+        let lower_end_value = BigUint::from_bytes_be(&proof.leaf_lower_range_value);
+        if lower_end_value >= value_big_int {
+            return Err(IndexedReferenceMerkleTreeError::NonInclusionProofFailedLowerBoundViolated);
+        }
+        let higher_end_value = BigUint::from_bytes_be(&proof.leaf_higher_range_value);
+        if higher_end_value <= value_big_int {
+            return Err(
+                IndexedReferenceMerkleTreeError::NonInclusionProofFailedHigherBoundViolated,
+            );
+        }
+
         let array_element = IndexedElement::<usize> {
-            value: BigUint::from_bytes_be(&proof.value),
+            value: lower_end_value,
             index: proof.leaf_index,
             next_index: proof.next_index,
         };
-        let leaf_hash =
-            array_element.hash::<H>(&BigUint::from_bytes_be(&proof.leaf_higher_range_value))?;
+        let leaf_hash = array_element.hash::<H>(&higher_end_value)?;
         self.merkle_tree
             .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)
             .unwrap();
