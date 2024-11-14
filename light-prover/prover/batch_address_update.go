@@ -46,6 +46,7 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	var leafHashes []frontend.Variable
 	currentRoot := circuit.OldRoot
 
+	startIndexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
 	// Process each element in the batch
 	for i := uint32(0); i < circuit.BatchSize; i++ {
 		// Verify value ordering and proper linking between elements
@@ -76,13 +77,14 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			In3: circuit.NewElementNextValues[i],
 		})
 		leafHashes = append(leafHashes, newLeafHash)
+		pathIndexBits := api.ToBinary(circuit.LowElementPathIndices[i], int(circuit.TreeHeight))
 
 		// Update Merkle root for both low and new elements
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     oldLowLeafHash,
 			NewLeaf:     lowLeafHash,
-			PathIndex:   circuit.LowElementPathIndices[i],
+			PathIndex:   pathIndexBits,
 			MerkleProof: circuit.LowElementProofs[i],
 			Height:      int(circuit.TreeHeight),
 		})
@@ -91,10 +93,14 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
 			NewLeaf:     newLeafHash,
-			PathIndex:   circuit.LowElementNextIndices[i],
+			PathIndex:   startIndexBits,
 			MerkleProof: circuit.NewElementProofs[i],
 			Height:      int(circuit.TreeHeight),
 		})
+		startIndexBits = incrementBits(
+			api,
+			startIndexBits,
+		)
 	}
 
 	// Verify the final root matches

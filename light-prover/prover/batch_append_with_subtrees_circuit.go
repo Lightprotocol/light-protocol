@@ -178,7 +178,7 @@ func incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variab
 }
 
 func (circuit *BatchAppendWithSubtreesCircuit) getZeroValue(level int) frontend.Variable {
-	return frontend.Variable(new(big.Int).SetBytes(ZERO_BYTES[level][:]))
+	return frontend.Variable(new(big.Int).SetBytes(merkletree.ZERO_BYTES[level][:]))
 }
 
 type BatchAppendParameters struct {

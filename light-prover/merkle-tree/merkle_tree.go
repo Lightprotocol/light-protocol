@@ -99,7 +99,7 @@ func (tree *PoseidonTree) Update(index int, value big.Int) []big.Int {
 }
 
 func (tree *PoseidonTree) GetProofByIndex(index int) []big.Int {
-	proof := make([]big.Int, tree.Root.depth())
+	proof := make([]big.Int, tree.Root.Depth())
 	tree.Root.writeProof(index, proof)
 	return proof
 }
