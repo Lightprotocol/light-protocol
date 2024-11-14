@@ -2,9 +2,7 @@ use clap::Parser;
 use forester::cli::{Cli, Commands};
 use forester::errors::ForesterError;
 use forester::metrics::register_metrics;
-// use forester::photon_indexer::PhotonIndexer;
-use light_client::indexer::PhotonIndexer;
-use light_client::indexer::Indexer;
+use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::{forester_status, run_pipeline, ForesterConfig};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
@@ -50,11 +48,6 @@ async fn main() -> Result<(), ForesterError> {
                 config.external_services.photon_api_key.clone(),
                 indexer_rpc,
             )));
-            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-            //     config.external_services.indexer_url.clone().unwrap(),
-            //     config.external_services.photon_api_key.clone(),
-            //     indexer_rpc,
-            // )));
 
             run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
         }
