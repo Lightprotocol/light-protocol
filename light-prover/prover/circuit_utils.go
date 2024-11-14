@@ -183,9 +183,12 @@ type MerkleRootGadget struct {
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
 	currentHash := gadget.Hash
-	currentPath := api.ToBinary(gadget.Index, gadget.Height)
 	for i := 0; i < gadget.Height; i++ {
-		currentHash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: currentHash, Sibling: gadget.Path[i]})
+		currentHash = abstractor.Call(api, ProveParentHash{
+			Bit:     gadget.Index[i],
+			Hash:    currentHash,
+			Sibling: gadget.Path[i],
+		})
 	}
 	return currentHash
 }

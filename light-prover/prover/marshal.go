@@ -22,7 +22,6 @@ func fromHex(i *big.Int, s string) error {
 	return nil
 }
 func fromBase10(i *big.Int, s string) error {
-	fmt.Println("from base 10 ", s)
 	_, ok := i.SetString(s, 10)
 	if !ok {
 		return fmt.Errorf("invalid number: %s", s)

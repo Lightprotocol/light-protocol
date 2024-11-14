@@ -72,8 +72,8 @@ func createAddressWitness(params *BatchAddressTreeAppendParameters) *BatchAddres
 	witness := createAddressCircuit(params)
 
 	witness.PublicInputHash = frontend.Variable(params.PublicInputHash)
-	witness.OldRoot = params.OldRoot
-	witness.NewRoot = params.NewRoot
+	witness.OldRoot = frontend.Variable(params.OldRoot)
+	witness.NewRoot = frontend.Variable(params.NewRoot)
 	witness.HashchainHash = frontend.Variable(params.HashchainHash)
 	witness.StartIndex = frontend.Variable(params.StartIndex)
 	fmt.Println("createAddressWitness params.BatchSize ", params.BatchSize)
@@ -84,13 +84,9 @@ func createAddressWitness(params *BatchAddressTreeAppendParameters) *BatchAddres
 		witness.LowElementNextValues[i] = frontend.Variable(params.LowElementNextValues[i])
 
 		witness.NewElementValues[i] = frontend.Variable(params.NewElementValues[i])
-		witness.LowElementProofs[i] = make([]frontend.Variable, len(params.LowElementProofs[i]))
-		witness.NewElementProofs[i] = make([]frontend.Variable, len(params.NewElementProofs[i]))
 
-		for j := 0; j < len(params.LowElementProofs[i]); j++ {
+		for j := uint32(0); j < params.TreeHeight; j++ {
 			witness.LowElementProofs[i][j] = frontend.Variable(params.LowElementProofs[i][j])
-		}
-		for j := 0; j < len(params.NewElementProofs[i]); j++ {
 			witness.NewElementProofs[i][j] = frontend.Variable(params.NewElementProofs[i][j])
 		}
 
@@ -118,19 +114,19 @@ type JsonBatchAddressTreeAppendParameters struct {
 
 func get_test_data_1_insert() BatchAddressTreeAppendParameters {
 	jsonData := `{
-		"PublicInputHash": "4088321652280896297689618452575487697996974475167705659475507189280537614421",
+		"PublicInputHash": "636798750499118125492639857559342304110421620753013517995729792767289738238",
 		"OldRoot": "4088321652280896297689618452575487697996974475167705659475507189280537614421",
 		"NewRoot": "9360296153682585144477573401014216227476090504161963538926993860213587505773",
-		"HashchainHash": "303229927723846428264111808645197890460298805508752674790354860916280465234",
+		"HashchainHash": "30",
 		"StartIndex": 2,
 		"LowElementValues": ["0"],
 		"LowElementIndices": ["0"],
 		"LowElementNextIndices": ["1"],
 		"LowElementNextValues": ["452312848583266388373324160190187140051835877600158453279131187530910662655"],
-		"NewElementValues": ["0"],
+		"NewElementValues": ["30"],
 		"LowElementProofs": [
 			["13859306649965657812382249699983066845935552967038026417581136538215435035637", 
-			"15723694721673876141054887912220565198608814743306664888649577252769766605905", 
+			"14744269619966411208579211824598458697587494354926760081771325075741142829156", 
 			"7423237065226347324353380772367382631490014989348495481811164164159255474657", 
 			"11286972368698509976183087595462810875513684078608517520839298933882497716792"]
 		],
@@ -175,11 +171,11 @@ func get_test_data_1_insert() BatchAddressTreeAppendParameters {
 
 func get_test_data_2_insert() BatchAddressTreeAppendParameters {
 	jsonData := `{
-	"publicInputHash": "13832493800585898166114088680240082093515072733861191400485854249726904407056",
+	"publicInputHash": "1403572307386503039346238276855266353384715296309161920440230822038749882432",
 	"oldRoot": "4088321652280896297689618452575487697996974475167705659475507189280537614421",
 	"newRoot": "19171761698158463304851719404211649373247489649232357264671218893697063910840",
 	"hashchainHash": "13832493800585898166114088680240082093515072733861191400485854249726904407056",
-	"startIndex": 0,
+	"startIndex": 2,
 	"lowElementValues": ["0", "0"],
 	"lowElementIndices": ["0", "0"],
 	"lowElementNextIndices": ["1", "2"],
@@ -187,11 +183,11 @@ func get_test_data_2_insert() BatchAddressTreeAppendParameters {
 	  "452312848583266388373324160190187140051835877600158453279131187530910662655",
 	  "31"
 	],
-	"newElementValues": ["0", "18759147822983135752235477210489921219029732284985839751594385139872277119211"],
+	"newElementValues": ["31", "30"],
 	"lowElementProofs": [
 	  [
 		"13859306649965657812382249699983066845935552967038026417581136538215435035637",
-		"3796870957066466565085934353165460010672460214992313636808730505094443732049",
+		"14744269619966411208579211824598458697587494354926760081771325075741142829156",
 		"7423237065226347324353380772367382631490014989348495481811164164159255474657",
 		"11286972368698509976183087595462810875513684078608517520839298933882497716792"
 	  ],

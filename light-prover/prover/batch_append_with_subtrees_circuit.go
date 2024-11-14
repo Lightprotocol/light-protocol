@@ -43,20 +43,20 @@ func (circuit *BatchAppendWithSubtreesCircuit) Define(api frontend.API) error {
 	hashChainInputs[3] = circuit.HashchainHash
 	hashChainInputs[4] = circuit.StartIndex
 
-	publicInputsHashChain := createHashChain(api, int(5), hashChainInputs)
+	publicInputsHashChain := createHashChain(api, hashChainInputs)
 
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
-	oldSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
+	oldSubtreesHashChain := createHashChain(api, circuit.Subtrees)
 	api.AssertIsEqual(oldSubtreesHashChain, circuit.OldSubTreeHashChain)
 
-	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	leavesHashChain := createHashChain(api, circuit.Leaves)
 	api.AssertIsEqual(leavesHashChain, circuit.HashchainHash)
 
 	newRoot, newSubtrees := circuit.batchAppend(api)
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
 
-	newSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), newSubtrees)
+	newSubtreesHashChain := createHashChain(api, newSubtrees)
 	api.AssertIsEqual(newSubtreesHashChain, circuit.NewSubTreeHashChain)
 
 	return nil

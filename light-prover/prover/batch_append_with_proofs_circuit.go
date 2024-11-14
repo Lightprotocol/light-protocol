@@ -36,7 +36,7 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 	hashChainInputs[2] = circuit.LeavesHashchainHash
 	hashChainInputs[3] = circuit.StartIndex
 
-	publicInputsHashChain := createHashChain(api, int(4), hashChainInputs)
+	publicInputsHashChain := createHashChain(api, hashChainInputs)
 	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
 	newLeaves := make([]frontend.Variable, int(circuit.BatchSize))
 	for i := 0; i < int(circuit.BatchSize); i++ {
@@ -49,7 +49,7 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 		newLeaves[i] = api.Select(selector, circuit.Leaves[i], circuit.OldLeaves[i])
 	}
 
-	leavesHashchainHash := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	leavesHashchainHash := createHashChain(api, circuit.Leaves)
 	api.AssertIsEqual(leavesHashchainHash, circuit.LeavesHashchainHash)
 
 	newRoot := circuit.OldRoot

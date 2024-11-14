@@ -36,7 +36,7 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 	hashChainInputs[0] = circuit.OldRoot
 	hashChainInputs[1] = circuit.NewRoot
 	hashChainInputs[2] = circuit.LeavesHashchainHash
-	publicInputsHashChain := createHashChain(api, int(3), hashChainInputs)
+	publicInputsHashChain := createHashChain(api, hashChainInputs)
 	api.AssertIsEqual(publicInputsHashChain, circuit.PublicInputHash)
 	nullifiers := make([]frontend.Variable, int(circuit.BatchSize))
 	// We might nullify leaves which have not been appended yet. Hence we need
@@ -54,7 +54,7 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 		nullifiers[i] = abstractor.Call(api, poseidon.Poseidon3{In1: circuit.Leaves[i], In2: circuit.PathIndices[i], In3: circuit.TxHashes[i]})
 	}
 
-	nullifierHashChainHash := createHashChain(api, int(circuit.BatchSize), nullifiers)
+	nullifierHashChainHash := createHashChain(api, nullifiers)
 	api.AssertIsEqual(nullifierHashChainHash, circuit.LeavesHashchainHash)
 
 	newRoot := circuit.OldRoot
