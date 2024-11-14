@@ -52,3 +52,8 @@ reqwest = { workspace = true }
 photon-api = { workspace = true }
 tracing = "0.1"
 bs58 = "0.5"
+
+
+[dev-dependencies]
+light-test-utils = { version = "1.2.0", path = "../test-utils", features=["devenv"] }
+light-system-program = { workspace = true }
