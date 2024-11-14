@@ -10,42 +10,32 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
-// BatchAddressTreeAppendCircuit represents a zero-knowledge proof circuit for batch
-// appending addresses to a Merkle tree.
 type BatchAddressTreeAppendCircuit struct {
-	// Public inputs that can be verified by anyone
 	PublicInputHash frontend.Variable `gnark:",public"`
 
-	// Private inputs for tree state
 	OldRoot       frontend.Variable `gnark:",private"`
 	NewRoot       frontend.Variable `gnark:",private"`
 	HashchainHash frontend.Variable `gnark:",private"`
 	StartIndex    frontend.Variable `gnark:",private"`
 
-	// Element values and linking information
 	LowElementValues      []frontend.Variable   `gnark:",private"`
 	LowElementNextIndices []frontend.Variable   `gnark:",private"`
 	LowElementNextValues  []frontend.Variable   `gnark:",private"`
 	LowElementIndices     []frontend.Variable   `gnark:",private"`
 	LowElementProofs      [][]frontend.Variable `gnark:",private"`
 
-	// New elements being inserted
 	NewElementValues []frontend.Variable   `gnark:",private"`
 	NewElementProofs [][]frontend.Variable `gnark:",private"`
 
-	// Circuit configuration
 	BatchSize  uint32
 	TreeHeight uint32
 }
 
-// Define implements the circuit's constraints and verification logic
 func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	currentRoot := circuit.OldRoot
 
 	startIndexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
-	// Process each element in the batch
 	for i := uint32(0); i < circuit.BatchSize; i++ {
-		// Verify value ordering and proper linking between elements
 		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
 			LeafLowerRangeValue:  circuit.LowElementValues[i],
 			NextIndex:            circuit.LowElementNextIndices[i],
@@ -53,9 +43,7 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			Value:                circuit.NewElementValues[i],
 		})
 		newLowLeafNextIndex := api.Add(circuit.StartIndex, i)
-		// low leaf value stays the same
-		// next index is new value index = newLowLeafNextIndex
-		// next value is new value
+
 		lowLeafHash := abstractor.Call(api, poseidon.Poseidon3{
 			In1: circuit.LowElementValues[i],
 			In2: newLowLeafNextIndex,
@@ -63,7 +51,6 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 		})
 		pathIndexBits := api.ToBinary(circuit.LowElementIndices[i], int(circuit.TreeHeight))
 
-		// Update Merkle root for both low and new elements
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     oldLowLeafHash,
@@ -95,21 +82,17 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 		)
 	}
 
-	// Verify the final root matches
 	api.AssertIsEqual(circuit.NewRoot, currentRoot)
 
-	// Calculate and verify leaf hash chain
 	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.NewElementValues)
 	api.AssertIsEqual(circuit.HashchainHash, leavesHashChain)
 
-	// Verify public input hash
 	publicInputsHashChain := circuit.computePublicInputHash(api)
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
 	return nil
 }
 
-// computePublicInputHash calculates the hash of all public inputs
 func (circuit *BatchAddressTreeAppendCircuit) computePublicInputHash(api frontend.API) frontend.Variable {
 	hashChainInputs := []frontend.Variable{
 		circuit.OldRoot,
@@ -120,7 +103,6 @@ func (circuit *BatchAddressTreeAppendCircuit) computePublicInputHash(api fronten
 	return createHashChain(api, 4, hashChainInputs)
 }
 
-// BatchAddressTreeAppendParameters holds the parameters needed for batch address updates
 type BatchAddressTreeAppendParameters struct {
 	PublicInputHash *big.Int
 	OldRoot         *big.Int
@@ -128,7 +110,6 @@ type BatchAddressTreeAppendParameters struct {
 	HashchainHash   *big.Int
 	StartIndex      uint32
 
-	// Elements being modified or added
 	LowElementValues      []big.Int
 	LowElementIndices     []big.Int
 	LowElementNextIndices []big.Int
@@ -136,11 +117,9 @@ type BatchAddressTreeAppendParameters struct {
 
 	NewElementValues []big.Int
 
-	// Merkle proofs for verification
 	LowElementProofs [][]big.Int
 	NewElementProofs [][]big.Int
 
-	// Tree configuration
 	TreeHeight uint32
 	BatchSize  uint32
 	Tree       *merkletree.IndexedMerkleTree
