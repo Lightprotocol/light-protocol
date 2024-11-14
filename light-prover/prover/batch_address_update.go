@@ -49,8 +49,10 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 		api.Println("LowElementProofs[", i, "]: ", circuit.LowElementProofs[i])
 	}
 
-	startIndexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
+	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
 	for i := uint32(0); i < circuit.BatchSize; i++ {
+		api.Println("indexBits: ", indexBits)
+
 		api.Println("LowElementValues[", i, "]: ", circuit.LowElementValues[i])
 		api.Println("LowElementNextIndices[", i, "]: ", circuit.LowElementNextIndices[i])
 		api.Println("LowElementNextValues[", i, "]: ", circuit.LowElementNextValues[i])
@@ -101,17 +103,17 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
 			NewLeaf:     newLeafHash,
-			PathIndex:   startIndexBits,
+			PathIndex:   indexBits,
 			MerkleProof: circuit.NewElementProofs[i],
 			Height:      int(circuit.TreeHeight),
 		})
 		api.Println("CurrentRoot: ", currentRoot)
 
-		startIndexBits = incrementBits(
+		indexBits = incrementBits(
 			api,
-			startIndexBits,
+			indexBits,
 		)
-		api.Println("StartIndexBits: ", startIndexBits)
+		api.Println("Incremented indexBits: ", indexBits)
 	}
 
 	api.AssertIsEqual(circuit.NewRoot, currentRoot)

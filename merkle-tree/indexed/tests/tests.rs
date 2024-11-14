@@ -1118,14 +1118,6 @@ pub fn print_circuit_test_data_batch_2() {
             "LowElementNextValue {:?}",
             BigUint::from_bytes_be(&non_inclusion_proof_0.leaf_higher_range_value)
         );
-        relayer_merkle_tree
-            .append(&test_address_2, &mut relayer_indexing_array)
-            .unwrap();
-
-        println!(
-            "NewRoot {:?}",
-            BigUint::from_bytes_be(&relayer_merkle_tree.root())
-        );
 
         let proof = relayer_merkle_tree.get_proof_of_leaf(0, true).unwrap();
         println!(
@@ -1138,6 +1130,15 @@ pub fn print_circuit_test_data_batch_2() {
                 .collect::<Vec<_>>()
         );
 
+        relayer_merkle_tree
+            .append(&test_address_2, &mut relayer_indexing_array)
+            .unwrap();
+
+        println!(
+            "NewRoot {:?}",
+            BigUint::from_bytes_be(&relayer_merkle_tree.root())
+        );
+        
         let proof = relayer_merkle_tree.get_proof_of_leaf(3, true).unwrap();
         println!(
             "NewElementProof {:?}",
