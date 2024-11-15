@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -a HEIGHTS=("26")
+declare -a HEIGHTS=("4" "26")
 DEFAULT_HEIGHT="26"
 PROVING_KEYS_DIR="./proving-keys"
 VERIFIER_DIR="../circuit-lib/verifier/src/verifying_keys"
@@ -69,7 +69,7 @@ generate_circuit() {
 
 main() {
     # declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    declare -a append_batch_sizes_arr=("10")
+    declare -a append_batch_sizes_arr=("1")
 
     echo "Generating proving keys..."
     for height in "${HEIGHTS[@]}"; do
