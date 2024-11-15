@@ -28,7 +28,7 @@ generate_circuit() {
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="update"
-    elif [ "$circuit_type" == "address-append" ]; then  # Fixed typo in circuit type
+    elif [ "$circuit_type" == "address-append" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="address_append"
     elif [ "$circuit_type" == "inclusion" ]; then

@@ -3,6 +3,7 @@ package prover
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type CircuitType string
@@ -74,6 +75,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	} else if hasOldLeaves {
 		return BatchAppendWithProofsCircuitType, nil
 	} else if hasOldLowElements {
+		log.Println("BatchAddressAppendCircuitType parsed")
 		return BatchAddressAppendCircuitType, nil
 	}
 	return "", fmt.Errorf("unknown schema")

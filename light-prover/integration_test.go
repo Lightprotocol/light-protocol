@@ -180,7 +180,7 @@ func runLightweightOnlyTests(t *testing.T) {
 	// t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
 	// t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 
-	t.Run("testBatchAddressAppendHappyPath26_10", testBatchAddressAppendHappyPath26_10)
+	t.Run("testBatchAddressAppendHappyPath4_1", testBatchAddressAppendHappyPath4_1)
 	// t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
 	// t.Run("testBatchAddressAppendWithSequentialFilling26_10", testBatchAddressAppendWithSequentialFilling26_10)
 	// t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
@@ -720,7 +720,7 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
 
-func testBatchAddressAppendHappyPath26_10(t *testing.T) {
+func testBatchAddressAppendHappyPath4_1(t *testing.T) {
 	runBatchAddressAppendTest(t, 4, 1)
 }
 

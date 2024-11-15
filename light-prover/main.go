@@ -116,6 +116,7 @@ func runCli() {
 						}
 						err = prover.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == prover.BatchAddressAppendCircuitType {
+						fmt.Println("Generating Address Append Circuit")
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 						if err != nil {

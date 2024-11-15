@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
+	"log"
 	"math/big"
 
 	merkletree "light/light-prover/merkle-tree"
@@ -204,12 +205,8 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 		circuit.NewElementValues[i] = frontend.Variable(&params.NewElementValues[i])
 
 		for j := uint32(0); j < params.TreeHeight; j++ {
-			if i < uint32(len(params.LowElementProofs)) {
-				circuit.LowElementProofs[i][j] = frontend.Variable(&params.LowElementProofs[i][j])
-			}
-			if i < uint32(len(params.NewElementProofs)) {
-				circuit.NewElementProofs[i][j] = frontend.Variable(&params.NewElementProofs[i][j])
-			}
+			circuit.LowElementProofs[i][j] = frontend.Variable(&params.LowElementProofs[i][j])
+			circuit.NewElementProofs[i][j] = frontend.Variable(&params.NewElementProofs[i][j])
 		}
 	}
 
@@ -232,11 +229,10 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 		totalVars += len(circuit.NewElementProofs[i])
 	}
 
-	logging.Logger().Debug().
-		Int("totalVariables", totalVars).
-		Int("batchSize", int(params.BatchSize)).
-		Int("treeHeight", int(params.TreeHeight)).
-		Msg("Created witness")
+	log.Println("totalVariables", totalVars)
+	log.Println("batchSize", params.BatchSize)
+	log.Println("treeHeight", params.TreeHeight)
+	log.Println("circuit", circuit)
 
 	return circuit, nil
 }
@@ -313,7 +309,7 @@ type BatchAddressAppendParameters struct {
 }
 
 func SetupBatchAddressAppend(height uint32, batchSize uint32) (*ProvingSystemV2, error) {
-	fmt.Println("Setting up batch update")
+	fmt.Println("Setting up address append batch update: height", height, "batch size", batchSize)
 	ccs, err := R1CSBatchAddressAppend(height, batchSize)
 	if err != nil {
 		return nil, err
@@ -332,7 +328,7 @@ func SetupBatchAddressAppend(height uint32, batchSize uint32) (*ProvingSystemV2,
 }
 
 func R1CSBatchAddressAppend(height uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
-	circuit := InitBatchAddressTreeAppendCircuit(batchSize, height)
+	circuit := InitBatchAddressTreeAppendCircuit(height, batchSize)
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
