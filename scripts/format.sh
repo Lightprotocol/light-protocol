@@ -10,6 +10,7 @@ cargo clippy \
       --workspace \
       --exclude name-service \
       --exclude photon-api \
+      --exclude name-service \
       -- -A clippy::result_large_err \
          -A clippy::empty-docs \
          -A clippy::to-string-trait-impl \

@@ -44,6 +44,12 @@ pub mod light_compressed_token {
         Ok(())
     }
 
+    pub fn create_token_pool_2022<'info>(
+        _ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction2022<'info>>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
     /// Mints tokens from an spl token mint to a list of compressed accounts.
     /// Minted tokens are transferred to a pool account owned by the compressed
     /// token program. The instruction creates one compressed output account for
@@ -200,4 +206,8 @@ pub enum ErrorCode {
     InvalidTokenPoolPda,
     NoInputTokenAccountsProvided,
     NoInputsProvided,
+    InvalidMintAccount,
+    MintHasNoFreezeAuthority,
+    InvalidTokenProgram,
+    InvalidTokenMintOwner,
 }
