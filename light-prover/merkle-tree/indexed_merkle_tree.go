@@ -85,7 +85,7 @@ func (ia *IndexedArray) Get(index uint32) *IndexedElement {
 }
 
 func (ia *IndexedArray) Append(value *big.Int) error {
-	lowElementIndex := ia.FindLowElementIndex(value)
+	lowElementIndex, _ := ia.FindLowElementIndex(value)
 	lowElement := ia.Elements[lowElementIndex]
 
 	if lowElement.NextIndex != 0 {
@@ -114,13 +114,13 @@ func (ia *IndexedArray) Append(value *big.Int) error {
 
 	return nil
 }
-func (ia *IndexedArray) FindLowElementIndex(value *big.Int) uint32 {
+func (ia *IndexedArray) FindLowElementIndex(value *big.Int) (uint32, error) {
 	maxAddr := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
 	// If we only have initial elements (0 and maxAddr)
 	if len(ia.Elements) == 2 {
 		// Always return the first element (0) as low element
-		return 0
+		return 0, nil
 	}
 
 	for i, element := range ia.Elements {
@@ -129,43 +129,27 @@ func (ia *IndexedArray) FindLowElementIndex(value *big.Int) uint32 {
 			continue
 		}
 
-		// If this is the last element in chain
-		if element.NextIndex == 0 {
-			return uint32(i)
-		}
-
 		nextElement := ia.Get(element.NextIndex)
 		if nextElement == nil {
-			return uint32(i)
+			continue
 		}
 
 		// Check if value falls between current and next
-		if element.Value.Cmp(value) <= 0 && nextElement.Value.Cmp(value) > 0 {
-			return uint32(i)
+		if element.Value.Cmp(value) < 0 && nextElement.Value.Cmp(value) > 0 {
+			return uint32(i), nil
 		}
 	}
 
-	// If we haven't found a place, return the last non-max element
-	for i := len(ia.Elements) - 1; i >= 0; i-- {
-		if ia.Elements[i].Value.Cmp(maxAddr) != 0 {
-			return uint32(i)
-		}
-	}
-
-	// Default to first element if nothing else works
-	return 0
+	return 0, fmt.Errorf("could not find low element index for value %v", value)
 }
 
 func (imt *IndexedMerkleTree) Append(value *big.Int) error {
-	lowElementIndex := imt.IndexArray.FindLowElementIndex(value)
+	lowElementIndex, _ := imt.IndexArray.FindLowElementIndex(value)
 	lowElement := imt.IndexArray.Get(lowElementIndex)
 
-	var nextElement *IndexedElement
-	if lowElement.NextIndex != 0 {
-		nextElement = imt.IndexArray.Get(lowElement.NextIndex)
-		if value.Cmp(nextElement.Value) >= 0 {
-			return fmt.Errorf("new value must be less than next element value")
-		}
+	nextElement := imt.IndexArray.Get(lowElement.NextIndex)
+	if value.Cmp(nextElement.Value) >= 0 {
+		return fmt.Errorf("new value must be less than next element value")
 	}
 
 	newElementIndex := uint32(len(imt.IndexArray.Elements))
