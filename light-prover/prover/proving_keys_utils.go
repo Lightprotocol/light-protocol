@@ -162,15 +162,14 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var addressAppendTestKeys []string = []string{
-		// keysDir + "address-append_26_10.key",
-		keysDir + "address-append_4_1.key",
+		keysDir + "address-append_26_10.key",
 	}
 
 	switch runMode {
 	case Forester: // inclusion + non-inclusion
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
-	case ForesterTest: // append-test + update-test
+	case ForesterTest: // append-test + update-test + address-append-test
 		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, updateTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)
@@ -178,20 +177,20 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
-	case Full: // inclusion + non-inclusion + combined + append + update
+	case Full: // inclusion + non-inclusion + combined + append + update + address-append
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, appendWithSubtreesKeys...)
 		keys = append(keys, updateKeys...)
 		keys = append(keys, addressAppendKeys...)
-	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test
-		// keys = append(keys, inclusionKeys...)
-		// keys = append(keys, nonInclusionKeys...)
-		// keys = append(keys, combinedKeys...)
-		// keys = append(keys, appendWithSubtreesTestKeys...)
-		// keys = append(keys, updateTestKeys...)
-		// keys = append(keys, appendWithProofsTestKeys...)
+	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
+		keys = append(keys, inclusionKeys...)
+		keys = append(keys, nonInclusionKeys...)
+		keys = append(keys, combinedKeys...)
+		keys = append(keys, appendWithSubtreesTestKeys...)
+		keys = append(keys, updateTestKeys...)
+		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)
 	}
 
@@ -314,7 +313,6 @@ func WriteProvingSystem(system interface{}, path string, pathVkey string) error 
 
 	logging.Logger().Info().Int64("bytesWritten", written).Msg("Proving system written to file")
 
-	// Write verification key
 	var vk interface{}
 	switch s := system.(type) {
 	case *ProvingSystemV1:

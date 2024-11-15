@@ -168,22 +168,21 @@ func runFullOnlyTests(t *testing.T) {
 	t.Run("testBatchAddressAppendWithPreviousState26_100", testBatchAddressAppendWithPreviousState26_100)
 }
 
-// runFullOnlyTests contains tests that should only run in lightweight mode
 func runLightweightOnlyTests(t *testing.T) {
-	// t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
+	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
 
-	// t.Run("testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10)
-	// t.Run("testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10)
+	t.Run("testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10)
+	t.Run("testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10)
 
-	// t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
-	// t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
-	// t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
-	// t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
+	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
+	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
+	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
+	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 
-	t.Run("testBatchAddressAppendHappyPath4_1", testBatchAddressAppendHappyPath4_1)
-	// t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
-	// t.Run("testBatchAddressAppendWithSequentialFilling26_10", testBatchAddressAppendWithSequentialFilling26_10)
-	// t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
+	t.Run("testBatchAddressAppendHappyPath26_1", testBatchAddressAppendHappyPath26_1)
+	t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
+	t.Run("testBatchAddressAppendWithSequentialFilling26_10", testBatchAddressAppendWithSequentialFilling26_10)
+	t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -720,8 +719,8 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
 
-func testBatchAddressAppendHappyPath4_1(t *testing.T) {
-	runBatchAddressAppendTest(t, 4, 1)
+func testBatchAddressAppendHappyPath26_1(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 1)
 }
 
 func testBatchAddressAppendHappyPath26_100(t *testing.T) {
