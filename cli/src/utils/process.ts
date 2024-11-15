@@ -198,8 +198,8 @@ export async function waitForServers(
       ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
     ),
     delay: 1000,
-    timeout: 25000,
-    interval: 300,
+    timeout: 300000,
+    interval: 1000,
     simultaneous: 2,
     validateStatus: function (status: number) {
       return (

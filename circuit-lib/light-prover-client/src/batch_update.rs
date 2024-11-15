@@ -1,10 +1,10 @@
+use crate::helpers::compute_root_from_merkle_proof;
 use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
 use num_bigint::{BigInt, Sign};
 use num_traits::FromBytes;
-use crate::helpers::compute_root_from_merkle_proof;
 
 #[derive(Clone, Debug)]
 pub struct BatchUpdateCircuitInputs {

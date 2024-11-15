@@ -1,6 +1,4 @@
-use std::{
-    cell::{Ref, RefCell, RefMut},
-};
+use std::cell::{Ref, RefCell, RefMut};
 
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{

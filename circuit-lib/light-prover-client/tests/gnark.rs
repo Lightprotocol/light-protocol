@@ -9,7 +9,9 @@ use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAp
 use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
 use light_prover_client::{
-    batch_address_append::{get_batch_address_append_inputs_from_tree, get_test_batch_address_append_inputs},
+    batch_address_append::{
+        get_batch_address_append_inputs_from_tree, get_test_batch_address_append_inputs,
+    },
     gnark::batch_address_append_json_formatter::to_json,
 };
 
@@ -21,11 +23,11 @@ use light_prover_client::{
     },
     helpers::init_logger,
 };
+use light_utils::bigint::bigint_to_be_bytes_array;
 use log::info;
+use num_bigint::ToBigUint;
 use reqwest::Client;
 use serial_test::serial;
-use num_bigint::ToBigUint;
-use light_utils::bigint::bigint_to_be_bytes_array;
 
 #[tokio::test]
 #[ignore]
@@ -315,12 +317,8 @@ pub fn print_circuit_test_data_json_formatted() {
     let addresses = vec![31_u32.to_biguint().unwrap(), 30_u32.to_biguint().unwrap()];
     let start_index = 2;
     let tree_height = 4;
-    
-    let inputs = get_test_batch_address_append_inputs(
-        addresses,
-        start_index,
-        tree_height,
-    );
+
+    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height);
 
     let json_output = to_json(&inputs);
     println!("{}", json_output);
@@ -328,8 +326,8 @@ pub fn print_circuit_test_data_json_formatted() {
 
 #[test]
 pub fn print_circuit_test_data_with_existing_tree() {
-    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
     use light_hasher::Poseidon;
+    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
     const TREE_HEIGHT: usize = 4;
 
@@ -337,18 +335,19 @@ pub fn print_circuit_test_data_with_existing_tree() {
 
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
+    let mut relayer_merkle_tree =
+        IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
     relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
 
     let current_root = relayer_merkle_tree.root();
-    
+
     let mut low_element_values = Vec::new();
     let mut low_element_indices = Vec::new();
     let mut low_element_next_indices = Vec::new();
     let mut low_element_next_values = Vec::new();
-    let mut low_element_proofs:  Vec<Vec<[u8; 32]>> = Vec::new();
+    let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
 
     for new_element_value in &new_element_values {
         let non_inclusion_proof = relayer_merkle_tree
@@ -359,11 +358,14 @@ pub fn print_circuit_test_data_with_existing_tree() {
         low_element_indices.push(non_inclusion_proof.leaf_index);
         low_element_next_indices.push(non_inclusion_proof.next_index);
         low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-    
+
         low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
     }
 
-    let new_element_values = new_element_values.iter().map(|v|bigint_to_be_bytes_array::<32>(&v).unwrap()).collect();
+    let new_element_values = new_element_values
+        .iter()
+        .map(|v| bigint_to_be_bytes_array::<32>(&v).unwrap())
+        .collect();
 
     let inputs = get_batch_address_append_inputs_from_tree::<TREE_HEIGHT>(
         start_index,
@@ -374,7 +376,11 @@ pub fn print_circuit_test_data_with_existing_tree() {
         low_element_next_indices,
         low_element_proofs,
         new_element_values,
-        relayer_merkle_tree.merkle_tree.get_subtrees().try_into().unwrap(),
+        relayer_merkle_tree
+            .merkle_tree
+            .get_subtrees()
+            .try_into()
+            .unwrap(),
     );
 
     let json_output = to_json(&inputs);
@@ -442,15 +448,14 @@ pub fn print_circuit_test_data_with_existing_tree() {
     assert_eq!(json_output, reference_output);
 }
 
-
 #[serial]
 #[tokio::test]
 async fn prove_batch_address_append() {
-    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
     use light_hasher::Poseidon;
+    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
     init_logger();
-    
+
     // Spawn the prover with specific configuration
     spawn_prover(
         true,
@@ -464,17 +469,18 @@ async fn prove_batch_address_append() {
     const TREE_HEIGHT: usize = 26;
 
     // Initialize test data
-    let new_element_values = vec![31_u32.to_biguint().unwrap(), 30_u32.to_biguint().unwrap()];
+    let new_element_values = vec![31_u32.to_biguint().unwrap()];
 
     // Initialize indexing structures
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
+    let mut relayer_merkle_tree =
+        IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
     relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
     let current_root = relayer_merkle_tree.root();
-    
+
     // Prepare proof components
     let mut low_element_values = Vec::new();
     let mut low_element_indices = Vec::new();
@@ -511,7 +517,11 @@ async fn prove_batch_address_append() {
         low_element_next_indices,
         low_element_proofs,
         new_element_values,
-        relayer_merkle_tree.merkle_tree.get_subtrees().try_into().unwrap(),
+        relayer_merkle_tree
+            .merkle_tree
+            .get_subtrees()
+            .try_into()
+            .unwrap(),
     );
 
     // Convert inputs to JSON format

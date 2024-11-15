@@ -220,7 +220,6 @@ pub fn get_project_root() -> Option<String> {
     }
 }
 
-
 pub fn big_uint_to_string(big_uint: &BigUint) -> String {
     format!("0x{}", big_uint.to_str_radix(16))
 }

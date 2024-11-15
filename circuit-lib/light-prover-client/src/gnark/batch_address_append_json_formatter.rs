@@ -1,6 +1,6 @@
-use serde::Serialize;
-use crate::gnark::helpers::{big_uint_to_string, create_json_from_struct};
 use crate::batch_address_append::BatchAddressAppendInputs;
+use crate::gnark::helpers::{big_uint_to_string, create_json_from_struct};
+use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAddressAppendInputsJson {
@@ -39,16 +39,36 @@ impl BatchAddressAppendInputsJson {
         Self {
             batch_size: inputs.batch_size,
             hashchain_hash: big_uint_to_string(&inputs.hashchain_hash),
-            low_element_values: inputs.low_element_values.iter().map(big_uint_to_string).collect(),
-            low_element_indices: inputs.low_element_indices.iter().map(big_uint_to_string).collect(),
-            low_element_next_indices: inputs.low_element_next_indices.iter().map(big_uint_to_string).collect(),
-            low_element_next_values: inputs.low_element_next_values.iter().map(big_uint_to_string).collect(),
+            low_element_values: inputs
+                .low_element_values
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
+            low_element_indices: inputs
+                .low_element_indices
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
+            low_element_next_indices: inputs
+                .low_element_next_indices
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
+            low_element_next_values: inputs
+                .low_element_next_values
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
             low_element_proofs: inputs
                 .low_element_proofs
                 .iter()
                 .map(|proof| proof.iter().map(big_uint_to_string).collect())
                 .collect(),
-            new_element_values: inputs.new_element_values.iter().map(big_uint_to_string).collect(),
+            new_element_values: inputs
+                .new_element_values
+                .iter()
+                .map(big_uint_to_string)
+                .collect(),
             new_element_proofs: inputs
                 .new_element_proofs
                 .iter()

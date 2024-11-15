@@ -1,8 +1,8 @@
 use env_logger::Builder;
-use log::LevelFilter;
-use num_bigint::BigInt;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
+use log::LevelFilter;
+use num_bigint::BigInt;
 
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
@@ -44,7 +44,7 @@ pub fn hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
     let mut current_hash = *hashes.first().unwrap();
 
     for hash in hashes.iter().skip(1) {
-       current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
+        current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
     }
     current_hash
 }
