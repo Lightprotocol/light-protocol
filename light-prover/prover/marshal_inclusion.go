@@ -52,17 +52,18 @@ func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	err = p.UpdateWithJSON(params, err)
+	err = p.UpdateWithJSON(params)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *InclusionParameters) UpdateWithJSON(params InclusionParametersJSON, err error) error {
+func (p *InclusionParameters) UpdateWithJSON(params InclusionParametersJSON) error {
 	p.Inputs = make([]InclusionInputs, len(params.Inputs))
 	for i := 0; i < len(params.Inputs); i++ {
-		err = fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)
+		fmt.Println("Params.Root: ", params.Inputs[i].Root)
+		err := fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)
 		if err != nil {
 			return err
 		}

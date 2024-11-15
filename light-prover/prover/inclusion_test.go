@@ -2,7 +2,6 @@ package prover
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -36,7 +35,7 @@ func TestInclusion(t *testing.T) {
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
 		var params InclusionParameters
-		err := json.Unmarshal([]byte(splitLine[1]), &params)
+		err := params.UnmarshalJSON([]byte(splitLine[1]))
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
 		var numberOfCompressedAccounts = params.NumberOfCompressedAccounts()

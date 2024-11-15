@@ -133,6 +133,7 @@ func SetupBatchUpdate(height uint32, batchSize uint32) (*ProvingSystemV2, error)
 		return nil, err
 	}
 	return &ProvingSystemV2{
+		CircuitType:      BatchUpdateCircuitType,
 		TreeHeight:       height,
 		BatchSize:        batchSize,
 		ProvingKey:       pk,

@@ -41,7 +41,7 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		p.InclusionParameters = InclusionParameters{Inputs: nil}
-		err = p.InclusionParameters.UpdateWithJSON(params, err)
+		err = p.InclusionParameters.UpdateWithJSON(params)
 		if err != nil {
 			return err
 		}

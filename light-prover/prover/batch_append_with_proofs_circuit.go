@@ -24,6 +24,10 @@ type BatchAppendWithProofsCircuit struct {
 	Leaves       []frontend.Variable   `gnark:",private"`
 	MerkleProofs [][]frontend.Variable `gnark:",private"`
 
+	IntermediateRoots []frontend.Variable `gnark:",private"`
+	LowLeafHashes     []frontend.Variable `gnark:",private"`
+	NewLeafHashes     []frontend.Variable `gnark:",private"`
+
 	Height    uint32
 	BatchSize uint32
 }
@@ -54,6 +58,11 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 
 	newRoot := circuit.OldRoot
 	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.Height))
+
+	circuit.IntermediateRoots = make([]frontend.Variable, circuit.BatchSize*2)
+	circuit.LowLeafHashes = make([]frontend.Variable, circuit.BatchSize)
+	circuit.NewLeafHashes = make([]frontend.Variable, circuit.BatchSize)
+
 	for i := 0; i < int(circuit.BatchSize); i++ {
 		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
@@ -83,13 +92,6 @@ type BatchAppendWithProofsParameters struct {
 	Height              uint32
 	BatchSize           uint32
 	Tree                *merkle_tree.PoseidonTree
-}
-
-func (p *BatchAppendWithProofsParameters) TreeDepth() uint32 {
-	if len(p.MerkleProofs) == 0 {
-		return 0
-	}
-	return uint32(len(p.MerkleProofs[0]))
 }
 
 func (p *BatchAppendWithProofsParameters) ValidateShape() error {

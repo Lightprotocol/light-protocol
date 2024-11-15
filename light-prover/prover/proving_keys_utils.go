@@ -24,18 +24,52 @@ const (
 
 // Trusted setup utility functions
 // Taken from: https://github.com/bnb-chain/zkbnb/blob/master/common/prove/proof_keys.go#L19
+
 func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
-	logging.Logger().Info().Msg("start reading proving key")
+	logging.Logger().Info().
+		Str("filepath", filepath).
+		Msg("start reading proving key")
+
 	pk = groth16.NewProvingKey(ecc.BN254)
-	f, _ := os.Open(filepath)
-	_, err = pk.ReadFrom(f)
+	f, err := os.Open(filepath)
 	if err != nil {
-		return pk, fmt.Errorf("read file error")
+		logging.Logger().Error().
+			Str("filepath", filepath).
+			Err(err).
+			Msg("error opening proving key file")
+		return pk, fmt.Errorf("error opening proving key file: %v", err)
 	}
-	err = f.Close()
+	defer f.Close()
+
+	fileInfo, err := f.Stat()
 	if err != nil {
-		return nil, err
+		logging.Logger().Error().
+			Str("filepath", filepath).
+			Err(err).
+			Msg("error getting proving key file info")
+		return pk, fmt.Errorf("error getting file info: %v", err)
 	}
+
+	logging.Logger().Info().
+		Str("filepath", filepath).
+		Int64("size", fileInfo.Size()).
+		Msg("proving key file stats")
+
+	n, err := pk.ReadFrom(f)
+	if err != nil {
+		logging.Logger().Error().
+			Str("filepath", filepath).
+			Int64("bytesRead", n).
+			Err(err).
+			Msg("error reading proving key file")
+		return pk, fmt.Errorf("error reading proving key: %v", err)
+	}
+
+	logging.Logger().Info().
+		Str("filepath", filepath).
+		Int64("bytesRead", n).
+		Msg("successfully read proving key")
+
 	return pk, nil
 }
 
@@ -119,6 +153,18 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "update_26_10.key",
 	}
 
+	var addressAppendKeys []string = []string{
+		keysDir + "address-append_26_1.key",
+		keysDir + "address-append_26_10.key",
+		keysDir + "address-append_26_100.key",
+		keysDir + "address-append_26_500.key",
+		keysDir + "address-append_26_1000.key",
+	}
+
+	var addressAppendTestKeys []string = []string{
+		keysDir + "address-append_26_10.key",
+	}
+
 	switch runMode {
 	case Forester: // inclusion + non-inclusion
 		keys = append(keys, inclusionKeys...)
@@ -126,6 +172,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	case ForesterTest: // append-test + update-test
 		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, updateTestKeys...)
+		keys = append(keys, addressAppendTestKeys...)
 	case Rpc: // inclusion + non-inclusion + combined
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
@@ -136,6 +183,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, appendWithSubtreesKeys...)
 		keys = append(keys, updateKeys...)
+		keys = append(keys, addressAppendKeys...)
 	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
@@ -143,6 +191,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, appendWithSubtreesTestKeys...)
 		keys = append(keys, updateTestKeys...)
 		keys = append(keys, appendWithProofsTestKeys...)
+		keys = append(keys, addressAppendTestKeys...)
 	}
 
 	for _, circuit := range circuits {
@@ -165,10 +214,26 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 			keys = append(keys, updateKeys...)
 		case "update-test":
 			keys = append(keys, updateTestKeys...)
+		case "address-append":
+			keys = append(keys, addressAppendKeys...)
+		case "address-append-test":
+			keys = append(keys, addressAppendTestKeys...)
+		}
+	}
+	seen := make(map[string]bool)
+	var uniqueKeys []string
+	for _, key := range keys {
+		if !seen[key] {
+			seen[key] = true
+			uniqueKeys = append(uniqueKeys, key)
 		}
 	}
 
-	return keys
+	logging.Logger().Info().
+		Strs("keys", uniqueKeys).
+		Msg("Loading proving system keys")
+
+	return uniqueKeys
 }
 
 func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*ProvingSystemV1, []*ProvingSystemV2, error) {
@@ -208,7 +273,7 @@ func createFileAndWriteBytes(filePath string, data []byte) error {
 	fmt.Println("Writing", len(data), "bytes to", filePath)
 	file, err := os.Create(filePath)
 	if err != nil {
-		return err // Return the error to the caller
+		return err
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -219,7 +284,7 @@ func createFileAndWriteBytes(filePath string, data []byte) error {
 
 	_, err = io.WriteString(file, fmt.Sprintf("%d", data))
 	if err != nil {
-		return err // Return any error that occurs during writing
+		return err
 	}
 	fmt.Println("Wrote", len(data), "bytes to", filePath)
 	return nil

@@ -151,6 +151,8 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		proof, proofError = handler.batchUpdateProof(buf)
 	case prover.BatchAppendWithProofsCircuitType:
 		proof, proofError = handler.batchAppendWithProofsHandler(buf)
+	case prover.BatchAddressAppendCircuitType:
+		proof, proofError = handler.batchAddressAppendProof(buf)
 	default:
 		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
 	}
@@ -175,6 +177,46 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logging.Logger().Err(err)
 	}
+}
+
+func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, *Error) {
+	var params prover.BatchAddressAppendParameters
+	err := json.Unmarshal(buf, &params)
+	if err != nil {
+		logging.Logger().Info().Msg("error Unmarshal")
+		logging.Logger().Info().Msg(err.Error())
+		return nil, malformedBodyError(err)
+	}
+
+	treeHeight := params.TreeHeight
+	batchSize := params.BatchSize
+
+	var ps *prover.ProvingSystemV2
+	for _, provingSystem := range handler.provingSystemsV2 {
+		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType {
+			fmt.Println("found proving system for batch address append")
+			fmt.Println("tree height", provingSystem.TreeHeight)
+			fmt.Println("batch size", provingSystem.BatchSize)
+		} else {
+			fmt.Println("circuit type", provingSystem.CircuitType)
+		}
+		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+			fmt.Println("found proving system")
+			ps = provingSystem
+			break
+		}
+	}
+
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("batch address append: no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	}
+
+	proof, err := ps.ProveBatchAddressAppend(&params)
+	if err != nil {
+		logging.Logger().Err(err)
+		return nil, provingError(err)
+	}
+	return proof, nil
 }
 
 func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Proof, *Error) {

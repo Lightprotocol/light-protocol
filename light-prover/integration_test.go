@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
@@ -160,6 +161,11 @@ func runFullOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
 	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
 	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
+
+	t.Run("testBatchAddressAppendHappyPath26_100", testBatchAddressAppendHappyPath26_100)
+	t.Run("testBatchAddressAppendHappyPath26_500", testBatchAddressAppendHappyPath26_500)
+	t.Run("testBatchAddressAppendHappyPath26_1000", testBatchAddressAppendHappyPath26_1000)
+	t.Run("testBatchAddressAppendWithPreviousState26_100", testBatchAddressAppendWithPreviousState26_100)
 }
 
 // runFullOnlyTests contains tests that should only run in lightweight mode
@@ -173,6 +179,11 @@ func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
 	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
 	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
+
+	t.Run("testBatchAddressAppendHappyPath26_10", testBatchAddressAppendHappyPath26_10)
+	t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
+	t.Run("testBatchAddressAppendWithSequentialFilling26_10", testBatchAddressAppendWithSequentialFilling26_10)
+	t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -707,4 +718,201 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	}
 
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
+}
+
+func testBatchAddressAppendHappyPath26_10(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 10)
+}
+
+func testBatchAddressAppendHappyPath26_100(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 100)
+}
+
+func testBatchAddressAppendHappyPath26_500(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 500)
+}
+
+func testBatchAddressAppendHappyPath26_1000(t *testing.T) {
+	runBatchAddressAppendTest(t, 26, 1000)
+}
+
+func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32) {
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, 0)
+	if err != nil {
+		t.Fatalf("Failed to build test tree: %v", err)
+	}
+
+	fmt.Printf("BatchSize: %d\n", params.BatchSize)
+	fmt.Printf("TreeHeight: %d\n", params.TreeHeight)
+	fmt.Printf("LowElementProofs len: %d\n", len(params.LowElementProofs))
+	fmt.Printf("NewElementProofs len: %d\n", len(params.NewElementProofs))
+	fmt.Printf("First LowElementProof len: %d\n", len(params.LowElementProofs[0]))
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+	jsonString := string(jsonBytes)
+	fmt.Println(jsonString)
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	// Verify that the new root is different from the old root
+	if params.OldRoot.Cmp(params.NewRoot) == 0 {
+		t.Errorf("Expected new root to be different from old root")
+	}
+
+	t.Logf("Successfully ran batch address append test with tree height %d and batch size %d", treeHeight, batchSize)
+}
+
+func testBatchAddressAppendWithPreviousState26_10(t *testing.T) {
+	runBatchAddressAppendWithPreviousStateTest(t, 26, 10)
+}
+
+func testBatchAddressAppendWithPreviousState26_100(t *testing.T) {
+	runBatchAddressAppendWithPreviousStateTest(t, 26, 100)
+}
+
+func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
+	// First batch
+	startIndex := uint32(0)
+	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	if err != nil {
+		t.Fatalf("Failed to build first test tree: %v", err)
+	}
+
+	jsonBytes1, err := params1.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal first JSON: %v", err)
+	}
+
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatalf("Failed to send first POST request: %v", err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response1.Body)
+		t.Fatalf("First batch: Expected status code %d, got %d. Response body: %s",
+			http.StatusOK, response1.StatusCode, string(body))
+	}
+	response1.Body.Close()
+
+	// Second batch using previous state
+	startIndex += batchSize
+	params2, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	if err != nil {
+		t.Fatalf("Failed to build second test tree: %v", err)
+	}
+
+	// Set the old root to the new root from the first batch
+	params2.OldRoot = params1.NewRoot
+
+	jsonBytes2, err := params2.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal second JSON: %v", err)
+	}
+
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatalf("Failed to send second POST request: %v", err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response2.Body)
+		t.Fatalf("Second batch: Expected status code %d, got %d. Response body: %s",
+			http.StatusOK, response2.StatusCode, string(body))
+	}
+	response2.Body.Close()
+
+	// Verify roots are different
+	if params2.OldRoot.Cmp(params2.NewRoot) == 0 {
+		t.Errorf("Expected new root to be different from old root in second batch")
+	}
+
+	t.Logf("Successfully ran batch address append with previous state test with tree height %d and batch size %d",
+		treeHeight, batchSize)
+}
+
+func testBatchAddressAppendWithSequentialFilling26_10(t *testing.T) {
+	treeHeight := uint32(26)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	if err != nil {
+		t.Fatalf("Failed to build test tree: %v", err)
+	}
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s",
+			http.StatusOK, response.StatusCode, string(body))
+	}
+
+	// Verify sequential insertion
+	for i := uint32(0); i < batchSize; i++ {
+		expectedNextIndex := startIndex + i + 1
+		gotNextIndex := new(big.Int).SetBytes(params.LowElementNextIndices[i].Bytes()).Uint64()
+		if gotNextIndex != uint64(expectedNextIndex) {
+			t.Errorf("Expected next index %d, got %d", expectedNextIndex, gotNextIndex)
+		}
+	}
+
+	t.Logf("Successfully ran sequential filling test with tree height %d and batch size %d",
+		treeHeight, batchSize)
+}
+
+func testBatchAddressAppendInvalidInput26_10(t *testing.T) {
+	treeHeight := uint32(26)
+	batchSize := uint32(10)
+	startIndex := uint32(0)
+
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	if err != nil {
+		t.Fatalf("Failed to build test tree: %v", err)
+	}
+
+	// Invalidate input by setting wrong old root
+	params.OldRoot = big.NewInt(0)
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status code %d, got %d", http.StatusBadRequest, response.StatusCode)
+	}
+
+	body, _ := io.ReadAll(response.Body)
+	if !strings.Contains(string(body), "proving_error") {
+		t.Fatalf("Expected error message to contain 'proving_error', got: %s", string(body))
+	}
+
+	t.Logf("Successfully ran invalid input test with tree height %d and batch size %d",
+		treeHeight, batchSize)
 }
