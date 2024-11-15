@@ -379,7 +379,7 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, startIndex uint32
 	for i := uint32(0); i < batchSize; i++ {
 		newValues[i] = new(big.Int).SetUint64(uint64(i + 2))
 
-		lowElementIndex := tree.IndexArray.FindLowElementIndex(newValues[i])
+		lowElementIndex, _ := tree.IndexArray.FindLowElementIndex(newValues[i])
 		lowElement := tree.IndexArray.Get(lowElementIndex)
 
 		params.LowElementValues[i].Set(lowElement.Value)
