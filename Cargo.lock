@@ -3511,6 +3511,7 @@ dependencies = [
  "log",
  "num-bigint 0.4.6",
  "num-traits",
+ "photon-api",
  "reqwest 0.11.27",
  "solana-banks-client",
  "solana-client",

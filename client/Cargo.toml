@@ -17,6 +17,7 @@ solana-program = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
+photon-api = { workspace = true }
 
 # Anchor compatibility
 borsh = { workspace = true }

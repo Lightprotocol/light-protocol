@@ -1,5 +1,6 @@
 pub mod errors;
 pub mod merkle_tree;
+pub mod photon_rpc;
 pub mod rpc_connection;
 pub mod solana_rpc;
 pub mod test_rpc;
