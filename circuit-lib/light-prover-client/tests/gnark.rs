@@ -311,7 +311,7 @@ async fn prove_batch_two_append() {
 
 #[test]
 pub fn print_circuit_test_data_json_formatted() {
-    let addresses = vec![30_u32.to_biguint().unwrap()];
+    let addresses = vec![31_u32.to_biguint().unwrap(), 30_u32.to_biguint().unwrap()];
     let start_index = 2;
     let tree_height = 4;
     

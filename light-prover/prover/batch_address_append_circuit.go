@@ -191,13 +191,11 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 		NewElementProofs:      make([][]frontend.Variable, params.BatchSize),
 	}
 
-	// Initialize all arrays before filling
 	for i := uint32(0); i < params.BatchSize; i++ {
 		circuit.LowElementProofs[i] = make([]frontend.Variable, params.TreeHeight)
 		circuit.NewElementProofs[i] = make([]frontend.Variable, params.TreeHeight)
 	}
 
-	// Fill in all values
 	for i := uint32(0); i < params.BatchSize; i++ {
 		circuit.LowElementValues[i] = frontend.Variable(&params.LowElementValues[i])
 		circuit.LowElementNextIndices[i] = frontend.Variable(&params.LowElementNextIndices[i])
