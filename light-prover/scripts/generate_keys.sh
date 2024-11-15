@@ -78,43 +78,43 @@ main() {
         done
     done
 
-    # for height in "${HEIGHTS[@]}"; do
-    #     for batch_size in "${append_batch_sizes_arr[@]}"; do
-    #         generate_circuit "append-with-proofs" "$height" "$batch_size" "0" "0"
-    #     done
-    # done
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append-with-proofs" "$height" "$batch_size" "0" "0"
+        done
+    done
 
-    # declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    # for height in "${HEIGHTS[@]}"; do
-    #     for batch_size in "${append_batch_sizes_arr[@]}"; do
-    #         generate_circuit "append-with-subtrees" "$height" "$batch_size" "0" "0"
-    #     done
-    # done
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${append_batch_sizes_arr[@]}"; do
+            generate_circuit "append-with-subtrees" "$height" "$batch_size" "0" "0"
+        done
+    done
 
-    # declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    # for height in "${HEIGHTS[@]}"; do
-    #     for batch_size in "${update_batch_sizes_arr[@]}"; do
-    #         generate_circuit "update" "$height" "$batch_size" "0" "0"
-    #     done
-    # done
+    declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for height in "${HEIGHTS[@]}"; do
+        for batch_size in "${update_batch_sizes_arr[@]}"; do
+            generate_circuit "update" "$height" "$batch_size" "0" "0"
+        done
+    done
 
-    # declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
-    # for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
-    #     generate_circuit "inclusion" "$DEFAULT_HEIGHT" "0" "$compressed_accounts" "0"
-    # done
+    declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+    for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
+        generate_circuit "inclusion" "$DEFAULT_HEIGHT" "0" "$compressed_accounts" "0"
+    done
 
-    # declare -a non_inclusion_compressed_accounts_arr=("1" "2")
-    # for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
-    #     generate_circuit "non-inclusion" "$DEFAULT_HEIGHT" "0" "$compressed_accounts"
-    # done
+    declare -a non_inclusion_compressed_accounts_arr=("1" "2")
+    for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
+        generate_circuit "non-inclusion" "$DEFAULT_HEIGHT" "0" "$compressed_accounts"
+    done
 
-    # declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
-    # declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
-    # for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
-    #     for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
-    #         generate_circuit "combined" "$DEFAULT_HEIGHT" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
-    #     done
-    # done
+    declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+    declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
+    for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
+        for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
+            generate_circuit "combined" "$DEFAULT_HEIGHT" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
+        done
+    done
 
     echo "Done."
 }
