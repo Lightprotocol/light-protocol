@@ -1,6 +1,7 @@
 use env_logger::Builder;
 use log::LevelFilter;
 use num_bigint::BigInt;
+use light_hasher::{Hasher, Poseidon};
 
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
@@ -33,4 +34,16 @@ pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error
     let bytes = &bytes_be[..bytes_be.len()];
     array[(32 - bytes.len())..].copy_from_slice(bytes);
     Ok(array)
+}
+
+pub fn hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
+    if hashes.is_empty() {
+        return [0; 32];
+    }
+    let mut current_hash = *hashes.first().unwrap();
+
+    for hash in hashes.iter().skip(1) {
+       current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
+    }
+    current_hash
 }

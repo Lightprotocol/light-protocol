@@ -51,10 +51,10 @@ func (p *BatchAddressAppendParameters) UnmarshalJSON(data []byte) error {
 
 func (p *BatchAddressAppendParameters) CreateBatchAddressAppendParametersJSON() BatchAddressAppendParametersJSON {
 	paramsJson := BatchAddressAppendParametersJSON{}
-	paramsJson.PublicInputHash = toHex(p.PublicInputHash)
-	paramsJson.OldRoot = toHex(p.OldRoot)
-	paramsJson.NewRoot = toHex(p.NewRoot)
-	paramsJson.HashchainHash = toHex(p.HashchainHash)
+	paramsJson.PublicInputHash = toDec(p.PublicInputHash)
+	paramsJson.OldRoot = toDec(p.OldRoot)
+	paramsJson.NewRoot = toDec(p.NewRoot)
+	paramsJson.HashchainHash = toDec(p.HashchainHash)
 	paramsJson.StartIndex = p.StartIndex
 	paramsJson.TreeHeight = p.TreeHeight
 	paramsJson.BatchSize = p.BatchSize
@@ -63,7 +63,7 @@ func (p *BatchAddressAppendParameters) CreateBatchAddressAppendParametersJSON() 
 	for i := 0; i < len(p.LowElementProofs); i++ {
 		paramsJson.LowElementProofs[i] = make([]string, len(p.LowElementProofs[i]))
 		for j := 0; j < len(p.LowElementProofs[i]); j++ {
-			paramsJson.LowElementProofs[i][j] = toHex(&p.LowElementProofs[i][j])
+			paramsJson.LowElementProofs[i][j] = toDec(&p.LowElementProofs[i][j])
 		}
 	}
 
@@ -71,33 +71,33 @@ func (p *BatchAddressAppendParameters) CreateBatchAddressAppendParametersJSON() 
 	for i := 0; i < len(p.NewElementProofs); i++ {
 		paramsJson.NewElementProofs[i] = make([]string, len(p.NewElementProofs[i]))
 		for j := 0; j < len(p.NewElementProofs[i]); j++ {
-			paramsJson.NewElementProofs[i][j] = toHex(&p.NewElementProofs[i][j])
+			paramsJson.NewElementProofs[i][j] = toDec(&p.NewElementProofs[i][j])
 		}
 	}
 
 	paramsJson.LowElementValues = make([]string, len(p.LowElementValues))
 	for i := 0; i < len(p.LowElementValues); i++ {
-		paramsJson.LowElementValues[i] = toHex(&p.LowElementValues[i])
+		paramsJson.LowElementValues[i] = toDec(&p.LowElementValues[i])
 	}
 
 	paramsJson.LowElementIndices = make([]string, len(p.LowElementIndices))
 	for i := 0; i < len(p.LowElementIndices); i++ {
-		paramsJson.LowElementIndices[i] = toHex(&p.LowElementIndices[i])
+		paramsJson.LowElementIndices[i] = toDec(&p.LowElementIndices[i])
 	}
 
 	paramsJson.LowElementNextIndices = make([]string, len(p.LowElementNextIndices))
 	for i := 0; i < len(p.LowElementNextIndices); i++ {
-		paramsJson.LowElementNextIndices[i] = toHex(&p.LowElementNextIndices[i])
+		paramsJson.LowElementNextIndices[i] = toDec(&p.LowElementNextIndices[i])
 	}
 
 	paramsJson.LowElementNextValues = make([]string, len(p.LowElementNextValues))
 	for i := 0; i < len(p.LowElementNextValues); i++ {
-		paramsJson.LowElementNextValues[i] = toHex(&p.LowElementNextValues[i])
+		paramsJson.LowElementNextValues[i] = toDec(&p.LowElementNextValues[i])
 	}
 
 	paramsJson.NewElementValues = make([]string, len(p.NewElementValues))
 	for i := 0; i < len(p.NewElementValues); i++ {
-		paramsJson.NewElementValues[i] = toHex(&p.NewElementValues[i])
+		paramsJson.NewElementValues[i] = toDec(&p.NewElementValues[i])
 	}
 
 	return paramsJson
@@ -110,25 +110,25 @@ func (p *BatchAddressAppendParameters) UpdateWithJSON(params BatchAddressAppendP
 	p.StartIndex = params.StartIndex
 
 	p.OldRoot = new(big.Int)
-	err = fromHex(p.OldRoot, params.OldRoot)
+	err = fromDec(p.OldRoot, params.OldRoot)
 	if err != nil {
 		return err
 	}
 
 	p.NewRoot = new(big.Int)
-	err = fromHex(p.NewRoot, params.NewRoot)
+	err = fromDec(p.NewRoot, params.NewRoot)
 	if err != nil {
 		return err
 	}
 
 	p.HashchainHash = new(big.Int)
-	err = fromHex(p.HashchainHash, params.HashchainHash)
+	err = fromDec(p.HashchainHash, params.HashchainHash)
 	if err != nil {
 		return err
 	}
 
 	p.PublicInputHash = new(big.Int)
-	err = fromHex(p.PublicInputHash, params.PublicInputHash)
+	err = fromDec(p.PublicInputHash, params.PublicInputHash)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func convertStringSliceToBigIntSlice(stringSlice []string) ([]big.Int, error) {
 	for i, s := range stringSlice {
 		p := new(big.Int)
 
-		fromHex(p, s)
+		fromDec(p, s)
 		result[i] = *p
 	}
 	return result, nil
@@ -184,7 +184,7 @@ func convertNestedStringSliceToBigIntSlice(nestedStringSlice [][]string) ([][]bi
 		for j, s := range innerSlice {
 			p := new(big.Int)
 
-			fromHex(p, s)
+			fromDec(p, s)
 
 			innerResult[j] = *p
 		}

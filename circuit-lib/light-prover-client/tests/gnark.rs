@@ -8,6 +8,11 @@ use light_prover_client::batch_update::get_batch_update_inputs;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
 use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
+use light_prover_client::{
+    batch_address_append::{get_batch_address_append_inputs_from_tree, get_test_batch_address_append_inputs},
+    gnark::batch_address_append_json_formatter::to_json,
+};
+
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::{
     gnark::{
@@ -19,6 +24,7 @@ use light_prover_client::{
 use log::info;
 use reqwest::Client;
 use serial_test::serial;
+use num_bigint::ToBigUint;
 
 #[tokio::test]
 #[ignore]
@@ -301,4 +307,87 @@ async fn prove_batch_two_append() {
         );
         current_index += num_insertions;
     }
+}
+
+#[test]
+pub fn print_circuit_test_data_json_formatted() {
+    let addresses = vec![30_u32.to_biguint().unwrap()];
+    let start_index = 2;
+    let tree_height = 4;
+    
+    let inputs = get_test_batch_address_append_inputs(
+        addresses,
+        start_index,
+        tree_height,
+    );
+
+    let json_output = to_json(&inputs);
+    println!("{}", json_output);
+}
+
+#[test]
+pub fn print_circuit_test_data_with_existing_tree() {
+    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+    use light_hasher::Poseidon;
+    
+    let addresses = vec![30_u32.to_biguint().unwrap()];
+    let start_index = 2;
+    let tree_height = 4;
+
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
+    relayer_indexing_array.init().unwrap();
+    let mut relayer_merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(tree_height, 0).unwrap();
+    relayer_merkle_tree.init().unwrap();
+
+    let current_root = relayer_merkle_tree.root();
+    
+    let mut low_element_values = Vec::new();
+    let mut low_element_indices = Vec::new();
+    let mut low_element_next_indices = Vec::new();
+    let mut low_element_next_values = Vec::new();
+    let mut low_element_proofs:  Vec<Vec<[u8; 32]>> = Vec::new();
+    let mut new_element_proofs:  Vec<Vec<[u8; 32]>> = Vec::new();
+
+    for address in &addresses {
+        let non_inclusion_proof = relayer_merkle_tree
+            .get_non_inclusion_proof(address, &relayer_indexing_array)
+            .unwrap();
+
+        low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
+        low_element_indices.push(non_inclusion_proof.leaf_index);
+        low_element_next_indices.push(non_inclusion_proof.next_index);
+        low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
+
+    
+        low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
+
+        relayer_merkle_tree
+            .append(address, &mut relayer_indexing_array)
+            .unwrap();
+
+        let new_proof = relayer_merkle_tree
+            .get_proof_of_leaf(relayer_merkle_tree.merkle_tree.rightmost_index-1, true)
+            .unwrap();
+       
+        new_element_proofs.push(new_proof.as_slice().to_vec());
+    }
+
+    let new_root = relayer_merkle_tree.root();
+
+    let inputs = get_batch_address_append_inputs_from_tree(
+        current_root,
+        addresses,
+        start_index,
+        tree_height,
+        low_element_values,
+        low_element_next_values,
+        low_element_indices,
+        low_element_next_indices,
+        low_element_proofs,
+        new_element_proofs,
+        new_root,
+    );
+
+    let json_output = to_json(&inputs);
+    println!("{}", json_output);
 }

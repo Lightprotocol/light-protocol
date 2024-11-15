@@ -30,3 +30,6 @@ thiserror = "1.0"
 light-hash-set = { workspace = true }
 thiserror = "1.0"
 rand = "0.8"
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

@@ -62,6 +62,7 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			In2: newLowLeafNextIndex,
 			In3: circuit.NewElementValues[i],
 		})
+
 		pathIndexBits := api.ToBinary(circuit.LowElementIndices[i], int(circuit.TreeHeight))
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
@@ -81,6 +82,11 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			In3: circuit.LowElementNextValues[i],
 		})
 
+		api.Println("newElementValues[", i, "]", circuit.NewElementValues[i])
+		api.Println("lowElementNextIndices[", i, "]", circuit.LowElementNextIndices[i])
+		api.Println("lowElementNextValues[", i, "]", circuit.LowElementNextValues[i])
+
+		api.Println("New leaf hash", newLeafHash)
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
@@ -381,6 +387,7 @@ func ImportBatchAddressAppendSetup(treeHeight uint32, batchSize uint32, pkPath s
 	}
 
 	return &ProvingSystemV2{
+		CircuitType:      BatchAddressAppendCircuitType,
 		TreeHeight:       treeHeight,
 		BatchSize:        batchSize,
 		ProvingKey:       pk,

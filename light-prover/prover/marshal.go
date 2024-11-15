@@ -27,6 +27,18 @@ func toHex(i *big.Int) string {
 	return fmt.Sprintf("0x%s", i.Text(16))
 }
 
+func fromDec(i *big.Int, s string) error {
+	_, ok := i.SetString(s, 10)
+	if !ok {
+		return fmt.Errorf("invalid number: %s", s)
+	}
+	return nil
+}
+
+func toDec(i *big.Int) string {
+	return fmt.Sprintf("%s", i.Text(10))
+}
+
 type ProofJSON struct {
 	Ar  [2]string    `json:"ar"`
 	Bs  [2][2]string `json:"bs"`

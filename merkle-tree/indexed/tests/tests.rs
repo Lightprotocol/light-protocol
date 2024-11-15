@@ -906,10 +906,127 @@ fn create_hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
     let mut current_hash = hashes.first().unwrap().clone();
 
     for hash in hashes.iter().skip(1) {
-        current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
+       current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
     }
     current_hash
 }
+
+use serde::Serialize;
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct MerkleTreeTestOutput {
+    batch_size: usize,
+    hashchain_hash: String,
+    low_element_values: Vec<String>,
+    low_element_indices: Vec<String>,
+    low_element_next_indices: Vec<String>,
+    low_element_next_values: Vec<String>,
+    low_element_proofs: Vec<Vec<String>>,
+    new_element_values: Vec<String>,
+    new_element_proofs: Vec<Vec<String>>,
+    new_root: String,
+    old_root: String,
+    public_input_hash: String,
+    start_index: usize,
+    tree_height: usize,
+}
+
+
+#[test]
+pub fn print_circuit_test_data_json_formatted() {
+    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
+    relayer_indexing_array.init().unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(4, 0).unwrap();
+    relayer_merkle_tree.init().unwrap();
+
+    let start_index = 2;
+    let old_root = relayer_merkle_tree.root();
+    
+    let addresses = vec![ 30_u32.to_biguint().unwrap()];
+
+    let mut low_element_values: Vec<String> = Vec::new();
+    let mut low_element_indices: Vec<String> = Vec::new();
+    let mut low_element_next_indices: Vec<String> = Vec::new();
+    let mut low_element_next_values: Vec<String> = Vec::new();
+    let mut low_element_proofs: Vec<Vec<String>> = Vec::new();
+
+    let mut new_element_values: Vec<String> = Vec::new();
+    let mut new_element_proofs: Vec<Vec<String>> = Vec::new();
+
+    for address in &addresses {
+        let non_inclusion_proof = relayer_merkle_tree
+            .get_non_inclusion_proof(address, &relayer_indexing_array)
+            .unwrap();
+        relayer_merkle_tree
+            .verify_non_inclusion_proof(&non_inclusion_proof)
+            .unwrap();
+
+        low_element_values.push(BigUint::from_bytes_be(&non_inclusion_proof.leaf_lower_range_value).to_string());
+        low_element_indices.push(non_inclusion_proof.leaf_index.to_string());
+        low_element_next_indices.push(non_inclusion_proof.next_index.to_string());
+        low_element_next_values.push(BigUint::from_bytes_be(&non_inclusion_proof.leaf_higher_range_value).to_string());
+        
+        let proof_strings: Vec<String> = non_inclusion_proof.merkle_proof
+            .iter()
+            .map(|proof| BigUint::from_bytes_be(proof).to_string())
+            .collect();
+        low_element_proofs.push(proof_strings);
+
+        relayer_merkle_tree
+            .append(address, &mut relayer_indexing_array)
+            .unwrap();
+
+        let new_proof = relayer_merkle_tree
+            .get_proof_of_leaf(relayer_merkle_tree.merkle_tree.rightmost_index-1, true)
+            .unwrap();
+
+        let new_proof_strings: Vec<String> = new_proof
+            .iter()
+            .map(|proof| BigUint::from_bytes_be(proof).to_string())
+            .collect();
+        new_element_proofs.push(new_proof_strings);
+        new_element_values.push(address.to_string());
+    }
+    
+    let new_root = relayer_merkle_tree.root();
+
+    // Create hashchain
+    let addresses_bytes = addresses
+        .iter()
+        .map(|x| bigint_to_be_bytes_array::<32>(x).unwrap())
+        .collect::<Vec<_>>();
+    
+    let leaves_hashchain = create_hash_chain(&addresses_bytes);
+    let hash_chain_inputs = vec![
+        old_root,
+        new_root,
+        leaves_hashchain,
+        bigint_to_be_bytes_array::<32>(&start_index.to_biguint().unwrap()).unwrap(),
+    ];
+    let public_input_hash = create_hash_chain(hash_chain_inputs.as_slice());
+
+    let json_output = MerkleTreeTestOutput {
+        batch_size: addresses.len(),
+        hashchain_hash: BigUint::from_bytes_be(&leaves_hashchain).to_string(),
+        low_element_values,
+        low_element_indices,
+        low_element_next_indices,
+        low_element_next_values,
+        low_element_proofs,
+        new_element_values,
+        new_element_proofs,
+        new_root: BigUint::from_bytes_be(&new_root).to_string(),
+        old_root: BigUint::from_bytes_be(&old_root).to_string(),
+        public_input_hash: BigUint::from_bytes_be(&public_input_hash).to_string(),
+        start_index,
+        tree_height: relayer_merkle_tree.merkle_tree.height,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
+}
+
 
 #[test]
 pub fn print_circuit_test_data_batch_1() {
