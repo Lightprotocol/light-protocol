@@ -47,9 +47,11 @@ pub enum ProofType {
     Combined,
     BatchAppend,
     BatchUpdate,
+    BatchAddressAppend,
     BatchAppendWithSubtreesTest,
     BatchUpdateTest,
     BatchAppendWithProofsTest,
+    BatchAddressAppendTest,
 }
 
 impl Display for ProofType {
@@ -66,6 +68,8 @@ impl Display for ProofType {
                 ProofType::BatchAppendWithSubtreesTest => "append-with-subtrees-test",
                 ProofType::BatchUpdateTest => "update-test",
                 ProofType::BatchAppendWithProofsTest => "append-with-proofs-test",
+                ProofType::BatchAddressAppend => "address-append",
+                ProofType::BatchAddressAppendTest => "address-append-test",
             }
         )
     }

@@ -20,6 +20,8 @@ BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 APPEND_WITH_PROOFS_BUCKET="bafybeiaddn7t2pcbmthkvfvenxin7vcmpyweplew3er5shbrlauypue4g4"
 APPEND_WITH_SUBTREES_BUCKET="bafybeieyujtdrhp52unqkwvzn36o4hh4brsw52juaftceaki4gfypszbxa"
 
+APPEND_ADDRESS_BUCKET="bafybeibbafybeigob7eicyuxxmmkfuqyhnqomnxca2f3qua7k77nhospnj5a3mocfi"
+
 # keys for update circuit for tree of height 26
 UPDATE_BUCKET="bafybeievf2qdaex4cskdfk24uifq4244ne42w3dghwnnfp4ybsve6mw2pa"
 
@@ -60,6 +62,10 @@ LIGHTWEIGHT_FILES=(
   "append-with-subtrees_26_10.vkey"
   "update_26_10.key"
   "update_26_10.vkey"
+  "address-append_26_1.key"
+  "address-append_26_1.vkey"
+  "address-append_26_10.key"
+  "address-append_26_10.vkey"
 )
 
 FULL_FILES=(
@@ -123,6 +129,16 @@ FULL_FILES=(
   "update_26_500.vkey"
   "update_26_1000.key"
   "update_26_1000.vkey"
+  "address-append_26_1.key"
+  "address-append_26_1.vkey"
+  "address-append_26_10.key"
+  "address-append_26_10.vkey"
+  "address-append_26_100.key"
+  "address-append_26_100.vkey"
+  "address-append_26_500.key"
+  "address-append_26_500.vkey"
+  "address-append_26_1000.key"
+  "address-append_26_1000.vkey"
 )
 
 download_file() {
@@ -134,6 +150,8 @@ download_file() {
       BUCKET_URL="https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
   elif [[ $FILE == update* ]]; then
     BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif [[ $FILE == address-append* ]]; then
+    BUCKET_URL="https://${APPEND_ADDRESS_BUCKET}.ipfs.w3s.link/${FILE}"
   else
     BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
   fi

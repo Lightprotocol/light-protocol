@@ -193,15 +193,7 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType {
-			fmt.Println("found proving system for batch address append")
-			fmt.Println("tree height", provingSystem.TreeHeight)
-			fmt.Println("batch size", provingSystem.BatchSize)
-		} else {
-			fmt.Println("circuit type", provingSystem.CircuitType)
-		}
 		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
-			fmt.Println("found proving system")
 			ps = provingSystem
 			break
 		}
