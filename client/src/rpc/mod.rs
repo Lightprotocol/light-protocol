@@ -8,3 +8,4 @@ pub mod test_rpc;
 pub use errors::{assert_rpc_error, RpcError};
 pub use rpc_connection::RpcConnection;
 pub use solana_rpc::{RetryConfig, SolanaRpcConnection};
+pub use photon_client::PhotonClient;
