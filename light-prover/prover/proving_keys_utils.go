@@ -162,6 +162,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var addressAppendTestKeys []string = []string{
+		keysDir + "address-append_26_1.key",
 		keysDir + "address-append_26_10.key",
 	}
 

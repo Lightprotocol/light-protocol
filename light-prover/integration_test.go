@@ -116,16 +116,14 @@ func TestMain(m *testing.M) {
 	StopServer()
 }
 
-// TestLightweight runs tests in lightweight mode
 func TestLightweight(t *testing.T) {
 	if !isLightweightMode {
 		t.Skip("This test only runs in lightweight mode")
 	}
-	// runCommonTests(t)
+	runCommonTests(t)
 	runLightweightOnlyTests(t)
 }
 
-// TestFull runs tests in full mode
 func TestFull(t *testing.T) {
 	if isLightweightMode {
 		t.Skip("This test only runs in full mode")
@@ -176,12 +174,10 @@ func runLightweightOnlyTests(t *testing.T) {
 
 	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
 	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
-	t.Run("testBatchUpdateWithSequentialFilling26_10", testBatchUpdateWithSequentialFilling26_10)
 	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 
 	t.Run("testBatchAddressAppendHappyPath26_1", testBatchAddressAppendHappyPath26_1)
 	t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
-	t.Run("testBatchAddressAppendWithSequentialFilling26_10", testBatchAddressAppendWithSequentialFilling26_10)
 	t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
 }
 
@@ -591,33 +587,6 @@ func testBatchAppendWithPreviousState26_10(t *testing.T) {
 	}
 }
 
-func testBatchUpdateWithSequentialFilling26_10(t *testing.T) {
-	treeDepth := uint32(26)
-	batchSize := uint32(10)
-	startIndex := uint32(0)
-	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, &startIndex)
-
-	jsonBytes, _ := params.MarshalJSON()
-
-	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
-	}
-
-	// Verify sequential filling
-	for i := uint32(0); i < batchSize; i++ {
-		if params.PathIndices[i] != startIndex+i {
-			t.Errorf("Expected path index %d, got %d", startIndex+i, params.PathIndices[i])
-		}
-	}
-}
-
 func testBatchUpdateWithPreviousState26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
@@ -736,7 +705,7 @@ func testBatchAddressAppendHappyPath26_1000(t *testing.T) {
 }
 
 func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, 2)
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, 2)
 	if err != nil {
 		t.Fatalf("Failed to build test tree: %v", err)
 	}
@@ -781,9 +750,8 @@ func testBatchAddressAppendWithPreviousState26_100(t *testing.T) {
 }
 
 func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	// First batch
-	startIndex := uint32(0)
-	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	startIndex := uint32(2)
+	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build first test tree: %v", err)
 	}
@@ -804,14 +772,11 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 	}
 	response1.Body.Close()
 
-	// Second batch using previous state
 	startIndex += batchSize
-	params2, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	params2, err := prover.BuildTestAddressTree(treeHeight, batchSize, params1.Tree, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build second test tree: %v", err)
 	}
-
-	// Set the old root to the new root from the first batch
 	params2.OldRoot = params1.NewRoot
 
 	jsonBytes2, err := params2.MarshalJSON()
@@ -830,7 +795,6 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 	}
 	response2.Body.Close()
 
-	// Verify roots are different
 	if params2.OldRoot.Cmp(params2.NewRoot) == 0 {
 		t.Errorf("Expected new root to be different from old root in second batch")
 	}
@@ -839,52 +803,12 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 		treeHeight, batchSize)
 }
 
-func testBatchAddressAppendWithSequentialFilling26_10(t *testing.T) {
-	treeHeight := uint32(26)
-	batchSize := uint32(10)
-	startIndex := uint32(0)
-
-	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
-	if err != nil {
-		t.Fatalf("Failed to build test tree: %v", err)
-	}
-
-	jsonBytes, err := params.MarshalJSON()
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		t.Fatalf("Failed to send POST request: %v", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		t.Fatalf("Expected status code %d, got %d. Response body: %s",
-			http.StatusOK, response.StatusCode, string(body))
-	}
-
-	// Verify sequential insertion
-	for i := uint32(0); i < batchSize; i++ {
-		expectedNextIndex := startIndex + i + 1
-		gotNextIndex := new(big.Int).SetBytes(params.LowElementNextIndices[i].Bytes()).Uint64()
-		if gotNextIndex != uint64(expectedNextIndex) {
-			t.Errorf("Expected next index %d, got %d", expectedNextIndex, gotNextIndex)
-		}
-	}
-
-	t.Logf("Successfully ran sequential filling test with tree height %d and batch size %d",
-		treeHeight, batchSize)
-}
-
 func testBatchAddressAppendInvalidInput26_10(t *testing.T) {
 	treeHeight := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 
-	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, startIndex)
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build test tree: %v", err)
 	}

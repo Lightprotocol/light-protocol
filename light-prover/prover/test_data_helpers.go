@@ -337,15 +337,18 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 	}
 }
 
-func BuildTestAddressTree(treeHeight uint32, batchSize uint32, startIndex uint32) (*BatchAddressAppendParameters, error) {
-	tree, err := merkletree.NewIndexedMerkleTree(treeHeight)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create tree: %v", err)
-	}
+func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *merkletree.IndexedMerkleTree, startIndex uint32) (*BatchAddressAppendParameters, error) {
+	var tree *merkletree.IndexedMerkleTree
 
-	err = tree.Init()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize tree: %v", err)
+	if previousTree == nil {
+		tree, _ = merkletree.NewIndexedMerkleTree(treeHeight)
+
+		err := tree.Init()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize tree: %v", err)
+		}
+	} else {
+		tree = previousTree.DeepCopy()
 	}
 
 	params := &BatchAddressAppendParameters{
@@ -377,7 +380,7 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, startIndex uint32
 
 	newValues := make([]*big.Int, batchSize)
 	for i := uint32(0); i < batchSize; i++ {
-		newValues[i] = new(big.Int).SetUint64(uint64(i + 2))
+		newValues[i] = new(big.Int).SetUint64(uint64(startIndex + i + 2))
 
 		lowElementIndex, _ := tree.IndexArray.FindLowElementIndex(newValues[i])
 		lowElement := tree.IndexArray.Get(lowElementIndex)

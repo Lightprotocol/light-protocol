@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
-	"log"
 	"math/big"
 
 	merkletree "light/light-prover/merkle-tree"
@@ -42,14 +41,6 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
 
 	for i := uint32(0); i < circuit.BatchSize; i++ {
-		api.Println("Processing element", i)
-		api.Println("Current root", currentRoot)
-		api.Println("Index bits", indexBits)
-		api.Println("LeafLowerRangeValue[", i, "]", circuit.LowElementValues[i])
-		api.Println("NextIndex[", i, "]", circuit.LowElementNextIndices[i])
-		api.Println("LeafHigherRangeValue[", i, "]", circuit.LowElementNextValues[i])
-		api.Println("Value[", i, "]", circuit.NewElementValues[i])
-
 		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
 			LeafLowerRangeValue:  circuit.LowElementValues[i],
 			NextIndex:            circuit.LowElementNextIndices[i],
@@ -83,11 +74,6 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			In3: circuit.LowElementNextValues[i],
 		})
 
-		api.Println("newElementValues[", i, "]", circuit.NewElementValues[i])
-		api.Println("lowElementNextIndices[", i, "]", circuit.LowElementNextIndices[i])
-		api.Println("lowElementNextValues[", i, "]", circuit.LowElementNextValues[i])
-
-		api.Println("New leaf hash", newLeafHash)
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
@@ -170,11 +156,6 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 		return nil, fmt.Errorf("tree height cannot be 0")
 	}
 
-	logging.Logger().Debug().
-		Interface("params", params).
-		Msg("Creating witness with parameters")
-
-	// Create circuit assignments
 	circuit := &BatchAddressTreeAppendCircuit{
 		BatchSize:             params.BatchSize,
 		TreeHeight:            params.TreeHeight,
@@ -209,30 +190,6 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 			circuit.NewElementProofs[i][j] = frontend.Variable(&params.NewElementProofs[i][j])
 		}
 	}
-
-	// Log counts for debugging
-	var totalVars int
-	totalVars++ // PublicInputHash
-	totalVars++ // OldRoot
-	totalVars++ // NewRoot
-	totalVars++ // HashchainHash
-	totalVars++ // StartIndex
-	totalVars += len(circuit.LowElementValues)
-	totalVars += len(circuit.LowElementNextIndices)
-	totalVars += len(circuit.LowElementNextValues)
-	totalVars += len(circuit.LowElementIndices)
-	totalVars += len(circuit.NewElementValues)
-	for i := range circuit.LowElementProofs {
-		totalVars += len(circuit.LowElementProofs[i])
-	}
-	for i := range circuit.NewElementProofs {
-		totalVars += len(circuit.NewElementProofs[i])
-	}
-
-	log.Println("totalVariables", totalVars)
-	log.Println("batchSize", params.BatchSize)
-	log.Println("treeHeight", params.TreeHeight)
-	log.Println("circuit", circuit)
 
 	return circuit, nil
 }
