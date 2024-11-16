@@ -58,7 +58,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				circuit := InitBatchAddressTreeAppendCircuit(tc.treeHeight, tc.batchSize)
 
-				params, err := BuildTestAddressTree(tc.treeHeight, tc.batchSize, tc.startIndex)
+				params, err := BuildTestAddressTree(tc.treeHeight, tc.batchSize, nil, tc.startIndex)
 				if err != nil {
 					t.Fatalf("Failed to build test tree: %v", err)
 				}
@@ -128,7 +128,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				circuit := InitBatchAddressTreeAppendCircuit(tc.treeHeight, tc.batchSize)
 
-				params, err := BuildTestAddressTree(tc.treeHeight, tc.batchSize, tc.startIndex)
+				params, err := BuildTestAddressTree(tc.treeHeight, tc.batchSize, nil, tc.startIndex)
 				if err != nil {
 					t.Fatalf("Failed to build test tree: %v", err)
 				}
