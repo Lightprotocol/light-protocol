@@ -54,7 +54,6 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
     let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(subtrees, next_index);
 
     for i in 0..low_element_values.len() {
-        println!("Iteration: {}", i);
         let mut changelog_index = 0;
 
         let new_element_index = next_index + i;
@@ -70,17 +69,10 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
             next_index: low_element_next_indices[i] as u16,
         };
 
-        println!("Low element: {:?}", low_element);
-        println!("New element: {:?}", new_element);
-
         let mut low_element_proof: BoundedVec<[u8; 32]> =
             BoundedVec::from_slice(low_element_proofs[i].as_slice());
         let mut low_element_next_value = BigUint::from_bytes_be(&low_element_next_values[i]);
 
-        println!(
-            "low_element_next_value before patch: {:?}",
-            low_element_next_value
-        );
         if i > 0 {
             patch_indexed_changelogs(
                 0,
@@ -93,11 +85,6 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
             )
             .unwrap();
         }
-        println!(
-            "low_element_next_value after patch: {:?}",
-            low_element_next_value
-        );
-
         patched_low_element_next_values
             .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
         patched_low_element_next_indices.push(low_element.next_index as usize);
@@ -107,9 +94,6 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
             value: low_element.value,
             next_index: new_element_index as u16,
         };
-
-        println!("New Low element: {:?}", new_low_element);
-
         let new_low_element_raw = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_low_element.value).unwrap(),
             next_index: new_low_element.next_index,
@@ -152,17 +136,6 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
         }
 
         {
-            println!("Low Element Next Value: {:?}", low_element_next_value);
-            println!("New Element: {:?}", new_element);
-            println!("Start Index: {:?}", next_index);
-            println!(
-                "merkle_tree.get_next_index() = {:?}",
-                merkle_tree.get_next_index()
-            );
-
-            println!("LowElementNextValues = {:?}", low_element_next_values);
-            println!("NewValues = {:?}", new_element_values);
-
             let new_element_value = low_element_next_value;
             let new_element_leaf_hash = new_element.hash::<Poseidon>(&new_element_value).unwrap();
             let proof = merkle_tree.append(new_element_leaf_hash);
@@ -181,8 +154,6 @@ pub fn get_batch_address_append_inputs_from_tree<const HEIGHT: usize>(
                 &proof,
                 (next_index + i) as u32,
             );
-            println!("Reference root: {:?}", reference_root.0);
-            println!("Merkle tree root: {:?}", merkle_tree.root());
             assert_eq!(merkle_tree.root(), reference_root.0);
 
             let merkle_proof_array = bounded_vec_merkle_proof.to_array().unwrap();
@@ -366,7 +337,6 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
     low_element_next_value: &mut BigUint,
     low_leaf_proof: &mut BoundedVec<[u8; 32]>,
 ) -> Result<(), IndexedMerkleTreeError> {
-    println!("indexed_changelogs = {:?}", indexed_changelogs);
     let next_indexed_changelog_indices: Vec<usize> = (*indexed_changelogs)
         .iter()
         .enumerate()
@@ -381,17 +351,10 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 
     let mut new_low_element = None;
 
-    println!(
-        "next_indexed_changelog_indices = {:?}",
-        next_indexed_changelog_indices
-    );
-
     for next_indexed_changelog_index in next_indexed_changelog_indices {
         let changelog_entry = &mut indexed_changelogs[next_indexed_changelog_index];
 
         let next_element_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
-        println!("next_element_value = {:?}", next_element_value);
-        println!("new_element.value = {:?}", new_element.value);
         if next_element_value < new_element.value {
             // If the next element is lower than the current element, it means
             // that it should become the low element.
@@ -401,29 +364,18 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
                 (next_indexed_changelog_index + 1) % indexed_changelogs.len(),
                 next_element_value,
             ));
-            println!("! new_low_element = {:?}", new_low_element);
             break;
         }
 
-        println!("new_low_element = {:?}", new_low_element);
         // Patch the changelog index.
         *changelog_index = changelog_entry.changelog_index;
 
         // Patch the `next_index` of `new_element`.
         new_element.next_index = changelog_entry.element.next_index;
-
         // Patch the element.
         low_element.update_from_raw_element(&changelog_entry.element);
         // Patch the next value.
-        println!(
-            "low_element_next_value before patch: {:?}",
-            low_element_next_value
-        );
         *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
-        println!(
-            "low_element_next_value after patch: {:?}",
-            low_element_next_value
-        );
         // Patch the proof.
         for i in 0..low_leaf_proof.len() {
             low_leaf_proof[i] = changelog_entry.proof[i];

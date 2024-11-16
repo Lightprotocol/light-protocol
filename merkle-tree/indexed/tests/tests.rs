@@ -698,6 +698,7 @@ pub fn functional_non_inclusion_test() {
 //     let address_2 = 10_u32.to_biguint().unwrap();
 // cargo test -- --nocapture print_test_data
 #[test]
+#[ignored = "only used to generate test data"]
 pub fn print_test_data() {
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
