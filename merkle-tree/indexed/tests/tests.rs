@@ -14,7 +14,7 @@ use light_indexed_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt, ToBigUint};
-use num_traits::{FromBytes, FromPrimitive, Num};
+use num_traits::{FromBytes, Num};
 use rand::thread_rng;
 use thiserror::Error;
 
