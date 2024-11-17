@@ -3606,6 +3606,7 @@ name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
  "borsh 0.10.3",
+ "hex",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -3616,6 +3617,8 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
+ "serde",
+ "serde_json",
  "solana-program",
  "thiserror",
 ]
@@ -3636,9 +3639,11 @@ dependencies = [
 name = "light-merkle-tree-reference"
 version = "1.1.0"
 dependencies = [
+ "hex",
  "light-bounded-vec",
  "light-hasher",
  "log",
+ "num-bigint 0.4.6",
  "thiserror",
 ]
 

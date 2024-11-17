@@ -253,7 +253,6 @@ where
             };
 
             computed_hash = H::hashv(&hashes)?;
-
             // Move to the parent index for the next iteration
             current_index /= 2;
         }

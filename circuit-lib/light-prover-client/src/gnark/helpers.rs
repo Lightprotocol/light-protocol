@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
-use num_bigint::BigInt;
+use num_bigint::{BigInt, BigUint};
 use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
@@ -47,9 +47,11 @@ pub enum ProofType {
     Combined,
     BatchAppend,
     BatchUpdate,
+    BatchAddressAppend,
     BatchAppendWithSubtreesTest,
     BatchUpdateTest,
     BatchAppendWithProofsTest,
+    BatchAddressAppendTest,
 }
 
 impl Display for ProofType {
@@ -66,6 +68,8 @@ impl Display for ProofType {
                 ProofType::BatchAppendWithSubtreesTest => "append-with-subtrees-test",
                 ProofType::BatchUpdateTest => "update-test",
                 ProofType::BatchAppendWithProofsTest => "append-with-proofs-test",
+                ProofType::BatchAddressAppend => "address-append",
+                ProofType::BatchAddressAppendTest => "address-append-test",
             }
         )
     }
@@ -214,6 +218,10 @@ pub fn get_project_root() -> Option<String> {
     } else {
         None
     }
+}
+
+pub fn big_uint_to_string(big_uint: &BigUint) -> String {
+    format!("0x{}", big_uint.to_str_radix(16))
 }
 
 pub fn big_int_to_string(big_int: &BigInt) -> String {

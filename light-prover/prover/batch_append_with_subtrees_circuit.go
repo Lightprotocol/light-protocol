@@ -43,20 +43,20 @@ func (circuit *BatchAppendWithSubtreesCircuit) Define(api frontend.API) error {
 	hashChainInputs[3] = circuit.HashchainHash
 	hashChainInputs[4] = circuit.StartIndex
 
-	publicInputsHashChain := createHashChain(api, int(5), hashChainInputs)
+	publicInputsHashChain := createHashChain(api, hashChainInputs)
 
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
-	oldSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), circuit.Subtrees)
+	oldSubtreesHashChain := createHashChain(api, circuit.Subtrees)
 	api.AssertIsEqual(oldSubtreesHashChain, circuit.OldSubTreeHashChain)
 
-	leavesHashChain := createHashChain(api, int(circuit.BatchSize), circuit.Leaves)
+	leavesHashChain := createHashChain(api, circuit.Leaves)
 	api.AssertIsEqual(leavesHashChain, circuit.HashchainHash)
 
 	newRoot, newSubtrees := circuit.batchAppend(api)
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
 
-	newSubtreesHashChain := createHashChain(api, int(circuit.TreeHeight), newSubtrees)
+	newSubtreesHashChain := createHashChain(api, newSubtrees)
 	api.AssertIsEqual(newSubtreesHashChain, circuit.NewSubTreeHashChain)
 
 	return nil
@@ -130,7 +130,7 @@ func (circuit *BatchAppendWithSubtreesCircuit) append(api frontend.API, leaf fro
 	for i := 0; i < int(circuit.TreeHeight); i++ {
 		isRight := indexBits[i]
 		subtrees[i] = api.Select(isRight, subtrees[i], currentNode)
-		sibling := api.Select(isRight, subtrees[i], circuit.getZeroValue(i))
+		sibling := api.Select(isRight, subtrees[i], getZeroValue(i))
 
 		currentNode = abstractor.Call(api, MerkleRootGadget{
 			Hash:   currentNode,
@@ -178,7 +178,7 @@ func incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variab
 }
 
 func (circuit *BatchAppendWithSubtreesCircuit) getZeroValue(level int) frontend.Variable {
-	return frontend.Variable(new(big.Int).SetBytes(ZERO_BYTES[level][:]))
+	return frontend.Variable(new(big.Int).SetBytes(merkletree.ZERO_BYTES[level][:]))
 }
 
 type BatchAppendParameters struct {

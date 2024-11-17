@@ -1,3 +1,4 @@
+pub mod batch_address_append_json_formatter;
 pub mod batch_append_with_proofs_json_formatter;
 pub mod batch_append_with_subtrees_json_formatter;
 pub mod batch_update_json_formatter;

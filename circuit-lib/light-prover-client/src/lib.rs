@@ -1,3 +1,4 @@
+pub mod batch_address_append;
 pub mod batch_append_with_proofs;
 pub mod batch_append_with_subtrees;
 pub mod batch_update;

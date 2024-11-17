@@ -4,10 +4,8 @@ use num_bigint::{BigInt, Sign};
 
 use serde::Serialize;
 
-use crate::{
-    batch_append_with_subtrees::calculate_hash_chain, batch_update::comput_root_from_merkle_proof,
-    helpers::bigint_to_u8_32,
-};
+use crate::helpers::compute_root_from_merkle_proof;
+use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendWithProofsCircuitInputs {
@@ -76,7 +74,7 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
 
         // Update the root based on the current proof and nullifier
         let (updated_root, changelog_entry) =
-            comput_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
+            compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
         new_root = updated_root;
 
         changelog.push(changelog_entry);

@@ -3,6 +3,7 @@ package prover
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type CircuitType string
@@ -14,6 +15,7 @@ const (
 	BatchAppendWithSubtreesCircuitType CircuitType = "append-with-subtrees"
 	BatchAppendWithProofsCircuitType   CircuitType = "append-with-proofs"
 	BatchUpdateCircuitType             CircuitType = "update"
+	BatchAddressAppendCircuitType      CircuitType = "address-append"
 )
 
 func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
@@ -37,6 +39,8 @@ func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*Prov
 		return SetupBatchAppendWithProofs(height, batchSize)
 	case BatchUpdateCircuitType:
 		return SetupBatchUpdate(height, batchSize)
+	case BatchAddressAppendCircuitType:
+		return SetupBatchAddressAppend(height, batchSize)
 	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}
@@ -56,6 +60,7 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 	_, hasLeaves := inputs["leaves"]
 	_, hasNewMerkleProofs := inputs["newMerkleProofs"]
 	_, hasOldLeaves := inputs["oldLeaves"]
+	_, hasOldLowElements := inputs["LowElementValues"]
 
 	if hasInputCompressedAccounts && hasNewAddresses {
 		return CombinedCircuitType, nil
@@ -69,6 +74,9 @@ func ParseCircuitType(data []byte) (CircuitType, error) {
 		return BatchUpdateCircuitType, nil
 	} else if hasOldLeaves {
 		return BatchAppendWithProofsCircuitType, nil
+	} else if hasOldLowElements {
+		log.Println("BatchAddressAppendCircuitType parsed")
+		return BatchAddressAppendCircuitType, nil
 	}
 	return "", fmt.Errorf("unknown schema")
 }

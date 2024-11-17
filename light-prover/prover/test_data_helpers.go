@@ -112,11 +112,11 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 			leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(i))})
 			tree.Update(int(i), *leaf)
 		}
-		oldSubtrees = GetRightmostSubtrees(&tree, int(treeDepth))
+		oldSubtrees = tree.GetRightmostSubtrees(int(treeDepth))
 		oldSubTreeHashChain = calculateHashChain(oldSubtrees, int(treeDepth))
 	} else {
 		tree = *previousParams.tree.DeepCopy()
-		oldSubtrees = GetRightmostSubtrees(&tree, int(treeDepth))
+		oldSubtrees = tree.GetRightmostSubtrees(int(treeDepth))
 		oldSubTreeHashChain = previousParams.NewSubTreeHashChain
 	}
 
@@ -128,7 +128,7 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 		tree.Update(int(startIndex)+int(i), *leaf)
 	}
 
-	newSubtrees := GetRightmostSubtrees(&tree, int(treeDepth))
+	newSubtrees := tree.GetRightmostSubtrees(int(treeDepth))
 	newSubTreeHashChain := calculateHashChain(newSubtrees, int(treeDepth))
 	newRoot := tree.Root.Value()
 	hashchainHash := calculateHashChain(newLeaves, int(batchSize))
@@ -156,38 +156,6 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 	return params
 }
 
-func GetRightmostSubtrees(tree *merkletree.PoseidonTree, depth int) []*big.Int {
-	subtrees := make([]*big.Int, depth)
-	for i := 0; i < depth; i++ {
-		subtrees[i] = new(big.Int).SetBytes(ZERO_BYTES[i][:])
-	}
-
-	/*
-		start at top x
-		take left child hash as subtree
-		if right node is not zero value, go down right
-		if right node is zero value go down left node
-	*/
-
-	if fullNode, ok := tree.Root.(*merkletree.PoseidonFullNode); ok {
-		current := fullNode
-		level := depth - 1
-		for current != nil && level >= 0 {
-			if fullLeft, ok := current.Left.(*merkletree.PoseidonFullNode); ok {
-				value := fullLeft.Value()
-				subtrees[level] = &value
-				if fullRight, ok := current.Right.(*merkletree.PoseidonFullNode); ok {
-					current = fullRight
-				} else {
-					current = fullLeft
-				}
-			}
-			level--
-		}
-	}
-	return subtrees
-}
-
 func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 	if len(hashes) == 0 {
 		return big.NewInt(0)
@@ -198,6 +166,7 @@ func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 
 	hashChain := hashes[0]
 	for i := 1; i < length; i++ {
+
 		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashes[i]})
 	}
 	return hashChain
@@ -366,4 +335,111 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		Tree:                &tree,
 		StartIndex:          *startIndex,
 	}
+}
+
+func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *merkletree.IndexedMerkleTree, startIndex uint32) (*BatchAddressAppendParameters, error) {
+	var tree *merkletree.IndexedMerkleTree
+
+	if previousTree == nil {
+		tree, _ = merkletree.NewIndexedMerkleTree(treeHeight)
+
+		err := tree.Init()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize tree: %v", err)
+		}
+	} else {
+		tree = previousTree.DeepCopy()
+	}
+
+	params := &BatchAddressAppendParameters{
+		PublicInputHash: new(big.Int),
+		OldRoot:         new(big.Int),
+		NewRoot:         new(big.Int),
+		HashchainHash:   new(big.Int),
+		StartIndex:      startIndex,
+		TreeHeight:      treeHeight,
+		BatchSize:       batchSize,
+		Tree:            tree,
+
+		LowElementValues:      make([]big.Int, batchSize),
+		LowElementIndices:     make([]big.Int, batchSize),
+		LowElementNextIndices: make([]big.Int, batchSize),
+		LowElementNextValues:  make([]big.Int, batchSize),
+		NewElementValues:      make([]big.Int, batchSize),
+
+		LowElementProofs: make([][]big.Int, batchSize),
+		NewElementProofs: make([][]big.Int, batchSize),
+	}
+	for i := uint32(0); i < batchSize; i++ {
+		params.LowElementProofs[i] = make([]big.Int, treeHeight)
+		params.NewElementProofs[i] = make([]big.Int, treeHeight)
+	}
+
+	oldRootValue := tree.Tree.Root.Value()
+	params.OldRoot = &oldRootValue
+
+	newValues := make([]*big.Int, batchSize)
+	for i := uint32(0); i < batchSize; i++ {
+		newValues[i] = new(big.Int).SetUint64(uint64(startIndex + i + 2))
+
+		lowElementIndex, _ := tree.IndexArray.FindLowElementIndex(newValues[i])
+		lowElement := tree.IndexArray.Get(lowElementIndex)
+
+		params.LowElementValues[i].Set(lowElement.Value)
+		params.LowElementIndices[i].SetUint64(uint64(lowElement.Index))
+		params.LowElementNextIndices[i].SetUint64(uint64(lowElement.NextIndex))
+		params.LowElementNextValues[i].Set(lowElement.NextValue)
+		params.NewElementValues[i].Set(newValues[i])
+
+		if proof, err := tree.GetProof(int(lowElement.Index)); err == nil {
+			params.LowElementProofs[i] = make([]big.Int, len(proof))
+			copy(params.LowElementProofs[i], proof)
+		} else {
+			return nil, fmt.Errorf("failed to get low element proof: %v", err)
+		}
+
+		newIndex := startIndex + i
+
+		if err := tree.Append(newValues[i]); err != nil {
+			return nil, fmt.Errorf("failed to append value: %v", err)
+		}
+		if proof, err := tree.GetProof(int(newIndex)); err == nil {
+			params.NewElementProofs[i] = make([]big.Int, len(proof))
+			copy(params.NewElementProofs[i], proof)
+		} else {
+			return nil, fmt.Errorf("failed to get new element proof: %v", err)
+		}
+	}
+
+	newRootValue := tree.Tree.Root.Value()
+	params.NewRoot = &newRootValue
+
+	params.HashchainHash = computeNewElementsHashChain(params.NewElementValues)
+	params.PublicInputHash = computePublicInputHash(params.OldRoot, params.NewRoot, params.HashchainHash, params.StartIndex)
+
+	return params, nil
+}
+
+func computeNewElementsHashChain(values []big.Int) *big.Int {
+	if len(values) == 0 {
+		return big.NewInt(0)
+	}
+
+	result := new(big.Int).Set(&values[0])
+	for i := 1; i < len(values); i++ {
+		hash, _ := poseidon.Hash([]*big.Int{result, &values[i]})
+		result = hash
+	}
+	return result
+}
+
+func computePublicInputHash(oldRoot *big.Int, newRoot *big.Int, hashchainHash *big.Int, startIndex uint32) *big.Int {
+	inputs := []*big.Int{
+		oldRoot,
+		newRoot,
+		hashchainHash,
+		big.NewInt(int64(startIndex)),
+	}
+	return calculateHashChain(inputs, 4)
+
 }

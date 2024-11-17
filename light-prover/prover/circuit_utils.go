@@ -153,6 +153,7 @@ func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
+
 	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.NextIndex, In3: gadget.LeafHigherRangeValue})
 }
 
@@ -181,10 +182,15 @@ type MerkleRootGadget struct {
 }
 
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
+	currentHash := gadget.Hash
 	for i := 0; i < gadget.Height; i++ {
-		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: gadget.Index[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
+		currentHash = abstractor.Call(api, ProveParentHash{
+			Bit:     gadget.Index[i],
+			Hash:    currentHash,
+			Sibling: gadget.Path[i],
+		})
 	}
-	return gadget.Hash
+	return currentHash
 }
 
 type MerkleRootUpdateGadget struct {
@@ -197,22 +203,19 @@ type MerkleRootUpdateGadget struct {
 }
 
 func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
-	// Verify the old root
-	currentRoot := abstractor.Call(api, MerkleRootGadget{
+	oldRoot := abstractor.Call(api, MerkleRootGadget{
 		Hash:   gadget.OldLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
 	})
-	api.AssertIsEqual(currentRoot, gadget.OldRoot)
+	api.AssertIsEqual(oldRoot, gadget.OldRoot)
 
-	// Calculate the new root
 	newRoot := abstractor.Call(api, MerkleRootGadget{
 		Hash:   gadget.NewLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
 	})
-
 	return newRoot
 }

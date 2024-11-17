@@ -15,7 +15,8 @@ import (
 )
 
 func fromHex(i *big.Int, s string) error {
-	_, ok := i.SetString(s, 0)
+	s = strings.TrimPrefix(s, "0x")
+	_, ok := i.SetString(s, 16)
 	if !ok {
 		return fmt.Errorf("invalid number: %s", s)
 	}
@@ -24,6 +25,18 @@ func fromHex(i *big.Int, s string) error {
 
 func toHex(i *big.Int) string {
 	return fmt.Sprintf("0x%s", i.Text(16))
+}
+
+func fromDec(i *big.Int, s string) error {
+	_, ok := i.SetString(s, 10)
+	if !ok {
+		return fmt.Errorf("invalid number: %s", s)
+	}
+	return nil
+}
+
+func toDec(i *big.Int) string {
+	return fmt.Sprintf("%s", i.Text(10))
 }
 
 type ProofJSON struct {
@@ -209,6 +222,20 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 	} else if strings.Contains(strings.ToLower(path), "update") {
 		ps := new(ProvingSystemV2)
 		ps.CircuitType = BatchUpdateCircuitType
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		_, err = ps.UnsafeReadFrom(file)
+		if err != nil {
+			return nil, err
+		}
+		return ps, nil
+	} else if strings.Contains(strings.ToLower(path), "address-append") {
+		ps := new(ProvingSystemV2)
+		ps.CircuitType = BatchAddressAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
