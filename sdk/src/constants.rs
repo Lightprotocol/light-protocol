@@ -4,6 +4,8 @@ use solana_program::pubkey::Pubkey;
 /// Seed of the CPI authority.
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
 
+/// ID of the Solana system program.
+pub const PROGRAM_ID_SYSTEM: Pubkey = pubkey!("11111111111111111111111111111111");
 /// ID of the account-compression program.
 pub const PROGRAM_ID_ACCOUNT_COMPRESSION: Pubkey =
     pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
