@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use anchor_lang::prelude::Result;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -12,6 +11,7 @@ use crate::{
     },
     error::LightSdkError,
     merkle_context::PackedMerkleContext,
+    system_accounts::SYSTEM_ACCOUNTS_LEN,
 };
 
 /// Information about compressed account which is being initialized.
@@ -64,7 +64,7 @@ impl<'a> LightAccountInfo<'a> {
         new_address_seed: [u8; 32],
         space: Option<usize>,
         owner: &'a Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let address_merkle_context = meta
             .address_merkle_context
             .as_ref()
@@ -72,9 +72,26 @@ impl<'a> LightAccountInfo<'a> {
 
         let new_address_params = PackedNewAddressParams {
             seed: new_address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+            address_queue_account_index: address_merkle_context
+                .address_queue_pubkey_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .saturating_sub(SYSTEM_ACCOUNTS_LEN as u8),
             address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
+                .address_merkle_tree_pubkey_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .saturating_sub(SYSTEM_ACCOUNTS_LEN as u8),
             address_merkle_tree_root_index: meta
                 .address_merkle_tree_root_index
                 .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
@@ -97,7 +114,16 @@ impl<'a> LightAccountInfo<'a> {
             // Needs to be assigned by the program.
             data_hash: None,
             address: Some(new_address),
-            output_merkle_tree_index: meta.output_merkle_tree_index,
+            output_merkle_tree_index: meta
+                .output_merkle_tree_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .map(|index| index.saturating_sub(SYSTEM_ACCOUNTS_LEN as u8)),
             new_address_params: Some(new_address_params),
         };
         Ok(account_info)
@@ -107,7 +133,7 @@ impl<'a> LightAccountInfo<'a> {
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let input = LightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
@@ -154,7 +180,16 @@ impl<'a> LightAccountInfo<'a> {
             // Needs to be assigned by the program.
             data_hash: None,
             address: meta.address,
-            output_merkle_tree_index: meta.output_merkle_tree_index,
+            output_merkle_tree_index: meta
+                .output_merkle_tree_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .map(|index| index.saturating_sub(SYSTEM_ACCOUNTS_LEN as u8)),
             new_address_params: None,
         };
         Ok(account_info)
@@ -164,7 +199,7 @@ impl<'a> LightAccountInfo<'a> {
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let input = LightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
@@ -202,7 +237,7 @@ impl<'a> LightAccountInfo<'a> {
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
         owner: &'a Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let address_merkle_context = meta
             .address_merkle_context
             .as_ref()
@@ -210,9 +245,26 @@ impl<'a> LightAccountInfo<'a> {
 
         let new_address_params = PackedNewAddressParams {
             seed: new_address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+            address_queue_account_index: address_merkle_context
+                .address_queue_pubkey_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .saturating_sub(SYSTEM_ACCOUNTS_LEN as u8),
             address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
+                .address_merkle_tree_pubkey_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .saturating_sub(SYSTEM_ACCOUNTS_LEN as u8),
             address_merkle_tree_root_index: meta
                 .address_merkle_tree_root_index
                 .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
@@ -228,7 +280,16 @@ impl<'a> LightAccountInfo<'a> {
             data: None,
             data_hash: None,
             address: Some(new_address),
-            output_merkle_tree_index: meta.output_merkle_tree_index,
+            output_merkle_tree_index: meta
+                .output_merkle_tree_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .map(|index| index.saturating_sub(SYSTEM_ACCOUNTS_LEN as u8)),
             new_address_params: Some(new_address_params),
         };
         Ok(account_info)
@@ -243,7 +304,7 @@ impl<'a> LightAccountInfo<'a> {
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let input = LightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
@@ -268,7 +329,16 @@ impl<'a> LightAccountInfo<'a> {
             data: None,
             data_hash: None,
             address: meta.address,
-            output_merkle_tree_index: meta.output_merkle_tree_index,
+            output_merkle_tree_index: meta
+                .output_merkle_tree_index
+                // Merkle tree accounts are at the end of "remaining accounts".
+                // "Remaining acocunts" passed to programs contain also system
+                // accounts.
+                // However, in light-system-program, system accounts are
+                // specified as regular accounts and don't end up as remaining
+                // anymore.
+                // Therefore, we need to update the Merkle tree accout indices.
+                .map(|index| index.saturating_sub(SYSTEM_ACCOUNTS_LEN as u8)),
             new_address_params: None,
         };
         Ok(account_info)
@@ -284,12 +354,16 @@ impl<'a> LightAccountInfo<'a> {
         self.input.as_ref().and_then(|input| input.data)
     }
 
+    pub fn new_address_params(&self) -> Option<PackedNewAddressParams> {
+        unimplemented!()
+    }
+
     /// Converts the given [LightAccountInfo] into a
     /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
     /// light-system program.
     pub fn input_compressed_account(
         &self,
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError> {
         match self.input.as_ref() {
             Some(input) => {
                 let data = match input.data {
@@ -324,7 +398,7 @@ impl<'a> LightAccountInfo<'a> {
 
     pub fn output_compressed_account(
         &self,
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError> {
         match self.output_merkle_tree_index {
             Some(merkle_tree_index) => {
                 let data = match self.data {

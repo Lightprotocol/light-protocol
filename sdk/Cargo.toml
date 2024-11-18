@@ -11,13 +11,14 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
+anchor = []
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap"]
+default = []
 test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
@@ -33,12 +34,15 @@ anchor-lang = { workspace = true }
 # Math and crypto
 num-bigint = { workspace = true }
 
+# Error handling
+thiserror = { workspace = true }
+
+# Light Protocol
 aligned-sized = { version = "1.1.0", path = "../macros/aligned-sized" }
-light-macros = { version = "1.1.0", path = "../macros/light" }
-light-sdk-macros = { version = "0.4.0", path = "../macros/light-sdk-macros" }
-bytemuck = "1.17"
-light-hasher = { version = "1.1.0", path = "../merkle-tree/hasher", features=["solana"] }
-light-heap = { version = "1.1.0", path = "../heap", optional = true }
+light-macros = { workspace = true }
+light-sdk-macros = { workspace = true }
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
 light-indexed-merkle-tree = { workspace = true }
 account-compression = { workspace = true , optional = true }
 light-system-program = { workspace = true , optional = true }

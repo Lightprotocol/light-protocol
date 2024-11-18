@@ -1,5 +1,3 @@
-use anchor_lang::Result;
-
 use crate::{account_info::LightAccountInfo, error::LightSdkError};
 
 /// Transfers a specified amount of lamports from one account to another.
@@ -11,7 +9,7 @@ pub fn transfer_compressed_sol(
     from: &mut LightAccountInfo,
     to: &mut LightAccountInfo,
     lamports: u64,
-) -> Result<()> {
+) -> Result<(), LightSdkError> {
     let output_from = from
         .input
         .as_ref()
@@ -109,7 +107,7 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
-        assert_eq!(result, Err(LightSdkError::TransferFromNoInput.into()));
+        assert!(matches!(result, Err(LightSdkError::TransferFromNoInput)));
     }
 
     #[test]
@@ -120,7 +118,7 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
-        assert_eq!(result, Err(LightSdkError::TransferFromNoLamports.into()));
+        assert!(matches!(result, Err(LightSdkError::TransferFromNoLamports)));
     }
 
     #[test]
@@ -131,10 +129,10 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
-        assert_eq!(
+        assert!(matches!(
             result,
-            Err(LightSdkError::TransferFromInsufficientLamports.into())
-        );
+            Err(LightSdkError::TransferFromInsufficientLamports),
+        ));
     }
 
     #[test]
@@ -145,7 +143,10 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(u64::MAX - 500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 600);
-        assert_eq!(result, Err(LightSdkError::TransferIntegerOverflow.into()));
+        assert!(matches!(
+            result,
+            Err(LightSdkError::TransferIntegerOverflow)
+        ));
     }
 
     #[test]

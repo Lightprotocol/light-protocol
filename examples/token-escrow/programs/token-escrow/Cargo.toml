@@ -26,7 +26,7 @@ light-system-program = { workspace = true }
 account-compression = { workspace = true }
 light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.1.0" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.1.0" }
-light-sdk = { workspace = true, features = ["legacy"] }
+light-sdk = { workspace = true, features = ["anchor", "legacy"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

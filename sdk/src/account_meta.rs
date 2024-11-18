@@ -1,14 +1,18 @@
 //! Types used
 
+#[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
     compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
+    instruction_accounts::LightInstructionAccounts,
     merkle_context::{
         pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
-        PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
+        PackedAddressMerkleContext, PackedMerkleContext,
     },
 };
 
@@ -42,7 +46,7 @@ impl LightAccountMeta {
         output_merkle_tree: &Pubkey,
         address_merkle_context: Option<&AddressMerkleContext>,
         address_merkle_tree_root_index: Option<u16>,
-        remaining_accounts: &mut RemainingAccounts,
+        remaining_accounts: &mut LightInstructionAccounts,
     ) -> Result<Self, LightSdkError> {
         let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
         let address_merkle_context =
@@ -65,14 +69,13 @@ impl LightAccountMeta {
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
         output_merkle_tree: &Pubkey,
-        remaining_accounts: &mut RemainingAccounts,
+        accounts: &mut LightInstructionAccounts,
     ) -> Self {
-        let merkle_context =
-            pack_merkle_context(&compressed_account.merkle_context, remaining_accounts);
+        let merkle_context = pack_merkle_context(&compressed_account.merkle_context, accounts);
 
         // If no output Merkle tree was specified, use the one used for the
         // input account.
-        let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
+        let output_merkle_tree_index = accounts.insert_or_get(*output_merkle_tree);
 
         Self {
             lamports: Some(compressed_account.compressed_account.lamports),
@@ -94,10 +97,9 @@ impl LightAccountMeta {
     pub fn new_close(
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
-        remaining_accounts: &mut RemainingAccounts,
+        accounts: &mut LightInstructionAccounts,
     ) -> Self {
-        let merkle_context =
-            pack_merkle_context(&compressed_account.merkle_context, remaining_accounts);
+        let merkle_context = pack_merkle_context(&compressed_account.merkle_context, accounts);
         Self {
             lamports: Some(compressed_account.compressed_account.lamports),
             address: compressed_account.compressed_account.address,

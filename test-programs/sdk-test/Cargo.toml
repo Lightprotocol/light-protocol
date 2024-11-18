@@ -1,0 +1,19 @@
+[package]
+name = "sdk-test"
+version = "0.7.0"
+description = "Test program for Light SDK and Light Macros"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "sdk_test"
+
+[dependencies]
+borsh = { workspace = true }
+light-sdk = { workspace = true }
+solana-program = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+solana-program-test = { workspace = true }
