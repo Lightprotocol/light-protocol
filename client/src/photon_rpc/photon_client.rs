@@ -18,7 +18,13 @@ pub struct PhotonClient {
 }
 
 impl PhotonClient {
-    pub fn new(url: String, api_key: String) -> Self {
+    pub fn new(url: String) -> Self {
+        let mut config = Configuration::new();
+        config.base_path = url;
+        PhotonClient { config }
+    }
+
+    pub fn new_with_auth(url: String, api_key: String) -> Self {
         let mut config = Configuration::new();
         config.base_path = url;
         config.api_key = Some(ApiKey {
