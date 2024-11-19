@@ -43,7 +43,7 @@ async fn test_all_endpoints() {
             run_mode: None,
             circuits: vec![ProofType::Combined],
         }),
-        wait_time: 15,
+        wait_time: 20,
     };
 
     spawn_validator(config).await;
@@ -83,13 +83,15 @@ async fn test_all_endpoints() {
         true,
     );
 
-    let tx = Transaction::new_signed_with_payer(
+    let tx_create_compressed_account = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer_pubkey),
         &[&rpc.get_payer()],
         rpc.client.get_latest_blockhash().unwrap(),
     );
-    rpc.client.send_and_confirm_transaction(&tx).unwrap();
+    rpc.client
+        .send_and_confirm_transaction(&tx_create_compressed_account)
+        .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
@@ -162,15 +164,23 @@ async fn test_all_endpoints() {
         address: hash_to_bn254_field_size_be(&seed).unwrap().0,
         tree: env_accounts.address_merkle_tree_pubkey,
     }];
-    assert!(client
+
+    let accounts = client
         .get_multiple_compressed_accounts(None, Some(hashes.clone()))
         .await
-        .is_ok());
+        .unwrap();
+
+    assert!(!accounts.value.is_empty());
+    assert_eq!(accounts.value[0].hash, first_hash);
 
     let result = client
         .get_validity_proof(hashes.clone(), new_addresses)
-        .await;
-    assert!(result.is_ok());
+        .await
+        .unwrap();
+    assert_eq!(
+        Hash::from_base58(result.value.leaves[0].as_ref()).unwrap(),
+        hashes[0]
+    );
 
     let account = client
         .get_compressed_account(None, Some(first_hash))
@@ -185,10 +195,14 @@ async fn test_all_endpoints() {
         .unwrap();
     assert_eq!(balance.value.lamports, lamports);
 
-    assert!(client
+    let signatures = client
         .get_compression_signatures_for_account(first_hash)
         .await
-        .is_ok());
+        .unwrap();
+    assert_eq!(
+        signatures.value.items[0].signature,
+        tx_create_compressed_account.signatures[0].to_string()
+    );
 
     let token_account = &client
         .get_compressed_token_accounts_by_owner(&pubkey, None)
