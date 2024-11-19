@@ -379,7 +379,6 @@ impl RpcConnection for SolanaRpcConnection {
                 .client
                 .request_airdrop(to, lamports)
                 .map_err(RpcError::ClientError)?;
-            println!("Airdrop signature: {:?}", signature);
             self.retry(|| async {
                 if self
                     .client

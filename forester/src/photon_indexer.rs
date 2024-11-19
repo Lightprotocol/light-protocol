@@ -43,10 +43,11 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
         debug!("Getting proofs for {:?}", hashes);
-        let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
-            params: hashes,
-            ..Default::default()
-        };
+        let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
+            photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
+                params: hashes,
+                ..Default::default()
+            };
 
         let result = photon_api::apis::default_api::get_multiple_compressed_account_proofs_post(
             &self.configuration,

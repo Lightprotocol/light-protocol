@@ -17,6 +17,7 @@ solana-program = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
+photon-api = { workspace = true }
 
 # Anchor compatibility
 borsh = { workspace = true }
@@ -46,3 +47,18 @@ num-traits = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
+
+
+[dev-dependencies]
+light-test-utils = { version = "1.2.0", path = "../test-utils", features=["devenv"]}
+light-system-program = { workspace = true }
+light-compressed-token = { workspace = true }
+spl-token = { workspace = true }
+rand = "0.8.5"
+light-utils = { workspace = true }
+
+[profile.test]
+overflow-checks = true
+debug = true
+debug-assertions = true
+

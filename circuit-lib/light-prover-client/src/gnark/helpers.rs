@@ -279,8 +279,6 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
         let path = "cli/test_bin/run test-validator";
         let mut path = format!("{}/{}", project_root.trim(), path);
-        println!("Starting validator...");
-        println!("Config: {:?}", config);
         if !config.enable_indexer {
             path.push_str(" --skip-indexer");
         }
@@ -303,6 +301,5 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             .spawn()
             .expect("Failed to start server process");
         tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
-        println!("Validator started successfully");
     }
 }
