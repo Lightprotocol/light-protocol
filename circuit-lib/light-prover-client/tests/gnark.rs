@@ -136,7 +136,6 @@ async fn prove_batch_update() {
         );
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
-
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -158,7 +157,7 @@ async fn prove_batch_update() {
 
 #[serial]
 #[tokio::test]
-async fn prove_batch_append() {
+async fn prove_batch_append_with_subtrees() {
     init_logger();
     println!("spawning prover");
     spawn_prover(
@@ -225,7 +224,7 @@ async fn prove_batch_append() {
 
 #[serial]
 #[tokio::test]
-async fn prove_batch_two_append() {
+async fn prove_batch_append_with_proofs() {
     init_logger();
 
     // Spawn the prover with specific configuration

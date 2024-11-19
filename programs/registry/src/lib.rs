@@ -542,7 +542,7 @@ pub mod light_registry {
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
-                ctx.accounts.output_queue.key(),
+                ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
                 queue_account.queue.batch_size,
             )?;
