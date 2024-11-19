@@ -98,7 +98,6 @@ export async function executeCommand({
       logStream = fs.createWriteStream(file, { flags: "a" });
     }
 
-    // console.log(`Executing command: ${fullCommand}`);
     let childProcess;
     try {
       childProcess = spawn(fullCommand, [], options);
