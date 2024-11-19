@@ -33,6 +33,8 @@ jobs:
   test:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    container:
+      options: --memory=4g
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -47,12 +49,20 @@ jobs:
 
       # concurrent merkle tree crate must run in isolation because otherwise it
       # tries to use the idl-build feature (which fails).
+      - name: Test client
+        run: |
+          source ./scripts/devenv.sh
+          echo "Rust version: $(rustc --version)"
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" \
+            cargo test --all-targets --package light-client
+
       - name: Test workspace (excluding light-concurrent-merkle-tree)
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
           RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" \
             cargo test --all-targets --workspace \
+            --exclude light-client \
             --exclude light-concurrent-merkle-tree \
             --exclude photon-api \
             --exclude forester \
@@ -64,3 +74,6 @@ jobs:
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
           RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --package light-concurrent-merkle-tree
+
+      - name: Memory status
+        run: free -h
