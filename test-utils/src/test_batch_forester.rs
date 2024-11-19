@@ -292,6 +292,9 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         if bundle.merkle_tree.get_next_index() < index + 2 {
             old_leaves.push([0u8; 32]);
         } else {
+            // We can get into a state where we have pushed 0 leaves into the
+            // tree hence hit this else but the leaf hasn't been inserted yet.
+            let leaf = bundle.merkle_tree.get_leaf(index).unwrap();
             old_leaves.push(leaf);
         }
         // Handle case that we nullify a leaf which has not been inserted yet.
@@ -300,7 +303,6 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         }
         let proof = bundle.merkle_tree.get_proof_of_leaf(index, true).unwrap();
         merkle_proofs.push(proof.to_vec());
-        // path_indices.push(index as u32);
         bundle.input_leaf_indices.remove(0);
         let index_bytes = index.to_be_bytes();
         use light_hasher::Hasher;
@@ -496,7 +498,6 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         params.height,
         params.input_queue_num_batches,
     );
-
     assert_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),
         ref_mt_account,

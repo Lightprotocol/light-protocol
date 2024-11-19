@@ -377,7 +377,10 @@ pub fn assert_mt_zero_copy_inited(
         ref_account,
         "metadata mismatch"
     );
-
+    println!(
+        "zero_copy_account.root_history.capacity(): {}",
+        zero_copy_account.root_history.metadata().capacity()
+    );
     assert_eq!(
         zero_copy_account.root_history.capacity(),
         ref_account.root_history_capacity as usize,
@@ -388,7 +391,11 @@ pub fn assert_mt_zero_copy_inited(
         light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
         "root_history not initialized"
     );
-
+    assert_eq!(
+        zero_copy_account.hashchain_store[0].metadata().capacity(),
+        ref_account.queue.get_num_zkp_batches() as usize,
+        "hashchain_store mismatch"
+    );
     assert_queue_inited(
         queue,
         ref_queue,
