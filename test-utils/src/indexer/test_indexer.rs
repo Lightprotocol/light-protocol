@@ -522,7 +522,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 if let Some(ref prover_config) = self.prover_config {
-                    spawn_prover(false, prover_config.clone()).await;
+                    spawn_prover(true, prover_config.clone()).await;
                 }
                 retries -= 1;
             }

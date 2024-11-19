@@ -547,7 +547,7 @@ where
                         }
                         // Check output queue
                         if let Some(payer) = Self::get_eligible_forester_for_queue(
-                            &state_tree_bundle.accounts.nullifier_queue,
+                            &state_tree_bundle.accounts.merkle_tree,
                             &self.foresters,
                             self.slot,
                         ) {
@@ -1226,12 +1226,13 @@ where
         light_slot: u64,
     ) -> Option<Keypair> {
         for f in foresters.iter() {
-            let tree = f
-                .forester
-                .active
-                .merkle_trees
-                .iter()
-                .find(|mt| mt.tree_accounts.queue == *queue_pubkey);
+            let tree = f.forester.active.merkle_trees.iter().find(|mt| {
+                if mt.tree_accounts.tree_type == TreeType::BatchedState {
+                    mt.tree_accounts.merkle_tree == *queue_pubkey
+                } else {
+                    mt.tree_accounts.queue == *queue_pubkey
+                }
+            });
             if let Some(tree) = tree {
                 if tree.is_eligible(light_slot) {
                     return Some(f.keypair.insecure_clone());
