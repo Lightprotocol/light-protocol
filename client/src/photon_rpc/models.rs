@@ -61,23 +61,19 @@ impl From<photon_api::models::GetCompressedAccountPost200ResponseResult>
     for CompressedAccountResponse
 {
     fn from(result: photon_api::models::GetCompressedAccountPost200ResponseResult) -> Self {
+        let account = result.value.as_ref().unwrap();
         CompressedAccountResponse {
             context: ResponseContext::from(*result.context),
             value: CompressedAccount {
-                hash: Hash::from_base58(&result.value.as_ref().unwrap().hash).unwrap(),
-                data: result
-                    .value
-                    .as_ref()
-                    .unwrap()
+                hash: Hash::from_base58(&account.hash).unwrap(),
+                data: account
                     .data
                     .as_ref()
-                    .unwrap()
-                    .data
-                    .clone(),
-                owner: result.value.as_ref().unwrap().owner.clone(),
-                lamports: result.value.as_ref().unwrap().lamports as u64,
+                    .map_or(String::new(), |d| d.data.clone()),
+                owner: account.owner.clone(),
+                lamports: account.lamports as u64,
                 executable: false,
-                rent_epoch: result.value.as_ref().unwrap().slot_created as u64,
+                rent_epoch: account.slot_created as u64,
             },
         }
     }
@@ -125,7 +121,7 @@ impl From<photon_api::models::GetMultipleCompressedAccountsPost200ResponseResult
                 .iter()
                 .map(|acc| CompressedAccount {
                     hash: Hash::from_base58(&acc.hash).unwrap(),
-                    data: acc.data.as_ref().unwrap().data.clone(),
+                    data: acc.data.as_ref().map_or(String::new(), |d| d.data.clone()),
                     owner: acc.owner.clone(),
                     lamports: acc.lamports as u64,
                     executable: false,

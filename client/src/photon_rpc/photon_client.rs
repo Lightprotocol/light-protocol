@@ -358,14 +358,14 @@ impl PhotonClient {
 
     pub async fn get_multiple_compressed_accounts(
         &self,
-        addresses: Vec<Address>,
-        hashes: Vec<Hash>,
+        addresses: Option<Vec<Address>>,
+        hashes: Option<Vec<Hash>>,
     ) -> Result<CompressedAccountsResponse, PhotonClientError> {
         let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
             params: Box::new(
                 photon_api::models::GetMultipleCompressedAccountsPostRequestParams {
-                    addresses: Some(addresses.iter().map(|x| Some(x.to_base58())).collect()),
-                    hashes: Some(hashes.iter().map(|x| Some(x.to_base58())).collect()),
+                    addresses: addresses.map(|x| Some(x.iter().map(|x| x.to_base58()).collect())),
+                    hashes: hashes.map(|x| Some(x.iter().map(|x| x.to_base58()).collect())),
                 },
             ),
             ..Default::default()

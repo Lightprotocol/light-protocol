@@ -52,3 +52,13 @@ reqwest = { workspace = true }
 [dev-dependencies]
 light-test-utils = { version = "1.2.0", path = "../test-utils", features=["devenv"]}
 light-system-program = { workspace = true }
+light-compressed-token = { workspace = true }
+spl-token = { workspace = true }
+rand = "0.8.5"
+light-utils = { workspace = true }
+
+[profile.test]
+overflow-checks = true
+debug = true
+debug-assertions = true
+
