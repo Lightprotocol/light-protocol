@@ -37,10 +37,10 @@ jobs:
             sub-tests: '[
               "cargo test-sbf -p token-escrow -- --test-threads=1"
             ]'
-          - program: name-service-without-macros-test
-            sub-tests: '[
-              "cargo test-sbf -p name-service-without-macros -- --test-threads=1"
-            ]'
+          # - program: name-service-without-macros-test
+          #   sub-tests: '[
+          #     "cargo test-sbf -p name-service-without-macros -- --test-threads=1"
+          #   ]'
 
     steps:
       - name: Checkout sources

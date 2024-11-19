@@ -736,7 +736,7 @@ pub fn print_test_data() {
 
     let proof = relayer_merkle_tree.get_proof_of_leaf(2, true).unwrap();
 
-    let leaf = relayer_merkle_tree.merkle_tree.get_leaf(2);
+    let leaf = relayer_merkle_tree.merkle_tree.get_leaf(2).unwrap();
     let leaf_bn = BigUint::from_bytes_be(&leaf);
     println!("(30) leaf_hash[2] = {:?}", leaf_bn);
 
