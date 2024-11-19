@@ -33,7 +33,7 @@ export async function startProver(
   }
 
   for (const circuit of circuits) {
-    console.log(`Adding circuit: ${circuit}`);
+    // console.log(`Adding circuit: ${circuit}`);
     args.push("--circuit", circuit);
   }
 

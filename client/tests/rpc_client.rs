@@ -41,7 +41,7 @@ async fn test_all_endpoints() {
         enable_indexer: true,
         prover_config: Some(ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
+            circuits: vec![ProofType::Combined],
         }),
         wait_time: 15,
     };
@@ -167,10 +167,10 @@ async fn test_all_endpoints() {
         .await
         .is_ok());
 
-    assert!(client
+    let result = client
         .get_validity_proof(hashes.clone(), new_addresses)
-        .await
-        .is_ok());
+        .await;
+    assert!(result.is_ok());
 
     let account = client
         .get_compressed_account(None, Some(first_hash))

@@ -269,32 +269,29 @@ impl Default for LightValidatorConfig {
 
 pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
-        let mut binary_path = format!("{}/cli/test_bin/run", project_root.trim());
-
+        let path = "cli/test_bin/run test-validator";
+        let mut path = format!("{}/{}", project_root.trim(), path);
         if !config.enable_indexer {
-            binary_path.push_str(" --skip-indexer");
+            path.push_str(" --skip-indexer");
         }
         if let Some(prover_config) = config.prover_config {
             prover_config.circuits.iter().for_each(|circuit| {
-                binary_path.push_str(&format!(" --circuit {}", circuit));
+                path.push_str(&format!(" --circuit {}", circuit));
             });
             if let Some(prover_mode) = prover_config.run_mode {
-                binary_path.push_str(&format!(" --prover-run-mode {}", prover_mode));
+                path.push_str(&format!(" --prover-run-mode {}", prover_mode));
             }
         } else {
-            binary_path.push_str(" --skip-prover");
+            path.push_str(" --skip-prover");
         }
 
-        println!(
-            "Starting validator with command: {} test-validator",
-            binary_path
-        );
-        match Command::new(&binary_path).arg("test-validator").spawn() {
-            Ok(_) => {
-                tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
-                println!("Validator started successfully");
-            }
-            Err(e) => println!("Failed to start validator: {}", e),
-        }
+        println!("Starting validator with command: {}", path);
+
+        Command::new("sh")
+            .arg("-c")
+            .arg(path)
+            .spawn()
+            .expect("Failed to start server process");
+        tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
     }
 }
