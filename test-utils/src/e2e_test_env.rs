@@ -123,10 +123,7 @@ use forester_utils::address_merkle_tree_config::{
     address_tree_ready_for_rollover, state_tree_ready_for_rollover,
 };
 use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
-};
+use forester_utils::indexer::{Indexer, TokenDataWithContext};
 use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, AccountZeroCopy};
 use light_hasher::Poseidon;
@@ -140,7 +137,7 @@ use crate::indexer::TestIndexer;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
-
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeBundle};
 pub struct User {
     pub keypair: Keypair,
     // Vector of (mint, token account)
@@ -991,7 +988,7 @@ where
                     .deserialized()
                     .metadata
                     .rollover_metadata
-                    .rollover_fee as i64,
+                    .rollover_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
@@ -1081,7 +1078,7 @@ where
                     .deserialized()
                     .metadata
                     .rollover_metadata
-                    .rollover_fee as i64,
+                    .rollover_fee,
                 accounts: AddressMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     queue: nullifier_queue_keypair.pubkey(),

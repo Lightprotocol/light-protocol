@@ -1,10 +1,5 @@
 use std::{marker::PhantomData, time::Duration};
 
-use crate::{
-    indexer::Indexer,
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
-    transaction_params::FeeConfig,
-};
 use borsh::BorshDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
@@ -40,10 +35,10 @@ use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 
-use super::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle,
-};
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::FeeConfig;
 
 #[derive(Debug)]
 pub struct TestIndexer<R>
@@ -341,6 +336,9 @@ where
                     accounts: *accounts,
                     merkle_tree,
                     rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
+                    version: 1,
+                    output_queue_elements: Vec::new(),
+                    input_leaf_indices: Vec::new(),
                 }
             })
             .collect::<Vec<_>>();

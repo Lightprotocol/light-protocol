@@ -17,6 +17,7 @@ tiny-bip39 = "0.8.2"
 chrono = "0.4.37"
 time = "0.3.34"
 account-compression = { workspace = true }
+light-client = { workspace = true }
 light-system-program = { path = "../programs/system", features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { path = "../merkle-tree/hasher" }
@@ -52,7 +53,6 @@ lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
-light-client = { workspace = true }
 
 [dev-dependencies]
 function_name = "0.3.0"

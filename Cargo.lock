@@ -3707,6 +3707,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-program-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-sdk",
+ "log",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "reqwest 0.11.27",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "light-prover-client"
 version = "1.2.0"
 dependencies = [

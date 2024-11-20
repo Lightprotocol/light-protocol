@@ -6,17 +6,16 @@ use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
 use light_client::rpc::RpcConnection;
+use light_client::indexer::AddressMerkleTreeBundle;
 use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
-use light_indexed_merkle_tree::reference::IndexedMerkleTree;
-use light_merkle_tree_reference::MerkleTree;
+use light_indexed_merkle_tree::array::IndexedElement;
 use light_system_program::invoke::processor::CompressedProof;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, StateMerkleTreeBundle};
 
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
@@ -39,37 +38,37 @@ pub struct ProofRpcResult {
     pub address_root_indices: Vec<u16>,
 }
 
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct StateMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub nullifier_queue: Pubkey,
-    pub cpi_context: Pubkey,
-}
+// #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+// pub struct StateMerkleTreeAccounts {
+//     pub merkle_tree: Pubkey,
+//     pub nullifier_queue: Pubkey,
+//     pub cpi_context: Pubkey,
+// }
 
-#[derive(Debug, Clone, Copy)]
-pub struct AddressMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub queue: Pubkey,
-}
+// #[derive(Debug, Clone, Copy)]
+// pub struct AddressMerkleTreeAccounts {
+//     pub merkle_tree: Pubkey,
+//     pub queue: Pubkey,
+// }
+//
+// #[derive(Debug, Clone)]
+// pub struct StateMerkleTreeBundle {
+//     pub rollover_fee: i64,
+//     pub merkle_tree: Box<MerkleTree<Poseidon>>,
+//     pub accounts: StateMerkleTreeAccounts,
+//     pub version: u64,
+//     pub output_queue_elements: Vec<[u8; 32]>,
+//     /// leaf index, leaf, tx hash
+//     pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
+// }
 
-#[derive(Debug, Clone)]
-pub struct StateMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<MerkleTree<Poseidon>>,
-    pub accounts: StateMerkleTreeAccounts,
-    pub version: u64,
-    pub output_queue_elements: Vec<[u8; 32]>,
-    /// leaf index, leaf, tx hash
-    pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
-    pub accounts: AddressMerkleTreeAccounts,
-}
+// #[derive(Debug, Clone)]
+// pub struct AddressMerkleTreeBundle {
+//     pub rollover_fee: i64,
+//     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
+//     pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
+//     pub accounts: AddressMerkleTreeAccounts,
+// }
 
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn get_multiple_compressed_account_proofs(

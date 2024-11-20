@@ -30,6 +30,7 @@ members = [
     "forester-utils",
     "forester",
     "photon-api",
+    "light-program-test",
 ]
 
 [profile.release]

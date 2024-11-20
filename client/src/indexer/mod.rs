@@ -16,8 +16,6 @@ use thiserror::Error;
 
 use crate::rpc::RpcConnection;
 
-pub mod test_indexer;
-
 #[derive(Error, Debug)]
 pub enum IndexerError {
     #[error("RPC Error: {0}")]
@@ -99,6 +97,10 @@ pub struct StateMerkleTreeBundle {
     pub rollover_fee: u64,
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
+    pub version: u64,
+    pub output_queue_elements: Vec<[u8; 32]>,
+    /// leaf index, leaf, tx hash
+    pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
 }
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@ use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::run_pipeline;
 use forester::utils::get_protocol_config;
-use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use forester_utils::registry::register_test_forester;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
