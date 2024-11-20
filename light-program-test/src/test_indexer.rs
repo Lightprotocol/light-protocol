@@ -338,6 +338,9 @@ where
                     accounts: *accounts,
                     merkle_tree,
                     rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
+                    version: 1,
+                    input_leaf_indices: vec![],
+                    output_queue_elements: vec![],
                 }
             })
             .collect::<Vec<_>>();

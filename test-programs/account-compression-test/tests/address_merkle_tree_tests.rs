@@ -12,6 +12,7 @@ use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVecError;
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
@@ -29,8 +30,7 @@ use light_test_utils::{
 };
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, get_hash_set,
-    get_indexed_merkle_tree, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, FeeConfig,
-    RpcConnection, RpcError,
+    get_indexed_merkle_tree, FeeConfig, RpcConnection, RpcError,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
@@ -1474,7 +1474,7 @@ pub async fn test_setup_with_address_merkle_tree(
             merkle_tree: address_merkle_tree_keypair.pubkey(),
             queue: address_queue_keypair.pubkey(),
         },
-        rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+        rollover_fee: FeeConfig::default().address_queue_rollover,
     };
     (context, payer, address_merkle_tree_bundle)
 }

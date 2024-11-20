@@ -49,6 +49,7 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "light-bounded-vec",
+ "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hash-set",

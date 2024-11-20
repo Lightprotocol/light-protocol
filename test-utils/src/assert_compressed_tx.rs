@@ -4,8 +4,9 @@ use account_compression::batched_merkle_tree::{
 use account_compression::batched_queue::BatchedQueueAccount;
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
-use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
+use forester_utils::indexer::Indexer;
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use light_client::indexer::StateMerkleTreeAccounts;
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
