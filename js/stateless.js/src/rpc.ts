@@ -41,12 +41,9 @@ import {
     HashWithTree,
     CompressedMintTokenHoldersResult,
     CompressedMintTokenHolders,
-    GetCompressedMintTokenHoldersOptions,
     TokenBalance,
     TokenBalanceListResultV2,
-    GetCompressedTokenBalancesByOwnerOptions,
-    GetCompressionSignaturesForOwnerOptions,
-    GetCompressionSignaturesForAddressOptions,
+    PaginatedOptions,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -1045,7 +1042,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         address: PublicKey,
-        options?: GetCompressionSignaturesForAddressOptions,
+        options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -1085,7 +1082,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForOwner(
         owner: PublicKey,
-        options?: GetCompressionSignaturesForOwnerOptions,
+        options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -1123,7 +1120,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
-        options?: GetCompressedTokenBalancesByOwnerOptions,
+        options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -1206,9 +1203,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result;
     }
 
+    /**
+     * Fetch all the compressed token holders for a given mint. Paginated.
+     */
     async getCompressedMintTokenHolders(
         mint: PublicKey,
-        options?: GetCompressedMintTokenHoldersOptions,
+        options?: PaginatedOptions,
     ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,

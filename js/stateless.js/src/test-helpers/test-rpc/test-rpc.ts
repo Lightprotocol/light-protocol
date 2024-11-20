@@ -19,9 +19,7 @@ import {
     CompressedMintTokenHolders,
     CompressedTransaction,
     GetCompressedAccountsByOwnerConfig,
-    GetCompressedMintTokenHoldersOptions,
-    GetCompressionSignaturesForAddressOptions,
-    GetCompressionSignaturesForOwnerOptions,
+    PaginatedOptions,
     HashWithTree,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
@@ -502,7 +500,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         _address: PublicKey,
-        _options?: GetCompressionSignaturesForAddressOptions,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }
@@ -516,7 +514,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForOwner(
         _owner: PublicKey,
-        _options?: GetCompressionSignaturesForOwnerOptions,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForOwner not implemented');
     }
@@ -528,7 +526,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForTokenOwner(
         _owner: PublicKey,
-        _options?: GetCompressionSignaturesForOwnerOptions,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForTokenOwner not implemented');
     }
@@ -613,7 +611,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
     async getCompressedMintTokenHolders(
         _mint: PublicKey,
-        _options?: GetCompressedMintTokenHoldersOptions,
+        _options?: PaginatedOptions,
     ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
         throw new Error(
             'getCompressedMintTokenHolders not implemented in test-rpc',
