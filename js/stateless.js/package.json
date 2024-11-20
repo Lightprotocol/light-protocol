@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.14.4",
+    "version": "0.15.1",
     "description": "JavaScript API for Light and ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",

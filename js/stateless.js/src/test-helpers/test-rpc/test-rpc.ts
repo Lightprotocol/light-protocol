@@ -19,7 +19,7 @@ import {
     CompressedMintTokenHolders,
     CompressedTransaction,
     GetCompressedAccountsByOwnerConfig,
-    GetCompressedMintTokenHoldersOptions,
+    PaginatedOptions,
     HashWithTree,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
@@ -32,6 +32,7 @@ import {
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ParsedTokenAccount,
+    TokenBalance,
 } from '../../rpc-interface';
 import {
     BN254,
@@ -418,8 +419,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated use {@link getCompressedTokenBalancesByOwnerV2}.
      * Fetch all the compressed token balances owned by the specified public
-     * key. Can filter by mint
+     * key. Can filter by mint.
      */
     async getCompressedTokenBalancesByOwner(
         publicKey: PublicKey,
@@ -440,6 +442,31 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * Fetch all the compressed token balances owned by the specified public
+     * key. Can filter by mint. Uses context.
+     */
+    async getCompressedTokenBalancesByOwnerV2(
+        publicKey: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<WithContext<WithCursor<TokenBalance[]>>> {
+        const accounts = await getCompressedTokenAccountsByOwnerTest(
+            this,
+            publicKey,
+            options.mint!,
+        );
+        return {
+            context: { slot: 1 },
+            value: {
+                items: accounts.items.map(account => ({
+                    balance: bn(account.parsed.amount),
+                    mint: account.parsed.mint,
+                })),
+                cursor: null,
+            },
+        };
+    }
+
+    /**
      * Returns confirmed signatures for transactions involving the specified
      * account hash forward in time from genesis to the most recent confirmed
      * block
@@ -447,7 +474,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * @param hash queried account hash
      */
     async getCompressionSignaturesForAccount(
-        hash: BN254,
+        _hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error(
             'getCompressionSignaturesForAccount not implemented in test-rpc',
@@ -459,7 +486,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * CompressionInfo
      */
     async getTransactionWithCompressionInfo(
-        signature: string,
+        _signature: string,
     ): Promise<CompressedTransaction | null> {
         throw new Error('getCompressedTransaction not implemented in test-rpc');
     }
@@ -473,6 +500,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         _address: PublicKey,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }
@@ -485,7 +513,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * @param owner queried owner public key
      */
     async getCompressionSignaturesForOwner(
-        owner: PublicKey,
+        _owner: PublicKey,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForOwner not implemented');
     }
@@ -496,7 +525,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * recent confirmed block
      */
     async getCompressionSignaturesForTokenOwner(
-        owner: PublicKey,
+        _owner: PublicKey,
+        _options?: PaginatedOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         throw new Error('getSignaturesForTokenOwner not implemented');
     }
@@ -581,7 +611,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
     async getCompressedMintTokenHolders(
         _mint: PublicKey,
-        _options?: GetCompressedMintTokenHoldersOptions,
+        _options?: PaginatedOptions,
     ): Promise<WithContext<WithCursor<CompressedMintTokenHolders[]>>> {
         throw new Error(
             'getCompressedMintTokenHolders not implemented in test-rpc',

@@ -1,24 +1,36 @@
-# TS client for Interacting with the Compressed-Token Program
+<p align="center">
+  <img src="https://github.com/ldiego08/light-protocol/raw/main/assets/logo.svg" width="90" />
+</p>
 
-Use this to interact with the compressed-token program on Solana via the
-Compression RPC API.
+<h1 align="center">@lightprotocol/compressed-token</h1>
+
+<p align="center">
+  <b>This is the JavaScript SDK for interacting with the Compressed Token program on Solana.</b>
+</p>
+
+<p align="center">
+  <a href="https://badge.fury.io/js/@lightprotocol%2Fcompressed-token">
+    <img src="https://badge.fury.io/js/@lightprotocol%2Fcompressed-token.svg" alt="package npm version" height="18" />
+  </a>
+  <img src="https://img.shields.io/npm/l/%40lightprotocol%2Fcompressed-token" alt="package license" height="18">
+  <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fcompressed-token" alt="package weekly downloads" height="18" />
+</p>
+
 
 ### Installation
 
-**For use in Node.js or a web application**
+**For use in Node.js or web**
 
 ```bash
 npm install --save \
     @lightprotocol/compressed-token \
     @lightprotocol/stateless.js \
-    @solana/web3.js \
-    @coral-xyz/anchor@0.29
 ```
 
 ### Documentation and examples
 
 -   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/compressed-token)
--   Documentation and examples will be linked here soon!
+-   [Creating and sending compressed tokens](https://www.zkcompression.com/developers/typescript-client#creating-minting-and-transferring-a-compressed-token)
 
 ### Getting help
 

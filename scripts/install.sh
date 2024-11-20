@@ -13,7 +13,7 @@ VERSIONS=(
     "solana:1.18.22"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.7.1"
-    "photon:0.48.0"
+    "photon:0.50.0"
 )
 
 # Architecture-specific suffixes
@@ -187,12 +187,17 @@ install_dependencies() {
 main() {
     mkdir -p "${PREFIX}/bin"
 
-   # Parse command line arguments
+    # Parse command line arguments
     local key_type="light"
+    local reset_log=true
     while [[ $# -gt 0 ]]; do
         case $1 in
             --full-keys)
                 key_type="full"
+                shift
+                ;;
+            --no-reset)
+                reset_log=false
                 shift
                 ;;
             *)
@@ -201,6 +206,10 @@ main() {
                 ;;
         esac
     done
+
+    if $reset_log; then
+        rm -f "$INSTALL_LOG"
+    fi
 
     install_go
     install_rust
@@ -211,8 +220,6 @@ main() {
     install_jq
     download_gnark_keys "$key_type"
     install_dependencies
-
-    rm -f "$INSTALL_LOG"
 
     echo "✨ Light Protocol development dependencies installed"
 }
