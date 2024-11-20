@@ -1,6 +1,6 @@
 # ZK Compression CLI
 
-CLI to interact with ZK compression.
+CLI to interact with compressed accounts and compressed tokens on Solana.
 
 ## Requirements
 
@@ -179,9 +179,7 @@ FLAGS
 
 ```
 
-#### Compress native SOL
-
-> **Note:** Ensure the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
+#### Assign native SOL to a compressed account
 
 ```bash
 light compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
