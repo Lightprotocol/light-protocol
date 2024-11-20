@@ -130,8 +130,13 @@ export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     cursor?: string;
     limit?: BN;
 }
+export type TokenBalance = { balance: BN; mint: PublicKey };
+export type GetCompressedMintTokenHoldersOptions = PaginatedOptions;
+export type GetCompressedTokenBalancesByOwnerOptions = PaginatedOptions;
+export type GetCompressionSignaturesForOwnerOptions = PaginatedOptions;
+export type GetCompressionSignaturesForAddressOptions = PaginatedOptions;
 
-export interface GetCompressedMintTokenHoldersOptions {
+export interface PaginatedOptions {
     cursor?: string;
     limit?: BN;
 }
@@ -441,6 +446,11 @@ export const TokenBalanceListResult = pick({
     cursor: nullable(string()),
 });
 
+export const TokenBalanceListResultV2 = pick({
+    items: array(TokenBalanceResult),
+    cursor: nullable(string()),
+});
+
 export const CompressedMintTokenHoldersResult = pick({
     cursor: nullable(string()),
     items: array(
@@ -564,7 +574,12 @@ export interface CompressionApiInterface {
     getCompressedTokenBalancesByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>>;
+    ): Promise<WithCursor<TokenBalance[]>>;
+
+    getCompressedTokenBalancesByOwnerV2(
+        publicKey: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<WithContext<WithCursor<TokenBalance[]>>>;
 
     getTransactionWithCompressionInfo(
         signature: string,
@@ -576,18 +591,22 @@ export interface CompressionApiInterface {
 
     getCompressionSignaturesForAddress(
         address: PublicKey,
+        options?: GetCompressionSignaturesForAddressOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getCompressionSignaturesForOwner(
         owner: PublicKey,
+        options?: GetCompressionSignaturesForOwnerOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
+        options?: GetCompressionSignaturesForOwnerOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>>;
 
     getLatestNonVotingSignatures(
         limit?: number,
+        cursor?: string,
     ): Promise<LatestNonVotingSignatures>;
 
     getLatestCompressionSignatures(

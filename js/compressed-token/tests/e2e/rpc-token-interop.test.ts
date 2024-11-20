@@ -152,6 +152,44 @@ describe('rpc-interop token', () => {
         });
     });
 
+
+    it('getCompressedTokenBalancesByOwnerV2 should match', async () => {
+        const balances = (
+            await rpc.getCompressedTokenBalancesByOwnerV2(bob.publicKey, {
+                mint,
+            })
+        ).value.items;
+        const balancesTest = (
+            await testRpc.getCompressedTokenBalancesByOwnerV2(bob.publicKey, {
+                mint,
+            })
+        ).value.items;
+
+        assert.equal(balances.length, balancesTest.length);
+
+        balances.forEach((balance, index) => {
+            assert.isTrue(balance.balance.eq(balancesTest[index].balance));
+        });
+
+        const balancesReceiver = (
+            await rpc.getCompressedTokenBalancesByOwnerV2(charlie.publicKey, {
+                mint,
+            })
+        ).value.items;
+        const balancesReceiverTest = (
+            await testRpc.getCompressedTokenBalancesByOwnerV2(charlie.publicKey, {
+                mint,
+            })
+        ).value.items;
+
+        assert.equal(balancesReceiver.length, balancesReceiverTest.length);
+        balancesReceiver.forEach((balance, index) => {
+            assert.isTrue(
+                balance.balance.eq(balancesReceiverTest[index].balance),
+            );
+        });
+    });
+
     it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
         const signatures = (
             await rpc.getCompressionSignaturesForTokenOwner(bob.publicKey)

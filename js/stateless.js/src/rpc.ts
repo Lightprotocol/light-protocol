@@ -42,6 +42,11 @@ import {
     CompressedMintTokenHoldersResult,
     CompressedMintTokenHolders,
     GetCompressedMintTokenHoldersOptions,
+    TokenBalance,
+    TokenBalanceListResultV2,
+    GetCompressedTokenBalancesByOwnerOptions,
+    GetCompressionSignaturesForOwnerOptions,
+    GetCompressionSignaturesForAddressOptions,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -806,13 +811,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated use {@link getCompressedTokenBalancesByOwnerV2} instead.
+     *
      * Fetch all the compressed token balances owned by the specified public
-     * key. Can filter by mint
+     * key. Can filter by mint. Returns without context.
      */
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>> {
+    ): Promise<WithCursor<TokenBalance[]>> {
         if (!options) options = {};
 
         const unsafeRes = await rpcRequest(
@@ -852,6 +859,59 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return {
             items: maybeFiltered,
             cursor: res.result.value.cursor,
+        };
+    }
+
+    /**
+     * Fetch the compressed token balances owned by the specified public
+     * key. Paginated. Can filter by mint. Returns with context.
+     */
+    async getCompressedTokenBalancesByOwnerV2(
+        owner: PublicKey,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<WithContext<WithCursor<TokenBalance[]>>> {
+        if (!options) options = {};
+
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getCompressedTokenBalancesByOwnerV2',
+            {
+                owner: owner.toBase58(),
+                mint: options.mint?.toBase58(),
+                limit: options.limit?.toNumber(),
+                cursor: options.cursor,
+            },
+        );
+
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(TokenBalanceListResultV2),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                `failed to get compressed token balances for owner ${owner.toBase58()}`,
+            );
+        }
+        if (res.result.value === null) {
+            throw new Error(
+                `failed to get compressed token balances for owner ${owner.toBase58()}`,
+            );
+        }
+
+        const maybeFiltered = options.mint
+            ? res.result.value.items.filter(
+                  tokenBalance =>
+                      tokenBalance.mint.toBase58() === options.mint!.toBase58(),
+              )
+            : res.result.value.items;
+
+        return {
+            context: res.result.context,
+            value: {
+                items: maybeFiltered,
+                cursor: res.result.value.cursor,
+            },
         };
     }
 
@@ -985,11 +1045,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForAddress(
         address: PublicKey,
+        options?: GetCompressionSignaturesForAddressOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForAddress',
-            { address: address.toBase58() },
+            {
+                address: address.toBase58(),
+                cursor: options?.cursor,
+                limit: options?.limit?.toNumber(),
+            },
         );
 
         const res = create(
@@ -1020,11 +1085,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForOwner(
         owner: PublicKey,
+        options?: GetCompressionSignaturesForOwnerOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForOwner',
-            { owner: owner.toBase58() },
+            {
+                owner: owner.toBase58(),
+                cursor: options?.cursor,
+                limit: options?.limit?.toNumber(),
+            },
         );
 
         const res = create(
@@ -1046,7 +1116,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value;
     }
 
-    /// TODO(photon): needs mint
     /**
      * Returns confirmed signatures for compression transactions involving the
      * specified token account owner forward in time from genesis to the most
@@ -1054,11 +1123,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
+        options?: GetCompressedTokenBalancesByOwnerOptions,
     ): Promise<WithCursor<SignatureWithMetadata[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressionSignaturesForTokenOwner',
-            { owner: owner.toBase58() },
+            {
+                owner: owner.toBase58(),
+                cursor: options?.cursor,
+                limit: options?.limit?.toNumber(),
+            },
         );
 
         const res = create(
@@ -1189,11 +1263,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getLatestNonVotingSignatures(
         limit?: number,
+        cursor?: string,
     ): Promise<LatestNonVotingSignatures> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getLatestNonVotingSignatures',
-            { limit },
+            { limit, cursor },
         );
         const res = create(
             unsafeRes,

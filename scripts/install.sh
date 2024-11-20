@@ -13,7 +13,7 @@ VERSIONS=(
     "solana:1.18.22"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.7.1"
-    "photon:0.48.0"
+    "photon:0.50.0"
 )
 
 # Architecture-specific suffixes
@@ -212,7 +212,7 @@ main() {
     download_gnark_keys "$key_type"
     install_dependencies
 
-    rm -f "$INSTALL_LOG"
+    # rm -f "$INSTALL_LOG"
 
     echo "✨ Light Protocol development dependencies installed"
 }
