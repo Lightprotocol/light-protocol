@@ -25,9 +25,9 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use forester_utils::indexer::{
-    BatchedTreeProofRpcResult, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-    ProofRpcResult, TokenDataWithContext,
+    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
 };
+use light_client::rpc::{ProofRpcResult, BatchedTreeProofRpcResult, TokenDataWithContext};
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,

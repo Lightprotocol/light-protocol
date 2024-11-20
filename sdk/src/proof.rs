@@ -34,10 +34,3 @@ pub struct CompressedProof {
     pub b: [u8; 64],
     pub c: [u8; 32],
 }
-
-#[derive(Debug, AnchorDeserialize, AnchorSerialize)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
-}

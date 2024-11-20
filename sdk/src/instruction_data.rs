@@ -2,7 +2,9 @@ use std::io::{self, Cursor};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::{account_meta::LightAccountMeta, proof::ProofRpcResult};
+use crate::account_meta::LightAccountMeta;
+
+use light_client::rpc::ProofRpcResult;
 
 pub struct LightInstructionData {
     pub proof: Option<ProofRpcResult>,

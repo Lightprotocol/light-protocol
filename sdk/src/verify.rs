@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, Bumps};
 use light_hasher::{DataHasher, Discriminator};
 use solana_program::{instruction::Instruction, program::invoke_signed};
+use light_client::rpc::ProofRpcResult;
 
 use crate::{
     account::LightAccount,
@@ -9,13 +10,14 @@ use crate::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
     error::LightSdkError,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::CompressedProof,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
     },
     CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
 };
+
 
 pub fn find_cpi_signer(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), program_id).0

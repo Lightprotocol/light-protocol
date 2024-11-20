@@ -8,13 +8,13 @@ use light_indexed_merkle_tree::{
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::ProofRpcResult, token::TokenDataWithMerkleContext,
+    token::TokenDataWithMerkleContext,
 };
 use num_bigint::BigUint;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 
-use crate::rpc::RpcConnection;
+use crate::rpc::{RpcConnection, ProofRpcResult};
 
 #[derive(Error, Debug)]
 pub enum IndexerError {

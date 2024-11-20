@@ -21,26 +21,7 @@ use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleCo
 use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
-#[derive(Debug, Clone)]
-pub struct TokenDataWithContext {
-    pub token_data: TokenData,
-    pub compressed_account: CompressedAccountWithMerkleContext,
-}
 
-#[derive(Debug, Default)]
-pub struct BatchedTreeProofRpcResult {
-    pub proof: Option<CompressedProof>,
-    // If none -> proof by index, else included in zkp
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
-}
-
-#[derive(Debug, Default)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
-}
 
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn get_multiple_compressed_account_proofs(
