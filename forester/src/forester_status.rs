@@ -154,23 +154,24 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
+
     run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
     run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
+
     for tree in &trees {
         let tree_type = format!(
             "[{}]",
             match tree.tree_type {
                 TreeType::State => "State",
                 TreeType::Address => "Address",
-                _ => panic!(
-                    "is_tree_ready_for_rollover: Invalid tree type {:?}",
-                    tree.tree_type
-                ),
+                TreeType::BatchedState => "BatchedState",
             }
         );
+
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
             .await
             .unwrap();
+
         let fullness_percentage = tree_info.fullness * 100.0;
         println!(
             "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",

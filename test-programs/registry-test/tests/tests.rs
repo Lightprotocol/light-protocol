@@ -30,7 +30,7 @@ use light_test_utils::assert_epoch::{
 use light_test_utils::e2e_test_env::{init_program_test_env, init_program_test_env_forester};
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_batch_forester::{
-    create_append_batch_ix_data, perform_batch_append, perform_batch_nullify,
+    create_append_batch_ix_data, is_batch_ready, perform_batch_append, perform_batch_append_with_indexer, perform_batch_nullify, perform_batch_nullify_with_indexer
 };
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
@@ -56,6 +56,7 @@ use solana_sdk::{
     signer::Signer,
 };
 use std::collections::HashSet;
+use std::println;
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {
@@ -645,9 +646,11 @@ async fn test_custom_forester_batched() {
             for i in 0..merkle_tree.get_account().queue.batch_size {
                 println!("\ntx {}", i);
 
+                println!("compressing");
                 e2e_env
                     .compress_sol_deterministic(&unregistered_forester_keypair, 1_000_000, None)
                     .await;
+                println!("compressed");
                 e2e_env
                     .transfer_sol_deterministic(
                         &unregistered_forester_keypair,
@@ -656,17 +659,17 @@ async fn test_custom_forester_batched() {
                     )
                     .await
                     .unwrap();
-                if i == merkle_tree.get_account().queue.batch_size / 2 {
-                    instruction_data = Some(
-                        create_append_batch_ix_data(
-                            &mut e2e_env.rpc,
-                            &mut e2e_env.indexer.state_merkle_trees[0],
-                            state_merkle_tree_pubkey,
-                            output_queue_pubkey,
-                        )
-                        .await,
-                    );
-                }
+                // if i == merkle_tree.get_account().queue.batch_size / 2 {
+                //     instruction_data = Some(
+                //         create_append_batch_ix_data(
+                //             &mut e2e_env.rpc,
+                //             &mut e2e_env.indexer.state_merkle_trees[0],
+                //             state_merkle_tree_pubkey,
+                //             output_queue_pubkey,
+                //         )
+                //         .await,
+                //     );
+                // }
             }
             (
                 e2e_env.indexer.state_merkle_trees[0].clone(),
@@ -674,15 +677,19 @@ async fn test_custom_forester_batched() {
                 e2e_env.rpc,
             )
         };
-        let num_output_zkp_batches =
-            tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
+        let num_output_zkp_batches =  tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
         for i in 0..num_output_zkp_batches {
             // Simulate concurrency since instruction data has been created before
-            let instruction_data = if i == 0 {
-                instruction_data.clone()
-            } else {
-                None
-            };
+            // let instruction_data = if i == 0 {
+            //     instruction_data.clone()
+            // } else {
+            //     None
+            // };
+            println!(
+                "unregistered forester: {}",
+                unregistered_forester_keypair.pubkey()
+            );
+            println!("env.forester: {}", env.forester.pubkey());
             perform_batch_append(
                 &mut rpc,
                 &mut state_merkle_tree_bundle,
@@ -694,19 +701,146 @@ async fn test_custom_forester_batched() {
             .await
             .unwrap();
             // We only spent half of the output queue
-            if i < num_output_zkp_batches / 2 {
-                perform_batch_nullify(
-                    &mut rpc,
-                    &mut state_merkle_tree_bundle,
-                    &env.forester,
-                    0,
-                    false,
+            // if i < num_output_zkp_batches / 2 {
+            perform_batch_nullify(
+                &mut rpc,
+                &mut state_merkle_tree_bundle,
+                &env.forester,
+                0,
+                false,
+                None,
+            )
+            .await
+            .unwrap();
+            // }
+        }
+    }
+}
+
+#[serial]
+#[tokio::test]
+async fn test_forester_batched() {
+    let devnet = false;
+    let tree_params = if devnet {
+        InitStateTreeAccountsInstructionData::default()
+    } else {
+        InitStateTreeAccountsInstructionData::test_default()
+    };
+
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig::default(),
+            true,
+            tree_params,
+        )
+        .await;
+    let unregistered_forester_keypair = Keypair::new();
+    rpc.airdrop_lamports(&unregistered_forester_keypair.pubkey(), 100 * LAMPORTS_PER_SOL)
+        .await
+        .unwrap();
+    let merkle_tree_keypair = Keypair::new();
+    let nullifier_queue_keypair = Keypair::new();
+    let cpi_context_keypair = Keypair::new();
+
+    let (mut state_merkle_tree_bundle, _, mut rpc, mut indexer) = {
+        let mut e2e_env = if devnet {
+            let mut e2e_env = init_program_test_env_forester(rpc, &env).await;
+            e2e_env.keypair_action_config.fee_assert = false;
+            e2e_env
+        } else {
+            init_program_test_env(rpc, &env).await
+        };
+        e2e_env.indexer.state_merkle_trees.clear();
+        // add state merkle tree to the indexer
+        e2e_env
+            .indexer
+            .add_state_merkle_tree(
+                &mut e2e_env.rpc,
+                &merkle_tree_keypair,
+                &nullifier_queue_keypair,
+                &cpi_context_keypair,
+                None,
+                None,
+                2,
+            )
+            .await;
+        let state_merkle_tree_pubkey = e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        let output_queue_pubkey = e2e_env.indexer.state_merkle_trees[0]
+            .accounts
+            .nullifier_queue;
+        let mut merkle_tree_account = e2e_env
+            .rpc
+            .get_account(state_merkle_tree_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let merkle_tree =
+            ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
+                .unwrap();
+        // fill two output and one input batch
+        for i in 0..merkle_tree.get_account().queue.batch_size {
+            println!("\ntx {}", i);
+
+            println!("compressing");
+            e2e_env
+                .compress_sol_deterministic(&unregistered_forester_keypair, 1_000_000, None)
+                .await;
+            println!("compressed");
+            e2e_env
+                .transfer_sol_deterministic(
+                    &unregistered_forester_keypair,
+                    &Pubkey::new_unique(),
                     None,
                 )
                 .await
                 .unwrap();
-            }
         }
+        (
+            e2e_env.indexer.state_merkle_trees[0].clone(),
+            e2e_env.indexer.address_merkle_trees[0].clone(),
+            e2e_env.rpc,
+            e2e_env.indexer,
+        )
+    };
+
+    println!(
+        "unregistered forester: {}",
+        unregistered_forester_keypair.pubkey()
+    );
+    println!("env.forester: {}", env.forester.pubkey());
+
+    let num_output_zkp_batches =
+        tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
+    
+    println!("num_output_zkp_batches: {}", num_output_zkp_batches);
+    
+    let mut current_batch = 0;
+    while is_batch_ready(&mut rpc, nullifier_queue_keypair.pubkey()).await {
+    // for i in 0..num_output_zkp_batches {
+        let result = perform_batch_append_with_indexer(
+            &mut rpc,
+            &mut indexer,
+            &env.forester,
+            0,
+            merkle_tree_keypair.pubkey(),
+            nullifier_queue_keypair.pubkey(),
+        )
+        .await;
+        println!("perform_batch_append_with_indexer result: {:?}", result);
+
+        let result = perform_batch_nullify_with_indexer(
+            &mut rpc,
+            &mut indexer,
+            &env.forester,
+            0,
+            merkle_tree_keypair.pubkey(),
+        )
+        .await;
+        println!("perform_batch_nullify_with_indexer result: {:?}", result);
+        
+        current_batch += 1;
+        println!("current_batch: {}", current_batch);
     }
 }
 

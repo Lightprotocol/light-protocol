@@ -1,14 +1,11 @@
-use crate::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
-    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    AccountZeroCopy,
-};
+use crate::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
 use account_compression::{
     batched_merkle_tree::BatchedMerkleTreeAccount, AddressMerkleTreeAccount,
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
     StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
 use num_traits::Zero;

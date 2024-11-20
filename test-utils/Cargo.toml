@@ -15,6 +15,7 @@ anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 anyhow = "1.0"
 ark-ff = "0.4"
+async-trait = { workspace = true }
 light-hash-set = { workspace=true }
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -38,13 +39,14 @@ light-concurrent-merkle-tree = { version = "1.1.0", path = "../merkle-tree/concu
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.1.0" }
 light-verifier = { path = "../circuit-lib/verifier", version = "1.1.0" }
 light-utils = { path = "../utils", version = "1.1.0" }
+light-sdk = { workspace = true }
+light-program-test = { workspace =  true }
 forester-utils = { workspace = true }
 memoffset = "0.9.1"
 rand = "0.8"
 photon-api = { workspace = true }
 log = "0.4"
 serde = { version = "1.0.197", features = ["derive"] }
-async-trait = "0.1.82"
 light-client = { workspace = true }
 
 [dev-dependencies]

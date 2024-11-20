@@ -97,7 +97,6 @@ use crate::address_tree_rollover::{
 use crate::assert_epoch::{
     assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
 };
-use crate::rpc::ProgramTestRpcConnection;
 use crate::spl::{
     approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
     create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
@@ -123,12 +122,14 @@ use forester_utils::address_merkle_tree_config::{
     address_tree_ready_for_rollover, state_tree_ready_for_rollover,
 };
 use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
-};
+use forester_utils::indexer::Indexer;
 use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, AccountZeroCopy};
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
+    StateMerkleTreeBundle,
+};
+use light_client::rpc::TokenDataWithContext;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
@@ -204,11 +205,11 @@ impl Stats {
         println!("Finalized registrations {}", self.finalized_registrations);
     }
 }
-pub async fn init_program_test_env(
-    rpc: ProgramTestRpcConnection,
+pub async fn init_program_test_env<R: RpcConnection>(
+    rpc: R,
     env_accounts: &EnvAccounts,
-) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+) -> E2ETestEnv<R, TestIndexer<R>> {
+    let indexer: TestIndexer<R> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         Some(ProverConfig {
@@ -223,7 +224,7 @@ pub async fn init_program_test_env(
     )
     .await;
 
-    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+    E2ETestEnv::<R, TestIndexer<R>>::new(
         rpc,
         indexer,
         env_accounts,
@@ -235,26 +236,27 @@ pub async fn init_program_test_env(
     .await
 }
 
-pub async fn init_program_test_env_forester(
-    rpc: ProgramTestRpcConnection,
+pub async fn init_program_test_env_forester<R: RpcConnection>(
+    rpc: R,
     env_accounts: &EnvAccounts,
-) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+) -> E2ETestEnv<R, TestIndexer<R>> {
+    let indexer: TestIndexer<R> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
+        // None,
         Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofs,
-                ProofType::BatchUpdate,
-                ProofType::Inclusion,
-                ProofType::NonInclusion,
-            ],
-        }),
+                  run_mode: None,
+                  circuits: vec![
+                      ProofType::BatchAppendWithProofs,
+                      ProofType::BatchUpdate,
+                      ProofType::Inclusion,
+                      ProofType::NonInclusion,
+                  ],
+              }),
     )
     .await;
 
-    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+    E2ETestEnv::<R, TestIndexer<R>>::new(
         rpc,
         indexer,
         env_accounts,
@@ -991,7 +993,7 @@ where
                     .deserialized()
                     .metadata
                     .rollover_metadata
-                    .rollover_fee as i64,
+                    .rollover_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
@@ -1081,7 +1083,7 @@ where
                     .deserialized()
                     .metadata
                     .rollover_metadata
-                    .rollover_fee as i64,
+                    .rollover_fee,
                 accounts: AddressMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     queue: nullifier_queue_keypair.pubkey(),
@@ -1264,7 +1266,7 @@ where
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
                 fee_config: FeeConfig {
-                    state_merkle_tree_rollover: rollover_fee as u64,
+                    state_merkle_tree_rollover: rollover_fee,
                     ..Default::default()
                 },
             })
@@ -1382,6 +1384,9 @@ where
         amount: u64,
         tree_index: Option<usize>,
     ) {
+        println!(
+            "\n --------------------------------------------------\n\t\t Compress Sol deterministic\n --------------------------------------------------"
+        );
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
@@ -1399,7 +1404,7 @@ where
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
                 fee_config: FeeConfig {
-                    state_merkle_tree_rollover: rollover_fee as u64,
+                    state_merkle_tree_rollover: rollover_fee,
                     ..Default::default()
                 },
             })

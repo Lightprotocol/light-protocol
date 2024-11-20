@@ -5,90 +5,43 @@ use std::fmt::Debug;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
-use light_client::rpc::RpcConnection;
-use light_compressed_token::TokenData;
+use async_trait::async_trait;
+use light_client::indexer::AddressMerkleTreeBundle;
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+};
+use light_client::rpc::BatchedTreeProofRpcResult;
+use light_client::rpc::{RpcConnection, TokenDataWithContext};
 use light_hash_set::HashSetError;
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
-use light_indexed_merkle_tree::reference::IndexedMerkleTree;
-use light_merkle_tree_reference::MerkleTree;
-use light_system_program::invoke::processor::CompressedProof;
+use light_indexed_merkle_tree::array::IndexedElement;
+use light_sdk::proof::CompressedProofWithContext;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
-pub struct TokenDataWithContext {
-    pub token_data: TokenData,
-    pub compressed_account: CompressedAccountWithMerkleContext,
+pub struct ProofOfLeaf {
+    pub leaf: [u8; 32],
+    pub proof: Vec<[u8; 32]>,
 }
 
-#[derive(Debug, Default)]
-pub struct BatchedTreeProofRpcResult {
-    pub proof: Option<CompressedProof>,
-    // If none -> proof by index, else included in zkp
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
-}
-
-#[derive(Debug, Default)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
-}
-
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct StateMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub nullifier_queue: Pubkey,
-    pub cpi_context: Pubkey,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct AddressMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub queue: Pubkey,
-}
-
-#[derive(Debug, Clone)]
-pub struct StateMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<MerkleTree<Poseidon>>,
-    pub accounts: StateMerkleTreeAccounts,
-    pub version: u64,
-    pub output_queue_elements: Vec<[u8; 32]>,
-    /// leaf index, leaf, tx hash
-    pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle {
-    pub rollover_fee: i64,
-    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
-    pub accounts: AddressMerkleTreeAccounts,
-}
-
-pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-    fn get_multiple_compressed_account_proofs(
+#[async_trait]
+pub trait Indexer<R: RpcConnection>: Sync + Send + Debug {
+    async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    fn get_rpc_compressed_accounts_by_owner(
+    async fn get_rpc_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<String>, IndexerError>;
 
-    fn get_multiple_new_address_proofs(
+    async fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>>
-           + Send
-           + Sync;
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError>;
 
     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
 
@@ -142,7 +95,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts(
         &mut self,
         _compressed_accounts: Option<Vec<[u8; 32]>>,
@@ -150,11 +102,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         _new_addresses: Option<&[[u8; 32]]>,
         _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         _rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> CompressedProofWithContext {
         unimplemented!()
     }
 
-    #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts2(
         &mut self,
         _compressed_accounts: Option<Vec<[u8; 32]>>,
@@ -189,6 +140,51 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
         unimplemented!()
     }
+
+    fn get_proof_by_index(&mut self, _merkle_tree_pubkey: Pubkey, _index: u64) -> ProofOfLeaf {
+        unimplemented!("get_proof_by_index not implemented")
+    }
+
+    fn get_proofs_by_indices(&mut self, _merkle_tree_pubkey: Pubkey, _indices: &[u64]) -> Vec<ProofOfLeaf> {
+        unimplemented!("get_proof_by_index not implemented")
+    }
+
+    fn get_leaf_indices_tx_hashes(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _zkp_batch_size: usize,
+    ) -> Vec<(u32, [u8; 32], [u8; 32])> {
+        unimplemented!();
+    }
+
+    async fn update_test_indexer_after_append(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
+        _output_queue_pubkey: Pubkey,
+        _num_inserted_zkps: u64,
+    ) {
+        unimplemented!()
+    }
+
+    async fn update_test_indexer_after_nullification(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
+        _batch_index: usize,
+    ) {
+        unimplemented!()
+    }
+
+    async fn get_queue_elements(
+        &self,
+        _pubkey: Pubkey,
+        _start_offset: u64,
+        _end_offset: u64,
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        unimplemented!()
+    }
+
 }
 
 #[derive(Debug, Clone)]

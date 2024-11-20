@@ -1,11 +1,12 @@
-use std::{marker::PhantomData, time::Duration};
-
-use crate::{
-    indexer::Indexer,
+use borsh::BorshDeserialize;
+use light_client::{
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle,
+    },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
 };
-use borsh::BorshDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
@@ -28,22 +29,19 @@ use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext,
     event::PublicTransactionEvent,
     merkle_context::MerkleContext,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::CompressedProofWithContext,
     token::{TokenData, TokenDataWithMerkleContext},
     ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT, PROGRAM_ID_LIGHT_SYSTEM,
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
     TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
 };
+use light_verifier::CompressedProof;
 use log::warn;
 use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-
-use super::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle,
-};
+use std::{marker::PhantomData, time::Duration};
 
 #[derive(Debug)]
 pub struct TestIndexer<R>
@@ -218,7 +216,7 @@ where
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<solana_sdk::pubkey::Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> CompressedProofWithContext {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.unwrap().len())
@@ -289,7 +287,7 @@ where
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
                 let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
-                return ProofRpcResult {
+                return CompressedProofWithContext {
                     root_indices,
                     address_root_indices,
                     proof: CompressedProof {
@@ -341,6 +339,9 @@ where
                     accounts: *accounts,
                     merkle_tree,
                     rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
+                    version: 1,
+                    input_leaf_indices: vec![],
+                    output_queue_elements: vec![],
                 }
             })
             .collect::<Vec<_>>();
