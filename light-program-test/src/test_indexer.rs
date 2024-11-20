@@ -1,11 +1,12 @@
-use std::{marker::PhantomData, time::Duration};
-
-use crate::{
-    indexer::Indexer,
+use borsh::BorshDeserialize;
+use light_client::{
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle,
+    },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
 };
-use borsh::BorshDeserialize;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
@@ -39,11 +40,7 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-
-use super::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle,
-};
+use std::{marker::PhantomData, time::Duration};
 
 #[derive(Debug)]
 pub struct TestIndexer<R>

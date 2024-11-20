@@ -17,9 +17,8 @@ use solana_sdk::{
     transaction::{Transaction, TransactionError},
 };
 
-use crate::transaction_params::TransactionParams;
-
-use super::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError};
+use light_client::rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError};
+use light_client::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
