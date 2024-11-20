@@ -375,7 +375,7 @@ pub async fn setup_test_programs_with_accounts(
 pub async fn setup_test_programs_with_accounts_v2(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> (
-    light_client::rpc::test_rpc::ProgramTestRpcConnection,
+    light_program_test::test_rpc::ProgramTestRpcConnection,
     EnvAccounts,
 ) {
     setup_test_programs_with_accounts_with_protocol_config_v2(
@@ -429,11 +429,11 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
 ) -> (
-    light_client::rpc::test_rpc::ProgramTestRpcConnection,
+    light_program_test::test_rpc::ProgramTestRpcConnection,
     EnvAccounts,
 ) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = light_client::rpc::test_rpc::ProgramTestRpcConnection { context };
+    let mut context = light_program_test::test_rpc::ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,

@@ -3,10 +3,10 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
-use light_client::rpc::test_rpc::ProgramTestRpcConnection;
+use light_program_test::test_indexer::TestIndexer;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
