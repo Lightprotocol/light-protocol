@@ -5,7 +5,7 @@
 <h1 align="center">@lightprotocol/stateless.js</h1>
 
 <p align="center">
-  <b>This is the JavaScript SDK for building applications with ZK Compression for Node and web.</b>
+  <b>This is the JavaScript SDK for building Solana applications with ZK Compression for Node and web.</b>
 </p>
 
 <p align="center">
