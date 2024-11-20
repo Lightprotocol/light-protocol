@@ -5,7 +5,7 @@
 <h1 align="center">@lightprotocol/compressed-token</h1>
 
 <p align="center">
-  <b>This is the JavaScript SDK for interacting with the compressed token program on Solana.</b>
+  <b>This is the JavaScript SDK for interacting with the Compressed Token program on Solana.</b>
 </p>
 
 <p align="center">
