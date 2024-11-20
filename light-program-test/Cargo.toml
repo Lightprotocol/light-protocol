@@ -11,6 +11,7 @@ light-sdk = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-hasher = { workspace = true }
+light-verifier = { workspace = true }
 
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }

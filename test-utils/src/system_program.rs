@@ -351,7 +351,14 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
             .await;
 
         root_indices = proof_rpc_res.root_indices;
-        proof = proof_rpc_res.proof;
+        proof = match proof_rpc_res.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(vec![]).as_slice());

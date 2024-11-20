@@ -4,8 +4,10 @@ use light_macros::pubkey;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
 use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
+use light_sdk::proof::CompressedProofWithContext;
 use light_system_program::invoke::verify_state_proof::{create_tx_hash, create_tx_hash_offchain};
 use light_system_program::sdk::compressed_account::QueueIndex;
+use light_verifier::CompressedProof;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -24,15 +26,13 @@ use account_compression::{
     rollover, AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
-use forester_utils::indexer::{
-    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-};
-use light_client::rpc::{ProofRpcResult, BatchedTreeProofRpcResult, TokenDataWithContext};
+use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
     StateMerkleTreeBundle,
 };
+use light_client::rpc::{BatchedTreeProofRpcResult, TokenDataWithContext};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
@@ -66,12 +66,9 @@ use {
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
         },
     },
-    light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
-        },
+    light_system_program::sdk::{
+        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+        event::PublicTransactionEvent,
     },
     num_bigint::BigInt,
     num_traits::ops::bytes::FromBytes,
@@ -431,7 +428,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> CompressedProofWithContext {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.as_ref().unwrap().len())
@@ -511,7 +508,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
                 let root_indices = root_indices.iter().map(|x| Some(*x)).collect::<Vec<_>>();
-                return ProofRpcResult {
+                return CompressedProofWithContext {
                     root_indices,
                     address_root_indices: address_root_indices.clone(),
                     proof: CompressedProof {

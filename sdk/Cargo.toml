@@ -37,7 +37,6 @@ aligned-sized = { version = "1.1.0", path = "../macros/aligned-sized" }
 light-macros = { version = "1.1.0", path = "../macros/light" }
 light-sdk-macros = { version = "0.4.0", path = "../macros/light-sdk-macros" }
 bytemuck = "1.17"
-light-client = { workspace = true }
 light-hasher = { version = "1.1.0", path = "../merkle-tree/hasher", features=["solana"] }
 light-heap = { version = "1.1.0", path = "../heap", optional = true }
 light-indexed-merkle-tree = { workspace = true }

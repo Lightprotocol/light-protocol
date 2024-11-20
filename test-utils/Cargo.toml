@@ -38,6 +38,7 @@ light-concurrent-merkle-tree = { version = "1.1.0", path = "../merkle-tree/concu
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.1.0" }
 light-verifier = { path = "../circuit-lib/verifier", version = "1.1.0" }
 light-utils = { path = "../utils", version = "1.1.0" }
+light-sdk = { workspace = true }
 light-program-test = { workspace =  true }
 forester-utils = { workspace = true }
 memoffset = "0.9.1"

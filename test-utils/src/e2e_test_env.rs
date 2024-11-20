@@ -123,13 +123,14 @@ use forester_utils::address_merkle_tree_config::{
     address_tree_ready_for_rollover, state_tree_ready_for_rollover,
 };
 use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
+use forester_utils::indexer::Indexer;
 use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, AccountZeroCopy};
 use light_client::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
     StateMerkleTreeBundle,
 };
+use light_client::rpc::TokenDataWithContext;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
