@@ -288,7 +288,6 @@ impl ZeroCopyBatchedQueueAccount {
                     .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
 
                 if element == value {
-                    *element = [0; 32];
                     return Ok(());
                 } else {
                     return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
