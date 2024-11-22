@@ -13,7 +13,8 @@ use account_compression::{
     get_output_queue_account_default, InitStateTreeAccountsInstructionData,
 };
 use anchor_lang::AnchorSerialize;
-use forester_utils::{create_account_instruction, indexer::StateMerkleTreeBundle, AccountZeroCopy};
+use forester_utils::{create_account_instruction, AccountZeroCopy};
+use light_client::indexer::StateMerkleTreeBundle;
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_prover_client::{

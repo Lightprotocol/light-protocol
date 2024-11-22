@@ -25,11 +25,14 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
-    IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
+    BatchedTreeProofRpcResult, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
+    ProofRpcResult, TokenDataWithContext,
 };
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, StateMerkleTreeAccounts,
+    StateMerkleTreeBundle,
+};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
@@ -657,7 +660,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
-                rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
+                rollover_fee: FeeConfig::default().state_merkle_tree_rollover,
                 version,
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
@@ -704,7 +707,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             merkle_tree,
             indexed_array,
             accounts: address_merkle_tree_accounts,
-            rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+            rollover_fee: FeeConfig::default().address_queue_rollover,
         }
     }
 
@@ -743,7 +746,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         forester: Option<Pubkey>,
         version: u64,
     ) {
-        let rollover_fee = match version {
+        let rollover_fee: u64 = match version {
             1 => {
                 create_state_merkle_tree_and_queue_account(
                     &self.payer,
@@ -760,7 +763,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 )
                 .await
                 .unwrap();
-            FeeConfig::default().state_merkle_tree_rollover as i64
+            FeeConfig::default().state_merkle_tree_rollover
             }
             2 => {
                 let params = InitStateTreeAccountsInstructionData::test_default();
@@ -774,7 +777,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                     cpi_context_keypair,
                     params,
                 ).await;
-                FeeConfig::test_batched().state_merkle_tree_rollover as i64
+                FeeConfig::test_batched().state_merkle_tree_rollover
             }
             _ => panic!(
                 "add_state_merkle_tree: Version not supported, {}. Versions: 1 concurrent, 2 batched",
