@@ -43,7 +43,7 @@ pub mod name_service {
             &crate::ID,
         );
 
-        let mut record: LightAccount<'_, NameRecord> = LightAccount::from_meta_init(
+        let mut record: LightAccount<'_, NameRecord> = LightAccount::new(
             &accounts[0],
             NameRecord::discriminator(),
             address,
@@ -75,7 +75,7 @@ pub mod name_service {
 
         // Convert `LightAccountMeta` to `LightAccount`.
         let mut record: LightAccount<'_, NameRecord> =
-            LightAccount::from_meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
+            LightAccount::mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
         // Check the ownership of the `record`.
         if record.owner != ctx.accounts.signer.key() {
@@ -100,7 +100,7 @@ pub mod name_service {
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
         let record: LightAccount<'_, NameRecord> =
-            LightAccount::from_meta_close(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
+            LightAccount::close(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
         if record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
