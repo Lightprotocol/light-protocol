@@ -36,7 +36,7 @@ pub mod sdk_test {
         );
 
         let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::new(
+            LightAccount::from_meta_init(
                 &accounts[0],
                 MyCompressedAccount::discriminator(),
                 address,
@@ -81,7 +81,7 @@ pub mod sdk_test {
         );
 
         let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::new(
+            LightAccount::from_meta_init(
                 &accounts[0],
                 MyCompressedAccount::discriminator(),
                 address,
@@ -116,7 +116,7 @@ pub mod sdk_test {
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
         let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::mut(
+            LightAccount::from_meta_mut(
                 &accounts[0],
                 MyCompressedAccount::discriminator(),
                 &crate::ID,

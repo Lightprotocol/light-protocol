@@ -14,7 +14,7 @@ use crate::{
     merkle_context::PackedMerkleContext,
 };
 
-/// Read-only information about existing compressed account
+/// Read-only information about existing compressed account state.
 #[derive(Debug)]
 pub struct LightInputAccountInfo<'a> {
     /// Lamports assigned to the compressed account.
@@ -62,7 +62,7 @@ pub struct LightAccountInfo<'a> {
 }
 
 impl<'a> LightAccountInfo<'a> {
-    pub fn new(
+    pub fn from_meta_init(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
@@ -108,7 +108,7 @@ impl<'a> LightAccountInfo<'a> {
         Ok(account_info)
     }
 
-    pub fn r#mut(
+    pub fn from_meta_mut(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
@@ -165,7 +165,7 @@ impl<'a> LightAccountInfo<'a> {
         Ok(account_info)
     }
 
-    pub fn close(
+    pub fn from_meta_close(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
@@ -201,7 +201,7 @@ impl<'a> LightAccountInfo<'a> {
         Ok(account_info)
     }
 
-    pub(crate) fn new_without_output_data(
+    pub(crate) fn from_meta_init_without_output_data(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
@@ -244,7 +244,7 @@ impl<'a> LightAccountInfo<'a> {
     ///
     /// Not intended for external use, intended for building upper abstraction
     /// layers which handle data serialization on their own.
-    pub(crate) fn without_output_data(
+    pub(crate) fn from_meta_without_output_data(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,

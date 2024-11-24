@@ -38,7 +38,7 @@ impl<'info, T> LightAccount<'info, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
-    pub fn new(
+    pub fn from_meta_init(
         meta: &'info LightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
@@ -46,7 +46,7 @@ where
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let account_state = T::default();
-        let account_info = LightAccountInfo::new_without_output_data(
+        let account_info = LightAccountInfo::from_meta_init_without_output_data(
             meta,
             discriminator,
             new_address,
@@ -59,13 +59,13 @@ where
         })
     }
 
-    pub fn r#mut(
+    pub fn from_meta_mut(
         meta: &'info LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let mut account_info =
-            LightAccountInfo::without_output_data(meta, discriminator, owner)?;
+            LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
             meta.data
                 .as_ref()
@@ -87,13 +87,13 @@ where
         })
     }
 
-    pub fn close(
+    pub fn from_meta_close(
         meta: &'info LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let mut account_info =
-            LightAccountInfo::without_output_data(meta, discriminator, owner)?;
+            LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
             meta.data
                 .as_ref()
