@@ -67,7 +67,7 @@ impl WorkItem {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum MerkleProofType {
-    AddressProof(NewAddressProofWithContext),
+    AddressProof(NewAddressProofWithContext<16>),
     StateProof(MerkleProof),
 }
 

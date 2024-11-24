@@ -1,15 +1,19 @@
 use std::fmt::Error;
 
 use light_hasher::{Hasher, Poseidon};
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use num_bigint::BigUint;
 use reqwest::Client;
 
 use crate::{
+    batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
     batch_append_with_subtrees::calculate_hash_chain,
     batch_update::get_batch_update_inputs,
     gnark::{
+        batch_address_append_json_formatter::to_json,
         batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
         batch_update_json_formatter::update_inputs_string,
         constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -226,4 +230,148 @@ pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
     pub c: [u8; 32],
+}
+
+#[derive(Clone, Debug)]
+pub struct MockBatchedAddressForester<const HEIGHT: usize> {
+    pub merkle_tree: IndexedMerkleTree<Poseidon, u16>,
+    pub queue_leaves: Vec<[u8; 32]>,
+    pub indexed_array: IndexedArray<Poseidon, u16>,
+}
+impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
+    fn default() -> Self {
+        let mut merkle_tree = IndexedMerkleTree::<Poseidon, u16>::new(HEIGHT, 0).unwrap();
+        merkle_tree.init().unwrap();
+        let queue_leaves = vec![];
+        let mut indexed_array = IndexedArray::<Poseidon, u16>::default();
+        indexed_array.init().unwrap();
+        Self {
+            merkle_tree,
+            queue_leaves,
+            indexed_array,
+        }
+    }
+}
+
+impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
+    pub async fn get_batched_address_proof(
+        &mut self,
+        batch_size: u32,
+        zkp_batch_size: u32,
+        leaves_hashchain: [u8; 32],
+        start_index: usize,
+        batch_start_index: usize,
+        current_root: [u8; 32],
+    ) -> Result<(CompressedProof, [u8; 32]), Error> {
+        println!("batch size {:?}", batch_size);
+        println!("start index {:?}", start_index);
+        println!("batch start index {:?}", batch_start_index);
+        let new_element_values = self.queue_leaves[..batch_size as usize].to_vec();
+        // for _ in 0..batch_size {
+        //     self.queue_leaves.remove(0);
+        // }
+        assert_eq!(
+            self.merkle_tree.merkle_tree.rightmost_index,
+            batch_start_index
+        );
+        assert!(
+            batch_start_index >= 2,
+            "start index should be greater than 2 else tree is not inited"
+        );
+        // let current_root = self.merkle_tree.root();
+        println!("new element values {:?}", new_element_values);
+        let mut low_element_values = Vec::new();
+        let mut low_element_indices = Vec::new();
+        let mut low_element_next_indices = Vec::new();
+        let mut low_element_next_values = Vec::new();
+        let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+
+        for new_element_value in &new_element_values {
+            println!("new element value {:?}", new_element_value);
+            let non_inclusion_proof = self
+                .merkle_tree
+                .get_non_inclusion_proof(
+                    &BigUint::from_bytes_be(new_element_value.as_slice()),
+                    &self.indexed_array,
+                )
+                .unwrap();
+
+            low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
+            low_element_indices.push(non_inclusion_proof.leaf_index);
+            low_element_next_indices.push(non_inclusion_proof.next_index);
+            low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
+
+            low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
+        }
+        // // local_leaves_hashchain is only used for a test assertion.
+        // let local_nullifier_hashchain = calculate_hash_chain(&new_element_values);
+        // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
+        let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
+            start_index,
+            current_root,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            new_element_values.clone(),
+            self.merkle_tree
+                .merkle_tree
+                .get_subtrees()
+                .try_into()
+                .unwrap(),
+            leaves_hashchain,
+            batch_start_index,
+            zkp_batch_size as usize,
+        );
+        println!("inputs {:?}", inputs);
+        let client = Client::new();
+        let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&&inputs.new_root).unwrap();
+        let inputs = to_json(&inputs);
+
+        // let new_root = self.merkle_tree.root();
+
+        let response_result = client
+            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(inputs)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        // assert_eq!(circuit_inputs_new_root, new_root);
+
+        if response_result.status().is_success() {
+            let body = response_result.text().await.unwrap();
+            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+            return Ok((
+                CompressedProof {
+                    a: proof_a,
+                    b: proof_b,
+                    c: proof_c,
+                },
+                circuit_inputs_new_root,
+            ));
+        }
+        println!("response result {:?}", response_result);
+        Err(Error)
+    }
+
+    pub fn finalize_batch_address_update(&mut self, batch_size: usize) {
+        println!("finalize batch address update");
+        let new_element_values = self.queue_leaves[..batch_size].to_vec();
+        for _ in 0..batch_size {
+            self.queue_leaves.remove(0);
+        }
+        for new_element_value in &new_element_values {
+            self.merkle_tree
+                .append(
+                    &BigUint::from_bytes_be(new_element_value),
+                    &mut self.indexed_array,
+                )
+                .unwrap();
+        }
+    }
 }

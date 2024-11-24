@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
 use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
-use crate::{errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked};
-pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+use crate::{
+    errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, ReadOnlyAddressParams,
+    ReadOnlyAddressParamsPacked,
+};
+pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
@@ -13,6 +16,21 @@ pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u
     }?;
 
     Ok(hash)
+}
+
+pub fn derive_address(
+    merkle_tree_pubkey: &Pubkey,
+    hashed_program_id: &[u8; 32],
+    seed: &[u8; 32],
+) -> [u8; 32] {
+    hashv_to_bn254_field_size_be(
+        [
+            merkle_tree_pubkey.to_bytes().as_slice(),
+            hashed_program_id.as_slice(),
+            seed.as_slice(),
+        ]
+        .as_slice(),
+    )
 }
 
 pub fn add_and_get_remaining_account_indices(
@@ -77,6 +95,49 @@ pub fn pack_new_address_params(
     new_address_params_packed
 }
 
+pub fn pack_read_only_address_params(
+    new_address_params: &[ReadOnlyAddressParams],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<ReadOnlyAddressParamsPacked> {
+    let mut new_address_params_packed = new_address_params
+        .iter()
+        .map(|x| ReadOnlyAddressParamsPacked {
+            address: x.address,
+            address_merkle_tree_root_index: x.address_merkle_tree_root_index,
+            address_merkle_tree_account_index: 0, // will be assigned later
+            address_queue_account_index: 0,       // will be assigned later
+        })
+        .collect::<Vec<ReadOnlyAddressParamsPacked>>();
+    let mut next_index: usize = remaining_accounts.len();
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.address_merkle_tree_pubkey, next_index);
+                next_index += 1;
+            }
+        };
+        new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
+            .get(&params.address_merkle_tree_pubkey)
+            .unwrap()
+            as u8;
+    }
+
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_queue_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.address_queue_pubkey, next_index);
+                next_index += 1;
+            }
+        };
+        new_address_params_packed[i].address_queue_account_index = *remaining_accounts
+            .get(&params.address_queue_pubkey)
+            .unwrap() as u8;
+    }
+    new_address_params_packed
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::{signature::Keypair, signer::Signer};
@@ -87,8 +148,8 @@ mod tests {
     fn test_derive_address_with_valid_input() {
         let merkle_tree_pubkey = Keypair::new().pubkey();
         let seeds = [1u8; 32];
-        let result = derive_address(&merkle_tree_pubkey, &seeds);
-        let result_2 = derive_address(&merkle_tree_pubkey, &seeds);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seeds);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey, &seeds);
         assert_eq!(result, result_2);
     }
 
@@ -98,8 +159,8 @@ mod tests {
         let merkle_tree_pubkey_2 = Keypair::new().pubkey();
         let seed = [2u8; 32];
 
-        let result = derive_address(&merkle_tree_pubkey, &seed);
-        let result_2 = derive_address(&merkle_tree_pubkey_2, &seed);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seed);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey_2, &seed);
         assert_ne!(result, result_2);
     }
 

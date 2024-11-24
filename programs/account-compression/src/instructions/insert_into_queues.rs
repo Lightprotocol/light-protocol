@@ -1,5 +1,5 @@
 use crate::{
-    batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
     batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
     check_queue_type,
     errors::AccountCompressionErrorCode,
@@ -71,6 +71,14 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
                 indices[index],
                 ctx.remaining_accounts,
             )?,
+            // Address queue is part of the address Merkle tree account.
+            BatchedMerkleTreeAccount::DISCRIMINATOR => add_address_queue_bundle_v2(
+                &mut current_index,
+                queue_type,
+                &mut queue_map,
+                element,
+                ctx.remaining_accounts,
+            )?,
             _ => {
                 msg!(
                     "Invalid account discriminator {:?}",
@@ -96,6 +104,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
             QueueType::NullifierQueue => process_queue_bundle_v1(&ctx, queue_bundle),
             QueueType::AddressQueue => process_queue_bundle_v1(&ctx, queue_bundle),
             QueueType::Input => process_queue_bundle_v2(&ctx, queue_bundle, &tx_hash),
+            QueueType::Address => process_address_queue_bundle_v2(&ctx, queue_bundle),
             _ => {
                 msg!("Queue type {:?} is not supported", queue_bundle.queue_type);
                 return err!(AccountCompressionErrorCode::InvalidQueueType);
@@ -106,7 +115,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
             transfer_lamports_cpi(
                 &ctx.accounts.fee_payer,
                 // Queue account
-                &queue_bundle.accounts[1].to_account_info(),
+                &queue_bundle.accounts[0].to_account_info(),
                 rollover_fee,
             )?;
         }
@@ -119,7 +128,7 @@ fn process_queue_bundle_v1<'info>(
     ctx: &Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
     queue_bundle: &QueueBundle<'_, '_>,
 ) -> Result<u64> {
-    let queue = AccountLoader::<QueueAccount>::try_from(queue_bundle.accounts[1])?;
+    let queue = AccountLoader::<QueueAccount>::try_from(queue_bundle.accounts[0])?;
     light_heap::bench_sbf_start!("acp_prep_insertion");
     let rollover_fee = {
         let queue = queue.load()?;
@@ -129,7 +138,7 @@ fn process_queue_bundle_v1<'info>(
     };
     {
         let sequence_number = {
-            let merkle_tree = queue_bundle.accounts[0].try_borrow_data()?;
+            let merkle_tree = queue_bundle.accounts[1].try_borrow_data()?;
             let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
             merkle_tree.sequence_number()
         };
@@ -155,9 +164,10 @@ fn process_queue_bundle_v2<'info>(
     queue_bundle: &QueueBundle<'_, '_>,
     tx_hash: &Option<[u8; 32]>,
 ) -> Result<u64> {
-    let account_data = &mut queue_bundle.accounts[1].try_borrow_mut_data()?;
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
-    let output_queue_account_data = &mut queue_bundle.accounts[0].try_borrow_mut_data()?;
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+        &queue_bundle.accounts[0],
+    )?;
+    let output_queue_account_data = &mut queue_bundle.accounts[1].try_borrow_mut_data()?;
     let output_queue = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data)?;
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
@@ -180,6 +190,31 @@ fn process_queue_bundle_v2<'info>(
         // If checked fail if the value is not in the queue.
         output_queue.prove_inclusion_by_index_and_zero_out_leaf(*leaf_index as u64, element)?;
         merkle_tree.insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)?;
+        light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
+    }
+    Ok(rollover_fee)
+}
+
+fn process_address_queue_bundle_v2<'info>(
+    ctx: &Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
+    queue_bundle: &QueueBundle<'_, '_>,
+) -> Result<u64> {
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+        &queue_bundle.accounts[0],
+    )?;
+    check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
+        ctx,
+        merkle_tree,
+    )?;
+    let rollover_fee = merkle_tree
+        .get_account()
+        .metadata
+        .rollover_metadata
+        .rollover_fee
+        * queue_bundle.elements.len() as u64;
+    for element in queue_bundle.elements.iter() {
+        light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
+        merkle_tree.insert_address_into_current_batch(element)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
     }
     Ok(rollover_fee)
@@ -212,7 +247,7 @@ fn add_queue_bundle_v1<'a, 'info>(
     }
     queue_map
         .entry(queue.key())
-        .or_insert_with(|| QueueBundle::new(queue_type, vec![merkle_tree, queue]))
+        .or_insert_with(|| QueueBundle::new(queue_type, vec![queue, merkle_tree]))
         .elements
         .push(element);
     *remaining_accounts_index += 2;
@@ -227,7 +262,6 @@ fn add_queue_bundle_v2<'a, 'info>(
     index: u32,
     remaining_accounts: &'info [AccountInfo<'info>],
 ) -> Result<()> {
-    // TODO: add address support
     if queue_type != QueueType::NullifierQueue {
         msg!("Queue type Address is not supported for BatchedMerkleTreeAccount");
         return err!(AccountCompressionErrorCode::InvalidQueueType);
@@ -253,12 +287,54 @@ fn add_queue_bundle_v2<'a, 'info>(
     }
     queue_map
         .entry(merkle_tree.key())
-        .or_insert_with(|| QueueBundle::new(QueueType::Input, vec![output_queue, merkle_tree]))
+        .or_insert_with(|| QueueBundle::new(QueueType::Input, vec![merkle_tree, output_queue]))
         .elements
         .push(element);
     queue_map
         .entry(merkle_tree.key())
         .and_modify(|x| x.indices.push(index));
+    *remaining_accounts_index += 2;
+
+    Ok(())
+}
+
+fn add_address_queue_bundle_v2<'a, 'info>(
+    remaining_accounts_index: &mut usize,
+    queue_type: QueueType,
+    queue_map: &mut std::collections::HashMap<Pubkey, QueueBundle<'a, 'info>>,
+    address: &'a [u8; 32],
+    remaining_accounts: &'info [AccountInfo<'info>],
+) -> Result<()> {
+    if queue_type != QueueType::AddressQueue {
+        msg!("Queue type Address is not supported for BatchedMerkleTreeAccount");
+        return err!(AccountCompressionErrorCode::InvalidQueueType);
+    }
+    let merkle_tree = remaining_accounts.get(*remaining_accounts_index).unwrap();
+
+    // TODO: Reconsider whether we can avoid sending the Merkle tree account
+    // twice. Right now we do it for conistency with usage for other by
+    // nullification and address v1 instructions.
+    if merkle_tree.key()
+        != remaining_accounts
+            .get(*remaining_accounts_index + 1)
+            .unwrap()
+            .key()
+    {
+        msg!(
+            "Merkle tree accounts {:?} inconsistent {:?}",
+            merkle_tree.key(),
+            remaining_accounts
+                .get(*remaining_accounts_index + 1)
+                .unwrap()
+                .key()
+        );
+        return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+    }
+    queue_map
+        .entry(merkle_tree.key())
+        .or_insert_with(|| QueueBundle::new(QueueType::Address, vec![merkle_tree]))
+        .elements
+        .push(address);
     *remaining_accounts_index += 2;
 
     Ok(())

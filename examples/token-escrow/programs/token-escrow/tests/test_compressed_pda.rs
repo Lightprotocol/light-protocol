@@ -16,7 +16,7 @@
 use anchor_lang::AnchorDeserialize;
 use light_hasher::{Hasher, Poseidon};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
-use light_system_program::sdk::address::derive_address;
+use light_system_program::sdk::address::derive_address_legacy;
 use light_system_program::sdk::compressed_account::MerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::NewAddressParams;
@@ -233,7 +233,7 @@ async fn create_escrow_ix<R: RpcConnection>(
         )
         .unwrap();
 
-    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
+    let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -316,7 +316,7 @@ pub async fn assert_escrow<R: RpcConnection>(
         .find(|x| x.compressed_account.owner == token_escrow::ID)
         .unwrap()
         .clone();
-    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address_legacy(&env.address_merkle_tree_pubkey, seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -536,7 +536,7 @@ pub async fn assert_withdrawal<R: RpcConnection>(
         .unwrap()
         .clone();
 
-    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address_legacy(&env.address_merkle_tree_pubkey, seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address

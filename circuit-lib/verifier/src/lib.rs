@@ -354,3 +354,39 @@ pub fn verify_batch_update(
         _ => Err(crate::InvalidPublicInputsLength),
     }
 }
+
+#[inline(never)]
+pub fn verify_batch_address_update(
+    batch_size: usize,
+    public_input_hash: [u8; 32],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    match batch_size {
+        1 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::address_append_26_1::VERIFYINGKEY,
+        ),
+        10 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::address_append_26_10::VERIFYINGKEY,
+        ),
+        100 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::address_append_26_100::VERIFYINGKEY,
+        ),
+        500 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::address_append_26_500::VERIFYINGKEY,
+        ),
+        1000 => verify::<1>(
+            &[public_input_hash],
+            compressed_proof,
+            &crate::verifying_keys::address_append_26_1000::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
+}

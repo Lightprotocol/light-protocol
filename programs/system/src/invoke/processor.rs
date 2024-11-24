@@ -21,6 +21,8 @@ use crate::{
     InstructionDataInvoke,
 };
 
+use super::ReadOnlyAddressParamsPacked;
+
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedProof {
@@ -57,6 +59,7 @@ pub fn process<
     invoking_program: Option<Pubkey>,
     ctx: Context<'a, 'b, 'c, 'info, A>,
     cpi_context_inputs: usize,
+    read_only_addresses: Option<Vec<ReadOnlyAddressParamsPacked>>,
 ) -> Result<()> {
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");
@@ -103,9 +106,11 @@ pub fn process<
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
     // Verify state and or address proof ---------------------------------------------------
-
+    let read_only_addresses = read_only_addresses.unwrap_or_default();
+    let num_of_readonly_addresses = read_only_addresses.len();
     // Allocate heap memory here because roots are only used for proof verification.
-    let mut new_address_roots = vec![[0u8; 32]; num_new_addresses];
+    let mut new_address_roots = Vec::with_capacity(num_new_addresses + num_of_readonly_addresses);
+    let mut new_addresses = Vec::with_capacity(num_new_addresses + num_of_readonly_addresses);
 
     // hash input compressed accounts ---------------------------------------------------
     bench_sbf_start!("cpda_hash_input_compressed_accounts");
@@ -133,19 +138,17 @@ pub fn process<
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
-    let mut new_addresses = vec![[0u8; 32]; num_new_addresses];
     // Insert addresses into address merkle tree queue ---------------------------------------------------
-    let address_network_fee_bundle = if !new_addresses.is_empty() {
+    let address_network_fee_bundle = if num_new_addresses != 0 {
+        msg!("inputs.new_address_params {:?}", inputs.new_address_params);
         derive_new_addresses(
+            &invoking_program,
             &inputs.new_address_params,
             num_input_compressed_accounts,
             ctx.remaining_accounts,
             &mut compressed_account_addresses,
             &mut new_addresses,
-            // TODO: add readonly addresses here
         )?;
-        fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
-
         insert_addresses_into_address_merkle_tree_queue(
             &ctx,
             &new_addresses,
@@ -230,7 +233,7 @@ pub fn process<
     )?;
 
     if num_prove_by_index_input_accounts < num_input_compressed_accounts
-        || !inputs.new_address_params.is_empty()
+        || new_address_roots.capacity() != 0
     {
         bench_sbf_start!("cpda_verify_state_proof");
         if let Some(proof) = inputs.proof.as_ref() {
@@ -247,6 +250,16 @@ pub fn process<
                 &ctx,
                 &mut input_compressed_account_roots,
             )?;
+            fetch_roots_address_merkle_tree(
+                &inputs.new_address_params,
+                &read_only_addresses,
+                &ctx,
+                &mut new_address_roots,
+            )?;
+            for read_only_address in read_only_addresses.iter() {
+                new_addresses.push(read_only_address.address);
+            }
+            msg!("read_only_addresses {:?}", read_only_addresses);
             match verify_state_proof(
                 &inputs.input_compressed_accounts_with_merkle_context,
                 &input_compressed_account_roots,
@@ -267,6 +280,8 @@ pub fn process<
                         "input_compressed_accounts_with_merkle_context: {:?}",
                         inputs.input_compressed_accounts_with_merkle_context
                     );
+                    msg!("new_address_roots {:?}", new_address_roots);
+                    msg!("new_addresses {:?}", new_addresses);
                     Err(e)
                 }
             }?;

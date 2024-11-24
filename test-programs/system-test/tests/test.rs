@@ -1,20 +1,23 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::errors::AccountCompressionErrorCode;
-use account_compression::InitStateTreeAccountsInstructionData;
+use account_compression::{
+    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
+};
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, QueueIndex,
 };
 use light_system_program::{
     errors::SystemProgramError,
     sdk::{
-        address::derive_address,
+        address::derive_address_legacy,
         compressed_account::{CompressedAccount, CompressedAccountData, MerkleContext},
         invoke::{
             create_invoke_instruction, create_invoke_instruction_data_and_remaining_accounts,
@@ -574,7 +577,7 @@ fn create_address_test_inputs(
             address_merkle_tree_root_index: 0,
         });
         let derived_address =
-            derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
+            derive_address_legacy(&env.address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     (new_address_params, derived_addresses)
@@ -1156,6 +1159,8 @@ async fn invoke_test() {
 
 /// Tests Execute compressed transaction with address:
 /// 1. should fail: create out compressed account with address without input compressed account with address or created address
+/// 2. should fail: v1 address tree with v2 address derivation
+/// 3. should fail: v2 address tree create address with invoke instruction (invoking program id required for derivation)
 /// 2. should succeed: create out compressed account with new created address
 /// 3. should fail: create two addresses with the same seeds
 /// 4. should succeed: create two addresses with different seeds
@@ -1167,12 +1172,11 @@ async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
+        &payer, &env,
+        None, // Some(ProverConfig {
+             //     run_mode: Some(ProverMode::Rpc),
+             //     circuits: vec![],
+             // }),
     )
     .await;
 
@@ -1180,7 +1184,8 @@ async fn test_with_address() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
     let address_seed = [1u8; 32];
-    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let derived_address =
+        derive_address_legacy(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -1213,6 +1218,100 @@ async fn test_with_address() {
 
     let res = context.process_transaction(transaction).await;
     assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
+    // address tree with new derivation should fail
+    {
+        let hashed_owner = hash_to_bn254_field_size_be(&payer_pubkey.to_bytes())
+            .unwrap()
+            .0;
+        let derived_address =
+            derive_address(&env.batch_address_merkle_tree, &hashed_owner, &address_seed);
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: Some(derived_address), // this should not be sent, only derived on-chain
+        }];
+
+        let address_params = vec![NewAddressParams {
+            seed: address_seed,
+            address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+            address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+            address_merkle_tree_root_index: 0,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &Vec::new(),
+            &output_compressed_accounts,
+            &Vec::new(),
+            &[env.batched_output_queue],
+            &Vec::new(),
+            &address_params,
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&payer_pubkey),
+            &[&payer],
+            context.get_latest_blockhash().await.unwrap(),
+        );
+
+        let res = context.process_transaction(transaction).await;
+        assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into())
+            .unwrap();
+    }
+    // batch address tree with new derivation should fail with invoke because invoking program is not provided.
+    {
+        let hashed_owner = hash_to_bn254_field_size_be(&payer_pubkey.to_bytes())
+            .unwrap()
+            .0;
+        let derived_address =
+            derive_address(&env.batch_address_merkle_tree, &hashed_owner, &address_seed);
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: Some(derived_address), // this should not be sent, only derived on-chain
+        }];
+        let address_params = vec![NewAddressParams {
+            seed: address_seed,
+            address_queue_pubkey: env.batch_address_merkle_tree,
+            address_merkle_tree_pubkey: env.batch_address_merkle_tree,
+            address_merkle_tree_root_index: 0,
+        }];
+
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &Vec::new(),
+            &output_compressed_accounts,
+            &Vec::new(),
+            &[env.batched_output_queue],
+            &Vec::new(),
+            &address_params,
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&payer_pubkey),
+            &[&payer],
+            context.get_latest_blockhash().await.unwrap(),
+        );
+
+        let res = context.process_transaction(transaction).await;
+        assert_custom_error_or_program_error(res, SystemProgramError::DeriveAddressError.into())
+            .unwrap();
+    }
     println!("creating address -------------------------");
     create_addresses_test(
         &mut context,
@@ -1569,6 +1668,7 @@ async fn regenerate_accounts() {
         true,
         skip_register_programs,
         InitStateTreeAccountsInstructionData::test_default(),
+        InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await;
 

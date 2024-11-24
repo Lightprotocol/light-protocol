@@ -4,7 +4,8 @@ use light_utils::fee::compute_rollover_fee;
 
 use crate::{
     batched_merkle_tree::{
-        get_merkle_tree_account_size, BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
+        get_merkle_tree_account_size, BatchedMerkleTreeAccount, TreeType,
+        ZeroCopyBatchedMerkleTreeAccount,
     },
     batched_queue::{
         assert_queue_inited, get_output_queue_account_size, BatchedQueue, BatchedQueueAccount,
@@ -18,8 +19,8 @@ use crate::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
         constants::{
-            DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE, DEFAULT_ZKP_BATCH_SIZE,
-            TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
+            ADDRESS_TREE_INIT_ROOT_26, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
         },
     },
     AccessMetadata, MerkleTreeMetadata, QueueMetadata, QueueType, RegisteredProgram,
@@ -316,6 +317,7 @@ pub fn init_batched_state_merkle_tree_accounts(
         mt_account_data,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
+        TreeType::BatchedState,
     )?;
     Ok(())
 }
@@ -361,19 +363,66 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
 pub fn match_circuit_size(size: u64) -> bool {
     matches!(size, 10 | 100 | 500 | 1000)
 }
-
 pub fn assert_mt_zero_copy_inited(
     account_data: &mut [u8],
     ref_account: BatchedMerkleTreeAccount,
     num_iters: u64,
 ) {
-    let mut zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)
-        .expect("from_bytes_mut failed");
+    let zero_copy_account =
+        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data)
+            .expect("from_bytes_mut failed");
+    _assert_mt_zero_copy_inited(
+        zero_copy_account,
+        ref_account,
+        num_iters,
+        QueueType::Input as u64,
+        false,
+    );
+}
+
+pub fn assert_address_mt_zero_copy_inited(
+    account_data: &mut [u8],
+    ref_account: BatchedMerkleTreeAccount,
+    num_iters: u64,
+) {
+    let zero_copy_account =
+        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
+            .expect("from_bytes_mut failed");
+    _assert_mt_zero_copy_inited(
+        zero_copy_account,
+        ref_account,
+        num_iters,
+        TreeType::Address as u64,
+        false,
+    );
+}
+pub fn assert_address_mt_zero_copy_rollover_zero(
+    account_data: &mut [u8],
+    ref_account: BatchedMerkleTreeAccount,
+    num_iters: u64,
+) {
+    let zero_copy_account =
+        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
+            .expect("from_bytes_mut failed");
+    _assert_mt_zero_copy_inited(
+        zero_copy_account,
+        ref_account,
+        num_iters,
+        TreeType::Address as u64,
+        true,
+    );
+}
+fn _assert_mt_zero_copy_inited(
+    mut zero_copy_account: ZeroCopyBatchedMerkleTreeAccount,
+    ref_account: BatchedMerkleTreeAccount,
+    num_iters: u64,
+    queue_type: u64,
+    rollover: bool,
+) {
     let queue = zero_copy_account.get_account().queue;
     let ref_queue = ref_account.queue;
-    let queue_type = QueueType::Input as u64;
     let num_batches = ref_queue.num_batches as usize;
-
+    let mut next_index = zero_copy_account.get_account().next_index;
     assert_eq!(
         *zero_copy_account.get_account(),
         ref_account,
@@ -385,16 +434,28 @@ pub fn assert_mt_zero_copy_inited(
         ref_account.root_history_capacity as usize,
         "root_history_capacity mismatch"
     );
-    assert_eq!(
-        *zero_copy_account.root_history.get(0).unwrap(),
-        light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
-        "root_history not initialized"
-    );
+    if queue_type == QueueType::Input as u64 {
+        assert_eq!(
+            *zero_copy_account.root_history.get(0).unwrap(),
+            light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
+            "root_history not initialized"
+        );
+    }
+    if queue_type == QueueType::Address as u64 {
+        assert_eq!(
+            *zero_copy_account.root_history.get(0).unwrap(),
+            ADDRESS_TREE_INIT_ROOT_26,
+            "root_history not initialized"
+        );
+    }
     assert_eq!(
         zero_copy_account.hashchain_store[0].metadata().capacity(),
         ref_account.queue.get_num_zkp_batches() as usize,
         "hashchain_store mismatch"
     );
+    if rollover {
+        next_index = 2;
+    }
     assert_queue_inited(
         queue,
         ref_queue,
@@ -404,6 +465,7 @@ pub fn assert_mt_zero_copy_inited(
         &mut zero_copy_account.batches,
         num_batches,
         num_iters,
+        next_index,
     );
 }
 

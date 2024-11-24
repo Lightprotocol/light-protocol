@@ -12,7 +12,7 @@ use crate::{
         compressed_account::PackedCompressedAccountWithMerkleContext,
         CompressedCpiContext,
     },
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, ReadOnlyAddressParamsPacked,
 };
 
 #[derive(Accounts)]
@@ -111,6 +111,12 @@ impl InstructionDataInvokeCpi {
                 .extend_from_slice(&other.output_compressed_accounts);
         }
     }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InstructionDataInvokeCpiWithReadOnlyAddress {
+    pub invoke_cpi: InstructionDataInvokeCpi,
+    pub read_only_addresses: Option<Vec<ReadOnlyAddressParamsPacked>>,
 }
 
 #[cfg(test)]

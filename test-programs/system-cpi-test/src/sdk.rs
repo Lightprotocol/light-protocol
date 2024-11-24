@@ -13,11 +13,11 @@ use light_compressed_token::{
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
-        address::pack_new_address_params,
+        address::{pack_new_address_params, pack_read_only_address_params},
         compressed_account::PackedCompressedAccountWithMerkleContext,
     },
     utils::get_registered_program_pda,
-    NewAddressParams,
+    NewAddressParams, ReadOnlyAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -34,6 +34,7 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
     pub owner_program: &'a Pubkey,
     pub signer_is_program: CreatePdaMode,
     pub registered_program_pda: &'a Pubkey,
+    pub readonly_adresses: Option<Vec<ReadOnlyAddressParams>>,
 }
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
@@ -45,7 +46,15 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     );
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-
+    let read_only_address = if let Some(readonly_adresses) = input_params.readonly_adresses.as_ref()
+    {
+        Some(pack_read_only_address_params(
+            &readonly_adresses,
+            &mut remaining_accounts,
+        ))
+    } else {
+        None
+    };
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
         proof: Some(input_params.proof.clone()),
@@ -54,6 +63,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         bump,
         signer_is_program: input_params.signer_is_program,
         cpi_context: None,
+        read_only_address,
     };
 
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;

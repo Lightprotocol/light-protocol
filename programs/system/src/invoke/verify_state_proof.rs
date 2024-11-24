@@ -4,7 +4,7 @@ use crate::{
 };
 use account_compression::{
     batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    utils::check_discrimininator::check_discriminator,
+    errors::AccountCompressionErrorCode,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
@@ -18,6 +18,8 @@ use light_verifier::{
     verify_merkle_proof_zkp, CompressedProof,
 };
 use std::mem;
+
+use super::ReadOnlyAddressParamsPacked;
 
 // TODO: add support for batched Merkle trees
 #[inline(never)]
@@ -44,10 +46,11 @@ pub fn fetch_input_compressed_account_roots<
         {
             continue;
         }
-        let merkle_tree = &ctx.remaining_accounts[input_compressed_account_with_context
+        let merkle_tree_account_info = &ctx.remaining_accounts[input_compressed_account_with_context
             .merkle_context
-            .merkle_tree_pubkey_index as usize];
-        let merkle_tree = &mut merkle_tree.try_borrow_mut_data()?;
+            .merkle_tree_pubkey_index
+            as usize];
+        let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
         let mut discriminator_bytes = [0u8; 8];
         discriminator_bytes.copy_from_slice(&merkle_tree[0..8]);
         match discriminator_bytes {
@@ -63,7 +66,10 @@ pub fn fetch_input_compressed_account_roots<
                     .push(fetched_roots[input_compressed_account_with_context.root_index as usize]);
             }
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(merkle_tree)
+                let merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                        &merkle_tree_account_info,
+                    )
                     .map_err(ProgramError::from)?;
                 (*roots).push(
                     merkle_tree.root_history
@@ -71,7 +77,9 @@ pub fn fetch_input_compressed_account_roots<
                 );
             }
             _ => {
-                return err!(crate::ErrorCode::AccountDiscriminatorMismatch);
+                return err!(
+                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                );
             }
         }
     }
@@ -88,23 +96,60 @@ pub fn fetch_roots_address_merkle_tree<
     A: InvokeAccounts<'info> + Bumps,
 >(
     new_address_params: &'a [NewAddressParamsPacked],
+    read_only_addresses: &'a [ReadOnlyAddressParamsPacked],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    roots: &'a mut [[u8; 32]],
+    roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    for (i, new_address_param) in new_address_params.iter().enumerate() {
-        let merkle_tree = ctx.remaining_accounts
-            [new_address_param.address_merkle_tree_account_index as usize]
-            .to_account_info();
-        let merkle_tree = merkle_tree.try_borrow_data()?;
-        check_discriminator::<AddressMerkleTreeAccount>(&merkle_tree)?;
-        let merkle_tree =
-            IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(
-                &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
+    for new_address_param in new_address_params.iter() {
+        fetch_address_root(
+            ctx,
+            new_address_param.address_merkle_tree_account_index,
+            new_address_param.address_merkle_tree_root_index,
+            roots,
+        )?;
+    }
+    for read_only_address in read_only_addresses.iter() {
+        fetch_address_root(
+            ctx,
+            read_only_address.address_merkle_tree_account_index,
+            read_only_address.address_merkle_tree_root_index,
+            roots,
+        )?;
+    }
+    Ok(())
+}
+fn fetch_address_root<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
+    address_merkle_tree_account_index: u8,
+    address_merkle_tree_root_index: u16,
+    roots: &'a mut Vec<[u8; 32]>,
+) -> Result<()> {
+    let merkle_tree_account_info =
+        ctx.remaining_accounts[address_merkle_tree_account_index as usize].to_account_info();
+    let mut discriminator_bytes = [0u8; 8];
+    discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
+    match discriminator_bytes {
+        AddressMerkleTreeAccount::DISCRIMINATOR => {
+            let merkle_tree = merkle_tree_account_info.try_borrow_data()?;
+            let merkle_tree =
+                IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(
+                    &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
+                )
+                .map_err(ProgramError::from)?;
+            (*roots).push(merkle_tree.roots[address_merkle_tree_root_index as usize]);
+        }
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+                &merkle_tree_account_info,
             )
             .map_err(ProgramError::from)?;
-        let fetched_roots = &merkle_tree.roots;
-
-        roots[i] = fetched_roots[new_address_param.address_merkle_tree_root_index as usize];
+            (*roots).push(merkle_tree.root_history[address_merkle_tree_root_index as usize]);
+        }
+        _ => {
+            return err!(
+                AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
+            );
+        }
     }
     Ok(())
 }

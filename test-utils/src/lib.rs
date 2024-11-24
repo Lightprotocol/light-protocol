@@ -1,5 +1,6 @@
 use solana_sdk::{instruction::InstructionError, transaction};
 
+pub mod address;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
@@ -8,6 +9,7 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 pub mod env_accounts;
 #[allow(unused)]
@@ -20,6 +22,8 @@ pub mod test_batch_forester;
 pub mod test_env;
 #[allow(unused)]
 pub mod test_forester;
+
+pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 
 pub use forester_utils::{
     airdrop_lamports, create_account_instruction,

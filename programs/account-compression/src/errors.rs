@@ -78,4 +78,6 @@ pub enum AccountCompressionErrorCode {
     UnsupportedParameters,
     InvalidTreeType,
     InvalidNetworkFee,
+    AddressMerkleTreeAccountDiscriminatorMismatch,
+    StateMerkleTreeAccountDiscriminatorMismatch,
 }

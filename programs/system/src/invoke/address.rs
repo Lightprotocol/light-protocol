@@ -1,37 +1,77 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{prelude::*, Bumps};
+use account_compression::{
+    batched_merkle_tree::BatchedMerkleTreeAccount, errors::AccountCompressionErrorCode,
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
+};
+use anchor_lang::{prelude::*, Bumps, Discriminator};
+use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
+    errors::SystemProgramError,
     invoke_cpi::verify_signer::check_program_owner_address_merkle_tree,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
-        address::derive_address,
+        address::{derive_address, derive_address_legacy},
     },
     NewAddressParamsPacked,
 };
 
 pub fn derive_new_addresses(
+    invoking_program_id: &Option<Pubkey>,
     new_address_params: &[NewAddressParamsPacked],
     num_input_compressed_accounts: usize,
     remaining_accounts: &[AccountInfo],
     compressed_account_addresses: &mut [Option<[u8; 32]>],
-    new_addresses: &mut [[u8; 32]],
+    new_addresses: &mut Vec<[u8; 32]>,
 ) -> Result<()> {
+    let hashed_invoking_program_id = if let Some(invoking_program_id) = invoking_program_id {
+        Some(
+            hash_to_bn254_field_size_be(&invoking_program_id.to_bytes())
+                .ok_or(SystemProgramError::DeriveAddressError)?
+                .0,
+        )
+    } else {
+        None
+    };
+
     new_address_params
         .iter()
         .enumerate()
         .try_for_each(|(i, new_address_params)| {
-            let address = derive_address(
+            let mut discriminator_bytes = [0u8; 8];
+            discriminator_bytes.copy_from_slice(
                 &remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-                    .key(),
-                &new_address_params.seed,
-            )
-            .map_err(ProgramError::from)?;
+                    .try_borrow_data()?[0..8],
+            );
+            let address = match discriminator_bytes {
+                AddressMerkleTreeAccount::DISCRIMINATOR => derive_address_legacy(
+                    &remaining_accounts
+                        [new_address_params.address_merkle_tree_account_index as usize]
+                        .key(),
+                    &new_address_params.seed,
+                )
+                .map_err(ProgramError::from)?,
+                BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                    let hashed_invoking_program_id =
+                        hashed_invoking_program_id.ok_or(SystemProgramError::DeriveAddressError)?;
+                    derive_address(
+                        &remaining_accounts
+                            [new_address_params.address_merkle_tree_account_index as usize]
+                            .key(),
+                        &hashed_invoking_program_id,
+                        &new_address_params.seed,
+                    )
+                }
+                _ => {
+                    return err!(
+                        AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
+                    )
+                }
+            };
             // We are inserting addresses into two vectors to avoid unwrapping
             // the option in following functions.
             compressed_account_addresses[i + num_input_compressed_accounts] = Some(address);
-            new_addresses[i] = address;
+            new_addresses.push(address);
             Ok(())
         })
 }

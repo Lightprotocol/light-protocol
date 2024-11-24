@@ -17,15 +17,15 @@ use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over, rpc::ProgramTestRpcConnection,
-    test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
+    address::insert_addresses, address_tree_rollover::perform_address_merkle_tree_roll_over,
+    rpc::ProgramTestRpcConnection, test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, set_address_merkle_tree_next_index,
     },
     test_env::create_address_merkle_tree_and_queue_account,
-    test_forester::{empty_address_queue_test, insert_addresses},
+    test_forester::empty_address_queue_test,
 };
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, get_hash_set,
@@ -1475,6 +1475,7 @@ pub async fn test_setup_with_address_merkle_tree(
             queue: address_queue_keypair.pubkey(),
         },
         rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+        queue_elements: vec![],
     };
     (context, payer, address_merkle_tree_bundle)
 }

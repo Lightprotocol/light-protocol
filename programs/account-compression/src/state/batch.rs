@@ -11,9 +11,8 @@ pub enum BatchState {
     CanBeFilled,
     /// Batch has been inserted into the tree.
     Inserted,
-    /// Batch is ready to be inserted into the tree. Possibly it is already
-    /// partially inserted into the tree.
-    ReadyToUpdateTree,
+    /// Batch is full, and insertion is in progress.
+    Full,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,7 +67,7 @@ impl Batch {
         self.state
     }
 
-    /// fill -> ready -> inserted -> fill
+    /// fill -> full -> inserted -> fill
     pub fn advance_state_to_can_be_filled(&mut self) -> Result<()> {
         if self.state == BatchState::Inserted {
             self.state = BatchState::CanBeFilled;
@@ -82,9 +81,9 @@ impl Batch {
         Ok(())
     }
 
-    /// fill -> ready -> inserted -> fill
+    /// fill -> full -> inserted -> fill
     pub fn advance_state_to_inserted(&mut self) -> Result<()> {
-        if self.state == BatchState::ReadyToUpdateTree {
+        if self.state == BatchState::Full {
             self.state = BatchState::Inserted;
         } else {
             msg!(
@@ -96,10 +95,10 @@ impl Batch {
         Ok(())
     }
 
-    /// fill -> ready -> inserted -> fill
-    pub fn advance_state_to_ready_to_update_tree(&mut self) -> Result<()> {
+    /// fill -> full -> inserted -> fill
+    pub fn advance_state_to_full(&mut self) -> Result<()> {
         if self.state == BatchState::CanBeFilled {
-            self.state = BatchState::ReadyToUpdateTree;
+            self.state = BatchState::Full;
         } else {
             msg!(
                 "Batch is in incorrect state {} expected ReadyToUpdateTree 2",
@@ -108,6 +107,16 @@ impl Batch {
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
         Ok(())
+    }
+
+    pub fn get_first_ready_zkp_batch(&self) -> Result<u64> {
+        if self.state == BatchState::Inserted {
+            err!(AccountCompressionErrorCode::BatchAlreadyInserted)
+        } else if self.current_zkp_batch_index > self.num_inserted_zkps {
+            Ok(self.num_inserted_zkps)
+        } else {
+            err!(AccountCompressionErrorCode::BatchNotReady)
+        }
     }
 
     pub fn get_num_inserted(&self) -> u64 {
@@ -120,6 +129,10 @@ impl Batch {
 
     pub fn get_num_inserted_zkps(&self) -> u64 {
         self.num_inserted_zkps
+    }
+
+    pub fn get_num_inserted_elements(&self) -> u64 {
+        self.num_inserted_zkps * self.zkp_batch_size + self.num_inserted
     }
 
     pub fn store_value(
@@ -153,6 +166,7 @@ impl Batch {
         store: &mut [u8],
         hashchain_store: &mut BoundedVec<[u8; 32]>,
     ) -> Result<()> {
+        println!("batch insert bloom filter value {:?}", bloom_filter_value);
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)
                 .map_err(ProgramError::from)?;
@@ -182,7 +196,7 @@ impl Batch {
         }
 
         if self.get_num_zkp_batches() == self.current_zkp_batch_index {
-            self.advance_state_to_ready_to_update_tree()?;
+            self.advance_state_to_full()?;
             self.num_inserted = 0;
         }
 
@@ -213,9 +227,9 @@ impl Batch {
         root_index: u32,
         root_history_length: u32,
     ) -> Result<()> {
-        if self.state != BatchState::ReadyToUpdateTree {
-            return err!(AccountCompressionErrorCode::BatchNotReady);
-        }
+        // Check that batch is ready.
+        self.get_first_ready_zkp_batch()?;
+
         let num_zkp_batches = self.get_num_zkp_batches();
 
         self.num_inserted_zkps += 1;
@@ -274,7 +288,7 @@ mod tests {
                 .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_length)
                 .unwrap();
             if i != batch.get_num_zkp_batches() - 1 {
-                assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+                assert_eq!(batch.get_state(), BatchState::Full);
                 assert_eq!(batch.get_num_inserted(), 0);
                 assert_eq!(batch.get_current_zkp_batch_index(), 5);
                 assert_eq!(batch.get_num_inserted_zkps(), i + 1);
@@ -315,7 +329,7 @@ mod tests {
                 ref_batch.current_zkp_batch_index += 1;
             }
             if ref_batch.current_zkp_batch_index == ref_batch.get_num_zkp_batches() {
-                ref_batch.state = BatchState::ReadyToUpdateTree;
+                ref_batch.state = BatchState::Full;
                 ref_batch.num_inserted = 0;
             }
             assert_eq!(batch, ref_batch);
@@ -326,7 +340,7 @@ mod tests {
             result.unwrap_err(),
             AccountCompressionErrorCode::BatchNotReady.into()
         );
-        assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+        assert_eq!(batch.get_state(), BatchState::Full);
         assert_eq!(batch.get_num_inserted(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 5);
         assert_eq!(batch.get_num_zkp_batches(), 5);
@@ -371,7 +385,7 @@ mod tests {
                 ref_batch.current_zkp_batch_index += 1;
             }
             if i == batch.batch_size - 1 {
-                ref_batch.state = BatchState::ReadyToUpdateTree;
+                ref_batch.state = BatchState::Full;
                 ref_batch.num_inserted = 0;
             }
             assert_eq!(batch, ref_batch);
@@ -434,8 +448,8 @@ mod tests {
         assert_eq!(batch.get_num_inserted(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 0);
         assert_eq!(batch.get_num_inserted_zkps(), 0);
-        batch.advance_state_to_ready_to_update_tree().unwrap();
-        assert_eq!(batch.get_state(), BatchState::ReadyToUpdateTree);
+        batch.advance_state_to_full().unwrap();
+        assert_eq!(batch.get_state(), BatchState::Full);
         batch.advance_state_to_inserted().unwrap();
         assert_eq!(batch.get_state(), BatchState::Inserted);
     }
@@ -447,7 +461,7 @@ mod tests {
     #[test]
     fn test_value_is_inserted_in_batch() {
         let mut batch = get_test_batch();
-        batch.advance_state_to_ready_to_update_tree().unwrap();
+        batch.advance_state_to_full().unwrap();
         batch.advance_state_to_inserted().unwrap();
         batch.start_index = 1;
         let lowest_eligible_value = batch.start_index;
@@ -481,5 +495,46 @@ mod tests {
                 .unwrap(),
             false
         );
+    }
+
+    /// 1. Failing: empty batch
+    /// 2. Functional: if zkp batch size is full else failing
+    /// 3. Failing: batch is completely inserted
+    #[test]
+    fn test_can_insert_batch() {
+        let mut batch = get_test_batch();
+        assert_eq!(
+            batch.get_first_ready_zkp_batch(),
+            Err(AccountCompressionErrorCode::BatchNotReady.into())
+        );
+        let mut bounded_vec = BoundedVec::with_capacity(batch.batch_size as usize);
+        let mut value_store = BoundedVec::with_capacity(batch.batch_size as usize);
+
+        for i in 0..batch.batch_size + 10 {
+            let mut value = [0u8; 32];
+            value[24..].copy_from_slice(&i.to_be_bytes());
+            if i < batch.batch_size {
+                batch
+                    .store_and_hash_value(&value, &mut value_store, &mut bounded_vec)
+                    .unwrap();
+            }
+            if (i + 1) % batch.zkp_batch_size == 0 && i != 0 {
+                assert_eq!(
+                    batch.get_first_ready_zkp_batch().unwrap(),
+                    i / batch.zkp_batch_size
+                );
+                batch.mark_as_inserted_in_merkle_tree(0, 0, 0).unwrap();
+            } else if i >= batch.batch_size {
+                assert_eq!(
+                    batch.get_first_ready_zkp_batch(),
+                    Err(AccountCompressionErrorCode::BatchAlreadyInserted.into())
+                );
+            } else {
+                assert_eq!(
+                    batch.get_first_ready_zkp_batch(),
+                    Err(AccountCompressionErrorCode::BatchNotReady.into())
+                );
+            }
+        }
     }
 }
