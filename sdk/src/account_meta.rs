@@ -20,23 +20,26 @@ use crate::{
 pub struct LightAccountMeta {
     /// Lamports.
     pub lamports: Option<u64>,
-    /// Address of the account (the address can change).
+    /// Optional address of the account.
     pub address: Option<[u8; 32]>,
     /// Data of the account.
     pub data: Option<Vec<u8>>,
-    /// Merkle tree.
+    /// State Merkle tree context of existing compressed account.
     pub merkle_context: Option<PackedMerkleContext>,
-    /// Merkle tree root index.
+    /// Index for recent root in State Merkle tree account. Expiry tied to
+    /// proof.
     pub merkle_tree_root_index: Option<u16>,
-    /// Output Merkle tree.
+    /// Index of the State Merkle tree pubkey in accounts list.
     pub output_merkle_tree_index: Option<u8>,
-    /// Address Merkle tree. Set only when adding or updating the address.
+    /// Context for Address Merkle tree in which the address will be stored.
+    ///
+    /// Set only when creating the address.
     pub address_merkle_context: Option<PackedAddressMerkleContext>,
-    /// Address Merkle tree root index. Set only when adding or updating the
-    /// address.
+    /// Recent root index in Address Merkle tree account. Expiry tied to proof.
+    ///
+    /// Set only when creating the address.
     pub address_merkle_tree_root_index: Option<u16>,
-    /// Account is read only.
-    /// (not used for now, just a placeholder)
+    /// Account is read-only? (not used for now, just a placeholder)
     pub read_only: bool,
 }
 

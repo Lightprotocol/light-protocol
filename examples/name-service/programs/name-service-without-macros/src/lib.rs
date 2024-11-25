@@ -32,6 +32,7 @@ pub mod name_service {
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
+        // msg!("accounts: {:#?}", accounts);
         let address_merkle_context = accounts[0]
             .address_merkle_context
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
@@ -54,12 +55,16 @@ pub mod name_service {
         record.owner = ctx.accounts.signer.key();
         record.name = name;
         record.rdata = rdata;
+        // msg!("remaining accounts: {:#?}", ctx.remaining_accounts);
 
+        // adds into total accounts,
         let light_cpi_accounts = LightCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
         );
+        msg!("fee payer: {:?}", ctx.accounts.signer);
+        msg!("authority: {:?}", ctx.accounts.cpi_signer);
         verify_light_accounts(
             &light_cpi_accounts,
             inputs.proof,
