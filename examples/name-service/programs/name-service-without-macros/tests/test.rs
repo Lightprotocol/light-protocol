@@ -1,6 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::println;
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::test_indexer::TestIndexer;
@@ -82,6 +83,7 @@ async fn test_name_service() {
         instruction_accounts.to_account_metas()
     );
 
+    println!("ACCSINDEX: {:#?}", instruction_accounts.map);
     // Create the example.io -> 10.0.1.25 record.
     let rdata_1 = RData::A(Ipv4Addr::new(10, 0, 1, 25));
     create_record(

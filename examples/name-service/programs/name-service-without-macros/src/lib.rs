@@ -57,7 +57,7 @@ pub mod name_service {
         record.rdata = rdata;
         // msg!("remaining accounts: {:#?}", ctx.remaining_accounts);
 
-        // adds into total accounts,
+        // adds into total accounts
         let light_cpi_accounts = LightCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
