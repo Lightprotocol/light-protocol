@@ -33,14 +33,11 @@ use light_utils::hash_to_bn254_field_size_be;
 /// 4.  create_output_compressed_accounts
 /// 5.  Serialize and add token_data data to in compressed_accounts.
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
+#[inline(always)]
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    inputs: Vec<u8>,
+    inputs: CompressedTokenInstructionDataTransfer,
 ) -> Result<()> {
-    bench_sbf_start!("t_deserialize");
-    let inputs: CompressedTokenInstructionDataTransfer =
-        CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
-    bench_sbf_end!("t_deserialize");
     bench_sbf_start!("t_context_and_check_sig");
     if inputs.input_token_data_with_context.is_empty()
         && inputs.compress_or_decompress_amount.is_none()

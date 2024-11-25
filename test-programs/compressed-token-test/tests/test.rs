@@ -22,19 +22,19 @@ use light_system_program::{
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
-use light_test_utils::spl::approve_test;
-use light_test_utils::spl::burn_test;
-use light_test_utils::spl::create_burn_test_instruction;
 use light_test_utils::spl::freeze_test;
 use light_test_utils::spl::mint_tokens_helper_with_lamports;
 use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
 use light_test_utils::spl::BurnInstructionMode;
+use light_test_utils::spl::{approve_test, create_token_pool};
+use light_test_utils::spl::{burn_test, mint_spl_tokens};
 use light_test_utils::spl::{
     compress_test, compressed_transfer_test, create_mint_helper, create_token_account,
     decompress_test, mint_tokens_helper,
 };
+use light_test_utils::spl::{create_burn_test_instruction, perform_compress_spl_token_account};
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, Indexer, RpcConnection,
     RpcError, TokenDataWithContext,
@@ -268,6 +268,79 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
         .await;
     }
     kill_prover();
+}
+
+/// Functional tests:
+/// - Mint 10 tokens to spl token account
+/// - Compress spl token account
+/// - Mint 20 more tokens to spl token account
+/// - Compress spl token account with 1 remaining token
+#[tokio::test]
+async fn compress_spl_account() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+
+    let token_account_keypair = Keypair::new();
+    let token_owner = Keypair::new();
+    airdrop_lamports(&mut rpc, &token_owner.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_token_pool(&mut rpc, &payer, &token_owner.pubkey(), 2, None).await;
+
+    create_token_account(&mut rpc, &mint, &token_account_keypair, &token_owner)
+        .await
+        .unwrap();
+
+    let first_token_account_balance = 10;
+    mint_spl_tokens(
+        &mut rpc,
+        &mint,
+        &token_account_keypair.pubkey(),
+        &token_owner.pubkey(),
+        &token_owner,
+        first_token_account_balance,
+    )
+    .await
+    .unwrap();
+
+    perform_compress_spl_token_account(
+        &mut rpc,
+        &mut test_indexer,
+        &payer,
+        &token_owner,
+        &mint,
+        &token_account_keypair.pubkey(),
+        &merkle_tree_pubkey,
+        None,
+    )
+    .await
+    .unwrap();
+    let first_token_account_balance = 20;
+    mint_spl_tokens(
+        &mut rpc,
+        &mint,
+        &token_account_keypair.pubkey(),
+        &token_owner.pubkey(),
+        &token_owner,
+        first_token_account_balance,
+    )
+    .await
+    .unwrap();
+    perform_compress_spl_token_account(
+        &mut rpc,
+        &mut test_indexer,
+        &payer,
+        &token_owner,
+        &mint,
+        &token_account_keypair.pubkey(),
+        &merkle_tree_pubkey,
+        Some(1),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]

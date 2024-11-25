@@ -1,6 +1,7 @@
 use anchor_spl::token::{Mint, TokenAccount};
 use forester_utils::create_account_instruction;
 use forester_utils::indexer::{Indexer, TokenDataWithContext};
+use light_compressed_token::process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction;
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
@@ -57,6 +58,32 @@ pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     )
     .await
 }
+
+pub async fn mint_spl_tokens<R: RpcConnection>(
+    rpc: &mut R,
+    mint: &Pubkey,
+    token_account: &Pubkey,
+    token_owner: &Pubkey,
+    mint_authority: &Keypair,
+    amount: u64,
+) -> Result<Signature, RpcError> {
+    let mint_to_instruction = spl_token::instruction::mint_to(
+        &spl_token::ID,
+        mint,
+        token_account,
+        token_owner,
+        &[&mint_authority.pubkey()],
+        amount,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(
+        &[mint_to_instruction],
+        &mint_authority.pubkey(),
+        &[&mint_authority],
+    )
+    .await
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn mint_tokens_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
@@ -124,7 +151,6 @@ pub async fn create_token_pool<R: RpcConnection>(
     payer: &Keypair,
     mint_authority: &Pubkey,
     decimals: u8,
-    freeze_authority: Option<&Pubkey>,
     mint_keypair: Option<&Keypair>,
 ) -> Pubkey {
     let keypair = Keypair::new();
@@ -137,30 +163,16 @@ pub async fn create_token_pool<R: RpcConnection>(
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
-
-    let account_create_ix = create_account_instruction(
+    let (instructions, __) = create_initialize_mint_instructions(
         &payer.pubkey(),
-        Mint::LEN,
-        mint_rent,
-        &light_compressed_token::ID,
-        Some(mint_keypair),
-    );
-
-    let create_mint_ix = spl_token::instruction::initialize_mint2(
-        &spl_token::id(),
-        &mint_pubkey,
         mint_authority,
-        freeze_authority,
+        mint_rent,
         decimals,
-    )
-    .unwrap();
-    rpc.create_and_send_transaction(
-        &[account_create_ix, create_mint_ix],
-        &payer.pubkey(),
-        &[payer],
-    )
-    .await
-    .unwrap();
+        mint_keypair,
+    );
+    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer, mint_keypair])
+        .await
+        .unwrap();
     mint_pubkey
 }
 
@@ -610,6 +622,73 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         recipient_token_account_data.amount,
         recipient_token_account_data_pre.amount + amount
     );
+}
+
+pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    test_indexer: &mut I,
+    payer: &Keypair,
+    token_owner: &Keypair,
+    mint: &Pubkey,
+    token_account: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
+    remaining_amount: Option<u64>,
+) -> Result<(), RpcError> {
+    let pre_token_account_amount = spl_token::state::Account::unpack(
+        &rpc.get_account(*token_account).await.unwrap().unwrap().data,
+    )
+    .unwrap()
+    .amount;
+    let instruction = create_compress_spl_token_account_instruction(
+        &token_owner.pubkey(),
+        remaining_amount,
+        None,
+        &payer.pubkey(),
+        &token_owner.pubkey(),
+        &mint,
+        &merkle_tree_pubkey,
+        token_account,
+    );
+    let (event, _, _) = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[instruction],
+            &token_owner.pubkey(),
+            &[&payer, &token_owner],
+            None,
+        )
+        .await?
+        .unwrap();
+    test_indexer.add_event_and_compressed_accounts(&event);
+    let created_compressed_token_account =
+        test_indexer.get_compressed_token_accounts_by_owner(&token_owner.pubkey())[0].clone();
+    let expected_token_data = TokenData {
+        amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),
+        mint: *mint,
+        owner: token_owner.pubkey(),
+        state: AccountState::Initialized,
+        delegate: None,
+        tlv: None,
+    };
+    assert_eq!(
+        created_compressed_token_account.token_data,
+        expected_token_data
+    );
+    assert_eq!(
+        created_compressed_token_account
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey,
+        *merkle_tree_pubkey
+    );
+    if let Some(remaining_amount) = remaining_amount {
+        let post_token_account_amount = spl_token::state::Account::unpack(
+            &rpc.get_account(*token_account).await.unwrap().unwrap().data,
+        )
+        .unwrap()
+        .amount;
+        assert_eq!(post_token_account_amount, remaining_amount);
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
