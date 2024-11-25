@@ -5,6 +5,7 @@ import {
     SystemProgram,
     Connection,
     AddressLookupTableProgram,
+    AccountMeta,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, LightCompressedToken } from './idl/light_compressed_token';
@@ -432,6 +433,33 @@ export function createDecompressOutputState(
     ];
     return tokenTransferOutputs;
 }
+
+export type CompressSplTokenAccountParams = {
+    /**
+     * Tx feepayer
+     */
+    feePayer: PublicKey;
+    /**
+     * Authority that owns the token account
+     */
+    authority: PublicKey;
+    /**
+     * Token account to compress
+     */
+    tokenAccount: PublicKey;
+    /**
+     * Mint public key
+     */
+    mint: PublicKey;
+    /**
+     * Optional: remaining amount to leave in token account. Default: 0
+     */
+    remainingAmount?: BN;
+    /**
+     * The state tree that the compressed token account should be inserted into.
+     */
+    outputStateTree: PublicKey;
+};
 
 export class CompressedTokenProgram {
     /**
@@ -990,5 +1018,51 @@ export class CompressedTokenProgram {
         });
 
         return [ix];
+    }
+
+    static async compressSplTokenAccount(
+        params: CompressSplTokenAccountParams,
+    ): Promise<TransactionInstruction> {
+        const {
+            feePayer,
+            authority,
+            tokenAccount,
+            mint,
+            remainingAmount,
+            outputStateTree,
+        } = params;
+
+        const remainingAccountMetas: AccountMeta[] = [
+            {
+                pubkey: outputStateTree,
+                isSigner: false,
+                isWritable: true,
+            },
+        ];
+
+        const instruction = await this.program.methods
+            .compressSplTokenAccount(authority, remainingAmount ?? null, null)
+            .accounts({
+                feePayer,
+                authority,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+                lightSystemProgram: LightSystemProgram.programId,
+                registeredProgramPda:
+                    defaultStaticAccountsStruct().registeredProgramPda,
+                noopProgram: defaultStaticAccountsStruct().noopProgram,
+                accountCompressionAuthority:
+                    defaultStaticAccountsStruct().accountCompressionAuthority,
+                accountCompressionProgram:
+                    defaultStaticAccountsStruct().accountCompressionProgram,
+                selfProgram: this.programId,
+                tokenPoolPda: this.deriveTokenPoolPda(mint),
+                compressOrDecompressTokenAccount: tokenAccount,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                systemProgram: SystemProgram.programId,
+            })
+            .remainingAccounts(remainingAccountMetas)
+            .instruction();
+
+        return instruction;
     }
 }

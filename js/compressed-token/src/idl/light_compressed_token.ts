@@ -161,6 +161,106 @@ export type LightCompressedToken = {
             ];
         },
         {
+            name: 'compressSplTokenAccount';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                    docs: ['this program is the signer of the cpi.'];
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'compressOrDecompressTokenAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'owner';
+                    type: 'publicKey';
+                },
+                {
+                    name: 'remainingAmount';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+                {
+                    name: 'cpiContext';
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext';
+                        };
+                    };
+                },
+            ];
+        },
+        {
             name: 'transfer';
             docs: [
                 'Transfers compressed tokens from one account to another. All accounts',
@@ -1727,6 +1827,106 @@ export const IDL: LightCompressedToken = {
                     name: 'lamports',
                     type: {
                         option: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'compressSplTokenAccount',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ],
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                    docs: ['this program is the signer of the cpi.'],
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'compressOrDecompressTokenAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'owner',
+                    type: 'publicKey',
+                },
+                {
+                    name: 'remainingAmount',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+                {
+                    name: 'cpiContext',
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext',
+                        },
                     },
                 },
             ],
