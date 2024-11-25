@@ -16,7 +16,6 @@
   <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fcompressed-token" alt="package weekly downloads" height="18" />
 </p>
 
-
 ### Installation
 
 **For use in Node.js or web**

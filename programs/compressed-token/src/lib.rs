@@ -1,8 +1,10 @@
 use anchor_lang::prelude::*;
 
 pub mod constants;
+pub mod process_compress_spl_token_account;
 pub mod process_mint;
 pub mod process_transfer;
+use process_compress_spl_token_account::process_compress_spl_token_account;
 pub mod spl_compression;
 pub use process_mint::*;
 pub mod token_data;
@@ -12,9 +14,9 @@ pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
 pub mod burn;
-pub use burn::*;
-
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
+pub use burn::*;
+use light_system_program::sdk::CompressedCpiContext;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -31,6 +33,7 @@ pub mod light_compressed_token {
 
     use super::*;
     use constants::NOT_FROZEN;
+
     /// This instruction creates a token pool for a given mint. Every spl mint
     /// can have one token pool. When a token is compressed the tokens are
     /// transferrred to the token pool, and their compressed equivalent is
@@ -57,6 +60,15 @@ pub mod light_compressed_token {
         process_mint_to(ctx, public_keys, amounts, lamports)
     }
 
+    pub fn compress_spl_token_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        owner: Pubkey,
+        remaining_amount: Option<u64>,
+        cpi_context: Option<CompressedCpiContext>,
+    ) -> Result<()> {
+        process_compress_spl_token_account(ctx, owner, remaining_amount, cpi_context)
+    }
+
     /// Transfers compressed tokens from one account to another. All accounts
     /// must be of the same mint. Additional spl tokens can be compressed or
     /// decompressed. In one transaction only compression or decompression is
@@ -69,6 +81,8 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let inputs: CompressedTokenInstructionDataTransfer =
+            CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         process_transfer::process_transfer(ctx, inputs)
     }
 

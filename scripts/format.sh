@@ -8,6 +8,7 @@ npx nx run-many --target=lint:fix --all
 cargo fmt --all
 cargo clippy \
       --workspace \
+      --exclude name-service \
       --exclude photon-api \
       -- -A clippy::result_large_err \
          -A clippy::empty-docs \
