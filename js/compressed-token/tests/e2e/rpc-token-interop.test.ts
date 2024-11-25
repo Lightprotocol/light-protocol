@@ -152,7 +152,6 @@ describe('rpc-interop token', () => {
         });
     });
 
-
     it('getCompressedTokenBalancesByOwnerV2 should match', async () => {
         const balances = (
             await rpc.getCompressedTokenBalancesByOwnerV2(bob.publicKey, {
@@ -177,9 +176,12 @@ describe('rpc-interop token', () => {
             })
         ).value.items;
         const balancesReceiverTest = (
-            await testRpc.getCompressedTokenBalancesByOwnerV2(charlie.publicKey, {
-                mint,
-            })
+            await testRpc.getCompressedTokenBalancesByOwnerV2(
+                charlie.publicKey,
+                {
+                    mint,
+                },
+            )
         ).value.items;
 
         assert.equal(balancesReceiver.length, balancesReceiverTest.length);
