@@ -476,6 +476,9 @@ export class CompressedTokenProgram {
 
     /**
      * Set a custom programId via PublicKey or base58 encoded string.
+     * This method is not required for regular usage.
+     *
+     * Use this only if you know what you are doing.
      */
     static setProgramId(programId: PublicKey | string) {
         this.programId =
