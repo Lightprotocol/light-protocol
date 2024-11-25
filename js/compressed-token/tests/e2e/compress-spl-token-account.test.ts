@@ -1,83 +1,20 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import {
-    PublicKey,
-    Keypair,
-    Signer,
-    ComputeBudgetProgram,
-} from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
-import {
-    ParsedTokenAccount,
     Rpc,
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    dedupeSigner,
-    buildAndSignTx,
-    sendAndConfirmTx,
     getTestRpc,
 } from '@lightprotocol/stateless.js';
 import {
-    compress,
     createMint,
-    createTokenProgramLookupTable,
     decompress,
     mintTo,
     compressSplTokenAccount,
 } from '../../src/actions';
 import { createAssociatedTokenAccount, mintToChecked } from '@solana/spl-token';
-import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-
-/**
- * Assert that we created recipient and change ctokens for the sender, with all
- * amounts correctly accounted for
- */
-async function assertCompress(
-    rpc: Rpc,
-    refSenderAtaBalanceBefore: BN,
-    refSenderAta: PublicKey,
-    refMint: PublicKey,
-    refAmounts: BN[],
-    refRecipients: PublicKey[],
-    refRecipientCompressedTokenBalancesBefore: ParsedTokenAccount[][],
-) {
-    if (refAmounts.length !== refRecipients.length) {
-        throw new Error('Mismatch in length of amounts and recipients arrays');
-    }
-
-    const refSenderAtaBalanceAfter =
-        await rpc.getTokenAccountBalance(refSenderAta);
-
-    const totalAmount = refAmounts.reduce((acc, curr) => acc.add(curr), bn(0));
-
-    expect(
-        refSenderAtaBalanceBefore
-            .sub(totalAmount)
-            .eq(bn(refSenderAtaBalanceAfter.value.amount)),
-    ).toBe(true);
-
-    for (let i = 0; i < refRecipients.length; i++) {
-        const recipientCompressedTokenBalanceAfter =
-            await rpc.getCompressedTokenAccountsByOwner(refRecipients[i], {
-                mint: refMint,
-            });
-
-        const recipientSumPost =
-            recipientCompressedTokenBalanceAfter.items.reduce(
-                (acc, curr) => bn(acc).add(curr.parsed.amount),
-                bn(0),
-            );
-        const recipientSumPre = refRecipientCompressedTokenBalancesBefore[
-            i
-        ].reduce((acc, curr) => bn(acc).add(curr.parsed.amount), bn(0));
-
-        /// recipient should have received the amount
-        expect(recipientSumPost.eq(refAmounts[i].add(recipientSumPre))).toBe(
-            true,
-        );
-    }
-}
 
 const TEST_TOKEN_DECIMALS = 2;
 

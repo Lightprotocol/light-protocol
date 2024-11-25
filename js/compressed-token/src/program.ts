@@ -1032,26 +1032,6 @@ export class CompressedTokenProgram {
             outputStateTree,
         } = params;
 
-        // const outputData: TokenTransferOutputData[] = [
-        //     {
-        //         owner: authority,
-        //         amount: remainingAmount ?? new BN(0),
-        //         lamports: bn(subremainingAmount),
-        //         tlv: null,
-        //     },
-        // ];
-
-        // const {
-        //     inputTokenDataWithContext,
-        //     packedOutputTokenData,
-        //     remainingAccountMetas,
-        // } = packCompressedTokenAccounts({
-        //     inputCompressedTokenAccounts: [],
-        //     outputStateTrees: outputStateTree,
-        //     rootIndices: [],
-        //     tokenTransferOutputs,
-        // });
-
         const remainingAccountMetas: AccountMeta[] = [
             {
                 pubkey: outputStateTree,
