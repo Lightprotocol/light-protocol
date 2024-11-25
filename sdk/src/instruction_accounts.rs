@@ -10,7 +10,7 @@ use crate::{
 /// Collection of Light Protocol system accounts which are sent to the program.
 pub struct LightInstructionAccounts {
     next_index: u8,
-    map: HashMap<Pubkey, u8>,
+    pub map: HashMap<Pubkey, u8>,
     // Optional accounts.
     //
     // We can't include them in the hash map, because there is no way to
@@ -110,24 +110,16 @@ impl LightInstructionAccounts {
         accounts.sort_by(|a, b| a.1.cmp(&b.1));
         account_metas.extend(accounts.into_iter().map(|(k, _)| k));
 
-        account_metas.insert(
-            // Should be after the first 5 system accounts
-            4,
-            AccountMeta {
-                pubkey: sol_pool_pda,
-                is_signer: false,
-                is_writable: false,
-            },
-        );
-        account_metas.insert(
-            // Should be right after sol_pool_pda
-            5,
-            AccountMeta {
-                pubkey: decompression_recipient,
-                is_signer: false,
-                is_writable: false,
-            },
-        );
+        account_metas.push(AccountMeta {
+            pubkey: sol_pool_pda,
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: decompression_recipient,
+            is_signer: false,
+            is_writable: false,
+        });
 
         account_metas
     }
