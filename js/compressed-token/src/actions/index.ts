@@ -7,3 +7,4 @@ export * from './merge-token-accounts';
 export * from './create-token-pool';
 export * from './transfer';
 export * from './create-token-program-lookup-table';
+export * from './compress-spl-token-account';
