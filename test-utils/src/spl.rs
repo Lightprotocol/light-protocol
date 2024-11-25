@@ -624,6 +624,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
@@ -645,15 +646,15 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
         None,
         &payer.pubkey(),
         &token_owner.pubkey(),
-        &mint,
-        &merkle_tree_pubkey,
+        mint,
+        merkle_tree_pubkey,
         token_account,
     );
     let (event, _, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &token_owner.pubkey(),
-            &[&payer, &token_owner],
+            &[payer, token_owner],
             None,
         )
         .await?
