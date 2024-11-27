@@ -34,7 +34,7 @@ import {
 import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
 
-type CompressParams = {
+export type CompressParams = {
     /**
      * The payer of the transaction.
      */
@@ -67,7 +67,34 @@ type CompressParams = {
     outputStateTree?: PublicKey;
 };
 
-type DecompressParams = {
+export type CompressSplTokenAccountParams = {
+    /**
+     * Tx feepayer
+     */
+    feePayer: PublicKey;
+    /**
+     * Authority that owns the token account
+     */
+    authority: PublicKey;
+    /**
+     * Token account to compress
+     */
+    tokenAccount: PublicKey;
+    /**
+     * Mint public key
+     */
+    mint: PublicKey;
+    /**
+     * Optional: remaining amount to leave in token account. Default: 0
+     */
+    remainingAmount?: BN;
+    /**
+     * The state tree that the compressed token account should be inserted into.
+     */
+    outputStateTree: PublicKey;
+};
+
+export type DecompressParams = {
     /**
      * The payer of the transaction.
      */
@@ -434,33 +461,6 @@ export function createDecompressOutputState(
     return tokenTransferOutputs;
 }
 
-export type CompressSplTokenAccountParams = {
-    /**
-     * Tx feepayer
-     */
-    feePayer: PublicKey;
-    /**
-     * Authority that owns the token account
-     */
-    authority: PublicKey;
-    /**
-     * Token account to compress
-     */
-    tokenAccount: PublicKey;
-    /**
-     * Mint public key
-     */
-    mint: PublicKey;
-    /**
-     * Optional: remaining amount to leave in token account. Default: 0
-     */
-    remainingAmount?: BN;
-    /**
-     * The state tree that the compressed token account should be inserted into.
-     */
-    outputStateTree: PublicKey;
-};
-
 export class CompressedTokenProgram {
     /**
      * @internal
@@ -473,6 +473,21 @@ export class CompressedTokenProgram {
     static programId: PublicKey = new PublicKey(
         'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
     );
+
+    /**
+     * Set a custom programId via PublicKey or base58 encoded string.
+     * This method is not required for regular usage.
+     *
+     * Use this only if you know what you are doing.
+     */
+    static setProgramId(programId: PublicKey | string) {
+        this.programId =
+            typeof programId === 'string'
+                ? new PublicKey(programId)
+                : programId;
+        // Reset program when programId changes
+        this._program = null;
+    }
 
     private static _program: Program<LightCompressedToken> | null = null;
 

@@ -32,17 +32,21 @@ export type EventWithParsedTokenTlvData = {
     inputCompressedAccountHashes: number[][];
     outputCompressedAccounts: ParsedTokenAccount[];
 };
-
-/** @internal */
-function parseTokenLayoutWithIdl(
+/**
+ * Manually parse the compressed token layout for a given compressed account.
+ * @param compressedAccount - The compressed account
+ * @returns The parsed token data
+ */
+export function parseTokenLayoutWithIdl(
     compressedAccount: CompressedAccount,
+    programId: PublicKey = tokenProgramId,
 ): TokenData | null {
     if (compressedAccount.data === null) return null;
 
     const { data } = compressedAccount.data;
 
     if (data.length === 0) return null;
-    if (compressedAccount.owner.toBase58() !== tokenProgramId.toBase58()) {
+    if (compressedAccount.owner.toBase58() !== programId.toBase58()) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
