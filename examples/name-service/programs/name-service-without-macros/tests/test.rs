@@ -11,11 +11,12 @@ use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
+use light_sdk::instruction_accounts::LightInstructionAccounts;
 use light_sdk::instruction_data::LightInstructionData;
-use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use light_sdk::merkle_context::AddressMerkleContext;
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
-use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
+use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM};
 use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
 use name_service_without_macros::{CustomError, NameRecord, RData};
@@ -51,8 +52,6 @@ async fn test_name_service() {
 
     let name = "example.io";
 
-    let mut remaining_accounts = RemainingAccounts::default();
-
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
@@ -64,12 +63,20 @@ async fn test_name_service() {
         &name_service_without_macros::ID,
     );
 
-    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
         &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
         &PROGRAM_ID_ACCOUNT_COMPRESSION,
     )
     .0;
+    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
+
+    let mut instruction_accounts = LightInstructionAccounts::new(
+        &registered_program_pda,
+        &account_compression_authority,
+        &name_service_without_macros::ID,
+        None,
+        None,
+    );
 
     // Create the example.io -> 10.0.1.25 record.
     let rdata_1 = RData::A(Ipv4Addr::new(10, 0, 1, 25));
@@ -79,12 +86,9 @@ async fn test_name_service() {
         &mut rpc,
         &mut test_indexer,
         &env,
-        &mut remaining_accounts,
+        &mut instruction_accounts,
         &payer,
         &address,
-        &account_compression_authority,
-        &registered_program_pda,
-        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
@@ -97,12 +101,9 @@ async fn test_name_service() {
             &mut rpc,
             &mut test_indexer,
             &env,
-            &mut remaining_accounts,
+            &mut instruction_accounts,
             &payer,
             &address,
-            &account_compression_authority,
-            &registered_program_pda,
-            &Pubkey::new_unique(),
         )
         .await;
         assert!(matches!(
@@ -133,13 +134,10 @@ async fn test_name_service() {
     update_record(
         &mut rpc,
         &mut test_indexer,
-        &mut remaining_accounts,
+        &mut instruction_accounts,
         &rdata_2,
         &payer,
         compressed_account,
-        &account_compression_authority,
-        &registered_program_pda,
-        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
@@ -153,13 +151,10 @@ async fn test_name_service() {
         let result = update_record(
             &mut rpc,
             &mut test_indexer,
-            &mut remaining_accounts,
+            &mut instruction_accounts,
             &rdata_2,
             &invalid_signer,
             compressed_account,
-            &account_compression_authority,
-            &registered_program_pda,
-            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -174,13 +169,10 @@ async fn test_name_service() {
         let result = update_record(
             &mut rpc,
             &mut test_indexer,
-            &mut remaining_accounts,
+            &mut instruction_accounts,
             &rdata_2,
             &payer,
             compressed_account,
-            &account_compression_authority,
-            &registered_program_pda,
-            &Pubkey::new_unique(),
         )
         .await;
         assert!(matches!(
@@ -215,12 +207,9 @@ async fn test_name_service() {
         let result = delete_record(
             &mut rpc,
             &mut test_indexer,
-            &mut remaining_accounts,
+            &mut instruction_accounts,
             &invalid_signer,
             compressed_account,
-            &account_compression_authority,
-            &registered_program_pda,
-            &PROGRAM_ID_LIGHT_SYSTEM,
         )
         .await;
         assert!(matches!(
@@ -235,12 +224,9 @@ async fn test_name_service() {
         let result = delete_record(
             &mut rpc,
             &mut test_indexer,
-            &mut remaining_accounts,
+            &mut instruction_accounts,
             &payer,
             compressed_account,
-            &account_compression_authority,
-            &registered_program_pda,
-            &Pubkey::new_unique(),
         )
         .await;
         assert!(matches!(
@@ -255,12 +241,9 @@ async fn test_name_service() {
     delete_record(
         &mut rpc,
         &mut test_indexer,
-        &mut remaining_accounts,
+        &mut instruction_accounts,
         &payer,
         compressed_account,
-        &account_compression_authority,
-        &registered_program_pda,
-        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
@@ -272,12 +255,9 @@ async fn create_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
-    remaining_accounts: &mut RemainingAccounts,
+    instruction_accounts: &mut LightInstructionAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -300,9 +280,10 @@ where
         &env.merkle_tree_pubkey,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
-        remaining_accounts,
+        instruction_accounts,
     )
     .unwrap();
+    println!("MERKLE_TREE: {:?}", env.merkle_tree_pubkey);
 
     let inputs = LightInstructionData {
         proof: Some(rpc_result),
@@ -319,17 +300,11 @@ where
 
     let accounts = name_service_without_macros::accounts::CreateRecord {
         signer: payer.pubkey(),
-        light_system_program: *light_system_program,
-        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service_without_macros::ID,
         cpi_signer,
-        system_program: solana_sdk::system_program::id(),
     };
 
-    let remaining_accounts = remaining_accounts.to_account_metas();
+    let remaining_accounts = instruction_accounts.to_account_metas();
+    println!("REMAINING ACCOUNTS: {remaining_accounts:?}");
 
     let instruction = Instruction {
         program_id: name_service_without_macros::ID,
@@ -347,13 +322,10 @@ where
 async fn update_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    remaining_accounts: &mut RemainingAccounts,
+    instruction_accounts: &mut LightInstructionAccounts,
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -375,7 +347,7 @@ where
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
-        remaining_accounts,
+        instruction_accounts,
     );
 
     let inputs = LightInstructionData {
@@ -392,17 +364,10 @@ where
 
     let accounts = name_service_without_macros::accounts::UpdateRecord {
         signer: payer.pubkey(),
-        light_system_program: *light_system_program,
-        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service_without_macros::ID,
         cpi_signer,
-        system_program: solana_sdk::system_program::id(),
     };
 
-    let remaining_accounts = remaining_accounts.to_account_metas();
+    let remaining_accounts = instruction_accounts.to_account_metas();
 
     let instruction = Instruction {
         program_id: name_service_without_macros::ID,
@@ -420,12 +385,9 @@ where
 async fn delete_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    remaining_accounts: &mut RemainingAccounts,
+    light_instruction_accounts: &mut LightInstructionAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -446,7 +408,7 @@ where
     let compressed_account = LightAccountMeta::new_close(
         compressed_account,
         rpc_result.root_indices[0],
-        remaining_accounts,
+        light_instruction_accounts,
     );
 
     let inputs = LightInstructionData {
@@ -460,17 +422,10 @@ where
 
     let accounts = name_service_without_macros::accounts::DeleteRecord {
         signer: payer.pubkey(),
-        light_system_program: *light_system_program,
-        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: PROGRAM_ID_NOOP,
-        self_program: name_service_without_macros::ID,
         cpi_signer,
-        system_program: solana_sdk::system_program::id(),
     };
 
-    let remaining_accounts = remaining_accounts.to_account_metas();
+    let remaining_accounts = light_instruction_accounts.to_account_metas();
 
     let instruction = Instruction {
         program_id: name_service_without_macros::ID,

@@ -1,8 +1,11 @@
-use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
-use solana_program::account_info::AccountInfo;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
-use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use crate::{instruction_accounts::LightInstructionAccounts, merkle_context::AddressMerkleContext};
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct NewAddressParams {
@@ -27,15 +30,14 @@ pub struct AddressWithMerkleContext {
 
 pub fn pack_new_addresses_params(
     addresses_params: &[NewAddressParams],
-    remaining_accounts: &mut RemainingAccounts,
+    accounts: &mut LightInstructionAccounts,
 ) -> Vec<PackedNewAddressParams> {
     addresses_params
         .iter()
         .map(|x| {
-            let address_queue_account_index =
-                remaining_accounts.insert_or_get(x.address_queue_pubkey);
+            let address_queue_account_index = accounts.insert_or_get(x.address_queue_pubkey);
             let address_merkle_tree_account_index =
-                remaining_accounts.insert_or_get(x.address_merkle_tree_pubkey);
+                accounts.insert_or_get(x.address_merkle_tree_pubkey);
             PackedNewAddressParams {
                 seed: x.seed,
                 address_queue_account_index,
@@ -48,9 +50,9 @@ pub fn pack_new_addresses_params(
 
 pub fn pack_new_address_params(
     address_params: NewAddressParams,
-    remaining_accounts: &mut RemainingAccounts,
+    accounts: &mut LightInstructionAccounts,
 ) -> PackedNewAddressParams {
-    pack_new_addresses_params(&[address_params], remaining_accounts)[0]
+    pack_new_addresses_params(&[address_params], accounts)[0]
 }
 
 pub fn unpack_new_address_params(

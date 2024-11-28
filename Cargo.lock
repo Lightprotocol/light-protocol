@@ -3734,7 +3734,6 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "borsh 0.10.3",
- "bytemuck",
  "groth16-solana",
  "lazy_static",
  "light-concurrent-merkle-tree",
@@ -3759,6 +3758,7 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "thiserror",
  "tokio",
 ]
 
@@ -5767,7 +5767,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0495e4577c672de8254beb68d01a9b62d0e8a13c099edecdbedccce3223cd29f"
 
 [[package]]
-name = "sdk-test"
+name = "sdk-anchor-test"
 version = "0.7.0"
 dependencies = [
  "anchor-lang",
@@ -5783,6 +5783,17 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "tokio",
+]
+
+[[package]]
+name = "sdk-test"
+version = "0.7.0"
+dependencies = [
+ "borsh 0.10.3",
+ "light-sdk",
+ "solana-program",
+ "solana-program-test",
+ "thiserror",
 ]
 
 [[package]]

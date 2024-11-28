@@ -1,9 +1,11 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
-
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{DataHasher, Discriminator, Poseidon};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::pubkey::Pubkey;
 
 use crate::{
     account_info::LightAccountInfo,
@@ -17,7 +19,7 @@ use crate::{
 };
 
 pub trait LightAccounts<'a>: Sized {
-    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
+    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self, LightSdkError>;
 }
 
 // TODO(vadorovsky): Implment `LightAccountLoader`.
@@ -44,7 +46,7 @@ where
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
         owner: &'info Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let account_state = T::default();
         let account_info = LightAccountInfo::from_meta_init_without_output_data(
             meta,
@@ -63,7 +65,7 @@ where
         meta: &'info LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let mut account_info =
             LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
@@ -72,9 +74,7 @@ where
                 .ok_or(LightSdkError::ExpectedData)?
                 .as_slice(),
         )?;
-        let input_hash = account_state
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?;
+        let input_hash = account_state.hash::<Poseidon>()?;
 
         // Set the input account hash.
         //
@@ -91,7 +91,7 @@ where
         meta: &'info LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
-    ) -> Result<Self> {
+    ) -> Result<Self, LightSdkError> {
         let mut account_info =
             LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
@@ -100,9 +100,7 @@ where
                 .ok_or(LightSdkError::ExpectedData)?
                 .as_slice(),
         )?;
-        let input_hash = account_state
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?;
+        let input_hash = account_state.hash::<Poseidon>()?;
 
         // Set the input account hash.
         //
@@ -121,21 +119,18 @@ where
 
     pub fn input_compressed_account(
         &self,
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError> {
         self.account_info.input_compressed_account()
     }
 
     pub fn output_compressed_account(
         &self,
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError> {
         match self.account_info.output_merkle_tree_index {
             Some(merkle_tree_index) => {
                 let data = {
                     let discriminator = T::discriminator();
-                    let data_hash = self
-                        .account_state
-                        .hash::<Poseidon>()
-                        .map_err(ProgramError::from)?;
+                    let data_hash = self.account_state.hash::<Poseidon>()?;
                     Some(CompressedAccountData {
                         discriminator,
                         data: self.account_state.try_to_vec()?,

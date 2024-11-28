@@ -25,7 +25,7 @@ anchor-lang = { workspace=true}
 borsh = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 light-macros = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-sdk-macros = { workspace = true }
 light-utils = { workspace = true }
 light-verifier = { workspace = true }

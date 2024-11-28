@@ -1,3 +1,4 @@
+pub use light_hasher as hasher;
 pub use light_macros::*;
 pub use light_sdk_macros::*;
 
@@ -8,16 +9,20 @@ pub mod address;
 pub mod compressed_account;
 pub mod constants;
 pub use constants::*;
+#[cfg(feature = "anchor")]
 pub mod context;
 pub mod error;
 pub mod event;
+pub mod instruction_accounts;
 pub mod instruction_data;
 pub mod legacy;
 pub mod merkle_context;
 pub mod program_merkle_context;
 pub mod proof;
 pub mod state;
+pub mod system_accounts;
 pub mod token;
+#[cfg(feature = "anchor")]
 pub mod traits;
 pub mod transfer;
 pub mod utils;
