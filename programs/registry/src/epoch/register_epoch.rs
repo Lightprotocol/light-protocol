@@ -113,6 +113,7 @@ impl ForesterEpochPda {
         authority: &Pubkey,
         queue_pubkey: &Pubkey,
         current_solana_slot: u64,
+        num_work_items: u64,
     ) -> Result<()> {
         if forester_epoch_pda.authority != *authority {
             msg!(
@@ -123,7 +124,7 @@ impl ForesterEpochPda {
             return err!(RegistryError::InvalidForester);
         }
         forester_epoch_pda.check_eligibility(current_solana_slot, queue_pubkey)?;
-        forester_epoch_pda.work_counter += 1;
+        forester_epoch_pda.work_counter += num_work_items;
         Ok(())
     }
 
@@ -131,6 +132,7 @@ impl ForesterEpochPda {
         forester_epoch_pda: &mut ForesterEpochPda,
         authority: &Pubkey,
         queue_pubkey: &Pubkey,
+        num_work_items: u64,
     ) -> Result<()> {
         let current_solana_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
         Self::check_forester(
@@ -138,6 +140,7 @@ impl ForesterEpochPda {
             authority,
             queue_pubkey,
             current_solana_slot,
+            num_work_items,
         )
     }
 }

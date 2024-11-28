@@ -394,7 +394,7 @@ where
         inputs,
         proof: rpc_result.proof,
         merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
+        merkle_tree_root_index: rpc_result.root_indices[0].unwrap(),
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
         new_rdata: new_rdata.clone(),
@@ -471,7 +471,7 @@ where
         inputs,
         proof: rpc_result.proof,
         merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0],
+        merkle_tree_root_index: rpc_result.root_indices[0].unwrap(),
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
     };

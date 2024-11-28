@@ -43,7 +43,8 @@ function txFees(
             : bn(0);
 
         /// Fee if the tx nullifies at least one input account
-        const networkInFee = tx.in ? STATE_MERKLE_TREE_NETWORK_FEE : bn(0);
+        const networkInFee =
+            tx.in || tx.out ? STATE_MERKLE_TREE_NETWORK_FEE : bn(0);
 
         /// Fee if the tx creates at least one address
         const networkAddressFee = tx.addr ? ADDRESS_TREE_NETWORK_FEE : bn(0);

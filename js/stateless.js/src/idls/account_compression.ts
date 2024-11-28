@@ -84,8 +84,62 @@ export type AccountCompression = {
             };
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
         },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50';
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '10';
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE';
+            type: 'u64';
+            value: '50000';
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE';
+            type: 'u64';
+            value: '500';
+        },
     ];
     instructions: [
+        {
+            name: 'initializeBatchedStateMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'params';
+                    type: {
+                        defined: 'InitStateTreeAccountsInstructionData';
+                    };
+                },
+            ];
+        },
         {
             name: 'initializeAddressMerkleTreeAndQueue';
             accounts: [
@@ -621,6 +675,28 @@ export type AccountCompression = {
                         };
                     };
                 },
+                {
+                    name: 'leafIndices';
+                    type: {
+                        vec: 'u32';
+                    };
+                },
+                {
+                    name: 'txHash';
+                    type: {
+                        option: {
+                            array: ['u8', 32];
+                        };
+                    };
+                },
+                {
+                    name: 'checkProofByIndex';
+                    type: {
+                        option: {
+                            vec: 'bool';
+                        };
+                    };
+                },
             ];
         },
         {
@@ -667,6 +743,75 @@ export type AccountCompression = {
                 },
             ];
             args: [];
+        },
+        {
+            name: 'batchNullify';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchAppend';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'outputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
         },
     ];
     accounts: [
@@ -728,6 +873,149 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedMerkleTreeMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'accessMetadata';
+                        type: {
+                            defined: 'AccessMetadata';
+                        };
+                    },
+                    {
+                        name: 'rolloverMetadata';
+                        type: {
+                            defined: 'RolloverMetadata';
+                        };
+                    },
+                    {
+                        name: 'associatedOutputQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextMerkleTree';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'treeType';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedMerkleTreeAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'MerkleTreeMetadata';
+                        };
+                    },
+                    {
+                        name: 'sequenceNumber';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'treeType';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'nextIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'queue';
+                        type: {
+                            defined: 'BatchedQueue';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedQueueAccount';
+            docs: [
+                'Memory layout:',
+                '1. QueueMetadata',
+                '2. num_batches: u64',
+                '3. hash_chain hash bounded vec',
+                '3. for num_batches every 33 bytes is a bloom filter',
+                '3. (output queue) rest of account is bounded vec',
+                '',
+                'One Batch account contains multiple batches.',
+            ];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'QueueMetadata';
+                        };
+                    },
+                    {
+                        name: 'queue';
+                        type: {
+                            defined: 'BatchedQueue';
+                        };
+                    },
+                    {
+                        name: 'nextIndex';
+                        docs: [
+                            'Output queue requires next index to derive compressed account hashes.',
+                            'next_index in queue is ahead or equal to next index in the associated',
+                            'batched Merkle tree account.',
+                        ];
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'batchedQueue';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'numBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'batchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'zkpBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'currentlyProcessingBatchIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'nextFullBatchIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterCapacity';
+                        type: 'u64';
                     },
                 ];
             };
@@ -899,6 +1187,26 @@ export type AccountCompression = {
     ];
     types: [
         {
+            name: 'ZeroOutLeafIndex';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'treeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'batchIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
             name: 'AddressMerkleTreeConfig';
             type: {
                 kind: 'struct';
@@ -1009,6 +1317,129 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'InitStateTreeAccountsInstructionData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'index';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'programOwner';
+                        type: {
+                            option: 'publicKey';
+                        };
+                    },
+                    {
+                        name: 'forester';
+                        type: {
+                            option: 'publicKey';
+                        };
+                    },
+                    {
+                        name: 'additionalBytes';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'inputQueueBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'outputQueueBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'inputQueueZkpBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'outputQueueZkpBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterNumIters';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterCapacity';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'inputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'outputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'BatchState';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'CanBeFilled';
+                    },
+                    {
+                        name: 'Inserted';
+                    },
+                    {
+                        name: 'ReadyToUpdateTree';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'TreeType';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'State';
+                    },
+                    {
+                        name: 'Address';
+                    },
+                    {
+                        name: 'BatchedState';
+                    },
+                    {
+                        name: 'BatchedAddress';
+                    },
+                ];
+            };
+        },
+        {
             name: 'QueueType';
             type: {
                 kind: 'enum';
@@ -1018,6 +1449,15 @@ export type AccountCompression = {
                     },
                     {
                         name: 'AddressQueue';
+                    },
+                    {
+                        name: 'Input';
+                    },
+                    {
+                        name: 'Address';
+                    },
+                    {
+                        name: 'Output';
                     },
                 ];
             };
@@ -1165,6 +1605,75 @@ export type AccountCompression = {
             code: 6026;
             name: 'ProofLengthMismatch';
         },
+        {
+            code: 6027;
+            name: 'InvalidCommitmentLength';
+            msg: 'Invalid commitment length';
+        },
+        {
+            code: 6028;
+            name: 'BloomFilterFull';
+            msg: 'BloomFilterFull';
+        },
+        {
+            code: 6029;
+            name: 'BatchInsertFailed';
+            msg: 'BatchInsertFailed';
+        },
+        {
+            code: 6030;
+            name: 'BatchNotReady';
+            msg: 'BatchNotReady';
+        },
+        {
+            code: 6031;
+            name: 'SizeMismatch';
+        },
+        {
+            code: 6032;
+            name: 'BatchAlreadyInserted';
+        },
+        {
+            code: 6033;
+            name: 'InvalidBloomFilterCapacity';
+        },
+        {
+            code: 6034;
+            name: 'InvalidCircuitBatchSize';
+        },
+        {
+            code: 6035;
+            name: 'InvalidDiscriminator';
+        },
+        {
+            code: 6036;
+            name: 'BatchSizeNotDivisibleByZkpBatchSize';
+            msg: 'batch_size is not divisible by zkp_batch_size';
+        },
+        {
+            code: 6037;
+            name: 'InclusionProofByIndexFailed';
+        },
+        {
+            code: 6038;
+            name: 'TxHashUndefined';
+        },
+        {
+            code: 6039;
+            name: 'InputDeserializationFailed';
+        },
+        {
+            code: 6040;
+            name: 'InvalidBatch';
+        },
+        {
+            code: 6041;
+            name: 'LeafIndexNotInBatch';
+        },
+        {
+            code: 6042;
+            name: 'UnsupportedParameters';
+        },
     ];
 };
 
@@ -1254,8 +1763,62 @@ export const IDL: AccountCompression = {
             },
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
         },
+        {
+            name: 'TEST_DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50',
+        },
+        {
+            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '10',
+        },
+        {
+            name: 'DEFAULT_BATCH_SIZE',
+            type: 'u64',
+            value: '50000',
+        },
+        {
+            name: 'DEFAULT_ZKP_BATCH_SIZE',
+            type: 'u64',
+            value: '500',
+        },
     ],
     instructions: [
+        {
+            name: 'initializeBatchedStateMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'params',
+                    type: {
+                        defined: 'InitStateTreeAccountsInstructionData',
+                    },
+                },
+            ],
+        },
         {
             name: 'initializeAddressMerkleTreeAndQueue',
             accounts: [
@@ -1791,6 +2354,28 @@ export const IDL: AccountCompression = {
                         },
                     },
                 },
+                {
+                    name: 'leafIndices',
+                    type: {
+                        vec: 'u32',
+                    },
+                },
+                {
+                    name: 'txHash',
+                    type: {
+                        option: {
+                            array: ['u8', 32],
+                        },
+                    },
+                },
+                {
+                    name: 'checkProofByIndex',
+                    type: {
+                        option: {
+                            vec: 'bool',
+                        },
+                    },
+                },
             ],
         },
         {
@@ -1837,6 +2422,75 @@ export const IDL: AccountCompression = {
                 },
             ],
             args: [],
+        },
+        {
+            name: 'batchNullify',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchAppend',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'outputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
         },
     ],
     accounts: [
@@ -1898,6 +2552,149 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedMerkleTreeMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'accessMetadata',
+                        type: {
+                            defined: 'AccessMetadata',
+                        },
+                    },
+                    {
+                        name: 'rolloverMetadata',
+                        type: {
+                            defined: 'RolloverMetadata',
+                        },
+                    },
+                    {
+                        name: 'associatedOutputQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextMerkleTree',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'treeType',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedMerkleTreeAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'MerkleTreeMetadata',
+                        },
+                    },
+                    {
+                        name: 'sequenceNumber',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'treeType',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'nextIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'queue',
+                        type: {
+                            defined: 'BatchedQueue',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedQueueAccount',
+            docs: [
+                'Memory layout:',
+                '1. QueueMetadata',
+                '2. num_batches: u64',
+                '3. hash_chain hash bounded vec',
+                '3. for num_batches every 33 bytes is a bloom filter',
+                '3. (output queue) rest of account is bounded vec',
+                '',
+                'One Batch account contains multiple batches.',
+            ],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'QueueMetadata',
+                        },
+                    },
+                    {
+                        name: 'queue',
+                        type: {
+                            defined: 'BatchedQueue',
+                        },
+                    },
+                    {
+                        name: 'nextIndex',
+                        docs: [
+                            'Output queue requires next index to derive compressed account hashes.',
+                            'next_index in queue is ahead or equal to next index in the associated',
+                            'batched Merkle tree account.',
+                        ],
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'batchedQueue',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'numBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'batchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'zkpBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'currentlyProcessingBatchIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'nextFullBatchIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterCapacity',
+                        type: 'u64',
                     },
                 ],
             },
@@ -2069,6 +2866,26 @@ export const IDL: AccountCompression = {
     ],
     types: [
         {
+            name: 'ZeroOutLeafIndex',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'treeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'batchIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
             name: 'AddressMerkleTreeConfig',
             type: {
                 kind: 'struct',
@@ -2179,6 +2996,129 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'InitStateTreeAccountsInstructionData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'index',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'programOwner',
+                        type: {
+                            option: 'publicKey',
+                        },
+                    },
+                    {
+                        name: 'forester',
+                        type: {
+                            option: 'publicKey',
+                        },
+                    },
+                    {
+                        name: 'additionalBytes',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'inputQueueBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'outputQueueBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'inputQueueZkpBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'outputQueueZkpBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterNumIters',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterCapacity',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'networkFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'inputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'outputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'BatchState',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'CanBeFilled',
+                    },
+                    {
+                        name: 'Inserted',
+                    },
+                    {
+                        name: 'ReadyToUpdateTree',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'TreeType',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'State',
+                    },
+                    {
+                        name: 'Address',
+                    },
+                    {
+                        name: 'BatchedState',
+                    },
+                    {
+                        name: 'BatchedAddress',
+                    },
+                ],
+            },
+        },
+        {
             name: 'QueueType',
             type: {
                 kind: 'enum',
@@ -2188,6 +3128,15 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'AddressQueue',
+                    },
+                    {
+                        name: 'Input',
+                    },
+                    {
+                        name: 'Address',
+                    },
+                    {
+                        name: 'Output',
                     },
                 ],
             },
@@ -2334,6 +3283,75 @@ export const IDL: AccountCompression = {
         {
             code: 6026,
             name: 'ProofLengthMismatch',
+        },
+        {
+            code: 6027,
+            name: 'InvalidCommitmentLength',
+            msg: 'Invalid commitment length',
+        },
+        {
+            code: 6028,
+            name: 'BloomFilterFull',
+            msg: 'BloomFilterFull',
+        },
+        {
+            code: 6029,
+            name: 'BatchInsertFailed',
+            msg: 'BatchInsertFailed',
+        },
+        {
+            code: 6030,
+            name: 'BatchNotReady',
+            msg: 'BatchNotReady',
+        },
+        {
+            code: 6031,
+            name: 'SizeMismatch',
+        },
+        {
+            code: 6032,
+            name: 'BatchAlreadyInserted',
+        },
+        {
+            code: 6033,
+            name: 'InvalidBloomFilterCapacity',
+        },
+        {
+            code: 6034,
+            name: 'InvalidCircuitBatchSize',
+        },
+        {
+            code: 6035,
+            name: 'InvalidDiscriminator',
+        },
+        {
+            code: 6036,
+            name: 'BatchSizeNotDivisibleByZkpBatchSize',
+            msg: 'batch_size is not divisible by zkp_batch_size',
+        },
+        {
+            code: 6037,
+            name: 'InclusionProofByIndexFailed',
+        },
+        {
+            code: 6038,
+            name: 'TxHashUndefined',
+        },
+        {
+            code: 6039,
+            name: 'InputDeserializationFailed',
+        },
+        {
+            code: 6040,
+            name: 'InvalidBatch',
+        },
+        {
+            code: 6041,
+            name: 'LeafIndexNotInBatch',
+        },
+        {
+            code: 6042,
+            name: 'UnsupportedParameters',
         },
     ],
 };

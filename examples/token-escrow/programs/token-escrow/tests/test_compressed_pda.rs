@@ -52,7 +52,7 @@ async fn test_escrow_with_compressed_pda() {
     );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
-
+    test_indexer.state_merkle_trees.remove(1);
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -203,7 +203,8 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
             }),
         )
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }
 
@@ -236,10 +237,12 @@ async fn create_escrow_ix<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             Some(&[address]),
             Some(vec![env.address_merkle_tree_pubkey]),
             context,
@@ -371,7 +374,8 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
             None,
         )
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }
 
@@ -450,8 +454,8 @@ pub async fn perform_withdrawal<R: RpcConnection>(
     // the compressed pda program executes the transaction
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[compressed_pda_hash, token_escrow_account_hash]),
-            Some(&[
+            Some(vec![compressed_pda_hash, token_escrow_account_hash]),
+            Some(vec![
                 compressed_escrow_pda.merkle_context.merkle_tree_pubkey,
                 token_escrow_account.merkle_context.merkle_tree_pubkey,
             ]),

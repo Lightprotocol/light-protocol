@@ -42,3 +42,16 @@ pub const NOOP_PUBKEY: [u8; 32] = [
     11, 188, 15, 192, 187, 71, 202, 47, 116, 196, 17, 46, 148, 171, 19, 207, 163, 198, 52, 229,
     220, 23, 234, 203, 3, 205, 26, 35, 205, 126, 120, 124,
 ];
+
+#[constant]
+pub const TEST_DEFAULT_BATCH_SIZE: u64 = 50;
+
+#[constant]
+pub const TEST_DEFAULT_ZKP_BATCH_SIZE: u64 = 10;
+
+#[constant]
+pub const DEFAULT_BATCH_SIZE: u64 = 50000;
+#[constant]
+pub const DEFAULT_ZKP_BATCH_SIZE: u64 = 500;
+
+pub const DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE: u64 = 20 * 1024 + 8;

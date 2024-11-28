@@ -76,6 +76,7 @@ describe('test-rpc', () => {
             preCompressBalance -
                 compressLamportsAmount -
                 5000 -
+                5000 -
                 STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
         );
     });

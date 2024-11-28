@@ -159,7 +159,7 @@ pub async fn assert_queue<R: RpcConnection>(
         rolledover_slot: expected_rolledover_slot.unwrap_or(u64::MAX),
         rollover_threshold: associated_tree_config
             .rollover_threshold
-            .unwrap_or_default(),
+            .unwrap_or(u64::MAX),
         network_fee: queue_config.network_fee.unwrap_or_default(),
         rollover_fee: expected_rollover_fee,
         close_threshold: associated_tree_config.close_threshold.unwrap_or(u64::MAX),

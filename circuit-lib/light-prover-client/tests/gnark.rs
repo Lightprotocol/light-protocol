@@ -136,7 +136,6 @@ async fn prove_batch_update() {
         );
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
-
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -158,7 +157,7 @@ async fn prove_batch_update() {
 
 #[serial]
 #[tokio::test]
-async fn prove_batch_append() {
+async fn prove_batch_append_with_subtrees() {
     init_logger();
     println!("spawning prover");
     spawn_prover(
@@ -225,7 +224,7 @@ async fn prove_batch_append() {
 
 #[serial]
 #[tokio::test]
-async fn prove_batch_two_append() {
+async fn prove_batch_append_with_proofs() {
     init_logger();
 
     // Spawn the prover with specific configuration
@@ -268,7 +267,7 @@ async fn prove_batch_two_append() {
         let mut merkle_proofs = vec![];
         for index in current_index..current_index + num_insertions {
             let proof = merkle_tree.get_proof_of_leaf(index, true).unwrap();
-            let leaf = merkle_tree.get_leaf(index);
+            let leaf = merkle_tree.leaf(index);
             old_leaves.push(leaf);
             merkle_proofs.push(proof.to_vec());
         }
@@ -455,8 +454,7 @@ async fn prove_batch_address_append() {
     use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
     init_logger();
-
-    // Spawn the prover with specific configuration
+    println!("spawning prover");
     spawn_prover(
         true,
         ProverConfig {

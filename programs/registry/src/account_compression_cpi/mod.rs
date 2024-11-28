@@ -1,3 +1,6 @@
+pub mod batch_append;
+pub mod batch_nullify;
+pub mod initialize_batched_state_tree;
 pub mod initialize_tree_and_queue;
 pub mod nullify;
 pub mod register_program;

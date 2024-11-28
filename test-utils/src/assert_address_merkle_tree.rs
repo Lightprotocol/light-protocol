@@ -31,7 +31,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
             .metadata
             .rollover_metadata
             .rollover_threshold,
-        merkle_tree_config.rollover_threshold.unwrap_or_default()
+        merkle_tree_config.rollover_threshold.unwrap_or(u64::MAX)
     );
     assert_eq!(
         merkle_tree_account.metadata.rollover_metadata.network_fee,

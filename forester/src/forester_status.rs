@@ -162,6 +162,10 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
             match tree.tree_type {
                 TreeType::State => "State",
                 TreeType::Address => "Address",
+                _ => panic!(
+                    "is_tree_ready_for_rollover: Invalid tree type {:?}",
+                    tree.tree_type
+                ),
             }
         );
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)

@@ -25,7 +25,7 @@ pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
     pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
-    pub root_indices: &'a [u16],
+    pub root_indices: &'a [Option<u16>],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub input_compressed_accounts: &'a [CompressedAccount],
@@ -137,7 +137,7 @@ pub struct CreateCompressedPdaWithdrawalInstructionInputs<'a> {
     pub input_cpda_merkle_context: MerkleContext,
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
-    pub root_indices: &'a [u16],
+    pub root_indices: &'a [Option<u16>],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub input_compressed_accounts: &'a [CompressedAccount],
@@ -201,7 +201,7 @@ pub fn create_withdrawal_instruction(
         new_lock_up_time: input_params.new_lock_up_time,
         address: input_params.address,
         merkle_context: merkle_context_packed[0],
-        root_index: input_params.root_indices[0],
+        root_index: input_params.root_indices[0].unwrap_or_default(),
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {
         proof: input_params.proof.clone().unwrap(),

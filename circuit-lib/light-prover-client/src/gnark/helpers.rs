@@ -45,7 +45,8 @@ pub enum ProofType {
     Inclusion,
     NonInclusion,
     Combined,
-    BatchAppend,
+    BatchAppendWithSubtrees,
+    BatchAppendWithProofs,
     BatchUpdate,
     BatchAddressAppend,
     BatchAppendWithSubtreesTest,
@@ -63,7 +64,8 @@ impl Display for ProofType {
                 ProofType::Inclusion => "inclusion",
                 ProofType::NonInclusion => "non-inclusion",
                 ProofType::Combined => "combined",
-                ProofType::BatchAppend => "append",
+                ProofType::BatchAppendWithSubtrees => "append-with-subtrees",
+                ProofType::BatchAppendWithProofs => "append-with-proofs",
                 ProofType::BatchUpdate => "update",
                 ProofType::BatchAppendWithSubtreesTest => "append-with-subtrees-test",
                 ProofType::BatchUpdateTest => "update-test",
@@ -117,7 +119,7 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
 
             let _ = command.spawn().expect("Failed to start prover process");
 
-            let health_result = health_check(20, 5).await;
+            let health_result = health_check(20, 30).await;
             if health_result {
                 info!("Prover started successfully");
             } else {

@@ -17,6 +17,7 @@ use crate::{
     ErrorCode, GenericInstruction,
 };
 
+// TODO: add instruction which accepts an optional proof
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataApprove {
     pub proof: CompressedProof,
@@ -53,11 +54,16 @@ pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
         )?;
+    let proof = if inputs.proof == CompressedProof::default() {
+        None
+    } else {
+        Some(inputs.proof)
+    };
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
         &output_compressed_accounts,
-        Some(inputs.proof),
+        proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
         ctx.accounts.light_system_program.to_account_info(),
@@ -182,11 +188,16 @@ pub fn process_revoke<'a, 'b, 'c, 'info: 'b + 'c>(
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
         )?;
+    let proof = if inputs.proof == CompressedProof::default() {
+        None
+    } else {
+        Some(inputs.proof)
+    };
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
         &output_compressed_accounts,
-        Some(inputs.proof),
+        proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
         ctx.accounts.light_system_program.to_account_info(),
@@ -272,7 +283,7 @@ pub mod sdk {
     pub struct CreateApproveInstructionInputs {
         pub fee_payer: Pubkey,
         pub authority: Pubkey,
-        pub root_indices: Vec<u16>,
+        pub root_indices: Vec<Option<u16>>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
         pub input_compressed_accounts: Vec<CompressedAccount>,
@@ -361,7 +372,7 @@ pub mod sdk {
     pub struct CreateRevokeInstructionInputs {
         pub fee_payer: Pubkey,
         pub authority: Pubkey,
-        pub root_indices: Vec<u16>,
+        pub root_indices: Vec<Option<u16>>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
         pub input_compressed_accounts: Vec<CompressedAccount>,

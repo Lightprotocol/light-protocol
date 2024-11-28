@@ -38,7 +38,6 @@ impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {
     }
 }
 
-// TODO: implement for multiple nullifiers got a stack frame error with a loop
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],

@@ -1,12 +1,14 @@
 use std::{fmt, marker::PhantomData, ops::Deref};
 
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
-use light_bounded_vec::CyclicBoundedVecMetadata;
+use light_bounded_vec::{
+    offset::copy::{read_cyclic_bounded_vec_at, read_value_at},
+    CyclicBoundedVecMetadata,
+};
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
 };
 use light_hasher::Hasher;
-use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 #[derive(Debug)]

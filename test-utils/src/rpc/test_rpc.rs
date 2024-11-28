@@ -169,7 +169,9 @@ impl RpcConnection for ProgramTestRpcConnection {
 
             // a network_fee is charged if there are input compressed accounts or new addresses
             let mut network_fee: i64 = 0;
-            if transaction_params.num_input_compressed_accounts != 0 {
+            if transaction_params.num_input_compressed_accounts != 0
+                || transaction_params.num_output_compressed_accounts != 0
+            {
                 network_fee += transaction_params.fee_config.network_fee as i64;
             }
             if transaction_params.num_new_addresses != 0 {

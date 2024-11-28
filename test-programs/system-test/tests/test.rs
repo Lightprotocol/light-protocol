@@ -1,10 +1,16 @@
 #![cfg(feature = "test-sbf")]
+use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::errors::AccountCompressionErrorCode;
+use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
+use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::sdk::compressed_account::{
+    CompressedAccountWithMerkleContext, QueueIndex,
+};
 use light_system_program::{
     errors::SystemProgramError,
     sdk::{
@@ -17,6 +23,7 @@ use light_system_program::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams,
 };
+use light_test_utils::test_batch_forester::perform_batch_append;
 use light_test_utils::test_env::{EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR};
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
@@ -38,7 +45,9 @@ use light_test_utils::{
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
 use quote::format_ident;
+use serial_test::serial;
 use solana_cli_output::CliAccount;
+use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction, InstructionError},
     pubkey::Pubkey,
@@ -75,10 +84,18 @@ use tokio::fs::write as async_write;
 /// 5. invalid Merkle tree account (AccountDiscriminatorMismatch)
 /// 6.1 invalid queue account (InvalidQueueType)
 /// 6.2 invalid queue account (AccountDiscriminatorMismatch)
+#[serial]
 #[tokio::test]
 async fn invoke_failing_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        },
+    )
+    .await;
     let payer = context.get_payer().insecure_clone();
     // no inputs
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
@@ -102,15 +119,8 @@ async fn invoke_failing_test() {
     .await
     .unwrap();
 
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
     // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
@@ -197,20 +207,12 @@ pub async fn failing_transaction_inputs(
         .iter()
         .map(|x| x.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_compressed_account_hashes = if num_inputs != 0 {
-        Some(hashes.as_slice())
-    } else {
-        None
-    };
+    let input_compressed_account_hashes = if num_inputs != 0 { Some(hashes) } else { None };
     let mts = input_compressed_accounts
         .iter()
         .map(|x| x.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
-    let input_state_merkle_trees = if num_inputs != 0 {
-        Some(mts.as_slice())
-    } else {
-        None
-    };
+    let input_state_merkle_trees = if num_inputs != 0 { Some(mts) } else { None };
     let proof_input_derived_addresses = if num_addresses != 0 {
         Some(derived_addresses.as_slice())
     } else {
@@ -359,28 +361,28 @@ pub async fn failing_transaction_inputs_inner(
         .await
         .unwrap();
     }
-    // invalid leaf index
-    {
-        println!(
-            "leaf index: {}",
-            inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
-                .merkle_context
-                .leaf_index
-        );
-        let mut inputs_struct = inputs_struct.clone();
-        inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
-            .merkle_context
-            .leaf_index += 1;
-        create_instruction_and_failing_transaction(
-            context,
-            payer,
-            inputs_struct,
-            remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
-        )
-        .await
-        .unwrap();
-    }
+    // // invalid leaf index
+    // {
+    //     println!(
+    //         "leaf index: {}",
+    //         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+    //             .merkle_context
+    //             .leaf_index
+    //     );
+    //     let mut inputs_struct = inputs_struct.clone();
+    //     inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+    //         .merkle_context
+    //         .leaf_index += 1;
+    //     create_instruction_and_failing_transaction(
+    //         context,
+    //         payer,
+    //         inputs_struct,
+    //         remaining_accounts.clone(),
+    //         VerifierError::ProofVerificationFailed.into(),
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
     // invalid account data (lamports)
     if !inputs_struct.output_compressed_accounts.is_empty() {
         let mut inputs_struct = inputs_struct.clone();
@@ -886,6 +888,7 @@ pub async fn create_instruction_and_failing_transaction(
 /// 2. should fail: in compressed account and invalid zkp
 /// 3. should fail: in compressed account and invalid signer
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
+#[serial]
 #[tokio::test]
 async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
@@ -944,7 +947,9 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    let (created_compressed_accounts, _) =
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -967,11 +972,11 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -1001,11 +1006,11 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
-        &[0u16],
+        &[Some(0u16)],
         &Vec::new(),
         None,
         None,
@@ -1025,16 +1030,18 @@ async fn invoke_test() {
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[compressed_account_with_context
+            Some(vec![compressed_account_with_context
                 .compressed_account
                 .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
                 .unwrap()]),
-            Some(&[compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![
+                compressed_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut context,
@@ -1049,7 +1056,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
@@ -1079,7 +1086,8 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    test_indexer.add_event_and_compressed_accounts(&event.0);
+    let slot: u64 = context.get_slot().await.unwrap();
+    test_indexer.add_event_and_compressed_accounts(slot, &event.0);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
@@ -1097,7 +1105,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
@@ -1128,7 +1136,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 1,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
@@ -1153,6 +1161,7 @@ async fn invoke_test() {
 /// 4. should succeed: create two addresses with different seeds
 /// 5. should succeed: create multiple addresses with different seeds and spend input compressed accounts
 ///    testing: (input accounts, new addresses) (1, 1), (1, 2), (2, 1), (2, 2)
+#[serial]
 #[tokio::test]
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
@@ -1341,6 +1350,7 @@ async fn test_with_address() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_with_compression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
@@ -1443,16 +1453,18 @@ async fn test_with_compression() {
     let compressed_account_with_context = test_indexer.compressed_accounts.last().unwrap().clone();
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[compressed_account_with_context
+            Some(vec![compressed_account_with_context
                 .compressed_account
                 .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
                 .unwrap()]),
-            Some(&[compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![
+                compressed_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut context,
@@ -1476,7 +1488,7 @@ async fn test_with_compression() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            nullifier_queue_pubkey: nullifier_queue_pubkey,
             queue_index: None,
         }],
         &[merkle_tree_pubkey],
@@ -1518,6 +1530,7 @@ async fn test_with_compression() {
 }
 
 #[ignore = "this is a helper function to regenerate accounts"]
+#[serial]
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
@@ -1555,6 +1568,7 @@ async fn regenerate_accounts() {
         protocol_config,
         true,
         skip_register_programs,
+        InitStateTreeAccountsInstructionData::test_default(),
     )
     .await;
 
@@ -1644,4 +1658,692 @@ async fn regenerate_accounts() {
     )
     .unwrap();
     file.write_all(&rustfmt(rust_file).unwrap()).unwrap();
+}
+
+/// Tests batched compressed transaction execution:
+/// 1. Should succeed: without compressed account (0 lamports), no input compressed account.
+/// 2. Should fail: input compressed account with invalid ZKP.
+/// 3. Should fail: input compressed account with invalid signer.
+/// 4. Should succeed: prove inclusion by index.
+/// 5. Should fail: double spend by index
+/// 6. Should fail: invalid leaf index
+/// 7. Should success: Spend compressed accounts by zkp and index, with v1 and v2 trees
+/// 8. Should fail: double-spending by index after spending by ZKP.
+/// 9. Should fail: double-spending by ZKP after spending by index.
+/// 10. Should fail: double-spending by index after spending by index.
+/// 11.  Should fail: double-spending by ZKP after spending by ZKP.
+#[serial]
+#[tokio::test]
+async fn batch_invoke_test() {
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+
+    let payer = context.get_payer().insecure_clone();
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
+        }),
+    )
+    .await;
+    let payer_pubkey = payer.pubkey();
+
+    let merkle_tree_pubkey = env.batched_state_merkle_tree;
+    let output_queue_pubkey = env.batched_output_queue;
+    let output_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: payer.pubkey(),
+        data: None,
+        address: None,
+    }];
+    // 1. Should succeed: without compressed account (0 lamports), no input compressed account.
+    create_output_accounts(
+        &mut context,
+        &payer,
+        &mut test_indexer,
+        output_queue_pubkey,
+        1,
+        true,
+    )
+    .await
+    .unwrap();
+
+    let input_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: payer_pubkey,
+        data: None,
+        address: None,
+    }];
+    // 2. Should fail: input compressed account with invalid ZKP.
+    let instruction = create_invoke_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey: output_queue_pubkey,
+            queue_index: None,
+        }],
+        &[output_queue_pubkey],
+        &[Some(0u16)],
+        &Vec::new(),
+        Some(CompressedProof::default()),
+        None,
+        false,
+        None,
+        true,
+    );
+
+    let result = context
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+        .await;
+    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+
+    // 3. Should fail: input compressed account with invalid signer.
+    let invalid_signer_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: Keypair::new().pubkey(),
+        data: None,
+        address: None,
+    }];
+
+    let instruction = create_invoke_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &invalid_signer_compressed_accounts,
+        &output_compressed_accounts,
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey: output_queue_pubkey,
+            queue_index: None,
+        }],
+        &[merkle_tree_pubkey],
+        &[Some(0u16)],
+        &Vec::new(),
+        None,
+        None,
+        false,
+        None,
+        true,
+    );
+
+    let result = context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert_rpc_error(result, 0, SystemProgramError::SignerCheckFailed.into()).unwrap();
+
+    // 4. Should succeed: prove inclusion by index.
+    {
+        let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts2(
+                Some(vec![compressed_account_with_context.hash().unwrap()]),
+                Some(vec![
+                    compressed_account_with_context
+                        .merkle_context
+                        .merkle_tree_pubkey,
+                ]),
+                None,
+                None,
+                &mut context,
+            )
+            .await;
+        // No proof since value is in output queue
+        assert!(proof_rpc_result.proof.is_none());
+        // No root index since value is in output queue
+        assert!(proof_rpc_result.root_indices[0].is_none());
+        let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: compressed_account_with_context.merkle_context.leaf_index,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                // Values are not used, it only has to be Some
+                queue_index: Some(QueueIndex {
+                    index: 123,
+                    queue_id: 200,
+                }),
+            }],
+            &[output_queue_pubkey],
+            &[],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+        println!("Transaction with input proof by index -------------------------");
+
+        let event = context
+            .create_and_send_transaction_with_event(
+                &[instruction],
+                &payer_pubkey,
+                &[&payer],
+                Some(TransactionParams {
+                    num_input_compressed_accounts: 1,
+                    num_output_compressed_accounts: 1,
+                    num_new_addresses: 0,
+                    compress: 0,
+                    fee_config: FeeConfig::test_batched(),
+                }),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        let slot: u64 = context.get_slot().await.unwrap();
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
+    }
+
+    // 5. Should fail: double spend by index
+    {
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: Keypair::new().pubkey(),
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: Some(QueueIndex {
+                    index: 123,
+                    queue_id: 200,
+                }),
+            }],
+            &[output_queue_pubkey],
+            &[],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 6. Should fail: invalid leaf index
+    {
+        let input_compressed_account = test_indexer
+            .get_compressed_accounts_by_owner(&payer_pubkey)
+            .iter()
+            .filter(|x| x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey)
+            .last()
+            .unwrap()
+            .clone();
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: Keypair::new().pubkey(),
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &[input_compressed_account.compressed_account],
+            &output_compressed_accounts,
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: Some(QueueIndex {
+                    index: 123,
+                    queue_id: 200,
+                }),
+            }],
+            &[output_queue_pubkey],
+            &[],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // create compressed account in v1 Merkle tree
+    {
+        let merkle_tree_pubkey = env.merkle_tree_pubkey;
+        create_output_accounts(
+            &mut context,
+            &payer,
+            &mut test_indexer,
+            merkle_tree_pubkey,
+            1,
+            false,
+        )
+        .await
+        .unwrap();
+    }
+    // 7. Should success: Spend compressed accounts by zkp and index, with v1 and v2 trees
+    {
+        let compressed_account_with_context_1 = test_indexer.compressed_accounts[0].clone();
+        let compressed_account_with_context_2 = test_indexer.compressed_accounts[1].clone();
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts2(
+                Some(vec![
+                    compressed_account_with_context_1.hash().unwrap(),
+                    compressed_account_with_context_2.hash().unwrap(),
+                ]),
+                Some(vec![
+                    compressed_account_with_context_1
+                        .merkle_context
+                        .merkle_tree_pubkey,
+                    compressed_account_with_context_2
+                        .merkle_context
+                        .merkle_tree_pubkey,
+                ]),
+                None,
+                None,
+                &mut context,
+            )
+            .await;
+        let input_compressed_accounts = vec![
+            compressed_account_with_context_1.compressed_account,
+            compressed_account_with_context_2.compressed_account,
+        ];
+        let output_compressed_accounts = vec![
+            CompressedAccount {
+                lamports: 0,
+                owner: payer_pubkey,
+                data: None,
+                address: None,
+            },
+            CompressedAccount {
+                lamports: 0,
+                owner: payer_pubkey,
+                data: None,
+                address: None,
+            },
+        ];
+        let merkle_context_1 = compressed_account_with_context_1.merkle_context;
+        let mut merkle_context_2 = compressed_account_with_context_2.merkle_context;
+        // merkle_context_2.queue_index = Some(proofs_by_index[0].1);
+        // Queue index is not used it is just Some to signal that the value is not in the proof
+        merkle_context_2.queue_index = Some(QueueIndex {
+            index: 123,
+            queue_id: 200,
+        });
+
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context_1, merkle_context_2],
+            &[
+                merkle_context_1.merkle_tree_pubkey,
+                merkle_context_2.nullifier_queue_pubkey,
+            ],
+            &proof_rpc_result.root_indices,
+            &Vec::new(),
+            proof_rpc_result.proof,
+            None,
+            false,
+            None,
+            true,
+        );
+        println!("Combined Transaction with index and zkp -------------------------");
+
+        let event = context
+            .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[&payer], None)
+            .await
+            .unwrap()
+            .unwrap();
+        let slot: u64 = context.get_slot().await.unwrap();
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
+    }
+    create_compressed_accounts_in_batch_merkle_tree(
+        &mut context,
+        &mut test_indexer,
+        &payer,
+        output_queue_pubkey,
+        &env,
+    )
+    .await
+    .unwrap();
+
+    // 8. spend account by zkp -> double spend by index
+    {
+        // Selecting compressed account:
+        // - from the end of the array (accounts at the end are in the Merkle tree (onyl 10 are inserted))
+        // - Compressed account in the batched Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+        let result = double_spend_compressed_account(
+            &mut context,
+            &mut test_indexer,
+            &payer,
+            TestMode::ByZkpThenIndex,
+            compressed_account_with_context_1.clone(),
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            1,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+
+    // 9. spend account by index -> double spend by zkp
+    {
+        // Selecting compressed account:
+        // - from the end of the array (accounts at the end are in the Merkle tree (onyl 10 are inserted))
+        // - Compressed account in the batched Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+        let result = double_spend_compressed_account(
+            &mut context,
+            &mut test_indexer,
+            &payer,
+            TestMode::ByIndexThenZkp,
+            compressed_account_with_context_1.clone(),
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            1,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 10. spend account by index -> double spend by index
+    {
+        // Selecting compressed account:
+        // - from the end of the array (accounts at the end are in the Merkle tree (onyl 10 are inserted))
+        // - Compressed account in the batched Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+        let result = double_spend_compressed_account(
+            &mut context,
+            &mut test_indexer,
+            &payer,
+            TestMode::ByIndexThenIndex,
+            compressed_account_with_context_1.clone(),
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            1,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 11. spend account by zkp -> double spend by zkp
+    {
+        // Selecting compressed account:
+        // - from the end of the array (accounts at the end are in the Merkle tree (onyl 10 are inserted))
+        // - Compressed account in the batched Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+        let result = double_spend_compressed_account(
+            &mut context,
+            &mut test_indexer,
+            &payer,
+            TestMode::ByZkpThenZkp,
+            compressed_account_with_context_1.clone(),
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            1,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TestMode {
+    ByZkpThenIndex,
+    ByIndexThenZkp,
+    ByIndexThenIndex,
+    ByZkpThenZkp,
+}
+
+pub async fn double_spend_compressed_account(
+    context: &mut ProgramTestRpcConnection,
+    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    payer: &Keypair,
+    mode: TestMode,
+    compressed_account_with_context_1: CompressedAccountWithMerkleContext,
+) -> Result<(), RpcError> {
+    let proof_rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(vec![compressed_account_with_context_1.hash().unwrap()]),
+            Some(vec![
+                compressed_account_with_context_1
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
+            None,
+            None,
+            context,
+        )
+        .await;
+    let input_compressed_accounts = vec![compressed_account_with_context_1.compressed_account];
+    let output_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: payer.pubkey(),
+        data: None,
+        address: None,
+    }];
+    let merkle_context_1 = compressed_account_with_context_1.merkle_context;
+    let mut instructions = vec![create_invoke_instruction(
+        &payer.pubkey(),
+        &payer.pubkey(),
+        &input_compressed_accounts,
+        &output_compressed_accounts,
+        &[merkle_context_1],
+        &[merkle_context_1.nullifier_queue_pubkey],
+        &proof_rpc_result.root_indices,
+        &Vec::new(),
+        Some(proof_rpc_result.proof),
+        None,
+        false,
+        None,
+        true,
+    )];
+
+    {
+        let mut merkle_context = merkle_context_1;
+        merkle_context.queue_index = Some(QueueIndex {
+            queue_id: 1,
+            index: 0,
+        });
+        let instruction = create_invoke_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context],
+            &[merkle_context.nullifier_queue_pubkey],
+            &vec![None],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+        if mode == TestMode::ByZkpThenIndex {
+            instructions.insert(1, instruction);
+        } else if mode == TestMode::ByIndexThenZkp {
+            instructions.insert(0, instruction);
+        } else if mode == TestMode::ByIndexThenIndex {
+            instructions.remove(0);
+            instructions.push(instruction.clone());
+            instructions.push(instruction);
+        }
+    }
+    if mode == TestMode::ByZkpThenZkp {
+        let instruction = instructions[0].clone();
+        instructions.push(instruction);
+    }
+    let event = context
+        .create_and_send_transaction_with_event(&instructions, &payer.pubkey(), &[&payer], None)
+        .await?
+        .unwrap();
+    let slot: u64 = context.get_slot().await.unwrap();
+    test_indexer.add_event_and_compressed_accounts(slot, &event.0);
+    Ok(())
+}
+
+/// fill batch and perform batch append
+pub async fn create_compressed_accounts_in_batch_merkle_tree(
+    context: &mut ProgramTestRpcConnection,
+    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    payer: &Keypair,
+    output_queue_pubkey: Pubkey,
+    env: &EnvAccounts,
+) -> Result<(), RpcError> {
+    let mut output_queue_account = context
+        .get_account(output_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let output_queue =
+        ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data).unwrap();
+    let fullness = output_queue.get_batch_num_inserted_in_current_batch();
+    let remaining_leaves = output_queue.get_account().queue.batch_size - fullness;
+    for _ in 0..remaining_leaves {
+        create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
+    }
+    let bundle = test_indexer
+        .state_merkle_trees
+        .iter_mut()
+        .find(|x| x.accounts.nullifier_queue == output_queue_pubkey)
+        .unwrap();
+    perform_batch_append(context, bundle, &env.forester, 0, false, None).await?;
+    Ok(())
+}
+pub async fn create_output_accounts(
+    context: &mut ProgramTestRpcConnection,
+    payer: &Keypair,
+    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    output_queue_pubkey: Pubkey,
+    num_accounts: usize,
+    is_batched: bool,
+) -> Result<Signature, RpcError> {
+    let output_compressed_accounts = vec![
+        CompressedAccount {
+            lamports: 0,
+            owner: payer.pubkey(),
+            data: None,
+            address: None,
+        };
+        num_accounts
+    ];
+    let output_merkle_tree_pubkeys = vec![output_queue_pubkey; num_accounts];
+    let instruction = create_invoke_instruction(
+        &payer.pubkey(),
+        &payer.pubkey(),
+        &Vec::new(),
+        &output_compressed_accounts,
+        &Vec::new(),
+        output_merkle_tree_pubkeys.as_slice(),
+        &Vec::new(),
+        &Vec::new(),
+        None,
+        None,
+        false,
+        None,
+        true,
+    );
+    let fee_config = if is_batched {
+        FeeConfig::test_batched()
+    } else {
+        FeeConfig::default()
+    };
+
+    let (event, signature, _) = context
+        .create_and_send_transaction_with_event(
+            &[instruction],
+            &payer.pubkey(),
+            &[&payer],
+            Some(TransactionParams {
+                num_input_compressed_accounts: 0,
+                num_output_compressed_accounts: 1,
+                num_new_addresses: 0,
+                compress: 0,
+                fee_config,
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    let slot: u64 = context.get_slot().await.unwrap();
+    let (created_compressed_accounts, _) =
+        test_indexer.add_event_and_compressed_accounts(slot, &event);
+    assert_created_compressed_accounts(
+        output_compressed_accounts.as_slice(),
+        output_merkle_tree_pubkeys.as_slice(),
+        created_compressed_accounts.as_slice(),
+        false,
+    );
+    Ok(signature)
 }

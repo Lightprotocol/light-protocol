@@ -288,6 +288,7 @@ where
                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
                 return ProofRpcResult {
                     root_indices,
                     address_root_indices,

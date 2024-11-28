@@ -138,7 +138,12 @@ pub mod system_cpi_test {
             ctx.accounts.merkle_tree.to_account_info(),
         ];
 
-        account_compression::cpi::insert_into_nullifier_queues(cpi_context, vec![[1u8; 32]])?;
+        account_compression::cpi::insert_into_nullifier_queues(
+            cpi_context,
+            vec![[1u8; 32]],
+            vec![],
+            None,
+        )?;
 
         Ok(())
     }

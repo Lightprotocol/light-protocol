@@ -309,7 +309,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
                     .unwrap(),
             );
         }
-        Some(compressed_account_hashes.as_slice())
+        Some(compressed_account_hashes.to_vec())
     } else {
         None
     };
@@ -321,7 +321,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
     let state_input_merkle_trees = if state_input_merkle_trees.is_empty() {
         None
     } else {
-        Some(state_input_merkle_trees.as_slice())
+        Some(state_input_merkle_trees)
     };
     let mut root_indices = Vec::new();
     let mut proof = None;
@@ -341,19 +341,20 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         };
         let proof_rpc_res = inputs
             .test_indexer
-            .create_proof_for_compressed_accounts(
+            .create_proof_for_compressed_accounts2(
                 compressed_account_input_hashes,
-                state_input_merkle_trees,
+                state_input_merkle_trees.clone(),
                 inputs.created_addresses,
                 address_merkle_tree_pubkeys,
                 inputs.rpc,
             )
             .await;
+
         root_indices = proof_rpc_res.root_indices;
-        proof = Some(proof_rpc_res.proof);
+        proof = proof_rpc_res.proof;
         let input_merkle_tree_accounts = inputs
             .test_indexer
-            .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
+            .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(vec![]).as_slice());
         input_merkle_tree_snapshots =
             get_merkle_tree_snapshots::<R>(inputs.rpc, input_merkle_tree_accounts.as_slice()).await;
 
@@ -428,9 +429,10 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         .await?
         .unwrap();
 
+    let slot = inputs.rpc.get_slot().await.unwrap();
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
-        .add_event_and_compressed_accounts(&event.0);
+        .add_event_and_compressed_accounts(slot, &event.0);
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
@@ -447,7 +449,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         created_addresses: inputs.created_addresses.unwrap_or(&[]),
         sorted_output_accounts: inputs.sorted_output_accounts,
         relay_fee: inputs.relay_fee,
-        input_compressed_account_hashes: &compressed_account_hashes,
+        input_compressed_account_hashes: compressed_account_hashes.as_slice(),
         address_queue_pubkeys: &inputs
             .new_address_params
             .iter()

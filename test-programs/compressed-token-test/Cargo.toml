@@ -41,3 +41,4 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = "0.8"
+serial_test = { workspace = true }

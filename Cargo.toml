@@ -102,6 +102,9 @@ num-traits = "0.2.19"
 # HTTP client
 reqwest = "0.11.26"
 
+# Testing
+serial_test = "3.1.1"
+
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
 "solana-accounts-db" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }

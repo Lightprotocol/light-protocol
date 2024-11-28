@@ -16,6 +16,7 @@ pub mod rpc;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
+pub mod test_batch_forester;
 pub mod test_env;
 #[allow(unused)]
 pub mod test_forester;
