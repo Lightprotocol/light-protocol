@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    account_meta::LightAccountMeta,
+    account_meta::PackedLightAccountMeta,
     address::PackedNewAddressParams,
     compressed_account::{
         CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
@@ -14,7 +14,7 @@ use crate::{
     system_accounts::SYSTEM_ACCOUNTS_LEN,
 };
 
-/// Information about compressed account which is being initialized.
+/// Information about existing compressed account state.
 #[derive(Debug)]
 pub struct LightInputAccountInfo<'a> {
     /// Lamports.
@@ -28,17 +28,13 @@ pub struct LightInputAccountInfo<'a> {
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
     /// Root index.
-    pub root_index: u16,
+    pub recent_state_root_index: u16,
 }
 
-/// Information about compressed account which is being mutated.
+/// Information about compressed account
 #[derive(Debug)]
 pub struct LightAccountInfo<'a> {
-    /// Input account.
-    pub(crate) input: Option<LightInputAccountInfo<'a>>,
-    /// Owner of the account.
-    ///
-    /// Defaults to the program ID.
+    /// Owner of the account. Defaults to the program ID.
     pub owner: &'a Pubkey,
     /// Lamports.
     pub lamports: Option<u64>,
@@ -52,13 +48,13 @@ pub struct LightAccountInfo<'a> {
     pub address: Option<[u8; 32]>,
     /// New Merkle tree index. Set `None` for `close` account infos.
     pub output_merkle_tree_index: Option<u8>,
-    /// New address parameters.
-    pub new_address_params: Option<PackedNewAddressParams>,
+    /// Input account.
+    pub(crate) input: Option<LightInputAccountInfo<'a>>,
 }
 
 impl<'a> LightAccountInfo<'a> {
     pub fn from_meta_init(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
@@ -130,7 +126,7 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub fn from_meta_mut(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self, LightSdkError> {
@@ -143,7 +139,7 @@ impl<'a> LightAccountInfo<'a> {
             merkle_context: meta
                 .merkle_context
                 .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
+            recent_state_root_index: meta
                 .merkle_tree_root_index
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
@@ -156,7 +152,7 @@ impl<'a> LightAccountInfo<'a> {
             // Needs to be assigned by the program.
             discriminator: Some(discriminator),
             // NOTE(vadorovsky): A `clone()` here is unavoidable.
-            // What we have here is an immutable reference to `LightAccountMeta`,
+            // What we have here is an immutable reference to `PackedLightAccountMeta`,
             // from which we can take an immutable reference to `data`.
             //
             // - That immutable reference can be used in the input account,
@@ -196,7 +192,7 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub fn from_meta_close(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self, LightSdkError> {
@@ -209,7 +205,7 @@ impl<'a> LightAccountInfo<'a> {
             merkle_context: meta
                 .merkle_context
                 .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
+            recent_state_root_index: meta
                 .merkle_tree_root_index
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
@@ -232,7 +228,7 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub(crate) fn from_meta_init_without_output_data(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
@@ -301,7 +297,7 @@ impl<'a> LightAccountInfo<'a> {
     /// Not intended for external use, intended for building upper abstraction
     /// layers which handle data serialization on their own.
     pub(crate) fn from_meta_without_output_data(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self, LightSdkError> {
@@ -314,7 +310,7 @@ impl<'a> LightAccountInfo<'a> {
             merkle_context: meta
                 .merkle_context
                 .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
+            recent_state_root_index: meta
                 .merkle_tree_root_index
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
@@ -388,7 +384,7 @@ impl<'a> LightAccountInfo<'a> {
                         data,
                     },
                     merkle_context: input.merkle_context,
-                    root_index: input.root_index,
+                    recent_state_root_index: input.recent_state_root_index,
                     read_only: false,
                 }))
             }

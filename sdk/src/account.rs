@@ -9,7 +9,7 @@ use solana_program::pubkey::Pubkey;
 
 use crate::{
     account_info::LightAccountInfo,
-    account_meta::LightAccountMeta,
+    account_meta::PackedLightAccountMeta,
     address::PackedNewAddressParams,
     compressed_account::{
         CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
@@ -41,7 +41,7 @@ where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn from_meta_init(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
@@ -62,7 +62,7 @@ where
     }
 
     pub fn from_meta_mut(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self, LightSdkError> {
@@ -88,7 +88,7 @@ where
     }
 
     pub fn from_meta_close(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self, LightSdkError> {

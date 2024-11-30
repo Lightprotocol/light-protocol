@@ -3,7 +3,7 @@ use std::{io::Cursor, mem};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account_info::LightAccountInfo,
-    account_meta::LightAccountMeta,
+    account_meta::PackedLightAccountMeta,
     address::derive_address,
     error::LightSdkError,
     hasher::Discriminator,
@@ -217,7 +217,7 @@ impl Instruction {
                 let mut cur = Cursor::new(rest);
 
                 let proof = Option::<ProofRpcResult>::deserialize_reader(&mut cur)?;
-                let accounts = Option::<Vec<LightAccountMeta>>::deserialize_reader(&mut cur)?;
+                let accounts = Option::<Vec<PackedLightAccountMeta>>::deserialize_reader(&mut cur)?;
                 let inputs = LightInstructionData { proof, accounts };
 
                 let name = String::deserialize_reader(&mut cur)?;
@@ -228,7 +228,7 @@ impl Instruction {
                 let mut cur = Cursor::new(rest);
 
                 let proof = Option::<ProofRpcResult>::deserialize_reader(&mut cur)?;
-                let accounts = Option::<Vec<LightAccountMeta>>::deserialize_reader(&mut cur)?;
+                let accounts = Option::<Vec<PackedLightAccountMeta>>::deserialize_reader(&mut cur)?;
                 let inputs = LightInstructionData { proof, accounts };
 
                 let nested_data = NestedData::deserialize_reader(&mut cur)?;

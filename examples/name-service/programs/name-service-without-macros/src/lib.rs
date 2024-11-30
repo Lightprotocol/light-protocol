@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
-    account::LightAccount, instruction_data::LightInstructionData, verify::verify_light_accounts,
+    account::LightAccount, instruction_data::PackedLightInstructionData, verify::verify_light_accounts,
     LightDiscriminator, LightHasher,
 };
 
@@ -26,7 +26,7 @@ pub mod name_service {
         name: String,
         rdata: RData,
     ) -> Result<()> {
-        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let inputs = PackedLightInstructionData::deserialize(&inputs)?;
         let accounts = inputs
             .accounts
             .as_ref()
@@ -83,14 +83,14 @@ pub mod name_service {
         new_rdata: RData,
     ) -> Result<()> {
         // Deserialize the Light Protocol related data.
-        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let inputs = PackedLightInstructionData::deserialize(&inputs)?;
         // Require accounts to be provided.
         let accounts = inputs
             .accounts
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
-        // Convert `LightAccountMeta` to `LightAccount`.
+        // Convert `PackedLightAccountMeta` to `LightAccount`.
         let mut record: LightAccount<'_, NameRecord> =
             LightAccount::from_meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
@@ -122,7 +122,7 @@ pub mod name_service {
         ctx: Context<'_, '_, '_, 'info, DeleteRecord<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs = LightInstructionData::deserialize(&inputs)?;
+        let inputs = PackedLightInstructionData::deserialize(&inputs)?;
         let accounts = inputs
             .accounts
             .as_ref()

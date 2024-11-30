@@ -8,7 +8,7 @@ use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
-use light_sdk::account_meta::LightAccountMeta;
+use light_sdk::account_meta::{LightAccountMeta, PackedLightAccountMeta};
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
@@ -286,11 +286,11 @@ where
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
+
     let account = LightAccountMeta::new_init(
         &env.merkle_tree_pubkey,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
-        instruction_accounts,
     )
     .unwrap();
 
@@ -360,7 +360,7 @@ where
         )
         .await;
 
-    let compressed_account = LightAccountMeta::new_mut(
+    let compressed_account = PackedLightAccountMeta::new_mut(
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
@@ -422,7 +422,7 @@ where
         )
         .await;
 
-    let compressed_account = LightAccountMeta::new_close(
+    let compressed_account = PackedLightAccountMeta::new_close(
         compressed_account,
         rpc_result.root_indices[0],
         light_instruction_accounts,
