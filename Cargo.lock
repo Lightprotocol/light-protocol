@@ -3545,6 +3545,7 @@ dependencies = [
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
+ "spl-token-2022 3.0.4",
 ]
 
 [[package]]

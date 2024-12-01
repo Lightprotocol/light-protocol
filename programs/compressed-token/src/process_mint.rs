@@ -1,7 +1,9 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
-use anchor_lang::prelude::*;
-use anchor_spl::{token::TokenAccount, token_2022};
-
+use anchor_lang::{prelude::*, solana_program::program_option::COption};
+use anchor_spl::{
+    token::{Mint, TokenAccount},
+    token_2022,
+};
 use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
 
 use crate::{program::LightCompressedToken, spl_compression::spl_token_pool_derivation};
@@ -287,6 +289,17 @@ pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -
             .checked_add(*amount)
             .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
+
+    if let COption::Some(mint_authority) =
+        Mint::try_deserialize(&mut &ctx.accounts.mint.data.borrow()[..])?.mint_authority
+    {
+        if mint_authority != ctx.accounts.authority.key() {
+            return err!(crate::ErrorCode::InvalidAuthorityMint);
+        }
+    } else {
+        return err!(crate::ErrorCode::InvalidAuthorityMint);
+    }
+
     let pre_token_balance =
         TokenAccount::try_deserialize(&mut &ctx.accounts.token_pool_pda.data.borrow()[..])?.amount;
     match ctx.accounts.token_program.key() {
@@ -340,9 +353,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: by the token program token program internal checks, since the
-    /// mint is written to and we check the program id we invoke to be either
-    /// spl_token::ID or token_2022::ID.
+    /// CHECK: in mint_spl_to_pool_pda().
     #[account(mut)]
     pub mint: AccountInfo<'info>,
     /// CHECK: with spl_token_pool_derivation().

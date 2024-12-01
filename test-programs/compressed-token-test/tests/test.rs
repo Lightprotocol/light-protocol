@@ -3,8 +3,9 @@
 use anchor_lang::{
     system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
 };
-use anchor_spl::token::Mint;
+use anchor_spl::token::{Mint, TokenAccount};
 use anchor_spl::token_2022::spl_token_2022;
+use anchor_spl::token_2022::spl_token_2022::extension::ExtensionType;
 use light_compressed_token::delegation::sdk::{
     create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
     CreateRevokeInstructionInputs,
@@ -17,6 +18,7 @@ use light_compressed_token::mint_sdk::{
 };
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
+use light_compressed_token::spl_compression::spl_token_pool_derivation;
 use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{token_data::TokenData, ErrorCode};
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
@@ -50,6 +52,7 @@ use light_test_utils::{
 };
 use light_verifier::VerifierError;
 use rand::Rng;
+use solana_sdk::system_instruction;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
@@ -177,6 +180,118 @@ async fn test_failing_create_token_pool() {
             anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
         )
         .unwrap();
+    }
+    // failing test try to create a token pool with mint with non-whitelisted token extension
+    {
+        let payer = rpc.get_payer().insecure_clone();
+        let payer_pubkey = payer.pubkey();
+        let mint = Keypair::new();
+        let token_authority = payer.insecure_clone();
+        let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[
+            ExtensionType::MintCloseAuthority,
+        ])
+        .unwrap();
+
+        let mut instructions = vec![system_instruction::create_account(
+            &payer.pubkey(),
+            &mint.pubkey(),
+            rpc.get_minimum_balance_for_rent_exemption(space)
+                .await
+                .unwrap(),
+            space as u64,
+            &spl_token_2022::ID,
+        )];
+        let invalid_token_extension_ix =
+            spl_token_2022::instruction::initialize_mint_close_authority(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                Some(&token_authority.pubkey()),
+            )
+            .unwrap();
+        instructions.push(invalid_token_extension_ix);
+        instructions.push(
+            spl_token_2022::instruction::initialize_mint(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &token_authority.pubkey(),
+                None,
+                2,
+            )
+            .unwrap(),
+        );
+        instructions.push(create_create_token_pool_2022_instruction(
+            &payer_pubkey,
+            &mint.pubkey(),
+        ));
+
+        let result = rpc
+            .create_and_send_transaction(&instructions, &payer_pubkey, &[&payer, &mint])
+            .await;
+        assert_rpc_error(
+            result,
+            3,
+            light_compressed_token::ErrorCode::MintWithInvalidExtension.into(),
+        )
+        .unwrap();
+    }
+    // functional create token pool account with token 2022 mint with allowed metadata pointer extension
+    {
+        let payer = rpc.get_payer().insecure_clone();
+        // create_mint_helper(&mut rpc, &payer).await;
+        let payer_pubkey = payer.pubkey();
+
+        let mint = Keypair::new();
+        let token_authority = payer.insecure_clone();
+        let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[
+            ExtensionType::MetadataPointer,
+        ])
+        .unwrap();
+
+        let mut instructions = vec![system_instruction::create_account(
+            &payer.pubkey(),
+            &mint.pubkey(),
+            rpc.get_minimum_balance_for_rent_exemption(space)
+                .await
+                .unwrap(),
+            space as u64,
+            &spl_token_2022::ID,
+        )];
+        let token_extension_ix =
+            spl_token_2022::extension::metadata_pointer::instruction::initialize(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                Some(token_authority.pubkey()),
+                None,
+            )
+            .unwrap();
+        instructions.push(token_extension_ix);
+        instructions.push(
+            spl_token_2022::instruction::initialize_mint(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &token_authority.pubkey(),
+                None,
+                2,
+            )
+            .unwrap(),
+        );
+        instructions.push(create_create_token_pool_2022_instruction(
+            &payer_pubkey,
+            &mint.pubkey(),
+        ));
+        rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[&payer, &mint])
+            .await
+            .unwrap();
+
+        let token_pool_pubkey = get_token_pool_pda(&mint.pubkey());
+        let token_pool_account = rpc.get_account(token_pool_pubkey).await.unwrap().unwrap();
+        spl_token_pool_derivation(
+            &mint.pubkey(),
+            &light_compressed_token::ID,
+            &token_pool_pubkey,
+        )
+        .unwrap();
+        assert_eq!(token_pool_account.data.len(), TokenAccount::LEN);
     }
 }
 
@@ -542,7 +657,12 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(result, 0, 4).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            )
+            .unwrap();
         }
         // 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
         //    authority.
@@ -561,7 +681,12 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(result, 0, 4).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            )
+            .unwrap();
         }
         // 3. Try to mint token to random token account.
         {

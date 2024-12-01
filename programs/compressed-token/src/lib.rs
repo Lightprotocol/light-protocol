@@ -45,8 +45,11 @@ pub mod light_compressed_token {
     }
 
     pub fn create_token_pool_2022<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction2022<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction2022<'info>>,
     ) -> Result<()> {
+        create_token_pool::assert_mint_extensions(
+            &ctx.accounts.mint.to_account_info().try_borrow_data()?,
+        )?;
         Ok(())
     }
 
@@ -210,4 +213,5 @@ pub enum ErrorCode {
     MintHasNoFreezeAuthority,
     InvalidTokenProgram,
     InvalidTokenMintOwner,
+    MintWithInvalidExtension,
 }
