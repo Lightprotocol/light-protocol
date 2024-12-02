@@ -33,6 +33,7 @@ pub struct ExternalServicesConfig {
     pub prover_url: Option<String>,
     pub photon_api_key: Option<String>,
     pub pushgateway_url: Option<String>,
+    pub pagerduty_routing_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +133,7 @@ impl ForesterConfig {
                 prover_url: args.prover_url.clone(),
                 photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
+                pagerduty_routing_key: args.pagerduty_routing_key.clone(),
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -179,6 +181,7 @@ impl ForesterConfig {
                 prover_url: None,
                 photon_api_key: None,
                 pushgateway_url: args.push_gateway_url.clone(),
+                pagerduty_routing_key: args.pagerduty_routing_key.clone(),
             },
             retry_config: RetryConfig::default(),
             queue_config: QueueConfig::default(),

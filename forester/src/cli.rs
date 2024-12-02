@@ -22,6 +22,9 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
 
+    #[arg(long, env = "FORESTER_PAGERDUTY_ROUTING_KEY")]
+    pub pagerduty_routing_key: Option<String>,
+
     #[arg(long, env = "FORESTER_WS_RPC_URL")]
     pub ws_rpc_url: Option<String>,
 
@@ -117,6 +120,8 @@ pub struct StatusArgs {
 
     #[arg(long, env = "FORESTER_PUSH_GATEWAY_URL")]
     pub push_gateway_url: Option<String>,
+    #[arg(long, env = "FORESTER_PAGERDUTY_ROUTING_KEY")]
+    pub pagerduty_routing_key: Option<String>,
     /// Select to run compressed token program tests.
     #[clap(long)]
     pub full: bool,

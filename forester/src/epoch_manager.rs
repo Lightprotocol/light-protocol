@@ -14,6 +14,7 @@ use crate::{ForesterConfig, ForesterEpochInfo};
 use light_client::rpc_pool::SolanaRpcPool;
 
 use crate::metrics::{push_metrics, queue_metric_update, update_forester_sol_balance};
+use crate::pagerduty::send_pagerduty_alert;
 use crate::tree_finder::TreeFinder;
 use dashmap::DashMap;
 use forester_utils::forester_epoch::{
@@ -476,6 +477,24 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     if attempt < max_retries - 1 {
                         sleep(retry_delay).await;
                     } else {
+                        if let Err(alert_err) = send_pagerduty_alert(
+                            &self
+                                .config
+                                .external_services
+                                .pagerduty_routing_key
+                                .clone()
+                                .unwrap(),
+                            &format!(
+                                "Forester failed to register for epoch {} after {} attempts",
+                                epoch, max_retries
+                            ),
+                            "critical",
+                            &format!("Forester {}", self.config.payer_keypair.pubkey()),
+                        )
+                        .await
+                        {
+                            error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                        }
                         return Err(e);
                     }
                 }
