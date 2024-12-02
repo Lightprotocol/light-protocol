@@ -202,7 +202,6 @@ pub enum ErrorCode {
     InvalidTokenPoolPda,
     NoInputTokenAccountsProvided,
     NoInputsProvided,
-    InvalidMintAccount,
     MintHasNoFreezeAuthority,
     MintWithInvalidExtension,
 }
