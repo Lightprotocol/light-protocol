@@ -1,7 +1,6 @@
 use anchor_spl::token::{Mint, TokenAccount};
 use forester_utils::create_account_instruction;
 use forester_utils::indexer::{Indexer, TokenDataWithContext};
-use light_compressed_token::mint_sdk::create_create_token_pool_2022_instruction;
 use light_compressed_token::process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction;
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
@@ -324,11 +323,8 @@ pub fn create_initialize_mint_22_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = if token_22 {
-        create_create_token_pool_2022_instruction(payer, &mint_pubkey)
-    } else {
-        create_create_token_pool_instruction(payer, &mint_pubkey)
-    };
+    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey, token_22);
+
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [

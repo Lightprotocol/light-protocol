@@ -1,12 +1,9 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
-use anchor_lang::{prelude::*, solana_program::program_option::COption};
-use anchor_spl::{
-    token::{Mint, TokenAccount},
-    token_2022,
-};
+use anchor_lang::prelude::*;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
 
-use crate::{program::LightCompressedToken, spl_compression::spl_token_pool_derivation};
+use crate::{program::LightCompressedToken, POOL_SEED};
 
 #[cfg(target_os = "solana")]
 use {
@@ -278,11 +275,6 @@ pub fn serialize_mint_to_cpi_instruction_data(
 
 #[inline(never)]
 pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -> Result<()> {
-    spl_token_pool_derivation(
-        &ctx.accounts.mint.key(),
-        &crate::ID,
-        &ctx.accounts.token_pool_pda.key(),
-    )?;
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
         mint_amount = mint_amount
@@ -290,46 +282,20 @@ pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -
             .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
 
-    if let COption::Some(mint_authority) =
-        Mint::try_deserialize(&mut &ctx.accounts.mint.data.borrow()[..])?.mint_authority
-    {
-        if mint_authority != ctx.accounts.authority.key() {
-            return err!(crate::ErrorCode::InvalidAuthorityMint);
-        }
-    } else {
-        return err!(crate::ErrorCode::InvalidAuthorityMint);
-    }
+    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let cpi_accounts = anchor_spl::token_interface::MintTo {
+        mint: ctx.accounts.mint.to_account_info(),
+        to: ctx.accounts.token_pool_pda.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
+    };
 
-    let pre_token_balance =
-        TokenAccount::try_deserialize(&mut &ctx.accounts.token_pool_pda.data.borrow()[..])?.amount;
-    match ctx.accounts.token_program.key() {
-        spl_token::ID => {
-            let cpi_ctx = CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                anchor_spl::token::MintTo {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: ctx.accounts.token_pool_pda.to_account_info(),
-                    authority: ctx.accounts.authority.to_account_info(),
-                },
-            );
-            anchor_spl::token::mint_to(cpi_ctx, mint_amount)
-        }
-        token_2022::ID => {
-            let cpi_ctx = CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                anchor_spl::token_2022::MintTo {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: ctx.accounts.token_pool_pda.to_account_info(),
-                    authority: ctx.accounts.authority.to_account_info(),
-                },
-            );
-            anchor_spl::token_2022::mint_to(cpi_ctx, mint_amount)
-        }
-        _ => err!(crate::ErrorCode::InvalidTokenProgram),
-    }?;
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    anchor_spl::token_interface::mint_to(cpi_ctx, mint_amount)?;
 
-    let post_token_balance =
-        TokenAccount::try_deserialize(&mut &ctx.accounts.token_pool_pda.data.borrow()[..])?.amount;
+    let post_token_balance = TokenAccount::try_deserialize(
+        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
+    )?
+    .amount;
     // Guard against unexpected behavior of the SPL token program.
     if post_token_balance != pre_token_balance + mint_amount {
         msg!(
@@ -353,13 +319,15 @@ pub struct MintToInstruction<'info> {
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: in mint_spl_to_pool_pda().
-    #[account(mut)]
-    pub mint: AccountInfo<'info>,
-    /// CHECK: with spl_token_pool_derivation().
-    #[account(mut)]
-    pub token_pool_pda: AccountInfo<'info>,
-    pub token_program: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = mint.mint_authority.unwrap() == authority.key()
+            @ crate::ErrorCode::InvalidAuthorityMint
+    )]
+    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
+    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
@@ -389,39 +357,25 @@ pub mod mint_sdk {
     use light_system_program::sdk::invoke::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    pub fn create_create_token_pool_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
+    pub fn create_create_token_pool_instruction(
+        fee_payer: &Pubkey,
+        mint: &Pubkey,
+        is_token_22: bool,
+    ) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
         let instruction_data = crate::instruction::CreateTokenPool {};
 
+        let token_program: Pubkey = if is_token_22 {
+            anchor_spl::token_2022::ID
+        } else {
+            anchor_spl::token::ID
+        };
         let accounts = crate::accounts::CreateTokenPoolInstruction {
             fee_payer: *fee_payer,
             token_pool_pda,
             system_program: system_program::ID,
             mint: *mint,
-            token_program: anchor_spl::token::ID,
-            cpi_authority_pda: get_cpi_authority_pda().0,
-        };
-
-        Instruction {
-            program_id: crate::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: instruction_data.data(),
-        }
-    }
-
-    pub fn create_create_token_pool_2022_instruction(
-        fee_payer: &Pubkey,
-        mint: &Pubkey,
-    ) -> Instruction {
-        let token_pool_pda = get_token_pool_pda(mint);
-        let instruction_data = crate::instruction::CreateTokenPool2022 {};
-
-        let accounts = crate::accounts::CreateTokenPoolInstruction2022 {
-            fee_payer: *fee_payer,
-            token_pool_pda,
-            system_program: system_program::ID,
-            mint: *mint,
-            token_program: anchor_spl::token_2022::ID,
+            token_program,
             cpi_authority_pda: get_cpi_authority_pda().0,
         };
 

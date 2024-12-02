@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
 use light_hasher::DataHasher;
 use light_hasher::Poseidon;
 use light_system_program::{
@@ -47,7 +46,6 @@ pub fn process_freeze_or_thaw<
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataFreeze =
         CompressedTokenInstructionDataFreeze::deserialize(&mut inputs.as_slice())?;
-    check_mint_and_freeze_authority(&ctx.accounts.mint, ctx.accounts.authority.key)?;
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_freeze_or_thaw::<FROZEN_INPUTS, FROZEN_OUTPUTS>(
             &inputs,
@@ -65,27 +63,6 @@ pub fn process_freeze_or_thaw<
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
     )
-}
-
-/// Checks:
-/// 1. Mint account is owner token22 or spl token program.
-/// 2. Mint account is correct account.
-/// 3. Freeze authority is authority.
-pub fn check_mint_and_freeze_authority(mint: &AccountInfo<'_>, authority: &Pubkey) -> Result<()> {
-    let freeze_authority = match *mint.owner {
-        anchor_spl::token_2022::ID | spl_token::ID => {
-            let mint = Mint::try_deserialize(&mut &mint.try_borrow_data()?[..])?;
-            Ok(mint
-                .freeze_authority
-                .ok_or(crate::ErrorCode::MintHasNoFreezeAuthority)?)
-        }
-        _ => err!(crate::ErrorCode::InvalidTokenProgram),
-    }?;
-    if freeze_authority != *authority {
-        err!(crate::ErrorCode::InvalidFreezeAuthority)
-    } else {
-        Ok(())
-    }
 }
 
 pub fn create_input_and_output_accounts_freeze_or_thaw<

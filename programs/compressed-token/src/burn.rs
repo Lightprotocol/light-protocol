@@ -15,7 +15,6 @@ use crate::{
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
-    spl_compression::spl_token_pool_derivation,
     BurnInstruction, ErrorCode,
 };
 
@@ -64,52 +63,20 @@ pub fn burn_spl_from_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
-    if *ctx.accounts.mint.owner != *ctx.accounts.token_program.key {
-        return err!(crate::ErrorCode::InvalidTokenMintOwner);
-    }
-    spl_token_pool_derivation(
-        ctx.accounts.mint.key,
-        &crate::ID,
-        &ctx.accounts.token_pool_pda.key(),
-    )?;
-
-    let pre_token_balance = TokenAccount::try_deserialize(
-        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
-    )?
-    .amount;
-
+    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let cpi_accounts = anchor_spl::token_interface::Burn {
+        mint: ctx.accounts.mint.to_account_info(),
+        from: ctx.accounts.token_pool_pda.to_account_info(),
+        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
+    };
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-
-    match *ctx.accounts.token_program.key {
-        spl_token::ID => {
-            let cpi_accounts = anchor_spl::token::Burn {
-                mint: ctx.accounts.mint.to_account_info(),
-                from: ctx.accounts.token_pool_pda.to_account_info(),
-                authority: ctx.accounts.cpi_authority_pda.to_account_info(),
-            };
-            let cpi_ctx = CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                cpi_accounts,
-                signer_seeds_ref,
-            );
-            anchor_spl::token::burn(cpi_ctx, inputs.burn_amount)
-        }
-        anchor_spl::token_2022::ID => {
-            let cpi_accounts = anchor_spl::token_2022::Burn {
-                mint: ctx.accounts.mint.to_account_info(),
-                from: ctx.accounts.token_pool_pda.to_account_info(),
-                authority: ctx.accounts.cpi_authority_pda.to_account_info(),
-            };
-            let cpi_ctx = CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                cpi_accounts,
-                signer_seeds_ref,
-            );
-            anchor_spl::token_2022::burn(cpi_ctx, inputs.burn_amount)
-        }
-        _ => err!(crate::ErrorCode::InvalidTokenProgram),
-    }?;
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        cpi_accounts,
+        signer_seeds_ref,
+    );
+    anchor_spl::token_interface::burn(cpi_ctx, inputs.burn_amount)?;
 
     let post_token_balance = TokenAccount::try_deserialize(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],

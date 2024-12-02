@@ -6,7 +6,6 @@ use crate::{
     ErrorCode,
 };
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_pack::Pack;
 use light_system_program::sdk::CompressedCpiContext;
 
 pub fn process_compress_spl_token_account<'info>(
@@ -17,18 +16,7 @@ pub fn process_compress_spl_token_account<'info>(
 ) -> Result<()> {
     let compression_token_account =
         if let Some(token_account) = ctx.accounts.compress_or_decompress_token_account.as_ref() {
-            if *token_account.owner
-                != ctx
-                    .accounts
-                    .token_program
-                    .as_ref()
-                    .ok_or(ErrorCode::InvalidTokenProgram)?
-                    .key()
-            {
-                msg!("Token account is not owned by the token program.");
-                return err!(ErrorCode::InvalidTokenProgram);
-            }
-            spl_token::state::Account::unpack(&token_account.data.borrow())?
+            token_account
         } else {
             return err!(ErrorCode::CompressedPdaUndefinedForCompress);
         };

@@ -12,10 +12,8 @@ use light_compressed_token::delegation::sdk::{
 };
 use light_compressed_token::freeze::sdk::{create_instruction, CreateInstructionInputs};
 use light_compressed_token::get_token_pool_pda;
+use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
-use light_compressed_token::mint_sdk::{
-    create_create_token_pool_2022_instruction, create_create_token_pool_instruction,
-};
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_compressed_token::spl_compression::spl_token_pool_derivation;
@@ -155,6 +153,32 @@ async fn test_failing_create_token_pool() {
         )
         .unwrap();
     }
+    // Invalid program id.
+    {
+        let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
+        let accounts = light_compressed_token::accounts::CreateTokenPoolInstruction {
+            fee_payer: payer.pubkey(),
+            token_pool_pda: mint_1_pool_pda,
+            system_program: system_program::ID,
+            mint: mint_1_keypair.pubkey(),
+            token_program: light_system_program::ID, // invalid program id should be spl token program or token 2022 program
+            cpi_authority_pda: get_cpi_authority_pda().0,
+        };
+        let instruction = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::InvalidProgramId.into(),
+        )
+        .unwrap();
+    }
     // Try to create pool for `mint_2` while using seeds of `mint_1` for PDAs.
     {
         let instruction_data = light_compressed_token::instruction::CreateTokenPool {};
@@ -219,9 +243,10 @@ async fn test_failing_create_token_pool() {
             )
             .unwrap(),
         );
-        instructions.push(create_create_token_pool_2022_instruction(
+        instructions.push(create_create_token_pool_instruction(
             &payer_pubkey,
             &mint.pubkey(),
+            true,
         ));
 
         let result = rpc
@@ -275,9 +300,10 @@ async fn test_failing_create_token_pool() {
             )
             .unwrap(),
         );
-        instructions.push(create_create_token_pool_2022_instruction(
+        instructions.push(create_create_token_pool_instruction(
             &payer_pubkey,
             &mint.pubkey(),
+            true,
         ));
         rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[&payer, &mint])
             .await
@@ -348,11 +374,8 @@ async fn test_wrapped_sol() {
         assert_eq!(unpacked_token_account.owner, payer.pubkey());
         assert_eq!(unpacked_token_account.mint, native_mint);
         assert!(unpacked_token_account.is_native.is_some());
-        let instruction = if is_token_22 {
-            create_create_token_pool_2022_instruction(&payer.pubkey(), &native_mint)
-        } else {
-            create_create_token_pool_instruction(&payer.pubkey(), &native_mint)
-        };
+        let instruction =
+            create_create_token_pool_instruction(&payer.pubkey(), &native_mint, is_token_22);
         rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
             .await
             .unwrap();
@@ -657,12 +680,7 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(
-                result,
-                0,
-                light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
         }
         // 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
         //    authority.
@@ -681,12 +699,7 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(
-                result,
-                0,
-                light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
         }
         // 3. Try to mint token to random token account.
         {
@@ -731,7 +744,12 @@ async fn test_mint_to_failing() {
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
-            assert_rpc_error(result, 0, ErrorCode::InvalidTokenPoolPda.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+            )
+            .unwrap();
         }
         // 4. Try to mint token from `mint_2` while using `mint_1` pool.
         {
@@ -766,7 +784,12 @@ async fn test_mint_to_failing() {
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
-            assert_rpc_error(result, 0, ErrorCode::InvalidTokenPoolPda.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+            )
+            .unwrap();
         }
         // 5. Invalid CPI authority.
         {
@@ -2528,13 +2551,12 @@ async fn failing_tests_burn() {
             let res = rpc
                 .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &sender])
                 .await;
-            assert_rpc_error(res, 0, ErrorCode::InvalidTokenMintOwner.into()).unwrap();
-            // assert!(matches!(
-            //     res,
-            //     Err(RpcError::TransactionError(
-            //         TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
-            //     ))
-            // ));
+            assert_rpc_error(
+                res,
+                0,
+                anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
+            )
+            .unwrap();
         }
         // 6. invalid change merkle tree
         {
