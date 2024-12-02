@@ -42,8 +42,9 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
 }
 
 // cpi guard could be ok but should be tested
-const ALLOWED_EXTENSION_TYPES: [ExtensionType; 6] = [
+const ALLOWED_EXTENSION_TYPES: [ExtensionType; 7] = [
     ExtensionType::MetadataPointer,
+    ExtensionType::TokenMetadata,
     ExtensionType::InterestBearingConfig,
     ExtensionType::GroupPointer,
     ExtensionType::GroupMemberPointer,
