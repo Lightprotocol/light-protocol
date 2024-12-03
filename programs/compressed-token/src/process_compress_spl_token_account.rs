@@ -66,6 +66,7 @@ pub mod sdk {
         mint: &Pubkey,
         output_merkle_tree: &Pubkey,
         token_account: &Pubkey,
+        is_token_22: bool,
     ) -> Instruction {
         let instruction_data = crate::instruction::CompressSplTokenAccount {
             owner: *owner,
@@ -74,6 +75,11 @@ pub mod sdk {
         };
         let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
         let token_pool_pda = get_token_pool_pda(mint);
+        let token_program = if is_token_22 {
+            Some(anchor_spl::token_2022::ID)
+        } else {
+            Some(TokenProgramId)
+        };
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
@@ -93,7 +99,7 @@ pub mod sdk {
             self_program: crate::ID,
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(*token_account),
-            token_program: Some(TokenProgramId),
+            token_program,
             system_program: solana_sdk::system_program::ID,
         };
         let remaining_accounts = vec![AccountMeta::new(*output_merkle_tree, false)];

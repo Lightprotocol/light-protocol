@@ -1602,6 +1602,7 @@ where
             burn_amount,
             false,
             transaction_paramets,
+            false,
         )
         .await;
         self.stats.spl_burned += 1;
@@ -1746,6 +1747,7 @@ where
                 &output_merkle_tree_account[0],
                 &token_account,
                 transaction_paramets,
+                false,
             )
             .await;
             self.stats.spl_compress += 1;
@@ -1822,6 +1824,7 @@ where
             &output_merkle_tree_account[0],
             &token_account,
             transaction_paramets,
+            false,
         )
         .await;
         self.stats.spl_decompress += 1;

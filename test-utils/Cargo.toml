@@ -46,6 +46,7 @@ log = "0.4"
 serde = { version = "1.0.197", features = ["derive"] }
 async-trait = "0.1.82"
 light-client = { workspace = true }
+spl-token-2022 = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8"

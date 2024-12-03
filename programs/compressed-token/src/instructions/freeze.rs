@@ -1,6 +1,6 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
+use anchor_spl::token_interface::Mint;
 use light_system_program::{
     program::LightSystemProgram,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
@@ -13,7 +13,7 @@ pub struct FreezeInstruction<'info> {
     /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(constraint= authority.key() == mint.freeze_authority.unwrap()
+    #[account(constraint= authority.key() == mint.freeze_authority.ok_or(crate::ErrorCode::MintHasNoFreezeAuthority)?
         @ crate::ErrorCode::InvalidFreezeAuthority)]
     pub authority: Signer<'info>,
     /// CHECK: (seed constraint).
@@ -32,7 +32,7 @@ pub struct FreezeInstruction<'info> {
     /// that this program is the signer of the cpi.
     pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 }
 
 impl<'info> InvokeAccounts<'info> for FreezeInstruction<'info> {

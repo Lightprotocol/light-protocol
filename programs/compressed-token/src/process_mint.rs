@@ -1,9 +1,9 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-
-use crate::program::LightCompressedToken;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
+
+use crate::{program::LightCompressedToken, POOL_SEED};
 
 #[cfg(target_os = "solana")]
 use {
@@ -12,35 +12,6 @@ use {
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
     light_utils::hash_to_bn254_field_size_be,
 };
-
-pub const POOL_SEED: &[u8] = b"pool";
-
-/// creates a token pool account which is owned by the token authority pda
-#[derive(Accounts)]
-pub struct CreateTokenPoolInstruction<'info> {
-    /// UNCHECKED: only pays fees.
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    #[account(
-        init,
-        seeds = [
-        POOL_SEED, &mint.key().to_bytes(),
-        ],
-        bump,
-        payer = fee_payer,
-          token::mint = mint,
-          token::authority = cpi_authority_pda,
-    )]
-    pub token_pool_pda: Account<'info, TokenAccount>,
-    pub system_program: Program<'info, System>,
-    /// CHECK: is mint account.
-    #[account(mut)]
-    pub mint: Account<'info, Mint>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK: (seeds anchor constraint).
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
-    pub cpi_authority_pda: AccountInfo<'info>,
-}
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -55,8 +26,8 @@ pub struct CreateTokenPoolInstruction<'info> {
 ///    pre_compressed_acounts_pos.
 /// 5. Invoke system program to execute the compressed transaction.
 #[allow(unused_variables)]
-pub fn process_mint_to<'info>(
-    ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+pub fn process_mint_to(
+    ctx: Context<MintToInstruction>,
     recipient_pubkeys: Vec<Pubkey>,
     amounts: Vec<u64>,
     lamports: Option<u64>,
@@ -97,17 +68,16 @@ pub fn process_mint_to<'info>(
         mint_spl_to_pool_pda(&ctx, &amounts)?;
 
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
-        let hashed_mint =
-            hash_to_bn254_field_size_be(ctx.accounts.mint.to_account_info().key().as_ref())
-                .unwrap()
-                .0;
+        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
+            .unwrap()
+            .0;
         bench_sbf_start!("tm_output_compressed_accounts");
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
         let lamports_vec = lamports.map(|_| vec![lamports; amounts.len()]);
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
-            ctx.accounts.mint.to_account_info().key(),
+            ctx.accounts.mint.key(),
             recipient_pubkeys.as_slice(),
             None,
             None,
@@ -144,7 +114,7 @@ pub fn process_mint_to<'info>(
 #[cfg(target_os = "solana")]
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+    ctx: &Context<'_, '_, '_, 'info, MintToInstruction>,
     output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
@@ -304,25 +274,24 @@ pub fn serialize_mint_to_cpi_instruction_data(
 }
 
 #[inline(never)]
-pub fn mint_spl_to_pool_pda<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    amounts: &[u64],
-) -> Result<()> {
+pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
         mint_amount = mint_amount
             .checked_add(*amount)
             .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
+
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
-    let cpi_accounts = anchor_spl::token::MintTo {
+    let cpi_accounts = anchor_spl::token_interface::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
         authority: ctx.accounts.authority.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
-    anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    anchor_spl::token_interface::mint_to(cpi_ctx, mint_amount)?;
+
     let post_token_balance = TokenAccount::try_deserialize(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
     )?
@@ -350,18 +319,15 @@ pub struct MintToInstruction<'info> {
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK: that authority is mint authority
     #[account(
         mut,
         constraint = mint.mint_authority.unwrap() == authority.key()
             @ crate::ErrorCode::InvalidAuthorityMint
     )]
-    pub mint: Account<'info, Mint>,
-    /// CHECK: this account is checked implictly since a mint to from a mint
-    /// account to a token account of a different mint will fail
-    #[account(mut, seeds = [POOL_SEED, &mint.key().to_bytes()],bump)]
-    pub token_pool_pda: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
+    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
@@ -384,12 +350,6 @@ pub struct MintToInstruction<'info> {
     pub sol_pool_pda: Option<AccountInfo<'info>>,
 }
 
-pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
-    let seeds = &[POOL_SEED, mint.as_ref()];
-    let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
-    address
-}
-
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
     use crate::{get_token_pool_pda, process_transfer::get_cpi_authority_pda};
@@ -397,16 +357,25 @@ pub mod mint_sdk {
     use light_system_program::sdk::invoke::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    pub fn create_create_token_pool_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
+    pub fn create_create_token_pool_instruction(
+        fee_payer: &Pubkey,
+        mint: &Pubkey,
+        is_token_22: bool,
+    ) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
         let instruction_data = crate::instruction::CreateTokenPool {};
 
+        let token_program: Pubkey = if is_token_22 {
+            anchor_spl::token_2022::ID
+        } else {
+            anchor_spl::token::ID
+        };
         let accounts = crate::accounts::CreateTokenPoolInstruction {
             fee_payer: *fee_payer,
             token_pool_pda,
             system_program: system_program::ID,
             mint: *mint,
-            token_program: anchor_spl::token::ID,
+            token_program,
             cpi_authority_pda: get_cpi_authority_pda().0,
         };
 
@@ -417,6 +386,7 @@ pub mod mint_sdk {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_mint_to_instruction(
         fee_payer: &Pubkey,
         authority: &Pubkey,
@@ -425,6 +395,7 @@ pub mod mint_sdk {
         amounts: Vec<u64>,
         public_keys: Vec<Pubkey>,
         lamports: Option<u64>,
+        token_2022: bool,
     ) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
 
@@ -438,6 +409,11 @@ pub mod mint_sdk {
         } else {
             None
         };
+        let token_program = if token_2022 {
+            anchor_spl::token_2022::ID
+        } else {
+            anchor_spl::token::ID
+        };
 
         let accounts = crate::accounts::MintToInstruction {
             fee_payer: *fee_payer,
@@ -445,7 +421,7 @@ pub mod mint_sdk {
             cpi_authority_pda: get_cpi_authority_pda().0,
             mint: *mint,
             token_pool_pda,
-            token_program: anchor_spl::token::ID,
+            token_program,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
                 &light_system_program::ID,

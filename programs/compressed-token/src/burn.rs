@@ -64,7 +64,7 @@ pub fn burn_spl_from_pool_pda<'info>(
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
-    let cpi_accounts = anchor_spl::token::Burn {
+    let cpi_accounts = anchor_spl::token_interface::Burn {
         mint: ctx.accounts.mint.to_account_info(),
         from: ctx.accounts.token_pool_pda.to_account_info(),
         authority: ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -76,8 +76,7 @@ pub fn burn_spl_from_pool_pda<'info>(
         cpi_accounts,
         signer_seeds_ref,
     );
-
-    anchor_spl::token::burn(cpi_ctx, inputs.burn_amount)?;
+    anchor_spl::token_interface::burn(cpi_ctx, inputs.burn_amount)?;
 
     let post_token_balance = TokenAccount::try_deserialize(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
@@ -202,6 +201,7 @@ pub mod sdk {
         pub mint: Pubkey,
         pub burn_amount: u64,
         pub signer_is_delegate: bool,
+        pub is_token_22: bool,
     }
 
     pub fn create_burn_instruction(
@@ -250,14 +250,18 @@ pub mod sdk {
         .data();
 
         let token_pool_pda = get_token_pool_pda(&inputs.mint);
-
+        let token_program = if inputs.is_token_22 {
+            anchor_spl::token_2022::ID
+        } else {
+            spl_token::ID
+        };
         let accounts = crate::accounts::BurnInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,
             mint: inputs.mint,
             token_pool_pda,
-            token_program: anchor_spl::token::ID,
+            token_program,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
                 &light_system_program::ID,

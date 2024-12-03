@@ -66,16 +66,29 @@ pub async fn mint_spl_tokens<R: RpcConnection>(
     token_owner: &Pubkey,
     mint_authority: &Keypair,
     amount: u64,
+    is_token_22: bool,
 ) -> Result<Signature, RpcError> {
-    let mint_to_instruction = spl_token::instruction::mint_to(
-        &spl_token::ID,
-        mint,
-        token_account,
-        token_owner,
-        &[&mint_authority.pubkey()],
-        amount,
-    )
-    .unwrap();
+    let mint_to_instruction = if is_token_22 {
+        spl_token_2022::instruction::mint_to(
+            &spl_token_2022::ID,
+            mint,
+            token_account,
+            token_owner,
+            &[&mint_authority.pubkey()],
+            amount,
+        )
+        .unwrap()
+    } else {
+        spl_token::instruction::mint_to(
+            &spl_token::ID,
+            mint,
+            token_account,
+            token_owner,
+            &[&mint_authority.pubkey()],
+            amount,
+        )
+        .unwrap()
+    };
     rpc.create_and_send_transaction(
         &[mint_to_instruction],
         &mint_authority.pubkey(),
@@ -95,6 +108,31 @@ pub async fn mint_tokens_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
     recipients: Vec<Pubkey>,
     lamports: Option<u64>,
 ) {
+    mint_tokens_22_helper_with_lamports(
+        rpc,
+        test_indexer,
+        merkle_tree_pubkey,
+        mint_authority,
+        mint,
+        amounts,
+        recipients,
+        lamports,
+        false,
+    )
+    .await;
+}
+#[allow(clippy::too_many_arguments)]
+pub async fn mint_tokens_22_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    test_indexer: &mut I,
+    merkle_tree_pubkey: &Pubkey,
+    mint_authority: &Keypair,
+    mint: &Pubkey,
+    amounts: Vec<u64>,
+    recipients: Vec<Pubkey>,
+    lamports: Option<u64>,
+    token_22: bool,
+) {
     let payer_pubkey = mint_authority.pubkey();
     let instruction = create_mint_to_instruction(
         &payer_pubkey,
@@ -104,6 +142,7 @@ pub async fn mint_tokens_helper_with_lamports<R: RpcConnection, I: Indexer<R>>(
         amounts.clone(),
         recipients.clone(),
         lamports,
+        token_22,
     );
 
     let output_merkle_tree_accounts =
@@ -194,24 +233,47 @@ pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) 
     mint.pubkey()
 }
 
+pub async fn create_mint_22_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+    let payer_pubkey = payer.pubkey();
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await
+        .unwrap();
+    let mint = Keypair::new();
+
+    let (instructions, pool) =
+        create_initialize_mint_22_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint, true);
+
+    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
+        .await
+        .unwrap();
+    assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
+    mint.pubkey()
+}
+
 pub async fn mint_wrapped_sol<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,
     token_account: &Pubkey,
     amount: u64,
+    is_token_22: bool,
 ) -> Result<Signature, RpcError> {
     let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
         &payer.pubkey(),
         token_account,
         amount,
     );
-    let sync_native_ix = spl_token::instruction::sync_native(&spl_token::ID, token_account)
-        .map_err(|e| RpcError::CustomError(format!("{:?}", e)))?;
+    let sync_native_ix = if is_token_22 {
+        spl_token_2022::instruction::sync_native(&spl_token_2022::ID, token_account)
+            .map_err(|e| RpcError::CustomError(format!("{:?}", e)))?
+    } else {
+        spl_token::instruction::sync_native(&spl_token::ID, token_account)
+            .map_err(|e| RpcError::CustomError(format!("{:?}", e)))?
+    };
 
     rpc.create_and_send_transaction(&[transfer_ix, sync_native_ix], &payer.pubkey(), &[payer])
         .await
 }
-
 pub fn create_initialize_mint_instructions(
     payer: &Pubkey,
     authority: &Pubkey,
@@ -219,22 +281,50 @@ pub fn create_initialize_mint_instructions(
     decimals: u8,
     mint_keypair: &Keypair,
 ) -> ([Instruction; 4], Pubkey) {
+    create_initialize_mint_22_instructions(payer, authority, rent, decimals, mint_keypair, false)
+}
+
+pub fn create_initialize_mint_22_instructions(
+    payer: &Pubkey,
+    authority: &Pubkey,
+    rent: u64,
+    decimals: u8,
+    mint_keypair: &Keypair,
+    token_22: bool,
+) -> ([Instruction; 4], Pubkey) {
+    let program_id = if token_22 {
+        anchor_spl::token_2022::ID
+    } else {
+        spl_token::ID
+    };
     let account_create_ix =
-        create_account_instruction(payer, Mint::LEN, rent, &spl_token::ID, Some(mint_keypair));
+        create_account_instruction(payer, Mint::LEN, rent, &program_id, Some(mint_keypair));
 
     let mint_pubkey = mint_keypair.pubkey();
-    let create_mint_instruction = initialize_mint(
-        &spl_token::ID,
-        &mint_keypair.pubkey(),
-        authority,
-        Some(authority),
-        decimals,
-    )
-    .unwrap();
+    let create_mint_instruction = if token_22 {
+        spl_token_2022::instruction::initialize_mint(
+            &program_id,
+            &mint_keypair.pubkey(),
+            authority,
+            Some(authority),
+            decimals,
+        )
+        .unwrap()
+    } else {
+        initialize_mint(
+            &program_id,
+            &mint_keypair.pubkey(),
+            authority,
+            Some(authority),
+            decimals,
+        )
+        .unwrap()
+    };
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
+    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey, token_22);
+
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [
@@ -255,24 +345,53 @@ pub async fn create_token_account<R: RpcConnection>(
     account_keypair: &Keypair,
     owner: &Keypair,
 ) -> Result<(), BanksClientError> {
+    create_token_2022_account(rpc, mint, account_keypair, owner, false).await
+}
+pub async fn create_token_2022_account<R: RpcConnection>(
+    rpc: &mut R,
+    mint: &Pubkey,
+    account_keypair: &Keypair,
+    owner: &Keypair,
+    token_22: bool,
+) -> Result<(), BanksClientError> {
+    let account_len = if token_22 {
+        spl_token_2022::state::Account::LEN
+    } else {
+        spl_token::state::Account::LEN
+    };
     let rent = rpc
-        .get_minimum_balance_for_rent_exemption(TokenAccount::LEN)
+        .get_minimum_balance_for_rent_exemption(account_len)
         .await
         .unwrap();
+    let program_id = if token_22 {
+        spl_token_2022::ID
+    } else {
+        spl_token::ID
+    };
     let account_create_ix = create_account_instruction(
         &owner.pubkey(),
         TokenAccount::LEN,
         rent,
-        &spl_token::ID,
+        &program_id,
         Some(account_keypair),
     );
-    let instruction = spl_token::instruction::initialize_account(
-        &spl_token::ID,
-        &account_keypair.pubkey(),
-        mint,
-        &owner.pubkey(),
-    )
-    .unwrap();
+    let instruction = if token_22 {
+        spl_token_2022::instruction::initialize_account(
+            &program_id,
+            &account_keypair.pubkey(),
+            mint,
+            &owner.pubkey(),
+        )
+        .unwrap()
+    } else {
+        spl_token::instruction::initialize_account(
+            &program_id,
+            &account_keypair.pubkey(),
+            mint,
+            &owner.pubkey(),
+        )
+        .unwrap()
+    };
     rpc.create_and_send_transaction(
         &[account_create_ix, instruction],
         &owner.pubkey(),
@@ -292,12 +411,48 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     from: &Keypair,
     recipients: &[Pubkey],
     amounts: &[u64],
+    lamports: Option<Vec<Option<u64>>>,
+    input_compressed_accounts: &[TokenDataWithContext],
+    output_merkle_tree_pubkeys: &[Pubkey],
+    delegate_change_account_index: Option<u8>,
+    delegate_is_signer: bool,
+    transaction_params: Option<TransactionParams>,
+) {
+    compressed_transfer_22_test(
+        payer,
+        rpc,
+        test_indexer,
+        mint,
+        from,
+        recipients,
+        amounts,
+        lamports,
+        input_compressed_accounts,
+        output_merkle_tree_pubkeys,
+        delegate_change_account_index,
+        delegate_is_signer,
+        transaction_params,
+        false,
+    )
+    .await;
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
+    payer: &Keypair,
+    rpc: &mut R,
+    test_indexer: &mut I,
+    mint: &Pubkey,
+    from: &Keypair,
+    recipients: &[Pubkey],
+    amounts: &[u64],
     mut lamports: Option<Vec<Option<u64>>>,
     input_compressed_accounts: &[TokenDataWithContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
     transaction_params: Option<TransactionParams>,
+    token_22: bool,
 ) {
     if recipients.len() != amounts.len() && amounts.len() != output_merkle_tree_pubkeys.len() {
         println!("{:?}", recipients);
@@ -410,6 +565,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
         true,
         delegate_change_account_index,
         None,
+        token_22,
     )
     .unwrap();
     let sum_input_lamports = input_compressed_accounts
@@ -502,6 +658,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     output_merkle_tree_pubkey: &Pubkey,
     recipient_token_account: &Pubkey,
     transaction_params: Option<TransactionParams>,
+    is_token_22: bool,
 ) {
     let max_amount: u64 = input_compressed_accounts
         .iter()
@@ -560,6 +717,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         true,
         None,
         None,
+        is_token_22,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -634,6 +792,7 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
     token_account: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     remaining_amount: Option<u64>,
+    is_token_22: bool,
 ) -> Result<(), RpcError> {
     let pre_token_account_amount = spl_token::state::Account::unpack(
         &rpc.get_account(*token_account).await.unwrap().unwrap().data,
@@ -649,6 +808,7 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
         mint,
         merkle_tree_pubkey,
         token_account,
+        is_token_22,
     );
     let (event, _, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
@@ -702,6 +862,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     output_merkle_tree_pubkey: &Pubkey,
     sender_token_account: &Pubkey,
     transaction_params: Option<TransactionParams>,
+    is_token_22: bool,
 ) {
     let output_compressed_account = TokenTransferOutputData {
         amount,
@@ -728,6 +889,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         true,
         None,
         None,
+        is_token_22,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -1254,6 +1416,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
     burn_amount: u64,
     signer_is_delegate: bool,
     transaction_params: Option<TransactionParams>,
+    is_token_22: bool,
 ) {
     let (
         input_compressed_account_hashes,
@@ -1270,6 +1433,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
         burn_amount,
         signer_is_delegate,
         BurnInstructionMode::Normal,
+        is_token_22,
     )
     .await;
     let output_merkle_tree_pubkeys = vec![*change_account_merkle_tree; 1];
@@ -1391,6 +1555,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     burn_amount: u64,
     signer_is_delegate: bool,
     mode: BurnInstructionMode,
+    is_token_22: bool,
 ) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -1445,6 +1610,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
         mint,
         signer_is_delegate,
         burn_amount,
+        is_token_22,
     };
     let input_amount_sum = input_compressed_accounts
         .iter()

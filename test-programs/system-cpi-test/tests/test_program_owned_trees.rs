@@ -84,6 +84,7 @@ async fn test_program_owned_merkle_tree() {
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
         None,
+        false,
     );
     let pre_merkle_tree = get_concurrent_merkle_tree::<
         StateMerkleTreeAccount,
@@ -146,6 +147,7 @@ async fn test_program_owned_merkle_tree() {
         vec![amount + 1; 1],
         vec![recipient_keypair.pubkey(); 1],
         None,
+        false,
     );
 
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();

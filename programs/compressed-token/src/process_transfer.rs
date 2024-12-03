@@ -592,7 +592,7 @@ pub mod transfer_sdk {
     use std::collections::HashMap;
 
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
-    use anchor_spl::token::Token;
+    use anchor_spl::{token::Token, token_2022::Token2022};
     use light_system_program::{
         invoke::processor::CompressedProof,
         sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
@@ -641,6 +641,7 @@ pub mod transfer_sdk {
         sort: bool,
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
+        is_token_22: bool,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
@@ -673,6 +674,13 @@ pub mod transfer_sdk {
         } else {
             *owner
         };
+        let token_program = if compress_or_decompress_token_account.is_none() {
+            None
+        } else if is_token_22 {
+            Some(Token2022::id())
+        } else {
+            Some(Token::id())
+        };
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
@@ -692,7 +700,7 @@ pub mod transfer_sdk {
             self_program: crate::ID,
             token_pool_pda,
             compress_or_decompress_token_account,
-            token_program: token_pool_pda.map(|_| Token::id()),
+            token_program,
             system_program: solana_sdk::system_program::ID,
         };
 

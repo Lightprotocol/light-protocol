@@ -1,6 +1,6 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use light_system_program::{
     self,
     program::LightSystemProgram,
@@ -34,10 +34,10 @@ pub struct TransferInstruction<'info> {
     /// this program is the signer of the cpi.
     pub self_program: Program<'info, LightCompressedToken>,
     #[account(mut)]
-    pub token_pool_pda: Option<Account<'info, TokenAccount>>,
+    pub token_pool_pda: Option<InterfaceAccount<'info, TokenAccount>>,
     #[account(mut, constraint= if token_pool_pda.is_some() {Ok(token_pool_pda.as_ref().unwrap().key() != compress_or_decompress_token_account.key())}else {err!(crate::ErrorCode::TokenPoolPdaUndefined)}? @crate::ErrorCode::IsTokenPoolPda)]
-    pub compress_or_decompress_token_account: Option<Account<'info, TokenAccount>>,
-    pub token_program: Option<Program<'info, Token>>,
+    pub compress_or_decompress_token_account: Option<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
     pub system_program: Program<'info, System>,
 }
 
