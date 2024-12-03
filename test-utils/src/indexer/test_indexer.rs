@@ -741,7 +741,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         merkle_tree_pubkey: Pubkey,
         batch_index: usize,
     ) {
-        let mut state_merkle_tree_bundle = self
+        let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)

@@ -669,7 +669,10 @@ pub async fn get_batched_nullify_ix_data_with_indexer<R: RpcConnection, I: Index
             })
             .collect::<Vec<_>>();
         for (i, x) in hashchains.iter().enumerate() {
-            println!("hashchain {}: {:?}", i, x);
+            println!(
+                "get_batched_nullify_ix_data_with_indexer: hashchain {}: {:?}",
+                i, x
+            );
         }
         (zkp_size, root, root_idx, hashchain)
     };

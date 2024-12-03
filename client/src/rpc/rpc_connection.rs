@@ -11,6 +11,7 @@ use solana_sdk::hash::Hash;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
+use solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
 use std::fmt::Debug;
 
 #[async_trait]
@@ -89,4 +90,5 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn get_slot(&mut self) -> Result<u64, RpcError>;
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError>;
 }

@@ -7,9 +7,7 @@ use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use light_prover_client::gnark::helpers::LightValidatorConfig;
-use light_test_utils::e2e_test_env::{
-    init_program_test_env, init_program_test_env_forester, E2ETestEnv,
-};
+use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::test_env::EnvAccounts;
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -104,13 +102,7 @@ async fn test_batched() {
 
     let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>;
 
-    e2e_env = if devnet {
-        let mut e2e_env = init_program_test_env_forester(rpc, &env).await;
-        e2e_env.keypair_action_config.fee_assert = false;
-        e2e_env
-    } else {
-        init_program_test_env(rpc, &env).await
-    };
+    e2e_env = init_program_test_env(rpc, &env).await;
     e2e_env.indexer.state_merkle_trees.clear();
     e2e_env
         .indexer

@@ -65,7 +65,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-            .unwrap();
+                .unwrap();
             output_queue.get_batch_num_inserted_in_current_batch() > 0
         };
         is_batch_ready
@@ -361,8 +361,8 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 .clone()
                 .iter()
                 .map(|x| {
-                    let x = x.clone();
-                    x.as_slice().to_vec()
+                let x = x.clone();
+                x.as_slice().to_vec()
                 })
                 .collect::<Vec<_>>();
             for (i, x) in hashchains.iter().enumerate() {
@@ -412,15 +412,11 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             .iter()
             .map(|l| Pubkey::from(*l).to_string())
             .collect::<Vec<_>>();
-        println!("leaves: {:?}", leaf_strings);
 
         let old_leaf_strings = old_leaves
             .iter()
             .map(|l| Pubkey::from(*l).to_string())
             .collect::<Vec<_>>();
-        println!("old_leaves: {:?}", old_leaf_strings);
-
-        println!("nullifiers: {:?}", nullifiers);
 
         let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);
