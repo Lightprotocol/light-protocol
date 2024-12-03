@@ -8,7 +8,7 @@ use spl_token_2022::{
 
 pub const POOL_SEED: &[u8] = b"pool";
 
-/// Creates a spl or token 2022 token pool account which is owned by the token authority pda.
+/// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
 #[derive(Accounts)]
 pub struct CreateTokenPoolInstruction<'info> {
     /// UNCHECKED: only pays fees.
