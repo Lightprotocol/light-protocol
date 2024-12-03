@@ -178,6 +178,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
         let batch_update_leaves = leaves[start..end].to_vec();
         // if batch is complete, remove leaves from mock output queue
         if num_inserted_zkps == max_num_zkp_updates - 1 {
+            println!("removing leaves from output queue");
             for _ in 0..max_num_zkp_updates * zkp_batch_size {
                 bundle.output_queue_elements.remove(0);
             }

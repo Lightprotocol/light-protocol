@@ -693,13 +693,19 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 .merkle_tree
                 .get_leaf(index)
                 .unwrap();
-            println!("old leaf: {:?}", leaf);
             println!("index: {:?}", index);
+            println!("old leaf: {:?}", leaf);
             if leaf == [0u8; 32] {
                 state_merkle_tree_bundle
                     .merkle_tree
                     .update(&batch_update_leaves[i], index)
                     .unwrap();
+
+                let updated_leaf = state_merkle_tree_bundle
+                    .merkle_tree
+                    .get_leaf(index)
+                    .unwrap();
+                println!("updated leaf: {:?}", updated_leaf);
             }
         }
         assert_eq!(
@@ -718,6 +724,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                 state_merkle_tree_bundle.output_queue_elements.remove(0);
             }
         }
+
 
         println!("=== update_test_indexer_after_append end ===");
     }

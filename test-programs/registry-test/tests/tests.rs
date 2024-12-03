@@ -57,6 +57,7 @@ use solana_sdk::{
 };
 use std::collections::HashSet;
 use std::println;
+use light_prover_client::gnark::helpers::LightValidatorConfig;
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {
