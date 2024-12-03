@@ -1,9 +1,15 @@
-use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, ProgramError, Pubkey, Result};
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{DataHasher, Discriminator, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
+use solana_program::pubkey::Pubkey;
 
-use crate::merkle_context::{
-    pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts,
+use crate::{
+    error::LightSdkError,
+    instruction_accounts::LightInstructionAccounts,
+    merkle_context::{pack_merkle_context, MerkleContext, PackedMerkleContext},
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
@@ -22,7 +28,7 @@ impl CompressedAccount {
         &owner_hashed: &[u8; 32],
         &merkle_tree_hashed: &[u8; 32],
         leaf_index: &u32,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<[u8; 32], LightSdkError> {
         let capacity = 3
             + std::cmp::min(self.lamports, 1) as usize
             + self.address.is_some() as usize
@@ -55,7 +61,7 @@ impl CompressedAccount {
             vec.push(&discriminator_bytes);
             vec.push(&data.data_hash);
         }
-        let hash = H::hashv(&vec).map_err(ProgramError::from)?;
+        let hash = H::hashv(&vec)?;
         Ok(hash)
     }
 
@@ -63,7 +69,7 @@ impl CompressedAccount {
         &self,
         &merkle_tree_pubkey: &Pubkey,
         leaf_index: &u32,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<[u8; 32], LightSdkError> {
         self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()
@@ -90,7 +96,7 @@ pub struct CompressedAccountWithMerkleContext {
 }
 
 impl CompressedAccountWithMerkleContext {
-    pub fn hash(&self) -> Result<[u8; 32]> {
+    pub fn hash(&self) -> Result<[u8; 32], LightSdkError> {
         self.compressed_account.hash::<Poseidon>(
             &self.merkle_context.merkle_tree_pubkey,
             &self.merkle_context.leaf_index,
@@ -118,11 +124,11 @@ pub struct OutputCompressedAccountWithPackedContext {
 ///
 /// This function should be used for input accounts, where including only a
 /// hash is sufficient.
-pub fn hash_input_account<T>(account: &T) -> Result<CompressedAccountData>
+pub fn hash_input_account<T>(account: &T) -> Result<CompressedAccountData, LightSdkError>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
 {
-    let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
+    let data_hash = account.hash::<Poseidon>()?;
     Ok(CompressedAccountData {
         discriminator: T::discriminator(),
         // Sending only data hash to the system program is sufficient.
@@ -135,12 +141,14 @@ where
 ///
 /// This function should be used for output accounts, where data has to be
 /// included for system-program to log in the ledger.
-pub fn serialize_and_hash_output_account<T>(account: &T) -> Result<CompressedAccountData>
+pub fn serialize_and_hash_output_account<T>(
+    account: &T,
+) -> Result<CompressedAccountData, LightSdkError>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
 {
     let data = account.try_to_vec()?;
-    let data_hash = account.hash::<Poseidon>().map_err(ProgramError::from)?;
+    let data_hash = account.hash::<Poseidon>()?;
     Ok(CompressedAccountData {
         discriminator: T::discriminator(),
         data,
@@ -151,14 +159,14 @@ where
 pub fn pack_compressed_accounts(
     compressed_accounts: &[CompressedAccountWithMerkleContext],
     root_indices: &[u16],
-    remaining_accounts: &mut RemainingAccounts,
+    accounts: &mut LightInstructionAccounts,
 ) -> Vec<PackedCompressedAccountWithMerkleContext> {
     compressed_accounts
         .iter()
         .zip(root_indices.iter())
         .map(|(x, root_index)| PackedCompressedAccountWithMerkleContext {
             compressed_account: x.compressed_account.clone(),
-            merkle_context: pack_merkle_context(&x.merkle_context, remaining_accounts),
+            merkle_context: pack_merkle_context(&x.merkle_context, accounts),
             root_index: *root_index,
             read_only: false,
         })
@@ -168,7 +176,7 @@ pub fn pack_compressed_accounts(
 pub fn pack_compressed_account(
     compressed_account: CompressedAccountWithMerkleContext,
     root_index: u16,
-    remaining_accounts: &mut RemainingAccounts,
+    accounts: &mut LightInstructionAccounts,
 ) -> PackedCompressedAccountWithMerkleContext {
-    pack_compressed_accounts(&[compressed_account], &[root_index], remaining_accounts)[0].clone()
+    pack_compressed_accounts(&[compressed_account], &[root_index], accounts)[0].clone()
 }
