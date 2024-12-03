@@ -12,7 +12,7 @@ use account_compression::{
     },
     get_output_queue_account_default, InitStateTreeAccountsInstructionData,
 };
-use anchor_lang::AnchorSerialize;
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use forester_utils::{create_account_instruction, indexer::StateMerkleTreeBundle, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
@@ -32,7 +32,8 @@ use light_registry::{
         create_batch_append_instruction, create_batch_nullify_instruction,
         create_initialize_batched_merkle_tree_instruction,
     },
-    protocol_config::state::ProtocolConfig,
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    utils::get_protocol_config_pda_address,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::CompressedProof;
@@ -551,4 +552,114 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         0, // output queue doesn't have a bloom filter hence no iterations
     );
     Ok(())
+}
+
+pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
+    rpc: &mut R,
+    forester: &Keypair,
+    derivation_pubkey: Pubkey,
+    old_merkle_tree_pubkey: Pubkey,
+    old_output_queue_pubkey: Pubkey,
+    new_state_merkle_tree_keypair: &Keypair,
+    new_output_queue_keypair: &Keypair,
+    new_cpi_context_keypair: &Keypair,
+    epoch: u64,
+) -> Result<Signature, RpcError> {
+    let payer_pubkey = forester.pubkey();
+    let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
+    let old_merkle_tree =
+        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+            .unwrap();
+    let batch_zero = &old_merkle_tree.batches[0];
+    let num_batches = old_merkle_tree.batches.len();
+    let old_merkle_tree = old_merkle_tree.get_account();
+    let mt_account_size = get_merkle_tree_account_size(
+        batch_zero.batch_size,
+        batch_zero.bloom_filter_capacity,
+        batch_zero.zkp_batch_size,
+        old_merkle_tree.root_history_capacity,
+        old_merkle_tree.height,
+        num_batches as u64,
+    );
+
+    let mt_rent = rpc
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+
+    let mut account = rpc.get_account(old_output_queue_pubkey).await?.unwrap();
+    let old_queue_account =
+        ZeroCopyBatchedQueueAccount::from_bytes_mut(account.data.as_mut_slice()).unwrap();
+    let batch_zero = &old_queue_account.batches[0];
+    let queue_account_size = get_output_queue_account_size(
+        batch_zero.batch_size,
+        batch_zero.zkp_batch_size,
+        num_batches as u64,
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+
+    let protocol_config_pubkey = get_protocol_config_pda_address().0;
+    let protocol_config_account = rpc.get_account(protocol_config_pubkey).await?.unwrap();
+    let protocol_config =
+        ProtocolConfigPda::deserialize(&mut &protocol_config_account.data[8..]).unwrap();
+    println!(" fetched protocol_config {:?}", protocol_config);
+    let create_mt_account_ix = create_account_instruction(
+        &payer_pubkey,
+        mt_account_size,
+        mt_rent,
+        &account_compression::ID,
+        Some(&new_state_merkle_tree_keypair),
+    );
+
+    let create_queue_account_ix = create_account_instruction(
+        &payer_pubkey,
+        queue_account_size,
+        queue_rent,
+        &account_compression::ID,
+        Some(new_output_queue_keypair),
+    );
+    let queue_rent = rpc
+        .get_minimum_balance_for_rent_exemption(protocol_config.config.cpi_context_size as usize)
+        .await
+        .unwrap();
+    let create_cpi_context_account = create_account_instruction(
+        &payer_pubkey,
+        protocol_config.config.cpi_context_size as usize,
+        queue_rent,
+        &light_system_program::ID,
+        Some(new_cpi_context_keypair),
+    );
+
+    let instruction =
+        light_registry::account_compression_cpi::sdk::create_rollover_batch_state_tree_instruction(
+            forester.pubkey(),
+            derivation_pubkey,
+            old_merkle_tree_pubkey,
+            new_state_merkle_tree_keypair.pubkey(),
+            old_output_queue_pubkey,
+            new_output_queue_keypair.pubkey(),
+            new_cpi_context_keypair.pubkey(),
+            epoch,
+        );
+
+    Ok(rpc
+        .create_and_send_transaction(
+            &[
+                create_mt_account_ix,
+                create_queue_account_ix,
+                create_cpi_context_account,
+                instruction,
+            ],
+            &payer_pubkey,
+            &[
+                &forester,
+                &new_state_merkle_tree_keypair,
+                &new_output_queue_keypair,
+                &new_cpi_context_keypair,
+            ],
+        )
+        .await?)
 }

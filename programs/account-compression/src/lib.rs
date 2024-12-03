@@ -229,4 +229,12 @@ pub mod account_compression {
         process_batch_append_leaves(&ctx, instruction_data)?;
         Ok(())
     }
+
+    pub fn rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
+        additional_bytes: u64,
+        network_fee: Option<u64>,
+    ) -> Result<()> {
+        process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
+    }
 }

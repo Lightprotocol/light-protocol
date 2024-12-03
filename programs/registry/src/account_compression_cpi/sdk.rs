@@ -303,8 +303,8 @@ pub fn create_initialize_batched_merkle_tree_instruction(
         cpi_authority,
         account_compression_program: account_compression::ID,
         protocol_config_pda,
-        light_system_program: Some(LightSystemProgram::id()),
-        cpi_context_account: Some(cpi_context_pubkey),
+        light_system_program: LightSystemProgram::id(),
+        cpi_context_account: cpi_context_pubkey,
     };
     Instruction {
         program_id: crate::ID,
@@ -364,6 +364,43 @@ pub fn create_batch_nullify_instruction(
         log_wrapper: NOOP_PUBKEY.into(),
     };
     let instruction_data = crate::instruction::BatchNullify { bump, data };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_rollover_batch_state_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    old_state_merkle_tree: Pubkey,
+    new_state_merkle_tree: Pubkey,
+    old_output_queue: Pubkey,
+    new_output_queue: Pubkey,
+    cpi_context_account: Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda =
+        get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::RolloverBatchStateMerkleTree { bump };
+
+    let accounts = crate::accounts::RolloverBatchStateMerkleTree {
+        authority: forester,
+        registered_forester_pda: Some(registered_forester_pda),
+        registered_program_pda: register_program_pda,
+        old_state_merkle_tree,
+        new_state_merkle_tree,
+        old_output_queue,
+        new_output_queue,
+        cpi_context_account,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda: get_protocol_config_pda_address().0,
+        light_system_program: LightSystemProgram::id(),
+    };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),

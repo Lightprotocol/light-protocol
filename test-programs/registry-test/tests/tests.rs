@@ -1,9 +1,12 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
-use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use account_compression::batched_merkle_tree::{
+    BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
+};
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
-    NullifierQueueConfig, StateMerkleTreeConfig,
+    assert_state_mt_roll_over, get_output_queue_account_default, AddressMerkleTreeConfig,
+    AddressQueueConfig, InitStateTreeAccountsInstructionData, NullifierQueueConfig,
+    StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
@@ -28,9 +31,11 @@ use light_test_utils::assert_epoch::{
     assert_report_work, fetch_epoch_and_forester_pdas,
 };
 use light_test_utils::e2e_test_env::{init_program_test_env, init_program_test_env_forester};
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_batch_forester::{
     create_append_batch_ix_data, perform_batch_append, perform_batch_nullify,
+    perform_rollover_batch_state_merkle_tree,
 };
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
@@ -1309,4 +1314,153 @@ async fn init_accounts() {
     );
     println!("forester pubkey: {:?}", keypairs.forester.pubkey());
     setup_accounts(keypairs, SolanaRpcUrl::Localnet).await;
+}
+
+#[serial]
+#[tokio::test]
+async fn test_rollover_batch_state_tree() {
+    let mut params = InitStateTreeAccountsInstructionData::test_default();
+    params.rollover_threshold = Some(0);
+
+    let (mut rpc, env_accounts) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig::default(),
+            true,
+            params,
+        )
+        .await;
+    let payer = rpc.get_payer().insecure_clone();
+    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
+        TestIndexer::init_from_env(&env_accounts.forester.insecure_clone(), &env_accounts, None)
+            .await;
+    light_test_utils::system_program::compress_sol_test(
+        &mut rpc,
+        &mut test_indexer,
+        &payer,
+        &[],
+        false,
+        1_000_000,
+        &env_accounts.batched_output_queue,
+        None,
+    )
+    .await
+    .unwrap();
+    let new_merkle_tree_keypair = Keypair::new();
+    let new_nullifier_queue_keypair = Keypair::new();
+    let new_cpi_context = Keypair::new();
+
+    // invalid forester
+    {
+        let unregistered_forester_keypair = Keypair::new();
+        rpc.airdrop_lamports(&unregistered_forester_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+
+        let result = perform_rollover_batch_state_merkle_tree(
+            &mut rpc,
+            &payer,
+            env_accounts.forester.pubkey(),
+            env_accounts.batched_state_merkle_tree,
+            env_accounts.batched_output_queue,
+            &new_merkle_tree_keypair,
+            &new_nullifier_queue_keypair,
+            &new_cpi_context,
+            0,
+        )
+        .await;
+
+        assert_rpc_error(result, 3, RegistryError::InvalidForester.into()).unwrap();
+    }
+
+    perform_rollover_batch_state_merkle_tree(
+        &mut rpc,
+        &env_accounts.forester,
+        env_accounts.forester.pubkey(),
+        env_accounts.batched_state_merkle_tree,
+        env_accounts.batched_output_queue,
+        &new_merkle_tree_keypair,
+        &new_nullifier_queue_keypair,
+        &new_cpi_context,
+        0,
+    )
+    .await
+    .unwrap();
+
+    let old_state_merkle_tree = rpc
+        .get_account(env_accounts.batched_state_merkle_tree)
+        .await
+        .unwrap()
+        .unwrap();
+    let new_state_merkle_tree = rpc
+        .get_account(new_merkle_tree_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+        env_accounts.group_pda,
+        None,
+        None,
+        params.rollover_threshold,
+        params.index,
+        params.network_fee.unwrap_or_default(),
+        params.input_queue_batch_size,
+        params.input_queue_zkp_batch_size,
+        params.bloom_filter_capacity,
+        params.root_history_capacity,
+        env_accounts.batched_output_queue,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let old_queue_account_data = rpc
+        .get_account(env_accounts.batched_output_queue)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let new_queue_account = rpc
+        .get_account(new_nullifier_queue_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    let new_cpi_ctx_account = rpc
+        .get_account(new_cpi_context.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    let ref_queue_account = get_output_queue_account_default(
+        env_accounts.group_pda,
+        None,
+        None,
+        params.rollover_threshold,
+        params.index,
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.additional_bytes,
+        new_queue_account.lamports + new_state_merkle_tree.lamports + new_cpi_ctx_account.lamports,
+        env_accounts.batched_state_merkle_tree,
+        params.height,
+        params.output_queue_num_batches,
+    );
+    let mut new_ref_queue_account = ref_queue_account.clone();
+    new_ref_queue_account.metadata.associated_merkle_tree = new_merkle_tree_keypair.pubkey();
+    let mut new_ref_mt_account = ref_mt_account.clone();
+    new_ref_mt_account.metadata.associated_queue = new_nullifier_queue_keypair.pubkey();
+    let slot = rpc.get_slot().await.unwrap();
+    assert_state_mt_roll_over(
+        old_state_merkle_tree.data.to_vec(),
+        new_ref_mt_account,
+        new_state_merkle_tree.data.to_vec(),
+        env_accounts.batched_state_merkle_tree,
+        new_merkle_tree_keypair.pubkey(),
+        params.bloom_filter_num_iters,
+        ref_mt_account,
+        old_queue_account_data.to_vec(),
+        new_ref_queue_account,
+        new_queue_account.data.to_vec(),
+        new_nullifier_queue_keypair.pubkey(),
+        ref_queue_account,
+        env_accounts.batched_output_queue,
+        slot,
+    );
 }

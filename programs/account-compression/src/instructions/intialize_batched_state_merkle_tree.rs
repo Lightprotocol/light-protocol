@@ -219,11 +219,13 @@ pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool
 
     if INIT {
         if bytes[0..8] != [0; 8] {
+            #[cfg(target_os = "solana")]
             msg!("Discriminator bytes must be zero for initialization.");
             return err!(AccountCompressionErrorCode::InvalidDiscriminator);
         }
         bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
     } else if T::DISCRIMINATOR != bytes[0..8] {
+        #[cfg(target_os = "solana")]
         msg!(
             "Expected discriminator: {:?}, actual {:?} ",
             T::DISCRIMINATOR,
@@ -377,10 +379,7 @@ pub fn assert_mt_zero_copy_inited(
         ref_account,
         "metadata mismatch"
     );
-    println!(
-        "zero_copy_account.root_history.capacity(): {}",
-        zero_copy_account.root_history.metadata().capacity()
-    );
+
     assert_eq!(
         zero_copy_account.root_history.capacity(),
         ref_account.root_history_capacity as usize,

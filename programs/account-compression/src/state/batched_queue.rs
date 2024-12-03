@@ -177,6 +177,17 @@ impl ZeroCopyBatchedQueueAccount {
         unsafe { &mut *self.account }
     }
 
+    pub fn output_queue_from_account_info_mut(
+        acount_info: &AccountInfo<'_>,
+    ) -> Result<ZeroCopyBatchedQueueAccount> {
+        let account_data = &mut acount_info.try_borrow_mut_data()?;
+        let queue = Self::from_bytes_mut(account_data)?;
+        if queue.get_account().metadata.queue_type != QueueType::Output as u64 {
+            return err!(AccountCompressionErrorCode::InvalidQueueType);
+        }
+        Ok(queue)
+    }
+
     pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedQueueAccount> {
         let account = bytes_to_struct_checked::<BatchedQueueAccount, false>(account_data)?;
         unsafe {
