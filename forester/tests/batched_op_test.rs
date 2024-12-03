@@ -33,7 +33,7 @@ async fn test_batched() {
     } else {
         InitStateTreeAccountsInstructionData::test_default()
     };
-    
+
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 15,

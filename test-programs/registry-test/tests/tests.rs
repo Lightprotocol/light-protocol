@@ -7,6 +7,7 @@ use account_compression::{
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
+use light_prover_client::gnark::helpers::LightValidatorConfig;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction, create_nullify_instruction,
     create_update_address_merkle_tree_instruction, CreateNullifyInstructionInputs,
@@ -30,7 +31,8 @@ use light_test_utils::assert_epoch::{
 use light_test_utils::e2e_test_env::{init_program_test_env, init_program_test_env_forester};
 use light_test_utils::rpc::ProgramTestRpcConnection;
 use light_test_utils::test_batch_forester::{
-    create_append_batch_ix_data, is_batch_ready, perform_batch_append, perform_batch_append_with_indexer, perform_batch_nullify, perform_batch_nullify_with_indexer
+    create_append_batch_ix_data, is_batch_ready, perform_batch_append,
+    perform_batch_append_with_indexer, perform_batch_nullify, perform_batch_nullify_with_indexer,
 };
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
@@ -57,7 +59,6 @@ use solana_sdk::{
 };
 use std::collections::HashSet;
 use std::println;
-use light_prover_client::gnark::helpers::LightValidatorConfig;
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {
@@ -678,7 +679,8 @@ async fn test_custom_forester_batched() {
                 e2e_env.rpc,
             )
         };
-        let num_output_zkp_batches =  tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
+        let num_output_zkp_batches =
+            tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
         for i in 0..num_output_zkp_batches {
             // Simulate concurrency since instruction data has been created before
             // let instruction_data = if i == 0 {
@@ -737,9 +739,12 @@ async fn test_forester_batched() {
         )
         .await;
     let unregistered_forester_keypair = Keypair::new();
-    rpc.airdrop_lamports(&unregistered_forester_keypair.pubkey(), 100 * LAMPORTS_PER_SOL)
-        .await
-        .unwrap();
+    rpc.airdrop_lamports(
+        &unregistered_forester_keypair.pubkey(),
+        100 * LAMPORTS_PER_SOL,
+    )
+    .await
+    .unwrap();
     let merkle_tree_keypair = Keypair::new();
     let nullifier_queue_keypair = Keypair::new();
     let cpi_context_keypair = Keypair::new();
@@ -813,12 +818,12 @@ async fn test_forester_batched() {
 
     let num_output_zkp_batches =
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
-    
+
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
-    
+
     let mut current_batch = 0;
     while is_batch_ready(&mut rpc, nullifier_queue_keypair.pubkey()).await {
-    // for i in 0..num_output_zkp_batches {
+        // for i in 0..num_output_zkp_batches {
         let result = perform_batch_append_with_indexer(
             &mut rpc,
             &mut indexer,
@@ -839,7 +844,7 @@ async fn test_forester_batched() {
         )
         .await;
         println!("perform_batch_nullify_with_indexer result: {:?}", result);
-        
+
         current_batch += 1;
         println!("current_batch: {}", current_batch);
     }

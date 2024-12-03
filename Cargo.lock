@@ -5855,6 +5855,7 @@ dependencies = [
  "light-client",
  "light-hasher",
  "light-macros",
+ "light-program-test",
  "light-sdk",
  "light-sdk-macros",
  "light-test-utils",

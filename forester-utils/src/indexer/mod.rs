@@ -145,7 +145,11 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug {
         unimplemented!("get_proof_by_index not implemented")
     }
 
-    fn get_proofs_by_indices(&mut self, _merkle_tree_pubkey: Pubkey, _indices: &[u64]) -> Vec<ProofOfLeaf> {
+    fn get_proofs_by_indices(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _indices: &[u64],
+    ) -> Vec<ProofOfLeaf> {
         unimplemented!("get_proof_by_index not implemented")
     }
 
@@ -184,7 +188,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug {
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
         unimplemented!()
     }
-
 }
 
 #[derive(Debug, Clone)]

@@ -3,8 +3,8 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
-use light_client::rpc::test_rpc::ProgramTestRpcConnection;
 use light_program_test::test_indexer::TestIndexer;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
@@ -131,6 +131,7 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn with_nested_data<R>(
     name: String,
     rpc: &mut R,
@@ -205,6 +206,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_nested_data<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,

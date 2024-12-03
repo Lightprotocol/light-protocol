@@ -245,14 +245,14 @@ pub async fn init_program_test_env_forester<R: RpcConnection>(
         env_accounts,
         // None,
         Some(ProverConfig {
-                  run_mode: None,
-                  circuits: vec![
-                      ProofType::BatchAppendWithProofs,
-                      ProofType::BatchUpdate,
-                      ProofType::Inclusion,
-                      ProofType::NonInclusion,
-                  ],
-              }),
+            run_mode: None,
+            circuits: vec![
+                ProofType::BatchAppendWithProofs,
+                ProofType::BatchUpdate,
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+            ],
+        }),
     )
     .await;
 
