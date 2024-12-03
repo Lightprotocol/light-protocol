@@ -74,6 +74,7 @@ pub fn forester_config() -> ForesterConfig {
             prover_url: Some("http://localhost:3001".to_string()),
             photon_api_key: None,
             pushgateway_url: None,
+            pagerduty_routing_key: None,
         },
         retry_config: Default::default(),
         queue_config: Default::default(),

@@ -6,6 +6,7 @@ pub mod epoch_manager;
 pub mod errors;
 pub mod forester_status;
 pub mod metrics;
+pub mod pagerduty;
 pub mod photon_indexer;
 pub mod pubsub_client;
 pub mod queue_helpers;
