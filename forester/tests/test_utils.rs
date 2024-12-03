@@ -6,10 +6,10 @@ use forester::telemetry::setup_telemetry;
 use forester::ForesterConfig;
 use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_program_test::test_env::get_test_env_accounts;
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::TestIndexer;
-use light_test_utils::test_env::get_test_env_accounts;
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
 

@@ -11,11 +11,11 @@
 // release compressed tokens
 
 use light_hasher::Poseidon;
+use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
-use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
     TransactionParams,

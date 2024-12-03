@@ -46,43 +46,6 @@ export type LightCompressedToken = {
             args: [];
         },
         {
-            name: 'createTokenPool2022';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
             name: 'mintTo';
             docs: [
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
@@ -114,10 +77,6 @@ export type LightCompressedToken = {
                     name: 'mint';
                     isMut: true;
                     isSigner: false;
-                    docs: [
-                        'mint is written to and we check the program id we invoke to be either',
-                        'spl_token::ID or token_2022::ID.',
-                    ];
                 },
                 {
                     name: 'tokenPoolPda';
@@ -559,7 +518,6 @@ export type LightCompressedToken = {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
-                    docs: ['check_mint_and_freeze_authority().'];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -606,7 +564,6 @@ export type LightCompressedToken = {
                     name: 'mint';
                     isMut: false;
                     isSigner: false;
-                    docs: ['check_mint_and_freeze_authority().'];
                 },
             ];
             args: [
@@ -633,7 +590,6 @@ export type LightCompressedToken = {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
-                    docs: ['check_mint_and_freeze_authority().'];
                 },
                 {
                     name: 'cpiAuthorityPda';
@@ -680,7 +636,6 @@ export type LightCompressedToken = {
                     name: 'mint';
                     isMut: false;
                     isSigner: false;
-                    docs: ['check_mint_and_freeze_authority().'];
                 },
             ];
             args: [
@@ -1759,43 +1714,6 @@ export const IDL: LightCompressedToken = {
             args: [],
         },
         {
-            name: 'createTokenPool2022',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
             name: 'mintTo',
             docs: [
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
@@ -1827,10 +1745,6 @@ export const IDL: LightCompressedToken = {
                     name: 'mint',
                     isMut: true,
                     isSigner: false,
-                    docs: [
-                        'mint is written to and we check the program id we invoke to be either',
-                        'spl_token::ID or token_2022::ID.',
-                    ],
                 },
                 {
                     name: 'tokenPoolPda',
@@ -2272,7 +2186,6 @@ export const IDL: LightCompressedToken = {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
-                    docs: ['check_mint_and_freeze_authority().'],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -2319,7 +2232,6 @@ export const IDL: LightCompressedToken = {
                     name: 'mint',
                     isMut: false,
                     isSigner: false,
-                    docs: ['check_mint_and_freeze_authority().'],
                 },
             ],
             args: [
@@ -2346,7 +2258,6 @@ export const IDL: LightCompressedToken = {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
-                    docs: ['check_mint_and_freeze_authority().'],
                 },
                 {
                     name: 'cpiAuthorityPda',
@@ -2393,7 +2304,6 @@ export const IDL: LightCompressedToken = {
                     name: 'mint',
                     isMut: false,
                     isSigner: false,
-                    docs: ['check_mint_and_freeze_authority().'],
                 },
             ],
             args: [

@@ -19,12 +19,13 @@ use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTrans
 use light_compressed_token::spl_compression::spl_token_pool_derivation;
 use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{token_data::TokenData, ErrorCode};
+use light_program_test::test_env::setup_test_programs_with_accounts;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
-use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::spl::mint_tokens_helper_with_lamports;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
@@ -44,10 +45,7 @@ use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, Indexer, RpcConnection,
     RpcError, TokenDataWithContext,
 };
-use light_test_utils::{
-    assert_custom_error_or_program_error, indexer::TestIndexer,
-    test_env::setup_test_programs_with_accounts,
-};
+use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
 use light_verifier::VerifierError;
 use rand::Rng;
 use solana_sdk::system_instruction;

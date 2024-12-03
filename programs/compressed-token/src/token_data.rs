@@ -381,7 +381,6 @@ pub mod test {
         let hash9 = token_data.hash::<Poseidon>().unwrap();
         assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
         // different account state with delegate
-        let mut token_data = token_data;
         token_data.delegate = delegate;
         let hash10 = token_data.hash::<Poseidon>().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);

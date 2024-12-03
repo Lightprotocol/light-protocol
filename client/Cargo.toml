@@ -51,6 +51,7 @@ reqwest = { workspace = true }
 
 [dev-dependencies]
 light-test-utils = { version = "1.2.0", path = "../test-utils", features=["devenv"]}
+light-program-test = { workspace = true }
 light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
 spl-token = { workspace = true }

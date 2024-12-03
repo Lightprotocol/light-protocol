@@ -3,6 +3,7 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_program_test::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
@@ -13,7 +14,6 @@ use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
-use light_test_utils::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
 use light_test_utils::{RpcConnection, RpcError};
 use sdk_test::{MyCompressedAccount, NestedData};
 use solana_sdk::instruction::Instruction;

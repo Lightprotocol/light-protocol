@@ -1,13 +1,11 @@
-use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
-use crate::assert_queue::assert_address_queue_initialized;
 use crate::env_accounts;
-use crate::rpc::test_rpc::ProgramTestRpcConnection;
+use crate::test_rpc::ProgramTestRpcConnection;
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueType};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
 use forester_utils::registry::register_test_forester;
@@ -15,8 +13,6 @@ use forester_utils::{airdrop_lamports, create_account_instruction};
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_hasher::Poseidon;
-use light_macros::pubkey;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
@@ -32,10 +28,9 @@ use light_registry::ForesterConfig;
 use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::signature::{read_keypair_file, Signature};
 use solana_sdk::{
-    pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
+    pubkey, pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
     transaction::Transaction,
 };
-use std::cmp;
 use std::path::PathBuf;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
@@ -85,6 +80,7 @@ fn find_light_bin() -> Option<PathBuf> {
 
     #[cfg(not(feature = "devenv"))]
     {
+        println!("Running 'which light' (feature 'devenv' is not enabled)");
         use std::process::Command;
         let output = Command::new("which")
             .arg("light")
@@ -108,6 +104,7 @@ fn find_light_bin() -> Option<PathBuf> {
     }
     #[cfg(feature = "devenv")]
     {
+        println!("Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
         let light_protocol_toplevel = String::from_utf8_lossy(
             &std::process::Command::new("git")
                 .arg("rev-parse")
@@ -374,10 +371,7 @@ pub async fn setup_test_programs_with_accounts(
 // TODO(vadorovsky): ...in favor of this one.
 pub async fn setup_test_programs_with_accounts_v2(
     additional_programs: Option<Vec<(String, Pubkey)>>,
-) -> (
-    light_program_test::test_rpc::ProgramTestRpcConnection,
-    EnvAccounts,
-) {
+) -> (ProgramTestRpcConnection, EnvAccounts) {
     setup_test_programs_with_accounts_with_protocol_config_v2(
         additional_programs,
         ProtocolConfig {
@@ -428,12 +422,9 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     additional_programs: Option<Vec<(String, Pubkey)>>,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
-) -> (
-    light_program_test::test_rpc::ProgramTestRpcConnection,
-    EnvAccounts,
-) {
+) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = light_program_test::test_rpc::ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection { context };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,
@@ -921,75 +912,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         return Err(e);
     }
 
-    // To initialize the indexed tree we do 4 operations:
-    // 1. insert 0 append 0 and update 0
-    // 2. insert 1 append BN254_FIELD_SIZE -1 and update 0
-    // we appended two values this the expected next index is 2;
-    // The right most leaf is the hash of the indexed array element with value FIELD_SIZE - 1
-    // index 1, next_index: 0
-    let expected_change_log_length = cmp::min(4, merkle_tree_config.changelog_size as usize);
-    let expected_roots_length = cmp::min(4, merkle_tree_config.roots_size as usize);
-    let expected_next_index = 2;
-    let expected_indexed_change_log_length =
-        cmp::min(4, merkle_tree_config.address_changelog_size as usize);
-    let mut reference_tree =
-        light_indexed_merkle_tree::reference::IndexedMerkleTree::<Poseidon, usize>::new(
-            account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
-            account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
-        )
-        .unwrap();
-    reference_tree.init().unwrap();
-
-    let expected_right_most_leaf = reference_tree
-        .merkle_tree
-        .get_leaf(reference_tree.merkle_tree.rightmost_index - 1);
-
-    let _expected_right_most_leaf = [
-        30, 164, 22, 238, 180, 2, 24, 181, 64, 193, 207, 184, 219, 233, 31, 109, 84, 232, 162, 158,
-        220, 48, 163, 158, 50, 107, 64, 87, 167, 217, 99, 245,
-    ];
-    assert_eq!(expected_right_most_leaf, _expected_right_most_leaf);
-    let owner = if registry {
-        let registered_program = get_registered_program_pda(&light_registry::ID);
-        let registered_program_account = context
-            .get_anchor_account::<RegisteredProgram>(&registered_program)
-            .await
-            .unwrap()
-            .unwrap();
-        registered_program_account.group_authority_pda
-    } else {
-        payer.pubkey()
-    };
-    assert_address_merkle_tree_initialized(
-        context,
-        &address_merkle_tree_keypair.pubkey(),
-        &address_queue_keypair.pubkey(),
-        merkle_tree_config,
-        index,
-        program_owner,
-        forester,
-        expected_change_log_length,
-        expected_roots_length,
-        expected_next_index,
-        &expected_right_most_leaf,
-        &owner,
-        expected_indexed_change_log_length,
-    )
-    .await;
-
-    assert_address_queue_initialized(
-        context,
-        &address_queue_keypair.pubkey(),
-        queue_config,
-        &address_merkle_tree_keypair.pubkey(),
-        merkle_tree_config,
-        QueueType::AddressQueue,
-        index,
-        program_owner,
-        forester,
-        &owner,
-    )
-    .await;
     result
 }
 

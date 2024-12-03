@@ -63,6 +63,7 @@ light-merkle-tree-reference = {path = "../merkle-tree/reference"}
 light-hasher = {path = "../merkle-tree/hasher"}
 light-bounded-vec = {path = "../merkle-tree/bounded-vec"}
 light-test-utils = {path = "../test-utils" }
+light-program-test = { workspace = true, features = ["devenv"] }
 num-bigint = "0.4"
 num-traits = "0.2"
 rand = "0.8.5"

@@ -7,13 +7,13 @@ use light_client::{
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
+use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
 use light_system_program::sdk::{
     compressed_account::CompressedAccount, invoke::create_invoke_instruction,
 };
-use light_test_utils::test_env::EnvAccounts;
 use light_test_utils::RpcConnection;
 use light_utils::hash_to_bn254_field_size_be;
 use num_traits::ToPrimitive;
@@ -120,12 +120,12 @@ async fn test_all_endpoints() {
     .unwrap();
 
     // Create token pool for compression
-    let create_pool_ix = create_create_token_pool_instruction(&payer_pubkey, &mint.pubkey());
+    let create_pool_ix = create_create_token_pool_instruction(&payer_pubkey, &mint.pubkey(), false);
 
     let tx = Transaction::new_signed_with_payer(
         &[create_mint_ix, init_mint_ix, create_pool_ix],
         Some(&payer_pubkey),
-        &[&rpc.get_payer(), &mint],
+        &[rpc.get_payer(), &mint],
         rpc.client.get_latest_blockhash().unwrap(),
     );
     rpc.client.send_and_confirm_transaction(&tx).unwrap();
@@ -140,6 +140,7 @@ async fn test_all_endpoints() {
         vec![amount],
         vec![payer_pubkey],
         None,
+        false,
     );
 
     let tx = Transaction::new_signed_with_payer(

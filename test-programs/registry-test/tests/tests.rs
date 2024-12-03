@@ -5,6 +5,14 @@ use account_compression::{
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
+use light_program_test::test_env::{
+    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+    deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
+    register_program_with_registry_program, setup_accounts, setup_test_programs,
+    setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
+    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
+};
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -25,18 +33,10 @@ use light_test_utils::assert_epoch::{
     assert_report_work, fetch_epoch_and_forester_pdas,
 };
 use light_test_utils::e2e_test_env::init_program_test_env;
-use light_test_utils::rpc::ProgramTestRpcConnection;
-use light_test_utils::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    deregister_program_with_registry_program, initialize_new_group,
-    register_program_with_registry_program, setup_accounts, setup_test_programs,
-    setup_test_programs_with_accounts_with_protocol_config, EnvAccountKeypairs,
-    GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
-};
-use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with_accounts};
 use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use light_test_utils::{
-    assert_rpc_error, create_rollover_address_merkle_tree_instructions,
+    assert_rpc_error, create_address_merkle_tree_and_queue_account_with_assert,
+    create_rollover_address_merkle_tree_instructions,
     create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
     Epoch, RpcConnection, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts, TreeType,
 };
@@ -146,7 +146,6 @@ async fn test_initialize_protocol_config() {
         protocol_config,
         bump,
     };
-
     // // init with invalid authority
     // {
     //     let accounts = light_registry::accounts::InitializeProtocolConfig {
@@ -424,7 +423,7 @@ async fn test_initialize_protocol_config() {
     {
         let merkle_tree_keypair = Keypair::new();
         let queue_keypair = Keypair::new();
-        create_address_merkle_tree_and_queue_account(
+        create_address_merkle_tree_and_queue_account_with_assert(
             &payer,
             true,
             &mut rpc,
@@ -446,7 +445,7 @@ async fn test_initialize_protocol_config() {
     {
         let merkle_tree_keypair = Keypair::new();
         let queue_keypair = Keypair::new();
-        create_address_merkle_tree_and_queue_account(
+        create_address_merkle_tree_and_queue_account_with_assert(
             &payer,
             true,
             &mut rpc,

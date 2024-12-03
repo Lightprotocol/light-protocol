@@ -94,7 +94,6 @@ use crate::address_tree_rollover::{
 use crate::assert_epoch::{
     assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
 };
-use crate::rpc::ProgramTestRpcConnection;
 use crate::spl::{
     approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
     create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
@@ -102,10 +101,6 @@ use crate::spl::{
 use crate::state_tree_rollover::assert_rolled_over_pair;
 use crate::system_program::{
     compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
-};
-use crate::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use account_compression::utils::constants::{
@@ -132,10 +127,13 @@ use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleCo
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 
+use crate::create_address_merkle_tree_and_queue_account_with_assert;
 use crate::indexer::TestIndexer;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
+use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::ProverMode;
 
 pub struct User {
@@ -889,7 +887,7 @@ where
             )
         };
 
-        create_address_merkle_tree_and_queue_account(
+        create_address_merkle_tree_and_queue_account_with_assert(
             &self.payer,
             true,
             &mut self.rpc,

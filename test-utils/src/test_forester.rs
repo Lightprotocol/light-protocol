@@ -1,4 +1,3 @@
-use crate::test_env::NOOP_PROGRAM_ID;
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
 use account_compression::utils::constants::{
@@ -16,6 +15,7 @@ use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 
 use forester_utils::indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle};
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
+use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
