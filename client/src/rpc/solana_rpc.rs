@@ -18,7 +18,9 @@ use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use solana_transaction_status::option_serializer::OptionSerializer;
-use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
+use solana_transaction_status::{
+    EncodedConfirmedTransactionWithStatusMeta, UiInstruction, UiTransactionEncoding,
+};
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 use tokio::time::{sleep, Instant};
@@ -457,6 +459,25 @@ impl RpcConnection for SolanaRpcConnection {
                     },
                 )
                 .map_err(RpcError::from)
+        })
+        .await
+    }
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
+        self.retry(|| async {
+            Ok(self
+                .client
+                .get_transaction_with_config(
+                    signature,
+                    // UiTransactionEncoding::Json,
+                    // self.client.commitment(),
+                    RpcTransactionConfig {
+                        encoding: Some(UiTransactionEncoding::Base64),
+                        commitment: Some(self.client.commitment()),
+                        ..Default::default()
+                    },
+                )
+                .map_err(RpcError::from)?
+                .slot)
         })
         .await
     }

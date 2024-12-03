@@ -10,6 +10,7 @@ use borsh::BorshSerialize;
 use forester_utils::indexer::Indexer;
 use light_client::rpc::RpcConnection;
 use light_client::rpc_pool::SolanaRpcPool;
+use light_hasher::{Hasher, Poseidon};
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
 use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::batch_update::get_batch_update_inputs;
@@ -31,7 +32,6 @@ use solana_sdk::signer::Signer;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info};
-use light_hasher::{Hasher, Poseidon};
 
 pub struct BatchedOperations<R: RpcConnection, I: Indexer<R>> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -60,11 +60,12 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
         // is_batch_ready
 
         let is_batch_ready = {
-            let mut output_queue_account = rpc.get_account(self.output_queue).await.unwrap().unwrap();
+            let mut output_queue_account =
+                rpc.get_account(self.output_queue).await.unwrap().unwrap();
             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
             output_queue.get_batch_num_inserted_in_current_batch() > 0
         };
         is_batch_ready
@@ -272,11 +273,16 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             (old_leaves, merkle_proofs)
         };
 
-        let leaf_strings = leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+        let leaf_strings = leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
         println!("leaves: {:?}", leaf_strings);
 
-
-        let old_leaf_strings = old_leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+        let old_leaf_strings = old_leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
         println!("old_leaves: {:?}", old_leaf_strings);
 
         let (proof, new_root) = {
@@ -350,10 +356,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let batch = &merkle_tree.batches[batch_idx];
             let zkp_idx = batch.get_num_inserted_zkps();
 
-            let hashchains = merkle_tree.hashchain_store.clone().iter().map(|x| {
-                let x = x.clone();
-                x.as_slice().to_vec()
-            }).collect::<Vec<_>>();
+            let hashchains = merkle_tree
+                .hashchain_store
+                .clone()
+                .iter()
+                .map(|x| {
+                    let x = x.clone();
+                    x.as_slice().to_vec()
+                })
+                .collect::<Vec<_>>();
             for (i, x) in hashchains.iter().enumerate() {
                 println!("hashchain {}: {:?}", i, x);
             }
@@ -397,13 +408,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             nullifiers.push(nullifier);
         }
 
-        let leaf_strings = leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
-        println!("leaves: {:?}", leaf_strings);
+        let leaf_strings = leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
 
-        let old_leaf_strings = old_leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
-        println!("old_leaves: {:?}", old_leaf_strings);
-
-        println!("nullifiers: {:?}", nullifiers);
+        let old_leaf_strings = old_leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
 
         let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);

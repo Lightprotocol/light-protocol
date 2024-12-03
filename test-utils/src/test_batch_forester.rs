@@ -1,13 +1,16 @@
 use account_compression::{
-    assert_mt_zero_copy_inited, batched_merkle_tree::{
+    assert_mt_zero_copy_inited,
+    batched_merkle_tree::{
         get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchAppendEvent,
         BatchNullifyEvent, BatchProofInputsIx, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
         ZeroCopyBatchedMerkleTreeAccount,
-    }, batched_queue::{
+    },
+    batched_queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
         ZeroCopyBatchedQueueAccount,
-    }, get_output_queue_account_default, InitStateTreeAccountsInstructionData
+    },
+    get_output_queue_account_default, InitStateTreeAccountsInstructionData,
 };
 use anchor_lang::AnchorSerialize;
 use forester_utils::{create_account_instruction, indexer::Indexer, AccountZeroCopy};
@@ -205,11 +208,16 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
             merkle_proofs.push(proof.to_vec());
         }
 
-
-        let leaf_strings = batch_update_leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+        let leaf_strings = batch_update_leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
         println!("leaves: {:?}", leaf_strings);
 
-        let old_leaf_strings = old_leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+        let old_leaf_strings = old_leaves
+            .iter()
+            .map(|l| Pubkey::from(*l).to_string())
+            .collect::<Vec<_>>();
         println!("old_leaves: {:?}", old_leaf_strings);
 
         // Insert new leaves into the merkle tree. Every leaf which is not [0u8;
@@ -323,7 +331,10 @@ async fn create_append_batch_ix_data_with_indexer<R: RpcConnection, I: Indexer<R
     let start = num_inserted_zkps as usize * zkp_batch_size as usize;
     let end = start + zkp_batch_size as usize;
 
-    let leaves = indexer.get_queue_elements(merkle_tree_pubkey, start as u64, end as u64).await.unwrap();
+    let leaves = indexer
+        .get_queue_elements(merkle_tree_pubkey, start as u64, end as u64)
+        .await
+        .unwrap();
 
     let local_leaves_hashchain = calculate_hash_chain(&leaves);
 
@@ -338,7 +349,8 @@ async fn create_append_batch_ix_data_with_indexer<R: RpcConnection, I: Indexer<R
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
 
-        let indices = (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
+        let indices =
+            (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
         let proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices);
         proofs.iter().for_each(|proof| {
             old_leaves.push(proof.leaf);
@@ -348,11 +360,16 @@ async fn create_append_batch_ix_data_with_indexer<R: RpcConnection, I: Indexer<R
         (old_leaves, merkle_proofs)
     };
 
-
-    let leaf_strings = leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+    let leaf_strings = leaves
+        .iter()
+        .map(|l| Pubkey::from(*l).to_string())
+        .collect::<Vec<_>>();
     println!("leaves: {:?}", leaf_strings);
 
-    let old_leaf_strings = old_leaves.iter().map(|l| Pubkey::from(*l).to_string()).collect::<Vec<_>>();
+    let old_leaf_strings = old_leaves
+        .iter()
+        .map(|l| Pubkey::from(*l).to_string())
+        .collect::<Vec<_>>();
     println!("old_leaves: {:?}", old_leaf_strings);
 
     let (proof, new_root) = {
@@ -641,12 +658,20 @@ pub async fn get_batched_nullify_ix_data_with_indexer<R: RpcConnection, I: Index
         let root_idx = merkle_tree.root_history.last_index();
         let root = *merkle_tree.root_history.last().unwrap();
 
-        let hashchains = merkle_tree.hashchain_store.clone().iter().map(|x| {
-            let x = x.clone();
-            x.as_slice().to_vec()
-        }).collect::<Vec<_>>();
+        let hashchains = merkle_tree
+            .hashchain_store
+            .clone()
+            .iter()
+            .map(|x| {
+                let x = x.clone();
+                x.as_slice().to_vec()
+            })
+            .collect::<Vec<_>>();
         for (i, x) in hashchains.iter().enumerate() {
-            println!("hashchain {}: {:?}", i, x);
+            println!(
+                "get_batched_nullify_ix_data_with_indexer: hashchain {}: {:?}",
+                i, x
+            );
         }
         (zkp_size, root, root_idx, hashchain)
     };
@@ -661,15 +686,13 @@ pub async fn get_batched_nullify_ix_data_with_indexer<R: RpcConnection, I: Index
     let mut merkle_proofs = Vec::new();
     let mut nullifiers = Vec::new();
 
-    let proofs = indexer
-        .get_proofs_by_indices(
-            merkle_tree_pubkey,
-            &leaf_indices_tx_hashes
-                .iter()
-                .map(|(index, _, _)| *index as u64)
-                .collect::<Vec<_>>()
-        );
-
+    let proofs = indexer.get_proofs_by_indices(
+        merkle_tree_pubkey,
+        &leaf_indices_tx_hashes
+            .iter()
+            .map(|(index, _, _)| *index as u64)
+            .collect::<Vec<_>>(),
+    );
 
     for ((index, leaf, tx_hash), proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
         path_indices.push(*index);
@@ -922,10 +945,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
     Ok(())
 }
 
-pub async fn is_batch_ready<R: RpcConnection>(
-    rpc: &mut R,
-    output_queue_pubkey: Pubkey,
-) -> bool {
+pub async fn is_batch_ready<R: RpcConnection>(rpc: &mut R, output_queue_pubkey: Pubkey) -> bool {
     // let is_batch_ready = {
     //     let mut output_queue_account =
     //         rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
@@ -941,12 +961,10 @@ pub async fn is_batch_ready<R: RpcConnection>(
     // is_batch_ready
 
     let is_batch_ready = {
-        let mut output_queue_account =
-            rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
-        let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
-            output_queue_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
+        let output_queue =
+            ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account.data.as_mut_slice())
+                .unwrap();
         output_queue.get_batch_num_inserted_in_current_batch() > 0
     };
     is_batch_ready

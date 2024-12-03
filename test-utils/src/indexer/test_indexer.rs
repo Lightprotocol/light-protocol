@@ -582,8 +582,15 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         self.get_state_merkle_trees_mut().push(state_bundle);
     }
 
-    fn get_proofs_by_indices(&mut self, merkle_tree_pubkey: Pubkey, indices: &[u64]) -> Vec<ProofOfLeaf> {
-        indices.iter().map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index)).collect()
+    fn get_proofs_by_indices(
+        &mut self,
+        merkle_tree_pubkey: Pubkey,
+        indices: &[u64],
+    ) -> Vec<ProofOfLeaf> {
+        indices
+            .iter()
+            .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
+            .collect()
     }
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
@@ -728,7 +735,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         merkle_tree_pubkey: Pubkey,
         batch_index: usize,
     ) {
-        let mut state_merkle_tree_bundle = self
+        let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
@@ -775,9 +782,10 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .iter()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey);
         if let Some(state_tree_bundle) = state_tree_bundle {
-            Ok(state_tree_bundle.output_queue_elements
-                [start_offset as usize..end_offset as usize]
-                .to_vec())
+            Ok(
+                state_tree_bundle.output_queue_elements[start_offset as usize..end_offset as usize]
+                    .to_vec(),
+            )
         } else {
             Err(IndexerError::Custom("Merkle tree not found".to_string()))
         }
