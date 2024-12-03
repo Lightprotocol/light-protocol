@@ -7,7 +7,7 @@
 
 **The ZK Compression Protocol for Solana**
 
-Light is a ZK protocol enabling stateless program execution that is purpose-built for Solana.
+Light is a ZK protocol enabling stateless program execution. Light is purpose-built for Solana.
 
 Developers can use Light to...
 
@@ -53,12 +53,14 @@ $ solana-verify verify-from-repo --program-id cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7
 
 ## Security
 
-Light Protocol programs have been audited, and Light protocol circuits are formally verified:
-- OtterSec (Programs audit): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/ottersec_v1_audit.pdf)
-- Neodyme (Programs audit): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/neodyme_v1_audit.pdf)
+The released Light Protocol programs have been audited, and the Light Protocol circuits are formally verified:
+
+- OtterSec (Programs audit #1): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/ottersec_v1_audit.pdf)
+- Neodyme (Programs audit #2): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/neodyme_v1_audit.pdf)
+- Zellic (Programs audit #3): [View Full Report](https://github.com/Lightprotocol/light-protocol/blob/main/audits/zellic_v1_audit.pdf)
 - Reilabs (Circuits Formal verification): [View Full Report](https://github.com/Lightprotocol/light-protocol/tree/main/audits/reilabs_circuits_formal_verification_report.pdf)
 
-Note: All other tooling such as light-sdk-macros and light-sdk are in active development and unaudited.
+Note: All other tooling, such as light-sdk-macros and light-sdk, are in active development and unaudited.
 
 ## Development environment
 
