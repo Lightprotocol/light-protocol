@@ -41,7 +41,6 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
     address
 }
 
-// cpi guard could be ok but should be tested
 const ALLOWED_EXTENSION_TYPES: [ExtensionType; 7] = [
     ExtensionType::MetadataPointer,
     ExtensionType::TokenMetadata,
