@@ -1,0 +1,25 @@
+[package]
+name = "light-program-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+light-client = { workspace = true }
+light-prover-client = { workspace = true }
+light-sdk = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
+light-hasher = { workspace = true }
+
+solana-sdk = { workspace = true }
+solana-banks-client = { workspace = true }
+solana-program-test = { workspace = true }
+
+log = { workspace = true }
+borsh = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+reqwest = { workspace = true }

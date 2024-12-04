@@ -16,8 +16,6 @@ use thiserror::Error;
 
 use crate::rpc::RpcConnection;
 
-pub mod test_indexer;
-
 #[derive(Error, Debug)]
 pub enum IndexerError {
     #[error("RPC Error: {0}")]

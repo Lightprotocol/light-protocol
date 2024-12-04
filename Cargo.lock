@@ -3668,6 +3668,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-program-test"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-sdk",
+ "log",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "reqwest 0.11.27",
+ "solana-banks-client",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "light-prover-client"
 version = "1.2.0"
 dependencies = [
@@ -3815,6 +3837,7 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
+ "light-program-test",
  "light-prover-client",
  "light-registry",
  "light-system-program",
@@ -4141,6 +4164,7 @@ dependencies = [
  "light-client",
  "light-hasher",
  "light-macros",
+ "light-program-test",
  "light-sdk",
  "light-sdk-macros",
  "light-test-utils",
@@ -4160,6 +4184,7 @@ dependencies = [
  "light-client",
  "light-hasher",
  "light-macros",
+ "light-program-test",
  "light-sdk",
  "light-sdk-macros",
  "light-test-utils",
@@ -5777,6 +5802,7 @@ dependencies = [
  "light-client",
  "light-hasher",
  "light-macros",
+ "light-program-test",
  "light-sdk",
  "light-sdk-macros",
  "light-test-utils",

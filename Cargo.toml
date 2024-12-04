@@ -29,7 +29,8 @@ members = [
     "test-programs/sdk-test-program/programs/sdk-test/",
     "forester-utils",
     "forester",
-    "photon-api",
+    "photon-api", 
+    "light-program-test",
 ]
 
 [profile.release]
@@ -95,7 +96,7 @@ account-compression = { path = "programs/account-compression", version = "1.2.0"
 light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = ["cpi"] }
 light-system-program = { path = "programs/system", version = "1.2.0", features = ["cpi"] }
 light-registry = { path = "programs/registry", version = "1.2.0",  features = ["cpi"]}
-
+light-program-test = { path = "light-program-test", version = "0.1.0" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
