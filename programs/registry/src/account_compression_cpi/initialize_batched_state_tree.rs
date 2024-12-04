@@ -24,8 +24,8 @@ pub struct InitializeBatchedStateMerkleTreeAndQueue<'info> {
     pub account_compression_program: Program<'info, AccountCompression>,
     pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
     /// CHECK: (system program) new cpi context account.
-    pub cpi_context_account: Option<AccountInfo<'info>>,
-    pub light_system_program: Option<Program<'info, LightSystemProgram>>,
+    pub cpi_context_account: AccountInfo<'info>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
 }
 
 pub fn process_initialize_batched_state_merkle_tree(

@@ -48,7 +48,7 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 ///
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and nullifier queue with the same parameters
+/// 2. initialize new Merkle tree and queue with the same parameters
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
