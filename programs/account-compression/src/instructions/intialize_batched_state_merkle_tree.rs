@@ -420,6 +420,7 @@ pub fn get_output_queue_account_default(
     associated_merkle_tree: Pubkey,
     height: u32,
     num_batches: u64,
+    network_fee: u64,
 ) -> BatchedQueueAccount {
     let rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => compute_rollover_fee(rollover_threshold, height, rent)
@@ -440,7 +441,7 @@ pub fn get_output_queue_account_default(
             rolledover_slot: u64::MAX,
             rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
             rollover_fee,
-            network_fee: 5000,
+            network_fee,
             additional_bytes,
         },
         queue_type: QueueType::Output as u64,
@@ -565,6 +566,7 @@ pub mod tests {
             mt_pubkey,
             params.height,
             params.output_queue_num_batches,
+            params.network_fee.unwrap_or_default(),
         );
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),

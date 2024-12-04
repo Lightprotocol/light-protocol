@@ -1,5 +1,5 @@
 use account_compression::{
-    assert_mt_zero_copy_inited,
+    assert_mt_zero_copy_inited, assert_state_mt_roll_over,
     batched_merkle_tree::{
         get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchAppendEvent,
         BatchNullifyEvent, BatchProofInputsIx, BatchedMerkleTreeAccount,
@@ -544,6 +544,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         merkle_tree_pubkey,
         params.height,
         params.output_queue_num_batches,
+        params.network_fee.unwrap_or_default(),
     );
 
     assert_queue_zero_copy_inited(
@@ -553,7 +554,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
     );
     Ok(())
 }
-
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
     forester: &Keypair,
@@ -564,6 +565,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     new_output_queue_keypair: &Keypair,
     new_cpi_context_keypair: &Keypair,
     epoch: u64,
+    light_forester: bool,
 ) -> Result<Signature, RpcError> {
     let payer_pubkey = forester.pubkey();
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
@@ -611,7 +613,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         mt_account_size,
         mt_rent,
         &account_compression::ID,
-        Some(&new_state_merkle_tree_keypair),
+        Some(new_state_merkle_tree_keypair),
     );
 
     let create_queue_account_ix = create_account_instruction(
@@ -643,23 +645,105 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
             new_output_queue_keypair.pubkey(),
             new_cpi_context_keypair.pubkey(),
             epoch,
+            light_forester,
         );
 
-    Ok(rpc
-        .create_and_send_transaction(
-            &[
-                create_mt_account_ix,
-                create_queue_account_ix,
-                create_cpi_context_account,
-                instruction,
-            ],
-            &payer_pubkey,
-            &[
-                &forester,
-                &new_state_merkle_tree_keypair,
-                &new_output_queue_keypair,
-                &new_cpi_context_keypair,
-            ],
-        )
-        .await?)
+    rpc.create_and_send_transaction(
+        &[
+            create_mt_account_ix,
+            create_queue_account_ix,
+            create_cpi_context_account,
+            instruction,
+        ],
+        &payer_pubkey,
+        &[
+            forester,
+            new_state_merkle_tree_keypair,
+            new_output_queue_keypair,
+            new_cpi_context_keypair,
+        ],
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
+    rpc: &mut R,
+    owner: Pubkey,
+    old_state_merkle_tree_pubkey: Pubkey,
+    new_state_merkle_tree_pubkey: Pubkey,
+    old_queue_pubkey: Pubkey,
+    new_queue_pubkey: Pubkey,
+    params: InitStateTreeAccountsInstructionData,
+    additional_bytes_rent: u64,
+) {
+    let old_state_merkle_tree = rpc
+        .get_account(old_state_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let new_state_merkle_tree = rpc
+        .get_account(new_state_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
+        owner,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.network_fee.unwrap_or_default(),
+        params.input_queue_batch_size,
+        params.input_queue_zkp_batch_size,
+        params.bloom_filter_capacity,
+        params.root_history_capacity,
+        old_queue_pubkey,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let old_queue_account_data = rpc
+        .get_account(old_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let new_queue_account = rpc.get_account(new_queue_pubkey).await.unwrap().unwrap();
+
+    let ref_queue_account = get_output_queue_account_default(
+        owner,
+        params.program_owner,
+        params.forester,
+        params.rollover_threshold,
+        params.index,
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.additional_bytes,
+        new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent, //new_cpi_ctx_account.lamports,
+        old_state_merkle_tree_pubkey,
+        params.height,
+        params.output_queue_num_batches,
+        params.network_fee.unwrap_or_default(),
+    );
+    let mut new_ref_queue_account = ref_queue_account;
+    new_ref_queue_account.metadata.associated_merkle_tree = new_state_merkle_tree_pubkey;
+    let mut new_ref_mt_account = ref_mt_account;
+    new_ref_mt_account.metadata.associated_queue = new_queue_pubkey;
+    let slot = rpc.get_slot().await.unwrap();
+    assert_state_mt_roll_over(
+        old_state_merkle_tree.data.to_vec(),
+        new_ref_mt_account,
+        new_state_merkle_tree.data.to_vec(),
+        old_state_merkle_tree_pubkey,
+        new_state_merkle_tree_pubkey,
+        params.bloom_filter_num_iters,
+        ref_mt_account,
+        old_queue_account_data.to_vec(),
+        new_ref_queue_account,
+        new_queue_account.data.to_vec(),
+        new_queue_pubkey,
+        ref_queue_account,
+        old_queue_pubkey,
+        slot,
+    );
 }

@@ -454,16 +454,16 @@ pub mod light_registry {
         )?;
 
         check_cpi_context(
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
         )?;
         process_rollover_state_merkle_tree_and_queue(&ctx, bump)?;
         process_initialize_cpi_context(
             bump,
             ctx.accounts.authority.to_account_info(),
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             ctx.accounts.new_merkle_tree.to_account_info(),
-            ctx.accounts.light_system_program.as_ref().to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
         )
     }
 
@@ -486,7 +486,7 @@ pub mod light_registry {
             return err!(RegistryError::ForesterUndefined);
         }
         check_cpi_context(
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
@@ -495,9 +495,9 @@ pub mod light_registry {
         process_initialize_cpi_context(
             bump,
             ctx.accounts.authority.to_account_info(),
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             ctx.accounts.merkle_tree.to_account_info(),
-            ctx.accounts.light_system_program.as_ref().to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
         )
     }
 
@@ -554,7 +554,7 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
         check_cpi_context(
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
@@ -563,9 +563,9 @@ pub mod light_registry {
         process_initialize_cpi_context(
             bump,
             ctx.accounts.authority.to_account_info(),
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             ctx.accounts.new_state_merkle_tree.to_account_info(),
-            ctx.accounts.light_system_program.as_ref().to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
         )
     }
 }

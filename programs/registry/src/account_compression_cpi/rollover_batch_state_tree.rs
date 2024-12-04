@@ -57,10 +57,15 @@ pub fn process_rollover_batch_state_merkle_tree(
         accounts,
         signer_seeds,
     );
+    let network_fee = if ctx.accounts.registered_forester_pda.is_some() {
+        if_equals_zero_u64(ctx.accounts.protocol_config_pda.config.network_fee)
+    } else {
+        None
+    };
 
     account_compression::cpi::rollover_batch_state_merkle_tree(
         cpi_ctx,
         ctx.accounts.protocol_config_pda.config.cpi_context_size,
-        if_equals_zero_u64(ctx.accounts.protocol_config_pda.config.network_fee),
+        network_fee,
     )
 }
