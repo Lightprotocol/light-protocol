@@ -55,7 +55,7 @@ impl<'info> GroupAccounts<'info> for RolloverBatchStateMerkleTree<'info> {
 ///
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and nullifier queue with the same parameters
+/// 2. initialize new Merkle tree and output queue with the same parameters
 pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
     additional_bytes: u64,
@@ -213,7 +213,7 @@ pub fn rollover_batch_state_tree(
 }
 
 #[cfg(test)]
-mod address_tree_rollover_tests {
+mod batch_state_tree_rollover_tests {
     use rand::{rngs::StdRng, Rng};
     use solana_sdk::pubkey::Pubkey;
 
