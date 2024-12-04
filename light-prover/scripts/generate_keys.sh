@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -a HEIGHTS=("26")
+declare -a HEIGHTS=("40")
 DEFAULT_HEIGHT="26"
 PROVING_KEYS_DIR="./proving-keys"
 VERIFIER_DIR="../circuit-lib/verifier/src/verifying_keys"
@@ -68,7 +68,7 @@ generate_circuit() {
 }
 
 main() {
-    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    declare -a append_batch_sizes_arr=("1" "10" "100" "250" "500" "1000")
     
     echo "Generating proving keys..."
     for height in "${HEIGHTS[@]}"; do
@@ -78,24 +78,18 @@ main() {
         done
     done
 
-    for height in "${HEIGHTS[@]}"; do
-        for batch_size in "${append_batch_sizes_arr[@]}"; do
-            generate_circuit "append-with-proofs" "$height" "$batch_size" "0" "0"
-        done
+    for batch_size in "${append_batch_sizes_arr[@]}"; do
+        generate_circuit "append-with-proofs" "$DEFAULT_HEIGHT" "$batch_size" "0" "0"
     done
 
     declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    for height in "${HEIGHTS[@]}"; do
-        for batch_size in "${append_batch_sizes_arr[@]}"; do
-            generate_circuit "append-with-subtrees" "$height" "$batch_size" "0" "0"
-        done
+    for batch_size in "${append_batch_sizes_arr[@]}"; do
+        generate_circuit "append-with-subtrees" "$DEFAULT_HEIGHT" "$batch_size" "0" "0"
     done
 
     declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    for height in "${HEIGHTS[@]}"; do
-        for batch_size in "${update_batch_sizes_arr[@]}"; do
-            generate_circuit "update" "$height" "$batch_size" "0" "0"
-        done
+    for batch_size in "${update_batch_sizes_arr[@]}"; do
+        generate_circuit "update" "$DEFAULT_HEIGHT" "$batch_size" "0" "0"
     done
 
     declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
