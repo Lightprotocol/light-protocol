@@ -14,13 +14,15 @@ if [ ! -d "$KEYS_DIR" ]; then
 fi
 
 # inclusion, non-inclusion and combined keys for merkle tree of height 26
+
 BUCKET="bafybeiacecbc3hnlmgifpe6v3h3r3ord7ifedjj6zvdv7nxgkab4npts54"
 
-# keys for append circuit for trees of height 4, 10, 26 
-APPEND_WITH_PROOFS_BUCKET="bafybeiaddn7t2pcbmthkvfvenxin7vcmpyweplew3er5shbrlauypue4g4"
+# mt height 26, batch sizes {1, 10, 100, 500, 1000}
+APPEND_WITH_PROOFS_BUCKET="bafybeicngrfui5cef2a4g67lxw3u42atyrfks35vx4hu6c4rme3knh6lby"
 APPEND_WITH_SUBTREES_BUCKET="bafybeieyujtdrhp52unqkwvzn36o4hh4brsw52juaftceaki4gfypszbxa"
 
-APPEND_ADDRESS_BUCKET="bafybeigob7eicyuxxmmkfuqyhnqomnxca2f3qua7k77nhospnj5a3mocfi"
+# mt height 40, batch sizes {1, 10, 100, 250, 500, 1000}
+APPEND_ADDRESS_BUCKET="bafybeib2rajatndlpslpqhf4vrbekpyyehjt5byivfzxl36c5p67ypddvu"
 
 # keys for update circuit for tree of height 26
 UPDATE_BUCKET="bafybeievf2qdaex4cskdfk24uifq4244ne42w3dghwnnfp4ybsve6mw2pa"
@@ -62,10 +64,10 @@ LIGHTWEIGHT_FILES=(
   "append-with-subtrees_26_10.vkey"
   "update_26_10.key"
   "update_26_10.vkey"
-  "address-append_26_1.key"
-  "address-append_26_1.vkey"
-  "address-append_26_10.key"
-  "address-append_26_10.vkey"
+  "address-append_40_1.key"
+  "address-append_40_1.vkey"
+  "address-append_40_10.key"
+  "address-append_40_10.vkey"
 )
 
 FULL_FILES=(
@@ -129,16 +131,18 @@ FULL_FILES=(
   "update_26_500.vkey"
   "update_26_1000.key"
   "update_26_1000.vkey"
-  "address-append_26_1.key"
-  "address-append_26_1.vkey"
-  "address-append_26_10.key"
-  "address-append_26_10.vkey"
-  "address-append_26_100.key"
-  "address-append_26_100.vkey"
-  "address-append_26_500.key"
-  "address-append_26_500.vkey"
-  "address-append_26_1000.key"
-  "address-append_26_1000.vkey"
+  "address-append_40_1.key"
+  "address-append_40_1.vkey"
+  "address-append_40_10.key"
+  "address-append_40_10.vkey"
+  "address-append_40_100.key"
+  "address-append_40_100.vkey"
+  "address-append_40_250.key"
+  "address-append_40_250.vkey"
+  "address-append_40_500.key"
+  "address-append_40_500.vkey"
+  "address-append_40_1000.key"
+  "address-append_40_1000.vkey"
 )
 
 download_file() {
