@@ -9,8 +9,8 @@ pub mod errors;
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub use account_compression_cpi::{
     batch_append::*, batch_nullify::*, initialize_batched_state_tree::*,
-    initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_state_tree::*,
-    update_address_tree::*,
+    initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_batch_state_tree::*,
+    rollover_state_tree::*, update_address_tree::*,
 };
 
 pub use protocol_config::{initialize::*, update::*};
@@ -44,6 +44,7 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 #[program]
 pub mod light_registry {
 
+    use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
     use constants::DEFAULT_WORK_V1;
 
     use super::*;
@@ -453,16 +454,16 @@ pub mod light_registry {
         )?;
 
         check_cpi_context(
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
         )?;
         process_rollover_state_merkle_tree_and_queue(&ctx, bump)?;
         process_initialize_cpi_context(
             bump,
             ctx.accounts.authority.to_account_info(),
-            ctx.accounts.cpi_context_account.as_ref().to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             ctx.accounts.new_merkle_tree.to_account_info(),
-            ctx.accounts.light_system_program.as_ref().to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
         )
     }
 
@@ -485,11 +486,7 @@ pub mod light_registry {
             return err!(RegistryError::ForesterUndefined);
         }
         check_cpi_context(
-            ctx.accounts
-                .cpi_context_account
-                .as_ref()
-                .unwrap()
-                .to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
@@ -498,17 +495,9 @@ pub mod light_registry {
         process_initialize_cpi_context(
             bump,
             ctx.accounts.authority.to_account_info(),
-            ctx.accounts
-                .cpi_context_account
-                .as_ref()
-                .unwrap()
-                .to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
             ctx.accounts.merkle_tree.to_account_info(),
-            ctx.accounts
-                .light_system_program
-                .as_ref()
-                .unwrap()
-                .to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
         )
     }
 
@@ -548,6 +537,36 @@ pub mod light_registry {
             )?;
         }
         process_batch_append(&ctx, bump, data)
+    }
+
+    pub fn rollover_batch_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchStateMerkleTree<'info>>,
+        bump: u8,
+    ) -> Result<()> {
+        let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+            &ctx.accounts.old_state_merkle_tree,
+        )?;
+        check_forester(
+            &account.get_account().metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.old_state_merkle_tree.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
+        )?;
+        check_cpi_context(
+            ctx.accounts.cpi_context_account.to_account_info(),
+            &ctx.accounts.protocol_config_pda.config,
+        )?;
+
+        process_rollover_batch_state_merkle_tree(&ctx, bump)?;
+
+        process_initialize_cpi_context(
+            bump,
+            ctx.accounts.authority.to_account_info(),
+            ctx.accounts.cpi_context_account.to_account_info(),
+            ctx.accounts.new_state_merkle_tree.to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
+        )
     }
 }
 

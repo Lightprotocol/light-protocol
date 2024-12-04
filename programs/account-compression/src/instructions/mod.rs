@@ -42,3 +42,6 @@ pub use batch_nullify::*;
 
 pub mod batch_append;
 pub use batch_append::*;
+
+pub mod rollover_batch_state_merkle_tree;
+pub use rollover_batch_state_merkle_tree::*;

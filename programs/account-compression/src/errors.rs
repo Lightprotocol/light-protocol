@@ -76,4 +76,6 @@ pub enum AccountCompressionErrorCode {
     InvalidBatch,
     LeafIndexNotInBatch,
     UnsupportedParameters,
+    InvalidTreeType,
+    InvalidNetworkFee,
 }

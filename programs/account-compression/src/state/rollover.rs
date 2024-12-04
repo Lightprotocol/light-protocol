@@ -55,6 +55,10 @@ impl RolloverMetadata {
         {
             self.rolledover_slot = Clock::get()?.slot;
         }
+        #[cfg(not(target_os = "solana"))]
+        {
+            self.rolledover_slot = 1;
+        }
         Ok(())
     }
 }

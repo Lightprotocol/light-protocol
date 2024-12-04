@@ -128,6 +128,11 @@ pub fn check_cpi_context(
 ) -> Result<u64> {
     let config_cpi_context_account_len = protocol_config.cpi_context_size as usize;
     if account.data_len() != config_cpi_context_account_len {
+        msg!(
+            "CPI context account data len: {}, expected: {}",
+            account.data_len(),
+            config_cpi_context_account_len
+        );
         return err!(RegistryError::CpiContextAccountInvalidDataLen);
     }
     let rent = Rent::get()?;

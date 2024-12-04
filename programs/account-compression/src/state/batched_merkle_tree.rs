@@ -195,6 +195,30 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         unsafe { self.account.as_mut() }.unwrap()
     }
 
+    pub fn state_tree_from_account_info_mut(
+        account_info: &AccountInfo<'_>,
+    ) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
+        if *account_info.owner != crate::ID {
+            return err!(ErrorCode::AccountOwnedByWrongProgram);
+        }
+        if !account_info.is_writable {
+            return err!(ErrorCode::AccountNotMutable);
+        }
+        let account_data = &mut account_info.try_borrow_mut_data()?;
+        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
+        Ok(merkle_tree)
+    }
+
+    pub fn state_tree_from_bytes_mut(
+        account_data: &mut [u8],
+    ) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
+        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
+        if merkle_tree.get_account().tree_type != TreeType::BatchedState as u64 {
+            return err!(AccountCompressionErrorCode::InvalidTreeType);
+        }
+        Ok(merkle_tree)
+    }
+
     pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedMerkleTreeAccount> {
         unsafe {
             let account = bytes_to_struct_checked::<BatchedMerkleTreeAccount, false>(account_data)?;
