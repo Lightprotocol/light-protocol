@@ -1,11 +1,11 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
+use light_verifier::CompressedProof;
 
 use crate::{
     address::PackedNewAddressParams,
     compressed_account::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
-    proof::CompressedProof,
     verify::{CompressedCpiContext, InstructionDataInvokeCpi},
     PROGRAM_ID_ACCOUNT_COMPRESSION,
 };

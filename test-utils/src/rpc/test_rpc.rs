@@ -305,4 +305,19 @@ impl RpcConnection for ProgramTestRpcConnection {
     async fn send_transaction(&self, _transaction: &Transaction) -> Result<Signature, RpcError> {
         unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection")
     }
+
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
+        self.context
+            .banks_client
+            .get_transaction_status(*signature)
+            .await
+            .map_err(RpcError::from)
+            .and_then(|status| {
+                status
+                    .ok_or(RpcError::TransactionError(
+                        TransactionError::SignatureFailure,
+                    ))
+                    .map(|status| status.slot)
+            })
+    }
 }

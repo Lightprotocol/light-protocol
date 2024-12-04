@@ -91,11 +91,6 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     // Calculate the public input hash chain with old root, new root, and leaves hash chain
     let public_input_hash =
         calculate_hash_chain(&[current_root, new_root, leaves_hashchain, start_index_bytes]);
-    println!("public_input_hash: {:?}", public_input_hash);
-    println!("current root {:?}", current_root);
-    println!("new root {:?}", new_root);
-    println!("leaves hashchain {:?}", leaves_hashchain);
-    println!("start index {:?}", start_index_bytes);
     BatchAppendWithProofsCircuitInputs {
         public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
         old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),

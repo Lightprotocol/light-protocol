@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::sync::Arc;
 
 use light_registry::account_compression_cpi::sdk::{
@@ -15,6 +16,7 @@ use tracing::{debug, info};
 
 use crate::errors::ForesterError;
 use crate::ForesterConfig;
+use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
@@ -26,12 +28,13 @@ use forester_utils::address_merkle_tree_config::{
     get_address_bundle_config, get_state_bundle_config,
 };
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-};
+use forester_utils::indexer::Indexer;
 use forester_utils::registry::RentExemption;
 use forester_utils::{
     create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
+};
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, StateMerkleTreeAccounts, StateMerkleTreeBundle,
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
@@ -101,7 +104,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             let threshold = ((1 << height)
                 * queue_account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
-            let next_index = merkle_tree.next_index() - 3;
+            let next_index: usize = max(merkle_tree.next_index() as i32 - 3, 0i32) as usize;
             let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
@@ -110,7 +113,61 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
-        _ => panic!("get tree fullness: Invalid tree type {:?}", tree_type),
+        TreeType::BatchedState => {
+            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let merkle_tree =
+                ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut account.data).unwrap();
+            println!(
+                "merkle_tree.get_account().queue.batch_size: {:?}",
+                merkle_tree.get_account().queue.batch_size
+            );
+
+            println!(
+                "queue currently_processing_batch_index: {:?}",
+                merkle_tree
+                    .get_account()
+                    .queue
+                    .currently_processing_batch_index as usize
+            );
+
+            println!(
+                "queue batch_size: {:?}",
+                merkle_tree.get_account().queue.batch_size
+            );
+            println!(
+                "queue zkp_batch_size: {:?}",
+                merkle_tree.get_account().queue.zkp_batch_size
+            );
+            println!(
+                "queue next_full_batch_index: {:?}",
+                merkle_tree.get_account().queue.next_full_batch_index
+            );
+            println!(
+                "queue bloom_filter_capacity: {:?}",
+                merkle_tree.get_account().queue.bloom_filter_capacity
+            );
+            println!(
+                "queue num_batches: {:?}",
+                merkle_tree.get_account().queue.num_batches
+            );
+
+            println!(
+                "tree next_index: {:?}",
+                merkle_tree.get_account().next_index
+            );
+            println!("tree height: {:?}", merkle_tree.get_account().height);
+
+            // TODO: implement
+            let threshold = 0;
+            let next_index = 0;
+            let fullness = 0.0;
+
+            Ok(TreeInfo {
+                fullness,
+                next_index,
+                threshold,
+            })
+        }
     }
 }
 

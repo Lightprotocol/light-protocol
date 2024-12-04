@@ -410,6 +410,15 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         )
         .await;
 
+    let proof = match rpc_result.proof {
+        Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        }),
+        None => None,
+    };
+
     let create_ix_inputs = CreateEscrowInstructionInputs {
         input_token_data: &[escrow_token_data_with_context.token_data.clone()],
         lock_up_time: 0,
@@ -428,7 +437,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &Some(rpc_result.proof),
+        proof: &proof,
         mint: &escrow_token_data_with_context.token_data.mint,
         input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };

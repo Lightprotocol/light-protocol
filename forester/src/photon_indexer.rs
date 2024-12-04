@@ -1,5 +1,6 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
+use async_trait::async_trait;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc::RpcConnection;
 use photon_api::apis::configuration::{ApiKey, Configuration};
@@ -37,6 +38,7 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
     }
 }
 
+#[async_trait]
 impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_multiple_compressed_account_proofs(
         &self,

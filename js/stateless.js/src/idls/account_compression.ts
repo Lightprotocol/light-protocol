@@ -689,14 +689,6 @@ export type AccountCompression = {
                         };
                     };
                 },
-                {
-                    name: 'checkProofByIndex';
-                    type: {
-                        option: {
-                            vec: 'bool';
-                        };
-                    };
-                },
             ];
         },
         {
@@ -2365,14 +2357,6 @@ export const IDL: AccountCompression = {
                     type: {
                         option: {
                             array: ['u8', 32],
-                        },
-                    },
-                },
-                {
-                    name: 'checkProofByIndex',
-                    type: {
-                        option: {
-                            vec: 'bool',
                         },
                     },
                 },

@@ -1,5 +1,6 @@
 pub type Result<T> = std::result::Result<T, ForesterError>;
 
+pub mod batched_ops;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -48,10 +49,14 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
-        let length = if tree_data.tree_type == TreeType::State {
-            STATE_NULLIFIER_QUEUE_VALUES
-        } else {
-            ADDRESS_QUEUE_VALUES
+        if tree_data.tree_type == TreeType::BatchedState {
+            continue;
+        }
+
+        let length = match tree_data.tree_type {
+            TreeType::State => STATE_NULLIFIER_QUEUE_VALUES,
+            TreeType::Address => ADDRESS_QUEUE_VALUES,
+            _ => 0,
         };
 
         let queue_length = fetch_queue_item_data(&mut rpc, &tree_data.queue, 0, length, length)
@@ -68,7 +73,7 @@ pub async fn run_queue_info(
     }
 }
 
-pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
+pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + 'static>(
     config: Arc<ForesterConfig>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
