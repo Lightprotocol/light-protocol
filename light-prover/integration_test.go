@@ -160,10 +160,11 @@ func runFullOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
 	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
 
-	t.Run("testBatchAddressAppendHappyPath26_100", testBatchAddressAppendHappyPath26_100)
-	t.Run("testBatchAddressAppendHappyPath26_500", testBatchAddressAppendHappyPath26_500)
-	t.Run("testBatchAddressAppendHappyPath26_1000", testBatchAddressAppendHappyPath26_1000)
-	t.Run("testBatchAddressAppendWithPreviousState26_100", testBatchAddressAppendWithPreviousState26_100)
+	t.Run("testBatchAddressAppendHappyPath40_100", testBatchAddressAppendHappyPath40_100)
+	t.Run("testBatchAddressAppendHappyPath40_500", testBatchAddressAppendHappyPath40_500)
+	t.Run("testBatchAddressAppendHappyPath40_250", testBatchAddressAppendHappyPath40_250)
+	t.Run("testBatchAddressAppendHappyPath40_1000", testBatchAddressAppendHappyPath40_1000)
+	t.Run("testBatchAddressAppendWithPreviousState40_100", testBatchAddressAppendWithPreviousState40_100)
 }
 
 func runLightweightOnlyTests(t *testing.T) {
@@ -176,9 +177,9 @@ func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
 	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 
-	t.Run("testBatchAddressAppendHappyPath26_1", testBatchAddressAppendHappyPath26_1)
-	t.Run("testBatchAddressAppendWithPreviousState26_10", testBatchAddressAppendWithPreviousState26_10)
-	t.Run("testBatchAddressAppendInvalidInput26_10", testBatchAddressAppendInvalidInput26_10)
+	t.Run("testBatchAddressAppendHappyPath40_1", testBatchAddressAppendHappyPath40_1)
+	t.Run("testBatchAddressAppendWithPreviousState40_10", testBatchAddressAppendWithPreviousState40_10)
+	t.Run("testBatchAddressAppendInvalidInput40_10", testBatchAddressAppendInvalidInput40_10)
 }
 
 func testWrongMethod(t *testing.T) {
@@ -688,20 +689,24 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
 
-func testBatchAddressAppendHappyPath26_1(t *testing.T) {
-	runBatchAddressAppendTest(t, 26, 1)
+func testBatchAddressAppendHappyPath40_1(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 1)
 }
 
-func testBatchAddressAppendHappyPath26_100(t *testing.T) {
-	runBatchAddressAppendTest(t, 26, 100)
+func testBatchAddressAppendHappyPath40_100(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 100)
 }
 
-func testBatchAddressAppendHappyPath26_500(t *testing.T) {
-	runBatchAddressAppendTest(t, 26, 500)
+func testBatchAddressAppendHappyPath40_500(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 500)
 }
 
-func testBatchAddressAppendHappyPath26_1000(t *testing.T) {
-	runBatchAddressAppendTest(t, 26, 1000)
+func testBatchAddressAppendHappyPath40_250(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 250)
+}
+
+func testBatchAddressAppendHappyPath40_1000(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 1000)
 }
 
 func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32) {
@@ -741,12 +746,12 @@ func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32
 	t.Logf("Successfully ran batch address append test with tree height %d and batch size %d", treeHeight, batchSize)
 }
 
-func testBatchAddressAppendWithPreviousState26_10(t *testing.T) {
-	runBatchAddressAppendWithPreviousStateTest(t, 26, 10)
+func testBatchAddressAppendWithPreviousState40_10(t *testing.T) {
+	runBatchAddressAppendWithPreviousStateTest(t, 40, 10)
 }
 
-func testBatchAddressAppendWithPreviousState26_100(t *testing.T) {
-	runBatchAddressAppendWithPreviousStateTest(t, 26, 100)
+func testBatchAddressAppendWithPreviousState40_100(t *testing.T) {
+	runBatchAddressAppendWithPreviousStateTest(t, 40, 100)
 }
 
 func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
@@ -803,8 +808,8 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 		treeHeight, batchSize)
 }
 
-func testBatchAddressAppendInvalidInput26_10(t *testing.T) {
-	treeHeight := uint32(26)
+func testBatchAddressAppendInvalidInput40_10(t *testing.T) {
+	treeHeight := uint32(40)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 
