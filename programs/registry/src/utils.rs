@@ -11,19 +11,11 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 }
 
 pub fn get_forester_epoch_pda_from_authority(authority: &Pubkey, epoch: u64) -> (Pubkey, u8) {
-    println!(
-        "get_forester_epoch_pda_from_authority: authority: {}, epoch: {}",
-        authority, epoch
-    );
     let forester_pda = get_forester_pda(authority);
     get_forester_epoch_pda(&forester_pda.0, epoch)
 }
 
 pub fn get_forester_epoch_pda_from_derivation(derivation: &Pubkey, epoch: u64) -> (Pubkey, u8) {
-    println!(
-        "get_forester_epoch_pda_from_derivation: derivation: {}, epoch: {}",
-        derivation, epoch
-    );
     let forester_pda = get_forester_pda(derivation);
     get_forester_epoch_pda(&forester_pda.0, epoch)
 }

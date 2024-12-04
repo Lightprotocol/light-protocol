@@ -19,7 +19,7 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{
-    EncodedConfirmedTransactionWithStatusMeta, UiInstruction, UiTransactionEncoding,
+    UiInstruction, UiTransactionEncoding,
 };
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;

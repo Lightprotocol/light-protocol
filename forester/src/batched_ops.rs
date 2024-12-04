@@ -12,7 +12,6 @@ use light_client::rpc::RpcConnection;
 use light_client::rpc_pool::SolanaRpcPool;
 use light_hasher::{Hasher, Poseidon};
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::batch_update::get_batch_update_inputs;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
@@ -31,7 +30,7 @@ use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::error;
 
 pub struct BatchedOperations<R: RpcConnection, I: Indexer<R>> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -72,39 +71,25 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
     }
 
     pub async fn perform_batch_append(&self) -> Result<usize> {
-        info!("=== perform_batch_append begin ===");
         let mut rpc = self.rpc_pool.get_connection().await?;
 
         let (num_inserted_zkps, batch_size) = {
             let mut output_queue_account =
                 rpc.get_account(self.output_queue).await.unwrap().unwrap();
-            let mut output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
             .unwrap();
             let queue_account = output_queue.get_account();
             let batch_index = queue_account.queue.next_full_batch_index;
-
-            println!("queue: {:?}", queue_account.queue);
-
             let num_inserted_zkps =
                 output_queue.batches[batch_index as usize].get_num_inserted_zkps();
             let zkp_batch_size = queue_account.queue.zkp_batch_size;
 
-            let batches = &mut output_queue.batches;
-            let full_batch = batches.get_mut(batch_index as usize).unwrap();
-            println!("full batch: {:?}", full_batch);
-
             (num_inserted_zkps, zkp_batch_size)
         };
 
-        println!(
-            "num_inserted_zkps: {}, batch_size: {}",
-            num_inserted_zkps, batch_size
-        );
-
         let instruction_data = self.create_append_batch_ix_data().await;
-
         let instruction = create_batch_append_instruction(
             self.authority.pubkey(),
             self.derivation,
@@ -114,7 +99,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             instruction_data?.try_to_vec()?,
         );
 
-        let result = rpc
+        rpc
             .create_and_send_transaction_with_event::<BatchAppendEvent>(
                 &[instruction],
                 &self.authority.pubkey(),
@@ -122,7 +107,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 None,
             )
             .await?;
-        println!("batch append result: {:?}", result);
 
         self.indexer
             .lock()
@@ -134,13 +118,10 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 num_inserted_zkps,
             )
             .await;
-
-        info!("=== perform_batch_append end ===");
         Ok(batch_size as usize)
     }
 
     pub async fn perform_batch_nullify(&self) -> Result<usize> {
-        info!("=== perform_batch_nullify begin ===");
         let mut rpc = self.rpc_pool.get_connection().await?;
 
         let instruction_data = self.get_batched_nullify_ix_data().await?;
@@ -153,7 +134,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             instruction_data.try_to_vec()?,
         );
 
-        let result = rpc
+        rpc
             .create_and_send_transaction_with_event::<BatchNullifyEvent>(
                 &[instruction],
                 &self.authority.pubkey(),
@@ -161,8 +142,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 None,
             )
             .await?;
-
-        println!("batch nullify result: {:?}", result);
 
         let (batch_index, batch_size) = {
             let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
@@ -184,13 +163,10 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 batch_index as usize,
             )
             .await;
-
-        info!("=== perform_batch_nullify end ===");
         Ok(batch_size as usize)
     }
 
     async fn create_append_batch_ix_data(&self) -> Result<InstructionDataBatchAppendInputs> {
-        info!("=== create_append_batch_ix_data begin ===");
         let mut rpc = self.rpc_pool.get_connection().await.unwrap();
 
         let (merkle_tree_next_index, current_root) = {
@@ -204,9 +180,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 *merkle_tree.root_history.last().unwrap(),
             )
         };
-
-        info!("Merkle tree next index: {}", merkle_tree_next_index);
-        info!("Current root: {:?}", current_root);
 
         let (zkp_batch_size, _full_batch_index, num_inserted_zkps, leaves_hashchain) = {
             let mut output_queue_account =
@@ -233,9 +206,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 leaves_hashchain,
             )
         };
-        info!("ZKP batch size: {}", zkp_batch_size);
-        info!("Number of inserted zkps: {}", num_inserted_zkps);
-
         let start = num_inserted_zkps as usize * zkp_batch_size as usize;
         let end = start + zkp_batch_size as usize;
 
@@ -246,14 +216,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             .get_queue_elements(self.merkle_tree, start as u64, end as u64)
             .await
             .unwrap();
-
-        let local_leaves_hashchain = calculate_hash_chain(&leaves);
-        info!("start index: {}", start);
-        info!("end index: {}", end);
-        info!("num inserted zkps: {}", num_inserted_zkps);
-        info!("zkp batch size: {}", zkp_batch_size);
-        assert_eq!(local_leaves_hashchain, leaves_hashchain);
-        // info!("In hash chain Batch update leaves: {:?}", leaves);
 
         let (old_leaves, merkle_proofs) = {
             let mut old_leaves = vec![];
@@ -272,18 +234,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
 
             (old_leaves, merkle_proofs)
         };
-
-        let leaf_strings = leaves
-            .iter()
-            .map(|l| Pubkey::from(*l).to_string())
-            .collect::<Vec<_>>();
-        println!("leaves: {:?}", leaf_strings);
-
-        let old_leaf_strings = old_leaves
-            .iter()
-            .map(|l| Pubkey::from(*l).to_string())
-            .collect::<Vec<_>>();
-        println!("old_leaves: {:?}", old_leaf_strings);
 
         let (proof, new_root) = {
             let circuit_inputs = get_batch_append_with_proofs_inputs::<26>(
@@ -333,8 +283,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             }
         };
 
-        info!("=== create_append_batch_ix_data end ===");
-
         Ok(InstructionDataBatchAppendInputs {
             public_inputs: AppendBatchProofInputsIx { new_root },
             compressed_proof: proof,
@@ -342,7 +290,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
     }
 
     async fn get_batched_nullify_ix_data(&self) -> Result<InstructionDataBatchNullifyInputs> {
-        info!("=== get_batched_nullify_ix_data begin ===");
         let mut rpc = self.rpc_pool.get_connection().await.unwrap();
 
         let (zkp_batch_size, old_root, old_root_index, leaves_hashchain) = {
@@ -355,24 +302,9 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let zkp_size = account.queue.zkp_batch_size;
             let batch = &merkle_tree.batches[batch_idx];
             let zkp_idx = batch.get_num_inserted_zkps();
-
-            let hashchains = merkle_tree
-                .hashchain_store
-                .clone()
-                .iter()
-                .map(|x| {
-                let x = x.clone();
-                x.as_slice().to_vec()
-                })
-                .collect::<Vec<_>>();
-            for (i, x) in hashchains.iter().enumerate() {
-                println!("hashchain {}: {:?}", i, x);
-            }
-
             let hashchain = merkle_tree.hashchain_store[batch_idx][zkp_idx as usize];
             let root_idx = merkle_tree.root_history.last_index();
             let root = *merkle_tree.root_history.last().unwrap();
-
             (zkp_size, root, root_idx, hashchain)
         };
 
@@ -407,19 +339,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let nullifier = Poseidon::hashv(&[leaf, &index_bytes, tx_hash]).unwrap();
             nullifiers.push(nullifier);
         }
-
-        let leaf_strings = leaves
-            .iter()
-            .map(|l| Pubkey::from(*l).to_string())
-            .collect::<Vec<_>>();
-
-        let old_leaf_strings = old_leaves
-            .iter()
-            .map(|l| Pubkey::from(*l).to_string())
-            .collect::<Vec<_>>();
-
-        let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
-        assert_eq!(leaves_hashchain, local_nullifier_hashchain);
 
         let inputs = get_batch_update_inputs::<26>(
             old_root,
@@ -462,8 +381,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 "Failed to get proof from server".into(),
             ));
         };
-
-        info!("=== get_batched_nullify_ix_data end ===");
 
         Ok(InstructionDataBatchNullifyInputs {
             public_inputs: BatchProofInputsIx {

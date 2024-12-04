@@ -11,7 +11,6 @@ use solana_sdk::hash::Hash;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
-use solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
 use std::fmt::Debug;
 
 #[async_trait]
