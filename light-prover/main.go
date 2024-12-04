@@ -215,7 +215,7 @@ func runCli() {
 					} else if circuit == prover.CombinedCircuitType {
 						cs, err = prover.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					} else if circuit == prover.BatchAppendWithSubtreesCircuitType {
-						cs, err = prover.R1CSBatchAppend(batchAppendTreeHeight, batchAppendBatchSize)
+						cs, err = prover.R1CSBatchAppendWithSubtrees(batchAppendTreeHeight, batchAppendBatchSize)
 					} else if circuit == prover.BatchUpdateCircuitType {
 						cs, err = prover.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
 					} else if circuit == prover.BatchAddressAppendCircuitType {
@@ -290,7 +290,7 @@ func runCli() {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
+						system, err = prover.ImportBatchAppendWithSubtreesSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
@@ -588,7 +588,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("append") {
-						var params prover.BatchAppendParameters
+						var params prover.BatchAppendWithSubtreesParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -596,7 +596,7 @@ func runCli() {
 
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.TreeHeight && provingSystem.BatchSize == params.BatchSize() {
-								proof, err = provingSystem.ProveBatchAppend(&params)
+								proof, err = provingSystem.ProveBatchAppendWithSubtrees(&params)
 								if err != nil {
 									return err
 								}
@@ -737,7 +737,7 @@ func runCli() {
 						if err != nil {
 							return fmt.Errorf("failed to parse hashchain hash: %v", err)
 						}
-						verifyErr = s.VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash, &proof)
+						verifyErr = s.VerifyBatchAppendWithSubtrees(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash, &proof)
 					default:
 						return fmt.Errorf("unknown proving system type")
 					}

@@ -34,7 +34,7 @@ func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNu
 func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
 	switch circuit {
 	case BatchAppendWithSubtreesCircuitType:
-		return SetupBatchAppend(height, batchSize)
+		return SetupBatchAppendWithSubtrees(height, batchSize)
 	case BatchAppendWithProofsCircuitType:
 		return SetupBatchAppendWithProofs(height, batchSize)
 	case BatchUpdateCircuitType:
