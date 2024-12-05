@@ -165,7 +165,7 @@ fn process_queue_bundle_v2<'info>(
     tx_hash: &Option<[u8; 32]>,
 ) -> Result<u64> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-        &queue_bundle.accounts[0],
+        queue_bundle.accounts[0],
     )?;
     let output_queue_account_data = &mut queue_bundle.accounts[1].try_borrow_mut_data()?;
     let output_queue = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data)?;
@@ -200,7 +200,7 @@ fn process_address_queue_bundle_v2<'info>(
     queue_bundle: &QueueBundle<'_, '_>,
 ) -> Result<u64> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-        &queue_bundle.accounts[0],
+        queue_bundle.accounts[0],
     )?;
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,

@@ -1,5 +1,6 @@
 use account_compression::{
-    assert_address_mt_zero_copy_inited, assert_mt_zero_copy_inited, assert_state_mt_roll_over,
+    assert_address_mt_zero_copy_inited, assert_state_mt_roll_over,
+    assert_state_mt_zero_copy_inited,
     batched_merkle_tree::{
         get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchAppendEvent,
         BatchNullifyEvent, BatchProofInputsIx, BatchedMerkleTreeAccount,
@@ -509,7 +510,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         params.height,
         params.input_queue_num_batches,
     );
-    assert_mt_zero_copy_inited(
+    assert_state_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),
         ref_mt_account,
         params.bloom_filter_num_iters,
@@ -780,7 +781,7 @@ pub async fn create_batch_address_merkle_tree<R: RpcConnection>(
         mt_account_size,
         mt_rent,
         &account_compression::ID,
-        Some(&new_address_merkle_tree_keypair),
+        Some(new_address_merkle_tree_keypair),
     );
 
     let instruction = create_initialize_batched_address_merkle_tree_instruction(
@@ -791,7 +792,7 @@ pub async fn create_batch_address_merkle_tree<R: RpcConnection>(
     rpc.create_and_send_transaction(
         &[create_mt_account_ix, instruction],
         &payer.pubkey(),
-        &[&payer, &new_address_merkle_tree_keypair],
+        &[payer, new_address_merkle_tree_keypair],
     )
     .await
 }
@@ -880,7 +881,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         start_index >= 2,
         "start index should be greater than 2 else tree is not inited"
     );
-    let current_root = merkle_tree.root_history.last().unwrap().clone();
+    let current_root = *merkle_tree.root_history.last().unwrap();
     println!("addresses {:?}", addresses);
     let mut low_element_values = Vec::new();
     let mut low_element_indices = Vec::new();
@@ -920,7 +921,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         batch.zkp_batch_size as usize,
     );
     let client = Client::new();
-    let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&&inputs.new_root).unwrap();
+    let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
 
     let response_result = client
@@ -989,7 +990,7 @@ pub async fn perform_rollover_batch_address_merkle_tree<R: RpcConnection>(
         mt_account_size,
         mt_rent,
         &account_compression::ID,
-        Some(&new_address_merkle_tree_keypair),
+        Some(new_address_merkle_tree_keypair),
     );
 
     let instruction = light_registry::account_compression_cpi::sdk::create_rollover_batch_address_tree_instruction(
@@ -1004,7 +1005,7 @@ pub async fn perform_rollover_batch_address_merkle_tree<R: RpcConnection>(
         rpc.create_and_send_transaction(
             &[create_mt_account_ix, instruction],
             &payer_pubkey,
-            &[&forester, &new_address_merkle_tree_keypair],
+            &[forester, new_address_merkle_tree_keypair],
         )
         .await?,
         new_address_merkle_tree_keypair.pubkey(),

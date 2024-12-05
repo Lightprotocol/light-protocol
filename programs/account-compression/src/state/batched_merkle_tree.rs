@@ -19,10 +19,7 @@ use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
     CompressedProof,
 };
-use std::{
-    mem::{size_of, ManuallyDrop},
-    usize,
-};
+use std::mem::{size_of, ManuallyDrop};
 
 use super::{
     batch::Batch,
@@ -161,8 +158,7 @@ impl BatchedMerkleTreeAccount {
     ) -> Self {
         let rollover_fee = match rollover_threshold {
             Some(rollover_threshold) => {
-                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent).unwrap();
-                rollover_fee
+                compute_rollover_fee(rollover_threshold, height, rent).unwrap()
             }
             None => 0,
         };

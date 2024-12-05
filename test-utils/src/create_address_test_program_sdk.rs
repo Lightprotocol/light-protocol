@@ -2,7 +2,6 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_utils::hash_to_bn254_field_size_be;
 use std::collections::HashMap;
 
 use light_system_program::{
@@ -88,18 +87,17 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     data: &[u8; 31],
 ) -> Result<(), RpcError> {
     let (address, address_merkle_tree_pubkey, address_queue_pubkey) = {
-        let hashed_program_id =
-            hash_to_bn254_field_size_be(&create_address_test_program::ID.to_bytes())
-                .unwrap()
-                .0;
-        let address = derive_address(&env.batch_address_merkle_tree, &hashed_program_id, &seed);
+        let address = derive_address(
+            &seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &create_address_test_program::ID.to_bytes(),
+        );
         println!("address: {:?}", address);
         println!(
             "address_merkle_tree_pubkey: {:?}",
             env.address_merkle_tree_pubkey
         );
         println!("program_id: {:?}", create_address_test_program::ID);
-        println!("hashed_program_id: {:?}", hashed_program_id);
         println!("seed: {:?}", seed);
         (
             address,

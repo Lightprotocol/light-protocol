@@ -117,7 +117,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             patched_low_element_next_values
                 .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
             patched_low_element_next_indices.push(low_element.next_index());
-            patched_low_element_indices.push(low_element.index as usize);
+            patched_low_element_indices.push(low_element.index);
             patched_low_element_values
                 .push(bigint_to_be_bytes_array::<32>(&low_element.value).unwrap());
         }

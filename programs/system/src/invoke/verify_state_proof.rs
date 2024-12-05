@@ -50,11 +50,11 @@ pub fn fetch_input_compressed_account_roots<
             .merkle_context
             .merkle_tree_pubkey_index
             as usize];
-        let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
         let mut discriminator_bytes = [0u8; 8];
-        discriminator_bytes.copy_from_slice(&merkle_tree[0..8]);
+        discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
+                let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
                 let merkle_tree =
                     ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
                         &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
@@ -68,7 +68,7 @@ pub fn fetch_input_compressed_account_roots<
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree =
                     ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                        &merkle_tree_account_info,
+                        merkle_tree_account_info,
                     )
                     .map_err(ProgramError::from)?;
                 (*roots).push(
@@ -100,6 +100,7 @@ pub fn fetch_roots_address_merkle_tree<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
+    msg!("fetch_roots_address_merkle_tree");
     for new_address_param in new_address_params.iter() {
         fetch_address_root(
             ctx,
@@ -124,6 +125,7 @@ fn fetch_address_root<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps
     address_merkle_tree_root_index: u16,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
+    msg!("fetch_address_root");
     let merkle_tree_account_info =
         ctx.remaining_accounts[address_merkle_tree_account_index as usize].to_account_info();
     let mut discriminator_bytes = [0u8; 8];

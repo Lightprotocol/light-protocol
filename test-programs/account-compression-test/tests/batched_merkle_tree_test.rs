@@ -11,7 +11,7 @@ use account_compression::batched_queue::{
 };
 use account_compression::errors::AccountCompressionErrorCode;
 use account_compression::{
-    assert_address_mt_zero_copy_inited, assert_mt_zero_copy_inited,
+    assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
     get_output_queue_account_default, InitAddressTreeAccountsInstructionData,
 };
 use account_compression::{
@@ -178,7 +178,7 @@ async fn test_batch_state_merkle_tree() {
             params.input_queue_num_batches,
         );
 
-        assert_mt_zero_copy_inited(
+        assert_state_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
             params.bloom_filter_num_iters,
@@ -850,7 +850,7 @@ async fn test_init_batch_state_merkle_trees() {
         );
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_mt_zero_copy_inited(
+        assert_state_mt_zero_copy_inited(
             &mut tree_data.as_mut_slice(),
             ref_mt_account,
             params.bloom_filter_num_iters,

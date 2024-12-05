@@ -17,7 +17,6 @@ use light_system_program::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
@@ -32,6 +31,8 @@ pub enum CreatePdaMode {
     OneReadOnlyAddress,
     TwoReadOnlyAddresses,
     InvalidReadOnlyAddress,
+    InvalidReadOnlyRootIndex,
+    InvalidReadOnlyMerkleTree,
 }
 
 pub fn process_create_pda<'info>(
@@ -69,7 +70,9 @@ pub fn process_create_pda<'info>(
         | CreatePdaMode::InvalidBatchTreeAccount
         | CreatePdaMode::OneReadOnlyAddress
         | CreatePdaMode::TwoReadOnlyAddresses
-        | CreatePdaMode::InvalidReadOnlyAddress => {
+        | CreatePdaMode::InvalidReadOnlyAddress
+        | CreatePdaMode::InvalidReadOnlyRootIndex
+        | CreatePdaMode::InvalidReadOnlyMerkleTree => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
                 proof,
@@ -187,7 +190,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
     bump: u8,
-    read_only_address: Option<Vec<ReadOnlyAddressParamsPacked>>,
+    mut read_only_address: Option<Vec<ReadOnlyAddressParamsPacked>>,
     mode: CreatePdaMode,
 ) -> Result<()> {
     let invoking_program = match mode {
@@ -231,6 +234,32 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             inputs_struct.new_address_params = vec![];
         }
         msg!("inputs_struct {:?}", inputs_struct);
+        println!("ctx.remaining_accounts {:?}", ctx.remaining_accounts);
+        let mut remaining_accounts = ctx.remaining_accounts.to_vec();
+        if CreatePdaMode::InvalidReadOnlyMerkleTree == mode
+            || CreatePdaMode::InvalidReadOnlyRootIndex == mode
+        {
+            let read_only_address = read_only_address.as_mut().unwrap();
+            match mode {
+                CreatePdaMode::InvalidReadOnlyMerkleTree => {
+                    remaining_accounts.push(ctx.accounts.registered_program_pda.to_account_info());
+                    msg!(
+                        "read_only_address[0].address_merkle_tree_account_index {:?}",
+                        read_only_address[0].address_merkle_tree_account_index
+                    );
+                    read_only_address[0].address_merkle_tree_account_index =
+                        (remaining_accounts.len() - 1) as u8;
+                    msg!(
+                        "read_only_address[0].address_merkle_tree_account_index {:?}",
+                        read_only_address[0].address_merkle_tree_account_index
+                    );
+                }
+                CreatePdaMode::InvalidReadOnlyRootIndex => {
+                    read_only_address[0].address_merkle_tree_root_index = 0;
+                }
+                _ => {}
+            }
+        }
         let inputs_struct = InstructionDataInvokeCpiWithReadOnlyAddress {
             invoke_cpi: inputs_struct,
             read_only_addresses: read_only_address,
@@ -264,7 +293,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             &signer_seeds,
         );
 
-        cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+        cpi_ctx.remaining_accounts = remaining_accounts;
 
         light_system_program::cpi::invoke_cpi_with_read_only_address(cpi_ctx, inputs)?;
     } else {
@@ -334,29 +363,22 @@ fn create_compressed_pda_data(
             &new_address_params.seed,
         )
         .map_err(ProgramError::from)?,
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
-            let hashed_invoking_program_id = hash_to_bn254_field_size_be(&crate::ID.to_bytes())
-                .unwrap()
-                .0;
-            derive_address(
-                &ctx.remaining_accounts
-                    [new_address_params.address_merkle_tree_account_index as usize]
-                    .key(),
-                &hashed_invoking_program_id,
-                &new_address_params.seed,
-            )
-        }
+        BatchedMerkleTreeAccount::DISCRIMINATOR => derive_address(
+            &new_address_params.seed,
+            &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+                .key()
+                .to_bytes(),
+            &crate::ID.to_bytes(),
+        ),
         _ => {
             if mode == CreatePdaMode::InvalidBatchTreeAccount {
-                let hashed_invoking_program_id = hash_to_bn254_field_size_be(&crate::ID.to_bytes())
-                    .unwrap()
-                    .0;
                 derive_address(
+                    &new_address_params.seed,
                     &ctx.remaining_accounts
                         [new_address_params.address_merkle_tree_account_index as usize]
-                        .key(),
-                    &hashed_invoking_program_id,
-                    &new_address_params.seed,
+                        .key()
+                        .to_bytes(),
+                    &crate::ID.to_bytes(),
                 )
             } else {
                 panic!("Invalid discriminator");

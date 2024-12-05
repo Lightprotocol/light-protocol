@@ -11,7 +11,6 @@ use light_system_program::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 pub fn process_create_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
@@ -106,14 +105,12 @@ fn create_compressed_pda_data(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
             .try_borrow_data()?[0..8],
     );
-    let hashed_invoking_program_id = hash_to_bn254_field_size_be(&crate::ID.to_bytes())
-        .unwrap()
-        .0;
     let address = derive_address(
-        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-            .key(),
-        &hashed_invoking_program_id,
         &new_address_params.seed,
+        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+            .key()
+            .to_bytes(),
+        &crate::ID.to_bytes(),
     );
 
     Ok(OutputCompressedAccountWithPackedContext {

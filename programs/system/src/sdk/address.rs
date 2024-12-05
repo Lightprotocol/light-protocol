@@ -19,15 +19,15 @@ pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Re
 }
 
 pub fn derive_address(
-    merkle_tree_pubkey: &Pubkey,
-    hashed_program_id: &[u8; 32],
     seed: &[u8; 32],
+    merkle_tree_pubkey: &[u8; 32],
+    program_id_bytes: &[u8; 32],
 ) -> [u8; 32] {
     hashv_to_bn254_field_size_be(
         [
-            merkle_tree_pubkey.to_bytes().as_slice(),
-            hashed_program_id.as_slice(),
             seed.as_slice(),
+            merkle_tree_pubkey.as_slice(),
+            program_id_bytes.as_slice(),
         ]
         .as_slice(),
     )
@@ -105,7 +105,6 @@ pub fn pack_read_only_address_params(
             address: x.address,
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
             address_merkle_tree_account_index: 0, // will be assigned later
-            address_queue_account_index: 0,       // will be assigned later
         })
         .collect::<Vec<ReadOnlyAddressParamsPacked>>();
     let mut next_index: usize = remaining_accounts.len();
@@ -123,18 +122,6 @@ pub fn pack_read_only_address_params(
             as u8;
     }
 
-    for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_queue_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.address_queue_pubkey, next_index);
-                next_index += 1;
-            }
-        };
-        new_address_params_packed[i].address_queue_account_index = *remaining_accounts
-            .get(&params.address_queue_pubkey)
-            .unwrap() as u8;
-    }
     new_address_params_packed
 }
 

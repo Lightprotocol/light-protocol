@@ -326,7 +326,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         );
         println!("inputs {:?}", inputs);
         let client = Client::new();
-        let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&&inputs.new_root).unwrap();
+        let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
         let inputs = to_json(&inputs);
 
         // let new_root = self.merkle_tree.root();

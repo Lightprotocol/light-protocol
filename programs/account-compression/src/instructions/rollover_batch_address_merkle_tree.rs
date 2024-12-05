@@ -1,7 +1,4 @@
-use std::u64;
-
 use crate::{
-    assert_address_mt_zero_copy_rollover_zero,
     batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
     init_batched_address_merkle_tree_account,
     utils::{
@@ -61,7 +58,7 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     check_signer_is_registered_or_authority::<
         RolloverBatchAddressMerkleTree,
         ZeroCopyBatchedMerkleTreeAccount,
-    >(&ctx, &old_merkle_tree_account)?;
+    >(&ctx, old_merkle_tree_account)?;
 
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.new_address_merkle_tree.to_account_info(),
@@ -291,16 +288,17 @@ mod address_tree_rollover_tests {
                 params.network_fee,
             )
             .unwrap();
+            let new_ref_mt_account = ref_mt_account.clone();
 
             let mut ref_rolledover_mt = ref_mt_account.clone();
             ref_rolledover_mt.next_index = 1 << ref_rolledover_mt.height;
             assert_address_mt_roll_over(
                 mt_account_data.to_vec(),
-                ref_mt_account,
+                ref_rolledover_mt,
                 new_mt_account_data.to_vec(),
+                new_ref_mt_account,
                 new_mt_pubkey,
                 params.bloom_filter_num_iters,
-                ref_rolledover_mt,
             );
         }
         // 4. Failing: already rolled over
@@ -353,7 +351,7 @@ mod address_tree_rollover_tests {
                 input_queue_zkp_batch_size,
                 // 8 bits per byte, divisible by 8 for aligned memory
                 bloom_filter_capacity: rng.gen_range(0..100) * 8 * 8,
-                network_fee: Some(rng.gen_range(0..1000)),
+                network_fee: Some(rng.gen_range(1..1000)),
                 rollover_threshold: Some(rng.gen_range(0..100)),
                 close_threshold: None,
                 root_history_capacity: rng.gen_range(1..1000),
@@ -444,40 +442,43 @@ mod address_tree_rollover_tests {
                 network_fee,
             )
             .unwrap();
+            let new_ref_mt_account = ref_mt_account.clone();
             let mut ref_rolled_over_account = ref_mt_account.clone();
             ref_rolled_over_account.next_index = 1 << params.height;
+
             assert_address_mt_roll_over(
                 mt_account_data,
-                ref_mt_account,
+                ref_rolled_over_account,
                 new_mt_data,
+                new_ref_mt_account,
                 new_mt_pubkey,
                 params.bloom_filter_num_iters,
-                ref_rolled_over_account,
             );
         }
     }
 }
 
+// TODO: assert that remainder of old_mt_account_data is not changed
 pub fn assert_address_mt_roll_over(
-    mut mt_account_data: Vec<u8>,
-    ref_mt_account: BatchedMerkleTreeAccount,
+    mut old_mt_account_data: Vec<u8>,
+    mut old_ref_mt_account: BatchedMerkleTreeAccount,
     mut new_mt_account_data: Vec<u8>,
+    new_ref_mt_account: BatchedMerkleTreeAccount,
     new_mt_pubkey: Pubkey,
     bloom_filter_num_iters: u64,
-    mut ref_rolledover_mt: BatchedMerkleTreeAccount,
 ) {
-    ref_rolledover_mt
+    old_ref_mt_account
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)
         .unwrap();
-    assert_address_mt_zero_copy_rollover_zero(
-        &mut mt_account_data,
-        ref_rolledover_mt,
-        bloom_filter_num_iters,
-    );
+    let old_mt_account =
+        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut old_mt_account_data)
+            .unwrap();
+    assert_eq!(old_mt_account.get_account(), &old_ref_mt_account);
+
     assert_address_mt_zero_copy_inited(
         &mut new_mt_account_data,
-        ref_mt_account,
+        new_ref_mt_account,
         bloom_filter_num_iters,
     );
 }

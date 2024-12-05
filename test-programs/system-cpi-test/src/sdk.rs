@@ -46,15 +46,21 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     );
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-    let read_only_address = if let Some(readonly_adresses) = input_params.readonly_adresses.as_ref()
-    {
-        Some(pack_read_only_address_params(
-            &readonly_adresses,
-            &mut remaining_accounts,
-        ))
-    } else {
-        None
-    };
+    // let read_only_address = if let Some(readonly_adresses) = input_params.readonly_adresses.as_ref()
+    // {
+    //     Some(pack_read_only_address_params(
+    //         readonly_adresses,
+    //         &mut remaining_accounts,
+    //     ))
+    // } else {
+    //     None
+    // };
+    let read_only_address = input_params
+        .readonly_adresses
+        .as_ref()
+        .map(|readonly_adresses| {
+            pack_read_only_address_params(readonly_adresses, &mut remaining_accounts)
+        });
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
         proof: Some(input_params.proof.clone()),

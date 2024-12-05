@@ -486,7 +486,7 @@ pub async fn failing_transaction_inputs_inner(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -691,7 +691,7 @@ pub async fn failing_transaction_address(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -779,7 +779,7 @@ pub async fn failing_transaction_output(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -1218,13 +1218,13 @@ async fn test_with_address() {
 
     let res = context.process_transaction(transaction).await;
     assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
-    // address tree with new derivation should fail
+    // v1 address tree with new derivation should fail
     {
-        let hashed_owner = hash_to_bn254_field_size_be(&payer_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let derived_address =
-            derive_address(&env.batch_address_merkle_tree, &hashed_owner, &address_seed);
+        let derived_address = derive_address(
+            &address_seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &payer_pubkey.to_bytes(),
+        );
         let output_compressed_accounts = vec![CompressedAccount {
             lamports: 0,
             owner: payer_pubkey,
@@ -1267,11 +1267,11 @@ async fn test_with_address() {
     }
     // batch address tree with new derivation should fail with invoke because invoking program is not provided.
     {
-        let hashed_owner = hash_to_bn254_field_size_be(&payer_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let derived_address =
-            derive_address(&env.batch_address_merkle_tree, &hashed_owner, &address_seed);
+        let derived_address = derive_address(
+            &address_seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &payer_pubkey.to_bytes(),
+        );
         let output_compressed_accounts = vec![CompressedAccount {
             lamports: 0,
             owner: payer_pubkey,

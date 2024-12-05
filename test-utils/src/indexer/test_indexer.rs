@@ -190,16 +190,16 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .iter()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey);
         if let Some(address_tree_bundle) = address_tree_bundle {
-            return Ok(address_tree_bundle.merkle_tree.merkle_tree.get_subtrees());
+            Ok(address_tree_bundle.merkle_tree.merkle_tree.get_subtrees())
         } else {
             let state_tree_bundle = self
                 .state_merkle_trees
                 .iter()
                 .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey);
             if let Some(state_tree_bundle) = state_tree_bundle {
-                return Ok(state_tree_bundle.merkle_tree.get_subtrees());
+                Ok(state_tree_bundle.merkle_tree.get_subtrees())
             } else {
-                return Err(IndexerError::Custom("Merkle tree not found".to_string()));
+                Err(IndexerError::Custom("Merkle tree not found".to_string()))
             }
         }
     }
@@ -1305,7 +1305,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         // - creating addresses in multiple address Merkle trees in one tx is not supported
         // TODO: reimplement this is not a good solution
         // - take addresses and address Merkle tree pubkeys from cpi to account compression program
-        if new_addresses.len() > 0 {
+        if !new_addresses.is_empty() {
             for pubkey in event.pubkey_array.iter() {
                 if let Some((i, address_merkle_tree)) = self
                     .address_merkle_trees

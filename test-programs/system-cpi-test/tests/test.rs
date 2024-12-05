@@ -21,6 +21,7 @@ use light_test_utils::system_program::transfer_compressed_sol_test;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
 use light_utils::hash_to_bn254_field_size_be;
+use serial_test::serial;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 use system_cpi_test::sdk::{
@@ -47,6 +48,7 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 11. write data to an account that it doesn't own (WriteAccessCheckFailed)
 /// 12. Spend Program owned account with program keypair (SignerCheckFailed)
 /// 13. Create program owned account without data (DataFieldUndefined)
+#[serial]
 #[tokio::test]
 async fn only_test_create_pda() {
     let (mut rpc, env) =
@@ -54,15 +56,70 @@ async fn only_test_create_pda() {
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
         &payer, &env,
-        None, // Some(ProverConfig {
-             //     run_mode: Some(ProverMode::Rpc),
-             //     circuits: vec![],
-             // }),
+        // Some(ProverConfig {
+        //     run_mode: Some(ProverMode::Rpc),
+        //     circuits: vec![],
+        // }),
+        None,
     )
     .await;
     {
         let seed = [5u8; 32];
         let data = [2u8; 31];
+
+        let result = perform_create_pda_with_event(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::InvalidReadOnlyAddress,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_verifier::VerifierError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
+
+        let result = perform_create_pda_with_event(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::InvalidReadOnlyMerkleTree,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
+
+        let result = perform_create_pda_with_event(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::InvalidReadOnlyRootIndex,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_verifier::VerifierError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
 
         // Functional readonly address ----------------------------------------------
         perform_create_pda_with_event(
@@ -376,6 +433,7 @@ async fn only_test_create_pda() {
 /// 3. Freeze
 /// 4. Thaw
 /// 5. Burn
+#[serial]
 #[tokio::test]
 async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     let (mut rpc, env) =
@@ -548,6 +606,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 /// 1. Cannot create an address in a program owned address Merkle tree owned by a different program (InvalidMerkleTreeOwner)
 /// 2. Cannot create a compressed account in a program owned state Merkle tree owned by a different program (InvalidMerkleTreeOwner)
 /// 3. Create a compressed account and address in program owned state and address Merkle trees
+#[serial]
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_trees() {
     let (mut rpc, env) =
@@ -809,17 +868,17 @@ async fn perform_create_pda<R: RpcConnection>(
 ) -> solana_sdk::instruction::Instruction {
     let (address, mut address_merkle_tree_pubkey, address_queue_pubkey) =
         if mode == CreatePdaMode::BatchAddressFunctional {
-            let hashed_program_id = hash_to_bn254_field_size_be(&system_cpi_test::ID.to_bytes())
-                .unwrap()
-                .0;
-            let address = derive_address(&env.batch_address_merkle_tree, &hashed_program_id, &seed);
+            let address = derive_address(
+                &seed,
+                &env.batch_address_merkle_tree.to_bytes(),
+                &system_cpi_test::ID.to_bytes(),
+            );
             println!("address: {:?}", address);
             println!(
                 "address_merkle_tree_pubkey: {:?}",
                 env.address_merkle_tree_pubkey
             );
             println!("program_id: {:?}", system_cpi_test::ID);
-            println!("hashed_program_id: {:?}", hashed_program_id);
             println!("seed: {:?}", seed);
             (
                 address,
@@ -836,7 +895,11 @@ async fn perform_create_pda<R: RpcConnection>(
         };
     let mut addresses = vec![address];
     // InvalidReadOnlyAddress add address to proof but don't send in the instruction
-    if mode == CreatePdaMode::OneReadOnlyAddress || mode == CreatePdaMode::InvalidReadOnlyAddress {
+    if mode == CreatePdaMode::OneReadOnlyAddress
+        || mode == CreatePdaMode::InvalidReadOnlyAddress
+        || mode == CreatePdaMode::InvalidReadOnlyMerkleTree
+        || mode == CreatePdaMode::InvalidReadOnlyRootIndex
+    {
         let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
             .unwrap()
             .0;
@@ -873,11 +936,13 @@ async fn perform_create_pda<R: RpcConnection>(
         address_queue_pubkey,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
-    let readonly_adresses = if mode == CreatePdaMode::OneReadOnlyAddress {
+    let readonly_adresses = if mode == CreatePdaMode::OneReadOnlyAddress
+        || mode == CreatePdaMode::InvalidReadOnlyMerkleTree
+        || mode == CreatePdaMode::InvalidReadOnlyRootIndex
+    {
         let read_only_address = vec![ReadOnlyAddressParams {
             address: addresses[1],
             address_merkle_tree_pubkey,
-            address_queue_pubkey,
             address_merkle_tree_root_index: rpc_result.address_root_indices[1],
         }];
         Some(read_only_address)
@@ -886,13 +951,11 @@ async fn perform_create_pda<R: RpcConnection>(
             ReadOnlyAddressParams {
                 address: addresses[0],
                 address_merkle_tree_pubkey,
-                address_queue_pubkey,
                 address_merkle_tree_root_index: rpc_result.address_root_indices[0],
             },
             ReadOnlyAddressParams {
                 address: addresses[1],
                 address_merkle_tree_pubkey,
-                address_queue_pubkey,
                 address_merkle_tree_root_index: rpc_result.address_root_indices[1],
             },
         ];
@@ -1097,65 +1160,3 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         assert_rpc_error(result, 0, expected_error_code)
     }
 }
-
-// #[tokio::test]
-// async fn test_batch_address() {
-//     let (mut rpc, env) =
-//         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
-//     let payer = rpc.get_payer().insecure_clone();
-//     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-//         &payer,
-//         &env,
-//         Some(ProverConfig {
-//             run_mode: Some(ProverMode::Rpc),
-//             circuits: vec![],
-//         }),
-//     )
-//     .await;
-// }
-
-// pub enum CreatePdaWithCustomAddressMode {}
-
-// #[allow(clippyRtoo_many_arguments)]
-// async fn perform_create_pda_with_custom_address<R: RpcConnection>(
-//     env: &EnvAccounts,
-//     seed: [u8; 32],
-//     test_indexer: &mut TestIndexer<R>,
-//     rpc: &mut R,
-//     data: &[u8; 31],
-//     payer_pubkey: Pubkey,
-//     owner_program: &Pubkey,
-//     mode: CreatePdaWithCustomAddressMode,
-// ) -> solana_sdk::instruction::Instruction {
-//     let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
-
-//     let rpc_result = test_indexer
-//         .create_proof_for_compressed_accounts(
-//             None,
-//             None,
-//             Some(&[address]),
-//             Some(vec![env.address_merkle_tree_pubkey]),
-//             rpc,
-//         )
-//         .await;
-
-//     let new_address_params = NewAddressParams {
-//         seed,
-//         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-//         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-//         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
-//     };
-//     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
-//         data: *data,
-//         signer: &payer_pubkey,
-//         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-//         proof: &rpc_result.proof,
-//         new_address_params,
-//         cpi_context_account: &env.cpi_context_account_pubkey,
-//         owner_program,
-//         signer_is_program: signer_is_program.clone(),
-//         registered_program_pda: &env.registered_program_pda,
-//     };
-//     create_pda_instruction(create_ix_inputs.clone())
-// }
-// signer_is_program

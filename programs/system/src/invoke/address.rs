@@ -3,7 +3,6 @@ use account_compression::{
     utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
-use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
@@ -24,14 +23,10 @@ pub fn derive_new_addresses(
     compressed_account_addresses: &mut [Option<[u8; 32]>],
     new_addresses: &mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    let hashed_invoking_program_id = if let Some(invoking_program_id) = invoking_program_id {
-        Some(
-            hash_to_bn254_field_size_be(&invoking_program_id.to_bytes())
-                .ok_or(SystemProgramError::DeriveAddressError)?
-                .0,
-        )
+    let invoking_program_id_bytes = if let Some(invoking_program_id) = invoking_program_id {
+        invoking_program_id.to_bytes()
     } else {
-        None
+        [0u8; 32]
     };
 
     new_address_params
@@ -52,14 +47,16 @@ pub fn derive_new_addresses(
                 )
                 .map_err(ProgramError::from)?,
                 BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                    let hashed_invoking_program_id =
-                        hashed_invoking_program_id.ok_or(SystemProgramError::DeriveAddressError)?;
+                    if invoking_program_id.is_none() {
+                        return err!(SystemProgramError::DeriveAddressError);
+                    }
                     derive_address(
+                        &new_address_params.seed,
                         &remaining_accounts
                             [new_address_params.address_merkle_tree_account_index as usize]
-                            .key(),
-                        &hashed_invoking_program_id,
-                        &new_address_params.seed,
+                            .key()
+                            .to_bytes(),
+                        &invoking_program_id_bytes,
                     )
                 }
                 _ => {
