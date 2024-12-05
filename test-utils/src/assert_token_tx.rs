@@ -3,8 +3,8 @@ use crate::assert_compressed_tx::{
     assert_public_transaction_event, MerkleTreeTestSnapShot,
 };
 use anchor_lang::AnchorSerialize;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
-use light_client::rpc::RpcConnection;
+use forester_utils::indexer::Indexer;
+use light_client::rpc::{RpcConnection, TokenDataWithContext};
 use light_compressed_token::{
     get_token_pool_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},

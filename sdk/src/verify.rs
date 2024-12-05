@@ -1,5 +1,7 @@
 use anchor_lang::{prelude::*, Bumps};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{DataHasher, Discriminator};
+use light_verifier::CompressedProof;
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{
@@ -9,7 +11,7 @@ use crate::{
         OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
     },
     error::LightSdkError,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::CompressedProofWithContext,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -33,7 +35,7 @@ pub struct CompressedCpiContext {
     pub cpi_context_account_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, BorshDeserialize, BorshSerialize)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<PackedNewAddressParams>,
@@ -261,7 +263,7 @@ pub fn verify_light_accounts<'info, T>(
             + InvokeCpiContextAccount<'info>
             + Bumps,
     >,
-    proof: Option<ProofRpcResult>,
+    proof: Option<CompressedProofWithContext>,
     light_accounts: &[LightAccount<T>],
     compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,

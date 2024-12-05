@@ -1,6 +1,7 @@
 use anchor_spl::token::{Mint, TokenAccount};
 use forester_utils::create_account_instruction;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
+use forester_utils::indexer::Indexer;
+use light_client::rpc::TokenDataWithContext;
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
@@ -15,10 +16,8 @@ use light_compressed_token::{
     TokenData,
 };
 use light_hasher::Poseidon;
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent},
-};
+use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use solana_program_test::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
@@ -378,13 +377,22 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     };
 
     let authority_signer = if delegate_is_signer { payer } else { from };
+    let proof: Option<light_system_program::invoke::processor::CompressedProof> =
+        match rpc_result.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &authority_signer.pubkey(), // authority
         &input_merkle_tree_context,
         &output_compressed_accounts,
         &rpc_result.root_indices,
-        &rpc_result.proof,
+        &proof,
         &input_compressed_account_token_data, // input_token_data
         &input_compressed_accounts
             .iter()
@@ -521,6 +529,16 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let proof: Option<light_system_program::invoke::processor::CompressedProof> =
+        match proof_rpc_result.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
+
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
         &payer.pubkey(), // authority
@@ -530,7 +548,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
             .collect::<Vec<_>>(), // input_compressed_account_merkle_tree_pubkeys
         &[change_out_compressed_account], // output_compressed_accounts
         &proof_rpc_result.root_indices, // root_indices
-        &proof_rpc_result.proof,
+        &proof,
         input_compressed_accounts
             .iter()
             .map(|x| x.token_data.clone())
@@ -748,6 +766,15 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let proof: Option<light_system_program::invoke::processor::CompressedProof> =
+        match proof_rpc_result.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
     let inputs = CreateApproveInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
@@ -771,7 +798,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
         change_compressed_account_merkle_tree: *change_compressed_account_merkle_tree,
         delegate: *delegate,
         root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        proof: proof.unwrap_or_default(),
     };
 
     let instruction = create_approve_instruction(inputs).unwrap();
@@ -910,6 +937,15 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let proof: Option<light_system_program::invoke::processor::CompressedProof> =
+        match proof_rpc_result.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
     let inputs = CreateRevokeInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
@@ -929,7 +965,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
         mint,
         output_account_merkle_tree: *output_account_merkle_tree,
         root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        proof: proof.unwrap_or_default(),
     };
 
     let instruction = create_revoke_instruction(inputs).unwrap();
@@ -1062,6 +1098,15 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let proof: Option<light_system_program::invoke::processor::CompressedProof> =
+        match proof_rpc_result.proof {
+            Some(proof) => Some(light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }),
+            None => None,
+        };
     let inputs = CreateInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
@@ -1080,7 +1125,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
             .collect::<Vec<_>>(),
         outputs_merkle_tree: *outputs_merkle_tree,
         root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        proof: proof.unwrap_or_default(),
     };
 
     let instruction = create_instruction::<FREEZE>(inputs).unwrap();
@@ -1335,6 +1380,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
             rpc,
         )
         .await;
+
     let mint = if mode == BurnInstructionMode::InvalidMint {
         Pubkey::new_unique()
     } else {
@@ -1347,7 +1393,14 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
             c: proof_rpc_result.proof.as_ref().unwrap().a, // flip c to make proof invalid but not run into decompress errors
         }
     } else {
-        proof_rpc_result.proof.unwrap_or_default()
+        let proof = proof_rpc_result.proof.map(|proof| {
+            light_system_program::invoke::processor::CompressedProof {
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
+            }
+        });
+        proof.unwrap_or_default()
     };
     let inputs = CreateBurnInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),

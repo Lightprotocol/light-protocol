@@ -8,15 +8,13 @@ use light_indexed_merkle_tree::{
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::ProofRpcResult, token::TokenDataWithMerkleContext,
+    proof::CompressedProofWithContext, token::TokenDataWithMerkleContext,
 };
 use num_bigint::BigUint;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 
 use crate::rpc::RpcConnection;
-
-pub mod test_indexer;
 
 #[derive(Error, Debug)]
 pub enum IndexerError {
@@ -48,7 +46,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> impl Future<Output = ProofRpcResult>;
+    ) -> impl Future<Output = CompressedProofWithContext>;
 
     fn get_compressed_accounts_by_owner(
         &self,
@@ -95,16 +93,20 @@ pub struct AddressMerkleTreeAccounts {
 }
 
 #[derive(Debug, Clone)]
-pub struct StateMerkleTreeBundle {
-    pub rollover_fee: u64,
-    pub merkle_tree: Box<MerkleTree<Poseidon>>,
-    pub accounts: StateMerkleTreeAccounts,
-}
-
-#[derive(Debug, Clone)]
 pub struct AddressMerkleTreeBundle {
     pub rollover_fee: u64,
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
+}
+
+#[derive(Debug, Clone)]
+pub struct StateMerkleTreeBundle {
+    pub rollover_fee: u64,
+    pub merkle_tree: Box<MerkleTree<Poseidon>>,
+    pub accounts: StateMerkleTreeAccounts,
+    pub version: u64,
+    pub output_queue_elements: Vec<[u8; 32]>,
+    /// leaf index, leaf, tx hash
+    pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
 }
