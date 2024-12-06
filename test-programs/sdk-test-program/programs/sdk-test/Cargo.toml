@@ -22,14 +22,8 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace=true}
-borsh = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
-light-macros = { workspace = true }
 light-sdk = { workspace = true }
-light-sdk-macros = { workspace = true }
-light-utils = { workspace = true }
-light-verifier = { workspace = true }
-
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
@@ -37,5 +31,6 @@ solana-sdk = { workspace = true }
 light-client = { workspace = true , features = ["devenv"]}
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { path = "../../../../test-utils", version = "1.2.0", features = ["devenv"] }
-solana-program-test = { workspace = true }
+light-prover-client = { workspace = true}
+forester-utils = { workspace = true }
 tokio = { workspace = true }

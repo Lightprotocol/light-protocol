@@ -12,7 +12,6 @@ pub struct MerkleProof {
     pub root_seq: u64,
 }
 
-// For consistency with the Photon API.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NewAddressProofWithContext {
     pub merkle_tree: Pubkey,

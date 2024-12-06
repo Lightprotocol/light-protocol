@@ -4,12 +4,14 @@ use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::ForesterConfig;
-use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
+use light_client::indexer::error::IndexerError;
+use light_client::indexer::{Indexer, NewAddressProofWithContext};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_program_test::indexer::TestIndexer;
 use light_program_test::test_env::get_test_env_accounts;
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
-use light_test_utils::indexer::TestIndexer;
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
 
@@ -172,7 +174,7 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnect
 }
 
 #[allow(dead_code)]
-pub async fn assert_accounts_by_owner<R: RpcConnection>(
+pub async fn assert_accounts_by_owner<R: RpcConnection + MerkleTreeExt>(
     indexer: &mut TestIndexer<R>,
     user: &User,
     photon_indexer: &PhotonIndexer<R>,
@@ -206,7 +208,7 @@ pub async fn assert_accounts_by_owner<R: RpcConnection>(
 }
 
 #[allow(dead_code)]
-pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection>(
+pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection + MerkleTreeExt>(
     indexer: &mut TestIndexer<R>,
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
