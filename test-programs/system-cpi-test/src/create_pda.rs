@@ -284,6 +284,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         let inputs_struct = InstructionDataInvokeCpiWithReadOnlyAddress {
             invoke_cpi: inputs_struct,
             read_only_addresses: read_only_address,
+            read_only_accounts: None,
         };
         let mut inputs = Vec::new();
         InstructionDataInvokeCpiWithReadOnlyAddress::serialize(&inputs_struct, &mut inputs)

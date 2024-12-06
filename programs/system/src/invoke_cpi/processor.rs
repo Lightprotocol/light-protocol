@@ -5,7 +5,7 @@ use super::verify_signer::cpi_signer_checks;
 use crate::{
     invoke::processor::process, invoke_cpi::instruction::InvokeCpiInstruction,
     sdk::accounts::SignerAccounts, InstructionDataInvoke, InstructionDataInvokeCpi,
-    ReadOnlyAddressParamsPacked,
+    PackedReadOnlyAddress,
 };
 
 /// Processes an `InvokeCpi` instruction.
@@ -16,7 +16,7 @@ use crate::{
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
     inputs: InstructionDataInvokeCpi,
-    read_only_addresses: Option<Vec<ReadOnlyAddressParamsPacked>>,
+    read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(

@@ -28,6 +28,18 @@ impl CompressedAccountWithMerkleContext {
     }
 }
 
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct ReadOnlyCompressedAccount {
+    pub account_hash: [u8; 32],
+    pub account: MerkleContext,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedReadOnlyCompressedAccount {
+    pub account_hash: [u8; 32],
+    pub account: PackedCompressedAccountWithMerkleContext,
+}
+
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,

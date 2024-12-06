@@ -4,8 +4,8 @@ use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
 use crate::{
-    errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, ReadOnlyAddressParams,
-    ReadOnlyAddressParamsPacked,
+    errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress,
+    ReadOnlyAddressParams,
 };
 pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(
@@ -98,15 +98,15 @@ pub fn pack_new_address_params(
 pub fn pack_read_only_address_params(
     new_address_params: &[ReadOnlyAddressParams],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
-) -> Vec<ReadOnlyAddressParamsPacked> {
+) -> Vec<PackedReadOnlyAddress> {
     let mut new_address_params_packed = new_address_params
         .iter()
-        .map(|x| ReadOnlyAddressParamsPacked {
+        .map(|x| PackedReadOnlyAddress {
             address: x.address,
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
             address_merkle_tree_account_index: 0, // will be assigned later
         })
-        .collect::<Vec<ReadOnlyAddressParamsPacked>>();
+        .collect::<Vec<PackedReadOnlyAddress>>();
     let mut next_index: usize = remaining_accounts.len();
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey) {

@@ -22,7 +22,7 @@ use crate::{
     InstructionDataInvoke,
 };
 
-use super::ReadOnlyAddressParamsPacked;
+use super::PackedReadOnlyAddress;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -60,7 +60,7 @@ pub fn process<
     invoking_program: Option<Pubkey>,
     ctx: Context<'a, 'b, 'c, 'info, A>,
     cpi_context_inputs: usize,
-    read_only_addresses: Option<Vec<ReadOnlyAddressParamsPacked>>,
+    read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
 ) -> Result<()> {
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");

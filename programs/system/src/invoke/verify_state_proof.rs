@@ -21,7 +21,7 @@ use light_verifier::{
 };
 use std::mem;
 
-use super::ReadOnlyAddressParamsPacked;
+use super::PackedReadOnlyAddress;
 
 // TODO: add support for batched Merkle trees
 #[inline(never)]
@@ -98,7 +98,7 @@ pub fn fetch_roots_address_merkle_tree<
     A: InvokeAccounts<'info> + Bumps,
 >(
     new_address_params: &'a [NewAddressParamsPacked],
-    read_only_addresses: &'a [ReadOnlyAddressParamsPacked],
+    read_only_addresses: &'a [PackedReadOnlyAddress],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
@@ -125,7 +125,7 @@ pub fn fetch_roots_address_merkle_tree<
 #[inline(always)]
 pub fn verify_read_only_address_queue_non_inclusion<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
-    read_only_addresses: &'a [ReadOnlyAddressParamsPacked],
+    read_only_addresses: &'a [PackedReadOnlyAddress],
 ) -> Result<()> {
     for read_only_address in read_only_addresses.iter() {
         let merkle_tree_account_info =
