@@ -48,6 +48,12 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
     // and pay rollover fees only once.
     let mut current_index = 0;
     for (index, element) in elements.iter().enumerate() {
+        msg!("Processing element {}", index);
+        msg!("remaining_accounts {:?}", ctx.remaining_accounts);
+        msg!("elements {:?}", elements);
+        msg!("tx_hash {:?}", tx_hash);
+        msg!("current_index {:?}", current_index);
+
         let current_account_discriminator = ctx
             .remaining_accounts
             .get(current_index)

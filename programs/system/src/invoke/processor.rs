@@ -14,7 +14,8 @@ use crate::{
         sum_check::sum_check,
         verify_state_proof::{
             create_tx_hash, fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
-            hash_input_compressed_accounts, verify_state_proof,
+            hash_input_compressed_accounts, verify_read_only_account,
+            verify_read_only_address_queue_non_inclusion, verify_state_proof,
         },
     },
     sdk::accounts::{InvokeAccounts, SignerAccounts},
@@ -135,6 +136,11 @@ pub fn process<
             );
             return err!(SystemProgramError::InvalidCapacity);
         }
+        verify_read_only_account(
+            &ctx.remaining_accounts,
+            &inputs.input_compressed_accounts_with_merkle_context,
+            &input_compressed_account_hashes,
+        )?;
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
@@ -218,6 +224,7 @@ pub fn process<
             &input_compressed_account_hashes,
             &invoking_program,
             tx_hash,
+            num_read_only_input_accounts,
         )?
     } else {
         None
@@ -256,6 +263,11 @@ pub fn process<
                 &ctx,
                 &mut new_address_roots,
             )?;
+            verify_read_only_address_queue_non_inclusion(
+                &ctx.remaining_accounts,
+                &read_only_addresses,
+            )?;
+
             for read_only_address in read_only_addresses.iter() {
                 new_addresses.push(read_only_address.address);
             }

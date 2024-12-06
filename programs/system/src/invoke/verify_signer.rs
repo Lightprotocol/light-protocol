@@ -20,7 +20,7 @@ pub fn input_compressed_accounts_signer_check(
                     && compressed_account_with_context
                         .compressed_account
                         .data
-                        .is_none()
+                        .is_none() && !compressed_account_with_context.read_only
                 {
                     Ok(())
                 } else {

@@ -111,6 +111,7 @@ async fn invoke_failing_test() {
         None,
         None,
         false,
+        &Vec::new(),
     );
     create_instruction_and_failing_transaction(
         &mut context,
@@ -289,6 +290,7 @@ pub async fn failing_transaction_inputs(
         proof,
         None,
         false,
+        &vec![false; input_compressed_accounts.len()],
     );
     if num_addresses > 0 {
         failing_transaction_address(
@@ -833,6 +835,7 @@ pub async fn perform_tx_with_output_compressed_accounts(
         false,
         None,
         true,
+        &vec![],
     );
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[payer])
@@ -932,6 +935,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![],
     );
 
     let event = context
@@ -986,6 +990,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
 
     let res = context
@@ -1020,6 +1025,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![false; invalid_signer_compressed_accounts.len()],
     );
 
     let res = context
@@ -1070,6 +1076,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
     println!("Transaction with zkp -------------------------");
 
@@ -1119,6 +1126,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1150,6 +1158,7 @@ async fn invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1207,6 +1216,7 @@ async fn test_with_address() {
         false,
         None,
         true,
+        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1252,6 +1262,7 @@ async fn test_with_address() {
             false,
             None,
             true,
+            &vec![],
         );
 
         let transaction = Transaction::new_signed_with_payer(
@@ -1299,6 +1310,7 @@ async fn test_with_address() {
             false,
             None,
             true,
+            &vec![],
         );
 
         let transaction = Transaction::new_signed_with_payer(
@@ -1489,6 +1501,7 @@ async fn test_with_compression() {
         false,
         None,
         true,
+        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1522,6 +1535,7 @@ async fn test_with_compression() {
         true,
         None,
         true,
+        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1598,6 +1612,7 @@ async fn test_with_compression() {
         true,
         Some(recipient),
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -1835,6 +1850,7 @@ async fn batch_invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
 
     let result = context
@@ -1869,6 +1885,7 @@ async fn batch_invoke_test() {
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     );
 
     let result = context
@@ -1920,6 +1937,7 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
+            &vec![false; input_compressed_accounts.len()],
         );
         println!("Transaction with input proof by index -------------------------");
 
@@ -1973,6 +1991,7 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
+            &vec![false; input_compressed_accounts.len()],
         );
         let result = context
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -2021,6 +2040,7 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
+            &vec![false; 1],
         );
         let result = context
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -2113,6 +2133,7 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
+            &vec![false; input_compressed_accounts.len()],
         );
         println!("Combined Transaction with index and zkp -------------------------");
 
@@ -2307,6 +2328,7 @@ pub async fn double_spend_compressed_account(
         false,
         None,
         true,
+        &vec![false; input_compressed_accounts.len()],
     )];
 
     {
@@ -2329,6 +2351,7 @@ pub async fn double_spend_compressed_account(
             false,
             None,
             true,
+            &vec![false; input_compressed_accounts.len()],
         );
         if mode == TestMode::ByZkpThenIndex {
             instructions.insert(1, instruction);
@@ -2413,6 +2436,7 @@ pub async fn create_output_accounts(
         false,
         None,
         true,
+        &vec![],
     );
     let fee_config = if is_batched {
         FeeConfig::test_batched()
@@ -2427,7 +2451,7 @@ pub async fn create_output_accounts(
             &[&payer],
             Some(TransactionParams {
                 num_input_compressed_accounts: 0,
-                num_output_compressed_accounts: 1,
+                num_output_compressed_accounts: num_accounts as u8,
                 num_new_addresses: 0,
                 compress: 0,
                 fee_config,
@@ -2446,4 +2470,350 @@ pub async fn create_output_accounts(
         false,
     );
     Ok(signature)
+}
+
+#[serial]
+#[tokio::test]
+async fn read_only_test() {
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+
+    let payer = context.get_payer().insecure_clone();
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: None,
+        //     circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
+        // }),
+        None,
+    )
+    .await;
+    let payer_pubkey = payer.pubkey();
+
+    let merkle_tree_pubkey = env.batched_state_merkle_tree;
+    let output_queue_pubkey = env.batched_output_queue;
+    // 1. Should succeed: without compressed account (0 lamports), no input compressed account.
+    create_output_accounts(
+        &mut context,
+        &payer,
+        &mut test_indexer,
+        output_queue_pubkey,
+        4,
+        true,
+    )
+    .await
+    .unwrap();
+
+    // 1. functional - read only by index
+    {
+        let input_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &[],
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: None,
+            }],
+            &[],
+            &[None],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+            &[true],
+        );
+
+        context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await
+            .unwrap();
+
+        {
+            let input_compressed_accounts = vec![
+                CompressedAccount {
+                    lamports: 0,
+                    owner: payer_pubkey,
+                    data: None,
+                    address: None,
+                };
+                4
+            ];
+            let instruction = create_invoke_instruction(
+                &payer_pubkey,
+                &payer_pubkey,
+                &input_compressed_accounts,
+                &[],
+                &[
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 0,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 1,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 2,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 3,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                ],
+                &[],
+                &[None; 4],
+                &Vec::new(),
+                None,
+                None,
+                false,
+                None,
+                true,
+                &[true; 4],
+            );
+
+            context
+                .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+                .await
+                .unwrap();
+        }
+        // 3 read only spend 1
+        {
+            let input_compressed_accounts = vec![
+                CompressedAccount {
+                    lamports: 0,
+                    owner: payer_pubkey,
+                    data: None,
+                    address: None,
+                };
+                4
+            ];
+            let output_compresed_accounts = vec![CompressedAccount {
+                lamports: 0,
+                owner: payer_pubkey,
+                data: None,
+                address: None,
+            }];
+            let instruction = create_invoke_instruction(
+                &payer_pubkey,
+                &payer_pubkey,
+                &input_compressed_accounts,
+                &output_compresed_accounts,
+                &[
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 0,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 1,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 2,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                    MerkleContext {
+                        merkle_tree_pubkey,
+                        leaf_index: 3,
+                        nullifier_queue_pubkey: output_queue_pubkey,
+                        queue_index: None,
+                    },
+                ],
+                &[output_queue_pubkey],
+                &[None; 4],
+                &Vec::new(),
+                None,
+                None,
+                false,
+                None,
+                true,
+                &[true, true, true, false],
+            );
+
+            context
+                .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+                .await
+                .unwrap();
+        }
+    }
+    // 2. failing - read only account not marked by index without proof
+    {
+        let input_compressed_accounts = vec![CompressedAccount {
+            lamports: 1, // invalid amount
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &[],
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: None,
+            }],
+            &[],
+            &[Some(1)],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+            &[true],
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(result, 0, SystemProgramError::ProofIsNone.into()).unwrap();
+    }
+    //3. failing - invalid compressed account by index
+    {
+        let input_compressed_accounts = vec![CompressedAccount {
+            lamports: 1, // invalid amount
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &[],
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: None,
+            }],
+            &[],
+            &[None], // Mark as proof by index
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+            &[true],
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 4. failing - spend lamports from read only account
+    {
+        let input_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 1,
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_index: None,
+            }],
+            &[merkle_tree_pubkey],
+            &[None], // Mark as proof by index
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+            &[true],
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(result, 0, SystemProgramError::ComputeOutputSumFailed.into()).unwrap();
+    }
+    //5. failing - invalid output queue
+    {
+        let input_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: None,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &[],
+            &[MerkleContext {
+                merkle_tree_pubkey,
+                leaf_index: 0,
+                nullifier_queue_pubkey: merkle_tree_pubkey, // invalid account for output queue
+                queue_index: None,
+            }],
+            &[],
+            &[None], // Mark as proof by index
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+            &[true],
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidDiscriminator.into(),
+        )
+        .unwrap();
+    }
 }

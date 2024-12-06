@@ -33,6 +33,8 @@ pub enum CreatePdaMode {
     InvalidReadOnlyAddress,
     InvalidReadOnlyRootIndex,
     InvalidReadOnlyMerkleTree,
+    ReadOnlyProofOfInsertedAddress,
+    UseReadOnlyAddressInAccount,
 }
 
 pub fn process_create_pda<'info>(
@@ -72,7 +74,9 @@ pub fn process_create_pda<'info>(
         | CreatePdaMode::TwoReadOnlyAddresses
         | CreatePdaMode::InvalidReadOnlyAddress
         | CreatePdaMode::InvalidReadOnlyRootIndex
-        | CreatePdaMode::InvalidReadOnlyMerkleTree => {
+        | CreatePdaMode::InvalidReadOnlyMerkleTree
+        | CreatePdaMode::UseReadOnlyAddressInAccount
+        | CreatePdaMode::ReadOnlyProofOfInsertedAddress => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
                 proof,
@@ -210,6 +214,12 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             compressed_pda.compressed_account.data = None;
             compressed_pda
         }
+        CreatePdaMode::UseReadOnlyAddressInAccount => {
+            let mut compressed_pda = compressed_pda;
+            compressed_pda.compressed_account.address =
+                Some(read_only_address.as_ref().unwrap()[0].address);
+            compressed_pda
+        }
         _ => compressed_pda,
     };
 
@@ -227,6 +237,13 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
     msg!("read only address {:?}", read_only_address);
     if read_only_address.is_some() {
+        if mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress {
+            let read_only_address = read_only_address.as_mut().unwrap();
+            read_only_address[0].address = inputs_struct.output_compressed_accounts[0]
+                .compressed_account
+                .address
+                .unwrap();
+        }
         // We currently only support two addresses hence we need to remove the
         // account and address to make space for two read only addresses.
         if mode == CreatePdaMode::TwoReadOnlyAddresses {
@@ -236,8 +253,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         msg!("inputs_struct {:?}", inputs_struct);
         println!("ctx.remaining_accounts {:?}", ctx.remaining_accounts);
         let mut remaining_accounts = ctx.remaining_accounts.to_vec();
-        if CreatePdaMode::InvalidReadOnlyMerkleTree == mode
-            || CreatePdaMode::InvalidReadOnlyRootIndex == mode
+
         {
             let read_only_address = read_only_address.as_mut().unwrap();
             match mode {
@@ -255,11 +271,16 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                     );
                 }
                 CreatePdaMode::InvalidReadOnlyRootIndex => {
-                    read_only_address[0].address_merkle_tree_root_index = 0;
+                    read_only_address[0].address_merkle_tree_root_index = 1;
+                }
+                CreatePdaMode::InvalidReadOnlyAddress => {
+                    read_only_address[0].address = [0; 32];
                 }
                 _ => {}
             }
         }
+
+        msg!("read_only_address {:?}", read_only_address);
         let inputs_struct = InstructionDataInvokeCpiWithReadOnlyAddress {
             invoke_cpi: inputs_struct,
             read_only_addresses: read_only_address,

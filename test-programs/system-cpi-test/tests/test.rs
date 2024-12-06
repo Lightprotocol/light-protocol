@@ -121,6 +121,38 @@ async fn only_test_create_pda() {
         )
         .unwrap();
 
+        let result = perform_create_pda_with_event(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::UseReadOnlyAddressInAccount,
+        )
+        .await;
+        assert_rpc_error(result, 0, SystemProgramError::InvalidAddress.into()).unwrap();
+
+        // The transaction inserts the address first, then checks read only addresses.
+        let result = perform_create_pda_with_event(
+            &mut test_indexer,
+            &mut rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            CreatePdaMode::ReadOnlyProofOfInsertedAddress,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAddressAlreadyExists.into(),
+        )
+        .unwrap();
+
         // Functional readonly address ----------------------------------------------
         perform_create_pda_with_event(
             &mut test_indexer,
@@ -134,6 +166,7 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+
         let seed = [6u8; 32];
         let data = [2u8; 31];
         perform_create_pda_with_event(
@@ -866,39 +899,50 @@ async fn perform_create_pda<R: RpcConnection>(
     owner_program: &Pubkey,
     mode: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
-    let (address, mut address_merkle_tree_pubkey, address_queue_pubkey) =
-        if mode == CreatePdaMode::BatchAddressFunctional {
-            let address = derive_address(
-                &seed,
-                &env.batch_address_merkle_tree.to_bytes(),
-                &system_cpi_test::ID.to_bytes(),
-            );
-            println!("address: {:?}", address);
-            println!(
-                "address_merkle_tree_pubkey: {:?}",
-                env.address_merkle_tree_pubkey
-            );
-            println!("program_id: {:?}", system_cpi_test::ID);
-            println!("seed: {:?}", seed);
-            (
-                address,
-                env.batch_address_merkle_tree,
-                env.batch_address_merkle_tree,
-            )
-        } else {
-            let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
-            (
-                address,
-                env.address_merkle_tree_pubkey,
-                env.address_merkle_tree_queue_pubkey,
-            )
-        };
+    let (address, mut address_merkle_tree_pubkey, address_queue_pubkey) = if mode
+        == CreatePdaMode::BatchAddressFunctional
+        || mode == CreatePdaMode::InvalidReadOnlyAddress
+        || mode == CreatePdaMode::InvalidReadOnlyMerkleTree
+        || mode == CreatePdaMode::InvalidReadOnlyRootIndex
+        || mode == CreatePdaMode::TwoReadOnlyAddresses
+        || mode == CreatePdaMode::OneReadOnlyAddress
+        || mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress
+        || mode == CreatePdaMode::UseReadOnlyAddressInAccount
+    {
+        let address = derive_address(
+            &seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &system_cpi_test::ID.to_bytes(),
+        );
+        println!("address: {:?}", address);
+        println!(
+            "address_merkle_tree_pubkey: {:?}",
+            env.address_merkle_tree_pubkey
+        );
+        println!("program_id: {:?}", system_cpi_test::ID);
+        println!("seed: {:?}", seed);
+        (
+            address,
+            env.batch_address_merkle_tree,
+            env.batch_address_merkle_tree,
+        )
+    } else {
+        let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
+        (
+            address,
+            env.address_merkle_tree_pubkey,
+            env.address_merkle_tree_queue_pubkey,
+        )
+    };
     let mut addresses = vec![address];
+    let mut address_merkle_tree_pubkeys = vec![address_merkle_tree_pubkey];
     // InvalidReadOnlyAddress add address to proof but don't send in the instruction
     if mode == CreatePdaMode::OneReadOnlyAddress
         || mode == CreatePdaMode::InvalidReadOnlyAddress
         || mode == CreatePdaMode::InvalidReadOnlyMerkleTree
         || mode == CreatePdaMode::InvalidReadOnlyRootIndex
+        || mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress
+        || mode == CreatePdaMode::UseReadOnlyAddressInAccount
     {
         let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
             .unwrap()
@@ -906,6 +950,7 @@ async fn perform_create_pda<R: RpcConnection>(
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.push(read_only_address);
+        address_merkle_tree_pubkeys.push(address_merkle_tree_pubkey);
     }
     if mode == CreatePdaMode::TwoReadOnlyAddresses {
         let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
@@ -914,6 +959,7 @@ async fn perform_create_pda<R: RpcConnection>(
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.insert(0, read_only_address);
+        address_merkle_tree_pubkeys.push(address_merkle_tree_pubkey);
     }
 
     println!("addresses: {:?}", addresses);
@@ -922,7 +968,7 @@ async fn perform_create_pda<R: RpcConnection>(
             None,
             None,
             Some(&addresses),
-            Some(vec![address_merkle_tree_pubkey; addresses.len()]),
+            Some(address_merkle_tree_pubkeys),
             rpc,
         )
         .await;
@@ -936,10 +982,7 @@ async fn perform_create_pda<R: RpcConnection>(
         address_queue_pubkey,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
-    let readonly_adresses = if mode == CreatePdaMode::OneReadOnlyAddress
-        || mode == CreatePdaMode::InvalidReadOnlyMerkleTree
-        || mode == CreatePdaMode::InvalidReadOnlyRootIndex
-    {
+    let readonly_adresses = if addresses.len() == 2 && mode != CreatePdaMode::TwoReadOnlyAddresses {
         let read_only_address = vec![ReadOnlyAddressParams {
             address: addresses[1],
             address_merkle_tree_pubkey,

@@ -1,9 +1,11 @@
 use crate::{
+    errors::SystemProgramError,
     sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
     NewAddressParamsPacked,
 };
 use account_compression::{
     batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    batched_queue::ZeroCopyBatchedQueueAccount,
     errors::AccountCompressionErrorCode,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
@@ -102,7 +104,7 @@ pub fn fetch_roots_address_merkle_tree<
 ) -> Result<()> {
     msg!("fetch_roots_address_merkle_tree");
     for new_address_param in new_address_params.iter() {
-        fetch_address_root(
+        fetch_address_root::<false, A>(
             ctx,
             new_address_param.address_merkle_tree_account_index,
             new_address_param.address_merkle_tree_root_index,
@@ -110,7 +112,7 @@ pub fn fetch_roots_address_merkle_tree<
         )?;
     }
     for read_only_address in read_only_addresses.iter() {
-        fetch_address_root(
+        fetch_address_root::<true, A>(
             ctx,
             read_only_address.address_merkle_tree_account_index,
             read_only_address.address_merkle_tree_root_index,
@@ -119,7 +121,71 @@ pub fn fetch_roots_address_merkle_tree<
     }
     Ok(())
 }
-fn fetch_address_root<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
+
+#[inline(always)]
+pub fn verify_read_only_address_queue_non_inclusion<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
+    read_only_addresses: &'a [ReadOnlyAddressParamsPacked],
+) -> Result<()> {
+    for read_only_address in read_only_addresses.iter() {
+        let merkle_tree_account_info =
+            &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize];
+        let merkle_tree =
+            &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+                merkle_tree_account_info,
+            )
+            .map_err(ProgramError::from)?;
+
+        let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
+        for i in 0..num_bloom_filters {
+            let bloom_filter_store = merkle_tree.bloom_filter_stores[i].as_mut_slice();
+            let batch = &merkle_tree.batches[i];
+            match batch.check_non_inclusion(&read_only_address.address, bloom_filter_store) {
+                Ok(_) => {}
+                Err(_) => {
+                    return err!(SystemProgramError::ReadOnlyAddressAlreadyExists);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[inline(always)]
+pub fn verify_read_only_account<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
+    accounts: &'a [PackedCompressedAccountWithMerkleContext],
+    input_compressed_account_hashes: &'a [[u8; 32]],
+) -> Result<()> {
+    for (i, account) in accounts.iter().enumerate() {
+        if account.read_only && account.merkle_context.queue_index.is_some() {
+            msg!("verify_read_only_account");
+            msg!("merkle_context: {:?}", account.merkle_context);
+            let output_queue_account_info =
+                &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
+
+            let output_queue =
+                &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+                    output_queue_account_info,
+                )
+                .map_err(ProgramError::from)?;
+            output_queue.prove_inclusion_by_index(
+                account.merkle_context.leaf_index as u64,
+                &input_compressed_account_hashes[i],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn fetch_address_root<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    const IS_READ_ONLY: bool,
+    A: InvokeAccounts<'info> + Bumps,
+>(
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     address_merkle_tree_account_index: u8,
     address_merkle_tree_root_index: u16,
@@ -127,11 +193,17 @@ fn fetch_address_root<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps
 ) -> Result<()> {
     msg!("fetch_address_root");
     let merkle_tree_account_info =
-        ctx.remaining_accounts[address_merkle_tree_account_index as usize].to_account_info();
+        &ctx.remaining_accounts[address_merkle_tree_account_index as usize];
     let mut discriminator_bytes = [0u8; 8];
     discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
     match discriminator_bytes {
         AddressMerkleTreeAccount::DISCRIMINATOR => {
+            if IS_READ_ONLY {
+                msg!("Read only addresses are only supported for batch address trees.");
+                return err!(
+                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
+                );
+            }
             let merkle_tree = merkle_tree_account_info.try_borrow_data()?;
             let merkle_tree =
                 IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(

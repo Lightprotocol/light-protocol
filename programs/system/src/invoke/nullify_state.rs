@@ -24,9 +24,10 @@ pub fn insert_nullifiers<
 >(
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    nullifiers: &'a [[u8; 32]],
+    input_compressed_account_hashes: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
     tx_hash: [u8; 32],
+    num_read_only: usize,
 ) -> Result<Option<(u8, u64)>> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
@@ -56,12 +57,19 @@ pub fn insert_nullifiers<
     // nullifier queue is mutable. The network fee field in the queue is not
     // used.
     let mut network_fee_bundle = None;
-    for account in input_compressed_accounts_with_merkle_context.iter() {
+    let mut nullifiers =
+        Vec::with_capacity(input_compressed_accounts_with_merkle_context.len() - num_read_only);
+    for (account, account_hash) in input_compressed_accounts_with_merkle_context
+        .iter()
+        .zip(input_compressed_account_hashes)
+    {
+        msg!("nullify state: account: {:?}", account);
         // Don't nullify read-only accounts.
         if account.read_only {
             continue;
         }
         leaf_indices.push(account.merkle_context.leaf_index);
+        nullifiers.push(*account_hash);
 
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
@@ -95,7 +103,7 @@ pub fn insert_nullifiers<
     light_heap::bench_sbf_start!("cpda_instruction_data");
 
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        nullifiers: nullifiers.to_vec(),
+        nullifiers,
         leaf_indices,
         tx_hash: Some(tx_hash),
     };
