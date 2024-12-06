@@ -23,6 +23,7 @@ forester-utils = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
 solana-program-test = { workspace = true }
+spl-token = { workspace = true, features = ["no-entrypoint"] }
 log = { workspace = true }
 borsh = { workspace = true }
 tokio = { workspace = true }

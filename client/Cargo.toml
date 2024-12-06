@@ -34,12 +34,15 @@ log = { workspace = true }
 thiserror = { workspace = true }
 
 # Light Protocol
+account-compression = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true }
+light-hash-set = { workspace=true }
+light-system-program = { path = "../programs/system", version = "1.2.0", features = ["cpi"] }
 
 # Math and crypto
 num-bigint = { workspace = true }

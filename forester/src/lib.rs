@@ -27,7 +27,7 @@ use crate::utils::get_protocol_config;
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::Indexer;
+use light_client::indexer::Indexer;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use solana_sdk::commitment_config::CommitmentConfig;

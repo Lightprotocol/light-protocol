@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle};
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
     CreateRolloverMerkleTreeInstructionInputs,
@@ -26,9 +27,6 @@ use forester_utils::address_merkle_tree_config::{
     get_address_bundle_config, get_state_bundle_config,
 };
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-};
 use forester_utils::registry::RentExemption;
 use forester_utils::{
     create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,

@@ -11,6 +11,7 @@ use crate::slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker};
 use crate::tree_data_sync::fetch_trees;
 use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
+use light_client::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc_pool::SolanaRpcPool;
 
 use crate::metrics::{push_metrics, queue_metric_update, update_forester_sol_balance};
@@ -20,7 +21,6 @@ use dashmap::DashMap;
 use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
-use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use futures::future::join_all;
 use light_client::rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection};
 use light_registry::errors::RegistryError;

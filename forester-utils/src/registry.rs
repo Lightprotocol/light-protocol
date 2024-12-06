@@ -5,7 +5,7 @@ use account_compression::{
     StateMerkleTreeConfig,
 };
 
-use crate::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_registry::account_compression_cpi::sdk::{
     create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
