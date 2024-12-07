@@ -19,10 +19,12 @@ use light_concurrent_merkle_tree::{
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::assert_queue::assert_nullifier_queue_initialized;
-use light_test_utils::test_env::create_address_merkle_tree_and_queue_account;
+use light_test_utils::state_tree_rollover::StateMerkleTreeRolloverMode;
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, create_account_instruction, get_concurrent_merkle_tree,
+    airdrop_lamports, assert_rpc_error, create_account_instruction,
+    create_address_merkle_tree_and_queue_account_with_assert, get_concurrent_merkle_tree,
     get_hash_set, AccountZeroCopy, RpcConnection, RpcError,
 };
 use light_test_utils::{
@@ -31,9 +33,6 @@ use light_test_utils::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index,
     },
-};
-use light_test_utils::{
-    rpc::test_rpc::ProgramTestRpcConnection, state_tree_rollover::StateMerkleTreeRolloverMode,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, ToBigUint};
@@ -469,7 +468,7 @@ async fn failing_queue(
 
     let address_merkle_tree_keypair = Keypair::new();
     let address_queue_keypair = Keypair::new();
-    create_address_merkle_tree_and_queue_account(
+    create_address_merkle_tree_and_queue_account_with_assert(
         &payer,
         false,
         &mut rpc,

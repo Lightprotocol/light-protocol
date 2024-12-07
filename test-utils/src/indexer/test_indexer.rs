@@ -4,11 +4,9 @@ use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use crate::create_address_merkle_tree_and_queue_account_with_assert;
 use crate::e2e_test_env::KeypairActionConfig;
-use crate::{
-    spl::create_initialize_mint_instructions,
-    test_env::create_address_merkle_tree_and_queue_account,
-};
+use crate::spl::create_initialize_mint_instructions;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
@@ -23,10 +21,10 @@ use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
-    crate::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     account_compression::{
         utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
@@ -694,7 +692,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
     ) -> AddressMerkleTreeAccounts {
-        create_address_merkle_tree_and_queue_account(
+        create_address_merkle_tree_and_queue_account_with_assert(
             &self.payer,
             true,
             rpc,

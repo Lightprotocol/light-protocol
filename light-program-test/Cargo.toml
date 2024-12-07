@@ -3,19 +3,26 @@ name = "light-program-test"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[features]
+default = []
+devenv = []
 
+[dependencies]
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-hasher = { workspace = true }
-
+light-registry = { workspace = true }
+light-system-program = { workspace = true }
+light-compressed-token = { workspace = true }
+light-utils = { workspace = true }
+account-compression = { workspace = true  }
+forester-utils = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
 solana-program-test = { workspace = true }
-
 log = { workspace = true }
 borsh = { workspace = true }
 tokio = { workspace = true }

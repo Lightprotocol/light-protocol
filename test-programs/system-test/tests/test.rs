@@ -3,6 +3,11 @@ use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
+use light_program_test::test_env::{
+    initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
+    EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
+};
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
@@ -17,7 +22,6 @@ use light_system_program::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams,
 };
-use light_test_utils::test_env::{EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR};
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
     TransactionParams,
@@ -29,11 +33,6 @@ use light_test_utils::{
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
-    test_env::setup_test_programs_with_accounts,
-};
-use light_test_utils::{
-    rpc::test_rpc::ProgramTestRpcConnection,
-    test_env::{initialize_accounts, setup_test_programs, EnvAccountKeypairs},
 };
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;

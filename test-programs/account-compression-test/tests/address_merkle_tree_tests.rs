@@ -16,15 +16,16 @@ use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
+use light_program_test::test_env::NOOP_PROGRAM_ID;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over, rpc::ProgramTestRpcConnection,
-    test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
+    address_tree_rollover::perform_address_merkle_tree_roll_over,
+    create_address_merkle_tree_and_queue_account_with_assert, test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, set_address_merkle_tree_next_index,
     },
-    test_env::create_address_merkle_tree_and_queue_account,
     test_forester::{empty_address_queue_test, insert_addresses},
 };
 use light_test_utils::{
@@ -980,7 +981,7 @@ async fn update_address_merkle_tree_failing_tests(
 
     let invalid_address_merkle_tree_keypair = Keypair::new();
     let invalid_address_queue_keypair = Keypair::new();
-    create_address_merkle_tree_and_queue_account(
+    create_address_merkle_tree_and_queue_account_with_assert(
         &payer,
         false,
         &mut context,
@@ -1192,7 +1193,7 @@ async fn address_merkle_tree_and_queue_rollover(
     let address_queue_pubkey = bundle.accounts.queue;
     let address_merkle_tree_keypair_2 = Keypair::new();
     let address_queue_keypair_2 = Keypair::new();
-    create_address_merkle_tree_and_queue_account(
+    create_address_merkle_tree_and_queue_account_with_assert(
         &payer,
         false,
         &mut context,
@@ -1438,7 +1439,7 @@ pub async fn test_setup_with_address_merkle_tree(
 
     let address_merkle_tree_keypair = Keypair::new();
     let address_queue_keypair = Keypair::new();
-    create_address_merkle_tree_and_queue_account(
+    create_address_merkle_tree_and_queue_account_with_assert(
         &payer,
         false,
         &mut context,
