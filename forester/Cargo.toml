@@ -57,7 +57,7 @@ light-client = { workspace = true }
 [dev-dependencies]
 function_name = "0.3.0"
 serial_test = "3.0.0"
-rstest = "0.18.2"
+rstest = "0.23.0"
 light-prover-client = {path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = {path = "../merkle-tree/reference"}
 light-hasher = {path = "../merkle-tree/hasher"}
