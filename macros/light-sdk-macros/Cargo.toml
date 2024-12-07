@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-bs58 = "0.4"
+bs58 = "0.5"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
