@@ -8,9 +8,14 @@ use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
-use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+};
 use light_sdk::instruction_data::LightInstructionData;
-use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use light_sdk::merkle_context::{
+    AddressMerkleContext, MerkleContext, QueueIndex, RemainingAccounts,
+};
+use light_sdk::proof::{CompressedProof, ProofRpcResult};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
@@ -37,8 +42,9 @@ async fn test_sdk_test() {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         }],
-        true,
-        true,
+        payer.insecure_clone(),
+        env.group_pda,
+        None,
     )
     .await;
 
@@ -90,6 +96,38 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
+    let mut sdk_compressed_account_data: Option<CompressedAccountData> = None;
+    if let Some(compressed_account_data) = &compressed_account.compressed_account.data {
+        sdk_compressed_account_data = Some(CompressedAccountData {
+            discriminator: compressed_account_data.discriminator,
+            data: compressed_account_data.data.clone(),
+            data_hash: compressed_account_data.data_hash,
+        });
+    }
+    let mut sdk_queue_index: Option<QueueIndex> = None;
+    if let Some(queue_index) = compressed_account.merkle_context.queue_index {
+        sdk_queue_index = Some(QueueIndex {
+            queue_id: queue_index.queue_id,
+            index: queue_index.index,
+        });
+    }
+
+    let sdk_compressed_account: CompressedAccountWithMerkleContext =
+        CompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: compressed_account.compressed_account.owner.clone(),
+                lamports: compressed_account.compressed_account.lamports,
+                address: compressed_account.compressed_account.address.clone(),
+                data: sdk_compressed_account_data,
+            },
+            merkle_context: MerkleContext {
+                merkle_tree_pubkey: compressed_account.merkle_context.merkle_tree_pubkey,
+                nullifier_queue_pubkey: compressed_account.merkle_context.nullifier_queue_pubkey,
+                leaf_index: compressed_account.merkle_context.leaf_index,
+                queue_index: sdk_queue_index,
+            },
+        };
+
     update_nested_data(
         &mut rpc,
         &mut test_indexer,
@@ -109,7 +147,7 @@ async fn test_sdk_test() {
             twelve: 12,
         },
         &payer,
-        compressed_account,
+        &sdk_compressed_account,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -168,8 +206,18 @@ where
     )
     .unwrap();
 
+    let proof_result = ProofRpcResult {
+        root_indices: rpc_result.address_root_indices.clone(),
+        address_root_indices: rpc_result.address_root_indices.clone(),
+        proof: CompressedProof {
+            a: rpc_result.proof.a,
+            b: rpc_result.proof.b,
+            c: rpc_result.proof.c,
+        },
+    };
+
     let inputs = LightInstructionData {
-        proof: Some(rpc_result),
+        proof: Some(proof_result),
         accounts: Some(vec![account]),
     };
     let inputs = inputs.serialize().unwrap();
@@ -239,8 +287,18 @@ where
         remaining_accounts,
     );
 
+    let proof_result = ProofRpcResult {
+        root_indices: rpc_result.address_root_indices.clone(),
+        address_root_indices: rpc_result.address_root_indices.clone(),
+        proof: CompressedProof {
+            a: rpc_result.proof.a,
+            b: rpc_result.proof.b,
+            c: rpc_result.proof.c,
+        },
+    };
+
     let inputs = LightInstructionData {
-        proof: Some(rpc_result),
+        proof: Some(proof_result),
         accounts: Some(vec![compressed_account]),
     };
     let inputs = inputs.serialize().unwrap();

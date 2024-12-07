@@ -35,6 +35,7 @@ thiserror = { workspace = true }
 
 # Light Protocol
 account-compression = { workspace = true }
+light-compressed-token = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }

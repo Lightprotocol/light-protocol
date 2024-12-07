@@ -26,6 +26,7 @@ light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
 light-utils = {path = "../../utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}
+light-client =  { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

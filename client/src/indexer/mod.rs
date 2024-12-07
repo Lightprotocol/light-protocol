@@ -1,11 +1,12 @@
-use light_sdk::token::TokenDataWithMerkleContext;
 use num_bigint::BigUint;
 use solana_sdk::signature::Keypair;
 use std::fmt::Debug;
 
+use crate::rpc::RpcConnection;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
+use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
@@ -16,15 +17,6 @@ use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleCo
 use light_system_program::sdk::event::PublicTransactionEvent;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
-
-use crate::rpc::RpcConnection;
-
-#[derive(Debug)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<u16>,
-    pub address_root_indices: Vec<u16>,
-}
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct StateMerkleTreeAccounts {
@@ -52,6 +44,19 @@ pub struct AddressMerkleTreeBundle {
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
+}
+
+#[derive(Debug)]
+pub struct ProofRpcResult {
+    pub proof: CompressedProof,
+    pub root_indices: Vec<u16>,
+    pub address_root_indices: Vec<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TokenDataWithMerkleContext {
+    pub token_data: TokenData,
+    pub compressed_account: CompressedAccountWithMerkleContext,
 }
 
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
