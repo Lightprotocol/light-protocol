@@ -579,26 +579,6 @@ impl<R> TestIndexer<R>
 where
     R: RpcConnection + MerkleTreeExt,
 {
-    // fn count_matching_hashes(&self, query_hashes: &[String]) -> usize {
-    //     self.nullified_compressed_accounts
-    //         .iter()
-    //         .map(|account| self.compute_hash(account))
-    //         .filter(|bs58_hash| query_hashes.contains(bs58_hash))
-    //         .count()
-    // }
-
-    // fn compute_hash(&self, account: &CompressedAccountWithMerkleContext) -> String {
-    //     // replace AccountType with actual type
-    //     let hash = account
-    //         .compressed_account
-    //         .hash::<Poseidon>(
-    //             &account.merkle_context.merkle_tree_pubkey,
-    //             &account.merkle_context.leaf_index,
-    //         )
-    //         .unwrap();
-    //     bs58::encode(hash).into_string()
-    // }
-
     pub async fn init_from_env(
         payer: &Keypair,
         env: &EnvAccounts,
