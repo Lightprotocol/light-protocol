@@ -7,7 +7,7 @@ use light_client::indexer::test_indexer::TestIndexer;
 use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::test_rpc::ProgramTestRpcConnection;
-use light_sdk::address::{derive_address, derive_address_seed};
+use light_sdk::address::{derive_address_legacy, derive_address_legacy_seed};
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::error::LightSdkError;
 use light_sdk::merkle_context::{
@@ -67,8 +67,9 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
-    let address = derive_address(&address_seed, &address_merkle_context);
+    let address_seed =
+        derive_address_legacy_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
+    let address = derive_address_legacy(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
         pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);

@@ -9,7 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
-pub struct BatchNullify<'info> {
+pub struct BatchUpdateAddressTree<'info> {
     /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
@@ -20,7 +20,7 @@ pub struct BatchNullify<'info> {
     pub merkle_tree: AccountInfo<'info>,
 }
 
-impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
+impl<'info> GroupAccounts<'info> for BatchUpdateAddressTree<'info> {
     fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -29,18 +29,18 @@ impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
     }
 }
 
-pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
+pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
         &ctx.accounts.merkle_tree,
     )?;
-    check_signer_is_registered_or_authority::<BatchNullify, ZeroCopyBatchedMerkleTreeAccount>(
-        ctx,
-        merkle_tree,
-    )?;
+    check_signer_is_registered_or_authority::<
+        BatchUpdateAddressTree,
+        ZeroCopyBatchedMerkleTreeAccount,
+    >(ctx, merkle_tree)?;
     let event = merkle_tree
-        .update_input_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())?;
+        .update_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())?;
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
 }

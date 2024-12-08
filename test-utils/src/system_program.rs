@@ -1,9 +1,9 @@
 use forester_utils::indexer::Indexer;
 use light_hasher::Poseidon;
+use light_system_program::sdk::address::derive_address_legacy;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
     sdk::{
-        address::derive_address,
         compressed_account::{
             CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
         },
@@ -42,7 +42,7 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
     let mut derived_addresses = Vec::new();
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
-            derive_address(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
+            derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
         println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
@@ -396,6 +396,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         inputs.is_compress,
         inputs.recipient,
         true,
+        &vec![false; inputs.input_compressed_accounts.len()],
     );
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;

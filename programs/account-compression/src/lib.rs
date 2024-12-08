@@ -10,7 +10,7 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
-use batched_merkle_tree::InstructionDataBatchNullifyInputs;
+use batched_merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs};
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -25,7 +25,6 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
-    use batched_merkle_tree::InstructionDataBatchAppendInputs;
     use errors::AccountCompressionErrorCode;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
@@ -216,8 +215,7 @@ pub mod account_compression {
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_batch_nullify(&ctx, instruction_data)?;
-        Ok(())
+        process_batch_nullify(&ctx, instruction_data)
     }
 
     pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
@@ -226,8 +224,30 @@ pub mod account_compression {
     ) -> Result<()> {
         let instruction_data = InstructionDataBatchAppendInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_batch_append_leaves(&ctx, instruction_data)?;
-        Ok(())
+        process_batch_append_leaves(&ctx, instruction_data)
+    }
+
+    pub fn batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_update_address_tree(&ctx, instruction_data)
+    }
+
+    pub fn intialize_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
+        params: InitAddressTreeAccountsInstructionData,
+    ) -> Result<()> {
+        process_initialize_batched_address_merkle_tree(ctx, params)
+    }
+
+    pub fn rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchAddressMerkleTree<'info>>,
+        network_fee: Option<u64>,
+    ) -> Result<()> {
+        process_rollover_batch_address_merkle_tree(ctx, network_fee)
     }
 
     pub fn rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(

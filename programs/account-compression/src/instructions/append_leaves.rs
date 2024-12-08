@@ -123,7 +123,11 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                 BatchedQueueAccount::DISCRIMINATOR => {
                     append_v2(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
-                _ => return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
+                _ => {
+                    return err!(
+                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                    )
+                }
             }
         };
         transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;

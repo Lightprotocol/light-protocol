@@ -15,7 +15,7 @@ use light_sdk::{
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
-        address::derive_address,
+        address::derive_address_legacy,
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
         CompressedCpiContext,
     },
@@ -137,7 +137,7 @@ fn create_compressed_pda_data(
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-    let derive_address = derive_address(
+    let derive_address = derive_address_legacy(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
             .key(),
         &new_address_params.seed,

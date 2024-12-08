@@ -18,6 +18,11 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     output_leaf_indices: Vec<u32>,
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
+    msg!(
+        "input_compressed_account_hashes: {:?}",
+        input_compressed_account_hashes
+    );
+    let mut num_removed_values = 0;
     // Do not include read-only accounts in the event.
     for (i, account) in inputs
         .input_compressed_accounts_with_merkle_context
@@ -25,7 +30,8 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         .enumerate()
     {
         if account.read_only {
-            input_compressed_account_hashes.remove(i);
+            input_compressed_account_hashes.remove(i - num_removed_values);
+            num_removed_values += 1;
         }
     }
     // Note: message is unimplemented

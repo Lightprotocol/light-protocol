@@ -126,9 +126,9 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnect
             panic!("Test indexer error: {:?}", address_proof_test_indexer);
         }
 
-        let photon_result: NewAddressProofWithContext =
+        let photon_result: NewAddressProofWithContext<16> =
             address_proof_photon.unwrap().first().unwrap().clone();
-        let test_indexer_result: NewAddressProofWithContext =
+        let test_indexer_result: NewAddressProofWithContext<16> =
             address_proof_test_indexer.unwrap().first().unwrap().clone();
         debug!(
             "assert proofs for address: {} photon result: {:?} test indexer result: {:?}",

@@ -100,6 +100,10 @@ where
         self.layers[0].push(*leaf);
 
         let i = self.rightmost_index;
+        if self.rightmost_index == self.capacity {
+            println!("Merkle tree full");
+            return Err(HasherError::IntegerOverflow);
+        }
         self.rightmost_index += 1;
 
         self.update_upper_layers(i)?;

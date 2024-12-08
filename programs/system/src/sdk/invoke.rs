@@ -37,6 +37,7 @@ pub fn create_invoke_instruction(
     is_compress: bool,
     decompression_recipient: Option<Pubkey>,
     sort: bool,
+    is_read_only: &[bool],
 ) -> Instruction {
     let (remaining_accounts, mut inputs_struct) =
         create_invoke_instruction_data_and_remaining_accounts(
@@ -49,6 +50,7 @@ pub fn create_invoke_instruction(
             proof,
             compress_or_decompress_lamports,
             is_compress,
+            is_read_only,
         );
     if sort {
         inputs_struct
@@ -56,6 +58,7 @@ pub fn create_invoke_instruction(
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
     let mut inputs = Vec::new();
+    println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -92,6 +95,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     proof: Option<CompressedProof>,
     compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
+    is_read_only: &[bool],
 ) -> (Vec<AccountMeta>, InstructionDataInvoke) {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext> =
@@ -134,7 +138,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                 leaf_index: context.leaf_index,
                 queue_index,
             },
-            read_only: false,
+            read_only: is_read_only[i],
             root_index: root_index.unwrap_or_default(),
         });
     }
@@ -305,6 +309,7 @@ mod test {
             true,
             None,
             true,
+            &vec![false; input_compressed_accounts.len()],
         );
         assert_eq!(instruction.program_id, crate::ID);
 

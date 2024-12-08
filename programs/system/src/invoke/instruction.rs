@@ -127,3 +127,17 @@ pub struct NewAddressParams {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,
 }
+
+#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedReadOnlyAddress {
+    pub address: [u8; 32],
+    pub address_merkle_tree_account_index: u8,
+    pub address_merkle_tree_root_index: u16,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct ReadOnlyAddress {
+    pub address: [u8; 32],
+    pub address_merkle_tree_pubkey: Pubkey,
+    pub address_merkle_tree_root_index: u16,
+}

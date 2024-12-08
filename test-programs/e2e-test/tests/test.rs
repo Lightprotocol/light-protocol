@@ -1,6 +1,8 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::InitStateTreeAccountsInstructionData;
+use account_compression::{
+    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
+};
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -22,6 +24,7 @@ async fn test_10_all() {
         ..ProtocolConfig::default()
     };
     let params = InitStateTreeAccountsInstructionData::e2e_test_default();
+    let address_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
 
     let (rpc, env_accounts) =
         setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
@@ -29,6 +32,7 @@ async fn test_10_all() {
             protocol_config,
             true,
             params,
+            address_params,
         )
         .await;
 
