@@ -18,21 +18,21 @@ type BatchAppendWithSubtreesParametersJSON struct {
 	TreeHeight          uint32   `json:"treeHeight"`
 }
 
-func ParseBatchAppendInput(inputJSON string) (BatchAppendParameters, error) {
-	var proofData BatchAppendParameters
+func ParseBatchAppendInput(inputJSON string) (BatchAppendWithSubtreesParameters, error) {
+	var proofData BatchAppendWithSubtreesParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return BatchAppendParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return BatchAppendWithSubtreesParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *BatchAppendParameters) MarshalJSON() ([]byte, error) {
+func (p *BatchAppendWithSubtreesParameters) MarshalJSON() ([]byte, error) {
 	paramsJson := p.CreateBatchAppendWithSubtreesParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *BatchAppendParameters) CreateBatchAppendWithSubtreesParametersJSON() BatchAppendWithSubtreesParametersJSON {
+func (p *BatchAppendWithSubtreesParameters) CreateBatchAppendWithSubtreesParametersJSON() BatchAppendWithSubtreesParametersJSON {
 	paramsJson := BatchAppendWithSubtreesParametersJSON{
 		PublicInputHash:     toHex(p.PublicInputHash),
 		OldSubTreeHashChain: toHex(p.OldSubTreeHashChain),
@@ -56,7 +56,7 @@ func (p *BatchAppendParameters) CreateBatchAppendWithSubtreesParametersJSON() Ba
 	return paramsJson
 }
 
-func (p *BatchAppendParameters) UnmarshalJSON(data []byte) error {
+func (p *BatchAppendWithSubtreesParameters) UnmarshalJSON(data []byte) error {
 	var params BatchAppendWithSubtreesParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
@@ -65,7 +65,7 @@ func (p *BatchAppendParameters) UnmarshalJSON(data []byte) error {
 	return p.UpdateWithJSON(params)
 }
 
-func (p *BatchAppendParameters) UpdateWithJSON(params BatchAppendWithSubtreesParametersJSON) error {
+func (p *BatchAppendWithSubtreesParameters) UpdateWithJSON(params BatchAppendWithSubtreesParametersJSON) error {
 	var err error
 
 	p.TreeHeight = params.TreeHeight

@@ -100,7 +100,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 	}
 }
 
-func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, startIndex uint32, previousParams *BatchAppendParameters) BatchAppendParameters {
+func BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth uint32, batchSize uint32, startIndex uint32, previousParams *BatchAppendWithSubtreesParameters) BatchAppendWithSubtreesParameters {
 	var tree merkletree.PoseidonTree
 	var oldSubTreeHashChain *big.Int
 	var oldSubtrees []*big.Int
@@ -140,7 +140,7 @@ func BuildAndUpdateBatchAppendParameters(treeDepth uint32, batchSize uint32, sta
 		hashchainHash,
 		big.NewInt(int64(startIndex))},
 		5)
-	params := BatchAppendParameters{
+	params := BatchAppendWithSubtreesParameters{
 		PublicInputHash:     publicInputHash,
 		OldSubTreeHashChain: oldSubTreeHashChain,
 		NewSubTreeHashChain: newSubTreeHashChain,
@@ -260,7 +260,7 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	}
 }
 
-func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex *uint32, enableRandom bool) *BatchAppendWithProofsParameters {
+func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex int, enableRandom bool) *BatchAppendWithProofsParameters {
 	var tree merkletree.PoseidonTree
 
 	if previousTree == nil {
@@ -279,7 +279,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(rand.Intn(1000000)))})
 		leaves[i] = leaf
 		// Sequential filling
-		pathIndices[i] = *startIndex + uint32(i)
+		pathIndices[i] = uint32(startIndex) + uint32(i)
 
 		//  by default all old leaves are zero
 		oldLeaf := big.NewInt(int64(0))
@@ -319,7 +319,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		&oldRoot,
 		&newRoot,
 		leavesHashchainHash,
-		big.NewInt(int64(*startIndex)),
+		big.NewInt(int64(startIndex)),
 	},
 		4)
 	return &BatchAppendWithProofsParameters{
@@ -333,7 +333,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		Height:              uint32(treeDepth),
 		BatchSize:           uint32(batchSize),
 		Tree:                &tree,
-		StartIndex:          *startIndex,
+		StartIndex:          uint32(startIndex),
 	}
 }
 

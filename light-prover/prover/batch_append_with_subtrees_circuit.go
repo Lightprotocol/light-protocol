@@ -181,7 +181,7 @@ func (circuit *BatchAppendWithSubtreesCircuit) getZeroValue(level int) frontend.
 	return frontend.Variable(new(big.Int).SetBytes(merkletree.ZERO_BYTES[level][:]))
 }
 
-type BatchAppendParameters struct {
+type BatchAppendWithSubtreesParameters struct {
 	PublicInputHash     *big.Int   `json:"publicInputHash"`
 	OldSubTreeHashChain *big.Int   `json:"oldSubTreeHashChain"`
 	NewSubTreeHashChain *big.Int   `json:"newSubTreeHashChain"`
@@ -194,11 +194,11 @@ type BatchAppendParameters struct {
 	tree                *merkletree.PoseidonTree
 }
 
-func (p *BatchAppendParameters) BatchSize() uint32 {
+func (p *BatchAppendWithSubtreesParameters) BatchSize() uint32 {
 	return uint32(len(p.Leaves))
 }
 
-func (p *BatchAppendParameters) ValidateShape(treeHeight uint32, batchSize uint32) error {
+func (p *BatchAppendWithSubtreesParameters) ValidateShape(treeHeight uint32, batchSize uint32) error {
 	if p.TreeHeight != treeHeight {
 		return fmt.Errorf("wrong tree height: expected %d, got %d", treeHeight, p.TreeHeight)
 	}
@@ -208,8 +208,8 @@ func (p *BatchAppendParameters) ValidateShape(treeHeight uint32, batchSize uint3
 	return nil
 }
 
-func SetupBatchAppend(treeHeight uint32, batchSize uint32) (*ProvingSystemV2, error) {
-	ccs, err := R1CSBatchAppend(treeHeight, batchSize)
+func SetupBatchAppendWithSubtrees(treeHeight uint32, batchSize uint32) (*ProvingSystemV2, error) {
+	ccs, err := R1CSBatchAppendWithSubtrees(treeHeight, batchSize)
 
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func SetupBatchAppend(treeHeight uint32, batchSize uint32) (*ProvingSystemV2, er
 		ConstraintSystem: ccs}, nil
 }
 
-func ImportBatchAppendSetup(treeDepth uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
+func ImportBatchAppendWithSubtreesSetup(treeDepth uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
 	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
@@ -262,8 +262,8 @@ func ImportBatchAppendSetup(treeDepth uint32, batchSize uint32, pkPath string, v
 	}, nil
 }
 
-func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Proof, error) {
-	logging.Logger().Info().Msg("Starting Batch Append proof generation")
+func (ps *ProvingSystemV2) ProveBatchAppendWithSubtrees(params *BatchAppendWithSubtreesParameters) (*Proof, error) {
+	logging.Logger().Info().Msg("Starting batch-append-with-subtrees proof generation")
 	logging.Logger().Info().Msg("Validating parameters")
 
 	if err := params.ValidateShape(ps.TreeHeight, ps.BatchSize); err != nil {
@@ -303,7 +303,7 @@ func (ps *ProvingSystemV2) ProveBatchAppend(params *BatchAppendParameters) (*Pro
 	return &Proof{Proof: proof}, nil
 }
 
-func (ps *ProvingSystemV2) VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash *big.Int, proof *Proof) error {
+func (ps *ProvingSystemV2) VerifyBatchAppendWithSubtrees(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash *big.Int, proof *Proof) error {
 	publicWitness := BatchAppendWithSubtreesCircuit{
 		OldSubTreeHashChain: frontend.Variable(oldSubTreeHashChain),
 		NewSubTreeHashChain: frontend.Variable(newSubTreeHashChain),
@@ -324,7 +324,7 @@ func (ps *ProvingSystemV2) VerifyBatchAppend(oldSubTreeHashChain, newSubTreeHash
 	return nil
 }
 
-func R1CSBatchAppend(treeDepth uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
+func R1CSBatchAppendWithSubtrees(treeDepth uint32, batchSize uint32) (constraint.ConstraintSystem, error) {
 	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),

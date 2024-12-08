@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
@@ -135,26 +134,23 @@ func TestFull(t *testing.T) {
 // runCommonTests contains all tests that should run in both modes
 func runCommonTests(t *testing.T) {
 	t.Run("testWrongMethod", testWrongMethod)
-
-	// inclusion tests
+	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
 	t.Run("testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON)
 	t.Run("testInclusionWrongInPathIndices", testInclusionWrongInPathIndices)
 	t.Run("testInclusionWrongInPathElements", testInclusionWrongInPathElements)
 	t.Run("testInclusionWrongRoot", testInclusionWrongRoot)
 	t.Run("testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf)
-
-	// non-inclusion tests
 	t.Run("testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
-
-	// combined
 	t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
 func runFullOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
-	t.Run("testBatchAppendHappyPath26_1000", testBatchAppendHappyPath26_1000)
-	t.Run("testBatchAppendWithPreviousState26_100", testBatchAppendWithPreviousState26_100)
+	t.Run("testBatchAppendWithSubtreesHappyPath26_1000", testBatchAppendWithSubtreesHappyPath26_1000)
+	t.Run("testBatchAppendWithSubtreesPreviousState26_100", testBatchAppendWithSubtreesPreviousState26_100)
+
+	t.Run("testBatchAppendWithProofsHappyPath26_1000", testBatchAppendWithProofsHappyPath26_1000)
+	t.Run("testBatchAppendWithProofsPreviousState26_100", testBatchAppendWithProofsPreviousState26_100)
 
 	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
 	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
@@ -168,16 +164,17 @@ func runFullOnlyTests(t *testing.T) {
 }
 
 func runLightweightOnlyTests(t *testing.T) {
-	t.Run("testInclusionHappyPath26_1", testInclusionHappyPath26_1)
+	t.Run("testBatchAppendWithSubtreesHappyPath26_10", testBatchAppendWithSubtreesHappyPath26_10)
+	t.Run("testBatchAppendWithSubtreesPreviousState26_10", testBatchAppendWithSubtreesPreviousState26_10)
 
-	t.Run("testBatchAppendHappyPath26_10", testBatchAppendHappyPath26_10)
-	t.Run("testBatchAppendWithPreviousState26_10", testBatchAppendWithPreviousState26_10)
+	t.Run("testBatchAppendWithProofsHappyPath26_10", testBatchAppendWithProofsHappyPath26_10)
+	t.Run("testBatchAppendWithProofsPreviousState26_10", testBatchAppendWithProofsPreviousState26_10)
 
 	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
 	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
 	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
 
-	t.Run("testBatchAddressAppendHappyPath40_1", testBatchAddressAppendHappyPath40_1)
+	t.Run("testBatchAddressAppendHappyPath40_10", testBatchAddressAppendHappyPath40_10)
 	t.Run("testBatchAddressAppendWithPreviousState40_10", testBatchAddressAppendWithPreviousState40_10)
 	t.Run("testBatchAddressAppendInvalidInput40_10", testBatchAddressAppendInvalidInput40_10)
 }
@@ -490,11 +487,11 @@ func testCombinedHappyPath_JSON(t *testing.T) {
 	}
 }
 
-func testBatchAppendHappyPath26_1000(t *testing.T) {
+func testBatchAppendWithSubtreesHappyPath26_1000(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(1000)
 	startIndex := uint32(0)
-	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+	params := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, nil)
 
 	jsonBytes, _ := params.MarshalJSON()
 
@@ -510,11 +507,31 @@ func testBatchAppendHappyPath26_1000(t *testing.T) {
 	}
 }
 
-func testBatchAppendHappyPath26_10(t *testing.T) {
+func testBatchAppendWithProofsHappyPath26_1000(t *testing.T) {
+	treeDepth := 26
+	batchSize := 1000
+	startIndex := 0
+	params := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, true)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func testBatchAppendWithSubtreesHappyPath26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
-	params := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+	params := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, nil)
 
 	jsonBytes, _ := params.MarshalJSON()
 
@@ -530,13 +547,33 @@ func testBatchAppendHappyPath26_10(t *testing.T) {
 	}
 }
 
-func testBatchAppendWithPreviousState26_100(t *testing.T) {
+func testBatchAppendWithProofsHappyPath26_10(t *testing.T) {
+	treeDepth := 26
+	batchSize := 10
+	startIndex := 0
+	params := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, true)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
+func testBatchAppendWithSubtreesPreviousState26_100(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(100)
 	startIndex := uint32(0)
 
 	// First batch
-	params1 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+	params1 := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, nil)
 	jsonBytes1, _ := params1.MarshalJSON()
 	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
 	if err != nil {
@@ -548,7 +585,7 @@ func testBatchAppendWithPreviousState26_100(t *testing.T) {
 
 	// Second batch
 	startIndex += batchSize
-	params2 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, &params1)
+	params2 := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, &params1)
 	jsonBytes2, _ := params2.MarshalJSON()
 	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
 	if err != nil {
@@ -559,13 +596,13 @@ func testBatchAppendWithPreviousState26_100(t *testing.T) {
 	}
 }
 
-func testBatchAppendWithPreviousState26_10(t *testing.T) {
+func testBatchAppendWithSubtreesPreviousState26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
 	startIndex := uint32(0)
 
 	// First batch
-	params1 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+	params1 := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, nil)
 	jsonBytes1, _ := params1.MarshalJSON()
 	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
 	if err != nil {
@@ -577,7 +614,65 @@ func testBatchAppendWithPreviousState26_10(t *testing.T) {
 
 	// Second batch
 	startIndex += batchSize
-	params2 := prover.BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, &params1)
+	params2 := prover.BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, &params1)
+	jsonBytes2, _ := params2.MarshalJSON()
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+}
+
+func testBatchAppendWithProofsPreviousState26_100(t *testing.T) {
+	treeDepth := 26
+	batchSize := 100
+	startIndex := 0
+
+	// First batch
+	params1 := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, true)
+	jsonBytes1, _ := params1.MarshalJSON()
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		t.Fatalf("First batch: Expected status code %d, got %d", http.StatusOK, response1.StatusCode)
+	}
+
+	// Second batch
+	startIndex += batchSize
+	params2 := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, params1.Tree, startIndex, true)
+	jsonBytes2, _ := params2.MarshalJSON()
+	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response2.StatusCode != http.StatusOK {
+		t.Fatalf("Second batch: Expected status code %d, got %d", http.StatusOK, response2.StatusCode)
+	}
+}
+
+func testBatchAppendWithProofsPreviousState26_10(t *testing.T) {
+	treeDepth := 26
+	batchSize := 10
+	startIndex := 0
+
+	// First batch
+	params1 := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, true)
+	jsonBytes1, _ := params1.MarshalJSON()
+	response1, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response1.StatusCode != http.StatusOK {
+		t.Fatalf("First batch: Expected status code %d, got %d", http.StatusOK, response1.StatusCode)
+	}
+
+	// Second batch
+	startIndex += batchSize
+	params2 := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, params1.Tree, startIndex, true)
 	jsonBytes2, _ := params2.MarshalJSON()
 	response2, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes2))
 	if err != nil {
@@ -661,7 +756,6 @@ func testBatchUpdateHappyPath26_1000(t *testing.T) {
 	runBatchUpdateTest(t, 26, 1000)
 }
 
-// Helper function to reduce code duplication
 func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
 
@@ -681,7 +775,6 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
 	}
 
-	// Verify that the new root is different from the old root
 	if params.OldRoot.Cmp(params.NewRoot) == 0 {
 		t.Errorf("Expected new root to be different from old root")
 	}
@@ -689,8 +782,8 @@ func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
 	t.Logf("Successfully ran batch update test with tree depth %d and batch size %d", treeDepth, batchSize)
 }
 
-func testBatchAddressAppendHappyPath40_1(t *testing.T) {
-	runBatchAddressAppendTest(t, 40, 1)
+func testBatchAddressAppendHappyPath40_10(t *testing.T) {
+	runBatchAddressAppendTest(t, 40, 10)
 }
 
 func testBatchAddressAppendHappyPath40_100(t *testing.T) {
@@ -715,18 +808,10 @@ func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32
 		t.Fatalf("Failed to build test tree: %v", err)
 	}
 
-	fmt.Printf("BatchSize: %d\n", params.BatchSize)
-	fmt.Printf("TreeHeight: %d\n", params.TreeHeight)
-	fmt.Printf("LowElementProofs len: %d\n", len(params.LowElementProofs))
-	fmt.Printf("NewElementProofs len: %d\n", len(params.NewElementProofs))
-	fmt.Printf("First LowElementProof len: %d\n", len(params.LowElementProofs[0]))
-
 	jsonBytes, err := params.MarshalJSON()
 	if err != nil {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
-	jsonString := string(jsonBytes)
-	fmt.Println(jsonString)
 	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		t.Fatalf("Failed to send POST request: %v", err)

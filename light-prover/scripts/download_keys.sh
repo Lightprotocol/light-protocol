@@ -8,10 +8,124 @@ command -v wc >/dev/null 2>&1 || { echo >&2 "wc is required but it's not install
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/light-prover/proving-keys"
+TEMP_DIR="${KEYS_DIR}/temp"
 
-if [ ! -d "$KEYS_DIR" ]; then
-  mkdir -p "$KEYS_DIR"
-fi
+mkdir -p "$KEYS_DIR" "$TEMP_DIR"
+
+download_file() {
+  local FILE="$1"
+  local BUCKET_URL
+  if [[ $FILE == append-with-proofs* ]]; then
+    BUCKET_URL="https://${APPEND_WITH_PROOFS_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif [[ $FILE == append-with-subtrees* ]]; then
+    BUCKET_URL="https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif [[ $FILE == update* ]]; then
+    BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
+  elif [[ $FILE == address-append* ]]; then
+    BUCKET_URL="https://${APPEND_ADDRESS_BUCKET}.ipfs.w3s.link/${FILE}"
+  else
+    BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
+  fi
+
+  local TEMP_FILE="${TEMP_DIR}/${FILE}.partial"
+  local FINAL_FILE="${KEYS_DIR}/${FILE}"
+
+  # Get remote file size with more robust handling
+  local REMOTE_SIZE
+  REMOTE_SIZE=$(curl -sI "$BUCKET_URL" | grep -i '^content-length:' | awk '{print $2}' | tr -d '\r\n[:space:]')
+  if [[ ! "$REMOTE_SIZE" =~ ^[0-9]+$ ]]; then
+    echo "Warning: Could not determine remote file size for $FILE"
+    REMOTE_SIZE=0
+  fi
+
+  # Check if final file exists and has correct size
+  if [ -f "$FINAL_FILE" ] && [ "$REMOTE_SIZE" -ne 0 ]; then
+    local FINAL_SIZE
+    FINAL_SIZE=$(wc -c < "$FINAL_FILE" | tr -d '[:space:]')
+    if [ "$FINAL_SIZE" = "$REMOTE_SIZE" ]; then
+      echo "$FILE is already downloaded completely. Skipping."
+      return 0
+    fi
+  fi
+
+  # Check if partial download exists
+  local RESUME_FLAG=""
+  if [ -f "$TEMP_FILE" ]; then
+    local PARTIAL_SIZE
+    PARTIAL_SIZE=$(wc -c < "$TEMP_FILE" | tr -d '[:space:]')
+    if [ "$REMOTE_SIZE" -ne 0 ] && [ "$PARTIAL_SIZE" -lt "$REMOTE_SIZE" ]; then
+      RESUME_FLAG="-C -"
+      echo "Resuming download of $FILE from byte $PARTIAL_SIZE"
+    else
+      rm -f "$TEMP_FILE"  # Remove potentially corrupted partial file
+    fi
+  fi
+
+  echo "Downloading $FILE"
+  [ "$REMOTE_SIZE" -ne 0 ] && echo "Expected size: $REMOTE_SIZE bytes"
+
+  local MAX_RETRIES=100
+  local attempt=0
+  while (( attempt < MAX_RETRIES )); do
+    if curl -S -f --retry 3 --retry-delay 2 --connect-timeout 30 \
+         --max-time 3600 $RESUME_FLAG \
+         -o "$TEMP_FILE" "$BUCKET_URL"; then
+
+      # Verify downloaded file size only if we know the remote size
+      if [ "$REMOTE_SIZE" -ne 0 ]; then
+        local DOWNLOADED_SIZE
+        DOWNLOADED_SIZE=$(wc -c < "$TEMP_FILE" | tr -d '[:space:]')
+        if [ "$DOWNLOADED_SIZE" = "$REMOTE_SIZE" ]; then
+          mv "$TEMP_FILE" "$FINAL_FILE"
+          echo "$FILE downloaded and verified successfully"
+          return 0
+        else
+          echo "Size mismatch for $FILE (expected: $REMOTE_SIZE, got: $DOWNLOADED_SIZE)"
+          rm -f "$TEMP_FILE"  # Remove corrupted file
+        fi
+      else
+        # If we don't know the remote size, just move the file if download completed
+        mv "$TEMP_FILE" "$FINAL_FILE"
+        echo "$FILE downloaded successfully (size: $(wc -c < "$FINAL_FILE" | tr -d '[:space:]') bytes)"
+        return 0
+      fi
+    fi
+
+    echo "Download failed for $FILE (attempt $((attempt + 1))). Retrying..."
+    sleep $((2 ** attempt))
+    ((attempt++))
+  done
+
+  echo "Failed to download $FILE after $MAX_RETRIES attempts"
+  return 1
+}
+
+cleanup() {
+  echo "Cleaning up temporary files..."
+  rm -rf "$TEMP_DIR"
+  exit 1
+}
+
+# Set up trap for script interruption
+trap cleanup INT TERM
+
+download_files() {
+  local files=("$@")
+  local failed_files=()
+
+  for FILE in "${files[@]}"; do
+    if ! download_file "$FILE"; then
+      failed_files+=("$FILE")
+      echo "Failed to download: $FILE"
+    fi
+  done
+
+  if [ ${#failed_files[@]} -ne 0 ]; then
+    echo "The following files failed to download:"
+    printf '%s\n' "${failed_files[@]}"
+    exit 1
+  fi
+}
 
 # inclusion, non-inclusion and combined keys for merkle tree of height 26
 
@@ -145,56 +259,6 @@ FULL_FILES=(
   "address-append_40_1000.vkey"
 )
 
-download_file() {
-  local FILE="$1"
-  local BUCKET_URL
-  if [[ $FILE == append-with-proofs* ]]; then
-    BUCKET_URL="https://${APPEND_WITH_PROOFS_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == append-with-subtrees* ]]; then
-      BUCKET_URL="https://${APPEND_WITH_SUBTREES_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == update* ]]; then
-    BUCKET_URL="https://${UPDATE_BUCKET}.ipfs.w3s.link/${FILE}"
-  elif [[ $FILE == address-append* ]]; then
-    BUCKET_URL="https://${APPEND_ADDRESS_BUCKET}.ipfs.w3s.link/${FILE}"
-  else
-    BUCKET_URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
-  fi
-  
-  local REMOTE_SIZE=$(curl -sI "$BUCKET_URL" | grep -i Content-Length | awk '{print $2}' | tr -d '\r')
-  local LOCAL_SIZE=0
-  if [ -f "$KEYS_DIR/$FILE" ]; then
-    LOCAL_SIZE=$(wc -c < "$KEYS_DIR/$FILE")
-  fi
-
-  if [ "$LOCAL_SIZE" = "$REMOTE_SIZE" ]; then
-    echo "$FILE is already downloaded completely. Skipping."
-    return 0
-  fi
-
-  echo "Downloading $BUCKET_URL"
-  local MAX_RETRIES=5
-  local attempt=0
-  while ! curl -s -o "$KEYS_DIR/$FILE" "$BUCKET_URL" && (( attempt < MAX_RETRIES )); do
-    echo "Download failed for $FILE (attempt $((attempt + 1))). Retrying..."
-    sleep 2
-    ((attempt++))
-  done
-  if (( attempt == MAX_RETRIES )); then
-    echo "Failed to download $FILE after multiple retries."
-    return 1
-  else
-    echo "$FILE downloaded successfully"
-  fi
-}
-
-download_files() {
-  local files=("$@")
-  for FILE in "${files[@]}"
-  do
-    download_file "$FILE" || exit 1
-  done
-}
-
 if [ "$1" = "light" ]; then
   download_files "${LIGHTWEIGHT_FILES[@]}"
 elif [ "$1" = "full" ]; then
@@ -203,3 +267,6 @@ else
   echo "Usage: $0 [light|full]"
   exit 1
 fi
+
+
+rm -rf "$TEMP_DIR"
