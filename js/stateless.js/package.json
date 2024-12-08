@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.15.4",
+    "version": "0.16.0",
     "description": "JavaScript API for Light and ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -36,11 +36,11 @@
     "license": "Apache-2.0",
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
-        "@solana/web3.js": "^1.95.3",
-        "@noble/hashes": "^1.5.0",
-        "buffer": "^6.0.3",
-        "superstruct": "^2.0.2",
-        "tweetnacl": "^1.0.3"
+        "@solana/web3.js": "1.95.3",
+        "@noble/hashes": "1.5.0",
+        "buffer": "6.0.3",
+        "superstruct": "2.0.2",
+        "tweetnacl": "1.0.3"
     },
     "devDependencies": {
         "@lightprotocol/hasher.rs": "workspace:*",
@@ -77,7 +77,7 @@
     "scripts": {
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test-all": "vitest run",
-        "test:unit:all": "EXCLUDE_E2E=true vitest run",
+        "test:unit:all": "vitest run tests/unit",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",

@@ -1502,25 +1502,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const defaultStateQueuePublicKey =
             defaultTestStateTreeAccounts().nullifierQueue;
         const formattedHashes = hashes.map(item => {
-            if (item instanceof BN) {
-                return {
-                    hash: item,
-                    tree: defaultStateTreePublicKey,
-                    queue: defaultStateQueuePublicKey,
-                };
-            }
-            return item;
+            return {
+                hash: item,
+                tree: defaultStateTreePublicKey,
+                queue: defaultStateQueuePublicKey,
+            };
         });
 
         const formattedNewAddresses = newAddresses.map(item => {
-            if (item instanceof BN) {
-                return {
-                    address: item,
-                    tree: defaultAddressTreePublicKey,
-                    queue: defaultAddressQueuePublicKey,
-                };
-            }
-            return item;
+            return {
+                address: item,
+                tree: defaultAddressTreePublicKey,
+                queue: defaultAddressQueuePublicKey,
+            };
         });
 
         return this.getValidityProofV0(formattedHashes, formattedNewAddresses);
