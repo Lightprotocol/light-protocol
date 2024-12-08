@@ -69,4 +69,5 @@ pub enum SystemProgramError {
     OutputMerkleTreeNotUnique,
     DataFieldUndefined,
     ReadOnlyAddressAlreadyExists,
+    ReadOnlyAccountDoesNotExist,
 }

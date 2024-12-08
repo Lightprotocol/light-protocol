@@ -10,8 +10,7 @@ use crate::{
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{
-            MerkleContext, PackedCompressedAccountWithMerkleContext,
-            PackedReadOnlyCompressedAccount,
+            PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
         },
         CompressedCpiContext,
     },
@@ -117,7 +116,7 @@ impl InstructionDataInvokeCpi {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InstructionDataInvokeCpiWithReadOnlyAddress {
+pub struct InstructionDataInvokeCpiWithReadOnly {
     pub invoke_cpi: InstructionDataInvokeCpi,
     pub read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
     pub read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,

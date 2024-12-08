@@ -173,6 +173,7 @@ pub fn verify_merkle_proof_zkp(
     leaves: &[[u8; 32]],
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
+    // TODO: replace with poseidon hash which avoids copying the data
     let public_inputs = [roots, leaves].concat();
 
     // The public inputs are expected to be a multiple of 2

@@ -3,9 +3,10 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 
 use super::verify_signer::cpi_signer_checks;
 use crate::{
-    invoke::processor::process, invoke_cpi::instruction::InvokeCpiInstruction,
-    sdk::accounts::SignerAccounts, InstructionDataInvoke, InstructionDataInvokeCpi,
-    PackedReadOnlyAddress,
+    invoke::processor::process,
+    invoke_cpi::instruction::InvokeCpiInstruction,
+    sdk::{accounts::SignerAccounts, compressed_account::PackedReadOnlyCompressedAccount},
+    InstructionDataInvoke, InstructionDataInvokeCpi, PackedReadOnlyAddress,
 };
 
 /// Processes an `InvokeCpi` instruction.
@@ -17,6 +18,7 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
     inputs: InstructionDataInvokeCpi,
     read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
+    read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(
@@ -62,5 +64,6 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         ctx,
         cpi_context_inputs_len,
         read_only_addresses,
+        read_only_accounts,
     )
 }

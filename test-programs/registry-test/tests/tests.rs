@@ -530,7 +530,7 @@ async fn test_custom_forester() {
         let cpi_context_keypair = Keypair::new();
         // create work 1 item in address and nullifier queue each
         let (mut state_merkle_tree_bundle, _, mut rpc) = {
-            let mut e2e_env = init_program_test_env(rpc, &env).await;
+            let mut e2e_env = init_program_test_env(rpc, &env, false).await;
             e2e_env.indexer.state_merkle_trees.clear();
             // add state merkle tree to the indexer
             e2e_env
@@ -625,7 +625,7 @@ async fn test_custom_forester_batched() {
                 e2e_env.keypair_action_config.fee_assert = false;
                 e2e_env
             } else {
-                init_program_test_env(rpc, &env).await
+                init_program_test_env(rpc, &env, false).await
             };
             e2e_env.indexer.state_merkle_trees.clear();
             // add state merkle tree to the indexer
@@ -893,7 +893,7 @@ async fn test_register_and_update_forester_pda() {
 
     // create work 1 item in address and nullifier queue each
     let (mut state_merkle_tree_bundle, mut address_merkle_tree, mut rpc) = {
-        let mut e2e_env = init_program_test_env(rpc, &env).await;
+        let mut e2e_env = init_program_test_env(rpc, &env, false).await;
         // remove batched Merkle tree, fee assert makes this test flaky otherwise
         e2e_env.indexer.state_merkle_trees.remove(1);
         e2e_env.create_address(None, None).await;

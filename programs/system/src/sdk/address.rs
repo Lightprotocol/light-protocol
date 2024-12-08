@@ -5,7 +5,11 @@ use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
 use crate::{
     errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress,
-    ReadOnlyAddressParams,
+    ReadOnlyAddress,
+};
+
+use super::compressed_account::{
+    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
 };
 pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(
@@ -96,33 +100,45 @@ pub fn pack_new_address_params(
 }
 
 pub fn pack_read_only_address_params(
-    new_address_params: &[ReadOnlyAddressParams],
+    new_address_params: &[ReadOnlyAddress],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
 ) -> Vec<PackedReadOnlyAddress> {
-    let mut new_address_params_packed = new_address_params
+    new_address_params
         .iter()
         .map(|x| PackedReadOnlyAddress {
             address: x.address,
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
-            address_merkle_tree_account_index: 0, // will be assigned later
+            address_merkle_tree_account_index: pack_account(
+                &x.address_merkle_tree_pubkey,
+                remaining_accounts,
+            ),
         })
-        .collect::<Vec<PackedReadOnlyAddress>>();
-    let mut next_index: usize = remaining_accounts.len();
-    for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.address_merkle_tree_pubkey, next_index);
-                next_index += 1;
-            }
-        };
-        new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
-            .get(&params.address_merkle_tree_pubkey)
-            .unwrap()
-            as u8;
-    }
+        .collect::<Vec<PackedReadOnlyAddress>>()
+}
 
-    new_address_params_packed
+pub fn pack_account(pubkey: &Pubkey, remaining_accounts: &mut HashMap<Pubkey, usize>) -> u8 {
+    match remaining_accounts.get(pubkey) {
+        Some(index) => *index as u8,
+        None => {
+            let next_index = remaining_accounts.len();
+            remaining_accounts.insert(*pubkey, next_index);
+            next_index as u8
+        }
+    }
+}
+
+pub fn pack_read_only_accounts(
+    accounts: &[ReadOnlyCompressedAccount],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedReadOnlyCompressedAccount> {
+    accounts
+        .iter()
+        .map(|x| PackedReadOnlyCompressedAccount {
+            account_hash: x.account_hash,
+            merkle_context: pack_merkle_context(&[x.merkle_context], remaining_accounts)[0],
+            root_index: x.root_index,
+        })
+        .collect::<Vec<PackedReadOnlyCompressedAccount>>()
 }
 
 #[cfg(test)]

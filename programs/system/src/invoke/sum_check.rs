@@ -14,9 +14,8 @@ pub fn sum_check(
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
-) -> Result<(usize, usize)> {
+) -> Result<usize> {
     let mut sum: u64 = 0;
-    let mut num_read_only = 0;
     let mut num_prove_by_index_accounts = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         if compressed_account_with_context
@@ -29,9 +28,9 @@ pub fn sum_check(
         // Readonly accounts are not included in the sum check, since these are
         // not invalidated in this transaction.
         if compressed_account_with_context.read_only {
-            // unimplemented!("read_only accounts are not supported. Set read_only to false.");
-            num_read_only += 1;
-            continue;
+            unimplemented!("read_only accounts are not supported. Set read_only to false.");
+            // num_read_only += 1;
+            // continue;
         }
         sum = sum
             .checked_add(compressed_account_with_context.compressed_account.lamports)
@@ -71,7 +70,7 @@ pub fn sum_check(
     }
 
     if sum == 0 {
-        Ok((num_read_only, num_prove_by_index_accounts))
+        Ok(num_prove_by_index_accounts)
     } else {
         Err(SystemProgramError::SumCheckFailed.into())
     }
@@ -131,22 +130,7 @@ mod test {
         sum_check_test(&[100, 50], &[2125], Some(25 - 1), None, false).unwrap_err();
         sum_check_test(&[100, 50], &[2125], Some(25 + 1), None, false).unwrap_err();
         for i in 0..10 {
-            for j in i..10 {
-                println!("num read only = {}, num by index = {}", i, j);
-                let num_non_read_only = j - i;
-                if num_non_read_only != 0 {
-                    sum_check_test_with_num(
-                        &vec![150; j],
-                        &vec![150; num_non_read_only],
-                        None,
-                        None,
-                        false,
-                        i,
-                        j,
-                    )
-                    .unwrap();
-                }
-            }
+            sum_check_test_with_num(&vec![150; i], &vec![150; i], None, None, false, i).unwrap();
         }
     }
     fn sum_check_test(
@@ -163,7 +147,6 @@ mod test {
             compress_or_decompress_lamports,
             is_compress,
             0,
-            0,
         )
     }
     fn sum_check_test_with_num(
@@ -172,7 +155,6 @@ mod test {
         relay_fee: Option<u64>,
         compress_or_decompress_lamports: Option<u64>,
         is_compress: bool,
-        num_read_only: usize,
         num_by_index: usize,
     ) -> Result<()> {
         let mut inputs = Vec::new();
@@ -182,7 +164,6 @@ mod test {
             } else {
                 None
             };
-            let read_only = index < num_read_only;
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Keypair::new().pubkey(),
@@ -197,7 +178,7 @@ mod test {
                     queue_index,
                 },
                 root_index: 1,
-                read_only,
+                read_only: false,
             });
         }
         let mut outputs = Vec::new();
@@ -213,14 +194,14 @@ mod test {
             });
         }
 
-        let (calc_num_read_only, calc_num_prove_by_index_accounts) = sum_check(
+        let calc_num_prove_by_index_accounts = sum_check(
             &inputs,
             &outputs,
             &relay_fee,
             &compress_or_decompress_lamports,
             &is_compress,
         )?;
-        assert_eq!(num_read_only, calc_num_read_only);
+
         assert_eq!(num_by_index, calc_num_prove_by_index_accounts);
         Ok(())
     }

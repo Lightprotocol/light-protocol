@@ -274,21 +274,36 @@ impl ZeroCopyBatchedQueueAccount {
         Ok(())
     }
 
-    pub fn prove_inclusion_by_index_and_zero_out_leaf(
-        &mut self,
-        leaf_index: u64,
-        value: &[u8; 32],
-    ) -> Result<()> {
-        self.prove_inclusion_by_index_option_zero_out::<true>(leaf_index, value)
+    pub fn prove_inclusion_by_index(&mut self, leaf_index: u64, value: &[u8; 32]) -> Result<bool> {
+        for (batch_index, batch) in self.batches.iter().enumerate() {
+            if batch.value_is_inserted_in_batch(leaf_index)? {
+                let index = batch.get_value_index_in_batch(leaf_index)?;
+                let element = self.value_vecs[batch_index]
+                    .get_mut(index as usize)
+                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
+
+                if element == value {
+                    return Ok(true);
+                } else {
+                    return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
+                }
+            }
+        }
+        Ok(false)
     }
 
-    pub fn prove_inclusion_by_index(&mut self, leaf_index: u64, value: &[u8; 32]) -> Result<()> {
-        self.prove_inclusion_by_index_option_zero_out::<false>(leaf_index, value)
+    pub fn could_exist_in_batches(&mut self, leaf_index: u64) -> Result<()> {
+        for batch in self.batches.iter() {
+            if batch.value_is_inserted_in_batch(leaf_index)? {
+                return Ok(());
+            }
+        }
+        err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
     }
 
     /// Zero out a leaf by index if it exists in the queues value vec. If
     /// checked fail if leaf is not found.
-    fn prove_inclusion_by_index_option_zero_out<const ZERO_OUT_LEAF: bool>(
+    pub fn prove_inclusion_by_index_and_zero_out_leaf(
         &mut self,
         leaf_index: u64,
         value: &[u8; 32],
@@ -301,16 +316,14 @@ impl ZeroCopyBatchedQueueAccount {
                     .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
 
                 if element == value {
-                    if ZERO_OUT_LEAF {
-                        *element = [0u8; 32];
-                    }
+                    *element = [0u8; 32];
                     return Ok(());
                 } else {
                     return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
                 }
             }
         }
-        err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+        Ok(())
     }
 
     pub fn get_batch_num_inserted_in_current_batch(&self) -> u64 {
@@ -365,6 +378,7 @@ pub fn insert_into_current_batch(
         println!("value {:?}", value);
 
         if wipe {
+            msg!("wipe");
             if let Some(blomfilter_stores) = bloom_filter_stores.as_mut() {
                 if !current_batch.bloom_filter_is_wiped {
                     (*blomfilter_stores)
@@ -811,32 +825,39 @@ pub mod tests {
         {
             zero_copy_account.insert_into_current_batch(&value).unwrap();
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<false>(1, &value),
+                zero_copy_account.prove_inclusion_by_index(1, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<true>(1, &value),
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<true>(0, &value2),
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert!(zero_copy_account
-                .prove_inclusion_by_index_option_zero_out::<false>(0, &value)
+                .prove_inclusion_by_index(0, &value)
                 .is_ok());
+            // prove inclusion for value out of range returns false
+            assert_eq!(
+                zero_copy_account
+                    .prove_inclusion_by_index(100000, &[0u8; 32])
+                    .unwrap(),
+                false
+            );
             assert!(zero_copy_account
-                .prove_inclusion_by_index_option_zero_out::<true>(0, &value)
+                .prove_inclusion_by_index_and_zero_out_leaf(0, &value)
                 .is_ok());
         }
         // 2. Functional does not succeed on second invocation
         {
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<true>(0, &value),
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<false>(0, &value),
+                zero_copy_account.prove_inclusion_by_index(0, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
         }
@@ -848,17 +869,17 @@ pub mod tests {
                 .unwrap();
 
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<true>(0, &value2),
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert!(zero_copy_account
-                .prove_inclusion_by_index_option_zero_out::<true>(1, &value2)
+                .prove_inclusion_by_index_and_zero_out_leaf(1, &value2)
                 .is_ok());
         }
         // 4. Functional does not succeed on second invocation
         {
             assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_option_zero_out::<true>(1, &value2),
+                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
         }
