@@ -207,19 +207,25 @@ impl Stats {
 pub async fn init_program_test_env(
     rpc: ProgramTestRpcConnection,
     env_accounts: &EnvAccounts,
+    skip_prover: bool,
 ) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-                ProofType::Inclusion,
-                ProofType::NonInclusion,
-            ],
-        }),
+        if skip_prover {
+            None
+        } else {
+            Some(ProverConfig {
+                run_mode: None,
+                circuits: vec![
+                    ProofType::BatchAppendWithProofsTest,
+                    ProofType::BatchUpdateTest,
+                    ProofType::Inclusion,
+                    ProofType::NonInclusion,
+                    ProofType::Combined,
+                ],
+            })
+        },
     )
     .await;
 
@@ -1406,7 +1412,22 @@ where
         amount: u64,
         tree_index: Option<usize>,
     ) {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        self.compress_sol_deterministic_opt_inputs(from, amount, tree_index, true)
+            .await;
+    }
+
+    pub async fn compress_sol_deterministic_opt_inputs(
+        &mut self,
+        from: &Keypair,
+        amount: u64,
+        tree_index: Option<usize>,
+        inputs: bool,
+    ) {
+        let input_compressed_accounts = if inputs {
+            self.get_compressed_sol_accounts(&from.pubkey())
+        } else {
+            vec![]
+        };
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
         let output_merkle_tree = match bundle.version {
@@ -1434,7 +1455,7 @@ where
             &mut self.rpc,
             &mut self.indexer,
             from,
-            input_compressed_accounts.as_slice(),
+            &input_compressed_accounts[..std::cmp::min(input_compressed_accounts.len(), 4)],
             false,
             amount,
             &output_merkle_tree,

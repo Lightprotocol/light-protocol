@@ -1,6 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
+use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::AnchorDeserialize;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
@@ -14,13 +15,16 @@ use light_system_program::sdk::compressed_account::{
 };
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::CompressedCpiContext;
-use light_system_program::{NewAddressParams, ReadOnlyAddressParams};
+use light_system_program::{NewAddressParams, ReadOnlyAddress};
+use light_test_utils::e2e_test_env::init_program_test_env;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::system_program::transfer_compressed_sol_test;
+use light_test_utils::test_batch_forester::perform_batch_append;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
 use light_utils::hash_to_bn254_field_size_be;
+use light_verifier::VerifierError;
 use serial_test::serial;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
@@ -30,6 +34,474 @@ use system_cpi_test::sdk::{
 };
 use system_cpi_test::{self, RegisteredUser, TokenTransferData, WithInputAccountsMode};
 use system_cpi_test::{CreatePdaMode, ID};
+
+/// Tests:
+/// 1. functional - 1 read only account proof by index
+/// 2. functional - 1 read only account proof by index, 1 read only account by zkp
+/// 3. functional - 10 read only account proof by index
+/// 4. failing - read only account in v1 state mt
+/// 5. failing - invalid read only account proof by index
+/// 6. failing - invalid output queue
+/// 7. failing - proof by index for invalidated account
+/// 8. failing - proof is none
+/// 9. failing - invalid proof
+/// 10. failing - invalid root index
+/// 11. failing - invalid read only account with zkp
+/// 12. failing - zkp for invalidated account
+/// 13. failing - invalid state mt
+/// 14. failing - account marked as proof by index but index cannot be in value vec
+/// 15. failing - invalid leaf index, proof by index
+/// 16. functional - 4 read only accounts by zkp
+///
+/// Read only account specific inputs:
+/// struct PackedReadOnlyCompressedAccount {
+///     account_hash: [u8; 32], // tested in 5 & 11
+///     merkle_context: PackedMerkleContext,
+///     root_index: u16, // tested in 10
+/// }
+///
+/// struct PackedMerkleContext {
+///     merkle_tree_pubkey_index: u8, // tested in 13
+///     nullifier_queue_pubkey_index: u8, // tested in 6
+///     leaf_index: u32, // tested in 15 (not used with zkp)
+///     queue_index: Option<QueueIndex>, // tested in 14
+///}
+///
+#[serial]
+#[tokio::test]
+async fn test_read_only_accounts() {
+    let (_rpc, env) =
+        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
+    let payer = _rpc.get_payer().insecure_clone();
+
+    let mut e2e_env = init_program_test_env(_rpc, &env, true).await;
+    e2e_env.keypair_action_config.fee_assert = false;
+    // Create system state with accounts:
+    // - inserted a batched Merkle tree
+    // - inserted a batched output queue
+    // - inserted a batched output queue and batched Merkle tree
+    {
+        let params = InitStateTreeAccountsInstructionData::test_default();
+        // fill two batches
+        for i in 0..params.output_queue_batch_size * 2 {
+            let seed = [i as u8; 32];
+            let data = [i as u8; 31];
+            perform_create_pda_with_event(
+                &mut e2e_env.indexer,
+                &mut e2e_env.rpc,
+                &env,
+                &payer,
+                seed,
+                &data,
+                &ID,
+                None,
+                None,
+                CreatePdaMode::BatchFunctional,
+            )
+            .await
+            .unwrap();
+        }
+        println!("inserted two batches");
+        // insert one batch
+        for _ in 0..5 {
+            perform_batch_append(
+                &mut e2e_env.rpc,
+                &mut e2e_env.indexer.state_merkle_trees[1],
+                &env.forester,
+                0,
+                false,
+                None,
+            )
+            .await
+            .unwrap();
+        }
+        for i in 0..params.output_queue_zkp_batch_size {
+            let seed = [i as u8 + 100; 32];
+            let data = [i as u8 + 100; 31];
+            perform_create_pda_with_event(
+                &mut e2e_env.indexer,
+                &mut e2e_env.rpc,
+                &env,
+                &payer,
+                seed,
+                &data,
+                &ID,
+                None,
+                None,
+                CreatePdaMode::BatchFunctional,
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    // account in batched state mt and value vec
+    let account_in_value_array = e2e_env
+        .indexer
+        .get_compressed_accounts_by_owner(&ID)
+        .iter()
+        .find(|x| {
+            x.merkle_context.leaf_index == 101
+                && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+        })
+        .unwrap()
+        .clone();
+
+    let account_not_in_value_array_and_in_mt = e2e_env
+        .indexer
+        .get_compressed_accounts_by_owner(&ID)
+        .iter()
+        .find(|x| {
+            x.merkle_context.leaf_index == 1
+                && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+        })
+        .unwrap()
+        .clone();
+
+    // 1. functional - 1 read only account proof by index, an create 1 new account
+    {
+        let seed = [202u8; 32];
+        let data = [2u8; 31];
+
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_in_value_array.clone()]),
+            CreatePdaMode::BatchFunctional,
+        )
+        .await
+        .unwrap();
+    }
+    // 2. functional - 1 read only account proof by index, 1 read only account by zkp
+    {
+        let seed = [203u8; 32];
+        let data = [3u8; 31];
+
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![
+                account_in_value_array.clone(),
+                account_not_in_value_array_and_in_mt.clone(),
+            ]),
+            CreatePdaMode::Functional,
+        )
+        .await
+        .unwrap();
+    }
+    // 3. functional - 10 read only account proof by index
+    {
+        let seed = [200u8; 32];
+        let data = [3u8; 31];
+
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_in_value_array.clone(); 10]),
+            CreatePdaMode::Functional,
+        )
+        .await
+        .unwrap();
+    }
+    let seed = [204u8; 32];
+    let data = [4u8; 31];
+    // 4. Failing - read only account in v1 state mt
+    {
+        let account_in_v1_tree = e2e_env
+            .indexer
+            .get_compressed_accounts_by_owner(&ID)
+            .iter()
+            .find(|x| x.merkle_context.merkle_tree_pubkey == env.merkle_tree_pubkey)
+            .unwrap()
+            .clone();
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![
+                account_in_value_array.clone(),
+                account_in_v1_tree.clone(),
+            ]),
+            CreatePdaMode::Functional,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidDiscriminator.into(),
+        )
+        .unwrap();
+    }
+
+    let seed = [205u8; 32];
+    let data = [5u8; 31];
+
+    // 5. Failing - invalid read only account proof by index
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_in_value_array.clone()]),
+            CreatePdaMode::InvalidReadOnlyAccount,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAccountDoesNotExist.into(),
+        )
+        .unwrap();
+    }
+
+    // 6. failing - invalid output queue
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_in_value_array.clone()]),
+            CreatePdaMode::InvalidReadOnlyAccountOutputQueue,
+        )
+        .await;
+
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidDiscriminator.into(),
+        )
+        .unwrap();
+    }
+
+    // 7. failing - proof by index for invalidated account
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            Some(vec![account_in_value_array.clone()]),
+            Some(vec![account_in_value_array.clone()]),
+            CreatePdaMode::ReadOnlyProofOfInsertedAccount,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAccountDoesNotExist.into(),
+        )
+        .unwrap();
+    }
+    // 8. failing - proof is none
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::ProofIsNoneReadOnlyAccount,
+        )
+        .await;
+        assert_rpc_error(result, 0, SystemProgramError::ProofIsNone.into()).unwrap();
+    }
+    // 9. failing - invalid proof
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::InvalidProofReadOnlyAccount,
+        )
+        .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 10. failing - invalid root index
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::InvalidReadOnlyAccountRootIndex,
+        )
+        .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 11. failing - invalid read only account with zkp
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::InvalidReadOnlyAccount,
+        )
+        .await;
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    }
+    // 12. failing - zkp for invalidated account
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::Functional,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAccountDoesNotExist.into(),
+        )
+        .unwrap();
+    }
+    // 13. failing - invalid state mt
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::InvalidReadOnlyAccountMerkleTree,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
+    }
+    // 14. failing - account marked as proof by index but index cannot be in value vec
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::AccountNotInValueVecMarkedProofByIndex,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAccountDoesNotExist.into(),
+        )
+        .unwrap();
+    }
+    // 15. failing - invalid leaf index, proof by index
+    {
+        let result = perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_in_value_array.clone()]),
+            CreatePdaMode::InvalidLeafIndex,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ReadOnlyAccountDoesNotExist.into(),
+        )
+        .unwrap();
+    }
+    // 16. functional - 4 read only accounts by zkp
+    {
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            None,
+            Some(vec![account_not_in_value_array_and_in_mt.clone(); 4]),
+            CreatePdaMode::Functional,
+        )
+        .await
+        .unwrap();
+    }
+}
 
 /// Test:
 /// Functional:
@@ -75,6 +547,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::InvalidReadOnlyAddress,
         )
         .await;
@@ -93,6 +567,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::InvalidReadOnlyMerkleTree,
         )
         .await;
@@ -111,6 +587,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::InvalidReadOnlyRootIndex,
         )
         .await;
@@ -129,6 +607,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::UseReadOnlyAddressInAccount,
         )
         .await;
@@ -143,6 +623,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::ReadOnlyProofOfInsertedAddress,
         )
         .await;
@@ -162,6 +644,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::OneReadOnlyAddress,
         )
         .await
@@ -177,6 +661,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::TwoReadOnlyAddresses,
         )
         .await
@@ -195,6 +681,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::BatchAddressFunctional,
         )
         .await
@@ -209,6 +697,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::BatchAddressFunctional,
         )
         .await;
@@ -224,6 +714,8 @@ async fn only_test_create_pda() {
             seed,
             &data,
             &ID,
+            None,
+            None,
             CreatePdaMode::InvalidBatchTreeAccount,
         )
         .await;
@@ -246,6 +738,8 @@ async fn only_test_create_pda() {
         seed,
         &data,
         &ID,
+        None,
+        None,
         CreatePdaMode::ProgramIsSigner,
     )
     .await
@@ -505,6 +999,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         seed,
         &data,
         &ID,
+        None,
+        None,
         CreatePdaMode::ProgramIsSigner,
     )
     .await
@@ -806,6 +1302,8 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         seed,
         &data,
         &ID,
+        None,
+        None,
         CreatePdaMode::ProgramIsSigner,
     )
     .await
@@ -842,6 +1340,8 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
         data,
         payer_pubkey,
         owner_program,
+        None,
+        None,
         signer_is_program,
     )
     .await;
@@ -864,6 +1364,8 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     seed: [u8; 32],
     data: &[u8; 31],
     owner_program: &Pubkey,
+    input_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
+    read_only_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
     mode: CreatePdaMode,
 ) -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
@@ -875,6 +1377,8 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         data,
         payer_pubkey,
         owner_program,
+        input_accounts,
+        read_only_accounts,
         mode,
     )
     .await;
@@ -897,8 +1401,15 @@ async fn perform_create_pda<R: RpcConnection>(
     data: &[u8; 31],
     payer_pubkey: Pubkey,
     owner_program: &Pubkey,
+    input_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
+    read_only_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
     mode: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
+    let output_compressed_account_merkle_tree_pubkey = if mode == CreatePdaMode::BatchFunctional {
+        &env.batched_output_queue
+    } else {
+        &env.merkle_tree_pubkey
+    };
     let (address, mut address_merkle_tree_pubkey, address_queue_pubkey) = if mode
         == CreatePdaMode::BatchAddressFunctional
         || mode == CreatePdaMode::InvalidReadOnlyAddress
@@ -961,12 +1472,32 @@ async fn perform_create_pda<R: RpcConnection>(
         addresses.insert(0, read_only_address);
         address_merkle_tree_pubkeys.push(address_merkle_tree_pubkey);
     }
-
-    println!("addresses: {:?}", addresses);
+    let mut compressed_account_hashes = Vec::new();
+    let mut compressed_account_merkle_tree_pubkeys = Vec::new();
+    if let Some(input_accounts) = input_accounts.as_ref() {
+        input_accounts.iter().for_each(|x| {
+            compressed_account_hashes.push(x.hash().unwrap());
+            compressed_account_merkle_tree_pubkeys.push(x.merkle_context.merkle_tree_pubkey);
+        });
+    }
+    if let Some(read_only_accounts) = read_only_accounts.as_ref() {
+        read_only_accounts.iter().for_each(|x| {
+            compressed_account_hashes.push(x.hash().unwrap());
+            compressed_account_merkle_tree_pubkeys.push(x.merkle_context.merkle_tree_pubkey);
+        });
+    }
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
+        .create_proof_for_compressed_accounts2(
+            if compressed_account_hashes.is_empty() {
+                None
+            } else {
+                Some(compressed_account_hashes)
+            },
+            if compressed_account_merkle_tree_pubkeys.is_empty() {
+                None
+            } else {
+                Some(compressed_account_merkle_tree_pubkeys)
+            },
             Some(&addresses),
             Some(address_merkle_tree_pubkeys),
             rpc,
@@ -983,7 +1514,7 @@ async fn perform_create_pda<R: RpcConnection>(
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
     let readonly_adresses = if addresses.len() == 2 && mode != CreatePdaMode::TwoReadOnlyAddresses {
-        let read_only_address = vec![ReadOnlyAddressParams {
+        let read_only_address = vec![ReadOnlyAddress {
             address: addresses[1],
             address_merkle_tree_pubkey,
             address_merkle_tree_root_index: rpc_result.address_root_indices[1],
@@ -991,12 +1522,12 @@ async fn perform_create_pda<R: RpcConnection>(
         Some(read_only_address)
     } else if mode == CreatePdaMode::TwoReadOnlyAddresses {
         let read_only_address = vec![
-            ReadOnlyAddressParams {
+            ReadOnlyAddress {
                 address: addresses[0],
                 address_merkle_tree_pubkey,
                 address_merkle_tree_root_index: rpc_result.address_root_indices[0],
             },
-            ReadOnlyAddressParams {
+            ReadOnlyAddress {
                 address: addresses[1],
                 address_merkle_tree_pubkey,
                 address_merkle_tree_root_index: rpc_result.address_root_indices[1],
@@ -1006,18 +1537,44 @@ async fn perform_create_pda<R: RpcConnection>(
     } else {
         None
     };
+    let mut index = 0;
+    let state_roots = if input_accounts.as_ref().is_none() {
+        None
+    } else {
+        let input_account_len = input_accounts.as_ref().unwrap().len();
+        index += input_account_len;
+        Some(rpc_result.root_indices[..index].to_vec())
+    };
+
+    let read_only_accounts = if let Some(read_only_accounts) = read_only_accounts.as_ref() {
+        Some(
+            read_only_accounts
+                .iter()
+                .map(|x| {
+                    index += 1;
+                    x.into_read_only(rpc_result.root_indices[index - 1])
+                        .unwrap()
+                })
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        None
+    };
 
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data: *data,
         signer: &payer_pubkey,
-        output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &rpc_result.proof,
+        output_compressed_account_merkle_tree_pubkey,
+        proof: &rpc_result.proof.unwrap(),
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
         owner_program,
         signer_is_program: mode.clone(),
         registered_program_pda: &env.registered_program_pda,
         readonly_adresses,
+        read_only_accounts,
+        input_compressed_accounts_with_merkle_context: input_accounts,
+        state_roots,
     };
     create_pda_instruction(create_ix_inputs)
 }

@@ -58,6 +58,7 @@ pub fn create_invoke_instruction(
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
     let mut inputs = Vec::new();
+    println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 

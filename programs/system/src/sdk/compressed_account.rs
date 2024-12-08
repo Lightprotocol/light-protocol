@@ -4,6 +4,13 @@ use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
+use super::address::pack_account;
+
+pub trait FetchRoot {
+    fn get_root_index(&self) -> u16;
+    fn get_merkle_context(&self) -> PackedMerkleContext;
+}
+
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -12,6 +19,14 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub root_index: u16,
     /// Placeholder to mark accounts read-only unimplemented set to false.
     pub read_only: bool,
+}
+impl FetchRoot for PackedCompressedAccountWithMerkleContext {
+    fn get_root_index(&self) -> u16 {
+        self.root_index
+    }
+    fn get_merkle_context(&self) -> PackedMerkleContext {
+        self.merkle_context
+    }
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -28,16 +43,71 @@ impl CompressedAccountWithMerkleContext {
     }
 }
 
+impl CompressedAccountWithMerkleContext {
+    pub fn into_read_only(&self, root_index: Option<u16>) -> Result<ReadOnlyCompressedAccount> {
+        let account_hash = self.hash()?;
+        let merkle_context = if root_index.is_none() {
+            let mut merkle_context = self.merkle_context;
+            merkle_context.queue_index = Some(QueueIndex::default());
+            merkle_context
+        } else {
+            self.merkle_context
+        };
+        Ok(ReadOnlyCompressedAccount {
+            account_hash,
+            merkle_context,
+            root_index: root_index.unwrap_or_default(),
+        })
+    }
+
+    pub fn pack(
+        &self,
+        root_index: Option<u16>,
+        remaining_accounts: &mut HashMap<Pubkey, usize>,
+    ) -> Result<PackedCompressedAccountWithMerkleContext> {
+        Ok(PackedCompressedAccountWithMerkleContext {
+            compressed_account: self.compressed_account.clone(),
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: pack_account(
+                    &self.merkle_context.merkle_tree_pubkey,
+                    remaining_accounts,
+                ),
+                nullifier_queue_pubkey_index: pack_account(
+                    &self.merkle_context.nullifier_queue_pubkey,
+                    remaining_accounts,
+                ),
+                leaf_index: self.merkle_context.leaf_index,
+                queue_index: if root_index.is_none() {
+                    Some(QueueIndex::default())
+                } else {
+                    None
+                },
+            },
+            root_index: root_index.unwrap_or_default(),
+            read_only: false,
+        })
+    }
+}
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct ReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
-    pub account: MerkleContext,
+    pub merkle_context: MerkleContext,
+    pub root_index: u16,
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
-    pub account: PackedCompressedAccountWithMerkleContext,
+    pub merkle_context: PackedMerkleContext,
+    pub root_index: u16,
+}
+impl FetchRoot for PackedReadOnlyCompressedAccount {
+    fn get_root_index(&self) -> u16 {
+        self.root_index
+    }
+    fn get_merkle_context(&self) -> PackedMerkleContext {
+        self.merkle_context
+    }
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
@@ -55,8 +125,6 @@ pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
-    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
-    /// currently unimplemented.
     pub queue_index: Option<QueueIndex>,
 }
 
@@ -72,41 +140,18 @@ pub fn pack_merkle_context(
     merkle_context: &[MerkleContext],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
 ) -> Vec<PackedMerkleContext> {
-    let mut merkle_context_packed = merkle_context
+    merkle_context
         .iter()
         .map(|x| PackedMerkleContext {
             leaf_index: x.leaf_index,
-            merkle_tree_pubkey_index: 0,     // will be assigned later
-            nullifier_queue_pubkey_index: 0, // will be assigned later
-            queue_index: None,
+            merkle_tree_pubkey_index: pack_account(&x.merkle_tree_pubkey, remaining_accounts),
+            nullifier_queue_pubkey_index: pack_account(
+                &x.nullifier_queue_pubkey,
+                remaining_accounts,
+            ),
+            queue_index: x.queue_index,
         })
-        .collect::<Vec<PackedMerkleContext>>();
-    let mut index: usize = remaining_accounts.len();
-    for (i, params) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&params.merkle_tree_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.merkle_tree_pubkey, index);
-                index += 1;
-            }
-        };
-        merkle_context_packed[i].merkle_tree_pubkey_index =
-            *remaining_accounts.get(&params.merkle_tree_pubkey).unwrap() as u8;
-    }
-
-    for (i, params) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&params.nullifier_queue_pubkey) {
-            Some(_) => {}
-            None => {
-                remaining_accounts.insert(params.nullifier_queue_pubkey, index);
-                index += 1;
-            }
-        };
-        merkle_context_packed[i].nullifier_queue_pubkey_index = *remaining_accounts
-            .get(&params.nullifier_queue_pubkey)
-            .unwrap() as u8;
-    }
-    merkle_context_packed
+        .collect::<Vec<PackedMerkleContext>>()
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

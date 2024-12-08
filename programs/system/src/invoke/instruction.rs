@@ -136,7 +136,7 @@ pub struct PackedReadOnlyAddress {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct ReadOnlyAddressParams {
+pub struct ReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,

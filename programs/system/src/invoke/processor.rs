@@ -14,11 +14,15 @@ use crate::{
         sum_check::sum_check,
         verify_state_proof::{
             create_tx_hash, fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
-            hash_input_compressed_accounts, verify_read_only_account,
-            verify_read_only_address_queue_non_inclusion, verify_state_proof,
+            hash_input_compressed_accounts, verify_input_accounts_proof_by_index,
+            verify_read_only_account_inclusion, verify_read_only_address_queue_non_inclusion,
+            verify_state_proof,
         },
     },
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    sdk::{
+        accounts::{InvokeAccounts, SignerAccounts},
+        compressed_account::PackedReadOnlyCompressedAccount,
+    },
     InstructionDataInvoke,
 };
 
@@ -61,13 +65,14 @@ pub fn process<
     ctx: Context<'a, 'b, 'c, 'info, A>,
     cpi_context_inputs: usize,
     read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
+    read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
 ) -> Result<()> {
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");
     }
     // Sum check ---------------------------------------------------
     bench_sbf_start!("cpda_sum_check");
-    let (num_read_only_input_accounts, num_prove_by_index_input_accounts) = sum_check(
+    let num_prove_by_index_input_accounts = sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
@@ -136,11 +141,6 @@ pub fn process<
             );
             return err!(SystemProgramError::InvalidCapacity);
         }
-        verify_read_only_account(
-            &ctx.remaining_accounts,
-            &inputs.input_compressed_accounts_with_merkle_context,
-            &input_compressed_account_hashes,
-        )?;
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
@@ -207,7 +207,7 @@ pub fn process<
     // in certain cases we zero out roots in batched input queues.
     // These roots need to be zero prior to proof verification.
     bench_sbf_start!("cpda_nullifiers");
-    let input_network_fee_bundle = if num_input_compressed_accounts > num_read_only_input_accounts {
+    let input_network_fee_bundle = if num_input_compressed_accounts != 0 {
         // Access the current slot
         let current_slot = Clock::get()?.slot;
         let tx_hash = create_tx_hash(
@@ -224,7 +224,6 @@ pub fn process<
             &input_compressed_account_hashes,
             &invoking_program,
             tx_hash,
-            num_read_only_input_accounts,
         )?
     } else {
         None
@@ -239,8 +238,14 @@ pub fn process<
         output_network_fee_bundle,
     )?;
 
+    // Proof inputs order:
+    // 1. input compressed accounts
+    // 2. read only compressed accounts
+    // 3. new addresses
+    // 4. read only addresses
     if num_prove_by_index_input_accounts < num_input_compressed_accounts
         || new_address_roots.capacity() != 0
+        || read_only_accounts.as_ref().map_or(false, |x| !x.is_empty())
     {
         bench_sbf_start!("cpda_verify_state_proof");
         if let Some(proof) = inputs.proof.as_ref() {
@@ -250,6 +255,10 @@ pub fn process<
                 b: proof.b,
                 c: proof.c,
             };
+            verify_input_accounts_proof_by_index(
+                &ctx.remaining_accounts,
+                &inputs.input_compressed_accounts_with_merkle_context,
+            )?;
             let mut input_compressed_account_roots =
                 Vec::with_capacity(num_input_compressed_accounts);
             fetch_input_compressed_account_roots(
@@ -257,6 +266,15 @@ pub fn process<
                 &ctx,
                 &mut input_compressed_account_roots,
             )?;
+            let read_only_accounts = read_only_accounts.unwrap_or_default();
+            let mut read_only_accounts_roots = Vec::with_capacity(read_only_accounts.len());
+            fetch_input_compressed_account_roots(
+                &read_only_accounts,
+                &ctx,
+                &mut read_only_accounts_roots,
+            )?;
+            verify_read_only_account_inclusion(&ctx.remaining_accounts, &read_only_accounts)?;
+
             fetch_roots_address_merkle_tree(
                 &inputs.new_address_params,
                 &read_only_addresses,
@@ -271,13 +289,14 @@ pub fn process<
             for read_only_address in read_only_addresses.iter() {
                 new_addresses.push(read_only_address.address);
             }
-            msg!("read_only_addresses {:?}", read_only_addresses);
             match verify_state_proof(
                 &inputs.input_compressed_accounts_with_merkle_context,
-                &input_compressed_account_roots,
+                input_compressed_account_roots,
                 &input_compressed_account_hashes,
                 &new_address_roots,
                 &new_addresses,
+                &read_only_accounts,
+                &read_only_accounts_roots,
                 &compressed_verifier_proof,
             ) {
                 Ok(_) => Ok(()),
@@ -287,7 +306,7 @@ pub fn process<
                         "input_compressed_account_hashes {:?}",
                         input_compressed_account_hashes
                     );
-                    msg!("input roots {:?}", input_compressed_account_roots);
+                    // msg!("input roots {:?}", input_compressed_account_roots);
                     msg!(
                         "input_compressed_accounts_with_merkle_context: {:?}",
                         inputs.input_compressed_accounts_with_merkle_context

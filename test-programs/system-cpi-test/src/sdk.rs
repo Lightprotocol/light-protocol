@@ -13,11 +13,16 @@ use light_compressed_token::{
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
-        address::{pack_new_address_params, pack_read_only_address_params},
-        compressed_account::PackedCompressedAccountWithMerkleContext,
+        address::{
+            pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params,
+        },
+        compressed_account::{
+            CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+            ReadOnlyCompressedAccount,
+        },
     },
     utils::get_registered_program_pda,
-    NewAddressParams, ReadOnlyAddressParams,
+    NewAddressParams, ReadOnlyAddress,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -34,7 +39,11 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
     pub owner_program: &'a Pubkey,
     pub signer_is_program: CreatePdaMode,
     pub registered_program_pda: &'a Pubkey,
-    pub readonly_adresses: Option<Vec<ReadOnlyAddressParams>>,
+    pub readonly_adresses: Option<Vec<ReadOnlyAddress>>,
+    pub read_only_accounts: Option<Vec<ReadOnlyCompressedAccount>>,
+    pub input_compressed_accounts_with_merkle_context:
+        Option<Vec<CompressedAccountWithMerkleContext>>,
+    pub state_roots: Option<Vec<Option<u16>>>,
 }
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
@@ -49,8 +58,30 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     let read_only_address = input_params
         .readonly_adresses
         .as_ref()
-        .map(|readonly_adresses| {
-            pack_read_only_address_params(readonly_adresses, &mut remaining_accounts)
+        .map(|read_only_adresses| {
+            pack_read_only_address_params(read_only_adresses, &mut remaining_accounts)
+        });
+    let read_only_accounts = input_params
+        .read_only_accounts
+        .as_ref()
+        .map(|read_only_accounts| {
+            pack_read_only_accounts(read_only_accounts, &mut remaining_accounts)
+        });
+    let input_accounts = input_params
+        .input_compressed_accounts_with_merkle_context
+        .as_ref()
+        .map(|input_accounts| {
+            input_accounts
+                .iter()
+                .enumerate()
+                .map(|(i, x)| {
+                    x.pack(
+                        input_params.state_roots.as_ref().unwrap()[i],
+                        &mut remaining_accounts,
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>()
         });
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
@@ -61,6 +92,8 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         signer_is_program: input_params.signer_is_program,
         cpi_context: None,
         read_only_address,
+        read_only_accounts,
+        input_accounts,
     };
 
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;

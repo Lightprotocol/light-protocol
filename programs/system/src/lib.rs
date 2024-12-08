@@ -66,7 +66,7 @@ pub mod light_system_program {
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx.accounts.authority.key(),
         )?;
-        process(inputs, None, ctx, 0, None)
+        process(inputs, None, ctx, 0, None, None)
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
@@ -78,7 +78,7 @@ pub mod light_system_program {
             InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
         bench_sbf_end!("cpda_deserialize");
 
-        process_invoke_cpi(ctx, inputs, None)
+        process_invoke_cpi(ctx, inputs, None, None)
     }
 
     pub fn invoke_cpi_with_read_only_address<'a, 'b, 'c: 'info, 'info>(
@@ -86,8 +86,7 @@ pub mod light_system_program {
         inputs: Vec<u8>,
     ) -> Result<()> {
         bench_sbf_start!("cpda_deserialize");
-        let inputs =
-            InstructionDataInvokeCpiWithReadOnlyAddress::deserialize(&mut inputs.as_slice())?;
+        let inputs = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut inputs.as_slice())?;
         bench_sbf_end!("cpda_deserialize");
         // disable set cpi context because cpi context account uses InvokeCpiInstruction
         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
@@ -97,7 +96,12 @@ pub mod light_system_program {
                 return Err(SystemProgramError::InstructionNotCallable.into());
             }
         }
-        process_invoke_cpi(ctx, inputs.invoke_cpi, inputs.read_only_addresses)
+        process_invoke_cpi(
+            ctx,
+            inputs.invoke_cpi,
+            inputs.read_only_addresses,
+            inputs.read_only_accounts,
+        )
     }
 
     /// This function is a stub to allow Anchor to include the input types in

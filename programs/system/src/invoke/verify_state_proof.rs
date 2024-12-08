@@ -1,6 +1,11 @@
 use crate::{
     errors::SystemProgramError,
-    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
+    sdk::{
+        accounts::InvokeAccounts,
+        compressed_account::{
+            FetchRoot, PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+        },
+    },
     NewAddressParamsPacked,
 };
 use account_compression::{
@@ -23,7 +28,6 @@ use std::mem;
 
 use super::PackedReadOnlyAddress;
 
-// TODO: add support for batched Merkle trees
 #[inline(never)]
 #[heap_neutral]
 pub fn fetch_input_compressed_account_roots<
@@ -32,8 +36,9 @@ pub fn fetch_input_compressed_account_roots<
     'c: 'info,
     'info,
     A: InvokeAccounts<'info> + Bumps,
+    F: FetchRoot,
 >(
-    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
+    input_compressed_accounts_with_merkle_context: &'a [F],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
@@ -42,14 +47,14 @@ pub fn fetch_input_compressed_account_roots<
     {
         // Skip accounts which prove inclusion by index in output queue.
         if input_compressed_account_with_context
-            .merkle_context
+            .get_merkle_context()
             .queue_index
             .is_some()
         {
             continue;
         }
         let merkle_tree_account_info = &ctx.remaining_accounts[input_compressed_account_with_context
-            .merkle_context
+            .get_merkle_context()
             .merkle_tree_pubkey_index
             as usize];
         let mut discriminator_bytes = [0u8; 8];
@@ -64,8 +69,9 @@ pub fn fetch_input_compressed_account_roots<
                     .map_err(ProgramError::from)?;
                 let fetched_roots = &merkle_tree.roots;
 
-                (*roots)
-                    .push(fetched_roots[input_compressed_account_with_context.root_index as usize]);
+                (*roots).push(
+                    fetched_roots[input_compressed_account_with_context.get_root_index() as usize],
+                );
             }
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree =
@@ -75,7 +81,7 @@ pub fn fetch_input_compressed_account_roots<
                     .map_err(ProgramError::from)?;
                 (*roots).push(
                     merkle_tree.root_history
-                        [input_compressed_account_with_context.root_index as usize],
+                        [input_compressed_account_with_context.get_root_index() as usize],
                 );
             }
             _ => {
@@ -122,6 +128,87 @@ pub fn fetch_roots_address_merkle_tree<
     Ok(())
 }
 
+/// For each input account which is marked to be proven by index
+/// 1. check that it can exist in the output queue
+/// - note the output queue checks whether the value acutally exists in the queue
+/// - the purpose of this check is to catch marked input accounts which shouldn't be proven by index
+#[inline(always)]
+pub fn verify_input_accounts_proof_by_index<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
+    input_accounts: &'a [PackedCompressedAccountWithMerkleContext],
+) -> Result<()> {
+    for account in input_accounts.iter() {
+        if account.merkle_context.queue_index.is_some() {
+            let output_queue_account_info =
+                &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
+            let output_queue =
+                &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+                    output_queue_account_info,
+                )
+                .map_err(ProgramError::from)?;
+            output_queue
+                .could_exist_in_batches(account.merkle_context.leaf_index as u64)
+                .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+        }
+    }
+    Ok(())
+}
+
+/// For each read-only account
+/// 1. prove inclusion by index in the output queue if leaf index should exist in the output queue.
+/// 1.1. if proved inclusion by index, return Ok.
+/// 2. prove non-inclusion in the bloom filters
+/// 2.1. skip wiped batches.
+/// 2.2. prove non-inclusion in the bloom filters for each batch.
+#[inline(always)]
+pub fn verify_read_only_account_inclusion<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
+    read_only_accounts: &'a [PackedReadOnlyCompressedAccount],
+) -> Result<()> {
+    for read_only_account in read_only_accounts.iter() {
+        let output_queue_account_info = &remaining_accounts[read_only_account
+            .merkle_context
+            .nullifier_queue_pubkey_index
+            as usize];
+        let output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+            output_queue_account_info,
+        )
+        .map_err(ProgramError::from)?;
+        let proved_inclusion = output_queue
+            .prove_inclusion_by_index(
+                read_only_account.merkle_context.leaf_index as u64,
+                &read_only_account.account_hash,
+            )
+            .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+        if !proved_inclusion && read_only_account.merkle_context.queue_index.is_some() {
+            msg!("Expected read-only account in the output queue but does not exist.");
+            return err!(SystemProgramError::ReadOnlyAccountDoesNotExist);
+        }
+        // If we prove inclusion by index we do not need to check non-inclusion in bloom filters.
+        if !proved_inclusion {
+            let merkle_tree_account_info = &remaining_accounts
+                [read_only_account.merkle_context.merkle_tree_pubkey_index as usize];
+            let merkle_tree =
+                &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                    merkle_tree_account_info,
+                )
+                .map_err(ProgramError::from)?;
+
+            let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
+            for i in 0..num_bloom_filters {
+                let bloom_filter_store = merkle_tree.bloom_filter_stores[i].as_mut_slice();
+                let batch = &merkle_tree.batches[i];
+                if !batch.bloom_filter_is_wiped {
+                    batch
+                        .check_non_inclusion(&read_only_account.account_hash, bloom_filter_store)
+                        .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[inline(always)]
 pub fn verify_read_only_address_queue_non_inclusion<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
@@ -151,32 +238,32 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
     Ok(())
 }
 
-#[inline(always)]
-pub fn verify_read_only_account<'a>(
-    remaining_accounts: &'a [AccountInfo<'_>],
-    accounts: &'a [PackedCompressedAccountWithMerkleContext],
-    input_compressed_account_hashes: &'a [[u8; 32]],
-) -> Result<()> {
-    for (i, account) in accounts.iter().enumerate() {
-        if account.read_only && account.merkle_context.queue_index.is_some() {
-            msg!("verify_read_only_account");
-            msg!("merkle_context: {:?}", account.merkle_context);
-            let output_queue_account_info =
-                &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
+// #[inline(always)]
+// pub fn verify_read_only_account<'a>(
+//     remaining_accounts: &'a [AccountInfo<'_>],
+//     accounts: &'a [PackedCompressedAccountWithMerkleContext],
+//     input_compressed_account_hashes: &'a [[u8; 32]],
+// ) -> Result<()> {
+//     for (i, account) in accounts.iter().enumerate() {
+//         if account.read_only && account.merkle_context.queue_index.is_some() {
+//             msg!("verify_read_only_account");
+//             msg!("merkle_context: {:?}", account.merkle_context);
+//             let output_queue_account_info =
+//                 &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
 
-            let output_queue =
-                &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-                    output_queue_account_info,
-                )
-                .map_err(ProgramError::from)?;
-            output_queue.prove_inclusion_by_index(
-                account.merkle_context.leaf_index as u64,
-                &input_compressed_account_hashes[i],
-            )?;
-        }
-    }
-    Ok(())
-}
+//             let output_queue =
+//                 &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+//                     output_queue_account_info,
+//                 )
+//                 .map_err(ProgramError::from)?;
+//             output_queue.prove_inclusion_by_index(
+//                 account.merkle_context.leaf_index as u64,
+//                 &input_compressed_account_hashes[i],
+//             )?;
+//         }
+//     }
+//     Ok(())
+// }
 
 fn fetch_address_root<
     'a,
@@ -346,14 +433,16 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 #[heap_neutral]
 pub fn verify_state_proof(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    roots: &[[u8; 32]],
+    mut roots: Vec<[u8; 32]>,
     leaves: &[[u8; 32]],
     address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],
+    read_only_accounts: &[PackedReadOnlyCompressedAccount],
+    read_only_roots: &[[u8; 32]],
     compressed_proof: &CompressedProof,
 ) -> anchor_lang::Result<()> {
     // Filter out leaves that are not in the proof (proven by index).
-    let proof_input_leaves = leaves
+    let mut proof_input_leaves = leaves
         .iter()
         .enumerate()
         .filter(|(x, _)| {
@@ -364,9 +453,21 @@ pub fn verify_state_proof(
         })
         .map(|x| *x.1)
         .collect::<Vec<[u8; 32]>>();
+    msg!("proof_input_leaves: {:?}", proof_input_leaves);
+
+    read_only_accounts.iter().for_each(|x| {
+        if x.merkle_context.queue_index.is_none() {
+            proof_input_leaves.extend_from_slice(&[x.account_hash]);
+        }
+    });
+    msg!("roots: {:?}", roots);
+
+    roots.extend_from_slice(read_only_roots);
+    msg!("proof_input_leaves: {:?}", proof_input_leaves);
+    msg!("roots: {:?}", roots);
     if !addresses.is_empty() && !proof_input_leaves.is_empty() {
         verify_create_addresses_and_merkle_proof_zkp(
-            roots,
+            &roots,
             &proof_input_leaves,
             address_roots,
             addresses,
@@ -377,7 +478,7 @@ pub fn verify_state_proof(
         verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
             .map_err(ProgramError::from)?;
     } else {
-        verify_merkle_proof_zkp(roots, &proof_input_leaves, compressed_proof)
+        verify_merkle_proof_zkp(&roots, &proof_input_leaves, compressed_proof)
             .map_err(ProgramError::from)?;
     }
     Ok(())
