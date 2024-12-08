@@ -14,4 +14,4 @@ describe('validateSufficientBalance', () => {
     it('should throw error for negative balance', () => {
         expect(() => validateSufficientBalance(bn(-1))).toThrow();
     });
-}); 
+});
