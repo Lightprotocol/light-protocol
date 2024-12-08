@@ -11,8 +11,8 @@
         "module": "ESNext",
         "moduleResolution": "Node",
         "lib": ["ESNext", "DOM"],
-        "types": ["vitest/importMeta", "node"],
-        "skipLibCheck": true
+        "types": ["node"],
+        "skipLibCheck": false
     },
     "include": ["./src/**/*.ts", "rollup.config.js"]
 }

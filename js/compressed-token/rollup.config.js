@@ -17,7 +17,9 @@ const rolls = (fmt, env) => ({
     external: [
         '@solana/web3.js',
         '@coral-xyz/anchor',
+        '@solana/spl-token',
         '@lightprotocol/stateless.js',
+        'tweetnacl',
     ],
     plugins: [
         json(),
