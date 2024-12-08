@@ -96,37 +96,8 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
-    let mut sdk_compressed_account_data: Option<CompressedAccountData> = None;
-    if let Some(compressed_account_data) = &compressed_account.compressed_account.data {
-        sdk_compressed_account_data = Some(CompressedAccountData {
-            discriminator: compressed_account_data.discriminator,
-            data: compressed_account_data.data.clone(),
-            data_hash: compressed_account_data.data_hash,
-        });
-    }
-    let mut sdk_queue_index: Option<QueueIndex> = None;
-    if let Some(queue_index) = compressed_account.merkle_context.queue_index {
-        sdk_queue_index = Some(QueueIndex {
-            queue_id: queue_index.queue_id,
-            index: queue_index.index,
-        });
-    }
 
-    let sdk_compressed_account: CompressedAccountWithMerkleContext =
-        CompressedAccountWithMerkleContext {
-            compressed_account: CompressedAccount {
-                owner: compressed_account.compressed_account.owner.clone(),
-                lamports: compressed_account.compressed_account.lamports,
-                address: compressed_account.compressed_account.address.clone(),
-                data: sdk_compressed_account_data,
-            },
-            merkle_context: MerkleContext {
-                merkle_tree_pubkey: compressed_account.merkle_context.merkle_tree_pubkey,
-                nullifier_queue_pubkey: compressed_account.merkle_context.nullifier_queue_pubkey,
-                leaf_index: compressed_account.merkle_context.leaf_index,
-                queue_index: sdk_queue_index,
-            },
-        };
+    let sdk_compressed_account: CompressedAccountWithMerkleContext = compressed_account.into();        
 
     update_nested_data(
         &mut rpc,
