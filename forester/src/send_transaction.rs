@@ -9,8 +9,8 @@ use account_compression::utils::constants::{
 };
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::Indexer;
 use futures::future::join_all;
+use light_client::indexer::Indexer;
 use light_client::rpc::{RetryConfig, RpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use light_registry::account_compression_cpi::sdk::{
@@ -395,8 +395,9 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         join!(address_future, state_future)
     };
 
-    let address_proofs = address_proofs?;
-    let state_proofs = state_proofs?;
+    // TODO: handle errors
+    let address_proofs = address_proofs.unwrap();
+    let state_proofs = state_proofs.unwrap();
 
     // Process address proofs and create instructions
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {

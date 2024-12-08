@@ -36,6 +36,7 @@ anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 account-compression = { workspace = true }
+light-client = { workspace = true}
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-hash-set = { workspace = true}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}

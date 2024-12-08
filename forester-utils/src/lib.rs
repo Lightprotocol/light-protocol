@@ -16,7 +16,6 @@ use std::{fmt, mem};
 
 pub mod address_merkle_tree_config;
 pub mod forester_epoch;
-pub mod indexer;
 pub mod registry;
 
 pub fn create_account_instruction(

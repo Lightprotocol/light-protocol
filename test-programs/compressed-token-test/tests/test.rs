@@ -6,6 +6,8 @@ use anchor_lang::{
 use anchor_spl::token::{Mint, TokenAccount};
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_2022::spl_token_2022::extension::ExtensionType;
+use light_client::indexer::{Indexer, TokenDataWithMerkleContext};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_token::delegation::sdk::{
     create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
     CreateRevokeInstructionInputs,
@@ -20,12 +22,14 @@ use light_compressed_token::spl_compression::spl_token_pool_derivation;
 use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{token_data::TokenData, ErrorCode};
 use light_program_test::test_env::setup_test_programs_with_accounts;
+use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
+use light_test_utils::assert_custom_error_or_program_error;
 use light_test_utils::spl::mint_tokens_helper_with_lamports;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
@@ -42,10 +46,8 @@ use light_test_utils::spl::{
 use light_test_utils::spl::{create_token_2022_account, freeze_test};
 use light_test_utils::spl::{mint_spl_tokens, mint_wrapped_sol};
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, create_account_instruction, Indexer, RpcConnection,
-    RpcError, TokenDataWithContext,
+    airdrop_lamports, assert_rpc_error, create_account_instruction, RpcConnection, RpcError,
 };
-use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
 use light_verifier::VerifierError;
 use rand::Rng;
 use solana_sdk::system_instruction;
@@ -1308,7 +1310,7 @@ async fn test_delegation(
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         compressed_transfer_test(
             &delegate,
             &mut rpc,
@@ -1334,7 +1336,7 @@ async fn test_delegation(
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         compressed_transfer_test(
             &delegate,
             &mut rpc,
@@ -1441,7 +1443,7 @@ async fn test_delegation_mixed() {
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let delegate_input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
         input_compressed_accounts
@@ -1480,7 +1482,7 @@ async fn test_delegation_mixed() {
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let delegate_input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
         input_compressed_accounts
@@ -1521,7 +1523,7 @@ async fn test_delegation_mixed() {
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let delegate_input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
 
@@ -1939,12 +1941,12 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -2052,7 +2054,7 @@ async fn test_revoke_failing() {
         .iter()
         .filter(|x| x.token_data.delegate.is_some())
         .cloned()
-        .collect::<Vec<TokenDataWithContext>>();
+        .collect::<Vec<TokenDataWithMerkleContext>>();
 
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -2291,7 +2293,7 @@ async fn test_burn() {
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let burn_amount = 100;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2318,7 +2320,7 @@ async fn test_burn() {
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let burn_amount = input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.amount)
@@ -2472,7 +2474,7 @@ async fn failing_tests_burn() {
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2663,7 +2665,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -2727,7 +2729,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -2962,7 +2964,7 @@ async fn test_failing_freeze() {
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>()[0]
+                .collect::<Vec<TokenDataWithMerkleContext>>()[0]
                 .clone()];
             let outputs_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3094,7 +3096,7 @@ async fn test_failing_thaw() {
             .iter()
             .filter(|x| x.token_data.state == AccountState::Frozen)
             .cloned()
-            .collect::<Vec<TokenDataWithContext>>();
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let outputs_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -3243,7 +3245,7 @@ async fn test_failing_thaw() {
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Initialized)
                 .cloned()
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             let outputs_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3612,11 +3614,11 @@ async fn test_failing_decompression() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_compress_decompress<R: RpcConnection>(
+pub async fn failing_compress_decompress<R: RpcConnection + MerkleTreeExt>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     compression_amount: u64,

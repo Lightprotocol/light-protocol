@@ -1,7 +1,15 @@
+use crate::{
+    assert_compressed_tx::get_merkle_tree_snapshots,
+    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
+};
 use anchor_spl::token::{Mint, TokenAccount};
 use forester_utils::create_account_instruction;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
+use light_client::indexer::{Indexer, TokenDataWithMerkleContext};
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 use light_compressed_token::process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction;
+use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
@@ -12,7 +20,6 @@ use light_compressed_token::{
     get_token_pool_pda,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
-    token_data::AccountState,
     TokenData,
 };
 use light_hasher::Poseidon;
@@ -28,14 +35,6 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 use spl_token::instruction::initialize_mint;
-
-use crate::{
-    assert_compressed_tx::get_merkle_tree_snapshots,
-    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
-};
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::TransactionParams;
 
 pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
@@ -412,7 +411,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     recipients: &[Pubkey],
     amounts: &[u64],
     lamports: Option<Vec<Option<u64>>>,
-    input_compressed_accounts: &[TokenDataWithContext],
+    input_compressed_accounts: &[TokenDataWithMerkleContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
@@ -447,7 +446,7 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
     recipients: &[Pubkey],
     amounts: &[u64],
     mut lamports: Option<Vec<Option<u64>>>,
-    input_compressed_accounts: &[TokenDataWithContext],
+    input_compressed_accounts: &[TokenDataWithMerkleContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
@@ -653,7 +652,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     recipient_token_account: &Pubkey,
@@ -957,7 +956,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     delegated_amount: u64,
     delegate_lamports: Option<u64>,
     delegate: &Pubkey,
@@ -1127,7 +1126,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     output_account_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1240,7 +1239,7 @@ pub async fn freeze_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1259,7 +1258,7 @@ pub async fn thaw_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1278,7 +1277,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1411,7 +1410,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,
@@ -1550,7 +1549,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: &[TokenDataWithContext],
+    input_compressed_accounts: &[TokenDataWithMerkleContext],
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,

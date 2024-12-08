@@ -172,3 +172,39 @@ pub fn pack_compressed_account(
 ) -> PackedCompressedAccountWithMerkleContext {
     pack_compressed_accounts(&[compressed_account], &[root_index], remaining_accounts)[0].clone()
 }
+
+
+#[cfg(test)]
+mod conversions {
+    use crate::merkle_context::QueueIndex;
+
+    use super::*;
+    use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext as ProgramCompressedAccount;
+
+    impl From<ProgramCompressedAccount> for CompressedAccountWithMerkleContext {
+        fn from(account: ProgramCompressedAccount) -> Self {         
+            Self {
+                compressed_account: CompressedAccount {
+                    owner: account.compressed_account.owner,
+                    lamports: account.compressed_account.lamports,
+                    address: account.compressed_account.address,
+                    data: account.compressed_account.data.as_ref().map(|data| CompressedAccountData {
+                        discriminator: data.discriminator,
+                        data: data.data.clone(),
+                        data_hash: data.data_hash,
+                    }),
+                },
+                merkle_context: MerkleContext {
+                    merkle_tree_pubkey: account.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: account.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: account.merkle_context.leaf_index,
+                    queue_index: account.merkle_context.queue_index.map(|queue_index| QueueIndex {
+                        queue_id: queue_index.queue_id,
+                        index: queue_index.index,
+                    }),
+                },
+            }
+        }
+    }
+}
+    

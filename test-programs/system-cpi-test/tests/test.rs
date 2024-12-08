@@ -1,10 +1,13 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
+use light_client::indexer::{Indexer, TokenDataWithMerkleContext};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
 use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_program_test::test_indexer::TestIndexer;
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_system_program::errors::SystemProgramError;
 use light_system_program::sdk::address::derive_address;
@@ -15,10 +18,9 @@ use light_system_program::sdk::compressed_account::{
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::TestIndexer;
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::system_program::transfer_compressed_sol_test;
-use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
+use light_test_utils::{assert_rpc_error, RpcConnection, RpcError};
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
@@ -632,7 +634,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_failing<R: RpcConnection>(
+pub async fn perform_create_pda_failing<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -666,7 +668,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_with_event<R: RpcConnection>(
+pub async fn perform_create_pda_with_event<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -698,7 +700,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_create_pda<R: RpcConnection>(
+async fn perform_create_pda<R: RpcConnection + MerkleTreeExt>(
     env: &EnvAccounts,
     seed: [u8; 32],
     test_indexer: &mut TestIndexer<R>,
@@ -740,7 +742,7 @@ async fn perform_create_pda<R: RpcConnection>(
     create_pda_instruction(create_ix_inputs.clone())
 }
 
-pub async fn assert_created_pda<R: RpcConnection>(
+pub async fn assert_created_pda<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -785,13 +787,13 @@ pub async fn assert_created_pda<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_with_input_accounts<R: RpcConnection>(
+pub async fn perform_with_input_accounts<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     payer: &Keypair,
     fee_payer: Option<&Keypair>,
     compressed_account: &CompressedAccountWithMerkleContext,
-    token_account: Option<TokenDataWithContext>,
+    token_account: Option<TokenDataWithMerkleContext>,
     expected_error_code: u32,
     mode: WithInputAccountsMode,
 ) -> Result<(), RpcError> {

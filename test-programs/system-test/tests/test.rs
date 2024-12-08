@@ -2,11 +2,13 @@
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_client::indexer::Indexer;
 use light_hasher::Poseidon;
 use light_program_test::test_env::{
     initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
     EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
 };
+use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
@@ -23,13 +25,11 @@ use light_system_program::{
     InstructionDataInvoke, NewAddressParams,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
-    TransactionParams,
+    airdrop_lamports, assert_rpc_error, FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error,
-    indexer::TestIndexer,
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
@@ -80,6 +80,7 @@ async fn invoke_failing_test() {
 
     let payer = context.get_payer().insecure_clone();
     // no inputs
+    println!("!!! 1");
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
         &Vec::new(),
         &Vec::new(),
@@ -162,9 +163,9 @@ async fn invoke_failing_test() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_transaction_inputs(
-    context: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+pub async fn failing_transaction_inputs<R: RpcConnection, I: Indexer<R>>(
+    context: &mut R,
+    test_indexer: &mut I,
     payer: &Keypair,
     env: &EnvAccounts,
     num_inputs: usize,
@@ -220,7 +221,6 @@ pub async fn failing_transaction_inputs(
     } else {
         None
     };
-
     let (root_indices, proof) =
         if input_compressed_account_hashes.is_some() || proof_input_derived_addresses.is_some() {
             let proof_rpc_res = test_indexer
@@ -317,8 +317,8 @@ pub async fn failing_transaction_inputs(
     Ok(())
 }
 
-pub async fn failing_transaction_inputs_inner(
-    context: &mut ProgramTestRpcConnection,
+pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
+    context: &mut R,
     payer: &Keypair,
     env: &EnvAccounts,
     inputs_struct: &InstructionDataInvoke,
@@ -577,8 +577,8 @@ fn create_address_test_inputs(
     (new_address_params, derived_addresses)
 }
 
-pub async fn failing_transaction_address(
-    context: &mut ProgramTestRpcConnection,
+pub async fn failing_transaction_address<R: RpcConnection>(
+    context: &mut R,
     payer: &Keypair,
     env: &EnvAccounts,
     inputs_struct: &InstructionDataInvoke,
@@ -697,8 +697,8 @@ pub async fn failing_transaction_address(
 /// 2. data but signer is not a program
 /// 3. invalid output Merkle tree
 /// 4. address that doesn't exist
-pub async fn failing_transaction_output(
-    context: &mut ProgramTestRpcConnection,
+pub async fn failing_transaction_output<R: RpcConnection>(
+    context: &mut R,
     payer: &Keypair,
     env: &EnvAccounts,
     inputs_struct: InstructionDataInvoke,
@@ -834,8 +834,8 @@ pub async fn perform_tx_with_output_compressed_accounts(
     assert_rpc_error(result, 0, expected_error_code)
 }
 
-pub async fn create_instruction_and_failing_transaction(
-    context: &mut ProgramTestRpcConnection,
+pub async fn create_instruction_and_failing_transaction<R: RpcConnection>(
+    context: &mut R,
     payer: &Keypair,
     inputs_struct: InstructionDataInvoke,
     remaining_accounts: Vec<AccountMeta>,
