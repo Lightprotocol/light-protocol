@@ -12,8 +12,8 @@ import {
     unknown,
     any,
     nullable,
+    Struct,
 } from 'superstruct';
-import type { Struct } from 'superstruct';
 import {
     BN254,
     createBN254,
@@ -237,7 +237,7 @@ export function createRpcResult<T, U>(result: Struct<T, U>) {
                 data: nullable(any()),
             }),
         }),
-    ]);
+    ]) as Struct<RpcResult<T>, null>;
 }
 
 /**
@@ -251,15 +251,23 @@ const UnknownRpcResult = createRpcResult(unknown());
 export function jsonRpcResult<T, U>(schema: Struct<T, U>) {
     return coerce(createRpcResult(schema), UnknownRpcResult, value => {
         if ('error' in value) {
-            return value;
+            return value as RpcResultError;
         } else {
             return {
                 ...value,
                 result: create(value.result, schema),
-            };
+            } as RpcResultSuccess<T>;
         }
-    });
+    }) as Struct<RpcResult<T>, null>;
 }
+
+// Add this type for the context wrapper
+export type WithRpcContext<T> = {
+    context: {
+        slot: number;
+    };
+    value: T;
+};
 
 /**
  * @internal
@@ -272,7 +280,7 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
             }),
             value,
         }),
-    );
+    ) as Struct<RpcResult<WithRpcContext<T>>, null>;
 }
 
 /**
@@ -619,3 +627,22 @@ export interface CompressionApiInterface {
 
     getIndexerSlot(): Promise<number>;
 }
+
+// Public types for consumers
+export type RpcResultSuccess<T> = {
+    jsonrpc: '2.0';
+    id: string;
+    result: T;
+};
+
+export type RpcResultError = {
+    jsonrpc: '2.0';
+    id: string;
+    error: {
+        code: unknown;
+        message: string;
+        data?: any;
+    };
+};
+
+export type RpcResult<T> = RpcResultSuccess<T> | RpcResultError;

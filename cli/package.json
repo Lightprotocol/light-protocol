@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk-compression-cli",
-  "version": "0.20.4",
+  "version": "0.21.0",
   "description": "ZK Compression: Secure Scaling on Solana",
   "maintainers": [
     {
@@ -36,15 +36,15 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/compressed-token": "workspace:*",
-    "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/hasher.rs": "workspace:*",
+    "@lightprotocol/stateless.js": "workspace:*",
     "@oclif/core": "^3.26.2",
     "@oclif/plugin-autocomplete": "^3.0.13",
     "@oclif/plugin-help": "^6.0.20",
     "@oclif/plugin-not-found": "^3.1.2",
     "@oclif/plugin-plugins": "^5.0.7",
     "@solana-developers/helpers": "^1.5.1",
-    "@solana/web3.js": "^1.95.3",
+    "@solana/web3.js": "1.95.3",
     "axios": "^1.6.8",
     "case-anything": "^2.1.13",
     "cli-progress": "^3.12.0",

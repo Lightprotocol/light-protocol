@@ -6,13 +6,13 @@
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "strict": true,
-        "declaration": false,
+        "declaration": true,
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "Node",
         "lib": ["ESNext", "DOM"],
-        "types": ["vitest/importMeta", "node"],
-        "skipLibCheck": true
+        "types": ["node"],
+        "skipLibCheck": false
     },
     "include": ["./src/**/*.ts", "playwright.config.ts", "rollup.config.js"]
 }
