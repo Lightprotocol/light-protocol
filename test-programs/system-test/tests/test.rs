@@ -24,7 +24,7 @@ use light_system_program::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams,
 };
-use light_test_utils::conversions::convert::{
+use light_test_utils::conversions::{
     sdk_to_program_compressed_account, sdk_to_program_compressed_account_with_merkle_context,
     sdk_to_program_compressed_proof, sdk_to_program_merkle_context,
 };

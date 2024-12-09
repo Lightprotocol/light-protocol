@@ -22,6 +22,15 @@ pub fn sdk_to_program_queue_index(
     }
 }
 
+pub fn program_to_sdk_queue_index(
+    program_queue_index: ProgramQueueIndex,
+) -> sdk::merkle_context::QueueIndex {
+    sdk::merkle_context::QueueIndex {
+        queue_id: program_queue_index.queue_id,
+        index: program_queue_index.index,
+    }
+}
+
 pub fn sdk_to_program_merkle_context(
     sdk_merkle_context: sdk::merkle_context::MerkleContext,
 ) -> ProgramMerkleContext {
@@ -35,6 +44,18 @@ pub fn sdk_to_program_merkle_context(
     }
 }
 
+pub fn program_to_sdk_merkle_context(
+    program_merkle_context: ProgramMerkleContext,
+) -> sdk::merkle_context::MerkleContext {
+    sdk::merkle_context::MerkleContext {
+        merkle_tree_pubkey: program_merkle_context.merkle_tree_pubkey,
+        nullifier_queue_pubkey: program_merkle_context.nullifier_queue_pubkey,
+        leaf_index: program_merkle_context.leaf_index,
+        queue_index: program_merkle_context
+            .queue_index
+            .map(program_to_sdk_queue_index),
+    }
+}
 pub fn sdk_to_program_compressed_account_data(
     sdk_data: sdk::compressed_account::CompressedAccountData,
 ) -> ProgramCompressedAccountData {
@@ -85,6 +106,15 @@ pub fn sdk_to_program_compressed_account_with_merkle_context(
     ProgramCompressedAccountWithMerkleContext {
         compressed_account: sdk_to_program_compressed_account(sdk_account.compressed_account),
         merkle_context: sdk_to_program_merkle_context(sdk_account.merkle_context),
+    }
+}
+
+pub fn program_to_sdk_compressed_account_with_merkle_context(
+    program_account: ProgramCompressedAccountWithMerkleContext,
+) -> sdk::compressed_account::CompressedAccountWithMerkleContext {
+    sdk::compressed_account::CompressedAccountWithMerkleContext {
+        compressed_account: program_to_sdk_compressed_account(program_account.compressed_account),
+        merkle_context: program_to_sdk_merkle_context(program_account.merkle_context),
     }
 }
 

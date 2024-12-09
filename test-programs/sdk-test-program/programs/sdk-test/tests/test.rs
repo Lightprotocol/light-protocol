@@ -8,13 +8,9 @@ use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
-use light_sdk::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-};
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::instruction_data::LightInstructionData;
-use light_sdk::merkle_context::{
-    AddressMerkleContext, MerkleContext, QueueIndex, RemainingAccounts,
-};
+use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
 use light_sdk::proof::{CompressedProof, ProofRpcResult};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
@@ -96,8 +92,6 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
-    let sdk_compressed_account: CompressedAccountWithMerkleContext = compressed_account.into();
-
     update_nested_data(
         &mut rpc,
         &mut test_indexer,
@@ -117,7 +111,7 @@ async fn test_sdk_test() {
             twelve: 12,
         },
         &payer,
-        &sdk_compressed_account,
+        compressed_account,
         &account_compression_authority,
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
@@ -139,6 +133,7 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn with_nested_data<R>(
     name: String,
     rpc: &mut R,
@@ -223,6 +218,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_nested_data<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
