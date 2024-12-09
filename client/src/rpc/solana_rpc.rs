@@ -1,4 +1,5 @@
 use crate::rpc::errors::RpcError;
+use crate::rpc::merkle_tree::MerkleTreeExt;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 use async_trait::async_trait;
@@ -434,3 +435,5 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
 }
+
+impl MerkleTreeExt for SolanaRpcConnection {}
