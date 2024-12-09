@@ -1,3 +1,5 @@
+use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
+use light_prover_client::helpers::bigint_to_u8_32;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -22,7 +24,9 @@ use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
-use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{
+    big_int_to_string, string_to_big_int, ProverConfig, ProverMode,
+};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     account_compression::{
@@ -479,8 +483,20 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             rpc,
                         )
                         .await;
-
+                    let hash = calculate_hash_chain(&[
+                        bigint_to_u8_32(
+                            &string_to_big_int(&inclusion_payload.public_input_hash).unwrap(),
+                        )
+                        .unwrap(),
+                        bigint_to_u8_32(
+                            &string_to_big_int(&non_inclusion_payload.public_input_hash).unwrap(),
+                        )
+                        .unwrap(),
+                    ]);
+                    let public_input_hash = BigInt::from_bytes_be(num_bigint::Sign::Plus, &hash);
                     let combined_payload = CombinedJsonStruct {
+                        circuit_type: "combined".to_string(),
+                        public_input_hash: big_int_to_string(&public_input_hash),
                         inclusion: inclusion_payload.inputs,
                         non_inclusion: non_inclusion_payload.inputs,
                     }
@@ -801,7 +817,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             root_indices.push(fetched_merkle_tree.root_index() as u16);
         }
 
-        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+        let inclusion_proof_inputs = InclusionProofInputs::new(inclusion_proofs.as_slice());
         let batch_inclusion_proof_inputs =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
 
@@ -838,7 +854,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
         }
 
-        let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
+        let non_inclusion_proof_inputs =
+            NonInclusionProofInputs::new(non_inclusion_proofs.as_slice());
         let batch_non_inclusion_proof_inputs =
             BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                 &non_inclusion_proof_inputs,

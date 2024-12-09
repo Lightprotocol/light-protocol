@@ -1,36 +1,49 @@
 package prover
 
 import (
+	"light/light-prover/prover/poseidon"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type CombinedCircuit struct {
-	Inclusion    InclusionCircuit
-	NonInclusion NonInclusionCircuit
+	PublicInputHash frontend.Variable `gnark:",public"`
+	Inclusion       InclusionProof    `gnark:",input"`
+	NonInclusion    NonInclusionProof `gnark:",input"`
 }
 
 func (circuit *CombinedCircuit) Define(api frontend.API) error {
+	inclusionPublicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.Inclusion.Roots, Values2: circuit.Inclusion.Leaves})
+	nonInclusionPublicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.NonInclusion.Roots, Values2: circuit.NonInclusion.Values})
+	publicInputsHashChain := abstractor.Call(api, poseidon.Poseidon2{In1: inclusionPublicInputsHashChain, In2: nonInclusionPublicInputsHashChain})
+	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
+
 	abstractor.CallVoid(api, InclusionProof{
-		Roots:                      circuit.Inclusion.Roots,
-		Leaves:                     circuit.Inclusion.Leaves,
-		InPathElements:             circuit.Inclusion.InPathElements,
-		InPathIndices:              circuit.Inclusion.InPathIndices,
+		Roots:          circuit.Inclusion.Roots,
+		Leaves:         circuit.Inclusion.Leaves,
+		InPathElements: circuit.Inclusion.InPathElements,
+		InPathIndices:  circuit.Inclusion.InPathIndices,
+
 		NumberOfCompressedAccounts: circuit.Inclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.Inclusion.Height,
 	})
 
-	abstractor.CallVoid(api, NonInclusionProof{
-		Roots:                      circuit.NonInclusion.Roots,
-		Values:                     circuit.NonInclusion.Values,
-		LeafLowerRangeValues:       circuit.NonInclusion.LeafLowerRangeValues,
-		LeafHigherRangeValues:      circuit.NonInclusion.LeafHigherRangeValues,
-		NextIndices:                circuit.NonInclusion.NextIndices,
-		InPathIndices:              circuit.NonInclusion.InPathIndices,
-		InPathElements:             circuit.NonInclusion.InPathElements,
+	proof := NonInclusionProof{
+		Roots:  circuit.NonInclusion.Roots,
+		Values: circuit.NonInclusion.Values,
+
+		LeafLowerRangeValues:  circuit.NonInclusion.LeafLowerRangeValues,
+		LeafHigherRangeValues: circuit.NonInclusion.LeafHigherRangeValues,
+		NextIndices:           circuit.NonInclusion.NextIndices,
+
+		InPathElements: circuit.NonInclusion.InPathElements,
+		InPathIndices:  circuit.NonInclusion.InPathIndices,
+
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.NonInclusion.Height,
-	})
+	}
+	abstractor.Call1(api, proof)
 	return nil
 }
 

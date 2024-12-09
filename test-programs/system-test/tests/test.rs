@@ -105,8 +105,12 @@ async fn invoke_failing_test() {
         &payer,
         &env,
         Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
+            run_mode: None,
+            circuits: vec![
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+                ProofType::Combined,
+            ],
         }),
     )
     .await;

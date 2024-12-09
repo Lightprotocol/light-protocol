@@ -137,6 +137,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		malformedBodyError(err).send(w)
 		return
 	}
+	fmt.Printf("circuitType %+v", circuitType)
 
 	switch circuitType {
 	case prover.InclusionCircuitType:
@@ -320,6 +321,7 @@ func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
 	}
 
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
+	fmt.Printf("params %+v", params)
 
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
@@ -351,7 +353,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
-
+	fmt.Printf("params %+v", params)
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {

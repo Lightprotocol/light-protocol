@@ -14,7 +14,9 @@ type InclusionProofInputsJSON struct {
 }
 
 type InclusionParametersJSON struct {
-	Inputs []InclusionProofInputsJSON `json:"input-compressed-accounts"`
+	circuitType 	string 				`json:"circuitType"`
+	PublicInputHash string 				`json:"publicInputHash"`
+	Inputs []InclusionProofInputsJSON 	`json:"input-compressed-accounts"`
 }
 
 func ParseInput(inputJSON string) (InclusionParameters, error) {
@@ -34,6 +36,8 @@ func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
 func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParametersJSON {
 	paramsJson := InclusionParametersJSON{}
 	paramsJson.Inputs = make([]InclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+	paramsJson.PublicInputHash = toHex(&p.PublicInputHash)
+	paramsJson.circuitType = string(CombinedCircuitType)
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Leaf = toHex(&p.Inputs[i].Leaf)
@@ -60,6 +64,7 @@ func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
 }
 
 func (p *InclusionParameters) UpdateWithJSON(params InclusionParametersJSON) error {
+	fromHex(&p.PublicInputHash , params.PublicInputHash)
 	p.Inputs = make([]InclusionInputs, len(params.Inputs))
 	for i := 0; i < len(params.Inputs); i++ {
 		fmt.Println("Params.Root: ", params.Inputs[i].Root)

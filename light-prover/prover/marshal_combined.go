@@ -6,6 +6,8 @@ import (
 )
 
 type CombinedParametersJSON struct {
+	CircuitType             CircuitType                   `json:"circuitType"`
+	PublicInputHash         string                        `json:"publicInputHash"`
 	InclusionProofInputs    []InclusionProofInputsJSON    `json:"input-compressed-accounts"`
 	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"new-addresses"`
 }
@@ -21,6 +23,8 @@ func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
 
 func (p *CombinedParameters) MarshalJSON() ([]byte, error) {
 	combined := CombinedParametersJSON{
+		CircuitType:             CombinedCircuitType,
+		PublicInputHash:         toHex(&p.PublicInputHash),
 		InclusionProofInputs:    p.InclusionParameters.CreateInclusionParametersJSON().Inputs,
 		NonInclusionProofInputs: p.NonInclusionParameters.CreateNonInclusionParametersJSON().Inputs,
 	}
@@ -33,6 +37,13 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	var publicInputHash string
+	err1 := json.Unmarshal(rawMessages["publicInputHash"], &publicInputHash)
+	if err1 != nil {
+		return fmt.Errorf("failed to unmarshal publicInputHash: %v", err)
+	}
+	fmt.Println("publicInputHash: ", publicInputHash)
+	fromHex(&p.PublicInputHash, publicInputHash)
 
 	if _, ok := rawMessages["input-compressed-accounts"]; ok {
 		var params InclusionParametersJSON

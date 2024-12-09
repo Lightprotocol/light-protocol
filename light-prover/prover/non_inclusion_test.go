@@ -86,6 +86,7 @@ func TestNonInclusion(t *testing.T) {
 		if expectedResult == "0" {
 			// Run the failing test
 			assert.ProverFailed(&circuit, &NonInclusionCircuit{
+				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Values:                     values,
 				LeafLowerRangeValues:       leafLowerRangeValues,
@@ -99,6 +100,7 @@ func TestNonInclusion(t *testing.T) {
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &NonInclusionCircuit{
+				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Values:                     values,
 				LeafLowerRangeValues:       leafLowerRangeValues,

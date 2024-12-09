@@ -8,14 +8,11 @@ use account_compression::{
 };
 use anchor_lang::{prelude::*, Bumps};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::Poseidon;
+use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
 use light_utils::hash_to_bn254_field_size_be;
-use light_verifier::{
-    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
-    verify_merkle_proof_zkp, CompressedProof,
-};
+use light_verifier::{select_verifying_key, CompressedProof};
 use std::mem;
 
 #[inline(never)]
@@ -208,20 +205,31 @@ pub fn verify_state_proof(
     addresses: &[[u8; 32]],
     compressed_proof: &CompressedProof,
 ) -> anchor_lang::Result<()> {
-    if !addresses.is_empty() && !leaves.is_empty() {
-        verify_create_addresses_and_merkle_proof_zkp(
-            roots,
-            leaves,
-            address_roots,
-            addresses,
-            compressed_proof,
-        )
-        .map_err(ProgramError::from)?;
-    } else if !addresses.is_empty() {
-        verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
-            .map_err(ProgramError::from)?;
-    } else {
-        verify_merkle_proof_zkp(roots, leaves, compressed_proof).map_err(ProgramError::from)?;
+    // TODO: pass in input hash chain from tx_hash creation.
+    let mut hash_chain_inputs = Vec::with_capacity(4);
+    if !leaves.is_empty() {
+        hash_chain_inputs.push(create_hash_chain(&[
+            create_hash_chain(roots)?,
+            create_hash_chain(leaves)?,
+        ])?);
     }
+    if !addresses.is_empty() {
+        hash_chain_inputs.push(create_hash_chain(&[
+            create_hash_chain(address_roots)?,
+            create_hash_chain(addresses)?,
+        ])?);
+    }
+    let public_input_hash = create_hash_chain(&hash_chain_inputs)?;
+    let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
+    light_verifier::verify(&[public_input_hash], compressed_proof, vk)
+        .map_err(ProgramError::from)?;
     Ok(())
+}
+
+pub fn create_hash_chain(leaves: &[[u8; 32]]) -> Result<[u8; 32]> {
+    let mut hash_chain = leaves[0];
+    for leaf in leaves.iter().skip(1) {
+        hash_chain = Poseidon::hashv(&[&hash_chain, leaf]).map_err(ProgramError::from)?;
+    }
+    Ok(hash_chain)
 }

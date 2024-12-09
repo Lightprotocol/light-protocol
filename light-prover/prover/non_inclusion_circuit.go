@@ -8,23 +8,28 @@ import (
 )
 
 type NonInclusionCircuit struct {
-	// public inputs
-	Roots  []frontend.Variable `gnark:",public"`
-	Values []frontend.Variable `gnark:",public"`
+	PublicInputHash frontend.Variable `gnark:",public"`
+
+	// hashed public inputs
+	Roots  []frontend.Variable `gnark:",input"`
+	Values []frontend.Variable `gnark:",input"`
 
 	// private inputs
-	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
-	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
-	NextIndices           []frontend.Variable `gnark:"input"`
+	LeafLowerRangeValues  []frontend.Variable `gnark:",input"`
+	LeafHigherRangeValues []frontend.Variable `gnark:",input"`
+	NextIndices           []frontend.Variable `gnark:",input"`
 
-	InPathIndices  []frontend.Variable   `gnark:"input"`
-	InPathElements [][]frontend.Variable `gnark:"input"`
+	InPathIndices  []frontend.Variable   `gnark:",input"`
+	InPathElements [][]frontend.Variable `gnark:",input"`
 
 	NumberOfCompressedAccounts uint32
 	Height                     uint32
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
+	publicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.Roots, Values2: circuit.Values})
+	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
+
 	proof := NonInclusionProof{
 		Roots:  circuit.Roots,
 		Values: circuit.Values,
