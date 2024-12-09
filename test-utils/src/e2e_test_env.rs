@@ -73,6 +73,8 @@ use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::create_finalize_registration_instruction;
 use light_registry::utils::get_protocol_config_pda_address;
 use light_registry::ForesterConfig;
+use light_sdk::legacy::CompressedAccount;
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -93,6 +95,7 @@ use crate::address_tree_rollover::{
 use crate::assert_epoch::{
     assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
 };
+use crate::conversions::sdk_to_program_compressed_account_with_merkle_context;
 use crate::spl::{
     approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
     create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
@@ -117,12 +120,14 @@ use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, AccountZeroCopy};
 use light_client::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithMerkleContext,
+    StateMerkleTreeBundle,
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_system_program::sdk::compressed_account::{
+    CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext, QueueIndex,
+};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 
@@ -130,7 +135,6 @@ use crate::create_address_merkle_tree_and_queue_account_with_assert;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
-use light_compressed_token::token_data::AccountState;
 use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
 use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
@@ -1947,17 +1951,48 @@ where
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey())
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect::<Vec<_>>();
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
+        // TODO: convert
     }
 
     pub fn get_compressed_sol_accounts(
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_by_owner(pubkey)
+        self.indexer
+            .get_compressed_accounts_by_owner(pubkey)
+            .into_iter()
+            .map(|sdk_account| CompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount {
+                    owner: sdk_account.compressed_account.owner,
+                    lamports: sdk_account.compressed_account.lamports,
+                    address: sdk_account.compressed_account.address,
+                    data: sdk_account
+                        .compressed_account
+                        .data
+                        .map(|data| CompressedAccountData {
+                            discriminator: data.discriminator,
+                            data: data.data,
+                            data_hash: data.data_hash,
+                        }),
+                },
+                merkle_context: MerkleContext {
+                    merkle_tree_pubkey: sdk_account.merkle_context.merkle_tree_pubkey,
+                    nullifier_queue_pubkey: sdk_account.merkle_context.nullifier_queue_pubkey,
+                    leaf_index: sdk_account.merkle_context.leaf_index,
+                    queue_index: sdk_account.merkle_context.queue_index.map(|qi| QueueIndex {
+                        queue_id: qi.queue_id,
+                        index: qi.index,
+                    }),
+                },
+            })
+            .collect()
     }
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {

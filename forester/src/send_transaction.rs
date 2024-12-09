@@ -395,9 +395,12 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         join!(address_future, state_future)
     };
 
-    // TODO: handle errors
-    let address_proofs = address_proofs.unwrap();
-    let state_proofs = state_proofs.unwrap();
+    let address_proofs = address_proofs.map_err(|e| {
+        ForesterError::IndexerError(format!("Failed to fetch address proofs: {:?}", e))
+    })?;
+    let state_proofs = state_proofs.map_err(|e| {
+        ForesterError::IndexerError(format!("Failed to fetch state proofs: {:?}", e))
+    })?;
 
     // Process address proofs and create instructions
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {

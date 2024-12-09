@@ -28,6 +28,7 @@ use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIE
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_client::indexer::Indexer;
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -69,7 +70,7 @@ pub async fn run_queue_info(
     }
 }
 
-pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
+pub async fn run_pipeline<R: RpcConnection + MerkleTreeExt, I: Indexer<R>>(
     config: Arc<ForesterConfig>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,

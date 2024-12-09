@@ -14,6 +14,7 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod conversions;
 pub mod e2e_test_env;
 pub mod spl;
 pub mod state_tree_rollover;

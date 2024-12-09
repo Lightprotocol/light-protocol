@@ -9,23 +9,23 @@ use borsh::BorshDeserialize;
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use light_client::indexer::{
     AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-    ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithMerkleContext,
+    StateMerkleTreeAccounts, StateMerkleTreeBundle,
 };
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::FeeConfig;
 use light_client::{indexer::AddressMerkleTreeAccounts, rpc::merkle_tree::MerkleTreeExt};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::TokenData;
 use light_prover_client::gnark::combined_json_formatter::CombinedJsonStruct;
 use light_prover_client::gnark::constants::{PROVE_PATH, SERVER_ADDRESS};
 use light_prover_client::gnark::helpers::ProverConfig;
 use light_prover_client::gnark::proof_helpers::{
     compress_proof, deserialize_gnark_proof_json, proof_from_json_struct,
 };
-use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, MerkleContext,
-};
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::event::PublicTransactionEvent;
+use light_sdk::merkle_context::MerkleContext;
+use light_sdk::proof::{CompressedProof, ProofRpcResult};
+use light_sdk::token::{TokenData, TokenDataWithMerkleContext};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::{info, warn};
 use num_bigint::BigUint;
@@ -53,7 +53,6 @@ use {
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
         },
     },
-    light_system_program::sdk::event::PublicTransactionEvent,
     num_bigint::BigInt,
     num_traits::ops::bytes::FromBytes,
     solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer},

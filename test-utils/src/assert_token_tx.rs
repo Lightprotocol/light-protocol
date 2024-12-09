@@ -3,12 +3,13 @@ use crate::assert_compressed_tx::{
     assert_public_transaction_event, MerkleTreeTestSnapShot,
 };
 use anchor_lang::AnchorSerialize;
-use light_client::indexer::{Indexer, TokenDataWithMerkleContext};
+use light_client::indexer::Indexer;
 use light_client::rpc::RpcConnection;
 use light_compressed_token::{
     get_token_pool_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
 };
+use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};

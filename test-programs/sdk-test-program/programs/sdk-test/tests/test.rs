@@ -96,8 +96,7 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
-
-    let sdk_compressed_account: CompressedAccountWithMerkleContext = compressed_account.into();        
+    let sdk_compressed_account: CompressedAccountWithMerkleContext = compressed_account.into();
 
     update_nested_data(
         &mut rpc,

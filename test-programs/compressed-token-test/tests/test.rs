@@ -6,7 +6,7 @@ use anchor_lang::{
 use anchor_spl::token::{Mint, TokenAccount};
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_2022::spl_token_2022::extension::ExtensionType;
-use light_client::indexer::{Indexer, TokenDataWithMerkleContext};
+use light_client::indexer::Indexer;
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_token::delegation::sdk::{
     create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
@@ -19,17 +19,21 @@ use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_compressed_token::spl_compression::spl_token_pool_derivation;
-use light_compressed_token::token_data::AccountState;
 use light_compressed_token::{token_data::TokenData, ErrorCode};
 use light_program_test::test_env::setup_test_programs_with_accounts;
 use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
+use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
 use light_test_utils::assert_custom_error_or_program_error;
+use light_test_utils::conversions::{
+    sdk_to_program_compressed_account, sdk_to_program_compressed_account_with_merkle_context,
+    sdk_to_program_compressed_proof, sdk_to_program_merkle_context, sdk_to_program_token_data,
+};
 use light_test_utils::spl::mint_tokens_helper_with_lamports;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
@@ -1648,6 +1652,7 @@ async fn test_approve_failing() {
             &mut rpc,
         )
         .await;
+    let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
     let mint = input_compressed_accounts[0].token_data.mint;
 
     // 1. Invalid delegated compressed account Merkle tree.
@@ -1658,17 +1663,21 @@ async fn test_approve_failing() {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
             input_merkle_contexts: input_compressed_accounts
-                .iter()
+                .clone()
+                .into_iter()
                 .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+                .map(|x| sdk_to_program_merkle_context(x))
+                .collect::<Vec<_>>(),
             input_token_data: input_compressed_accounts
+                .clone()
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             delegated_amount,
@@ -1677,7 +1686,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -1707,15 +1716,17 @@ async fn test_approve_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             delegated_amount,
@@ -1724,7 +1735,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: invalid_change_merkle_tree.pubkey(),
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -1758,15 +1769,17 @@ async fn test_approve_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             delegated_amount,
@@ -1798,15 +1811,17 @@ async fn test_approve_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
             delegated_amount,
@@ -1815,7 +1830,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -1841,15 +1856,17 @@ async fn test_approve_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             delegated_amount,
@@ -1858,7 +1875,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2073,7 +2090,7 @@ async fn test_revoke_failing() {
             &mut rpc,
         )
         .await;
-
+    let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
     // 1. Invalid root indices.
     {
         let invalid_root_indices = vec![0];
@@ -2084,20 +2101,22 @@ async fn test_revoke_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: invalid_root_indices,
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2120,20 +2139,22 @@ async fn test_revoke_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint,
             output_account_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof.clone(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2165,20 +2186,22 @@ async fn test_revoke_failing() {
             input_merkle_contexts: input_compressed_accounts
                 .iter()
                 .map(|x| x.compressed_account.merkle_context)
+                .map(|x| sdk_to_program_merkle_context(x))
                 .collect(),
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.clone())
+                .map(|x| sdk_to_program_token_data(x))
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
-                .cloned()
+                .map(|x| x.compressed_account.compressed_account.clone())
+                .map(|x| sdk_to_program_compressed_account(x))
                 .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: proof_rpc_result.root_indices,
-            proof: proof_rpc_result.proof,
+            proof: proof.clone(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2663,7 +2686,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
-                .filter(|x| x.token_data.state == AccountState::Frozen)
+                .filter(|x| x.token_data.state == light_sdk::token::AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<TokenDataWithMerkleContext>>();
             let output_merkle_tree = input_compressed_accounts[0]
@@ -2727,7 +2750,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
-                .filter(|x| x.token_data.state == AccountState::Frozen)
+                .filter(|x| x.token_data.state == light_sdk::token::AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<TokenDataWithMerkleContext>>();
             let output_merkle_tree = input_compressed_accounts[0]
@@ -2830,6 +2853,7 @@ async fn test_failing_freeze() {
                 &mut rpc,
             )
             .await;
+        let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
         let context_payer = rpc.get_payer().insecure_clone();
 
         // 1. Invalid authority.
@@ -2842,19 +2866,21 @@ async fn test_failing_freeze() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof: proof.clone(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -2876,19 +2902,21 @@ async fn test_failing_freeze() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof: proof.clone(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -2924,15 +2952,17 @@ async fn test_failing_freeze() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
@@ -2962,7 +2992,7 @@ async fn test_failing_freeze() {
             let input_compressed_accounts = vec![test_indexer
                 .get_compressed_token_accounts_by_owner(&sender.pubkey())
                 .iter()
-                .filter(|x| x.token_data.state == AccountState::Frozen)
+                .filter(|x| x.token_data.state == light_sdk::token::AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<TokenDataWithMerkleContext>>()[0]
                 .clone()];
@@ -2988,25 +3018,28 @@ async fn test_failing_freeze() {
                     &mut rpc,
                 )
                 .await;
+            let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
             let inputs = CreateInstructionInputs {
                 fee_payer: rpc.get_payer().pubkey(),
                 authority: payer.pubkey(),
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof,
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3094,7 +3127,7 @@ async fn test_failing_thaw() {
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
         let input_compressed_accounts = input_compressed_accounts
             .iter()
-            .filter(|x| x.token_data.state == AccountState::Frozen)
+            .filter(|x| x.token_data.state == light_sdk::token::AccountState::Frozen)
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
         let outputs_merkle_tree = input_compressed_accounts[0]
@@ -3119,6 +3152,7 @@ async fn test_failing_thaw() {
                 &mut rpc,
             )
             .await;
+        let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
         let context_payer = rpc.get_payer().insecure_clone();
 
         // 1. Invalid authority.
@@ -3131,19 +3165,21 @@ async fn test_failing_thaw() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof: proof.clone(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -3165,19 +3201,21 @@ async fn test_failing_thaw() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof,
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -3213,15 +3251,17 @@ async fn test_failing_thaw() {
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
@@ -3243,7 +3283,7 @@ async fn test_failing_thaw() {
                 test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
-                .filter(|x| x.token_data.state == AccountState::Initialized)
+                .filter(|x| x.token_data.state == light_sdk::token::AccountState::Initialized)
                 .cloned()
                 .collect::<Vec<TokenDataWithMerkleContext>>();
             let outputs_merkle_tree = input_compressed_accounts[0]
@@ -3268,25 +3308,28 @@ async fn test_failing_thaw() {
                     &mut rpc,
                 )
                 .await;
+            let proof = sdk_to_program_compressed_proof(proof_rpc_result.proof.clone());
             let inputs = CreateInstructionInputs {
                 fee_payer: rpc.get_payer().pubkey(),
                 authority: payer.pubkey(),
                 input_merkle_contexts: input_compressed_accounts
                     .iter()
                     .map(|x| x.compressed_account.merkle_context)
+                    .map(|x| sdk_to_program_merkle_context(x))
                     .collect(),
                 input_token_data: input_compressed_accounts
                     .iter()
                     .map(|x| x.token_data.clone())
+                    .map(|x| sdk_to_program_token_data(x))
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.compressed_account.compressed_account)
-                    .cloned()
+                    .map(|x| x.compressed_account.compressed_account.clone())
+                    .map(|x| sdk_to_program_compressed_account(x))
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof.clone(),
+                proof,
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -3667,7 +3710,10 @@ pub async fn failing_compress_decompress<R: RpcConnection + MerkleTreeExt>(
                 rpc,
             )
             .await;
-        (proof_rpc_result.root_indices, Some(proof_rpc_result.proof))
+        (
+            proof_rpc_result.root_indices,
+            Some(sdk_to_program_compressed_proof(proof_rpc_result.proof)),
+        )
     } else {
         (Vec::new(), None)
     };
@@ -3677,6 +3723,7 @@ pub async fn failing_compress_decompress<R: RpcConnection + MerkleTreeExt>(
         &input_compressed_accounts
             .iter()
             .map(|x| x.compressed_account.merkle_context)
+            .map(|x| sdk_to_program_merkle_context(x))
             .collect::<Vec<_>>(),
         &[change_out_compressed_account],
         &root_indices,
@@ -3684,12 +3731,13 @@ pub async fn failing_compress_decompress<R: RpcConnection + MerkleTreeExt>(
         input_compressed_accounts
             .iter()
             .map(|x| x.token_data.clone())
+            .map(|x| sdk_to_program_token_data(x))
             .collect::<Vec<_>>()
             .as_slice(),
         &input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
-            .cloned()
+            .map(|x| x.compressed_account.compressed_account.clone())
+            .map(|x| sdk_to_program_compressed_account(x))
             .collect::<Vec<_>>(),
         *mint,
         None,
@@ -3810,6 +3858,13 @@ async fn test_invalid_inputs() {
             &mut rpc,
         )
         .await;
+    let proof = Some(sdk_to_program_compressed_proof(
+        proof_rpc_result.proof.clone(),
+    ));
+    let input_compressed_accounts = input_compressed_accounts
+        .iter()
+        .map(|x| sdk_to_program_compressed_account_with_merkle_context(x.clone()))
+        .collect::<Vec<_>>();
     let change_out_compressed_account_0 = TokenTransferOutputData {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
@@ -3834,7 +3889,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3859,7 +3914,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3884,7 +3939,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3908,7 +3963,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3932,7 +3987,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3946,6 +4001,8 @@ async fn test_invalid_inputs() {
         let mut input_compressed_account_token_data_invalid_amount =
             test_indexer.token_compressed_accounts[0].token_data.clone();
         input_compressed_account_token_data_invalid_amount.amount = 0;
+        let input_compressed_account_token_data_invalid_amount =
+            sdk_to_program_token_data(input_compressed_account_token_data_invalid_amount);
         let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account
             .clone()];
@@ -3960,6 +4017,10 @@ async fn test_invalid_inputs() {
                 .as_mut_slice(),
         )
         .unwrap();
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .map(|x| sdk_to_program_compressed_account_with_merkle_context(x.clone()))
+            .collect::<Vec<_>>();
         let change_out_compressed_account_0 = TokenTransferOutputData {
             amount: input_compressed_account_token_data.amount - 1000,
             owner: recipient_keypair.pubkey(),
@@ -3980,7 +4041,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -3994,6 +4055,8 @@ async fn test_invalid_inputs() {
         let mut input_compressed_account_token_data =
             test_indexer.token_compressed_accounts[0].token_data.clone();
         input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
+        let input_compressed_account_token_data =
+            sdk_to_program_token_data(input_compressed_account_token_data);
         let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account
             .clone()];
@@ -4005,6 +4068,11 @@ async fn test_invalid_inputs() {
             .as_mut()
             .unwrap()
             .data = vec;
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .map(|x| sdk_to_program_compressed_account_with_merkle_context(x.clone()))
+            .collect::<Vec<_>>();
+
         let res = perform_transfer_failing_test(
             &mut rpc,
             change_out_compressed_account_0,
@@ -4012,7 +4080,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -4031,7 +4099,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &invalid_payer,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -4051,7 +4119,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &payer,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &root_indices,
             &input_compressed_accounts,
             false,
@@ -4069,7 +4137,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &nullifier_queue_pubkey,
             &payer,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             true,
@@ -4090,7 +4158,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &nullifier_queue_pubkey,
             &payer,
-            &Some(proof_rpc_result.proof.clone()),
+            &proof,
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
