@@ -1083,7 +1083,8 @@ impl<R: RpcConnection> TestIndexer<R> {
                 &event.input_compressed_account_hashes,
                 &event.output_compressed_account_hashes,
                 slot,
-            );
+            )
+            .unwrap();
             println!("tx_hash {:?}", tx_hash);
             println!("slot {:?}", slot);
             let hash = event.input_compressed_account_hashes[i];

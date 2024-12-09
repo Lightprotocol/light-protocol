@@ -75,8 +75,9 @@ async fn test_read_only_accounts() {
     let (_rpc, env) =
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
     let payer = _rpc.get_payer().insecure_clone();
+    let skip_prover = false;
 
-    let mut e2e_env = init_program_test_env(_rpc, &env, true).await;
+    let mut e2e_env = init_program_test_env(_rpc, &env, skip_prover).await;
     e2e_env.keypair_action_config.fee_assert = false;
     // Create system state with accounts:
     // - inserted a batched Merkle tree

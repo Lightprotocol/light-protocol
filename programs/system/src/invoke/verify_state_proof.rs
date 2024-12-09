@@ -9,7 +9,9 @@ use crate::{
     NewAddressParamsPacked,
 };
 use account_compression::{
-    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    batched_merkle_tree::{
+        create_hash_chain_from_slice, BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
+    },
     batched_queue::ZeroCopyBatchedQueueAccount,
     errors::AccountCompressionErrorCode,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
@@ -450,15 +452,11 @@ pub fn create_tx_hash(
     input_compressed_account_hashes: &[[u8; 32]],
     output_compressed_account_hashes: &[[u8; 32]],
     current_slot: u64,
-) -> [u8; 32] {
-    use light_hasher::Hasher;
-    let mut tx_hash = input_compressed_account_hashes[0];
-    for hash in input_compressed_account_hashes.iter().skip(1) {
-        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
-    }
-    tx_hash = Poseidon::hashv(&[&tx_hash, &current_slot.to_be_bytes()]).unwrap();
-    for hash in output_compressed_account_hashes.iter() {
-        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
-    }
-    tx_hash
+) -> Result<[u8; 32]> {
+    let version = [0u8; 32];
+    let mut slot_bytes = [0u8; 32];
+    slot_bytes[24..].copy_from_slice(&current_slot.to_be_bytes());
+    let inputs_hash_chain = create_hash_chain_from_slice(input_compressed_account_hashes)?;
+    let outputs_hash_chain = create_hash_chain_from_slice(output_compressed_account_hashes)?;
+    create_hash_chain_from_slice(&[version, inputs_hash_chain, outputs_hash_chain, slot_bytes])
 }

@@ -1172,11 +1172,12 @@ async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer, &env,
-        None, // Some(ProverConfig {
-             //     run_mode: Some(ProverMode::Rpc),
-             //     circuits: vec![],
-             // }),
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
 

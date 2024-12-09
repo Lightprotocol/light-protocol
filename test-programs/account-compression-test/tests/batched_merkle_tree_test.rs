@@ -648,7 +648,7 @@ pub async fn perform_insert_into_input_queue(
         *counter += 1;
     }
     let slot = context.get_slot().await.unwrap();
-    let tx_hash = create_tx_hash(&leaves, &vec![], slot);
+    let tx_hash = create_tx_hash(&leaves, &vec![], slot).unwrap();
     mock_indexer.tx_events.push(MockTxEvent {
         tx_hash,
         inputs: leaves.clone(),

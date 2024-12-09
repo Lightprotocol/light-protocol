@@ -213,7 +213,7 @@ pub fn process<
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
-        );
+        )?;
         // Insert nullifiers for compressed input account hashes into nullifier
         // queue except read-only accounts.
         insert_nullifiers(
