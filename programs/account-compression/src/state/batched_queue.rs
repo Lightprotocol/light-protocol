@@ -294,7 +294,8 @@ impl ZeroCopyBatchedQueueAccount {
 
     pub fn could_exist_in_batches(&mut self, leaf_index: u64) -> Result<()> {
         for batch in self.batches.iter() {
-            if batch.value_is_inserted_in_batch(leaf_index)? {
+            let res = batch.value_is_inserted_in_batch(leaf_index)?;
+            if res {
                 return Ok(());
             }
         }

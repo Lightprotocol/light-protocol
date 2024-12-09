@@ -25,7 +25,7 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig}
 use light_prover_client::mock_batched_forester::{
     self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
 };
-use light_system_program::invoke::verify_state_proof::create_tx_hash_offchain;
+use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_test_utils::address::insert_addresses;
 use light_test_utils::spl::create_initialize_mint_instructions;
 use light_test_utils::test_batch_forester::assert_perform_state_mt_roll_over;
@@ -648,7 +648,7 @@ pub async fn perform_insert_into_input_queue(
         *counter += 1;
     }
     let slot = context.get_slot().await.unwrap();
-    let tx_hash = create_tx_hash_offchain(&leaves, &vec![], slot);
+    let tx_hash = create_tx_hash(&leaves, &vec![], slot);
     mock_indexer.tx_events.push(MockTxEvent {
         tx_hash,
         inputs: leaves.clone(),

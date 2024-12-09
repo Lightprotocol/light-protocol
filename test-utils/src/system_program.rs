@@ -396,7 +396,6 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         inputs.is_compress,
         inputs.recipient,
         true,
-        &vec![false; inputs.input_compressed_accounts.len()],
     );
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;

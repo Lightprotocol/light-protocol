@@ -52,6 +52,8 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 14. failing - account marked as proof by index but index cannot be in value vec
 /// 15. failing - invalid leaf index, proof by index
 /// 16. functional - 4 read only accounts by zkp
+/// 17. functional - 3 read only accounts by zkp 1 regular input
+/// 18. functional - 1 read only account by zkp 3 regular inputs
 ///
 /// Read only account specific inputs:
 /// struct PackedReadOnlyCompressedAccount {
@@ -497,6 +499,70 @@ async fn test_read_only_accounts() {
             None,
             Some(vec![account_not_in_value_array_and_in_mt.clone(); 4]),
             CreatePdaMode::Functional,
+        )
+        .await
+        .unwrap();
+    }
+
+    // 17. functional - 3 read only accounts by zkp 1 regular input
+    {
+        let seed = [206u8; 32];
+        let data = [5u8; 31];
+        let input_account_in_mt = e2e_env
+            .indexer
+            .get_compressed_accounts_by_owner(&ID)
+            .iter()
+            .find(|x| {
+                x.merkle_context.leaf_index == 2
+                    && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+            })
+            .unwrap()
+            .clone();
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            Some(vec![input_account_in_mt.clone()]),
+            Some(vec![account_not_in_value_array_and_in_mt.clone(); 3]),
+            CreatePdaMode::Functional,
+        )
+        .await
+        .unwrap();
+    }
+
+    // 18. functional - 1 read only account by zkp 3 regular inputs
+    {
+        let seed = [207u8; 32];
+        let data = [5u8; 31];
+        let mut input_accounts = Vec::new();
+        for i in 31..34 {
+            let input_account_in_mt = e2e_env
+                .indexer
+                .get_compressed_accounts_by_owner(&ID)
+                .iter()
+                .find(|x| {
+                    x.merkle_context.leaf_index == i
+                        && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+                })
+                .unwrap()
+                .clone();
+            input_accounts.push(input_account_in_mt);
+        }
+        perform_create_pda_with_event(
+            &mut e2e_env.indexer,
+            &mut e2e_env.rpc,
+            &env,
+            &payer,
+            seed,
+            &data,
+            &ID,
+            Some(input_accounts),
+            Some(vec![account_not_in_value_array_and_in_mt.clone()]),
+            CreatePdaMode::BatchFunctional,
         )
         .await
         .unwrap();

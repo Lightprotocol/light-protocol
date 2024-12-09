@@ -57,11 +57,6 @@ pub fn insert_nullifiers<
     // used.
     let mut network_fee_bundle = None;
     for account in input_compressed_accounts_with_merkle_context.iter() {
-        msg!("nullify state: account: {:?}", account);
-        // Don't nullify read-only accounts.
-        if account.read_only {
-            continue;
-        }
         leaf_indices.push(account.merkle_context.leaf_index);
 
         let account_info =

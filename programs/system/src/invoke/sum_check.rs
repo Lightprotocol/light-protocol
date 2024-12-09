@@ -25,12 +25,11 @@ pub fn sum_check(
         {
             num_prove_by_index_accounts += 1;
         }
-        // Readonly accounts are not included in the sum check, since these are
-        // not invalidated in this transaction.
+        // Readonly accounts are only supported as separate inputs.
         if compressed_account_with_context.read_only {
-            unimplemented!("read_only accounts are not supported. Set read_only to false.");
-            // num_read_only += 1;
-            // continue;
+            unimplemented!(
+                "Read accounts are only supported as separate inputs in the invoke_cpi_with_read_only instruction. Set read_only to false."
+            );
         }
         sum = sum
             .checked_add(compressed_account_with_context.compressed_account.lamports)

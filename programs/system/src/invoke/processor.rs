@@ -146,7 +146,6 @@ pub fn process<
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
     // Insert addresses into address merkle tree queue ---------------------------------------------------
     let address_network_fee_bundle = if num_new_addresses != 0 {
-        msg!("inputs.new_address_params {:?}", inputs.new_address_params);
         derive_new_addresses(
             &invoking_program,
             &inputs.new_address_params,
@@ -211,7 +210,6 @@ pub fn process<
         // Access the current slot
         let current_slot = Clock::get()?.slot;
         let tx_hash = create_tx_hash(
-            &inputs.input_compressed_accounts_with_merkle_context,
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
@@ -238,6 +236,14 @@ pub fn process<
         output_network_fee_bundle,
     )?;
 
+    // Verify that all instances of queue_index.is_some() are plausible.
+    if num_prove_by_index_input_accounts != 0 {
+        verify_input_accounts_proof_by_index(
+            ctx.remaining_accounts,
+            &inputs.input_compressed_accounts_with_merkle_context,
+        )?;
+    }
+
     // Proof inputs order:
     // 1. input compressed accounts
     // 2. read only compressed accounts
@@ -255,10 +261,7 @@ pub fn process<
                 b: proof.b,
                 c: proof.c,
             };
-            verify_input_accounts_proof_by_index(
-                &ctx.remaining_accounts,
-                &inputs.input_compressed_accounts_with_merkle_context,
-            )?;
+
             let mut input_compressed_account_roots =
                 Vec::with_capacity(num_input_compressed_accounts);
             fetch_input_compressed_account_roots(
@@ -273,7 +276,7 @@ pub fn process<
                 &ctx,
                 &mut read_only_accounts_roots,
             )?;
-            verify_read_only_account_inclusion(&ctx.remaining_accounts, &read_only_accounts)?;
+            verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
 
             fetch_roots_address_merkle_tree(
                 &inputs.new_address_params,
@@ -282,7 +285,7 @@ pub fn process<
                 &mut new_address_roots,
             )?;
             verify_read_only_address_queue_non_inclusion(
-                &ctx.remaining_accounts,
+                ctx.remaining_accounts,
                 &read_only_addresses,
             )?;
 

@@ -111,7 +111,6 @@ async fn invoke_failing_test() {
         None,
         None,
         false,
-        &Vec::new(),
     );
     create_instruction_and_failing_transaction(
         &mut context,
@@ -290,7 +289,6 @@ pub async fn failing_transaction_inputs(
         proof,
         None,
         false,
-        &vec![false; input_compressed_accounts.len()],
     );
     if num_addresses > 0 {
         failing_transaction_address(
@@ -835,7 +833,6 @@ pub async fn perform_tx_with_output_compressed_accounts(
         false,
         None,
         true,
-        &vec![],
     );
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[payer])
@@ -935,7 +932,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![],
     );
 
     let event = context
@@ -990,7 +986,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
 
     let res = context
@@ -1025,7 +1020,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![false; invalid_signer_compressed_accounts.len()],
     );
 
     let res = context
@@ -1076,7 +1070,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
     println!("Transaction with zkp -------------------------");
 
@@ -1126,7 +1119,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1158,7 +1150,6 @@ async fn invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1216,7 +1207,6 @@ async fn test_with_address() {
         false,
         None,
         true,
-        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1262,7 +1252,6 @@ async fn test_with_address() {
             false,
             None,
             true,
-            &vec![],
         );
 
         let transaction = Transaction::new_signed_with_payer(
@@ -1310,7 +1299,6 @@ async fn test_with_address() {
             false,
             None,
             true,
-            &vec![],
         );
 
         let transaction = Transaction::new_signed_with_payer(
@@ -1501,7 +1489,6 @@ async fn test_with_compression() {
         false,
         None,
         true,
-        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1535,7 +1522,6 @@ async fn test_with_compression() {
         true,
         None,
         true,
-        &vec![],
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1612,7 +1598,6 @@ async fn test_with_compression() {
         true,
         Some(recipient),
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -1786,7 +1771,9 @@ async fn regenerate_accounts() {
 /// 8. Should fail: double-spending by index after spending by ZKP.
 /// 9. Should fail: double-spending by ZKP after spending by index.
 /// 10. Should fail: double-spending by index after spending by index.
-/// 11.  Should fail: double-spending by ZKP after spending by ZKP.
+/// 11. Should fail: double-spending by ZKP after spending by ZKP.
+/// 12. Should fail: spend account by index which is not in value vec
+/// 13. Should fail: spend account v1 by zkp marked as spent by index
 #[serial]
 #[tokio::test]
 async fn batch_invoke_test() {
@@ -1850,7 +1837,6 @@ async fn batch_invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
 
     let result = context
@@ -1885,7 +1871,6 @@ async fn batch_invoke_test() {
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     );
 
     let result = context
@@ -1937,7 +1922,6 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
-            &vec![false; input_compressed_accounts.len()],
         );
         println!("Transaction with input proof by index -------------------------");
 
@@ -1991,7 +1975,6 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
-            &vec![false; input_compressed_accounts.len()],
         );
         let result = context
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -2040,7 +2023,6 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
-            &vec![false; 1],
         );
         let result = context
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -2109,13 +2091,9 @@ async fn batch_invoke_test() {
         ];
         let merkle_context_1 = compressed_account_with_context_1.merkle_context;
         let mut merkle_context_2 = compressed_account_with_context_2.merkle_context;
-        // merkle_context_2.queue_index = Some(proofs_by_index[0].1);
-        // Queue index is not used it is just Some to signal that the value is not in the proof
-        merkle_context_2.queue_index = Some(QueueIndex {
-            index: 123,
-            queue_id: 200,
-        });
-
+        // // Queue index is not used it is just Some to signal that the value is not in the proof
+        merkle_context_2.queue_index = Some(QueueIndex::default());
+        println!("root indices {:?}", proof_rpc_result.root_indices);
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2133,7 +2111,6 @@ async fn batch_invoke_test() {
             false,
             None,
             true,
-            &vec![false; input_compressed_accounts.len()],
         );
         println!("Combined Transaction with index and zkp -------------------------");
 
@@ -2276,6 +2253,117 @@ async fn batch_invoke_test() {
         )
         .unwrap();
     }
+    // 12. spend account by zkp  but mark as spent by index
+    {
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+
+        // overwrite both output queue batches -> all prior values only exist in the Merkle tree not in the output queue
+        for _ in 0..2 {
+            create_compressed_accounts_in_batch_merkle_tree(
+                &mut context,
+                &mut test_indexer,
+                &payer,
+                output_queue_pubkey,
+                &env,
+            )
+            .await
+            .unwrap();
+        }
+
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts2(
+                Some(vec![compressed_account_with_context_1.hash().unwrap()]),
+                Some(vec![
+                    compressed_account_with_context_1
+                        .merkle_context
+                        .merkle_tree_pubkey,
+                ]),
+                None,
+                None,
+                &mut context,
+            )
+            .await;
+        let mut merkle_context = compressed_account_with_context_1.merkle_context;
+        merkle_context.queue_index = Some(QueueIndex::default());
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context],
+            &[merkle_context.nullifier_queue_pubkey],
+            &[None],
+            &Vec::new(),
+            proof_rpc_result.proof,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 13. failing - spend account v1 by zkp  but mark as spent by index
+    // v1 accounts cannot be spent by index
+    {
+        // Selecting compressed account in v1 Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey != output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+
+        let mut merkle_context = compressed_account_with_context_1.merkle_context;
+        merkle_context.queue_index = Some(QueueIndex::default());
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context],
+            &[merkle_context.merkle_tree_pubkey],
+            &[None],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        // Should fail because it tries to deserialize an output queue account from a nullifier queue account
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidDiscriminator.into(),
+        )
+        .unwrap();
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -2328,7 +2416,6 @@ pub async fn double_spend_compressed_account(
         false,
         None,
         true,
-        &vec![false; input_compressed_accounts.len()],
     )];
 
     {
@@ -2351,7 +2438,6 @@ pub async fn double_spend_compressed_account(
             false,
             None,
             true,
-            &vec![false; input_compressed_accounts.len()],
         );
         if mode == TestMode::ByZkpThenIndex {
             instructions.insert(1, instruction);
@@ -2396,12 +2482,14 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }
-    let bundle = test_indexer
-        .state_merkle_trees
-        .iter_mut()
-        .find(|x| x.accounts.nullifier_queue == output_queue_pubkey)
-        .unwrap();
-    perform_batch_append(context, bundle, &env.forester, 0, false, None).await?;
+    for _ in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+        let bundle = test_indexer
+            .state_merkle_trees
+            .iter_mut()
+            .find(|x| x.accounts.nullifier_queue == output_queue_pubkey)
+            .unwrap();
+        perform_batch_append(context, bundle, &env.forester, 0, false, None).await?;
+    }
     Ok(())
 }
 pub async fn create_output_accounts(
@@ -2436,7 +2524,6 @@ pub async fn create_output_accounts(
         false,
         None,
         true,
-        &vec![],
     );
     let fee_config = if is_batched {
         FeeConfig::test_batched()

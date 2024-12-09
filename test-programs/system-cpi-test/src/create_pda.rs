@@ -290,8 +290,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             inputs_struct.output_compressed_accounts = vec![];
             inputs_struct.new_address_params = vec![];
         }
-        msg!("inputs_struct {:?}", inputs_struct);
-        println!("ctx.remaining_accounts {:?}", ctx.remaining_accounts);
         let mut remaining_accounts = ctx.remaining_accounts.to_vec();
 
         if read_only_address.is_some() {
@@ -401,7 +399,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = remaining_accounts;
 
-        light_system_program::cpi::invoke_cpi_with_read_only_address(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
     } else {
         let mut inputs = Vec::new();
         InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();

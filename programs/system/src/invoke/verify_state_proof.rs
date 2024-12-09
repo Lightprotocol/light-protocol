@@ -108,7 +108,6 @@ pub fn fetch_roots_address_merkle_tree<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    msg!("fetch_roots_address_merkle_tree");
     for new_address_param in new_address_params.iter() {
         fetch_address_root::<false, A>(
             ctx,
@@ -146,9 +145,7 @@ pub fn verify_input_accounts_proof_by_index<'a>(
                     output_queue_account_info,
                 )
                 .map_err(ProgramError::from)?;
-            output_queue
-                .could_exist_in_batches(account.merkle_context.leaf_index as u64)
-                .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+            output_queue.could_exist_in_batches(account.merkle_context.leaf_index as u64)?;
         }
     }
     Ok(())
@@ -238,33 +235,6 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
     Ok(())
 }
 
-// #[inline(always)]
-// pub fn verify_read_only_account<'a>(
-//     remaining_accounts: &'a [AccountInfo<'_>],
-//     accounts: &'a [PackedCompressedAccountWithMerkleContext],
-//     input_compressed_account_hashes: &'a [[u8; 32]],
-// ) -> Result<()> {
-//     for (i, account) in accounts.iter().enumerate() {
-//         if account.read_only && account.merkle_context.queue_index.is_some() {
-//             msg!("verify_read_only_account");
-//             msg!("merkle_context: {:?}", account.merkle_context);
-//             let output_queue_account_info =
-//                 &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-
-//             let output_queue =
-//                 &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-//                     output_queue_account_info,
-//                 )
-//                 .map_err(ProgramError::from)?;
-//             output_queue.prove_inclusion_by_index(
-//                 account.merkle_context.leaf_index as u64,
-//                 &input_compressed_account_hashes[i],
-//             )?;
-//         }
-//     }
-//     Ok(())
-// }
-
 fn fetch_address_root<
     'a,
     'b,
@@ -278,7 +248,6 @@ fn fetch_address_root<
     address_merkle_tree_root_index: u16,
     roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    msg!("fetch_address_root");
     let merkle_tree_account_info =
         &ctx.remaining_accounts[address_merkle_tree_account_index as usize];
     let mut discriminator_bytes = [0u8; 8];
@@ -301,7 +270,7 @@ fn fetch_address_root<
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                &merkle_tree_account_info,
+                merkle_tree_account_info,
             )
             .map_err(ProgramError::from)?;
             (*roots).push(merkle_tree.root_history[address_merkle_tree_root_index as usize]);
@@ -343,19 +312,15 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .enumerate()
     {
-        // Skip read-only accounts. Read-only accounts are just included in
-        // proof verification, but since these accounts are not invalidated the
-        // address and lamports must not be used in sum and address checks.
-        if !input_compressed_account_with_context.read_only {
-            // For heap neutrality we cannot allocate new heap memory in this function.
-            match &input_compressed_account_with_context
-                .compressed_account
-                .address
-            {
-                Some(address) => addresses[j] = Some(*address),
-                None => {}
-            };
-        }
+        // For heap neutrality we cannot allocate new heap memory in this function.
+        match &input_compressed_account_with_context
+            .compressed_account
+            .address
+        {
+            Some(address) => addresses[j] = Some(*address),
+            None => {}
+        };
+
         #[allow(clippy::comparison_chain)]
         if current_mt_index
             != input_compressed_account_with_context
@@ -430,6 +395,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[heap_neutral]
 pub fn verify_state_proof(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
@@ -453,18 +419,14 @@ pub fn verify_state_proof(
         })
         .map(|x| *x.1)
         .collect::<Vec<[u8; 32]>>();
-    msg!("proof_input_leaves: {:?}", proof_input_leaves);
 
     read_only_accounts.iter().for_each(|x| {
         if x.merkle_context.queue_index.is_none() {
             proof_input_leaves.extend_from_slice(&[x.account_hash]);
         }
     });
-    msg!("roots: {:?}", roots);
-
     roots.extend_from_slice(read_only_roots);
-    msg!("proof_input_leaves: {:?}", proof_input_leaves);
-    msg!("roots: {:?}", roots);
+
     if !addresses.is_empty() && !proof_input_leaves.is_empty() {
         verify_create_addresses_and_merkle_proof_zkp(
             &roots,
@@ -485,55 +447,11 @@ pub fn verify_state_proof(
 }
 
 pub fn create_tx_hash(
-    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     input_compressed_account_hashes: &[[u8; 32]],
     output_compressed_account_hashes: &[[u8; 32]],
     current_slot: u64,
 ) -> [u8; 32] {
     use light_hasher::Hasher;
-    // Do not include read-only accounts in the event.
-    let index = find_first_non_read_only_account(input_compressed_accounts_with_merkle_context);
-    // TODO: extend with message hash (first 32 bytes of the message)
-    let mut tx_hash = input_compressed_account_hashes[index];
-    for (i, hash) in input_compressed_account_hashes
-        .iter()
-        .skip(index + 1)
-        .enumerate()
-    {
-        if input_compressed_accounts_with_merkle_context[i].read_only {
-            continue;
-        }
-        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
-    }
-    tx_hash = Poseidon::hashv(&[&tx_hash, &current_slot.to_be_bytes()]).unwrap();
-    for hash in output_compressed_account_hashes.iter() {
-        tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();
-    }
-    tx_hash
-}
-
-fn find_first_non_read_only_account(
-    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-) -> usize {
-    for (i, account) in input_compressed_accounts_with_merkle_context
-        .iter()
-        .enumerate()
-    {
-        if !account.read_only {
-            return i;
-        }
-    }
-    0
-}
-
-pub fn create_tx_hash_offchain(
-    input_compressed_account_hashes: &[[u8; 32]],
-    output_compressed_account_hashes: &[[u8; 32]],
-    current_slot: u64,
-) -> [u8; 32] {
-    use light_hasher::Hasher;
-    // Do not include read-only accounts in the event.
-    // TODO: extend with message hash (first 32 bytes of the message)
     let mut tx_hash = input_compressed_account_hashes[0];
     for hash in input_compressed_account_hashes.iter().skip(1) {
         tx_hash = Poseidon::hashv(&[&tx_hash, hash]).unwrap();

@@ -81,7 +81,7 @@ pub mod light_system_program {
         process_invoke_cpi(ctx, inputs, None, None)
     }
 
-    pub fn invoke_cpi_with_read_only_address<'a, 'b, 'c: 'info, 'info>(
+    pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
@@ -91,7 +91,7 @@ pub mod light_system_program {
         // disable set cpi context because cpi context account uses InvokeCpiInstruction
         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
             if cpi_context.set_context {
-                msg!("Cannot set cpi context in invoke_cpi_with_read_only_address.");
+                msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
                 msg!("Please use invoke_cpi instead.");
                 return Err(SystemProgramError::InstructionNotCallable.into());
             }
