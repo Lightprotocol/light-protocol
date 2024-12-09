@@ -14,14 +14,16 @@ import (
 )
 
 type InclusionInputs struct {
-	Root         big.Int
-	PathIndex    uint32
-	PathElements []big.Int
-	Leaf         big.Int
+	Root            big.Int
+	PathIndex       uint32
+	PathElements    []big.Int
+	Leaf            big.Int
+	PublicInputHash big.Int
 }
 
 type InclusionParameters struct {
-	Inputs []InclusionInputs
+	PublicInputHash big.Int
+	Inputs          []InclusionInputs
 }
 
 func (p *InclusionParameters) NumberOfCompressedAccounts() uint32 {
@@ -54,8 +56,10 @@ func R1CSInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constr
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
+	publicInputHash := frontend.Variable(0)
 
 	circuit := InclusionCircuit{
+		PublicInputHash:            publicInputHash,
 		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,
@@ -104,10 +108,11 @@ func (ps *ProvingSystemV1) ProveInclusion(params *InclusionParameters) (*Proof, 
 	}
 
 	assignment := InclusionCircuit{
-		Roots:          roots,
-		Leaves:         leaves,
-		InPathIndices:  inPathIndices,
-		InPathElements: inPathElements,
+		PublicInputHash: params.PublicInputHash,
+		Roots:           roots,
+		Leaves:          leaves,
+		InPathIndices:   inPathIndices,
+		InPathElements:  inPathElements,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
@@ -124,20 +129,9 @@ func (ps *ProvingSystemV1) ProveInclusion(params *InclusionParameters) (*Proof, 
 	return &Proof{proof}, nil
 }
 
-func (ps *ProvingSystemV1) VerifyInclusion(root []big.Int, leaf []big.Int, proof *Proof) error {
-	leaves := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range leaf {
-		leaves[i] = v
-	}
-
-	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range root {
-		roots[i] = v
-	}
-
+func (ps *ProvingSystemV1) VerifyInclusion(publicInputsHash big.Int, proof *Proof) error {
 	publicAssignment := InclusionCircuit{
-		Roots:  roots,
-		Leaves: leaves,
+		PublicInputHash: publicInputsHash,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {

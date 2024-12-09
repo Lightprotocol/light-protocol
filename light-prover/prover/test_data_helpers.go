@@ -26,16 +26,24 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) Inclu
 	}
 
 	var inputs = make([]InclusionInputs, numberOfCompressedAccounts)
+	var leaves = make([]*big.Int, numberOfCompressedAccounts)
+	var roots = make([]*big.Int, numberOfCompressedAccounts)
 
 	for i := 0; i < numberOfCompressedAccounts; i++ {
 		inputs[i].Leaf = *leaf
 		inputs[i].PathIndex = uint32(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
 		inputs[i].Root = tree.Root.Value()
+		leaves[i] = leaf
+		roots[i] = &inputs[i].Root
 	}
+	rootsHashChain := calculateHashChain(roots, numberOfCompressedAccounts)
+	leavesHashChain := calculateHashChain(leaves, numberOfCompressedAccounts)
+	publicInputHash := calculateHashChain([]*big.Int{rootsHashChain, leavesHashChain}, 2)
 
 	return InclusionParameters{
-		Inputs: inputs,
+		PublicInputHash: *publicInputHash,
+		Inputs:          inputs,
 	}
 }
 
@@ -47,6 +55,8 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 	tree := merkletree.NewTree(depth)
 
 	var inputs = make([]NonInclusionInputs, numberOfCompressedAccounts)
+	var values = make([]*big.Int, numberOfCompressedAccounts)
+	var roots = make([]*big.Int, numberOfCompressedAccounts)
 
 	for i := 0; i < numberOfCompressedAccounts; i++ {
 		var value = big.NewInt(0)
@@ -93,10 +103,16 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		inputs[i].LeafLowerRangeValue = *leafLower
 		inputs[i].LeafHigherRangeValue = *leafUpper
 		inputs[i].NextIndex = uint32(nextIndex)
+		values[i] = value
+		roots[i] = &inputs[i].Root
 	}
+	rootsHashChain := calculateHashChain(roots, numberOfCompressedAccounts)
+	valuesHashChain := calculateHashChain(values, numberOfCompressedAccounts)
+	publicInputHash := calculateHashChain([]*big.Int{rootsHashChain, valuesHashChain}, 2)
 
 	return NonInclusionParameters{
-		Inputs: inputs,
+		PublicInputHash: *publicInputHash,
+		Inputs:          inputs,
 	}
 }
 

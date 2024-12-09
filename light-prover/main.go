@@ -683,37 +683,19 @@ func runCli() {
 					var verifyErr error
 					switch s := system.(type) {
 					case *prover.ProvingSystemV1:
-						rootsStr := context.String("roots")
-						roots, err := prover.ParseHexStringList(rootsStr)
+						publicInputsHashStr := context.String("publicInputsHash")
+						publicInputsHash, err := prover.ParseBigInt(publicInputsHashStr)
 						if err != nil {
 							return fmt.Errorf("failed to parse roots: %v", err)
 						}
 
 						switch circuit {
 						case "inclusion":
-							leavesStr := context.String("leaves")
-							leaves, err := prover.ParseHexStringList(leavesStr)
-							if err != nil {
-								return fmt.Errorf("failed to parse leaves: %v", err)
-							}
-
-							verifyErr = s.VerifyInclusion(roots, leaves, &proof)
+							verifyErr = s.VerifyInclusion(*publicInputsHash, &proof)
 						case "non-inclusion":
-							values, err := prover.ParseHexStringList(context.String("values"))
-							if err != nil {
-								return fmt.Errorf("failed to parse values: %v", err)
-							}
-							verifyErr = s.VerifyNonInclusion(roots, values, &proof)
+							verifyErr = s.VerifyNonInclusion(*publicInputsHash, &proof)
 						case "combined":
-							leaves, err := prover.ParseHexStringList(context.String("leaves"))
-							if err != nil {
-								return fmt.Errorf("failed to parse leaves: %v", err)
-							}
-							values, err := prover.ParseHexStringList(context.String("values"))
-							if err != nil {
-								return fmt.Errorf("failed to parse values: %v", err)
-							}
-							verifyErr = s.VerifyCombined(roots, leaves, values, &proof)
+							verifyErr = s.VerifyCombined(*publicInputsHash, &proof)
 						default:
 							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
 						}

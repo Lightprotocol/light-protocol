@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
     use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
     use light_prover_client::{
         gnark::{
@@ -10,7 +11,7 @@ mod test {
         },
         helpers::init_logger,
     };
-    use light_verifier::{verify_merkle_proof_zkp, CompressedProof};
+    use light_verifier::{select_verifying_key, verify, CompressedProof};
     use reqwest::Client;
     use serial_test::serial;
 
@@ -48,15 +49,18 @@ mod test {
                 roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
                 leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
-
-            verify_merkle_proof_zkp(
-                &roots,
-                &leaves,
+            let roots_hash_chain = calculate_hash_chain(&roots);
+            let leaves_hash_chain = calculate_hash_chain(&leaves);
+            let public_input_hash = calculate_hash_chain(&[roots_hash_chain, leaves_hash_chain]);
+            let vk = select_verifying_key(leaves.len(), 0).unwrap();
+            verify::<1>(
+                &[public_input_hash],
                 &CompressedProof {
                     a: proof_a,
                     b: proof_b,
                     c: proof_c,
                 },
+                vk,
             )
             .unwrap();
         }
@@ -98,14 +102,18 @@ mod test {
                 leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
 
-            verify_merkle_proof_zkp(
-                &roots,
-                &leaves,
+            let roots_hash_chain = calculate_hash_chain(&roots);
+            let leaves_hash_chain = calculate_hash_chain(&leaves);
+            let public_input_hash = calculate_hash_chain(&[roots_hash_chain, leaves_hash_chain]);
+            let vk = select_verifying_key(leaves.len(), 0).unwrap();
+            verify::<1>(
+                &[public_input_hash],
                 &CompressedProof {
                     a: proof_a,
                     b: proof_b,
                     c: proof_c,
                 },
+                vk,
             )
             .unwrap();
         }

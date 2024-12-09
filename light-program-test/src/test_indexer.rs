@@ -10,7 +10,11 @@ use light_client::{
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
+use light_prover_client::{
+    batch_append_with_subtrees::calculate_hash_chain,
+    gnark::helpers::{big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig},
+    helpers::bigint_to_u8_32,
+};
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
@@ -258,8 +262,24 @@ where
                             rpc,
                         )
                         .await;
+                    let public_input_hash = BigInt::from_bytes_be(
+                        num_bigint::Sign::Plus,
+                        &calculate_hash_chain(&[
+                            bigint_to_u8_32(
+                                &string_to_big_int(&inclusion_payload.public_input_hash).unwrap(),
+                            )
+                            .unwrap(),
+                            bigint_to_u8_32(
+                                &string_to_big_int(&non_inclusion_payload.public_input_hash)
+                                    .unwrap(),
+                            )
+                            .unwrap(),
+                        ]),
+                    );
 
                     let combined_payload = CombinedJsonStruct {
+                        circuit_type: "combined".to_string(),
+                        public_input_hash: big_int_to_string(&public_input_hash),
                         inclusion: inclusion_payload.inputs,
                         non_inclusion: non_inclusion_payload.inputs,
                     }
@@ -429,7 +449,7 @@ where
             root_indices.push(onchain_merkle_tree.root_index() as u16);
         }
 
-        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+        let inclusion_proof_inputs = InclusionProofInputs::new(inclusion_proofs.as_slice());
         let batch_inclusion_proof_inputs =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
 
@@ -463,7 +483,8 @@ where
             address_root_indices.push(onchain_address_merkle_tree.root_index() as u16);
         }
 
-        let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
+        let non_inclusion_proof_inputs =
+            NonInclusionProofInputs::new(non_inclusion_proofs.as_slice());
         let batch_non_inclusion_proof_inputs =
             BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                 &non_inclusion_proof_inputs,
