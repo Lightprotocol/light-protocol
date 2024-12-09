@@ -29,7 +29,7 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				params := BuildAndUpdateBatchAppendParameters(tc.treeDepth, tc.batchSize, tc.startIndex, nil)
+				params := BuildAndUpdateBatchAppendWithSubtreesParameters(tc.treeDepth, tc.batchSize, tc.startIndex, nil)
 				circuit := createCircuit(&params)
 				witness := createWitness(&params)
 
@@ -43,10 +43,10 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 		treeDepth := uint32(26)
 		batchSize := uint32(10)
 
-		var params *BatchAppendParameters
+		var params *BatchAppendWithSubtreesParameters
 		for i := uint32(0); i < 2; i++ {
 			startIndex := i * batchSize
-			newParams := BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, params)
+			newParams := BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, params)
 
 			circuit := createCircuit(&newParams)
 			witness := createWitness(&newParams)
@@ -62,10 +62,10 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 		treeDepth := uint32(26)
 		batchSize := uint32(10)
 
-		var params *BatchAppendParameters
+		var params *BatchAppendWithSubtreesParameters
 		for i := uint32(0); i < 5; i++ {
 			startIndex := i * batchSize
-			newParams := BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, params)
+			newParams := BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, params)
 
 			circuit := createCircuit(&newParams)
 			witness := createWitness(&newParams)
@@ -82,14 +82,14 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 		batchSize := uint32(10)
 		totalLeaves := uint32(1 << treeDepth)
 
-		var params *BatchAppendParameters
+		var params *BatchAppendWithSubtreesParameters
 		for startIndex := uint32(0); startIndex < totalLeaves; startIndex += batchSize {
 			remainingLeaves := totalLeaves - startIndex
 			if remainingLeaves < batchSize {
 				batchSize = remainingLeaves
 			}
 
-			newParams := BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, params)
+			newParams := BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, params)
 
 			circuit := createCircuit(&newParams)
 			witness := createWitness(&newParams)
@@ -106,10 +106,10 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 		batchSize := uint32(100)
 		numAppends := 5
 
-		var params *BatchAppendParameters
+		var params *BatchAppendWithSubtreesParameters
 		for i := 0; i < numAppends; i++ {
 			startIndex := uint32(i * int(batchSize))
-			newParams := BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, params)
+			newParams := BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, params)
 
 			circuit := createCircuit(&newParams)
 			witness := createWitness(&newParams)
@@ -126,7 +126,7 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 		batchSize := uint32(5)
 		startIndex := uint32((1 << treeDepth) - batchSize) // 2^10 - 5 = 1019
 
-		params := BuildAndUpdateBatchAppendParameters(treeDepth, batchSize, startIndex, nil)
+		params := BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth, batchSize, startIndex, nil)
 		circuit := createCircuit(&params)
 		witness := createWitness(&params)
 
@@ -135,57 +135,57 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 	})
 
 	t.Run("Failing cases", func(t *testing.T) {
-		params := BuildAndUpdateBatchAppendParameters(26, 100, 0, nil)
+		params := BuildAndUpdateBatchAppendWithSubtreesParameters(26, 100, 0, nil)
 
 		testCases := []struct {
 			name         string
-			modifyParams func(*BatchAppendParameters)
+			modifyParams func(*BatchAppendWithSubtreesParameters)
 		}{
 			{
 				name: "Invalid OldSubTreeHashChain",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.OldSubTreeHashChain = big.NewInt(999)
 				},
 			},
 			{
 				name: "Invalid NewSubTreeHashChain",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.NewSubTreeHashChain = big.NewInt(999)
 				},
 			},
 			{
 				name: "Invalid NewRoot",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.NewRoot = big.NewInt(999)
 				},
 			},
 			{
 				name: "Invalid HashchainHash",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.HashchainHash = big.NewInt(999)
 				},
 			},
 			{
 				name: "Invalid Leaf",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.Leaves[0] = big.NewInt(999)
 				},
 			},
 			{
 				name: "Invalid Subtree",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.Subtrees[0] = big.NewInt(999)
 				},
 			},
 			{
 				name: "Mismatched BatchSize",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.Leaves = p.Leaves[:len(p.Leaves)-1] // Remove last leaf
 				},
 			},
 			{
 				name: "Start index exceeds tree capacity",
-				modifyParams: func(p *BatchAppendParameters) {
+				modifyParams: func(p *BatchAppendWithSubtreesParameters) {
 					p.StartIndex = 1 << p.TreeHeight // This should be invalid
 				},
 			},
@@ -249,7 +249,7 @@ func TestBatchAppendWithSubtreesCircuit(t *testing.T) {
 	})
 }
 
-func createCircuit(params *BatchAppendParameters) BatchAppendWithSubtreesCircuit {
+func createCircuit(params *BatchAppendWithSubtreesParameters) BatchAppendWithSubtreesCircuit {
 	circuit := BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldSubTreeHashChain: frontend.Variable(0),
@@ -273,7 +273,7 @@ func createCircuit(params *BatchAppendParameters) BatchAppendWithSubtreesCircuit
 	return circuit
 }
 
-func createWitness(params *BatchAppendParameters) *BatchAppendWithSubtreesCircuit {
+func createWitness(params *BatchAppendWithSubtreesParameters) *BatchAppendWithSubtreesCircuit {
 	witness := &BatchAppendWithSubtreesCircuit{
 		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldSubTreeHashChain: frontend.Variable(params.OldSubTreeHashChain),
@@ -298,7 +298,7 @@ func createWitness(params *BatchAppendParameters) *BatchAppendWithSubtreesCircui
 }
 
 func BenchmarkBatchAppendWithSubtreesCircuit(b *testing.B) {
-	params := BuildAndUpdateBatchAppendParameters(26, 1000, 0, nil)
+	params := BuildAndUpdateBatchAppendWithSubtreesParameters(26, 1000, 0, nil)
 	circuit := createCircuit(&params)
 	witness := createWitness(&params)
 

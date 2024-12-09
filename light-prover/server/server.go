@@ -245,7 +245,7 @@ func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Pr
 }
 
 func (handler proveHandler) batchAppendWithSubtreesHandler(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchAppendParameters
+	var params prover.BatchAppendWithSubtreesParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
 		logging.Logger().Info().Msg("error Unmarshal")
@@ -267,7 +267,7 @@ func (handler proveHandler) batchAppendWithSubtreesHandler(buf []byte) (*prover.
 		return nil, provingError(fmt.Errorf("no proving system for batch size %d", batchSize))
 	}
 
-	proof, err := ps.ProveBatchAppend(&params)
+	proof, err := ps.ProveBatchAppendWithSubtrees(&params)
 	if err != nil {
 		logging.Logger().Err(err)
 		return nil, provingError(err)
