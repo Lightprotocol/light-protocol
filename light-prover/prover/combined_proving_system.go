@@ -13,6 +13,7 @@ import (
 )
 
 type CombinedParameters struct {
+	PublicInputHash        big.Int
 	InclusionParameters    InclusionParameters
 	NonInclusionParameters NonInclusionParameters
 }
@@ -71,7 +72,8 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	}
 
 	circuit := CombinedCircuit{
-		Inclusion: InclusionCircuit{
+		PublicInputHash: frontend.Variable(0),
+		Inclusion: InclusionProof{
 			Roots:                      inclusionRoots,
 			Leaves:                     inclusionLeaves,
 			InPathIndices:              inclusionInPathIndices,
@@ -79,7 +81,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 			NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
 			Height:                     inclusionTreeHeight,
 		},
-		NonInclusion: NonInclusionCircuit{
+		NonInclusion: NonInclusionProof{
 			Roots:                      nonInclusionRoots,
 			Values:                     nonInclusionValues,
 			LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
@@ -120,7 +122,7 @@ func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, er
 	}
 
 	circuit := InitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
-
+	circuit.PublicInputHash = params.PublicInputHash
 	for i := 0; i < int(ps.InclusionNumberOfCompressedAccounts); i++ {
 		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root
 		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Inputs[i].Leaf
@@ -159,31 +161,9 @@ func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, er
 	return &Proof{proof}, nil
 }
 
-func (ps *ProvingSystemV1) VerifyCombined(root []big.Int, leaf []big.Int, value []big.Int, proof *Proof) error {
-	leaves := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range leaf {
-		leaves[i] = v
-	}
-
-	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range value {
-		values[i] = v
-	}
-
-	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range root {
-		roots[i] = v
-	}
-
+func (ps *ProvingSystemV1) VerifyCombined(publicInputHash big.Int, proof *Proof) error {
 	publicAssignment := CombinedCircuit{
-		InclusionCircuit{
-			Roots:  roots,
-			Leaves: leaves,
-		},
-		NonInclusionCircuit{
-			Roots:  roots,
-			Values: values,
-		},
+		PublicInputHash: publicInputHash,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {

@@ -76,6 +76,7 @@ func TestInclusion(t *testing.T) {
 		if expectedResult == "0" {
 			// Run the failing test
 			assert.ProverFailed(&circuit, &InclusionCircuit{
+				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,
 				InPathIndices:              inPathIndices,
@@ -86,6 +87,7 @@ func TestInclusion(t *testing.T) {
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &InclusionCircuit{
+				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,
 				InPathIndices:              inPathIndices,

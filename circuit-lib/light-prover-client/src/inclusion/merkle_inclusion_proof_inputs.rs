@@ -1,4 +1,4 @@
-use crate::helpers::bigint_to_u8_32;
+use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 use num_bigint::BigInt;
 
 #[derive(Clone, Debug)]
@@ -18,17 +18,35 @@ impl InclusionMerkleProofInputs {
 }
 
 #[derive(Clone, Debug)]
-pub struct InclusionProofInputs<'a>(pub &'a [InclusionMerkleProofInputs]);
+pub struct InclusionProofInputs<'a> {
+    pub public_input_hash: BigInt,
+    pub inputs: &'a [InclusionMerkleProofInputs],
+}
 
-impl InclusionProofInputs<'_> {
-    pub fn public_inputs(&self) -> Vec<[u8; 32]> {
-        let mut roots = Vec::new();
-        let mut leaves = Vec::new();
-        for input in self.0 {
-            let input_arr = input.public_inputs_arr();
-            roots.push(input_arr[0]);
-            leaves.push(input_arr[1]);
+impl<'a> InclusionProofInputs<'a> {
+    pub fn new(inputs: &'a [InclusionMerkleProofInputs]) -> Self {
+        let public_input_hash = InclusionProofInputs::public_input(inputs);
+        InclusionProofInputs {
+            public_input_hash,
+            inputs,
         }
-        [roots, leaves].concat()
+    }
+    pub fn public_input(inputs: &'a [InclusionMerkleProofInputs]) -> BigInt {
+        let leaves_hash_chain = calculate_hash_chain(
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.leaf).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        let roots_hash_chain = calculate_hash_chain(
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.root).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        BigInt::from_bytes_be(
+            num_bigint::Sign::Plus,
+            &calculate_hash_chain(&[roots_hash_chain, leaves_hash_chain]),
+        )
     }
 }

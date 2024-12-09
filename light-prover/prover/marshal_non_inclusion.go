@@ -17,6 +17,8 @@ type NonInclusionProofInputsJSON struct {
 }
 
 type NonInclusionParametersJSON struct {
+	CircuitType			 CircuitType                       	`json:"circuitType"`
+	PublicInputHash         string                       	`json:"publicInputHash"`
 	Inputs []NonInclusionProofInputsJSON `json:"new-addresses"`
 }
 
@@ -49,6 +51,8 @@ func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusion
 		paramsJson.Inputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
 		paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
 	}
+	paramsJson.PublicInputHash = toHex(&p.PublicInputHash)
+	paramsJson.CircuitType = NonInclusionCircuitType
 	return paramsJson
 }
 
@@ -66,6 +70,7 @@ func (p *NonInclusionParameters) UnmarshalJSON(data []byte) error {
 }
 
 func (p *NonInclusionParameters) UpdateWithJSON(params NonInclusionParametersJSON, err error) error {
+	fromHex(&p.PublicInputHash, params.PublicInputHash)
 	p.Inputs = make([]NonInclusionInputs, len(params.Inputs))
 	for i := 0; i < len(params.Inputs); i++ {
 		err = fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)

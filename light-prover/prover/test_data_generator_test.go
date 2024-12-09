@@ -78,7 +78,7 @@ func TestNonInclusionParameters_TestTree(t *testing.T) {
 	}
 }
 
-func GenerateCombinedTestData(t *testing.T) {
+func TestGenerateCombinedTestData(t *testing.T) {
 	file, err := os.OpenFile("../test-data/combined.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Errorf("Error opening file: %v", err)
@@ -98,9 +98,13 @@ func GenerateCombinedTestData(t *testing.T) {
 		for j := 0; j < len(testCompressedAccountCount); j++ {
 			trees1 := MakeTestIncludedTrees(testTreeHeight[i], testCompressedAccountCount[j])
 			trees2 := MakeTestNonInclusionTrees(testTreeHeight[i], testCompressedAccountCount[j])
+
 			for k, tree1 := range trees1 {
 				for l, tree2 := range trees2 {
+					publicInputHash := calculateHashChain([]*big.Int{&tree1.Tree.PublicInputHash, &tree2.Tree.PublicInputHash}, 2)
+
 					var combinedParams = CombinedParameters{
+						PublicInputHash:        *publicInputHash,
 						InclusionParameters:    tree1.Tree,
 						NonInclusionParameters: tree2.Tree,
 					}
