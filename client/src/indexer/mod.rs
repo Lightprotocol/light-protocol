@@ -1,57 +1,31 @@
-use std::{fmt::Debug, future::Future};
+pub mod error;
 
-use light_concurrent_merkle_tree::light_hasher::Poseidon;
-use light_indexed_merkle_tree::{
-    array::{IndexedArray, IndexedElement},
-    reference::IndexedMerkleTree,
-};
-use light_merkle_tree_reference::MerkleTree;
-use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::ProofRpcResult, token::TokenDataWithMerkleContext,
-};
-use num_bigint::BigUint;
-use solana_sdk::pubkey::Pubkey;
-use thiserror::Error;
-
+use crate::indexer::error::IndexerError;
 use crate::rpc::RpcConnection;
-
-#[derive(Error, Debug)]
-pub enum IndexerError {
-    #[error("RPC Error: {0}")]
-    RpcError(#[from] solana_client::client_error::ClientError),
-    #[error("failed to deserialize account data")]
-    DeserializeError(#[from] solana_sdk::program_error::ProgramError),
-    #[error("failed to copy merkle tree")]
-    CopyMerkleTreeError(#[from] std::io::Error),
-    #[error("error: {0:?}")]
-    Custom(String),
-    #[error("unknown error")]
-    Unknown,
-}
+use light_indexed_merkle_tree::array::IndexedElement;
+use num_bigint::BigUint;
+use photon_api::apis::Error as PhotonApiError;
+use solana_program::pubkey::Pubkey;
+use std::fmt::Debug;
 
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-    fn add_event_and_compressed_accounts(
-        &mut self,
-        event: &PublicTransactionEvent,
-    ) -> (
-        Vec<CompressedAccountWithMerkleContext>,
-        Vec<TokenDataWithMerkleContext>,
-    );
+    fn get_multiple_compressed_account_proofs(
+        &self,
+        hashes: Vec<String>,
+    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
 
-    fn create_proof_for_compressed_accounts(
-        &mut self,
-        compressed_accounts: Option<&[[u8; 32]]>,
-        state_merkle_tree_pubkeys: Option<&[Pubkey]>,
-        new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
-    ) -> impl Future<Output = ProofRpcResult>;
-
-    fn get_compressed_accounts_by_owner(
+    fn get_rpc_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext>;
+    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
+
+    fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        addresses: Vec<[u8; 32]>,
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>>
+           + Send
+           + Sync;
 }
 
 #[derive(Debug, Clone)]
@@ -77,32 +51,4 @@ pub struct NewAddressProofWithContext {
     pub new_low_element: Option<IndexedElement<usize>>,
     pub new_element: Option<IndexedElement<usize>>,
     pub new_element_next_value: Option<BigUint>,
-}
-
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct StateMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub nullifier_queue: Pubkey,
-    pub cpi_context: Pubkey,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct AddressMerkleTreeAccounts {
-    pub merkle_tree: Pubkey,
-    pub queue: Pubkey,
-}
-
-#[derive(Debug, Clone)]
-pub struct StateMerkleTreeBundle {
-    pub rollover_fee: u64,
-    pub merkle_tree: Box<MerkleTree<Poseidon>>,
-    pub accounts: StateMerkleTreeAccounts,
-}
-
-#[derive(Debug, Clone)]
-pub struct AddressMerkleTreeBundle {
-    pub rollover_fee: u64,
-    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
-    pub accounts: AddressMerkleTreeAccounts,
 }

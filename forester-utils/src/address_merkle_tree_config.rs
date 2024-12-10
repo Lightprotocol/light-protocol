@@ -1,7 +1,6 @@
 use crate::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
-    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    AccountZeroCopy,
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
+    AddressMerkleTreeAccounts, StateMerkleTreeAccounts,
 };
 use account_compression::{
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,

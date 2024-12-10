@@ -3,11 +3,12 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
+use forester_utils::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use light_program_test::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
-use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
@@ -44,8 +45,12 @@ async fn test_name_service() {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         }],
-        true,
-        true,
+        payer.insecure_clone(),
+        env.group_pda,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
 

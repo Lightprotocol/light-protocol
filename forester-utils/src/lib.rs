@@ -1,7 +1,7 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::instruction::Instruction;
 use anchor_lang::solana_program::system_instruction;
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
@@ -9,15 +9,15 @@ use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::account::Account;
 use solana_sdk::signature::{Keypair, Signer};
-use solana_sdk::transaction::Transaction;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::{fmt, mem};
 
 pub mod address_merkle_tree_config;
+pub mod bundle;
 pub mod forester_epoch;
-pub mod indexer;
 pub mod registry;
+pub use bundle::*;
 
 pub fn create_account_instruction(
     payer: &Pubkey,
@@ -114,26 +114,4 @@ where
     let account = rpc.get_account(pubkey).await.unwrap().unwrap();
 
     IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
-}
-
-pub async fn airdrop_lamports<R: RpcConnection>(
-    rpc: &mut R,
-    destination_pubkey: &Pubkey,
-    lamports: u64,
-) -> Result<(), RpcError> {
-    // Create a transfer instruction
-    let transfer_instruction =
-        system_instruction::transfer(&rpc.get_payer().pubkey(), destination_pubkey, lamports);
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
-    // Create and sign a transaction
-    let transaction = Transaction::new_signed_with_payer(
-        &[transfer_instruction],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer()],
-        latest_blockhash,
-    );
-
-    // Send the transaction
-    rpc.process_transaction(transaction).await?;
-    Ok(())
 }

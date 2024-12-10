@@ -1,11 +1,13 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
-use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
+use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::errors::SystemProgramError;
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
@@ -15,10 +17,13 @@ use light_system_program::sdk::compressed_account::{
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParams;
-use light_test_utils::indexer::TestIndexer;
+use light_test_utils::conversions::{
+    program_to_sdk_public_transaction_event, sdk_to_program_compressed_account_with_merkle_context,
+    sdk_to_program_compressed_proof,
+};
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
 use light_test_utils::system_program::transfer_compressed_sol_test;
-use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
+use light_test_utils::{assert_rpc_error, RpcConnection, RpcError};
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
@@ -147,6 +152,8 @@ async fn only_test_create_pda() {
         [0]
     .compressed_account
     .clone();
+    let compressed_account =
+        sdk_to_program_compressed_account_with_merkle_context(compressed_account);
     // Failing 4 input account that is not owned by signer ----------------------------------------------
     perform_with_input_accounts(
         &mut test_indexer,
@@ -162,6 +169,8 @@ async fn only_test_create_pda() {
     .unwrap();
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -252,6 +261,8 @@ async fn only_test_create_pda() {
                 183, 76, 179, 113, 234, 101, 191, 99, 156, 98,
             ];
             let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+            let compressed_account =
+                sdk_to_program_compressed_account_with_merkle_context(compressed_account);
             let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
             let result = transfer_compressed_sol_test(
                 &mut rpc,
@@ -341,6 +352,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     // 1. Approve functional with cpi context
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -368,6 +381,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     // 2. Revoke functional with cpi context
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey())
             .iter()
@@ -394,6 +409,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     // 3. Freeze functional with cpi context
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -411,12 +428,14 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         let mut ref_data = ref_compressed_token_data.token_data.clone();
-        ref_data.state = AccountState::Frozen;
+        ref_data.state = light_sdk::token::AccountState::Frozen;
         assert_eq!(compressed_token_data.token_data, ref_data);
     }
     // 4. Thaw functional with cpi context
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -439,6 +458,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     // 5. Burn functional with cpi context
     {
         let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
         perform_with_input_accounts(
@@ -632,7 +653,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_failing<R: RpcConnection>(
+pub async fn perform_create_pda_failing<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -666,7 +687,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_with_event<R: RpcConnection>(
+pub async fn perform_create_pda_with_event<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -698,7 +719,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_create_pda<R: RpcConnection>(
+async fn perform_create_pda<R: RpcConnection + MerkleTreeExt>(
     env: &EnvAccounts,
     seed: [u8; 32],
     test_indexer: &mut TestIndexer<R>,
@@ -730,7 +751,7 @@ async fn perform_create_pda<R: RpcConnection>(
         data: *data,
         signer: &payer_pubkey,
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &rpc_result.proof,
+        proof: &sdk_to_program_compressed_proof(rpc_result.proof),
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
         owner_program,
@@ -740,7 +761,7 @@ async fn perform_create_pda<R: RpcConnection>(
     create_pda_instruction(create_ix_inputs.clone())
 }
 
-pub async fn assert_created_pda<R: RpcConnection>(
+pub async fn assert_created_pda<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -785,13 +806,13 @@ pub async fn assert_created_pda<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_with_input_accounts<R: RpcConnection>(
+pub async fn perform_with_input_accounts<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     payer: &Keypair,
     fee_payer: Option<&Keypair>,
     compressed_account: &CompressedAccountWithMerkleContext,
-    token_account: Option<TokenDataWithContext>,
+    token_account: Option<TokenDataWithMerkleContext>,
     expected_error_code: u32,
     mode: WithInputAccountsMode,
 ) -> Result<(), RpcError> {
@@ -887,7 +908,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         input_nullifier_pubkey: &nullifier_pubkey,
         cpi_context_account: &cpi_context_account_pubkey,
         cpi_context,
-        proof: &rpc_result.proof,
+        proof: &sdk_to_program_compressed_proof(rpc_result.proof),
         compressed_account: &PackedCompressedAccountWithMerkleContext {
             compressed_account: compressed_account.compressed_account.clone(),
             merkle_context: PackedMerkleContext {
@@ -915,7 +936,9 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
     if expected_error_code == u32::MAX {
         let result = result?.unwrap();
 
-        test_indexer.add_compressed_accounts_with_token_data(&result.0);
+        test_indexer.add_compressed_accounts_with_token_data(
+            &program_to_sdk_public_transaction_event(result.0),
+        );
         Ok(())
     } else {
         assert_rpc_error(result, 0, expected_error_code)
