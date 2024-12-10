@@ -15,12 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::create_address_merkle_tree_and_queue_account_with_assert;
 use crate::e2e_test_env::KeypairActionConfig;
-use crate::test_batch_forester::create_batched_state_merkle_tree;
-use crate::test_env::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR;
-use crate::{
-    spl::create_initialize_mint_instructions,
-    test_env::create_address_merkle_tree_and_queue_account,
-};
+use crate::spl::create_initialize_mint_instructions;
 use account_compression::{
     rollover, AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
     NullifierQueueConfig, StateMerkleTreeConfig,
@@ -36,7 +31,12 @@ use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
-use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
+use light_program_test::test_batch_forester::create_batched_state_merkle_tree;
+use light_program_test::test_env::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR;
+use light_program_test::test_env::{
+    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+    EnvAccounts,
+};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {

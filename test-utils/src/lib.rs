@@ -24,10 +24,9 @@ pub mod state_tree_rollover;
 pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
-pub mod test_batch_forester;
-pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
+pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
     airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
@@ -100,7 +99,8 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
 
     let expected_right_most_leaf = reference_tree
         .merkle_tree
-        .get_leaf(reference_tree.merkle_tree.rightmost_index - 1);
+        .get_leaf(reference_tree.merkle_tree.rightmost_index - 1)
+        .unwrap();
 
     let _expected_right_most_leaf = [
         30, 164, 22, 238, 180, 2, 24, 181, 64, 193, 207, 184, 219, 233, 31, 109, 84, 232, 162, 158,

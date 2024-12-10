@@ -1,8 +1,8 @@
 use crate::env_accounts;
-use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use crate::test_batch_forester::{
-    create_batched_state_merkle_tree,
+    create_batch_address_merkle_tree, create_batched_state_merkle_tree,
 };
+use crate::test_rpc::ProgramTestRpcConnection;
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
@@ -10,7 +10,7 @@ use account_compression::{
 };
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, InitAddressTreeAccountsInstructionData,
-    InitStateTreeAccountsInstructionData, QueueType,
+    InitStateTreeAccountsInstructionData,
 };
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
@@ -662,14 +662,6 @@ pub async fn initialize_accounts<R: RpcConnection>(
         context,
         &keypairs.governance_authority,
         &keypairs.batch_address_merkle_tree,
-        batched_address_tree_init_params,
-    )
-    .await
-    .unwrap();
-    assert_registry_created_batched_address_merkle_tree(
-        context,
-        get_group_pda(group_seed_keypair.pubkey()),
-        keypairs.batch_address_merkle_tree.pubkey(),
         batched_address_tree_init_params,
     )
     .await

@@ -3736,6 +3736,7 @@ name = "light-program-test"
 version = "0.1.0"
 dependencies = [
  "account-compression",
+ "anchor-lang",
  "async-trait",
  "borsh 0.10.3",
  "forester-utils",
@@ -3749,6 +3750,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-utils",
+ "light-verifier",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
