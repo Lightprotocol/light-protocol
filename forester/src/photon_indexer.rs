@@ -38,6 +38,28 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
 }
 
 impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
+    async fn get_queue_elements(
+        &self,
+        _pubkey: [u8; 32],
+        _batch: u64,
+        _start_offset: u64,
+        _end_offset: u64,
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        unimplemented!()
+    }
+    async fn get_subtrees(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        unimplemented!()
+    }
+    async fn get_multiple_new_address_proofs_full(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        _addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext<26>>, IndexerError> {
+        unimplemented!()
+    }
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
@@ -123,7 +145,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
         let params: Vec<AddressWithTree> = addresses
             .iter()
             .map(|x| AddressWithTree {
@@ -152,7 +174,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
 
         let photon_proofs = result.unwrap().result.unwrap().value;
-        let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();
+        // net height 16 =  height(26) - canopy(10)
+        let mut proofs: Vec<NewAddressProofWithContext<16>> = Vec::new();
         for photon_proof in photon_proofs {
             let tree_pubkey = decode_hash(&photon_proof.merkle_tree);
             let low_address_value = decode_hash(&photon_proof.lower_range_address);

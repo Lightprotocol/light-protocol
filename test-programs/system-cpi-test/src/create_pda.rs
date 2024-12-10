@@ -1,11 +1,20 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::{
+    batched_merkle_tree::BatchedMerkleTreeAccount, program::AccountCompression,
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
+};
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
+use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
+use light_system_program::sdk::compressed_account::PackedReadOnlyCompressedAccount;
+use light_system_program::sdk::compressed_account::QueueIndex;
+use light_system_program::InstructionDataInvokeCpiWithReadOnly;
+use light_system_program::PackedReadOnlyAddress;
 use light_system_program::{
     invoke::processor::CompressedProof,
     program::LightSystemProgram,
     sdk::{
-        address::derive_address,
+        address::{derive_address, derive_address_legacy},
         compressed_account::{CompressedAccount, CompressedAccountData},
         CompressedCpiContext,
     },
@@ -14,12 +23,32 @@ use light_system_program::{
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
+    Functional,
+    BatchFunctional,
     ProgramIsSigner,
     ProgramIsNotSigner,
     InvalidSignerSeeds,
     InvalidInvokingProgram,
     WriteToAccountNotOwned,
     NoData,
+    BatchAddressFunctional,
+    InvalidBatchTreeAccount,
+    OneReadOnlyAddress,
+    TwoReadOnlyAddresses,
+    InvalidReadOnlyAddress,
+    InvalidReadOnlyRootIndex,
+    InvalidReadOnlyMerkleTree,
+    ReadOnlyProofOfInsertedAddress,
+    UseReadOnlyAddressInAccount,
+    InvalidReadOnlyAccount,
+    InvalidReadOnlyAccountRootIndex,
+    InvalidReadOnlyAccountMerkleTree,
+    InvalidReadOnlyAccountOutputQueue,
+    InvalidProofReadOnlyAccount,
+    ReadOnlyProofOfInsertedAccount,
+    ProofIsNoneReadOnlyAccount,
+    AccountNotInValueVecMarkedProofByIndex,
+    InvalidLeafIndex,
 }
 
 pub fn process_create_pda<'info>(
@@ -29,13 +58,21 @@ pub fn process_create_pda<'info>(
     new_address_params: NewAddressParamsPacked,
     owner_program: Pubkey,
     cpi_context: Option<CompressedCpiContext>,
-    is_program_signer: CreatePdaMode,
+    mode: CreatePdaMode,
     bump: u8,
+    read_only_address: Option<Vec<PackedReadOnlyAddress>>,
+    read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+    input_accounts: Option<Vec<PackedCompressedAccountWithMerkleContext>>,
 ) -> Result<()> {
-    let compressed_pda =
-        create_compressed_pda_data(data, &ctx, &new_address_params, &owner_program)?;
+    let compressed_pda = create_compressed_pda_data(
+        data,
+        &ctx,
+        &new_address_params,
+        &owner_program,
+        mode.clone(),
+    )?;
 
-    match is_program_signer {
+    match mode {
         CreatePdaMode::ProgramIsNotSigner => {
             cpi_compressed_pda_transfer_as_non_program(
                 &ctx,
@@ -46,7 +83,27 @@ pub fn process_create_pda<'info>(
             )?;
         }
         // functional test
-        CreatePdaMode::ProgramIsSigner => {
+        CreatePdaMode::ProgramIsSigner
+        | CreatePdaMode::BatchAddressFunctional
+        | CreatePdaMode::InvalidBatchTreeAccount
+        | CreatePdaMode::OneReadOnlyAddress
+        | CreatePdaMode::TwoReadOnlyAddresses
+        | CreatePdaMode::InvalidReadOnlyAddress
+        | CreatePdaMode::InvalidReadOnlyRootIndex
+        | CreatePdaMode::InvalidReadOnlyMerkleTree
+        | CreatePdaMode::UseReadOnlyAddressInAccount
+        | CreatePdaMode::ReadOnlyProofOfInsertedAddress
+        | CreatePdaMode::InvalidReadOnlyAccount
+        | CreatePdaMode::InvalidReadOnlyAccountRootIndex
+        | CreatePdaMode::InvalidReadOnlyAccountMerkleTree
+        | CreatePdaMode::ReadOnlyProofOfInsertedAccount
+        | CreatePdaMode::BatchFunctional
+        | CreatePdaMode::Functional
+        | CreatePdaMode::InvalidProofReadOnlyAccount
+        | CreatePdaMode::InvalidReadOnlyAccountOutputQueue
+        | CreatePdaMode::ProofIsNoneReadOnlyAccount
+        | CreatePdaMode::AccountNotInValueVecMarkedProofByIndex
+        | CreatePdaMode::InvalidLeafIndex => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
                 proof,
@@ -54,7 +111,10 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
-                CreatePdaMode::ProgramIsSigner,
+                read_only_address,
+                read_only_accounts,
+                input_accounts,
+                mode,
             )?;
         }
         CreatePdaMode::InvalidSignerSeeds => {
@@ -65,6 +125,9 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
+                read_only_address,
+                None,
+                None,
                 CreatePdaMode::InvalidSignerSeeds,
             )?;
         }
@@ -76,6 +139,9 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
+                read_only_address,
+                None,
+                None,
                 CreatePdaMode::InvalidInvokingProgram,
             )?;
         }
@@ -87,6 +153,9 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
+                read_only_address,
+                None,
+                None,
                 CreatePdaMode::WriteToAccountNotOwned,
             )?;
         }
@@ -98,6 +167,9 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
+                read_only_address,
+                None,
+                None,
                 CreatePdaMode::NoData,
             )?;
         }
@@ -159,6 +231,9 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
     bump: u8,
+    mut read_only_address: Option<Vec<PackedReadOnlyAddress>>,
+    mut read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+    input_accounts: Option<Vec<PackedCompressedAccountWithMerkleContext>>,
     mode: CreatePdaMode,
 ) -> Result<()> {
     let invoking_program = match mode {
@@ -178,12 +253,18 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             compressed_pda.compressed_account.data = None;
             compressed_pda
         }
+        CreatePdaMode::UseReadOnlyAddressInAccount => {
+            let mut compressed_pda = compressed_pda;
+            compressed_pda.compressed_account.address =
+                Some(read_only_address.as_ref().unwrap()[0].address);
+            compressed_pda
+        }
         _ => compressed_pda,
     };
 
-    let inputs_struct = InstructionDataInvokeCpi {
+    let mut inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
-        input_compressed_accounts_with_merkle_context: Vec::new(),
+        input_compressed_accounts_with_merkle_context: input_accounts.unwrap_or_default(),
         output_compressed_accounts: vec![compressed_pda],
         proof,
         new_address_params: vec![new_address_params],
@@ -193,34 +274,165 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     };
     // defining seeds again so that the cpi doesn't fail we want to test the check in the compressed pda program
     let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
-    let mut inputs = Vec::new();
-    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
+    msg!("read only address {:?}", read_only_address);
+    msg!("read only accounts {:?}", read_only_accounts);
+    if read_only_address.is_some() || read_only_accounts.is_some() {
+        if mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress {
+            let read_only_address = read_only_address.as_mut().unwrap();
+            read_only_address[0].address = inputs_struct.output_compressed_accounts[0]
+                .compressed_account
+                .address
+                .unwrap();
+        }
+        // We currently only support two addresses hence we need to remove the
+        // account and address to make space for two read only addresses.
+        if mode == CreatePdaMode::TwoReadOnlyAddresses {
+            inputs_struct.output_compressed_accounts = vec![];
+            inputs_struct.new_address_params = vec![];
+        }
+        let mut remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
-        fee_payer: ctx.accounts.signer.to_account_info(),
-        authority: ctx.accounts.cpi_signer.to_account_info(),
-        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
-        noop_program: ctx.accounts.noop_program.to_account_info(),
-        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
-        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program,
-        sol_pool_pda: None,
-        decompression_recipient: None,
-        system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account: None,
-    };
+        if read_only_address.is_some() {
+            let read_only_address = read_only_address.as_mut().unwrap();
+            match mode {
+                CreatePdaMode::InvalidReadOnlyMerkleTree => {
+                    remaining_accounts.push(ctx.accounts.registered_program_pda.to_account_info());
+                    msg!(
+                        "read_only_address[0].address_merkle_tree_account_index {:?}",
+                        read_only_address[0].address_merkle_tree_account_index
+                    );
+                    read_only_address[0].address_merkle_tree_account_index =
+                        (remaining_accounts.len() - 1) as u8;
+                    msg!(
+                        "read_only_address[0].address_merkle_tree_account_index {:?}",
+                        read_only_address[0].address_merkle_tree_account_index
+                    );
+                }
+                CreatePdaMode::InvalidReadOnlyRootIndex => {
+                    read_only_address[0].address_merkle_tree_root_index = 1;
+                }
+                CreatePdaMode::InvalidReadOnlyAddress => {
+                    read_only_address[0].address = [0; 32];
+                }
+                _ => {}
+            }
+        }
+        if read_only_accounts.is_some() {
+            let read_only_account = read_only_accounts.as_mut().unwrap();
+            match mode {
+                CreatePdaMode::InvalidReadOnlyAccountMerkleTree => {
+                    read_only_account[0].merkle_context.merkle_tree_pubkey_index =
+                        read_only_account[0]
+                            .merkle_context
+                            .nullifier_queue_pubkey_index;
+                }
+                CreatePdaMode::InvalidReadOnlyAccountRootIndex => {
+                    let init_value = read_only_account[0].root_index;
+                    read_only_account[0].root_index =
+                        read_only_account[0].root_index.saturating_sub(1);
+                    if read_only_account[0].root_index == init_value {
+                        read_only_account[0].root_index =
+                            read_only_account[0].root_index.saturating_add(1);
+                    }
+                }
+                CreatePdaMode::InvalidReadOnlyAccount => {
+                    read_only_account[0].account_hash = [0; 32];
+                }
+                CreatePdaMode::ProofIsNoneReadOnlyAccount => {
+                    inputs_struct.proof = None;
+                }
+                CreatePdaMode::InvalidProofReadOnlyAccount => {
+                    inputs_struct.proof = Some(CompressedProof::default());
+                }
+                CreatePdaMode::InvalidReadOnlyAccountOutputQueue => {
+                    read_only_account[0]
+                        .merkle_context
+                        .nullifier_queue_pubkey_index =
+                        read_only_account[0].merkle_context.merkle_tree_pubkey_index;
+                }
+                CreatePdaMode::AccountNotInValueVecMarkedProofByIndex => {
+                    if read_only_account[0].merkle_context.queue_index.is_some() {
+                        panic!("Queue index shouldn't be set for mode AccountNotInValueVecMarkedProofByIndex");
+                    }
+                    read_only_account[0].merkle_context.queue_index = Some(QueueIndex::default());
+                }
+                CreatePdaMode::InvalidLeafIndex => {
+                    read_only_account[0].merkle_context.leaf_index += 1;
+                }
+                _ => {}
+            }
+        }
 
-    let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
+        msg!("read_only_address {:?}", read_only_address);
+        let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
+            invoke_cpi: inputs_struct,
+            read_only_addresses: read_only_address,
+            read_only_accounts,
+        };
+        let mut inputs = Vec::new();
+        InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
-        cpi_accounts,
-        &signer_seeds,
-    );
+        let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+            fee_payer: ctx.accounts.signer.to_account_info(),
+            authority: ctx.accounts.cpi_signer.to_account_info(),
+            registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+            noop_program: ctx.accounts.noop_program.to_account_info(),
+            account_compression_authority: ctx
+                .accounts
+                .account_compression_authority
+                .to_account_info(),
+            account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+            invoking_program,
+            sol_pool_pda: None,
+            decompression_recipient: None,
+            system_program: ctx.accounts.system_program.to_account_info(),
+            cpi_context_account: None,
+        };
 
-    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+        let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
-    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+        let mut cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.light_system_program.to_account_info(),
+            cpi_accounts,
+            &signer_seeds,
+        );
+
+        cpi_ctx.remaining_accounts = remaining_accounts;
+
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+    } else {
+        let mut inputs = Vec::new();
+        InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
+
+        let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+            fee_payer: ctx.accounts.signer.to_account_info(),
+            authority: ctx.accounts.cpi_signer.to_account_info(),
+            registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+            noop_program: ctx.accounts.noop_program.to_account_info(),
+            account_compression_authority: ctx
+                .accounts
+                .account_compression_authority
+                .to_account_info(),
+            account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+            invoking_program,
+            sol_pool_pda: None,
+            decompression_recipient: None,
+            system_program: ctx.accounts.system_program.to_account_info(),
+            cpi_context_account: None,
+        };
+
+        let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
+
+        let mut cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.light_system_program.to_account_info(),
+            cpi_accounts,
+            &signer_seeds,
+        );
+
+        cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+
+        light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    }
     Ok(())
 }
 
@@ -229,6 +441,7 @@ fn create_compressed_pda_data(
     ctx: &Context<'_, '_, '_, '_, CreateCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
     owner_program: &Pubkey,
+    mode: CreatePdaMode,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
     let timelock_compressed_pda = RegisteredUser {
         user_pubkey: *ctx.accounts.signer.key,
@@ -241,17 +454,47 @@ fn create_compressed_pda_data(
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-    let derive_address = derive_address(
+    let mut discriminator_bytes = [0u8; 8];
+
+    discriminator_bytes.copy_from_slice(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-            .key(),
-        &new_address_params.seed,
-    )
-    .map_err(|_| ProgramError::InvalidArgument)?;
+            .try_borrow_data()?[0..8],
+    );
+    let address = match discriminator_bytes {
+        AddressMerkleTreeAccount::DISCRIMINATOR => derive_address_legacy(
+            &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+                .key(),
+            &new_address_params.seed,
+        )
+        .map_err(ProgramError::from)?,
+        BatchedMerkleTreeAccount::DISCRIMINATOR => derive_address(
+            &new_address_params.seed,
+            &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+                .key()
+                .to_bytes(),
+            &crate::ID.to_bytes(),
+        ),
+        _ => {
+            if mode == CreatePdaMode::InvalidBatchTreeAccount {
+                derive_address(
+                    &new_address_params.seed,
+                    &ctx.remaining_accounts
+                        [new_address_params.address_merkle_tree_account_index as usize]
+                        .key()
+                        .to_bytes(),
+                    &crate::ID.to_bytes(),
+                )
+            } else {
+                panic!("Invalid discriminator");
+            }
+        }
+    };
+
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
-            owner: *owner_program, // should be crate::ID, test provides an invalid owner
+            owner: *owner_program, // should be crate::ID, test can provide an invalid owner
             lamports: 0,
-            address: Some(derive_address),
+            address: Some(address),
             data: Some(compressed_account_data),
         },
         merkle_tree_index: 0,

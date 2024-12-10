@@ -45,3 +45,12 @@ pub use batch_append::*;
 
 pub mod rollover_batch_state_merkle_tree;
 pub use rollover_batch_state_merkle_tree::*;
+
+pub mod intialize_batch_address_merkle_tree;
+pub use intialize_batch_address_merkle_tree::*;
+
+pub mod batch_update_address_tree;
+pub use batch_update_address_tree::*;
+
+pub mod rollover_batch_address_merkle_tree;
+pub use rollover_batch_address_merkle_tree::*;

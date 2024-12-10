@@ -68,4 +68,6 @@ pub enum SystemProgramError {
     OutputMerkleTreeIndicesNotInOrder,
     OutputMerkleTreeNotUnique,
     DataFieldUndefined,
+    ReadOnlyAddressAlreadyExists,
+    ReadOnlyAccountDoesNotExist,
 }

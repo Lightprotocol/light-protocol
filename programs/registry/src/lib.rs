@@ -8,9 +8,10 @@ pub mod account_compression_cpi;
 pub mod errors;
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub use account_compression_cpi::{
-    batch_append::*, batch_nullify::*, initialize_batched_state_tree::*,
-    initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_batch_state_tree::*,
-    rollover_state_tree::*, update_address_tree::*,
+    batch_append::*, batch_nullify::*, batch_update_address_tree::*,
+    initialize_batched_address_tree::*, initialize_batched_state_tree::*,
+    initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_batch_address_tree::*,
+    rollover_batch_state_tree::*, rollover_state_tree::*, update_address_tree::*,
 };
 
 pub use protocol_config::{initialize::*, update::*};
@@ -22,7 +23,9 @@ pub mod utils;
 use account_compression::MerkleTreeMetadata;
 pub use selection::forester::*;
 
-use account_compression::InitStateTreeAccountsInstructionData;
+use account_compression::{
+    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
+};
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
 use protocol_config::state::ProtocolConfig;
@@ -537,6 +540,63 @@ pub mod light_registry {
             )?;
         }
         process_batch_append(&ctx, bump, data)
+    }
+
+    pub fn initialize_batched_address_merkle_tree(
+        ctx: Context<InitializeBatchedAddressTree>,
+        bump: u8,
+        params: InitAddressTreeAccountsInstructionData,
+    ) -> Result<()> {
+        if let Some(network_fee) = params.network_fee {
+            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
+                return err!(RegistryError::InvalidNetworkFee);
+            }
+            if params.forester.is_some() {
+                msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
+                return err!(RegistryError::ForesterDefined);
+            }
+        } else if params.forester.is_none() {
+            msg!("Forester pubkey required for trees without a network fee.");
+            msg!("Trees without a network fee will not be serviced by light foresters.");
+            return err!(RegistryError::ForesterUndefined);
+        }
+        process_initialize_batched_address_merkle_tree(&ctx, bump, params)
+    }
+
+    pub fn batch_update_address_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, BatchUpdateAddressTree<'info>>,
+        bump: u8,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        {
+            let account = ctx.accounts.merkle_tree.load()?;
+            let metadata = account.metadata;
+            check_forester(
+                &metadata,
+                ctx.accounts.authority.key(),
+                ctx.accounts.merkle_tree.key(),
+                &mut ctx.accounts.registered_forester_pda,
+                account.queue.batch_size,
+            )?;
+        }
+        process_batch_update_address_tree(&ctx, bump, data)
+    }
+
+    pub fn rollover_batch_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchAddressMerkleTree<'info>>,
+        bump: u8,
+    ) -> Result<()> {
+        let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+            &ctx.accounts.old_address_merkle_tree,
+        )?;
+        check_forester(
+            &account.get_account().metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.old_address_merkle_tree.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            DEFAULT_WORK_V1,
+        )?;
+        process_rollover_batch_address_merkle_tree(&ctx, bump)
     }
 
     pub fn rollover_batch_state_merkle_tree<'info>(
