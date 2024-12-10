@@ -1476,6 +1476,7 @@ pub async fn test_setup_with_address_merkle_tree(
             queue: address_queue_keypair.pubkey(),
         },
         rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+        queue_elements: vec![],
     };
     (context, payer, address_merkle_tree_bundle)
 }

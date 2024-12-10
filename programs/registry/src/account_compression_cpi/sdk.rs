@@ -5,8 +5,8 @@ use crate::utils::{
 
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
-    NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, InitAddressTreeAccountsInstructionData,
+    InitStateTreeAccountsInstructionData, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
@@ -407,6 +407,88 @@ pub fn create_rollover_batch_state_tree_instruction(
         protocol_config_pda: get_protocol_config_pda_address().0,
         light_system_program: LightSystemProgram::id(),
     };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_batched_address_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    params: InitAddressTreeAccountsInstructionData,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeBatchedAddressMerkleTree { bump, params };
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let accounts = crate::accounts::InitializeBatchedAddressTree {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_update_address_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    epoch: u64,
+    data: Vec<u8>,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchUpdateAddressTree {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchUpdateAddressTree { bump, data };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_rollover_batch_address_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    old_merkle_tree: Pubkey,
+    new_merkle_tree: Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::RolloverBatchAddressMerkleTree {
+        authority: forester,
+        new_address_merkle_tree: new_merkle_tree,
+        old_address_merkle_tree: old_merkle_tree,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda: get_protocol_config_pda_address().0,
+    };
+    let instruction_data = crate::instruction::RolloverBatchAddressMerkleTree { bump };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),

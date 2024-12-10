@@ -1,7 +1,9 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::errors::AccountCompressionErrorCode;
-use account_compression::InitStateTreeAccountsInstructionData;
+use account_compression::{
+    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
+};
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
@@ -13,13 +15,14 @@ use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, QueueIndex,
 };
 use light_system_program::{
     errors::SystemProgramError,
     sdk::{
-        address::derive_address,
+        address::derive_address_legacy,
         compressed_account::{CompressedAccount, CompressedAccountData, MerkleContext},
         invoke::{
             create_invoke_instruction, create_invoke_instruction_data_and_remaining_accounts,
@@ -482,7 +485,7 @@ pub async fn failing_transaction_inputs_inner(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -573,7 +576,7 @@ fn create_address_test_inputs(
             address_merkle_tree_root_index: 0,
         });
         let derived_address =
-            derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
+            derive_address_legacy(&env.address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     (new_address_params, derived_addresses)
@@ -687,7 +690,7 @@ pub async fn failing_transaction_address(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -775,7 +778,7 @@ pub async fn failing_transaction_output(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -1155,6 +1158,8 @@ async fn invoke_test() {
 
 /// Tests Execute compressed transaction with address:
 /// 1. should fail: create out compressed account with address without input compressed account with address or created address
+/// 2. should fail: v1 address tree with v2 address derivation
+/// 3. should fail: v2 address tree create address with invoke instruction (invoking program id required for derivation)
 /// 2. should succeed: create out compressed account with new created address
 /// 3. should fail: create two addresses with the same seeds
 /// 4. should succeed: create two addresses with different seeds
@@ -1179,7 +1184,8 @@ async fn test_with_address() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
     let address_seed = [1u8; 32];
-    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let derived_address =
+        derive_address_legacy(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -1212,6 +1218,100 @@ async fn test_with_address() {
 
     let res = context.process_transaction(transaction).await;
     assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
+    // v1 address tree with new derivation should fail
+    {
+        let derived_address = derive_address(
+            &address_seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &payer_pubkey.to_bytes(),
+        );
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: Some(derived_address), // this should not be sent, only derived on-chain
+        }];
+
+        let address_params = vec![NewAddressParams {
+            seed: address_seed,
+            address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+            address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+            address_merkle_tree_root_index: 0,
+        }];
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &Vec::new(),
+            &output_compressed_accounts,
+            &Vec::new(),
+            &[env.batched_output_queue],
+            &Vec::new(),
+            &address_params,
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&payer_pubkey),
+            &[&payer],
+            context.get_latest_blockhash().await.unwrap(),
+        );
+
+        let res = context.process_transaction(transaction).await;
+        assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into())
+            .unwrap();
+    }
+    // batch address tree with new derivation should fail with invoke because invoking program is not provided.
+    {
+        let derived_address = derive_address(
+            &address_seed,
+            &env.batch_address_merkle_tree.to_bytes(),
+            &payer_pubkey.to_bytes(),
+        );
+        let output_compressed_accounts = vec![CompressedAccount {
+            lamports: 0,
+            owner: payer_pubkey,
+            data: None,
+            address: Some(derived_address), // this should not be sent, only derived on-chain
+        }];
+        let address_params = vec![NewAddressParams {
+            seed: address_seed,
+            address_queue_pubkey: env.batch_address_merkle_tree,
+            address_merkle_tree_pubkey: env.batch_address_merkle_tree,
+            address_merkle_tree_root_index: 0,
+        }];
+
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &Vec::new(),
+            &output_compressed_accounts,
+            &Vec::new(),
+            &[env.batched_output_queue],
+            &Vec::new(),
+            &address_params,
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&payer_pubkey),
+            &[&payer],
+            context.get_latest_blockhash().await.unwrap(),
+        );
+
+        let res = context.process_transaction(transaction).await;
+        assert_custom_error_or_program_error(res, SystemProgramError::DeriveAddressError.into())
+            .unwrap();
+    }
     println!("creating address -------------------------");
     create_addresses_test(
         &mut context,
@@ -1568,6 +1668,7 @@ async fn regenerate_accounts() {
         true,
         skip_register_programs,
         InitStateTreeAccountsInstructionData::test_default(),
+        InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await;
 
@@ -1670,7 +1771,9 @@ async fn regenerate_accounts() {
 /// 8. Should fail: double-spending by index after spending by ZKP.
 /// 9. Should fail: double-spending by ZKP after spending by index.
 /// 10. Should fail: double-spending by index after spending by index.
-/// 11.  Should fail: double-spending by ZKP after spending by ZKP.
+/// 11. Should fail: double-spending by ZKP after spending by ZKP.
+/// 12. Should fail: spend account by index which is not in value vec
+/// 13. Should fail: spend account v1 by zkp marked as spent by index
 #[serial]
 #[tokio::test]
 async fn batch_invoke_test() {
@@ -1988,13 +2091,9 @@ async fn batch_invoke_test() {
         ];
         let merkle_context_1 = compressed_account_with_context_1.merkle_context;
         let mut merkle_context_2 = compressed_account_with_context_2.merkle_context;
-        // merkle_context_2.queue_index = Some(proofs_by_index[0].1);
-        // Queue index is not used it is just Some to signal that the value is not in the proof
-        merkle_context_2.queue_index = Some(QueueIndex {
-            index: 123,
-            queue_id: 200,
-        });
-
+        // // Queue index is not used it is just Some to signal that the value is not in the proof
+        merkle_context_2.queue_index = Some(QueueIndex::default());
+        println!("root indices {:?}", proof_rpc_result.root_indices);
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2154,6 +2253,117 @@ async fn batch_invoke_test() {
         )
         .unwrap();
     }
+    // 12. spend account by zkp  but mark as spent by index
+    {
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+
+        // overwrite both output queue batches -> all prior values only exist in the Merkle tree not in the output queue
+        for _ in 0..2 {
+            create_compressed_accounts_in_batch_merkle_tree(
+                &mut context,
+                &mut test_indexer,
+                &payer,
+                output_queue_pubkey,
+                &env,
+            )
+            .await
+            .unwrap();
+        }
+
+        let proof_rpc_result = test_indexer
+            .create_proof_for_compressed_accounts2(
+                Some(vec![compressed_account_with_context_1.hash().unwrap()]),
+                Some(vec![
+                    compressed_account_with_context_1
+                        .merkle_context
+                        .merkle_tree_pubkey,
+                ]),
+                None,
+                None,
+                &mut context,
+            )
+            .await;
+        let mut merkle_context = compressed_account_with_context_1.merkle_context;
+        merkle_context.queue_index = Some(QueueIndex::default());
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context],
+            &[merkle_context.nullifier_queue_pubkey],
+            &[None],
+            &Vec::new(),
+            proof_rpc_result.proof,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
+    }
+    // 13. failing - spend account v1 by zkp  but mark as spent by index
+    // v1 accounts cannot be spent by index
+    {
+        // Selecting compressed account in v1 Merkle tree
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey != output_queue_pubkey
+            })
+            .last()
+            .unwrap()
+            .clone();
+
+        let mut merkle_context = compressed_account_with_context_1.merkle_context;
+        merkle_context.queue_index = Some(QueueIndex::default());
+        let instruction = create_invoke_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &input_compressed_accounts,
+            &output_compressed_accounts,
+            &[merkle_context],
+            &[merkle_context.merkle_tree_pubkey],
+            &[None],
+            &Vec::new(),
+            None,
+            None,
+            false,
+            None,
+            true,
+        );
+
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        // Should fail because it tries to deserialize an output queue account from a nullifier queue account
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::InvalidDiscriminator.into(),
+        )
+        .unwrap();
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -2272,12 +2482,14 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }
-    let bundle = test_indexer
-        .state_merkle_trees
-        .iter_mut()
-        .find(|x| x.accounts.nullifier_queue == output_queue_pubkey)
-        .unwrap();
-    perform_batch_append(context, bundle, &env.forester, 0, false, None).await?;
+    for _ in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+        let bundle = test_indexer
+            .state_merkle_trees
+            .iter_mut()
+            .find(|x| x.accounts.nullifier_queue == output_queue_pubkey)
+            .unwrap();
+        perform_batch_append(context, bundle, &env.forester, 0, false, None).await?;
+    }
     Ok(())
 }
 pub async fn create_output_accounts(
@@ -2326,7 +2538,7 @@ pub async fn create_output_accounts(
             &[&payer],
             Some(TransactionParams {
                 num_input_compressed_accounts: 0,
-                num_output_compressed_accounts: 1,
+                num_output_compressed_accounts: num_accounts as u8,
                 num_new_addresses: 0,
                 compress: 0,
                 fee_config,

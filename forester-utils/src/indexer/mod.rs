@@ -69,9 +69,27 @@ pub struct AddressMerkleTreeBundle {
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
+    pub queue_elements: Vec<[u8; 32]>,
 }
 
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
+    /// Returns queue elements from the queue with the given pubkey. For input
+    /// queues account compression program does not store queue elements in the
+    /// account data but only emits these in the public transaction event. The
+    /// indexer needs the queue elements to create batch update proofs.
+    fn get_queue_elements(
+        &self,
+        pubkey: [u8; 32],
+        batch: u64,
+        start_offset: u64,
+        end_offset: u64,
+    ) -> impl std::future::Future<Output = Result<Vec<[u8; 32]>, IndexerError>> + Send + Sync;
+
+    fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> impl std::future::Future<Output = Result<Vec<[u8; 32]>, IndexerError>> + Send + Sync;
+
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
@@ -86,7 +104,14 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext>, IndexerError>>
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<16>>, IndexerError>>
+           + Send
+           + Sync;
+    fn get_multiple_new_address_proofs_full(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        addresses: Vec<[u8; 32]>,
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<26>>, IndexerError>>
            + Send
            + Sync;
 
@@ -95,7 +120,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn address_tree_updated(
         &mut self,
         _merkle_tree_pubkey: Pubkey,
-        _context: &NewAddressProofWithContext,
+        _context: &NewAddressProofWithContext<16>,
     ) {
     }
 
@@ -201,8 +226,8 @@ pub struct MerkleProof {
 }
 
 // For consistency with the Photon API.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct NewAddressProofWithContext {
+#[derive(Clone, Debug, PartialEq)]
+pub struct NewAddressProofWithContext<const NET_HEIGHT: usize> {
     pub merkle_tree: [u8; 32],
     pub root: [u8; 32],
     pub root_seq: u64,
@@ -210,7 +235,7 @@ pub struct NewAddressProofWithContext {
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
-    pub low_address_proof: [[u8; 32]; 16],
+    pub low_address_proof: [[u8; 32]; NET_HEIGHT],
     pub new_low_element: Option<IndexedElement<usize>>,
     pub new_element: Option<IndexedElement<usize>>,
     pub new_element_next_value: Option<BigUint>,

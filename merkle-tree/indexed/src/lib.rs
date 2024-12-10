@@ -344,6 +344,7 @@ where
             value: new_element_value,
             next_index: low_element.next_index,
         };
+        println!("low_element: {:?}", low_element);
 
         self.patch_elements_and_proof(
             indexed_changelog_index,
@@ -353,6 +354,7 @@ where
             &mut low_element_next_value,
             low_leaf_proof,
         )?;
+        println!("patched low_element: {:?}", low_element);
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {

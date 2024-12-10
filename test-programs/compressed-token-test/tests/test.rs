@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
 };
@@ -2584,7 +2585,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -4068,7 +4069,7 @@ async fn test_invalid_inputs() {
             &mut rpc,
             change_out_compressed_account_0,
             transfer_recipient_out_compressed_account_0,
-            &nullifier_queue_pubkey,
+            &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &payer,
             &Some(proof_rpc_result.proof.clone()),
@@ -4077,11 +4078,8 @@ async fn test_invalid_inputs() {
             true,
         )
         .await;
-        assert_custom_error_or_program_error(
-            res,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
-        )
-        .unwrap();
+        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
+            .unwrap();
     }
     // Test 12: invalid Merkle tree pubkey
     {
@@ -4101,7 +4099,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
