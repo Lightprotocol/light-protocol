@@ -23,7 +23,7 @@ pub fn process_compress_spl_token_account<'info>(
     let compress_amount = compression_token_account
         .amount
         .checked_sub(remaining_amount.unwrap_or_default())
-        .ok_or(ErrorCode::ArithmeticUnderflow)?;
+        .ok_or(crate::ErrorCode::InsufficientTokenAccountBalance)?;
     let compressed_output_account = PackedTokenTransferOutputData {
         owner,
         lamports: None,

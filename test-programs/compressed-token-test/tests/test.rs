@@ -441,6 +441,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
 /// - Mint 10 tokens to spl token account
 /// - Compress spl token account
 /// - Mint 20 more tokens to spl token account
+/// - failing to compress spl token account with 21 remaining balance
 /// - Compress spl token account with 1 remaining token
 #[tokio::test]
 async fn compress_spl_account() {
@@ -510,6 +511,21 @@ async fn compress_spl_account() {
         )
         .await
         .unwrap();
+        {
+            let result = perform_compress_spl_token_account(
+                &mut rpc,
+                &mut test_indexer,
+                &payer,
+                &token_owner,
+                &mint,
+                &token_account_keypair.pubkey(),
+                &merkle_tree_pubkey,
+                Some(first_token_account_balance + 1), // invalid remaining amount
+                is_token_22,
+            )
+            .await;
+            assert_rpc_error(result, 0, ErrorCode::InsufficientTokenAccountBalance.into()).unwrap();
+        }
         perform_compress_spl_token_account(
             &mut rpc,
             &mut test_indexer,
