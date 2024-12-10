@@ -9,7 +9,8 @@ use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData, QueueType,
+    AddressMerkleTreeConfig, AddressQueueConfig, InitAddressTreeAccountsInstructionData,
+    InitStateTreeAccountsInstructionData, QueueType,
 };
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
@@ -143,6 +144,7 @@ pub struct EnvAccounts {
     pub batched_state_merkle_tree: Pubkey,
     pub batched_output_queue: Pubkey,
     pub batched_cpi_context: Pubkey,
+    pub batch_address_merkle_tree: Pubkey,
 }
 
 impl EnvAccounts {
@@ -166,6 +168,7 @@ impl EnvAccounts {
             batched_state_merkle_tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
             batched_output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
             batched_cpi_context: pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj"),
+            batch_address_merkle_tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
         }
     }
 }
@@ -184,6 +187,7 @@ pub struct EnvAccountKeypairs {
     pub batched_state_merkle_tree: Keypair,
     pub batched_output_queue: Keypair,
     pub batched_cpi_context: Keypair,
+    pub batch_address_merkle_tree: Keypair,
 }
 
 impl EnvAccountKeypairs {
@@ -203,6 +207,10 @@ impl EnvAccountKeypairs {
                 .unwrap(),
             batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
             batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
+            batch_address_merkle_tree: Keypair::from_bytes(
+                &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
+            )
+            .unwrap(),
         }
     }
 
@@ -264,6 +272,10 @@ impl EnvAccountKeypairs {
                 .unwrap(),
             batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
             batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
+            batch_address_merkle_tree: Keypair::from_bytes(
+                &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
+            )
+            .unwrap(),
         }
     }
 }
@@ -361,6 +373,13 @@ pub const BATCHED_CPI_CONTEXT_TEST_KEYPAIR: [u8; 64] = [
     3, 12, 228,
 ];
 
+// EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK
+pub const BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
+    39, 24, 219, 214, 174, 34, 141, 22, 238, 96, 128, 5, 244, 12, 239, 3, 45, 61, 42, 53, 92, 87,
+    28, 24, 35, 87, 72, 11, 158, 224, 210, 70, 207, 214, 165, 6, 152, 46, 60, 129, 118, 32, 27,
+    128, 68, 73, 71, 250, 6, 83, 176, 199, 153, 140, 237, 11, 55, 237, 3, 179, 242, 138, 37, 12,
+];
+
 /// Setup test programs with accounts
 /// deploys:
 /// 1. light program
@@ -439,6 +458,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
         protocol_config,
         register_forester_and_advance_to_active_phase,
         InitStateTreeAccountsInstructionData::test_default(),
+        InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await
 }
@@ -448,6 +468,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
     batched_tree_init_params: InitStateTreeAccountsInstructionData,
+    batched_address_tree_init_params: InitAddressTreeAccountsInstructionData,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection { context };
@@ -469,6 +490,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
         register_forester_and_advance_to_active_phase,
         true,
         batched_tree_init_params,
+        batched_address_tree_init_params,
     )
     .await;
     (context, env_accounts)
@@ -501,6 +523,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
         register_forester_and_advance_to_active_phase,
         true,
         params,
+        InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await;
     (context, env_accounts)
@@ -517,6 +540,7 @@ pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> 
         false,
         false,
         params,
+        InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await
 }
@@ -528,6 +552,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     register_forester_and_advance_to_active_phase: bool,
     skip_register_programs: bool,
     batched_tree_init_params: InitStateTreeAccountsInstructionData,
+    batched_address_tree_init_params: InitAddressTreeAccountsInstructionData,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
     let protocol_config_pda = get_protocol_config_pda_address();
@@ -633,6 +658,23 @@ pub async fn initialize_accounts<R: RpcConnection>(
     .await
     .unwrap();
 
+    create_batch_address_merkle_tree(
+        context,
+        &keypairs.governance_authority,
+        &keypairs.batch_address_merkle_tree,
+        batched_address_tree_init_params,
+    )
+    .await
+    .unwrap();
+    assert_registry_created_batched_address_merkle_tree(
+        context,
+        get_group_pda(group_seed_keypair.pubkey()),
+        keypairs.batch_address_merkle_tree.pubkey(),
+        batched_address_tree_init_params,
+    )
+    .await
+    .unwrap();
+
     create_address_merkle_tree_and_queue_account(
         &keypairs.governance_authority,
         true,
@@ -713,6 +755,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         batched_cpi_context: keypairs.batched_cpi_context.pubkey(),
         batched_output_queue: keypairs.batched_output_queue.pubkey(),
         batched_state_merkle_tree: keypairs.batched_state_merkle_tree.pubkey(),
+        batch_address_merkle_tree: keypairs.batch_address_merkle_tree.pubkey(),
     }
 }
 pub fn get_group_pda(seed: Pubkey) -> Pubkey {
@@ -811,6 +854,9 @@ pub fn get_test_env_accounts() -> EnvAccounts {
             .unwrap()
             .pubkey(),
         batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+            .unwrap()
+            .pubkey(),
+        batch_address_merkle_tree: Keypair::from_bytes(&BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR)
             .unwrap()
             .pubkey(),
     }

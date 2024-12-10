@@ -48,6 +48,7 @@ dependencies = [
  "anchor-spl",
  "ark-bn254",
  "ark-ff 0.4.2",
+  "light-bloom-filter",
  "light-bounded-vec",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
@@ -1792,6 +1793,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "create-address-test-program"
+version = "1.0.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "light-hasher",
+ "light-system-program",
+ "light-utils",
 ]
 
 [[package]]
@@ -4055,6 +4067,7 @@ dependencies = [
  "anyhow",
  "ark-ff 0.4.2",
  "async-trait",
+ "create-address-test-program",
  "forester-utils",
  "light-client",
  "light-compressed-token",
@@ -8534,9 +8547,11 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-utils",
+ "light-verifier",
  "num-bigint 0.4.6",
  "num-traits",
  "reqwest 0.11.27",
+ "serial_test",
  "solana-program-test",
  "solana-sdk",
  "spl-token",

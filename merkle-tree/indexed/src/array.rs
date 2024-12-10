@@ -39,6 +39,8 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
+            && self.index == other.index
+            && self.next_index == other.next_index
     }
 }
 
@@ -86,6 +88,9 @@ where
     where
         H: Hasher,
     {
+        println!("self.value: {:?}", self.value);
+        println!("self.next_index: {:?}", self.next_index());
+        println!("next_value: {:?}", next_value);
         let hash = H::hashv(&[
             bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
             self.next_index.to_be_bytes().as_ref(),
@@ -476,9 +481,9 @@ mod test {
                 next_index: 1,
             };
             let element_2 = IndexedElement::<u16> {
-                index: 1,
+                index: 0,
                 value,
-                next_index: 2,
+                next_index: 1,
             };
             assert_eq!(element_1, element_2);
             assert_eq!(element_2, element_1);
@@ -765,7 +770,7 @@ mod test {
                     next_index: 3,
                 },
                 &IndexedElement {
-                    index: 2,
+                    index: 3,
                     value: 20_u32.to_biguint().unwrap(),
                     next_index: 1
                 }

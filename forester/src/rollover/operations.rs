@@ -101,7 +101,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             let threshold = ((1 << height)
                 * queue_account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
-            let next_index = merkle_tree.next_index() - 3;
+            let next_index = merkle_tree.next_index().saturating_sub(3);
             let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {

@@ -243,6 +243,7 @@ impl ZeroCopyBatchedQueueAccount {
                 num_iters,
                 bloom_filter_capacity,
                 &mut 0,
+                0,
             )?;
             Ok(ZeroCopyBatchedQueueAccount {
                 account,
@@ -273,6 +274,34 @@ impl ZeroCopyBatchedQueueAccount {
         Ok(())
     }
 
+    pub fn prove_inclusion_by_index(&mut self, leaf_index: u64, value: &[u8; 32]) -> Result<bool> {
+        for (batch_index, batch) in self.batches.iter().enumerate() {
+            if batch.value_is_inserted_in_batch(leaf_index)? {
+                let index = batch.get_value_index_in_batch(leaf_index)?;
+                let element = self.value_vecs[batch_index]
+                    .get_mut(index as usize)
+                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
+
+                if element == value {
+                    return Ok(true);
+                } else {
+                    return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn could_exist_in_batches(&mut self, leaf_index: u64) -> Result<()> {
+        for batch in self.batches.iter() {
+            let res = batch.value_is_inserted_in_batch(leaf_index)?;
+            if res {
+                return Ok(());
+            }
+        }
+        err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+    }
+
     /// Zero out a leaf by index if it exists in the queues value vec. If
     /// checked fail if leaf is not found.
     pub fn prove_inclusion_by_index_and_zero_out_leaf(
@@ -288,14 +317,14 @@ impl ZeroCopyBatchedQueueAccount {
                     .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
 
                 if element == value {
-                    *element = [0; 32];
+                    *element = [0u8; 32];
                     return Ok(());
                 } else {
                     return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
                 }
             }
         }
-        err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+        Ok(())
     }
 
     pub fn get_batch_num_inserted_in_current_batch(&self) -> u64 {
@@ -329,6 +358,7 @@ pub fn insert_into_current_batch(
         let mut hashchain_store = hashchain_store.get_mut(currently_processing_batch_index);
 
         let current_batch = batches.get_mut(currently_processing_batch_index).unwrap();
+        println!("current_batch {:?}", current_batch);
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted {
             current_batch.advance_state_to_can_be_filled()?;
@@ -337,15 +367,19 @@ pub fn insert_into_current_batch(
             }
             wipe = true;
         }
+        println!("wipe {:?}", wipe);
         // We expect to insert into the current batch.
-        if current_batch.get_state() == BatchState::ReadyToUpdateTree {
+        if current_batch.get_state() == BatchState::Full {
             for batch in batches.iter_mut() {
                 msg!("batch {:?}", batch);
             }
             return err!(AccountCompressionErrorCode::BatchNotReady);
         }
+        println!("leaves_hash_value {:?}", leaves_hash_value);
+        println!("value {:?}", value);
 
         if wipe {
+            msg!("wipe");
             if let Some(blomfilter_stores) = bloom_filter_stores.as_mut() {
                 if !current_batch.bloom_filter_is_wiped {
                     (*blomfilter_stores)
@@ -356,17 +390,13 @@ pub fn insert_into_current_batch(
                     // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
                     // if not advance current root index to root index
                     if current_batch.sequence_number != 0 {
-                        if root_index.is_none() && sequence_number.is_none() {
-                            root_index = Some(current_batch.root_index);
-                            sequence_number = Some(current_batch.sequence_number);
-                            current_batch.sequence_number = 0;
-                        } else {
-                            unreachable!("root_index is already set this is a bug.");
-                        }
+                        root_index = Some(current_batch.root_index);
+                        sequence_number = Some(current_batch.sequence_number);
                     }
                 } else {
                     current_batch.bloom_filter_is_wiped = false;
                 }
+                current_batch.sequence_number = 0;
             }
             if let Some(value_store) = value_store.as_mut() {
                 (*value_store).clear();
@@ -378,13 +408,7 @@ pub fn insert_into_current_batch(
 
         let queue_type = QueueType::from(queue_type);
         match queue_type {
-            // QueueType::Address => current_batch.insert_and_store(
-            //     value,
-            //     bloom_filter_stores.unwrap().as_mut_slice(),
-            //     value_store.unwrap(),
-            //     hashchain_store.unwrap(),
-            // ),
-            QueueType::Input => current_batch.insert(
+            QueueType::Input | QueueType::Address => current_batch.insert(
                 value,
                 leaves_hash_value.unwrap(),
                 bloom_filter_stores.unwrap().as_mut_slice(),
@@ -411,9 +435,7 @@ pub fn insert_into_current_batch(
         }
     }
 
-    if batches[account.currently_processing_batch_index as usize].get_state()
-        == BatchState::ReadyToUpdateTree
-    {
+    if batches[account.currently_processing_batch_index as usize].get_state() == BatchState::Full {
         account.currently_processing_batch_index += 1;
         account.currently_processing_batch_index %= len as u64;
     }
@@ -486,6 +508,7 @@ pub fn init_queue(
     num_iters: u64,
     bloom_filter_capacity: u64,
     start_offset: &mut usize,
+    batch_start_index: u64,
 ) -> Result<(
     ManuallyDrop<BoundedVec<Batch>>,
     Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
@@ -524,7 +547,7 @@ pub fn init_queue(
                 bloom_filter_capacity,
                 account.batch_size,
                 account.zkp_batch_size,
-                account.batch_size * i,
+                account.batch_size * i + batch_start_index,
             ))
             .map_err(ProgramError::from)?;
     }
@@ -616,6 +639,7 @@ pub fn assert_queue_inited(
     batches: &mut ManuallyDrop<BoundedVec<Batch>>,
     num_batches: usize,
     num_iters: u64,
+    start_index: u64,
 ) {
     assert_eq!(queue, ref_queue, "queue mismatch");
     assert_eq!(batches.len(), num_batches, "batches mismatch");
@@ -625,18 +649,18 @@ pub fn assert_queue_inited(
             ref_queue.bloom_filter_capacity,
             ref_queue.batch_size,
             ref_queue.zkp_batch_size,
-            ref_queue.batch_size * i as u64,
+            ref_queue.batch_size * i as u64 + start_index,
         );
 
         assert_eq!(batch, &ref_batch, "batch mismatch");
     }
 
-    if queue_type == QueueType::Input as u64 {
-        assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
-        assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
-    } else {
+    if queue_type == QueueType::Output as u64 {
         assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
         assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
+    } else {
+        assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
+        assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
     }
 
     if queue_type == QueueType::Output as u64 {
@@ -686,6 +710,7 @@ pub fn assert_queue_zero_copy_inited(
     let num_batches = ref_account.queue.num_batches as usize;
     let queue = zero_copy_account.get_account().queue;
     let queue_type = zero_copy_account.get_account().metadata.queue_type;
+    let next_index = zero_copy_account.get_account().next_index;
     assert_eq!(
         zero_copy_account.get_account().metadata,
         ref_account.metadata,
@@ -700,6 +725,7 @@ pub fn assert_queue_zero_copy_inited(
         &mut zero_copy_account.batches,
         num_batches,
         num_iters,
+        next_index,
     );
 }
 
@@ -800,12 +826,26 @@ pub mod tests {
         {
             zero_copy_account.insert_into_current_batch(&value).unwrap();
             assert_eq!(
+                zero_copy_account.prove_inclusion_by_index(1, &value),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert_eq!(
                 zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
             assert_eq!(
                 zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert!(zero_copy_account
+                .prove_inclusion_by_index(0, &value)
+                .is_ok());
+            // prove inclusion for value out of range returns false
+            assert_eq!(
+                zero_copy_account
+                    .prove_inclusion_by_index(100000, &[0u8; 32])
+                    .unwrap(),
+                false
             );
             assert!(zero_copy_account
                 .prove_inclusion_by_index_and_zero_out_leaf(0, &value)
@@ -815,6 +855,10 @@ pub mod tests {
         {
             assert_eq!(
                 zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value),
+                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+            );
+            assert_eq!(
+                zero_copy_account.prove_inclusion_by_index(0, &value),
                 anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
             );
         }

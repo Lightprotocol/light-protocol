@@ -207,19 +207,25 @@ impl Stats {
 pub async fn init_program_test_env(
     rpc: ProgramTestRpcConnection,
     env_accounts: &EnvAccounts,
+    skip_prover: bool,
 ) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-                ProofType::Inclusion,
-                ProofType::NonInclusion,
-            ],
-        }),
+        if skip_prover {
+            None
+        } else {
+            Some(ProverConfig {
+                run_mode: None,
+                circuits: vec![
+                    ProofType::BatchAppendWithProofsTest,
+                    ProofType::BatchUpdateTest,
+                    ProofType::Inclusion,
+                    ProofType::NonInclusion,
+                    ProofType::Combined,
+                ],
+            })
+        },
     )
     .await;
 
@@ -510,10 +516,11 @@ where
                                 .await
                                 .unwrap()
                                 .unwrap();
-                            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(
-                                merkle_tree_account.data.as_mut_slice(),
-                            )
-                            .unwrap();
+                            let merkle_tree =
+                                ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                                    merkle_tree_account.data.as_mut_slice(),
+                                )
+                                .unwrap();
                             let next_full_batch_index =
                                 merkle_tree.get_account().queue.next_full_batch_index;
                             let batch = merkle_tree
@@ -529,7 +536,7 @@ where
                                 next_full_batch_index
                             );
                             println!("input batch_state {:?}", batch_state);
-                            if batch_state == BatchState::ReadyToUpdateTree {
+                            if batch_state == BatchState::Full {
                                 println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES batched (v2)\n --------------------------------------------------");
                                 for _ in 0..TEST_DEFAULT_BATCH_SIZE {
                                     perform_batch_nullify(
@@ -572,7 +579,7 @@ where
                                     + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
                                 next_full_batch_index
                             );
-                            if batch_state == BatchState::ReadyToUpdateTree {
+                            if batch_state == BatchState::Full {
                                 for _ in 0..TEST_DEFAULT_BATCH_SIZE {
                                     perform_batch_append(
                                         &mut self.rpc,
@@ -600,7 +607,13 @@ where
                 .empty_address_queue
                 .unwrap_or_default(),
         ) {
-            for address_merkle_tree_bundle in self.indexer.get_address_merkle_trees_mut().iter_mut()
+            for address_merkle_tree_bundle in self
+                .indexer
+                .get_address_merkle_trees_mut()
+                .iter_mut()
+                .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                .collect::<Vec<_>>()
+                .iter_mut()
             {
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
@@ -658,10 +671,21 @@ where
             }
         }
 
-        for index in 0..self.indexer.get_address_merkle_trees().len() {
+        for index in 0..self
+            .indexer
+            .get_address_merkle_trees()
+            .iter()
+            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+            .collect::<Vec<_>>()
+            .len()
+        {
             let is_read_for_rollover = address_tree_ready_for_rollover(
                 &mut self.rpc,
-                self.indexer.get_address_merkle_trees()[index]
+                self.indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                    .collect::<Vec<_>>()[index]
                     .accounts
                     .merkle_tree,
             )
@@ -673,7 +697,12 @@ where
             {
                 // find forester which is eligible this slot for this tree
                 if let Some(payer) = Self::get_eligible_forester_for_queue(
-                    &self.indexer.get_address_merkle_trees()[index]
+                    &self
+                        .indexer
+                        .get_address_merkle_trees()
+                        .iter()
+                        .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                        .collect::<Vec<_>>()[index]
                         .accounts
                         .queue,
                     &self.foresters,
@@ -1088,6 +1117,7 @@ where
                 },
                 merkle_tree,
                 indexed_array,
+                queue_elements: vec![],
             });
         // TODO: Add assert
     }
@@ -1382,7 +1412,22 @@ where
         amount: u64,
         tree_index: Option<usize>,
     ) {
-        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        self.compress_sol_deterministic_opt_inputs(from, amount, tree_index, true)
+            .await;
+    }
+
+    pub async fn compress_sol_deterministic_opt_inputs(
+        &mut self,
+        from: &Keypair,
+        amount: u64,
+        tree_index: Option<usize>,
+        inputs: bool,
+    ) {
+        let input_compressed_accounts = if inputs {
+            self.get_compressed_sol_accounts(&from.pubkey())
+        } else {
+            vec![]
+        };
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
         let output_merkle_tree = match bundle.version {
@@ -1410,7 +1455,7 @@ where
             &mut self.rpc,
             &mut self.indexer,
             from,
-            input_compressed_accounts.as_slice(),
+            &input_compressed_accounts[..std::cmp::min(input_compressed_accounts.len(), 4)],
             false,
             amount,
             &output_merkle_tree,
@@ -1479,13 +1524,21 @@ where
             if let Some(address_tree_index) = address_tree_index {
                 (
                     vec![
-                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                        self.indexer
+                            .get_address_merkle_trees()
+                            .iter()
+                            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                            .collect::<Vec<_>>()[address_tree_index]
                             .accounts
                             .merkle_tree;
                         num_addresses as usize
                     ],
                     vec![
-                        self.indexer.get_address_merkle_trees()[address_tree_index]
+                        self.indexer
+                            .get_address_merkle_trees()
+                            .iter()
+                            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                            .collect::<Vec<_>>()[address_tree_index]
                             .accounts
                             .queue;
                         num_addresses as usize
@@ -2081,7 +2134,13 @@ where
         payer: &Keypair,
         epoch: u64,
     ) -> Result<(), RpcError> {
-        let bundle = self.indexer.get_address_merkle_trees()[index].accounts;
+        let bundle = self
+            .indexer
+            .get_address_merkle_trees()
+            .iter()
+            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+            .collect::<Vec<_>>()[index]
+            .accounts;
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         let fee_payer_balance = self
@@ -2171,16 +2230,30 @@ where
         for _ in 0..num {
             let index = Self::safe_gen_range(
                 &mut self.rng,
-                0..self.indexer.get_address_merkle_trees().len(),
+                0..self
+                    .indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                    .collect::<Vec<_>>()
+                    .len(),
                 0,
             );
             pubkeys.push(
-                self.indexer.get_address_merkle_trees()[index]
+                self.indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                    .collect::<Vec<_>>()[index]
                     .accounts
                     .merkle_tree,
             );
             queue_pubkeys.push(
-                self.indexer.get_address_merkle_trees()[index]
+                self.indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                    .collect::<Vec<_>>()[index]
                     .accounts
                     .queue,
             );

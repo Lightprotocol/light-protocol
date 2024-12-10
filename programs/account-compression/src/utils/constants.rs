@@ -55,3 +55,9 @@ pub const DEFAULT_BATCH_SIZE: u64 = 50000;
 pub const DEFAULT_ZKP_BATCH_SIZE: u64 = 500;
 
 pub const DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE: u64 = 20 * 1024 + 8;
+
+#[constant]
+pub const ADDRESS_TREE_INIT_ROOT_26: [u8; 32] = [
+    33, 133, 56, 184, 142, 166, 110, 161, 4, 140, 169, 247, 115, 33, 15, 181, 76, 89, 48, 126, 58,
+    86, 204, 81, 16, 121, 185, 77, 75, 152, 43, 15,
+];
