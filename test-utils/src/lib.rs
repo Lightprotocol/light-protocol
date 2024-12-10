@@ -6,6 +6,7 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
 use solana_sdk::{instruction::InstructionError, transaction};
 use std::cmp;
 
+pub mod address;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
@@ -14,6 +15,7 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 #[allow(unused)]
 pub mod indexer;
@@ -23,7 +25,7 @@ pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
 pub mod test_batch_forester;
-
+pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
 pub use forester_utils::{

@@ -10,7 +10,7 @@ use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::appen
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
 use light_prover_client::{
     batch_address_append::{
-        get_batch_address_append_inputs_from_tree, get_test_batch_address_append_inputs,
+        get_batch_address_append_circuit_inputs, get_test_batch_address_append_inputs,
     },
     gnark::batch_address_append_json_formatter::to_json,
 };
@@ -338,7 +338,7 @@ pub fn print_circuit_test_data_with_existing_tree() {
         IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
     relayer_merkle_tree.init().unwrap();
 
-    let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
+    let next_index = relayer_merkle_tree.merkle_tree.rightmost_index;
 
     let current_root = relayer_merkle_tree.root();
 
@@ -364,10 +364,11 @@ pub fn print_circuit_test_data_with_existing_tree() {
     let new_element_values = new_element_values
         .iter()
         .map(|v| bigint_to_be_bytes_array::<32>(&v).unwrap())
-        .collect();
+        .collect::<Vec<_>>();
+    let hash_chain = calculate_hash_chain(&new_element_values);
 
-    let inputs = get_batch_address_append_inputs_from_tree::<TREE_HEIGHT>(
-        start_index,
+    let inputs = get_batch_address_append_circuit_inputs::<TREE_HEIGHT>(
+        next_index,
         current_root,
         low_element_values,
         low_element_next_values,
@@ -380,6 +381,9 @@ pub fn print_circuit_test_data_with_existing_tree() {
             .get_subtrees()
             .try_into()
             .unwrap(),
+        hash_chain,
+        0,
+        2,
     );
 
     let json_output = to_json(&inputs);
@@ -456,7 +460,7 @@ async fn prove_batch_address_append() {
     init_logger();
     println!("spawning prover");
     spawn_prover(
-        true,
+        false,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::BatchAddressAppendTest],
@@ -503,10 +507,11 @@ async fn prove_batch_address_append() {
     let new_element_values = new_element_values
         .iter()
         .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
-        .collect();
+        .collect::<Vec<_>>();
+    let hash_chain = calculate_hash_chain(&new_element_values);
 
     // Generate circuit inputs
-    let inputs = get_batch_address_append_inputs_from_tree::<TREE_HEIGHT>(
+    let inputs = get_batch_address_append_circuit_inputs::<TREE_HEIGHT>(
         start_index,
         current_root,
         low_element_values,
@@ -520,11 +525,12 @@ async fn prove_batch_address_append() {
             .get_subtrees()
             .try_into()
             .unwrap(),
+        hash_chain,
+        0,
+        10,
     );
-
     // Convert inputs to JSON format
     let inputs_json = to_json(&inputs);
-
     // Send proof request to server
     let client = Client::new();
     let response_result = client

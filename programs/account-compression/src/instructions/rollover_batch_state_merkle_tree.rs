@@ -16,7 +16,7 @@ use crate::{
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use super::assert_mt_zero_copy_inited;
+use super::assert_state_mt_zero_copy_inited;
 
 #[derive(Accounts)]
 pub struct RolloverBatchStateMerkleTree<'info> {
@@ -218,7 +218,7 @@ mod batch_state_tree_rollover_tests {
     use solana_sdk::pubkey::Pubkey;
 
     use crate::{
-        assert_mt_zero_copy_inited,
+        assert_state_mt_zero_copy_inited,
         batched_merkle_tree::{
             get_merkle_tree_account_size, get_merkle_tree_account_size_default,
             BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
@@ -292,7 +292,7 @@ mod batch_state_tree_rollover_tests {
                 params.height,
                 params.input_queue_num_batches,
             );
-            assert_mt_zero_copy_inited(
+            assert_state_mt_zero_copy_inited(
                 &mut mt_account_data,
                 ref_mt_account,
                 params.bloom_filter_num_iters,
@@ -831,7 +831,7 @@ mod batch_state_tree_rollover_tests {
                 params.height,
                 params.input_queue_num_batches,
             );
-            assert_mt_zero_copy_inited(
+            assert_state_mt_zero_copy_inited(
                 &mut mt_account_data,
                 ref_mt_account,
                 params.bloom_filter_num_iters,
@@ -923,7 +923,8 @@ pub fn assert_state_mt_roll_over(
         .rolledover_slot = slot;
 
     assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
-    // assert_queue_zero_copy_inited(&mut queue_account_data, ref_rolledover_queue, 0);
+    println!("asserted queue roll over");
+
     let zero_copy_queue =
         ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut queue_account_data).unwrap();
     assert_eq!(
@@ -942,6 +943,7 @@ pub fn assert_state_mt_roll_over(
     )
 }
 
+// TODO: assert that the rest of the rolled over account didn't change
 pub fn assert_mt_roll_over(
     mut mt_account_data: Vec<u8>,
     ref_mt_account: BatchedMerkleTreeAccount,
@@ -957,13 +959,11 @@ pub fn assert_mt_roll_over(
         .rollover(old_queue_pubkey, new_mt_pubkey)
         .unwrap();
     ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
+    let zero_copy_mt =
+        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+    assert_eq!(*zero_copy_mt.get_account(), ref_rolledover_mt);
 
-    assert_mt_zero_copy_inited(
-        &mut mt_account_data,
-        ref_rolledover_mt,
-        bloom_filter_num_iters,
-    );
-    assert_mt_zero_copy_inited(
+    assert_state_mt_zero_copy_inited(
         &mut new_mt_account_data,
         ref_mt_account,
         bloom_filter_num_iters,

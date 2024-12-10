@@ -9,10 +9,12 @@ use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
-        compressed_account::PackedCompressedAccountWithMerkleContext,
+        compressed_account::{
+            PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+        },
         CompressedCpiContext,
     },
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
 };
 
 #[derive(Accounts)]
@@ -111,6 +113,13 @@ impl InstructionDataInvokeCpi {
                 .extend_from_slice(&other.output_compressed_accounts);
         }
     }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InstructionDataInvokeCpiWithReadOnly {
+    pub invoke_cpi: InstructionDataInvokeCpi,
+    pub read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
+    pub read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
 }
 
 #[cfg(test)]

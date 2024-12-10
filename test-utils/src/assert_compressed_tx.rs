@@ -143,9 +143,10 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     .await
                     .unwrap()
                     .unwrap();
-                let mut merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut merkle_tree_account.data)
-                        .unwrap();
+                let mut merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                    &mut merkle_tree_account.data,
+                )
+                .unwrap();
                 let mut batches = merkle_tree.batches.clone();
                 batches.iter_mut().enumerate().any(|(i, batch)| {
                     batch
@@ -407,9 +408,10 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
             }
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree_account_lamports = account_data.lamports;
-                let merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(&mut account_data.data)
-                        .unwrap();
+                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                    &mut account_data.data,
+                )
+                .unwrap();
                 let queue_account_lamports = match rpc
                     .get_account(account_bundle.nullifier_queue)
                     .await

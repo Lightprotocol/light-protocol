@@ -33,8 +33,9 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
-    let account_data = &mut ctx.accounts.merkle_tree.try_borrow_mut_data()?;
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::from_bytes_mut(account_data)?;
+    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+        &ctx.accounts.merkle_tree,
+    )?;
     check_signer_is_registered_or_authority::<BatchNullify, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,

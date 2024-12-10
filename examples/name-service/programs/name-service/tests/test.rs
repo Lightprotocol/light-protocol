@@ -67,8 +67,9 @@ async fn test_name_service() {
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
 
-    let address_seed = derive_address_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
-    let address = derive_address(&address_seed, &address_merkle_context);
+    let address_seed =
+        derive_address_legacy_seed(&[b"name-service", name.as_bytes()], &name_service::ID);
+    let address = derive_address_legacy(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
         pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
