@@ -62,6 +62,9 @@ pub mod light_compressed_token {
         process_mint_to(ctx, public_keys, amounts, lamports)
     }
 
+    /// Compresses the balance of an spl token account sub an optional remaining
+    /// amount. This instruction does not close the spl token account. To close
+    /// the account bundle a close spl account instruction in your transaction.
     pub fn compress_spl_token_account<'info>(
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         owner: Pubkey,
@@ -204,4 +207,6 @@ pub enum ErrorCode {
     NoInputsProvided,
     MintHasNoFreezeAuthority,
     MintWithInvalidExtension,
+    #[msg("The token account balance is less than the remaining amount.")]
+    InsufficientTokenAccountBalance,
 }

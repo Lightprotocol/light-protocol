@@ -159,6 +159,11 @@ export type LightCompressedToken = {
         },
         {
             name: 'compressSplTokenAccount';
+            docs: [
+                'Compresses the balance of an spl token account sub an optional remaining',
+                'amount. This instruction does not close the spl token account. To close',
+                'the account bundle a close spl account instruction in your transaction.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -1827,6 +1832,11 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'compressSplTokenAccount',
+            docs: [
+                'Compresses the balance of an spl token account sub an optional remaining',
+                'amount. This instruction does not close the spl token account. To close',
+                'the account bundle a close spl account instruction in your transaction.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
