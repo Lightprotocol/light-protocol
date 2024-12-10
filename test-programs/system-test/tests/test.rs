@@ -7,6 +7,7 @@ use account_compression::{
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
+use light_program_test::test_batch_forester::perform_batch_append;
 use light_program_test::test_env::{
     initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
     EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
@@ -34,7 +35,6 @@ use light_system_program::{
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
     TransactionParams,
-    test_batch_forester::perform_batch_append
 };
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
@@ -897,12 +897,12 @@ async fn invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: Some(ProverMode::Rpc),
+        //     circuits: vec![],
+        // }),
+        None,
     )
     .await;
 
@@ -956,7 +956,6 @@ async fn invoke_test() {
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_compressed_accounts.as_slice(),
-        false,
     );
 
     let input_compressed_accounts = vec![CompressedAccount {
@@ -1695,6 +1694,9 @@ async fn regenerate_accounts() {
             env.forester_epoch.as_ref().unwrap().forester_epoch_pda,
         ),
         ("epoch_pda", env.forester_epoch.as_ref().unwrap().epoch_pda),
+        ("batch_state_merkle_tree", env.batched_state_merkle_tree),
+        ("batched_output_queue", env.batched_output_queue),
+        ("batch_address_merkle_tree", env.batch_address_merkle_tree),
     ];
 
     let mut rust_file = String::new();
@@ -2255,17 +2257,25 @@ async fn batch_invoke_test() {
     }
     // 12. spend account by zkp  but mark as spent by index
     {
-        let compressed_account_with_context_1 = test_indexer
+        create_output_accounts(
+            &mut context,
+            &payer,
+            &mut test_indexer,
+            output_queue_pubkey,
+            1,
+            true,
+        )
+        .await
+        .unwrap();
+        let accounts = test_indexer
             .compressed_accounts
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
                     && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
             })
-            .last()
-            .unwrap()
-            .clone();
-
+            .collect::<Vec<_>>();
+        let compressed_account_with_context_1 = accounts[1].clone();
         // overwrite both output queue batches -> all prior values only exist in the Merkle tree not in the output queue
         for _ in 0..2 {
             create_compressed_accounts_in_batch_merkle_tree(
@@ -2297,7 +2307,7 @@ async fn batch_invoke_test() {
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
-            &input_compressed_accounts,
+            &[compressed_account_with_context_1.compressed_account],
             &output_compressed_accounts,
             &[merkle_context],
             &[merkle_context.nullifier_queue_pubkey],
@@ -2554,7 +2564,6 @@ pub async fn create_output_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_compressed_accounts.as_slice(),
-        false,
     );
     Ok(signature)
 }

@@ -26,16 +26,23 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) Inclu
 	}
 
 	var inputs = make([]InclusionInputs, numberOfCompressedAccounts)
+	var leaves = make([]*big.Int, numberOfCompressedAccounts)
+	var roots = make([]*big.Int, numberOfCompressedAccounts)
 
 	for i := 0; i < numberOfCompressedAccounts; i++ {
 		inputs[i].Leaf = *leaf
 		inputs[i].PathIndex = uint32(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
 		inputs[i].Root = tree.Root.Value()
+		leaves[i] = leaf
+		roots[i] = &inputs[i].Root
 	}
 
+	publicInputHash := calculateTwoInputsHashChain(roots, leaves)
+
 	return InclusionParameters{
-		Inputs: inputs,
+		PublicInputHash: *publicInputHash,
+		Inputs:          inputs,
 	}
 }
 
@@ -47,6 +54,8 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 	tree := merkletree.NewTree(depth)
 
 	var inputs = make([]NonInclusionInputs, numberOfCompressedAccounts)
+	var values = make([]*big.Int, numberOfCompressedAccounts)
+	var roots = make([]*big.Int, numberOfCompressedAccounts)
 
 	for i := 0; i < numberOfCompressedAccounts; i++ {
 		var value = big.NewInt(0)
@@ -93,10 +102,15 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		inputs[i].LeafLowerRangeValue = *leafLower
 		inputs[i].LeafHigherRangeValue = *leafUpper
 		inputs[i].NextIndex = uint32(nextIndex)
+		values[i] = value
+		roots[i] = &inputs[i].Root
 	}
 
+	publicInputHash := calculateTwoInputsHashChain(roots, values)
+
 	return NonInclusionParameters{
-		Inputs: inputs,
+		PublicInputHash: *publicInputHash,
+		Inputs:          inputs,
 	}
 }
 
@@ -168,6 +182,21 @@ func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 	for i := 1; i < length; i++ {
 
 		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashes[i]})
+	}
+	return hashChain
+}
+func calculateTwoInputsHashChain(hashesFirst []*big.Int, hashesSecond []*big.Int) *big.Int {
+	if len(hashesFirst) == 0 {
+		return big.NewInt(0)
+	}
+	hashChain, _ := poseidon.Hash([]*big.Int{hashesFirst[0], hashesSecond[0]})
+
+	if len(hashesFirst) == 1 {
+		return hashChain
+	}
+
+	for i := 1; i < len(hashesFirst); i++ {
+		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashesFirst[i], hashesSecond[i]})
 	}
 	return hashChain
 }

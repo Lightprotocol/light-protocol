@@ -6,8 +6,12 @@ import (
 )
 
 type CombinedParametersJSON struct {
-	InclusionProofInputs    []InclusionProofInputsJSON    `json:"input-compressed-accounts"`
-	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"new-addresses"`
+	CircuitType             CircuitType                   `json:"circuitType"`
+	StateTreeHeight         uint32                        `json:"stateTreeHeight"`
+	AddressTreeHeight       uint32                        `json:"addressTreeHeight"`
+	PublicInputHash         string                        `json:"publicInputHash"`
+	InclusionProofInputs    []InclusionProofInputsJSON    `json:"inputCompressedAccounts"`
+	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
 func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
@@ -21,8 +25,12 @@ func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
 
 func (p *CombinedParameters) MarshalJSON() ([]byte, error) {
 	combined := CombinedParametersJSON{
-		InclusionProofInputs:    p.InclusionParameters.CreateInclusionParametersJSON().Inputs,
-		NonInclusionProofInputs: p.NonInclusionParameters.CreateNonInclusionParametersJSON().Inputs,
+		CircuitType:             CombinedCircuitType,
+		PublicInputHash:         toHex(&p.PublicInputHash),
+		StateTreeHeight:         uint32(len(p.InclusionParameters.Inputs[0].PathElements)),
+		AddressTreeHeight:       uint32(len(p.NonInclusionParameters.Inputs[0].PathElements)),
+		InclusionProofInputs:    p.InclusionParameters.CreateInclusionParametersJSON().InclusionInputs,
+		NonInclusionProofInputs: p.NonInclusionParameters.CreateNonInclusionParametersJSON().NonInclusionInputs,
 	}
 	return json.Marshal(combined)
 }
@@ -33,8 +41,14 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	var publicInputHash string
+	err1 := json.Unmarshal(rawMessages["publicInputHash"], &publicInputHash)
+	if err1 != nil {
+		return fmt.Errorf("failed to unmarshal publicInputHash: %v", err)
+	}
+	fromHex(&p.PublicInputHash, publicInputHash)
 
-	if _, ok := rawMessages["input-compressed-accounts"]; ok {
+	if _, ok := rawMessages["inputCompressedAccounts"]; ok {
 		var params InclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {
@@ -47,7 +61,7 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	if _, ok := rawMessages["new-addresses"]; ok {
+	if _, ok := rawMessages["newAddresses"]; ok {
 		var params NonInclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {

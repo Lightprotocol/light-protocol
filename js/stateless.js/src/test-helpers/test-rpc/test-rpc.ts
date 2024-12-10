@@ -46,6 +46,7 @@ import {
     MerkleContextWithNewAddressProof,
     convertMerkleProofsWithContextToHex,
     convertNonInclusionMerkleProofInputsToHex,
+    getPublicInputHash,
     proverRequest,
 } from '../../rpc';
 
@@ -683,10 +684,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const inputs = convertMerkleProofsWithContextToHex(
                 merkleProofsWithContext,
             );
+            const publicInputHash = getPublicInputHash(
+                merkleProofsWithContext,
+                hashes,
+                [],
+                this.lightWasm,
+            );
+
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
+                publicInputHash,
                 this.log,
             );
             validityProof = {
@@ -713,11 +722,17 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const inputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            const publicInputHash = getPublicInputHash(
+                [],
+                [],
+                newAddressProofs,
+                this.lightWasm,
+            );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'new-address',
                 inputs,
+                publicInputHash,
                 this.log,
             );
 
@@ -749,11 +764,17 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const newAddressInputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            const publicInputHash = getPublicInputHash(
+                merkleProofsWithContext,
+                hashes,
+                newAddressProofs,
+                this.lightWasm,
+            );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'combined',
                 [inputs, newAddressInputs],
+                publicInputHash,
                 this.log,
             );
 

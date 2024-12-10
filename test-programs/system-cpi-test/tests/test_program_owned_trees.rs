@@ -28,6 +28,7 @@ use light_test_utils::{
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
 use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
+use serial_test::serial;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::Signature;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
@@ -36,6 +37,7 @@ use system_cpi_test::sdk::{
     create_initialize_merkle_tree_instruction,
 };
 
+#[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
@@ -191,6 +193,7 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 /// 10. FAIL: insert into nullifier queue with invalid group
 /// 11. FAIL: create address Merkle tree with invalid group
 /// 12. FAIL: create state Merkle tree with invalid group
+#[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(

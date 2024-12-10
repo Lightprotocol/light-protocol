@@ -1,11 +1,14 @@
 use crate::{
     batch_update::BatchUpdateCircuitInputs,
     gnark::helpers::{big_int_to_string, create_json_from_struct},
+    prove_utils::CircuitType,
 };
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct BatchUpdateProofInputsJson {
+    #[serde(rename = "circuitType")]
+    pub circuit_type: String,
     #[serde(rename(serialize = "publicInputHash"))]
     pub public_input_hash: String,
     #[serde(rename(serialize = "oldRoot"))]
@@ -64,6 +67,7 @@ impl BatchUpdateProofInputsJson {
             .collect::<Vec<String>>();
 
         Self {
+            circuit_type: CircuitType::BatchUpdate.to_string(),
             public_input_hash,
             old_root,
             new_root,

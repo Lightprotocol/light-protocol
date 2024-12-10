@@ -3,15 +3,12 @@
 use account_compression::{
     InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
 };
+use light_program_test::test_env::setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::indexer::TestIndexer;
-use light_test_utils::rpc::ProgramTestRpcConnection;
-use light_test_utils::test_env::{
-    setup_test_programs_with_accounts_with_protocol_config,
-    setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-};
 
 #[tokio::test]
 async fn test_10_all() {
@@ -44,6 +41,7 @@ async fn test_10_all() {
             circuits: vec![
                 ProofType::Inclusion,
                 ProofType::NonInclusion,
+                ProofType::Combined,
                 ProofType::BatchUpdateTest,
                 ProofType::BatchAppendWithProofsTest,
             ],
@@ -83,8 +81,18 @@ async fn test_10000_all() {
         report_work_phase_length: 100,
         ..ProtocolConfig::default()
     };
+    let params = InitStateTreeAccountsInstructionData::e2e_test_default();
+    let address_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
+
     let (rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, true).await;
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            protocol_config,
+            true,
+            params,
+            address_params,
+        )
+        .await;
 
     let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
@@ -94,8 +102,9 @@ async fn test_10000_all() {
             circuits: vec![
                 ProofType::Inclusion,
                 ProofType::NonInclusion,
+                ProofType::Combined,
                 ProofType::BatchUpdateTest,
-                ProofType::BatchUpdateTest,
+                ProofType::BatchAppendWithProofsTest,
             ],
         }),
     )

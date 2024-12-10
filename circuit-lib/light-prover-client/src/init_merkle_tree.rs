@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub static MT_PROOF_INPUTS_26: Lazy<Mutex<InclusionMerkleProofInputs>> =
-    Lazy::new(|| Mutex::new(inclusion_merkle_tree_inputs_26()));
+    Lazy::new(|| Mutex::new(internal_inclusion_merkle_tree_inputs(26)));
 
 pub fn inclusion_merkle_tree_inputs(mt_height: MerkleTreeInfo) -> InclusionMerkleProofInputs {
     match mt_height {
@@ -24,15 +24,14 @@ pub fn inclusion_merkle_tree_inputs(mt_height: MerkleTreeInfo) -> InclusionMerkl
     }
 }
 
-fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
-    const HEIGHT: usize = 26;
+fn internal_inclusion_merkle_tree_inputs(height: usize) -> InclusionMerkleProofInputs {
     const CANOPY: usize = 0;
 
     info!("initializing merkle tree");
     // SAFETY: Calling `unwrap()` when the Merkle tree parameters are corect
     // should not cause panic. Returning an error would not be compatible with
     // usafe of `once_cell::sync::Lazy` as a static variable.
-    let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(height, CANOPY);
     info!("merkle tree initialized");
 
     info!("updating merkle tree");
@@ -66,59 +65,36 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     }
 }
 
-pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
-    const HEIGHT: usize = 26;
+pub fn non_inclusion_merkle_tree_inputs(height: usize) -> NonInclusionMerkleProofInputs {
     const CANOPY: usize = 0;
-    let mut indexed_tree = IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
+    let mut indexed_tree = IndexedMerkleTree::<Poseidon, usize>::new(height, CANOPY).unwrap();
     let mut indexing_array = IndexedArray::<Poseidon, usize>::default();
+    indexed_tree.init().unwrap();
+    indexing_array.init().unwrap();
 
-    let bundle1 = indexing_array.append(&1_u32.to_biguint().unwrap()).unwrap();
-    indexed_tree
-        .update(
-            &bundle1.new_low_element,
-            &bundle1.new_element,
-            &bundle1.new_element_next_value,
-        )
+    let value = 1_u32.to_biguint().unwrap();
+
+    let non_inclusion_proof = indexed_tree
+        .get_non_inclusion_proof(&value, &indexing_array)
         .unwrap();
-
-    let bundle3 = indexing_array.append(&3_u32.to_biguint().unwrap()).unwrap();
-    indexed_tree
-        .update(
-            &bundle3.new_low_element,
-            &bundle3.new_element,
-            &bundle3.new_element_next_value,
-        )
-        .unwrap();
-
-    let new_low_element = bundle3.new_low_element;
-    let new_element = bundle3.new_element;
-    let _new_element_next_value = bundle3.new_element_next_value;
-    let root = indexed_tree.merkle_tree.roots.last().unwrap();
-    let mut non_included_value = [0u8; 32];
-    non_included_value[31] = 2;
-
-    let leaf_lower_range_value = new_low_element.value.to_bytes_be();
-    let next_index = new_element.next_index;
-    let leaf_higher_range_value = new_element.value.to_bytes_be();
-    let merkle_proof_hashed_indexed_element_leaf = indexed_tree
-        .get_proof_of_leaf(new_low_element.index, true)
-        .ok()
-        .map(|bounded_vec| {
-            bounded_vec
-                .iter()
-                .map(|item| BigInt::from_bytes_be(Sign::Plus, item))
-                .collect()
-        })
-        .unwrap();
-    let index_hashed_indexed_element_leaf = new_low_element.index;
 
     NonInclusionMerkleProofInputs {
-        root: BigInt::from_bytes_be(Sign::Plus, root),
-        value: BigInt::from_bytes_be(Sign::Plus, &non_included_value),
-        leaf_lower_range_value: BigInt::from_bytes_be(Sign::Plus, &leaf_lower_range_value),
-        leaf_higher_range_value: BigInt::from_bytes_be(Sign::Plus, &leaf_higher_range_value),
-        next_index: BigInt::from(next_index),
-        merkle_proof_hashed_indexed_element_leaf,
-        index_hashed_indexed_element_leaf: BigInt::from(index_hashed_indexed_element_leaf),
+        root: BigInt::from_bytes_be(Sign::Plus, non_inclusion_proof.root.as_slice()),
+        value: BigInt::from_bytes_be(Sign::Plus, &non_inclusion_proof.value),
+        leaf_lower_range_value: BigInt::from_bytes_be(
+            Sign::Plus,
+            &non_inclusion_proof.leaf_lower_range_value,
+        ),
+        leaf_higher_range_value: BigInt::from_bytes_be(
+            Sign::Plus,
+            &non_inclusion_proof.leaf_higher_range_value,
+        ),
+        next_index: BigInt::from(non_inclusion_proof.next_index),
+        merkle_proof_hashed_indexed_element_leaf: non_inclusion_proof
+            .merkle_proof
+            .iter()
+            .map(|x| BigInt::from_bytes_be(Sign::Plus, x))
+            .collect(),
+        index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
     }
 }

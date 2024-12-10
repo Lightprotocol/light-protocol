@@ -21,6 +21,9 @@ use anchor_lang::error::ErrorCode;
 use anchor_lang::prelude::AccountMeta;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use anchor_spl::token::Mint;
+use light_program_test::test_batch_forester::assert_perform_state_mt_roll_over;
+use light_program_test::test_env::NOOP_PROGRAM_ID;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::mock_batched_forester::{
     self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
@@ -28,21 +31,19 @@ use light_prover_client::mock_batched_forester::{
 use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_test_utils::address::insert_addresses;
 use light_test_utils::spl::create_initialize_mint_instructions;
-use light_test_utils::test_batch_forester::assert_perform_state_mt_roll_over;
-use light_test_utils::test_env::NOOP_PROGRAM_ID;
+use light_test_utils::AccountZeroCopy;
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, RpcConnection, RpcError,
 };
-use light_test_utils::{rpc::ProgramTestRpcConnection, AccountZeroCopy};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::{CompressedProof, VerifierError};
 use num_bigint::ToBigUint;
 use serial_test::serial;
 use solana_program_test::ProgramTest;
-use solana_sdk::account::WritableAccount;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
+    account::WritableAccount,
     instruction::Instruction,
     signature::{Keypair, Signer},
 };
@@ -1487,7 +1488,7 @@ async fn test_batch_address_merkle_trees() {
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
     let mut context = ProgramTestRpcConnection { context };
-    let mut mock_indexer = mock_batched_forester::MockBatchedAddressForester::<26>::default();
+    let mut mock_indexer = mock_batched_forester::MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();
     // set rollover threshold to 0 to test rollover.
@@ -1900,7 +1901,7 @@ pub enum UpdateBatchAddressTreeTestMode {
 /// 6. invalid tree account
 pub async fn update_batch_address_tree(
     context: &mut ProgramTestRpcConnection,
-    mock_indexer: &mut MockBatchedAddressForester<26>,
+    mock_indexer: &mut MockBatchedAddressForester<40>,
     address_merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
     invalid_tree: Option<Pubkey>,

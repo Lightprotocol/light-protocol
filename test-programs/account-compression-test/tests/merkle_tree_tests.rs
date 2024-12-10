@@ -937,7 +937,7 @@ async fn test_append_functional_and_failing(
         &mut context,
         &[queue_keypair.pubkey()],
         vec![(0, [1u8; 32])],
-        ErrorCode::AccountDiscriminatorMismatch.into(),
+        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
     )
     .await
     .unwrap();

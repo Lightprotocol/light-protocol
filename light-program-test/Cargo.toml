@@ -30,3 +30,5 @@ async-trait = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
 reqwest = { workspace = true }
+anchor-lang = { workspace = true }
+light-verifier = { workspace = true }

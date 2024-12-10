@@ -177,6 +177,78 @@ export type LightSystemProgram = {
             ];
         },
         {
+            name: 'invokeCpiWithReadOnly';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'invokingProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'decompressionRecipient';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
             name: 'stubIdlBuild';
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
@@ -635,10 +707,6 @@ export type LightSystemProgram = {
                     },
                     {
                         name: 'queueIndex';
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ];
                         type: {
                             option: {
                                 defined: 'QueueIndex';
@@ -926,6 +994,22 @@ export type LightSystemProgram = {
             code: 6033;
             name: 'DataFieldUndefined';
         },
+        {
+            code: 6034;
+            name: 'ReadOnlyAddressAlreadyExists';
+        },
+        {
+            code: 6035;
+            name: 'ReadOnlyAccountDoesNotExist';
+        },
+        {
+            code: 6036;
+            name: 'HashChainInputsLenghtInconsistent';
+        },
+        {
+            code: 6037;
+            name: 'InvalidAddressTreeHeight';
+        },
     ];
 };
 
@@ -1037,6 +1121,78 @@ export const IDL: LightSystemProgram = {
         },
         {
             name: 'invokeCpi',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'invokingProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'decompressionRecipient',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'invokeCpiWithReadOnly',
             accounts: [
                 {
                     name: 'feePayer',
@@ -1570,10 +1726,6 @@ export const IDL: LightSystemProgram = {
                     },
                     {
                         name: 'queueIndex',
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ],
                         type: {
                             option: {
                                 defined: 'QueueIndex',
@@ -1861,6 +2013,22 @@ export const IDL: LightSystemProgram = {
         {
             code: 6033,
             name: 'DataFieldUndefined',
+        },
+        {
+            code: 6034,
+            name: 'ReadOnlyAddressAlreadyExists',
+        },
+        {
+            code: 6035,
+            name: 'ReadOnlyAccountDoesNotExist',
+        },
+        {
+            code: 6036,
+            name: 'HashChainInputsLenghtInconsistent',
+        },
+        {
+            code: 6037,
+            name: 'InvalidAddressTreeHeight',
         },
     ],
 };

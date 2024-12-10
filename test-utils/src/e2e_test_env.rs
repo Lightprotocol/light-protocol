@@ -72,6 +72,7 @@ use account_compression::batch::BatchState;
 use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
 use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use light_compressed_token::token_data::AccountState;
+use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::create_finalize_registration_instruction;
@@ -105,11 +106,6 @@ use crate::state_tree_rollover::assert_rolled_over_pair;
 use crate::system_program::{
     compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
 };
-use crate::test_batch_forester::{perform_batch_append, perform_batch_nullify};
-use crate::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    EnvAccounts,
-};
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE,
@@ -131,6 +127,8 @@ use forester_utils::{airdrop_lamports, AccountZeroCopy};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_program_test::test_batch_forester::{perform_batch_append, perform_batch_nullify};
+use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
@@ -1402,6 +1400,7 @@ where
             )
             .await
             .unwrap();
+            println!("post decompress_sol_test");
             self.stats.sol_decompress += 1;
         }
     }

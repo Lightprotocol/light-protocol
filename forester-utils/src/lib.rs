@@ -71,12 +71,12 @@ impl<'a, T> AccountZeroCopy<'a, T> {
 ///
 /// Is the caller's responsibility.
 pub async unsafe fn get_hash_set<T, R: RpcConnection>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
-    let mut account = rpc.get_account(pubkey).await.unwrap().unwrap();
+    let mut data = rpc.get_account(pubkey).await.unwrap().unwrap().data.clone();
 
-    HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<T>()..]).unwrap()
+    HashSet::from_bytes_copy(&mut data[8 + mem::size_of::<T>()..]).unwrap()
 }
 
-/// Fetches the fiven account, then copies and serializes it as a
+/// Fetches the given account, then copies and serializes it as a
 /// `ConcurrentMerkleTree`.
 pub async fn get_concurrent_merkle_tree<T, R, H, const HEIGHT: usize>(
     rpc: &mut R,

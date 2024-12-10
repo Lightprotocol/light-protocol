@@ -7,17 +7,19 @@ import (
 )
 
 type BatchUpdateProofInputsJSON struct {
-	PublicInputHash     string     `json:"publicInputHash"`
-	OldRoot             string     `json:"oldRoot"`
-	NewRoot             string     `json:"newRoot"`
-	TxHashes            []string   `json:"txHashes"`
-	LeavesHashchainHash string     `json:"leavesHashchainHash"`
-	Leaves              []string   `json:"leaves"`
-	OldLeaves           []string   `json:"oldLeaves"`
-	MerkleProofs        [][]string `json:"newMerkleProofs"`
-	PathIndices         []uint32   `json:"pathIndices"`
-	Height              uint32     `json:"height"`
-	BatchSize           uint32     `json:"batchSize"`
+	CircuitType         CircuitType `json:"circuitType"`
+	StateTreeHeight     uint32      `json:"stateTreeHeight"`
+	PublicInputHash     string      `json:"publicInputHash"`
+	OldRoot             string      `json:"oldRoot"`
+	NewRoot             string      `json:"newRoot"`
+	TxHashes            []string    `json:"txHashes"`
+	LeavesHashchainHash string      `json:"leavesHashchainHash"`
+	Leaves              []string    `json:"leaves"`
+	OldLeaves           []string    `json:"oldLeaves"`
+	MerkleProofs        [][]string  `json:"newMerkleProofs"`
+	PathIndices         []uint32    `json:"pathIndices"`
+	Height              uint32      `json:"height"`
+	BatchSize           uint32      `json:"batchSize"`
 }
 
 func ParseBatchUpdateInput(inputJSON string) (BatchUpdateParameters, error) {
@@ -36,6 +38,8 @@ func (p *BatchUpdateParameters) MarshalJSON() ([]byte, error) {
 
 func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdateProofInputsJSON {
 	paramsJson := BatchUpdateProofInputsJSON{}
+	paramsJson.CircuitType = BatchUpdateCircuitType
+	paramsJson.StateTreeHeight = uint32(len(p.MerkleProofs[0]))
 	paramsJson.PublicInputHash = toHex(p.PublicInputHash)
 	paramsJson.OldRoot = toHex(p.OldRoot)
 	paramsJson.NewRoot = toHex(p.NewRoot)

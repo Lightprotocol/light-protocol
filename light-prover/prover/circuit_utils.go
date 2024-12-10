@@ -20,6 +20,7 @@ type ProvingSystemV1 struct {
 	InclusionNumberOfCompressedAccounts    uint32
 	NonInclusionTreeHeight                 uint32
 	NonInclusionNumberOfCompressedAccounts uint32
+	Version                                uint32
 	ProvingKey                             groth16.ProvingKey
 	VerifyingKey                           groth16.VerifyingKey
 	ConstraintSystem                       constraint.ConstraintSystem

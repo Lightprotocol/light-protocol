@@ -21,7 +21,7 @@ default = ["custom-heap"]
 
 [dependencies]
 anchor-lang = { workspace = true }
-light-system-program = { workspace = true }
-account-compression = { workspace = true  }
-light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0" }
+light-system-program = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true  , features = ["cpi"]}
+light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0", features = ["solana"] }
 light-utils = { path = "../../utils", version = "1.1.0" }

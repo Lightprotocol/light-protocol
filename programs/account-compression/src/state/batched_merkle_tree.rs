@@ -5,7 +5,7 @@ use crate::{
     errors::AccountCompressionErrorCode,
     utils::{
         check_signer_is_registered_or_authority::GroupAccess,
-        constants::{ADDRESS_TREE_INIT_ROOT_26, TEST_DEFAULT_BATCH_SIZE},
+        constants::{ADDRESS_TREE_INIT_ROOT_40, TEST_DEFAULT_BATCH_SIZE},
     },
     InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
 };
@@ -400,7 +400,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
             } else if tree_type == TreeType::BatchedAddress {
                 // Initialized indexed Merkle tree root
-                root_history.push(ADDRESS_TREE_INIT_ROOT_26);
+                root_history.push(ADDRESS_TREE_INIT_ROOT_40);
                 (*account).next_index = 2;
             }
             let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
@@ -785,6 +785,9 @@ pub fn create_hash_chain_from_vec(inputs: Vec<[u8; 32]>) -> Result<[u8; 32]> {
 }
 
 pub fn create_hash_chain_from_slice(inputs: &[[u8; 32]]) -> Result<[u8; 32]> {
+    if inputs.is_empty() {
+        return Ok([0u8; 32]);
+    }
     let mut hash_chain = inputs[0];
     for input in inputs.iter().skip(1) {
         hash_chain = Poseidon::hashv(&[&hash_chain, input]).map_err(ProgramError::from)?;
@@ -1724,6 +1727,7 @@ mod tests {
                     instruction_data,
                     mt_pubkey.to_bytes(),
                 );
+                println!("output_res: {:?}", output_res);
                 assert!(output_res.is_ok());
                 let batch_append_event = output_res.unwrap();
 
@@ -2170,7 +2174,7 @@ mod tests {
 
     pub async fn perform_address_update(
         mt_account_data: &mut [u8],
-        mock_indexer: &mut MockBatchedAddressForester<26>,
+        mock_indexer: &mut MockBatchedAddressForester<40>,
         enable_assert: bool,
         mt_pubkey: Pubkey,
     ) {
@@ -2861,7 +2865,7 @@ mod tests {
         let roothistory_capacity = vec![17, 80]; //
         for root_history_capacity in roothistory_capacity {
             let mut mock_indexer =
-                mock_batched_forester::MockBatchedAddressForester::<26>::default();
+                mock_batched_forester::MockBatchedAddressForester::<40>::default();
 
             let mut params = crate::InitAddressTreeAccountsInstructionData::test_default();
             // Root history capacity which is greater than the input updates

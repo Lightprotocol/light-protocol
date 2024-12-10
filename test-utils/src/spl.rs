@@ -821,7 +821,9 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
         )
         .await?
         .unwrap();
-    test_indexer.add_event_and_compressed_accounts(&event);
+    // TODO: replace with get_transaction_slot() this only works with Program test
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_event_and_compressed_accounts(slot, &event);
     let created_compressed_token_account =
         test_indexer.get_compressed_token_accounts_by_owner(&token_owner.pubkey())[0].clone();
     let expected_token_data = TokenData {

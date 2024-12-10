@@ -11,8 +11,9 @@ use light_system_program::{
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
+use crate::indexer::TestIndexer;
 use crate::Indexer;
-use crate::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::test_env::EnvAccounts;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {

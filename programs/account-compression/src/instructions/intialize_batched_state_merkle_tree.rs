@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, Discriminator};
+use bytemuck::Pod;
 use light_hasher::Hasher;
 use light_utils::fee::compute_rollover_fee;
 
@@ -19,7 +20,7 @@ use crate::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
         constants::{
-            ADDRESS_TREE_INIT_ROOT_26, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
             DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
         },
     },
@@ -211,31 +212,35 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     Ok(())
 }
 
-pub fn bytes_to_struct_checked<T: Clone + Copy + Discriminator, const INIT: bool>(
+pub const DISCRIMINATOR_LEN: usize = 8;
+
+pub fn bytes_to_struct_checked<T: Clone + Copy + Pod + Discriminator, const INIT: bool>(
     bytes: &mut [u8],
 ) -> Result<*mut T> {
-    if bytes.len() < std::mem::size_of::<T>() {
+    // Base address for alignment check of T.
+    let base_address = bytes.as_ptr() as usize + DISCRIMINATOR_LEN;
+    if bytes.len() < std::mem::size_of::<T>() || base_address % std::mem::align_of::<T>() != 0 {
         return err!(AccountCompressionErrorCode::InvalidAccountSize);
     }
 
     if INIT {
-        if bytes[0..8] != [0; 8] {
+        if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
             #[cfg(target_os = "solana")]
             msg!("Discriminator bytes must be zero for initialization.");
             return err!(AccountCompressionErrorCode::InvalidDiscriminator);
         }
-        bytes[0..8].copy_from_slice(&T::DISCRIMINATOR);
-    } else if T::DISCRIMINATOR != bytes[0..8] {
+        bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
+    } else if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
         #[cfg(target_os = "solana")]
         msg!(
             "Expected discriminator: {:?}, actual {:?} ",
             T::DISCRIMINATOR,
-            bytes[0..8].to_vec()
+            bytes[0..DISCRIMINATOR_LEN].to_vec()
         );
         return err!(AccountCompressionErrorCode::InvalidDiscriminator);
     }
 
-    Ok(bytes[8..].as_mut_ptr() as *mut T)
+    Ok(bytes[DISCRIMINATOR_LEN..].as_mut_ptr() as *mut T)
 }
 
 pub fn init_batched_state_merkle_tree_accounts(
@@ -427,7 +432,7 @@ fn _assert_mt_zero_copy_inited(
     if tree_type == TreeType::BatchedAddress as u64 {
         assert_eq!(
             *zero_copy_account.root_history.get(0).unwrap(),
-            ADDRESS_TREE_INIT_ROOT_26,
+            ADDRESS_TREE_INIT_ROOT_40,
             "root_history not initialized"
         );
     }
@@ -510,6 +515,7 @@ pub fn get_output_queue_account_default(
 #[cfg(test)]
 pub mod tests {
 
+    use bytemuck::Zeroable;
     use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
     use rand::{rngs::StdRng, Rng};
 
@@ -822,7 +828,8 @@ pub mod tests {
     #[test]
     fn test_bytes_to_struct() {
         #[account]
-        #[derive(Debug, PartialEq, Copy)]
+        #[repr(C)]
+        #[derive(Debug, PartialEq, Copy, Pod, Zeroable)]
         pub struct MyStruct {
             pub data: u64,
         }

@@ -126,25 +126,27 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var circuitType prover.CircuitType
 	var proof *prover.Proof
 	var proofError *Error
 
-	circuitType, err = prover.ParseCircuitType(buf)
+	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
 	if err != nil {
 		logging.Logger().Info().Msg("error parsing circuit type")
 		logging.Logger().Info().Msg(err.Error())
 		malformedBodyError(err).send(w)
 		return
 	}
+	logging.Logger().Info().Msgf("proofRequestMeta %+v", proofRequestMeta)
 
-	switch circuitType {
+	switch proofRequestMeta.CircuitType {
 	case prover.InclusionCircuitType:
-		proof, proofError = handler.inclusionProof(buf)
+		{
+			proof, proofError = handler.inclusionProof(buf, proofRequestMeta)
+		}
 	case prover.NonInclusionCircuitType:
-		proof, proofError = handler.nonInclusionProof(buf)
+		proof, proofError = handler.nonInclusionProof(buf, proofRequestMeta)
 	case prover.CombinedCircuitType:
-		proof, proofError = handler.combinedProof(buf)
+		proof, proofError = handler.combinedProof(buf, proofRequestMeta)
 	case prover.BatchAppendWithSubtreesCircuitType:
 		proof, proofError = handler.batchAppendWithSubtreesHandler(buf)
 	case prover.BatchUpdateCircuitType:
@@ -307,104 +309,173 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 	return proof, nil
 }
 
-func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
-	var proof *prover.Proof
-	var params prover.InclusionParameters
-
-	var err = json.Unmarshal(buf, &params)
-	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
-		return nil, malformedBodyError(err)
-
-	}
-
-	var numberOfCompressedAccounts = uint32(len(params.Inputs))
+func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
 
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
+		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumInputs) && provingSystem.InclusionTreeHeight == uint32(proofRequestMeta.StateTreeHeight) && provingSystem.Version == uint32(proofRequestMeta.Version) && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
 			break
 		}
 	}
 
 	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 
-	proof, err = ps.ProveInclusion(&params)
-	if err != nil {
-		logging.Logger().Err(err)
-		return nil, provingError(err)
+	if proofRequestMeta.Version == 0 {
+		var proof *prover.Proof
+		var params prover.LegacyInclusionParameters
+
+		var err = json.Unmarshal(buf, &params)
+
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+		}
+		proof, err = ps.LegacyProveInclusion(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else if proofRequestMeta.Version == 1 {
+		var proof *prover.Proof
+		var params prover.InclusionParameters
+
+		var err = json.Unmarshal(buf, &params)
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+		}
+		proof, err = ps.ProveInclusion(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else {
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
-	return proof, nil
 }
 
-func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error) {
-	var proof *prover.Proof
-	var params prover.NonInclusionParameters
+func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
 
-	var err = json.Unmarshal(buf, &params)
-	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
-		return nil, malformedBodyError(err)
-	}
-
-	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.NonInclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
+		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumAddresses) && provingSystem.NonInclusionTreeHeight == uint32(proofRequestMeta.AddressTreeHeight) && provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
 			break
 		}
 	}
 
 	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 
-	proof, err = ps.ProveNonInclusion(&params)
-	if err != nil {
-		logging.Logger().Err(err)
-		return nil, provingError(err)
+	if proofRequestMeta.AddressTreeHeight == 26 {
+		var proof *prover.Proof
+		var params prover.LegacyNonInclusionParameters
+
+		var err = json.Unmarshal(buf, &params)
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+		}
+		proof, err = ps.LegacyProveNonInclusion(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else if proofRequestMeta.AddressTreeHeight == 40 {
+		var proof *prover.Proof
+		var params prover.NonInclusionParameters
+
+		var err = json.Unmarshal(buf, &params)
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+		}
+		proof, err = ps.ProveNonInclusion(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else {
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
-	return proof, nil
 }
 
-func (handler proveHandler) combinedProof(buf []byte) (*prover.Proof, *Error) {
-	var proof *prover.Proof
-	var params prover.CombinedParameters
-
-	var err = json.Unmarshal(buf, &params)
-	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
-		return nil, malformedBodyError(err)
-
-	}
-
-	var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
-	var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
+func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
+	var rawInput map[string]interface{}
+	json.Unmarshal(buf, &rawInput)
 
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == inclusionNumberOfCompressedAccounts && provingSystem.NonInclusionNumberOfCompressedAccounts == nonInclusionNumberOfCompressedAccounts {
+		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
 			ps = provingSystem
 			break
 		}
 	}
 
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
+	if proofRequestMeta.AddressTreeHeight == 26 {
+		var proof *prover.Proof
+		var params prover.LegacyCombinedParameters
+
+		var err = json.Unmarshal(buf, &params)
+
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+
+		}
+
+		var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
+		var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
+
+		if ps == nil {
+			return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
+		}
+		proof, err = ps.LegacyProveCombined(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else if proofRequestMeta.AddressTreeHeight == 40 {
+		var proof *prover.Proof
+		var params prover.CombinedParameters
+
+		var err = json.Unmarshal(buf, &params)
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			return nil, malformedBodyError(err)
+
+		}
+
+		var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
+		var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
+
+		if ps == nil {
+			return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
+		}
+		proof, err = ps.ProveCombined(&params)
+		if err != nil {
+			logging.Logger().Err(err)
+			return nil, provingError(err)
+		}
+		return proof, nil
+	} else {
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
-	proof, err = ps.ProveCombined(&params)
-	if err != nil {
-		logging.Logger().Err(err)
-		return nil, provingError(err)
-	}
-	return proof, nil
 }
 
 func (handler healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
