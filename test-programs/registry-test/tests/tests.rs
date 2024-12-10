@@ -18,8 +18,8 @@ use light_program_test::test_env::{
     setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
     EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
     create_batch_update_address_tree_instruction, create_nullify_instruction,

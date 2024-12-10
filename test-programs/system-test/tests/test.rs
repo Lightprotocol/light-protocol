@@ -32,9 +32,8 @@ use light_system_program::{
     InstructionDataInvoke, NewAddressParams,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
-    TransactionParams,
-    test_batch_forester::perform_batch_append
+    airdrop_lamports, assert_rpc_error, test_batch_forester::perform_batch_append, FeeConfig,
+    Indexer, RpcConnection, RpcError, TransactionParams,
 };
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,

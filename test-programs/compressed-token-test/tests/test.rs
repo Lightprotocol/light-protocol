@@ -49,8 +49,8 @@ use light_test_utils::{
 use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
 use light_verifier::VerifierError;
 use rand::Rng;
-use solana_sdk::system_instruction;
 use serial_test::serial;
+use solana_sdk::system_instruction;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
