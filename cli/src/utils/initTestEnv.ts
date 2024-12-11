@@ -65,6 +65,8 @@ export async function initTestEnv({
   limitLedgerSize,
   proverRunMode,
   circuits,
+  geyserConfig,
+  validatorArgs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -86,6 +88,8 @@ export async function initTestEnv({
     | "full"
     | "full-test";
   circuits?: string[];
+  validatorArgs?: string;
+  geyserConfig?: string;
 }) {
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
@@ -94,6 +98,8 @@ export async function initTestEnv({
     limitLedgerSize,
     rpcPort,
     gossipHost,
+    validatorArgs,
+    geyserConfig,
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
@@ -123,11 +129,15 @@ export async function initTestEnvIfNeeded({
   skipSystemAccounts,
   indexer = false,
   prover = false,
+  geyserConfig,
+  validatorArgs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   indexer?: boolean;
   prover?: boolean;
+  geyserConfig?: string;
+  validatorArgs?: string;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -141,6 +151,8 @@ export async function initTestEnvIfNeeded({
       skipSystemAccounts,
       indexer,
       prover,
+      geyserConfig,
+      validatorArgs,
     });
   }
 }
@@ -273,12 +285,16 @@ export async function startTestValidator({
   limitLedgerSize,
   rpcPort,
   gossipHost,
+  validatorArgs,
+  geyserConfig,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   limitLedgerSize?: number;
   rpcPort?: number;
   gossipHost?: string;
+  validatorArgs?: string;
+  geyserConfig?: string;
 }) {
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
@@ -293,6 +309,15 @@ export async function startTestValidator({
 
   await new Promise((r) => setTimeout(r, 1000));
 
+  // Add geyser config if provided
+  if (geyserConfig) {
+    solanaArgs.push("--geyser-plugin-config", geyserConfig);
+  }
+
+  // Add custom validator args last
+  if (validatorArgs) {
+    solanaArgs.push(...validatorArgs.split(" "));
+  }
   console.log("Starting test validator...");
   await executeCommand({
     command,

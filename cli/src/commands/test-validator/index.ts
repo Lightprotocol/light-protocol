@@ -1,9 +1,19 @@
 import { Command, Flags } from "@oclif/core";
 import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
 import { CustomLoader } from "../../utils/index";
+import path from "path";
+import fs from "fs";
 
 class SetupCommand extends Command {
-  static description = "Perform setup tasks";
+  static description =
+    "Start a local test setup with: Solana test validator, Photon indexer, and Light prover";
+
+  static examples = [
+    "$ light test-validator",
+    "$ light test-validator --skip-indexer",
+    "$ light test-validator --geyser-config ./config.json",
+    '$ light test-validator --validator-args "--limit-ledger-size 50000000"',
+  ];
 
   protected finally(_: Error | undefined): Promise<any> {
     process.exit();
@@ -99,6 +109,16 @@ class SetupCommand extends Command {
       required: false,
       default: false,
     }),
+    "geyser-config": Flags.string({
+      description: "Path to Geyser plugin config.",
+      required: false,
+    }),
+    "validator-args": Flags.string({
+      description:
+        "Additional arguments to pass directly to solana-test-validator. Only use if you know what you are doing.",
+      required: false,
+      exclusive: ["geyser-config"],
+    }),
   };
 
   async run() {
@@ -106,6 +126,12 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
 
+    if (flags["geyser-config"]) {
+      const configPath = path.resolve(flags["geyser-config"]);
+      if (!fs.existsSync(configPath)) {
+        this.error(`Geyser config file not found: ${configPath}`);
+      }
+    }
     if (flags["stop"] === true) {
       await stopTestEnv({
         indexer: !flags["skip-indexer"],
@@ -134,6 +160,8 @@ class SetupCommand extends Command {
           | "full-test"
           | undefined,
         circuits: flags["circuit"],
+        geyserConfig: flags["geyser-config"],
+        validatorArgs: flags["validator-args"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }
