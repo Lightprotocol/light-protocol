@@ -2981,8 +2981,8 @@ async fn test_failing_freeze() {
                 .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
                 .create_proof_for_compressed_accounts(
-                    Some(&input_compressed_account_hashes),
-                    Some(&input_merkle_tree_pubkeys),
+                    Some(input_compressed_account_hashes),
+                    Some(input_merkle_tree_pubkeys),
                     None,
                     None,
                     &mut rpc,
@@ -3261,8 +3261,8 @@ async fn test_failing_thaw() {
                 .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
                 .create_proof_for_compressed_accounts(
-                    Some(&input_compressed_account_hashes),
-                    Some(&input_merkle_tree_pubkeys),
+                    Some(input_compressed_account_hashes),
+                    Some(input_merkle_tree_pubkeys),
                     None,
                     None,
                     &mut rpc,

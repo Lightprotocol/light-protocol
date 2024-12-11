@@ -53,11 +53,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
         unimplemented!()
     }
+
     async fn get_multiple_new_address_proofs_full(
         &self,
         _merkle_tree_pubkey: [u8; 32],
         _addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<26>>, IndexerError> {
+    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
         unimplemented!()
     }
     async fn get_multiple_compressed_account_proofs(

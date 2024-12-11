@@ -1,9 +1,10 @@
 use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::Parser;
-use light_hasher::{zero_bytes::MAX_HEIGHT, Hasher, Keccak, Poseidon, Sha256};
+use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_utils::rustfmt;
 use quote::quote;
+const MAX_HEIGHT: usize = 40;
 
 use crate::Hash;
 

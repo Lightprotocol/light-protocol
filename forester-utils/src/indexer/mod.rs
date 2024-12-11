@@ -111,7 +111,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<26>>, IndexerError>>
+    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<40>>, IndexerError>>
            + Send
            + Sync;
 

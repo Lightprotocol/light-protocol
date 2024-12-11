@@ -209,7 +209,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<26>>, IndexerError> {
+    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
         self._get_multiple_new_address_proofs(merkle_tree_pubkey, addresses, true)
             .await
     }

@@ -7,6 +7,7 @@ use account_compression::{
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
+use light_program_test::test_batch_forester::perform_batch_append;
 use light_program_test::test_env::{
     initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
     EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
@@ -32,8 +33,8 @@ use light_system_program::{
     InstructionDataInvoke, NewAddressParams,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, test_batch_forester::perform_batch_append, FeeConfig,
-    Indexer, RpcConnection, RpcError, TransactionParams,
+    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
+    TransactionParams,
 };
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,

@@ -267,9 +267,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         println!("start index {:?}", start_index);
         println!("batch start index {:?}", batch_start_index);
         let new_element_values = self.queue_leaves[..batch_size as usize].to_vec();
-        // for _ in 0..batch_size {
-        //     self.queue_leaves.remove(0);
-        // }
+
         assert_eq!(
             self.merkle_tree.merkle_tree.rightmost_index,
             batch_start_index
@@ -278,7 +276,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             batch_start_index >= 2,
             "start index should be greater than 2 else tree is not inited"
         );
-        // let current_root = self.merkle_tree.root();
+
         println!("new element values {:?}", new_element_values);
         let mut low_element_values = Vec::new();
         let mut low_element_indices = Vec::new();
@@ -303,9 +301,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
 
             low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
         }
-        // // local_leaves_hashchain is only used for a test assertion.
-        // let local_nullifier_hashchain = calculate_hash_chain(&new_element_values);
-        // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
+
         let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
             start_index,
             current_root,
@@ -329,8 +325,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
         let inputs = to_json(&inputs);
 
-        // let new_root = self.merkle_tree.root();
-
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -338,8 +332,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             .send()
             .await
             .expect("Failed to execute request.");
-
-        // assert_eq!(circuit_inputs_new_root, new_root);
 
         if response_result.status().is_success() {
             let body = response_result.text().await.unwrap();

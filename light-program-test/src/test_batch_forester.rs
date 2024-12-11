@@ -1,3 +1,4 @@
+use crate::constants::{BATCH_ADDRESS_MERKLE_TREE_HEIGHT, BATCH_STATE_MERKLE_TREE_HEIGHT};
 use account_compression::{
     assert_address_mt_zero_copy_inited, assert_state_mt_roll_over,
     assert_state_mt_zero_copy_inited,
@@ -53,6 +54,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
+
 pub async fn perform_batch_append<Rpc: RpcConnection>(
     rpc: &mut Rpc,
     bundle: &mut StateMerkleTreeBundle,
@@ -167,7 +169,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                 bundle.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let circuit_inputs = get_batch_append_with_proofs_inputs::<26>(
+        let circuit_inputs = get_batch_append_with_proofs_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
             old_root,
             merkle_tree_next_index as u32,
             batch_update_leaves,
@@ -326,7 +328,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     // local_leaves_hashchain is only used for a test assertion.
     let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
     assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-    let inputs = get_batch_update_inputs::<26>(
+    let inputs = get_batch_update_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
@@ -901,7 +903,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
 
-    let inputs = get_batch_address_append_circuit_inputs::<26>(
+    let inputs = get_batch_address_append_circuit_inputs::<BATCH_ADDRESS_MERKLE_TREE_HEIGHT>(
         start_index,
         current_root,
         low_element_values,

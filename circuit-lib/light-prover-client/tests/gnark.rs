@@ -468,7 +468,7 @@ async fn prove_batch_address_append() {
     )
     .await;
 
-    const TREE_HEIGHT: usize = 26;
+    const TREE_HEIGHT: usize = 40;
 
     // Initialize test data
     let new_element_values = vec![31_u32.to_biguint().unwrap()];

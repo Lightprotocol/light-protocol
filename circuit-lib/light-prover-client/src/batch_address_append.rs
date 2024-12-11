@@ -166,7 +166,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element_raw,
             proof: low_element_proof.as_slice()[..HEIGHT].try_into().unwrap(),
-            changelog_index: indexed_changelog.len(), //changelog.len(), //change_log_index,
+            changelog_index: indexed_changelog.len(), //change_log_index,
         };
 
         indexed_changelog.push(low_element_changelog_entry);
@@ -226,13 +226,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             indexed_merkle_tree
                 .append(&new_element.value, &mut indexed_array)
                 .unwrap();
-            println!(
-                "indexed_changelog {:?}",
-                indexed_changelog
-                    .iter()
-                    .map(|x| x.element)
-                    .collect::<Vec<_>>()
-            );
         }
     }
 
