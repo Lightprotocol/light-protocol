@@ -121,8 +121,19 @@ async fn invoke_failing_test() {
     .await
     .unwrap();
 
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+                ProofType::Combined,
+            ],
+        }),
+    )
+    .await;
     // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 

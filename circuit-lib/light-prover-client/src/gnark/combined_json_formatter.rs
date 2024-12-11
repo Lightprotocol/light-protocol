@@ -5,12 +5,17 @@ use crate::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
 use crate::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
 
 use super::{
-    helpers::create_json_from_struct, inclusion_json_formatter::InclusionJsonStruct,
+    helpers::{big_int_to_string, create_json_from_struct},
+    inclusion_json_formatter::InclusionJsonStruct,
     non_inclusion_json_formatter::NonInclusionJsonStruct,
 };
 
 #[derive(Serialize, Debug)]
 pub struct CombinedJsonStruct {
+    #[serde(rename = "circuitType")]
+    pub circuit_type: String,
+    #[serde(rename = "publicInputHash")]
+    pub public_input_hash: String,
     #[serde(rename(serialize = "input-compressed-accounts"))]
     pub inclusion: Vec<InclusionJsonStruct>,
 
@@ -25,7 +30,10 @@ impl CombinedJsonStruct {
         let non_inclusion_parameters = BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
             &inputs.non_inclusion_parameters,
         );
+
         Self {
+            circuit_type: "combined".to_string(),
+            public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,
         }

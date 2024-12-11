@@ -8,19 +8,24 @@ import (
 )
 
 type InclusionCircuit struct {
-	// public inputs
-	Roots  []frontend.Variable `gnark:",public"`
-	Leaves []frontend.Variable `gnark:",public"`
+	PublicInputHash frontend.Variable `gnark:",public"`
+
+	// hashed public inputs
+	Roots  []frontend.Variable `gnark:",input"`
+	Leaves []frontend.Variable `gnark:",input"`
 
 	// private inputs
-	InPathIndices  []frontend.Variable   `gnark:"input"`
-	InPathElements [][]frontend.Variable `gnark:"input"`
+	InPathIndices  []frontend.Variable   `gnark:",input"`
+	InPathElements [][]frontend.Variable `gnark:",input"`
 
 	NumberOfCompressedAccounts uint32
 	Height                     uint32
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
+	publicInputsHashChain := createTwoInputsHashChain(api, circuit.Roots, circuit.Leaves)
+	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
+
 	abstractor.CallVoid(api, InclusionProof{
 		Roots:          circuit.Roots,
 		Leaves:         circuit.Leaves,

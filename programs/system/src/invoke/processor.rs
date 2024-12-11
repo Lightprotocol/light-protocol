@@ -93,12 +93,14 @@ pub fn process<
         return err!(SystemProgramError::SolPoolPdaDefined);
     }
     bench_sbf_end!("cpda_process_compression");
+    let read_only_accounts = read_only_accounts.unwrap_or_default();
 
     // Allocate heap memory here so that we can free memory after function invocations.
-    let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
+    let num_input_compressed_accounts =
+        inputs.input_compressed_accounts_with_merkle_context.len() + read_only_accounts.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-    let mut input_compressed_account_hashes = vec![[0u8; 32]; num_input_compressed_accounts];
+    let mut input_compressed_account_hashes = Vec::with_capacity(num_input_compressed_accounts);
 
     let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
         vec![None; num_input_compressed_accounts + num_new_addresses];
@@ -250,8 +252,8 @@ pub fn process<
     // 3. new addresses
     // 4. read only addresses
     if num_prove_by_index_input_accounts < num_input_compressed_accounts
-        || new_address_roots.capacity() != 0
-        || read_only_accounts.as_ref().map_or(false, |x| !x.is_empty())
+        || !new_addresses.is_empty()
+        || !read_only_accounts.is_empty()
     {
         bench_sbf_start!("cpda_verify_state_proof");
         if let Some(proof) = inputs.proof.as_ref() {
@@ -269,16 +271,15 @@ pub fn process<
                 &ctx,
                 &mut input_compressed_account_roots,
             )?;
-            let read_only_accounts = read_only_accounts.unwrap_or_default();
-            let mut read_only_accounts_roots = Vec::with_capacity(read_only_accounts.len());
-            fetch_input_compressed_account_roots(
-                &read_only_accounts,
-                &ctx,
-                &mut read_only_accounts_roots,
-            )?;
-            verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
-
-            fetch_roots_address_merkle_tree(
+            if !read_only_accounts.is_empty() {
+                fetch_input_compressed_account_roots(
+                    &read_only_accounts,
+                    &ctx,
+                    &mut input_compressed_account_roots,
+                )?;
+                verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
+            }
+            let address_tree_height = fetch_roots_address_merkle_tree(
                 &inputs.new_address_params,
                 &read_only_addresses,
                 &ctx,
@@ -292,15 +293,16 @@ pub fn process<
             for read_only_address in read_only_addresses.iter() {
                 new_addresses.push(read_only_address.address);
             }
+            for read_only_account in read_only_accounts.iter() {
+                input_compressed_account_hashes.push(read_only_account.account_hash);
+            }
             match verify_state_proof(
-                &inputs.input_compressed_accounts_with_merkle_context,
-                input_compressed_account_roots,
+                &input_compressed_account_roots,
                 &input_compressed_account_hashes,
                 &new_address_roots,
                 &new_addresses,
-                &read_only_accounts,
-                &read_only_accounts_roots,
                 &compressed_verifier_proof,
+                address_tree_height,
             ) {
                 Ok(_) => Ok(()),
                 Err(e) => {

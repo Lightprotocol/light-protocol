@@ -1,4 +1,6 @@
+use crate::batch_append_with_subtrees::calculate_two_inputs_hash_chain;
 use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
+use crate::helpers::bigint_to_u8_32;
 use crate::{
     inclusion::{
         merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
@@ -6,11 +8,16 @@ use crate::{
     },
     init_merkle_tree::inclusion_merkle_tree_inputs,
 };
+use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct BatchInclusionJsonStruct {
+    #[serde(rename = "circuitType")]
+    pub circuit_type: String,
+    #[serde(rename = "publicInputHash")]
+    pub public_input_hash: String,
     #[serde(rename(serialize = "input-compressed-accounts"))]
     pub inputs: Vec<InclusionJsonStruct>,
 }
@@ -18,10 +25,10 @@ pub struct BatchInclusionJsonStruct {
 #[allow(non_snake_case)]
 #[derive(Serialize, Clone, Debug)]
 pub struct InclusionJsonStruct {
-    root: String,
-    leaf: String,
-    pathIndex: u32,
-    pathElements: Vec<String>,
+    pub root: String,
+    pub leaf: String,
+    pub pathIndex: u32,
+    pub pathElements: Vec<String>,
 }
 
 impl BatchInclusionJsonStruct {
@@ -40,8 +47,22 @@ impl BatchInclusionJsonStruct {
         };
 
         let inputs = vec![input; number_of_utxos];
-
-        (Self { inputs }, merkle_inputs)
+        let public_input_hash = calculate_two_inputs_hash_chain(
+            vec![bigint_to_u8_32(&merkle_inputs.root).unwrap(); number_of_utxos].as_slice(),
+            vec![bigint_to_u8_32(&merkle_inputs.leaf).unwrap(); number_of_utxos].as_slice(),
+        );
+        let public_input_hash = big_int_to_string(&BigInt::from_bytes_be(
+            num_bigint::Sign::Plus,
+            &public_input_hash,
+        ));
+        (
+            Self {
+                circuit_type: "inclusion".to_string(),
+                public_input_hash,
+                inputs,
+            },
+            merkle_inputs,
+        )
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -51,7 +72,7 @@ impl BatchInclusionJsonStruct {
 
     pub fn from_inclusion_proof_inputs(inputs: &InclusionProofInputs) -> Self {
         let mut proof_inputs: Vec<InclusionJsonStruct> = Vec::new();
-        for input in inputs.0 {
+        for input in inputs.inputs.iter() {
             let prof_input = InclusionJsonStruct {
                 root: big_int_to_string(&input.root),
                 leaf: big_int_to_string(&input.leaf),
@@ -60,8 +81,9 @@ impl BatchInclusionJsonStruct {
             };
             proof_inputs.push(prof_input);
         }
-
         Self {
+            circuit_type: "inclusion".to_string(),
+            public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inputs: proof_inputs,
         }
     }

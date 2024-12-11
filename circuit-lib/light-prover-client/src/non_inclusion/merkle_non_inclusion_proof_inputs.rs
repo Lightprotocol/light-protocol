@@ -1,4 +1,6 @@
-use crate::helpers::bigint_to_u8_32;
+use crate::{
+    batch_append_with_subtrees::calculate_two_inputs_hash_chain, helpers::bigint_to_u8_32,
+};
 use light_indexed_merkle_tree::array::IndexedArray;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
@@ -16,16 +18,11 @@ pub struct NonInclusionMerkleProofInputs {
     pub index_hashed_indexed_element_leaf: BigInt,
 }
 
-impl NonInclusionMerkleProofInputs {
-    pub fn public_inputs_arr(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let value = bigint_to_u8_32(&self.value).unwrap();
-        [root, value]
-    }
-}
-
 #[derive(Clone, Debug)]
-pub struct NonInclusionProofInputs<'a>(pub &'a [NonInclusionMerkleProofInputs]);
+pub struct NonInclusionProofInputs<'a> {
+    pub public_input_hash: BigInt,
+    pub inputs: &'a [NonInclusionMerkleProofInputs],
+}
 
 // TODO: eliminate use of BigInt in favor of BigUint
 pub fn get_non_inclusion_proof_inputs(
@@ -54,5 +51,29 @@ pub fn get_non_inclusion_proof_inputs(
         next_index: BigInt::from(non_inclusion_proof.next_index),
         merkle_proof_hashed_indexed_element_leaf: proof,
         index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
+    }
+}
+
+impl<'a> NonInclusionProofInputs<'a> {
+    pub fn new(inputs: &'a [NonInclusionMerkleProofInputs]) -> Self {
+        let public_input_hash = Self::public_input(inputs);
+        Self {
+            public_input_hash,
+            inputs,
+        }
+    }
+
+    pub fn public_input(inputs: &'a [NonInclusionMerkleProofInputs]) -> BigInt {
+        let public_input_hash = calculate_two_inputs_hash_chain(
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.root).unwrap())
+                .collect::<Vec<_>>(),
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.value).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        BigInt::from_bytes_be(num_bigint::Sign::Plus, &public_input_hash)
     }
 }

@@ -38,10 +38,30 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		InPathIndices:              make([]frontend.Variable, numberOfCompressedAccounts),
 		InPathElements:             nonInclusionInPathElements,
 	}
+	inclusionProof := InclusionProof{
+		Height:                     treeHeight,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
+		Leaves:                     make([]frontend.Variable, numberOfCompressedAccounts),
+		InPathIndices:              make([]frontend.Variable, numberOfCompressedAccounts),
+		InPathElements:             inclusionInPathElements,
+	}
+
+	nonInclusionProof := NonInclusionProof{
+		Height:                     treeHeight,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
+		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),
+		LeafLowerRangeValues:       make([]frontend.Variable, numberOfCompressedAccounts),
+		LeafHigherRangeValues:      make([]frontend.Variable, numberOfCompressedAccounts),
+		NextIndices:                make([]frontend.Variable, numberOfCompressedAccounts),
+		InPathIndices:              make([]frontend.Variable, numberOfCompressedAccounts),
+		InPathElements:             nonInclusionInPathElements,
+	}
 
 	combinedCircuit := CombinedCircuit{
-		Inclusion:    inclusionCircuit,
-		NonInclusion: nonInclusionCircuit,
+		Inclusion:    inclusionProof,
+		NonInclusion: nonInclusionProof,
 	}
 
 	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit, &combinedCircuit)
