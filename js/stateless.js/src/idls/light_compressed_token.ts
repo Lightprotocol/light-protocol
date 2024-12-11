@@ -1341,10 +1341,6 @@ export type LightCompressedToken = {
                     },
                     {
                         name: 'queueIndex';
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ];
                         type: {
                             option: {
                                 defined: 'QueueIndex';
@@ -2901,10 +2897,6 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'queueIndex',
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ],
                         type: {
                             option: {
                                 defined: 'QueueIndex',

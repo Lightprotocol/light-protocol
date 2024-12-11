@@ -19,7 +19,7 @@ use crate::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
         constants::{
-            ADDRESS_TREE_INIT_ROOT_26, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
             DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
         },
     },
@@ -427,7 +427,7 @@ fn _assert_mt_zero_copy_inited(
     if tree_type == TreeType::BatchedAddress as u64 {
         assert_eq!(
             *zero_copy_account.root_history.get(0).unwrap(),
-            ADDRESS_TREE_INIT_ROOT_26,
+            ADDRESS_TREE_INIT_ROOT_40,
             "root_history not initialized"
         );
     }

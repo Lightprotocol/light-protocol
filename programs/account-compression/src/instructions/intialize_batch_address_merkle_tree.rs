@@ -66,7 +66,7 @@ impl InitAddressTreeAccountsInstructionData {
             input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
-            height: 26,
+            height: 40,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -84,7 +84,7 @@ impl InitAddressTreeAccountsInstructionData {
             input_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
-            height: 26,
+            height: 40,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -104,7 +104,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
-            height: 26,
+            height: 40,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: (DEFAULT_BATCH_SIZE + 1) * 8,
             network_fee: Some(5000),
@@ -231,7 +231,7 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     assert!(params.input_queue_batch_size > 0);
     assert_eq!(params.input_queue_num_batches, 2);
     assert_eq!(params.close_threshold, None);
-    assert_eq!(params.height, 26);
+    assert_eq!(params.height, 40);
 }
 
 #[cfg(test)]

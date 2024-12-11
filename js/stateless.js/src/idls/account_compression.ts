@@ -104,6 +104,13 @@ export type AccountCompression = {
             type: 'u64';
             value: '500';
         },
+        {
+            name: 'ADDRESS_TREE_INIT_ROOT_26';
+            type: {
+                array: ['u8', 32];
+            };
+            value: '[33 , 133 , 56 , 184 , 142 , 166 , 110 , 161 , 4 , 140 , 169 , 247 , 115 , 33 , 15 , 181 , 76 , 89 , 48 , 126 , 58 , 86 , 204 , 81 , 16 , 121 , 185 , 77 , 75 , 152 , 43 , 15 ,]';
+        },
     ];
     instructions: [
         {
@@ -689,14 +696,6 @@ export type AccountCompression = {
                         };
                     };
                 },
-                {
-                    name: 'checkProofByIndex';
-                    type: {
-                        option: {
-                            vec: 'bool';
-                        };
-                    };
-                },
             ];
         },
         {
@@ -810,6 +809,165 @@ export type AccountCompression = {
                 {
                     name: 'data';
                     type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchUpdateAddressTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'intializeBatchedAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'params';
+                    type: {
+                        defined: 'InitAddressTreeAccountsInstructionData';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'networkFee';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'additionalBytes';
+                    type: 'u64';
+                },
+                {
+                    name: 'networkFee';
+                    type: {
+                        option: 'u64';
+                    };
                 },
             ];
         },
@@ -1317,6 +1475,76 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'InitAddressTreeAccountsInstructionData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'index';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'programOwner';
+                        type: {
+                            option: 'publicKey';
+                        };
+                    },
+                    {
+                        name: 'forester';
+                        type: {
+                            option: 'publicKey';
+                        };
+                    },
+                    {
+                        name: 'inputQueueBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'inputQueueZkpBatchSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterNumIters';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'bloomFilterCapacity';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootHistoryCapacity';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'networkFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'inputQueueNumBatches';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
             name: 'InitStateTreeAccountsInstructionData';
             type: {
                 kind: 'struct';
@@ -1414,7 +1642,7 @@ export type AccountCompression = {
                         name: 'Inserted';
                     },
                     {
-                        name: 'ReadyToUpdateTree';
+                        name: 'Full';
                     },
                 ];
             };
@@ -1674,6 +1902,22 @@ export type AccountCompression = {
             code: 6042;
             name: 'UnsupportedParameters';
         },
+        {
+            code: 6043;
+            name: 'InvalidTreeType';
+        },
+        {
+            code: 6044;
+            name: 'InvalidNetworkFee';
+        },
+        {
+            code: 6045;
+            name: 'AddressMerkleTreeAccountDiscriminatorMismatch';
+        },
+        {
+            code: 6046;
+            name: 'StateMerkleTreeAccountDiscriminatorMismatch';
+        },
     ];
 };
 
@@ -1782,6 +2026,13 @@ export const IDL: AccountCompression = {
             name: 'DEFAULT_ZKP_BATCH_SIZE',
             type: 'u64',
             value: '500',
+        },
+        {
+            name: 'ADDRESS_TREE_INIT_ROOT_26',
+            type: {
+                array: ['u8', 32],
+            },
+            value: '[33 , 133 , 56 , 184 , 142 , 166 , 110 , 161 , 4 , 140 , 169 , 247 , 115 , 33 , 15 , 181 , 76 , 89 , 48 , 126 , 58 , 86 , 204 , 81 , 16 , 121 , 185 , 77 , 75 , 152 , 43 , 15 ,]',
         },
     ],
     instructions: [
@@ -2368,14 +2619,6 @@ export const IDL: AccountCompression = {
                         },
                     },
                 },
-                {
-                    name: 'checkProofByIndex',
-                    type: {
-                        option: {
-                            vec: 'bool',
-                        },
-                    },
-                },
             ],
         },
         {
@@ -2489,6 +2732,165 @@ export const IDL: AccountCompression = {
                 {
                     name: 'data',
                     type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchUpdateAddressTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'intializeBatchedAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'params',
+                    type: {
+                        defined: 'InitAddressTreeAccountsInstructionData',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'networkFee',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'additionalBytes',
+                    type: 'u64',
+                },
+                {
+                    name: 'networkFee',
+                    type: {
+                        option: 'u64',
+                    },
                 },
             ],
         },
@@ -2996,6 +3398,76 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'InitAddressTreeAccountsInstructionData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'index',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'programOwner',
+                        type: {
+                            option: 'publicKey',
+                        },
+                    },
+                    {
+                        name: 'forester',
+                        type: {
+                            option: 'publicKey',
+                        },
+                    },
+                    {
+                        name: 'inputQueueBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'inputQueueZkpBatchSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterNumIters',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'bloomFilterCapacity',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootHistoryCapacity',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'networkFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'inputQueueNumBatches',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
             name: 'InitStateTreeAccountsInstructionData',
             type: {
                 kind: 'struct',
@@ -3093,7 +3565,7 @@ export const IDL: AccountCompression = {
                         name: 'Inserted',
                     },
                     {
-                        name: 'ReadyToUpdateTree',
+                        name: 'Full',
                     },
                 ],
             },
@@ -3352,6 +3824,22 @@ export const IDL: AccountCompression = {
         {
             code: 6042,
             name: 'UnsupportedParameters',
+        },
+        {
+            code: 6043,
+            name: 'InvalidTreeType',
+        },
+        {
+            code: 6044,
+            name: 'InvalidNetworkFee',
+        },
+        {
+            code: 6045,
+            name: 'AddressMerkleTreeAccountDiscriminatorMismatch',
+        },
+        {
+            code: 6046,
+            name: 'StateMerkleTreeAccountDiscriminatorMismatch',
         },
     ],
 };

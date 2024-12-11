@@ -366,27 +366,27 @@ pub fn verify_batch_address_update(
         1 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_26_1::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_1::VERIFYINGKEY,
         ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_26_10::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_10::VERIFYINGKEY,
         ),
         100 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_26_100::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_100::VERIFYINGKEY,
         ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_26_500::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_500::VERIFYINGKEY,
         ),
         1000 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_26_1000::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_1000::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }

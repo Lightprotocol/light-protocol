@@ -19,14 +19,15 @@ use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeEr
 use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over,
-    create_address_merkle_tree_and_queue_account_with_assert, test_forester::update_merkle_tree,
-};
-use light_test_utils::{
+    address::insert_addresses,
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, set_address_merkle_tree_next_index,
     },
-    test_forester::{empty_address_queue_test, insert_addresses},
+    test_forester::empty_address_queue_test,
+};
+use light_test_utils::{
+    address_tree_rollover::perform_address_merkle_tree_roll_over,
+    create_address_merkle_tree_and_queue_account_with_assert, test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, get_hash_set,
