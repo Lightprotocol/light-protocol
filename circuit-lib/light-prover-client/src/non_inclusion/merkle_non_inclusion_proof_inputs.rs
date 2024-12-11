@@ -1,4 +1,6 @@
-use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
+use crate::{
+    batch_append_with_subtrees::calculate_two_inputs_hash_chain, helpers::bigint_to_u8_32,
+};
 use light_indexed_merkle_tree::array::IndexedArray;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
@@ -62,21 +64,16 @@ impl<'a> NonInclusionProofInputs<'a> {
     }
 
     pub fn public_input(inputs: &'a [NonInclusionMerkleProofInputs]) -> BigInt {
-        let leaves_hash_chain = calculate_hash_chain(
+        let public_input_hash = calculate_two_inputs_hash_chain(
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.root).unwrap())
+                .collect::<Vec<_>>(),
             &inputs
                 .iter()
                 .map(|x| bigint_to_u8_32(&x.value).unwrap())
                 .collect::<Vec<_>>(),
         );
-        let roots_hash_chain = calculate_hash_chain(
-            &inputs
-                .iter()
-                .map(|x| bigint_to_u8_32(&x.root).unwrap())
-                .collect::<Vec<_>>(),
-        );
-        BigInt::from_bytes_be(
-            num_bigint::Sign::Plus,
-            &calculate_hash_chain(&[roots_hash_chain, leaves_hash_chain]),
-        )
+        BigInt::from_bytes_be(num_bigint::Sign::Plus, &public_input_hash)
     }
 }

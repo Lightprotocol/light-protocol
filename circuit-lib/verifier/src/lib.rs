@@ -63,133 +63,28 @@ impl Default for CompressedProof {
     }
 }
 
-pub fn verify_create_addresses_zkp(
-    address_roots: &[[u8; 32]],
-    addresses: &[[u8; 32]],
-    compressed_proof: &CompressedProof,
-) -> Result<(), VerifierError> {
-    let public_inputs = [address_roots, addresses].concat();
-
-    match addresses.len() {
-        1 => verify::<2>(
-            &public_inputs
-                .try_into()
-                .map_err(|_| PublicInputsTryIntoFailed)?,
-            compressed_proof,
-            &non_inclusion_26_1::VERIFYINGKEY,
-        ),
-        2 => verify::<4>(
-            &public_inputs
-                .try_into()
-                .map_err(|_| PublicInputsTryIntoFailed)?,
-            compressed_proof,
-            &non_inclusion_26_2::VERIFYINGKEY,
-        ),
-        _ => Err(InvalidPublicInputsLength),
-    }
-}
-
-#[inline(never)]
-pub fn verify_create_addresses_and_merkle_proof_zkp(
-    roots: &[[u8; 32]],
-    leaves: &[[u8; 32]],
-    address_roots: &[[u8; 32]],
-    addresses: &[[u8; 32]],
-    compressed_proof: &CompressedProof,
-) -> Result<(), VerifierError> {
-    let public_inputs = [roots, leaves, address_roots, addresses].concat();
-    // The public inputs are expected to be a multiple of 2
-    // 4 inputs means 1 inclusion proof (1 root, 1 leaf, 1 address root, 1 created address)
-    // 6 inputs means 1 inclusion proof (1 root, 1 leaf, 2 address roots, 2 created address) or
-    // 6 inputs means 2 inclusion proofs (2 roots and 2 leaves, 1 address root, 1 created address)
-    // 8 inputs means 2 inclusion proofs (2 roots and 2 leaves, 2 address roots, 2 created address) or
-    // 8 inputs means 3 inclusion proofs (3 roots and 3 leaves, 1 address root, 1 created address)
-    // 10 inputs means 3 inclusion proofs (3 roots and 3 leaves, 2 address roots, 2 created address) or
-    // 10 inputs means 4 inclusion proofs (4 roots and 4 leaves, 1 address root, 1 created address)
-    // 12 inputs means 4 inclusion proofs (4 roots and 4 leaves, 2 address roots, 2 created address)
-    match public_inputs.len() {
-        4 => verify::<4>(
-            &public_inputs
-                .try_into()
-                .map_err(|_| PublicInputsTryIntoFailed)?,
-            compressed_proof,
-            &combined_26_1_1::VERIFYINGKEY,
-        ),
-        6 => {
-            let verifying_key = if address_roots.len() == 1 {
-                &combined_26_2_1::VERIFYINGKEY
-            } else {
-                &combined_26_1_2::VERIFYINGKEY
-            };
-            verify::<6>(
-                &public_inputs
-                    .try_into()
-                    .map_err(|_| PublicInputsTryIntoFailed)?,
-                compressed_proof,
-                verifying_key,
-            )
-        }
-        8 => {
-            let verifying_key = if address_roots.len() == 1 {
-                &combined_26_3_1::VERIFYINGKEY
-            } else {
-                &combined_26_2_2::VERIFYINGKEY
-            };
-            verify::<8>(
-                &public_inputs
-                    .try_into()
-                    .map_err(|_| PublicInputsTryIntoFailed)?,
-                compressed_proof,
-                verifying_key,
-            )
-        }
-        10 => {
-            let verifying_key = if address_roots.len() == 1 {
-                &combined_26_4_1::VERIFYINGKEY
-            } else {
-                &combined_26_3_2::VERIFYINGKEY
-            };
-            verify::<10>(
-                &public_inputs
-                    .try_into()
-                    .map_err(|_| PublicInputsTryIntoFailed)?,
-                compressed_proof,
-                verifying_key,
-            )
-        }
-        12 => verify::<12>(
-            &public_inputs
-                .try_into()
-                .map_err(|_| PublicInputsTryIntoFailed)?,
-            compressed_proof,
-            &combined_26_4_2::VERIFYINGKEY,
-        ),
-        _ => Err(crate::InvalidPublicInputsLength),
-    }
-}
-
 pub fn select_verifying_key<'a>(
     num_leaves: usize,
     num_addresses: usize,
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
     match (num_leaves, num_addresses) {
         // Combined cases (depend on both num_leaves and num_addresses)
-        (1, 1) => Ok(&combined_26_1_1::VERIFYINGKEY),
-        (1, 2) => Ok(&combined_26_1_2::VERIFYINGKEY),
-        (1, 3) => Ok(&combined_26_1_3::VERIFYINGKEY),
-        (1, 4) => Ok(&combined_26_1_4::VERIFYINGKEY),
-        (2, 1) => Ok(&combined_26_2_1::VERIFYINGKEY),
-        (2, 2) => Ok(&combined_26_2_2::VERIFYINGKEY),
-        (2, 3) => Ok(&combined_26_2_3::VERIFYINGKEY),
-        (2, 4) => Ok(&combined_26_2_4::VERIFYINGKEY),
-        (3, 1) => Ok(&combined_26_3_1::VERIFYINGKEY),
-        (3, 2) => Ok(&combined_26_3_2::VERIFYINGKEY),
-        (3, 3) => Ok(&combined_26_3_3::VERIFYINGKEY),
-        (3, 4) => Ok(&combined_26_3_4::VERIFYINGKEY),
-        (4, 1) => Ok(&combined_26_4_1::VERIFYINGKEY),
-        (4, 2) => Ok(&combined_26_4_2::VERIFYINGKEY),
-        (4, 3) => Ok(&combined_26_4_3::VERIFYINGKEY),
-        (4, 4) => Ok(&combined_26_4_4::VERIFYINGKEY),
+        (1, 1) => Ok(&combined_26_40_1_1::VERIFYINGKEY),
+        (1, 2) => Ok(&combined_26_40_1_2::VERIFYINGKEY),
+        (1, 3) => Ok(&combined_26_40_1_3::VERIFYINGKEY),
+        (1, 4) => Ok(&combined_26_40_1_4::VERIFYINGKEY),
+        (2, 1) => Ok(&combined_26_40_2_1::VERIFYINGKEY),
+        (2, 2) => Ok(&combined_26_40_2_2::VERIFYINGKEY),
+        (2, 3) => Ok(&combined_26_40_2_3::VERIFYINGKEY),
+        (2, 4) => Ok(&combined_26_40_2_4::VERIFYINGKEY),
+        (3, 1) => Ok(&combined_26_40_3_1::VERIFYINGKEY),
+        (3, 2) => Ok(&combined_26_40_3_2::VERIFYINGKEY),
+        (3, 3) => Ok(&combined_26_40_3_3::VERIFYINGKEY),
+        (3, 4) => Ok(&combined_26_40_3_4::VERIFYINGKEY),
+        (4, 1) => Ok(&combined_26_40_4_1::VERIFYINGKEY),
+        (4, 2) => Ok(&combined_26_40_4_2::VERIFYINGKEY),
+        (4, 3) => Ok(&combined_26_40_4_3::VERIFYINGKEY),
+        (4, 4) => Ok(&combined_26_40_4_4::VERIFYINGKEY),
 
         // Inclusion cases (depend on num_leaves)
         (1, _) => Ok(&inclusion_26_1::VERIFYINGKEY),
@@ -199,11 +94,11 @@ pub fn select_verifying_key<'a>(
         (8, _) => Ok(&inclusion_26_8::VERIFYINGKEY),
 
         // Non-inclusion cases (depend on num_addresses)
-        (_, 1) => Ok(&non_inclusion_26_1::VERIFYINGKEY),
-        (_, 2) => Ok(&non_inclusion_26_2::VERIFYINGKEY),
-        (_, 3) => Ok(&non_inclusion_26_3::VERIFYINGKEY),
-        (_, 4) => Ok(&non_inclusion_26_4::VERIFYINGKEY),
-        (_, 8) => Ok(&non_inclusion_26_8::VERIFYINGKEY),
+        (_, 1) => Ok(&non_inclusion_40_1::VERIFYINGKEY),
+        (_, 2) => Ok(&non_inclusion_40_2::VERIFYINGKEY),
+        (_, 3) => Ok(&non_inclusion_40_3::VERIFYINGKEY),
+        (_, 4) => Ok(&non_inclusion_40_4::VERIFYINGKEY),
+        (_, 8) => Ok(&non_inclusion_40_8::VERIFYINGKEY),
 
         // Invalid configuration
         _ => Err(VerifierError::InvalidPublicInputsLength),

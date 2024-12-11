@@ -70,4 +70,5 @@ pub enum SystemProgramError {
     DataFieldUndefined,
     ReadOnlyAddressAlreadyExists,
     ReadOnlyAccountDoesNotExist,
+    HashChainInputsLenghtInconsistent,
 }

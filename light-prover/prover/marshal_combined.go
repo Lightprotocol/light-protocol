@@ -42,7 +42,6 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 	if err1 != nil {
 		return fmt.Errorf("failed to unmarshal publicInputHash: %v", err)
 	}
-	fmt.Println("publicInputHash: ", publicInputHash)
 	fromHex(&p.PublicInputHash, publicInputHash)
 
 	if _, ok := rawMessages["input-compressed-accounts"]; ok {

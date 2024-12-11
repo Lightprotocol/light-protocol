@@ -1,4 +1,4 @@
-use crate::batch_append_with_subtrees::calculate_hash_chain;
+use crate::batch_append_with_subtrees::calculate_two_inputs_hash_chain;
 use crate::gnark::helpers::big_int_to_string;
 use crate::helpers::bigint_to_u8_32;
 use crate::{
@@ -64,19 +64,13 @@ impl BatchNonInclusionJsonStruct {
             leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),
         };
         let inputs = vec![input; number_of_utxos];
-        let values_hash_chain = calculate_hash_chain(&vec![
-            bigint_to_u8_32(&merkle_inputs.value)
-                .unwrap();
-            number_of_utxos
-        ]);
-        let roots_hash_chain = calculate_hash_chain(&vec![
-            bigint_to_u8_32(&merkle_inputs.root)
-                .unwrap();
-            number_of_utxos
-        ]);
+        let public_input_hash = calculate_two_inputs_hash_chain(
+            vec![bigint_to_u8_32(&merkle_inputs.root).unwrap(); number_of_utxos].as_slice(),
+            vec![bigint_to_u8_32(&merkle_inputs.value).unwrap(); number_of_utxos].as_slice(),
+        );
         let public_input_hash = big_int_to_string(&BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
-            &calculate_hash_chain(&[roots_hash_chain, values_hash_chain]),
+            &public_input_hash,
         ));
         (
             Self {

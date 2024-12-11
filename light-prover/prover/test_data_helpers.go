@@ -37,9 +37,8 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) Inclu
 		leaves[i] = leaf
 		roots[i] = &inputs[i].Root
 	}
-	rootsHashChain := calculateHashChain(roots, numberOfCompressedAccounts)
-	leavesHashChain := calculateHashChain(leaves, numberOfCompressedAccounts)
-	publicInputHash := calculateHashChain([]*big.Int{rootsHashChain, leavesHashChain}, 2)
+
+	publicInputHash := calculateTwoInputsHashChain(roots, leaves)
 
 	return InclusionParameters{
 		PublicInputHash: *publicInputHash,
@@ -106,9 +105,8 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		values[i] = value
 		roots[i] = &inputs[i].Root
 	}
-	rootsHashChain := calculateHashChain(roots, numberOfCompressedAccounts)
-	valuesHashChain := calculateHashChain(values, numberOfCompressedAccounts)
-	publicInputHash := calculateHashChain([]*big.Int{rootsHashChain, valuesHashChain}, 2)
+
+	publicInputHash := calculateTwoInputsHashChain(roots, values)
 
 	return NonInclusionParameters{
 		PublicInputHash: *publicInputHash,
@@ -184,6 +182,21 @@ func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 	for i := 1; i < length; i++ {
 
 		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashes[i]})
+	}
+	return hashChain
+}
+func calculateTwoInputsHashChain(hashesFirst []*big.Int, hashesSecond []*big.Int) *big.Int {
+	if len(hashesFirst) == 0 {
+		return big.NewInt(0)
+	}
+	hashChain, _ := poseidon.Hash([]*big.Int{hashesFirst[0], hashesSecond[0]})
+
+	if len(hashesFirst) == 1 {
+		return hashChain
+	}
+
+	for i := 1; i < len(hashesFirst); i++ {
+		hashChain, _ = poseidon.Hash([]*big.Int{hashChain, hashesFirst[i], hashesSecond[i]})
 	}
 	return hashChain
 }

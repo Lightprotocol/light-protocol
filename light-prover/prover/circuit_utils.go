@@ -63,11 +63,11 @@ type ComputePublicInputHash struct {
 	Values2 []frontend.Variable
 }
 
-func (gadget ComputePublicInputHash) DefineGadget(api frontend.API) interface{} {
-	firstHashChain := createHashChain(api, gadget.Values1)
-	secondHashChain := createHashChain(api, gadget.Values2)
-	return abstractor.Call(api, poseidon.Poseidon2{In1: firstHashChain, In2: secondHashChain})
-}
+// func (gadget ComputePublicInputHash) DefineGadget(api frontend.API) interface{} {
+// 	firstHashChain := createHashChain(api, gadget.Values1)
+// 	secondHashChain := createHashChain(api, gadget.Values2)
+// 	return abstractor.Call(api, poseidon.Poseidon2{In1: firstHashChain, In2: secondHashChain})
+// }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)

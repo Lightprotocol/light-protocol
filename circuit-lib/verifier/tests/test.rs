@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test {
-    use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
+    use light_prover_client::batch_append_with_subtrees::{
+        calculate_hash_chain, calculate_two_inputs_hash_chain,
+    };
     use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
     use light_prover_client::{
         gnark::{
@@ -20,7 +22,7 @@ mod test {
     async fn prove_inclusion() {
         init_logger();
         spawn_prover(
-            true,
+            false,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![ProofType::Inclusion],
@@ -29,6 +31,10 @@ mod test {
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
+            println!(
+                "number_of_compressed_accounts: {:?}",
+                number_of_compressed_accounts
+            );
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
@@ -49,9 +55,7 @@ mod test {
                 roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
                 leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
-            let roots_hash_chain = calculate_hash_chain(&roots);
-            let leaves_hash_chain = calculate_hash_chain(&leaves);
-            let public_input_hash = calculate_hash_chain(&[roots_hash_chain, leaves_hash_chain]);
+            let public_input_hash = calculate_two_inputs_hash_chain(&roots, &leaves);
             let vk = select_verifying_key(leaves.len(), 0).unwrap();
             verify::<1>(
                 &[public_input_hash],

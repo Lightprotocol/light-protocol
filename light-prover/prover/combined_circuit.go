@@ -14,8 +14,9 @@ type CombinedCircuit struct {
 }
 
 func (circuit *CombinedCircuit) Define(api frontend.API) error {
-	inclusionPublicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.Inclusion.Roots, Values2: circuit.Inclusion.Leaves})
-	nonInclusionPublicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.NonInclusion.Roots, Values2: circuit.NonInclusion.Values})
+	inclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.Inclusion.Roots, circuit.Inclusion.Leaves)
+	nonInclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.NonInclusion.Roots, circuit.NonInclusion.Values)
+
 	publicInputsHashChain := abstractor.Call(api, poseidon.Poseidon2{In1: inclusionPublicInputsHashChain, In2: nonInclusionPublicInputsHashChain})
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 

@@ -406,49 +406,17 @@ pub fn verify_state_proof(
     read_only_roots: &[[u8; 32]],
     compressed_proof: &CompressedProof,
 ) -> anchor_lang::Result<()> {
-    // Filter out leaves that are not in the proof (proven by index).
-    let mut proof_input_leaves = leaves
-        .iter()
-        .enumerate()
-        .filter(|(x, _)| {
-            input_compressed_accounts_with_merkle_context[*x]
-                .merkle_context
-                .queue_index
-                .is_none()
-        })
-        .map(|x| *x.1)
-        .collect::<Vec<[u8; 32]>>();
-
-    read_only_accounts.iter().for_each(|x| {
-        if x.merkle_context.queue_index.is_none() {
-            proof_input_leaves.extend_from_slice(&[x.account_hash]);
-        }
-    });
-    roots.extend_from_slice(read_only_roots);
-
-    if !addresses.is_empty() && !proof_input_leaves.is_empty() {
-        verify_create_addresses_and_merkle_proof_zkp(
-            &roots,
-            &proof_input_leaves,
-            address_roots,
-            addresses,
-            compressed_proof,
-        )
-        .map_err(ProgramError::from)?;
+    // TODO: pass in input hash chain from tx_hash creation.
+    let public_input_hash = if !leaves.is_empty() {
+        create_two_inputs_hash_chain(&roots, &leaves)?
     } else if !addresses.is_empty() {
-        verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
-            .map_err(ProgramError::from)?;
+        create_two_inputs_hash_chain(&address_roots, &addresses)?
     } else {
-        verify_merkle_proof_zkp(&roots, &proof_input_leaves, compressed_proof)
-            .map_err(ProgramError::from)?;
-    }
-    if !addresses.is_empty() {
-        hash_chain_inputs.push(create_hash_chain(&[
-            create_hash_chain(address_roots)?,
-            create_hash_chain(addresses)?,
-        ])?);
-    }
-    let public_input_hash = create_hash_chain(&hash_chain_inputs)?;
+        create_hash_chain(&[
+            create_two_inputs_hash_chain(&roots, &leaves)?,
+            create_two_inputs_hash_chain(&address_roots, &addresses)?,
+        ])?
+    };
     let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
     light_verifier::verify(&[public_input_hash], compressed_proof, vk)
         .map_err(ProgramError::from)?;
@@ -466,4 +434,27 @@ pub fn create_tx_hash(
     let inputs_hash_chain = create_hash_chain_from_slice(input_compressed_account_hashes)?;
     let outputs_hash_chain = create_hash_chain_from_slice(output_compressed_account_hashes)?;
     create_hash_chain_from_slice(&[version, inputs_hash_chain, outputs_hash_chain, slot_bytes])
+}
+
+pub fn create_two_inputs_hash_chain(
+    hashes_first: &[[u8; 32]],
+    hashes_second: &[[u8; 32]],
+) -> Result<[u8; 32]> {
+    assert_eq!(hashes_first.len(), hashes_second.len());
+    if hashes_first != hashes_second {
+        return err!(SystemProgramError::HashChainInputsLenghtInconsistent);
+    }
+    if hashes_first.is_empty() {
+        return Ok([0u8; 32]);
+    }
+    let mut hash_chain = Poseidon::hashv(&[&hashes_first[0], &hashes_second[0]]).unwrap();
+
+    if hashes_first.len() == 1 {
+        return Ok(hash_chain);
+    }
+
+    for (hash_1, hash_2) in hashes_first.iter().skip(1).zip(hashes_second).skip(1) {
+        hash_chain = Poseidon::hashv(&[&hash_chain, hash_1, hash_2]).map_err(ProgramError::from)?;
+    }
+    Ok(hash_chain)
 }

@@ -98,3 +98,24 @@ pub fn calculate_hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
     }
     hash_chain
 }
+
+pub fn calculate_two_inputs_hash_chain(
+    hashes_first: &[[u8; 32]],
+    hashes_second: &[[u8; 32]],
+) -> [u8; 32] {
+    assert_eq!(hashes_first.len(), hashes_second.len());
+    if hashes_first.is_empty() {
+        return [0u8; 32];
+    }
+    let mut hash_chain = Poseidon::hashv(&[&hashes_first[0], &hashes_second[0]]).unwrap();
+
+    if hashes_first.len() == 1 {
+        return hash_chain;
+    }
+
+    // for (hash_1, hash_2) in hashes_first.iter().skip(1).zip(hashes_second).skip(1) {
+    for i in 1..hashes_first.len() {
+        hash_chain = Poseidon::hashv(&[&hash_chain, &hashes_first[i], &hashes_second[i]]).unwrap();
+    }
+    hash_chain
+}

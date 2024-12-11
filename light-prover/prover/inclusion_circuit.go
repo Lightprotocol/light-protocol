@@ -23,7 +23,7 @@ type InclusionCircuit struct {
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
-	publicInputsHashChain := abstractor.Call(api, ComputePublicInputHash{Values1: circuit.Roots, Values2: circuit.Leaves})
+	publicInputsHashChain := createTwoInputsHashChain(api, circuit.Roots, circuit.Leaves)
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
 	abstractor.CallVoid(api, InclusionProof{
