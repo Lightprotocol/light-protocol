@@ -83,7 +83,6 @@ async fn invoke_failing_test() {
 
     let payer = context.get_payer().insecure_clone();
     // no inputs
-    println!("!!! 1");
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
         &Vec::new(),
         &Vec::new(),
@@ -197,8 +196,9 @@ pub async fn failing_transaction_inputs<
     }
     let (mut new_address_params, derived_addresses) =
         create_address_test_inputs(env, num_addresses);
-    let input_compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&payer.pubkey())[0..num_inputs].to_vec();
+    let input_compressed_accounts = test_indexer
+        .get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0..num_inputs]
+        .to_vec();
     let hashes = input_compressed_accounts
         .iter()
         .map(|x| x.hash().unwrap())
@@ -1334,7 +1334,8 @@ async fn test_with_address() {
     ];
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
         let compressed_input_accounts = test_indexer
-            .get_compressed_accounts_by_owner(&payer_pubkey)[0..n_input_compressed_accounts]
+            .get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)
+            [0..n_input_compressed_accounts]
             .to_vec();
         let compressed_input_accounts = compressed_input_accounts
             .into_iter()
@@ -1528,7 +1529,7 @@ async fn test_with_compression() {
         .unwrap();
 
     let compressed_account_with_context =
-        test_indexer.get_compressed_accounts_by_owner(&payer_pubkey)[0].clone();
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)[0].clone();
     let compressed_account_with_context =
         sdk_to_program_compressed_account_with_merkle_context(compressed_account_with_context);
 

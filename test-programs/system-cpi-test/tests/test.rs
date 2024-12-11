@@ -168,7 +168,8 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
@@ -260,7 +261,8 @@ async fn only_test_create_pda() {
                 26, 211, 193, 195, 11, 219, 9, 155, 58, 172, 58, 200, 254, 75, 231, 106, 31, 168,
                 183, 76, 179, 113, 234, 101, 191, 99, 156, 98,
             ];
-            let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+            let compressed_account =
+                test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
             let compressed_account =
                 sdk_to_program_compressed_account_with_merkle_context(compressed_account);
             let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
@@ -351,7 +353,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
     // 1. Approve functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
@@ -380,7 +383,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 2. Revoke functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data = test_indexer
@@ -408,7 +412,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 3. Freeze functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
@@ -433,7 +438,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 4. Thaw functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =
@@ -457,7 +463,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     }
     // 5. Burn functional with cpi context
     {
-        let compressed_account = test_indexer.get_compressed_accounts_by_owner(&ID)[0].clone();
+        let compressed_account =
+            test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_account =
             sdk_to_program_compressed_account_with_merkle_context(compressed_account);
         let compressed_token_data =

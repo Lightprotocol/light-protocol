@@ -119,8 +119,8 @@ async fn test_name_service() {
     }
 
     // Check that it was created correctly.
-    let compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts = test_indexer
+        .get_compressed_accounts_with_merkle_context_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -197,8 +197,8 @@ async fn test_name_service() {
     }
 
     // Check that it was updated correctly.
-    let compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts = test_indexer
+        .get_compressed_accounts_with_merkle_context_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account

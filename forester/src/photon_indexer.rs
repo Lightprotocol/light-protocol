@@ -90,7 +90,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
     }
 
-    async fn get_rpc_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {

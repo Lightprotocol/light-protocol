@@ -52,7 +52,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         owning_program_id: Option<Pubkey>,
     ) -> AddressMerkleTreeAccounts;
 
-    fn get_compressed_accounts_by_owner(
+    fn get_compressed_accounts_with_merkle_context_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext>;

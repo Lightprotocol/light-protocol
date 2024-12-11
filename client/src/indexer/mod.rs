@@ -14,7 +14,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<String>,
     ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
 
-    fn get_rpc_compressed_accounts_by_owner(
+    fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;

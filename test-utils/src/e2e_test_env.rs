@@ -73,7 +73,6 @@ use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
 use light_registry::sdk::create_finalize_registration_instruction;
 use light_registry::utils::get_protocol_config_pda_address;
 use light_registry::ForesterConfig;
-use light_sdk::legacy::CompressedAccount;
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
@@ -125,9 +124,7 @@ use light_client::indexer::Indexer;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext, QueueIndex,
-};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 
@@ -1147,7 +1144,7 @@ where
                 .copied()
                 .collect::<Vec<_>>();
             let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees);
-            let transaction_parameters = if self.keypair_action_config.fee_assert {
+            let transaction_params = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
                     num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -1165,7 +1162,7 @@ where
                 input_compressed_accounts.as_slice(),
                 recipients.as_slice(),
                 output_merkle_trees.as_slice(),
-                transaction_parameters,
+                transaction_params,
             )
             .await
             .unwrap();
@@ -1188,7 +1185,7 @@ where
                 .map(|x| x.compressed_account.lamports)
                 .sum::<u64>();
             let decompress_amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            let transaction_paramets = if self.keypair_action_config.fee_assert {
+            let transaction_params = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
                     num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -1207,7 +1204,7 @@ where
                 &recipient,
                 decompress_amount,
                 &output_merkle_tree,
-                transaction_paramets,
+                transaction_params,
             )
             .await
             .unwrap();
@@ -1225,7 +1222,7 @@ where
         let output_merkle_tree = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)]
             .accounts
             .merkle_tree;
-        let transaction_parameters = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -1244,7 +1241,7 @@ where
             false,
             amount,
             &output_merkle_tree,
-            transaction_parameters,
+            transaction_params,
         )
         .await
         .unwrap();
@@ -1264,7 +1261,7 @@ where
         //     self.rng.gen_bool(0.5)
         // };
         let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
-        let transaction_parameters = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
                 num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -1283,7 +1280,7 @@ where
             create_output_compressed_accounts_for_input_accounts,
             amount,
             &output_merkle_tree,
-            transaction_parameters,
+            transaction_params,
         )
         .await
         .unwrap();
@@ -1344,7 +1341,7 @@ where
         }
 
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
-        let transaction_parameters = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: num_addresses as u8,
                 num_input_compressed_accounts: 0u8,
@@ -1366,7 +1363,7 @@ where
             address_seeds.as_slice(),
             &Vec::new(),
             false,
-            transaction_parameters,
+            transaction_params,
         )
         .await
         .unwrap();
@@ -1423,7 +1420,7 @@ where
 
         let output_merkle_tree_pubkeys =
             self.get_merkle_tree_pubkeys(num_output_compressed_accounts as u64);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1447,7 +1444,7 @@ where
             &output_merkle_tree_pubkeys,
             None,
             false,
-            transaction_paramets,
+            transaction_params,
         )
         .await;
         self.stats.spl_transfers += 1;
@@ -1482,7 +1479,7 @@ where
         let delegate_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if delegate_amount != max_amount { 2 } else { 1 };
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(2);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1503,7 +1500,7 @@ where
             &delegate,
             &output_merkle_tree_pubkeys[0],
             &output_merkle_tree_pubkeys[1],
-            transaction_paramets,
+            transaction_params,
         )
         .await;
         self.stats.spl_approved += 1;
@@ -1535,7 +1532,7 @@ where
         }
         let num_output_compressed_accounts = 1;
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1552,7 +1549,7 @@ where
             &mut self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_params,
         )
         .await;
         self.stats.spl_revoked += 1;
@@ -1584,7 +1581,7 @@ where
         let burn_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if burn_amount != max_amount { 1 } else { 0 };
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1604,7 +1601,7 @@ where
             &output_merkle_tree_pubkeys[0],
             burn_amount,
             false,
-            transaction_paramets,
+            transaction_params,
             false,
         )
         .await;
@@ -1633,7 +1630,7 @@ where
             token_accounts = _token_accounts;
         }
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1650,7 +1647,7 @@ where
             &mut self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_params,
         )
         .await;
         self.stats.spl_frozen += 1;
@@ -1671,7 +1668,7 @@ where
             token_accounts = _token_accounts;
         }
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1689,7 +1686,7 @@ where
             &mut self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_params,
         )
         .await;
         self.stats.spl_thawed += 1;
@@ -1730,7 +1727,7 @@ where
             let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
 
             let amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            let transaction_paramets = if self.keypair_action_config.fee_assert {
+            let transaction_params = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0u8,
                     num_input_compressed_accounts: 0u8,
@@ -1749,7 +1746,7 @@ where
                 &mint,
                 &output_merkle_tree_account[0],
                 &token_account,
-                transaction_paramets,
+                transaction_params,
                 false,
             )
             .await;
@@ -1806,7 +1803,7 @@ where
             .map(|token_account| token_account.token_data.amount)
             .sum::<u64>();
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_params = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -1826,7 +1823,7 @@ where
             amount,
             &output_merkle_tree_account[0],
             &token_account,
-            transaction_paramets,
+            transaction_params,
             false,
         )
         .await;
@@ -1952,14 +1949,15 @@ where
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey())
+            .get_compressed_accounts_with_merkle_context_by_owner(
+                &self.users[user_index].keypair.pubkey(),
+            )
             .into_iter()
             .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect::<Vec<_>>();
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
-        // TODO: convert
     }
 
     pub fn get_compressed_sol_accounts(
@@ -1967,32 +1965,9 @@ where
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
         self.indexer
-            .get_compressed_accounts_by_owner(pubkey)
+            .get_compressed_accounts_with_merkle_context_by_owner(pubkey)
             .into_iter()
-            .map(|sdk_account| CompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: sdk_account.compressed_account.owner,
-                    lamports: sdk_account.compressed_account.lamports,
-                    address: sdk_account.compressed_account.address,
-                    data: sdk_account
-                        .compressed_account
-                        .data
-                        .map(|data| CompressedAccountData {
-                            discriminator: data.discriminator,
-                            data: data.data,
-                            data_hash: data.data_hash,
-                        }),
-                },
-                merkle_context: MerkleContext {
-                    merkle_tree_pubkey: sdk_account.merkle_context.merkle_tree_pubkey,
-                    nullifier_queue_pubkey: sdk_account.merkle_context.nullifier_queue_pubkey,
-                    leaf_index: sdk_account.merkle_context.leaf_index,
-                    queue_index: sdk_account.merkle_context.queue_index.map(|qi| QueueIndex {
-                        queue_id: qi.queue_id,
-                        index: qi.index,
-                    }),
-                },
-            })
+            .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect()
     }
 

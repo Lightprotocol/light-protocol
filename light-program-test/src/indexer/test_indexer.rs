@@ -115,11 +115,11 @@ where
         Ok(proofs)
     }
 
-    async fn get_rpc_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {
-        let result = self.get_compressed_accounts_by_owner(owner);
+        let result = self.get_compressed_accounts_with_merkle_context_by_owner(owner);
         let mut hashes: Vec<String> = Vec::new();
         for account in result.iter() {
             let hash = account.hash().unwrap();
@@ -403,7 +403,7 @@ impl<R: RpcConnection> TestIndexerExtensions<R> for TestIndexer<R> {
     }
 
     /// Returns compressed accounts owned by the given `owner`.
-    fn get_compressed_accounts_by_owner(
+    fn get_compressed_accounts_with_merkle_context_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
@@ -845,7 +845,7 @@ where
     /// adds the output_compressed_accounts to the compressed_accounts
     /// removes the input_compressed_accounts from the compressed_accounts
     /// adds the input_compressed_accounts to the nullified_compressed_accounts
-    /// deserialiazes token data from the output_compressed_accounts
+    /// deserializes token data from the output_compressed_accounts
     /// adds the token_compressed_accounts to the token_compressed_accounts
     pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
         self.add_event_and_compressed_accounts(event);
