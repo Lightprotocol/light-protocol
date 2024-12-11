@@ -180,13 +180,13 @@ pub async fn assert_accounts_by_owner<R: RpcConnection + MerkleTreeExt>(
     photon_indexer: &PhotonIndexer<R>,
 ) {
     let mut photon_accs = photon_indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
     photon_accs.sort();
 
     let mut test_accs = indexer
-        .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
     test_accs.sort();
@@ -213,9 +213,8 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection 
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, IndexerError> = indexer
-        .get_rpc_compressed_accounts_by_owner(user_pubkey)
-        .await;
+    let accs: Result<Vec<String>, IndexerError> =
+        indexer.get_compressed_accounts_by_owner(user_pubkey).await;
     for account_hash in accs.unwrap() {
         let photon_result = photon_indexer
             .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
