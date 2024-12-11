@@ -112,13 +112,13 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::combined_26_1_1::VERIFYINGKEY,
+            &crate::verifying_keys::combined_26_26_1_1::VERIFYINGKEY,
         ),
         6 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_2_1::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_2_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_1_2::VERIFYINGKEY
             };
             verify::<6>(
                 &public_inputs
@@ -130,9 +130,9 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
         }
         8 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_3_1::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_3_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::combined_26_2_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_2_2::VERIFYINGKEY
             };
             verify::<8>(
                 &public_inputs
@@ -144,9 +144,9 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
         }
         10 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_4_1::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_4_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::combined_26_3_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_26_3_2::VERIFYINGKEY
             };
             verify::<10>(
                 &public_inputs
@@ -161,7 +161,7 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 .try_into()
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::combined_26_4_2::VERIFYINGKEY,
+            &crate::verifying_keys::combined_26_26_4_2::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }
