@@ -141,6 +141,7 @@ APPEND_ADDRESS_BUCKET="bafybeib2rajatndlpslpqhf4vrbekpyyehjt5byivfzxl36c5p67ypdd
 # keys for update circuit for tree of height 26
 UPDATE_BUCKET="bafybeievf2qdaex4cskdfk24uifq4244ne42w3dghwnnfp4ybsve6mw2pa"
 
+# TODO: load new inclusion files, add new combined files 
 LIGHTWEIGHT_FILES=(
   "inclusion_26_1.key"
   "inclusion_26_1.vkey"

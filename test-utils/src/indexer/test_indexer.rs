@@ -4,10 +4,9 @@ use light_macros::pubkey;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
 use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
+use light_prover_client::helpers::bigint_to_u8_32;
 use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_system_program::sdk::compressed_account::QueueIndex;
-use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
-use light_prover_client::helpers::bigint_to_u8_32;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -39,7 +38,9 @@ use light_program_test::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
     EnvAccounts,
 };
-use light_prover_client::gnark::helpers::{big_int_to_string,string_to_big_int,ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{
+    big_int_to_string, string_to_big_int, ProverConfig, ProverMode,
+};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     account_compression::{

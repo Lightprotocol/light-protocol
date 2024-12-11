@@ -71,4 +71,5 @@ pub enum SystemProgramError {
     ReadOnlyAddressAlreadyExists,
     ReadOnlyAccountDoesNotExist,
     HashChainInputsLenghtInconsistent,
+    InvalidAddressTreeHeight,
 }

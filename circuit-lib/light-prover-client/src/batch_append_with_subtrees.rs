@@ -99,6 +99,7 @@ pub fn calculate_hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
     hash_chain
 }
 
+// TODO: move to utils or sdk
 pub fn calculate_two_inputs_hash_chain(
     hashes_first: &[[u8; 32]],
     hashes_second: &[[u8; 32]],
@@ -113,7 +114,6 @@ pub fn calculate_two_inputs_hash_chain(
         return hash_chain;
     }
 
-    // for (hash_1, hash_2) in hashes_first.iter().skip(1).zip(hashes_second).skip(1) {
     for i in 1..hashes_first.len() {
         hash_chain = Poseidon::hashv(&[&hash_chain, &hashes_first[i], &hashes_second[i]]).unwrap();
     }

@@ -528,6 +528,7 @@ func runCli() {
 					}
 					var proof *prover.Proof
 
+					// TODO: differentiate between address circuits by tree height depending on inputs
 					if context.Bool("inclusion") {
 						var params prover.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)

@@ -63,6 +63,109 @@ impl Default for CompressedProof {
     }
 }
 
+pub fn verify_create_addresses_zkp(
+    address_roots: &[[u8; 32]],
+    addresses: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    let public_inputs = [address_roots, addresses].concat();
+    match addresses.len() {
+        1 => verify::<2>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::non_inclusion_26_1::VERIFYINGKEY,
+        ),
+        2 => verify::<4>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::non_inclusion_26_2::VERIFYINGKEY,
+        ),
+        _ => Err(InvalidPublicInputsLength),
+    }
+}
+
+#[inline(never)]
+pub fn verify_create_addresses_and_merkle_proof_zkp(
+    roots: &[[u8; 32]],
+    leaves: &[[u8; 32]],
+    address_roots: &[[u8; 32]],
+    addresses: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    let public_inputs = [roots, leaves, address_roots, addresses].concat();
+    // The public inputs are expected to be a multiple of 2
+    // 4 inputs means 1 inclusion proof (1 root, 1 leaf, 1 address root, 1 created address)
+    // 6 inputs means 1 inclusion proof (1 root, 1 leaf, 2 address roots, 2 created address) or
+    // 6 inputs means 2 inclusion proofs (2 roots and 2 leaves, 1 address root, 1 created address)
+    // 8 inputs means 2 inclusion proofs (2 roots and 2 leaves, 2 address roots, 2 created address) or
+    // 8 inputs means 3 inclusion proofs (3 roots and 3 leaves, 1 address root, 1 created address)
+    // 10 inputs means 3 inclusion proofs (3 roots and 3 leaves, 2 address roots, 2 created address) or
+    // 10 inputs means 4 inclusion proofs (4 roots and 4 leaves, 1 address root, 1 created address)
+    // 12 inputs means 4 inclusion proofs (4 roots and 4 leaves, 2 address roots, 2 created address)
+    match public_inputs.len() {
+        4 => verify::<4>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::combined_26_1_1::VERIFYINGKEY,
+        ),
+        6 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::combined_26_2_1::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
+            };
+            verify::<6>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        8 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::combined_26_3_1::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::combined_26_2_2::VERIFYINGKEY
+            };
+            verify::<8>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        10 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::combined_26_4_1::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::combined_26_3_2::VERIFYINGKEY
+            };
+            verify::<10>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        12 => verify::<12>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::combined_26_4_2::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
+}
 pub fn select_verifying_key<'a>(
     num_leaves: usize,
     num_addresses: usize,
