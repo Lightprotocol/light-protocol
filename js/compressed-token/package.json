@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.15.4",
+    "version": "0.16.0",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -64,10 +64,10 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
-        "@solana/web3.js": "^1.95.3",
-        "@solana/spl-token": "^0.4.8",
-        "buffer": "^6.0.3",
-        "tweetnacl": "^1.0.3"
+        "@solana/web3.js": "1.95.3",
+        "@solana/spl-token": "0.4.8",
+        "buffer": "6.0.3",
+        "tweetnacl": "1.0.3"
     },
     "devDependencies": {
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
