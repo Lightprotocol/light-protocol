@@ -36,6 +36,7 @@ light-hasher = { version = "1.1.0", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "1.1.0", path = "../merkle-tree/reference" }
 light-concurrent-merkle-tree = { version = "1.1.0", path = "../merkle-tree/concurrent" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "1.1.0" }
+light-sdk = { workspace = true, features = ["legacy"]}
 light-verifier = { path = "../circuit-lib/verifier", version = "1.1.0" }
 light-utils = { path = "../utils", version = "1.1.0" }
 light-program-test = { workspace =  true }

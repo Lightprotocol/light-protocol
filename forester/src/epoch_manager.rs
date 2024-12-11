@@ -2,6 +2,7 @@ use crate::errors::ForesterError;
 use crate::queue_helpers::QueueItemData;
 use crate::rollover::{
     is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+    IndexerType,
 };
 use crate::send_transaction::{
     send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
@@ -11,6 +12,7 @@ use crate::slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker};
 use crate::tree_data_sync::fetch_trees;
 use crate::Result;
 use crate::{ForesterConfig, ForesterEpochInfo};
+use light_client::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc_pool::SolanaRpcPool;
 
 use crate::metrics::{push_metrics, queue_metric_update, update_forester_sol_balance};
@@ -20,7 +22,6 @@ use dashmap::DashMap;
 use forester_utils::forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
-use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use futures::future::join_all;
 use light_client::rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection};
 use light_registry::errors::RegistryError;
@@ -73,7 +74,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
+pub struct EpochManager<R: RpcConnection, I: Indexer<R> + IndexerType<R>> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -86,7 +87,7 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> Clone for EpochManager<R, I> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
@@ -103,7 +104,7 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -1083,7 +1084,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
     fields(forester = %config.payer_keypair.pubkey())
 )]
-pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
+pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,

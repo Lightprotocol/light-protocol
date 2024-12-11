@@ -1,5 +1,16 @@
-use forester_utils::indexer::Indexer;
+use crate::assert_compressed_tx::{
+    assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
+};
+use crate::conversions::{
+    program_to_sdk_public_transaction_event, sdk_to_program_compressed_account_with_merkle_context,
+    sdk_to_program_compressed_proof,
+};
+use light_client::indexer::Indexer;
+use light_client::rpc::errors::RpcError;
+use light_client::rpc::RpcConnection;
+use light_client::transaction_params::TransactionParams;
 use light_hasher::Poseidon;
+use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
     sdk::{
@@ -17,15 +28,8 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::assert_compressed_tx::{
-    assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
-};
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::TransactionParams;
-
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     address_merkle_tree_pubkeys: &[Pubkey],
@@ -104,7 +108,7 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -163,7 +167,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -207,7 +211,10 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn transfer_compressed_sol_test<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -273,7 +280,11 @@ pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
     compressed_transaction_test(inputs).await
 }
 
-pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> {
+pub struct CompressedTransactionTestInputs<
+    'a,
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+> {
     rpc: &'a mut R,
     test_indexer: &'a mut I,
     fee_payer: &'a Keypair,
@@ -292,7 +303,10 @@ pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn compressed_transaction_test<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
@@ -350,7 +364,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
             )
             .await;
         root_indices = proof_rpc_res.root_indices;
-        proof = Some(proof_rpc_res.proof);
+        proof = Some(sdk_to_program_compressed_proof(proof_rpc_res.proof));
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
@@ -428,9 +442,14 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         .await?
         .unwrap();
 
-    let (created_output_compressed_accounts, _) = inputs
-        .test_indexer
-        .add_event_and_compressed_accounts(&event.0);
+    let (created_output_compressed_accounts, _) =
+        inputs.test_indexer.add_event_and_compressed_accounts(
+            &program_to_sdk_public_transaction_event(event.0.clone()),
+        );
+    let created_output_compressed_accounts = created_output_compressed_accounts
+        .into_iter()
+        .map(sdk_to_program_compressed_account_with_merkle_context)
+        .collect::<Vec<_>>();
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,

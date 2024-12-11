@@ -1,16 +1,18 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
+use forester_utils::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use light_program_test::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
-use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_sdk::instruction_data::LightInstructionData;
 use light_sdk::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use light_sdk::proof::{CompressedProof, ProofRpcResult};
 use light_sdk::utils::get_cpi_authority_pda;
 use light_sdk::verify::find_cpi_signer;
 use light_sdk::{PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP};
@@ -37,8 +39,12 @@ async fn test_sdk_test() {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         }],
-        true,
-        true,
+        payer.insecure_clone(),
+        env.group_pda,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
 
@@ -78,7 +84,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -118,7 +125,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -131,6 +139,7 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn with_nested_data<R>(
     name: String,
     rpc: &mut R,
@@ -168,8 +177,18 @@ where
     )
     .unwrap();
 
+    let proof_result = ProofRpcResult {
+        root_indices: rpc_result.address_root_indices.clone(),
+        address_root_indices: rpc_result.address_root_indices.clone(),
+        proof: CompressedProof {
+            a: rpc_result.proof.a,
+            b: rpc_result.proof.b,
+            c: rpc_result.proof.c,
+        },
+    };
+
     let inputs = LightInstructionData {
-        proof: Some(rpc_result),
+        proof: Some(proof_result),
         accounts: Some(vec![account]),
     };
     let inputs = inputs.serialize().unwrap();
@@ -205,6 +224,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_nested_data<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
@@ -239,8 +259,18 @@ where
         remaining_accounts,
     );
 
+    let proof_result = ProofRpcResult {
+        root_indices: rpc_result.address_root_indices.clone(),
+        address_root_indices: rpc_result.address_root_indices.clone(),
+        proof: CompressedProof {
+            a: rpc_result.proof.a,
+            b: rpc_result.proof.b,
+            c: rpc_result.proof.c,
+        },
+    };
+
     let inputs = LightInstructionData {
-        proof: Some(rpc_result),
+        proof: Some(proof_result),
         accounts: Some(vec![compressed_account]),
     };
     let inputs = inputs.serialize().unwrap();

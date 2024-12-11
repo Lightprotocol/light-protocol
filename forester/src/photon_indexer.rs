@@ -1,6 +1,7 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use light_client::indexer::error::IndexerError;
+use light_client::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc::RpcConnection;
 use photon_api::apis::configuration::{ApiKey, Configuration};
 use photon_api::models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams};
@@ -89,7 +90,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
     }
 
-    async fn get_rpc_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {

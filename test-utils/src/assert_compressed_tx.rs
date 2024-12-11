@@ -1,8 +1,11 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
-use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use forester_utils::{
+    get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy, StateMerkleTreeAccounts,
+};
+use light_client::indexer::Indexer;
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
+use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
@@ -43,7 +46,10 @@ pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_compressed_transaction<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     input: AssertCompressedTransactionInputs<'_, R, I>,
 ) {
     // CHECK 1
@@ -244,7 +250,10 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_merkle_tree_after_tx<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     test_indexer: &mut I,

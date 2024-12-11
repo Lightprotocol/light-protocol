@@ -40,6 +40,7 @@ light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true }
+light-hash-set = { workspace=true }
 
 # Math and crypto
 num-bigint = { workspace = true }
