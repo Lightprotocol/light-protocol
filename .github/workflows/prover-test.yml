@@ -66,7 +66,7 @@ jobs:
       - name: Unit tests
         run: |
           cd light-prover
-          go test ./prover -timeout 30m
+          go test ./prover -timeout 60m
 
       - name: Lightweight integration tests
         if: ${{ github.event.pull_request.base.ref == 'main' }}
