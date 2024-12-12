@@ -36,7 +36,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         enable_indexer: false,
         wait_time: 10,
         prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
+            run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
         }),
     }))
@@ -268,7 +268,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         enable_indexer: false,
         wait_time: 15,
         prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
+            run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
         }),
     }))
@@ -605,7 +605,7 @@ async fn test_epoch_double_registration() {
         enable_indexer: false,
         wait_time: 10,
         prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
+            run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
         }),
     }))
