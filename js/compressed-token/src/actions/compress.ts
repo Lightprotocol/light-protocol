@@ -44,7 +44,10 @@ export async function compress(
     toAddress: PublicKey | Array<PublicKey>,
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    const tokenProgram = tokenProgramId ? tokenProgramId : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
         owner: owner.publicKey,
@@ -53,6 +56,7 @@ export async function compress(
         amount,
         mint,
         outputStateTree: merkleTree,
+        tokenProgram
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();

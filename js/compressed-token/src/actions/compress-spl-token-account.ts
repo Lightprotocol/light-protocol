@@ -39,7 +39,10 @@ export async function compressSplTokenAccount(
     outputStateTree: PublicKey,
     remainingAmount?: BN,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    const tokenProgram = tokenProgramId ? tokenProgramId : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     const compressIx = await CompressedTokenProgram.compressSplTokenAccount({
         feePayer: payer.publicKey,
         authority: owner.publicKey,
@@ -47,6 +50,7 @@ export async function compressSplTokenAccount(
         mint,
         remainingAmount,
         outputStateTree,
+        tokenProgram
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();

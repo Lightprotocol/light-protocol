@@ -6,7 +6,7 @@ import {
     TransactionSignature,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
-import { MINT_SIZE } from '@solana/spl-token';
+import { MINT_SIZE, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
     Rpc,
     buildAndSignTx,
@@ -33,9 +33,12 @@ export async function createMint(
     decimals: number,
     keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
+    isToken22 = false,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
+    
+    const tokenProgram = isToken22 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
 
     const ixs = await CompressedTokenProgram.createMint({
         feePayer: payer.publicKey,
@@ -44,6 +47,7 @@ export async function createMint(
         authority: mintAuthority,
         freezeAuthority: null, // TODO: add feature
         rentExemptBalance,
+        tokenProgram
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
