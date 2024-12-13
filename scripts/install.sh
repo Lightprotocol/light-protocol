@@ -102,6 +102,7 @@ install_rust() {
         rustup component add clippy rustfmt
         cargo install cargo-expand wasm-pack
         cargo install photon-indexer --version $(get_version "photon") --locked
+        cargo install --git https://github.com/Lightprotocol/photon.git --branch feat/batched-trees --locked
         log "rust"
     fi
 }
@@ -218,7 +219,7 @@ main() {
     install_solana
     install_anchor
     install_jq
-    download_gnark_keys "$key_type"
+    # download_gnark_keys "$key_type"
     install_dependencies
 
     echo "✨ Light Protocol development dependencies installed"
