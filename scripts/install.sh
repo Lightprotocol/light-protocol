@@ -219,7 +219,7 @@ main() {
     install_solana
     install_anchor
     install_jq
-    # download_gnark_keys "$key_type"
+    download_gnark_keys "$key_type"
     install_dependencies
 
     echo "✨ Light Protocol development dependencies installed"
