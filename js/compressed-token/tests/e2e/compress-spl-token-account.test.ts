@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, assert } from 'vitest';
 import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import {
     Rpc,
@@ -13,7 +13,11 @@ import {
     mintTo,
     compressSplTokenAccount,
 } from '../../src/actions';
-import { createAssociatedTokenAccount, mintToChecked } from '@solana/spl-token';
+import {
+    createAssociatedTokenAccount,
+    mintToChecked,
+    TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 const TEST_TOKEN_DECIMALS = 2;
@@ -286,5 +290,91 @@ describe('compressSplTokenAccount', () => {
                 invalidTree,
             ),
         ).rejects.toThrow();
+    });
+
+    it('should compress entire token 2022 account balance when remainingAmount is undefined', async () => {
+        const mintKeypair = Keypair.generate();
+
+        mint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                true,
+            )
+        ).mint;
+        const mintAccountInfo = await rpc.getAccountInfo(mint);
+        assert.equal(
+            mintAccountInfo!.owner.toBase58(),
+            TOKEN_2022_PROGRAM_ID.toBase58(),
+        );
+
+        alice = await newAccountWithLamports(rpc, 1e9);
+        aliceAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            alice.publicKey,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+
+        // Mint some tokens to alice's ATA
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            alice.publicKey,
+            mintAuthority,
+            bn(1000),
+        );
+
+        await decompress(rpc, payer, mint, bn(1000), alice, aliceAta);
+        // Get initial ATA balance
+        const ataBalanceBefore = await rpc.getTokenAccountBalance(aliceAta);
+
+        const initialCompressedBalance =
+            await rpc.getCompressedTokenAccountsByOwner(alice.publicKey, {
+                mint,
+            });
+
+        // Compress the entire balance
+        await compressSplTokenAccount(
+            rpc,
+            payer,
+            mint,
+            alice,
+            aliceAta,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+
+        // Get final balances
+        const ataBalanceAfter = await rpc.getTokenAccountBalance(aliceAta);
+        const compressedBalanceAfter =
+            await rpc.getCompressedTokenAccountsByOwner(alice.publicKey, {
+                mint,
+            });
+
+        // Assert ATA is empty
+        expect(bn(ataBalanceAfter.value.amount).eq(bn(0))).toBe(true);
+
+        // Assert compressed balance equals original ATA balance
+        const totalCompressedAmount = compressedBalanceAfter.items.reduce(
+            (sum, item) => sum.add(item.parsed.amount),
+            bn(0),
+        );
+        const initialCompressedAmount = initialCompressedBalance.items.reduce(
+            (sum, item) => sum.add(item.parsed.amount),
+            bn(0),
+        );
+
+        expect(
+            totalCompressedAmount.eq(
+                bn(ataBalanceBefore.value.amount).add(initialCompressedAmount),
+            ),
+        ).toBe(true);
     });
 });

@@ -48,7 +48,9 @@ export async function decompress(
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    const tokenProgram = tokenProgramId ? tokenProgramId : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
     amount = bn(amount);
 
@@ -77,7 +79,7 @@ export async function decompress(
         outputStateTree: merkleTree,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        tokenProgram,
+        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

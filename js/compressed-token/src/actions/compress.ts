@@ -46,7 +46,9 @@ export async function compress(
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    const tokenProgram = tokenProgramId ? tokenProgramId : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
     const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
@@ -56,7 +58,7 @@ export async function compress(
         amount,
         mint,
         outputStateTree: merkleTree,
-        tokenProgram
+        tokenProgramId,
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();

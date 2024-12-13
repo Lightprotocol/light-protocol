@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, assert } from 'vitest';
 import { PublicKey, Signer, Keypair, SystemProgram } from '@solana/web3.js';
 import {
     MINT_SIZE,
+    TOKEN_2022_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
@@ -23,7 +24,9 @@ async function createTestSplMint(
     payer: Signer,
     mintKeypair: Signer,
     mintAuthority: Keypair,
+    isToken2022 = false,
 ) {
+    const programId = isToken2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
 
@@ -31,7 +34,7 @@ async function createTestSplMint(
         fromPubkey: payer.publicKey,
         lamports: rentExemptBalance,
         newAccountPubkey: mintKeypair.publicKey,
-        programId: TOKEN_PROGRAM_ID,
+        programId,
         space: MINT_SIZE,
     });
     const initializeMintInstruction = createInitializeMint2Instruction(
@@ -39,7 +42,7 @@ async function createTestSplMint(
         TEST_TOKEN_DECIMALS,
         mintAuthority.publicKey,
         null,
-        TOKEN_PROGRAM_ID,
+        programId,
     );
     const { blockhash } = await rpc.getLatestBlockhash();
 
@@ -90,6 +93,39 @@ describe('approveAndMintTo', () => {
         );
 
         await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
+    });
+
+    it('should mintTo compressed account with external token 2022 mint', async () => {
+        const payer = await newAccountWithLamports(rpc);
+        const bob = Keypair.generate().publicKey;
+        const token22MintAuthority = Keypair.generate();
+        const token22MintKeypair = Keypair.generate();
+        const token22Mint = token22MintKeypair.publicKey;
+
+        /// Create external SPL mint
+        await createTestSplMint(
+            rpc,
+            payer,
+            token22MintKeypair,
+            token22MintAuthority,
+            true,
+        );
+        let mintAccountInfo = await rpc.getAccountInfo(token22Mint);
+        assert(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID));
+        /// Register mint
+        await createTokenPool(rpc, payer, token22Mint);
+        assert(token22Mint.equals(token22MintKeypair.publicKey));
+
+        await approveAndMintTo(
+            rpc,
+            payer,
+            token22Mint,
+            bob,
+            token22MintAuthority,
+            1000000000,
+        );
+
+        await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);
     });
 });
 

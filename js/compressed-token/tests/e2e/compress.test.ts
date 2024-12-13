@@ -24,7 +24,10 @@ import {
     decompress,
     mintTo,
 } from '../../src/actions';
-import { createAssociatedTokenAccount } from '@solana/spl-token';
+import {
+    createAssociatedTokenAccount,
+    TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -272,5 +275,82 @@ describe('compress', () => {
         const txId = await sendAndConfirmTx(rpc, tx);
 
         return txId;
+    });
+
+    it('should compress from bob Token 2022 Ata -> charlie', async () => {
+        const mintKeypair = Keypair.generate();
+
+        const token22Mint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                true,
+            )
+        ).mint;
+        const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
+        expect(
+            mintAccountInfo!.owner.toBase58(),
+            TOKEN_2022_PROGRAM_ID.toBase58(),
+        );
+
+        bob = await newAccountWithLamports(rpc, 1e9);
+        charlie = await newAccountWithLamports(rpc, 1e9);
+
+        const bobToken2022Ata = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            token22Mint,
+            bob.publicKey,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            token22Mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(10000),
+        );
+
+        await decompress(
+            rpc,
+            payer,
+            token22Mint,
+            bn(9000),
+            bob,
+            bobToken2022Ata,
+        );
+        const senderAtaBalanceBefore =
+            await rpc.getTokenAccountBalance(bobToken2022Ata);
+        const recipientCompressedTokenBalanceBefore =
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                mint: token22Mint,
+            });
+
+        await compress(
+            rpc,
+            payer,
+            token22Mint,
+            bn(701),
+            bob,
+            bobToken2022Ata,
+            charlie.publicKey,
+            merkleTree,
+        );
+        await assertCompress(
+            rpc,
+            bn(senderAtaBalanceBefore.value.amount),
+            bobToken2022Ata,
+            token22Mint,
+            [bn(701)],
+            [charlie.publicKey],
+            [recipientCompressedTokenBalanceBefore.items],
+        );
     });
 });

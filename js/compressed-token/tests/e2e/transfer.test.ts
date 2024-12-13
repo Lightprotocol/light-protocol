@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, assert } from 'vitest';
 import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
@@ -12,6 +12,7 @@ import {
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 import { createMint, mintTo, transfer } from '../../src/actions';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 
 /**
  * Assert that we created recipient and change-account for the sender, with all
@@ -222,5 +223,56 @@ describe('transfer', () => {
                 merkleTree,
             ),
         ).rejects.toThrow('Not enough balance for transfer');
+    });
+
+    it('should transfer token 2022 from bob -> charlie', async () => {
+        const mintKeypair = Keypair.generate();
+
+        mint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                true,
+            )
+        ).mint;
+        let mintAccountInfo = await rpc.getAccountInfo(mint);
+        assert.equal(
+            mintAccountInfo!.owner.toBase58(),
+            TOKEN_2022_PROGRAM_ID.toBase58(),
+        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
+
+        /// send 700 from bob -> charlie
+        /// bob: 300, charlie: 700
+        const bobPreCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                mint,
+            })
+        ).items;
+
+        await transfer(
+            rpc,
+            payer,
+            mint,
+            bn(700),
+            bob,
+            charlie.publicKey,
+            merkleTree,
+        );
+
+        await assertTransfer(
+            rpc,
+            bobPreCompressedTokenAccounts,
+            mint,
+            bn(700),
+            bob.publicKey,
+            charlie.publicKey,
+            1,
+            1,
+        );
     });
 });
