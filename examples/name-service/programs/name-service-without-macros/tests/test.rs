@@ -3,12 +3,11 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use forester_utils::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_client::indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use light_program_test::test_env::{setup_test_programs_with_accounts_v2, EnvAccounts};
+use light_program_test::test_indexer::TestIndexer;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
-use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_sdk::account_meta::LightAccountMeta;
 use light_sdk::address::derive_address;
 use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
@@ -45,12 +44,8 @@ async fn test_name_service() {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         }],
-        payer.insecure_clone(),
-        env.group_pda,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
+        true,
+        true,
     )
     .await;
 
@@ -119,8 +114,8 @@ async fn test_name_service() {
     }
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer
-        .get_compressed_accounts_with_merkle_context_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -197,8 +192,8 @@ async fn test_name_service() {
     }
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer
-        .get_compressed_accounts_with_merkle_context_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account

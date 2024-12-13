@@ -9,8 +9,8 @@ use account_compression::utils::constants::{
 };
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::indexer::Indexer;
 use futures::future::join_all;
-use light_client::indexer::Indexer;
 use light_client::rpc::{RetryConfig, RpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use light_registry::account_compression_cpi::sdk::{
@@ -52,7 +52,7 @@ pub trait TransactionBuilder {
 // 3. Slot duration is 500ms.
 const LATENCY: Duration = Duration::from_millis(4 * 500);
 
-const TIMEOUT_CHECK_ENABLED: bool = true;
+const TIMEOUT_CHECK_ENABLED: bool = false;
 
 /// Setting:
 /// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
@@ -395,12 +395,8 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         join!(address_future, state_future)
     };
 
-    let address_proofs = address_proofs.map_err(|e| {
-        ForesterError::IndexerError(format!("Failed to fetch address proofs: {:?}", e))
-    })?;
-    let state_proofs = state_proofs.map_err(|e| {
-        ForesterError::IndexerError(format!("Failed to fetch state proofs: {:?}", e))
-    })?;
+    let address_proofs = address_proofs?;
+    let state_proofs = state_proofs?;
 
     // Process address proofs and create instructions
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {

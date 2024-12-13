@@ -10,11 +10,11 @@ devenv = []
 [dependencies]
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
+light-sdk = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-hasher = { workspace = true }
 light-registry = { workspace = true }
-light-sdk = { workspace = true }
 light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
 light-utils = { workspace = true }

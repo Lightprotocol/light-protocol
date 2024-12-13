@@ -7,9 +7,9 @@ use account_compression::{
 };
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
-use forester_utils::create_account_instruction;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
 use forester_utils::registry::register_test_forester;
+use forester_utils::{airdrop_lamports, create_account_instruction};
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
@@ -35,24 +35,6 @@ use std::path::PathBuf;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
-
-pub async fn airdrop_lamports<R: RpcConnection>(
-    rpc: &mut R,
-    destination_pubkey: &Pubkey,
-    lamports: u64,
-) -> Result<(), RpcError> {
-    let transfer_instruction =
-        system_instruction::transfer(&rpc.get_payer().pubkey(), destination_pubkey, lamports);
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
-    let transaction = Transaction::new_signed_with_payer(
-        &[transfer_instruction],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer()],
-        latest_blockhash,
-    );
-    rpc.process_transaction(transaction).await?;
-    Ok(())
-}
 
 /// Setup test programs
 /// deploys:

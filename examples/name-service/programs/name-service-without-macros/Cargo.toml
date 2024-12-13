@@ -34,9 +34,8 @@ light-verifier = { workspace = true }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-forester-utils = { workspace = true }
-light-prover-client = { workspace = true }
 light-client = { workspace = true , features = ["devenv"]}
 light-test-utils = { path = "../../../../test-utils", version = "1.2.0", features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
+solana-program-test = { workspace = true }
 tokio = "1.36.0"

@@ -31,10 +31,8 @@ light-verifier = {path = "../../circuit-lib/verifier"}
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-light-client =  { workspace = true }
 solana-program-test = { workspace = true }
 light-test-utils = { version = "1.2.0", path = "../../test-utils", features=["devenv"] }
-light-sdk = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 reqwest = "0.11.26"
 tokio = { workspace = true }
