@@ -110,7 +110,7 @@ describe('approveAndMintTo', () => {
             token22MintAuthority,
             true,
         );
-        let mintAccountInfo = await rpc.getAccountInfo(token22Mint);
+        const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
         assert(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID));
         /// Register mint
         await createTokenPool(rpc, payer, token22Mint);

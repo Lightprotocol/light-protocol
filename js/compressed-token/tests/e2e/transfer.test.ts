@@ -239,7 +239,7 @@ describe('transfer', () => {
                 true,
             )
         ).mint;
-        let mintAccountInfo = await rpc.getAccountInfo(mint);
+        const mintAccountInfo = await rpc.getAccountInfo(mint);
         assert.equal(
             mintAccountInfo!.owner.toBase58(),
             TOKEN_2022_PROGRAM_ID.toBase58(),
