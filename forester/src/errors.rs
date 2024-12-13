@@ -1,6 +1,6 @@
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
 use config::ConfigError;
-use light_client::indexer::error::IndexerError;
+use forester_utils::indexer::IndexerError;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc_pool::PoolError;
 use light_hash_set::HashSetError;

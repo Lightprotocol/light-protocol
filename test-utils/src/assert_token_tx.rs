@@ -3,16 +3,15 @@ use crate::assert_compressed_tx::{
     assert_public_transaction_event, MerkleTreeTestSnapShot,
 };
 use anchor_lang::AnchorSerialize;
-use light_client::indexer::Indexer;
+use forester_utils::indexer::{Indexer, TokenDataWithContext};
 use light_client::rpc::RpcConnection;
 use light_compressed_token::{
     get_token_pool_pda,
     process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
 };
-use light_program_test::indexer::TestIndexerExtensions;
-use light_sdk::token::TokenDataWithMerkleContext;
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_system_program::sdk::event::PublicTransactionEvent;
+use light_system_program::sdk::{
+    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+};
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 /// General token tx assert:
@@ -24,7 +23,7 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
@@ -81,10 +80,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
     );
 }
 
-pub fn assert_compressed_token_accounts<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
@@ -194,14 +190,14 @@ pub fn assert_compressed_token_accounts<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     test_indexer: &'a mut I,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],
     snapshots: &[MerkleTreeTestSnapShot],
-    created_token_accounts: &[TokenDataWithMerkleContext],
+    created_token_accounts: &[TokenDataWithContext],
     previous_mint_supply: u64,
     previous_sol_pool_amount: u64,
 ) {

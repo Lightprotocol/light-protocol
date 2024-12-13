@@ -3,17 +3,17 @@ use account_compression::AddressMerkleTreeAccount;
 use forester::queue_helpers::fetch_queue_item_data;
 use forester::run_pipeline;
 use forester::utils::get_protocol_config;
+use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use forester_utils::registry::register_test_forester;
-use forester_utils::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
-use light_program_test::indexer::TestIndexer;
 use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
 use light_registry::{EpochPda, ForesterEpochPda};
 use light_test_utils::e2e_test_env::E2ETestEnv;
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::update_test_forester;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
@@ -450,7 +450,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     ));
 
     // Wait for both foresters to report work for epoch 1
-    const TIMEOUT_DURATION: Duration = Duration::from_secs(60 * 10);
+    const TIMEOUT_DURATION: Duration = Duration::from_secs(360);
     const EXPECTED_EPOCHS: u64 = 2; // We expect to process 2 epochs (0 and 1)
 
     let result: Result<(), tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {

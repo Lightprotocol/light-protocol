@@ -14,8 +14,9 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
-pub mod conversions;
 pub mod e2e_test_env;
+#[allow(unused)]
+pub mod indexer;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
@@ -25,9 +26,10 @@ pub mod test_forester;
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
 pub use forester_utils::{
-    create_account_instruction,
+    airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
+    indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, TokenDataWithContext},
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions, register_test_forester,

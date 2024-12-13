@@ -5,10 +5,9 @@ use account_compression::{
     self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use light_program_test::airdrop_lamports;
 use light_program_test::test_env::{get_group_pda, OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
 use light_program_test::test_rpc::ProgramTestRpcConnection;
-use light_test_utils::{assert_rpc_error, RpcConnection};
+use light_test_utils::{airdrop_lamports, assert_rpc_error, RpcConnection};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},

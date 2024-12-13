@@ -34,7 +34,6 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 solana-program-test = { workspace = true }
 light-test-utils = { version = "1.2.0", path = "../../../../test-utils", features = ["devenv"] }
-light-client = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 reqwest = "0.12"
 tokio = { workspace = true }

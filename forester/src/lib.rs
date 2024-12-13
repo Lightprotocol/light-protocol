@@ -22,14 +22,12 @@ use crate::epoch_manager::{run_service, WorkReport};
 use crate::errors::ForesterError;
 use crate::metrics::QUEUE_LENGTH;
 use crate::queue_helpers::fetch_queue_item_data;
-use crate::rollover::IndexerType;
 use crate::slot_tracker::SlotTracker;
 use crate::utils::get_protocol_config;
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use light_client::indexer::Indexer;
-use light_client::rpc::merkle_tree::MerkleTreeExt;
+use forester_utils::indexer::Indexer;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_client::rpc_pool::SolanaRpcPool;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -71,7 +69,7 @@ pub async fn run_queue_info(
     }
 }
 
-pub async fn run_pipeline<R: RpcConnection + MerkleTreeExt, I: Indexer<R> + IndexerType<R>>(
+pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
     config: Arc<ForesterConfig>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
