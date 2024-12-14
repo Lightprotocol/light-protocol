@@ -119,6 +119,12 @@ class SetupCommand extends Command {
       required: false,
       exclusive: ["geyser-config"],
     }),
+    "sbf-program": Flags.string({
+      description:
+        "Add a SBF program to the genesis configuration with upgrades disabled. If the ledger already exists then this parameter is silently ignored. First argument can be a pubkey string or path to a keypair",
+      required: false,
+      multiple: true,
+    }),
   };
 
   async run() {
@@ -139,7 +145,22 @@ class SetupCommand extends Command {
       });
       this.log("\nTest validator stopped successfully \x1b[32m✔\x1b[0m");
     } else {
+      const rawValues = flags["sbf-program"] || [];
+
+      if (rawValues.length % 2 !== 0) {
+        this.error("Each --sbf-program flag must have exactly two arguments");
+      }
+
+      const programs: { address: string; path: string }[] = [];
+      for (let i = 0; i < rawValues.length; i += 2) {
+        programs.push({
+          address: rawValues[i],
+          path: rawValues[i + 1],
+        });
+      }
+
       await initTestEnv({
+        additionalPrograms: programs,
         checkPhotonVersion: !flags["relax-indexer-version-constraint"],
         indexer: !flags["skip-indexer"],
         limitLedgerSize: flags["limit-ledger-size"],
