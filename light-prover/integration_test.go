@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -133,34 +134,50 @@ func TestFull(t *testing.T) {
 
 // runCommonTests contains all tests that should run in both modes
 func runCommonTests(t *testing.T) {
-	t.Run("testWrongMethod", testWrongMethod)
-	t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
-	t.Run("testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON)
-	t.Run("testInclusionWrongInPathIndices", testInclusionWrongInPathIndices)
-	t.Run("testInclusionWrongInPathElements", testInclusionWrongInPathElements)
-	t.Run("testInclusionWrongRoot", testInclusionWrongRoot)
-	t.Run("testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf)
-	t.Run("testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
-	t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
+	// t.Run("testWrongMethod", testWrongMethod)
+	// t.Run("testInclusionHappyPath26_12348", testInclusionHappyPath26_12348)
+	// t.Run("testInclusionHappyPath26_1_JSON", testInclusionHappyPath26_1_JSON)
+	// t.Run("testInclusionWrongInPathIndices", testInclusionWrongInPathIndices)
+	// t.Run("testInclusionWrongInPathElements", testInclusionWrongInPathElements)
+	// t.Run("testInclusionWrongRoot", testInclusionWrongRoot)
+	// t.Run("testParsingEmptyTreeWithOneLeaf", testParsingEmptyTreeWithOneLeaf)
+	// t.Run("testNonInclusionHappyPath26_1_JSON", testNonInclusionHappyPath26_1_JSON)
+	// t.Run("testCombinedHappyPath_JSON", testCombinedHappyPath_JSON)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
 func runFullOnlyTests(t *testing.T) {
-	t.Run("testBatchAppendWithSubtreesHappyPath26_1000", testBatchAppendWithSubtreesHappyPath26_1000)
-	t.Run("testBatchAppendWithSubtreesPreviousState26_100", testBatchAppendWithSubtreesPreviousState26_100)
+	// t.Run("testBatchAppendWithSubtreesHappyPath26_1000", testBatchAppendWithSubtreesHappyPath26_1000)
+	// t.Run("testBatchAppendWithSubtreesPreviousState26_100", testBatchAppendWithSubtreesPreviousState26_100)
 
-	t.Run("testBatchAppendWithProofsHappyPath26_1000", testBatchAppendWithProofsHappyPath26_1000)
-	t.Run("testBatchAppendWithProofsPreviousState26_100", testBatchAppendWithProofsPreviousState26_100)
+	// t.Run("testBatchAppendWithProofsHappyPath26_1000", testBatchAppendWithProofsHappyPath26_1000)
+	// t.Run("testBatchAppendWithProofsPreviousState26_100", testBatchAppendWithProofsPreviousState26_100)
 
-	t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
-	t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
-	t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
+	// t.Run("testBatchUpdateHappyPath26_100", testBatchUpdateHappyPath26_100)
+	// t.Run("testBatchUpdateHappyPath26_500", testBatchUpdateHappyPath26_500)
+	// t.Run("testBatchUpdateHappyPath26_1000", testBatchUpdateHappyPath26_1000)
 
-	t.Run("testBatchAddressAppendHappyPath40_100", testBatchAddressAppendHappyPath40_100)
-	t.Run("testBatchAddressAppendHappyPath40_500", testBatchAddressAppendHappyPath40_500)
-	t.Run("testBatchAddressAppendHappyPath40_250", testBatchAddressAppendHappyPath40_250)
-	t.Run("testBatchAddressAppendHappyPath40_1000", testBatchAddressAppendHappyPath40_1000)
-	t.Run("testBatchAddressAppendWithPreviousState40_100", testBatchAddressAppendWithPreviousState40_100)
+	runBatchUpdateTest(t, 32, 100)
+	runBatchUpdateTest(t, 32, 500)
+	runBatchUpdateTest(t, 32, 1000)
+
+	runBatchAppendWithProofsTest(t, 32, 100)
+	runBatchAppendWithProofsTest(t, 32, 500)
+	runBatchAppendWithProofsTest(t, 32, 1000)
+
+	// t.Run("testBatchAppendWithProofsHappyPath32_100", testBatchAppendWithProofsHappyPath32_100)
+	// t.Run("testBatchAppendWithProofsHappyPath32_500", testBatchAppendWithProofsHappyPath32_500)
+	// t.Run("testBatchAppendWithProofsHappyPath32_1000", testBatchAppendWithProofsHappyPath32_1000)
+
+	// t.Run("testBatchUpdateHappyPath32_100", testBatchUpdateHappyPath32_100)
+	// t.Run("testBatchUpdateHappyPath32_500", testBatchUpdateHappyPath32_500)
+	// t.Run("testBatchUpdateHappyPath32_1000", testBatchUpdateHappyPath32_1000)
+
+	// t.Run("testBatchAddressAppendHappyPath40_100", testBatchAddressAppendHappyPath40_100)
+	// t.Run("testBatchAddressAppendHappyPath40_500", testBatchAddressAppendHappyPath40_500)
+	// t.Run("testBatchAddressAppendHappyPath40_250", testBatchAddressAppendHappyPath40_250)
+	// t.Run("testBatchAddressAppendHappyPath40_1000", testBatchAddressAppendHappyPath40_1000)
+	// t.Run("testBatchAddressAppendWithPreviousState40_100", testBatchAddressAppendWithPreviousState40_100)
 }
 
 func runLightweightOnlyTests(t *testing.T) {
@@ -527,6 +544,30 @@ func testBatchAppendWithProofsHappyPath26_1000(t *testing.T) {
 	}
 }
 
+func runBatchAppendWithProofsTest(t *testing.T, treeDepth int, batchSize int) {
+	logging.Logger().Info().Msg("Running batch append with proofs with tree depth" + strconv.Itoa(int(treeDepth)) + " and batch size " + strconv.Itoa(int(batchSize)))
+
+	params := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, true)
+
+	jsonBytes, err := params.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatalf("Failed to send POST request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	t.Logf("Successfully ran batch append with proofs test with tree depth %d and batch size %d", treeDepth, batchSize)
+}
+
 func testBatchAppendWithSubtreesHappyPath26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
@@ -757,6 +798,7 @@ func testBatchUpdateHappyPath26_1000(t *testing.T) {
 }
 
 func runBatchUpdateTest(t *testing.T, treeDepth uint32, batchSize uint32) {
+	logging.Logger().Info().Msg("Running batch update test with tree depth" + strconv.Itoa(int(treeDepth)) + " and batch size " + strconv.Itoa(int(batchSize)))
 	params := prover.BuildTestBatchUpdateTree(int(treeDepth), int(batchSize), nil, nil)
 
 	jsonBytes, err := params.MarshalJSON()

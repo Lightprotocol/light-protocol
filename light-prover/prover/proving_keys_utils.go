@@ -126,19 +126,27 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var appendWithProofsKeys []string = []string{
-		keysDir + "append-with-proofs_26_1.key",
-		keysDir + "append-with-proofs_26_10.key",
-		keysDir + "append-with-proofs_26_100.key",
-		keysDir + "append-with-proofs_26_500.key",
-		keysDir + "append-with-proofs_26_1000.key",
+		// keysDir + "append-with-proofs_26_1.key",
+		// keysDir + "append-with-proofs_26_10.key",
+		// keysDir + "append-with-proofs_26_100.key",
+		// keysDir + "append-with-proofs_26_500.key",
+		// keysDir + "append-with-proofs_26_1000.key",
+
+		keysDir + "append-with-proofs_32_100.key",
+		keysDir + "append-with-proofs_32_500.key",
+		keysDir + "append-with-proofs_32_1000.key",
 	}
 
 	var updateKeys []string = []string{
-		keysDir + "update_26_1.key",
-		keysDir + "update_26_10.key",
-		keysDir + "update_26_100.key",
-		keysDir + "update_26_500.key",
-		keysDir + "update_26_1000.key",
+		// keysDir + "update_26_1.key",
+		// keysDir + "update_26_10.key",
+		// keysDir + "update_26_100.key",
+		// keysDir + "update_26_500.key",
+		// keysDir + "update_26_1000.key",
+
+		keysDir + "update_32_100.key",
+		keysDir + "update_32_500.key",
+		keysDir + "update_32_1000.key",
 	}
 
 	var appendWithSubtreesTestKeys []string = []string{
@@ -182,12 +190,11 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
 	case Full: // inclusion + non-inclusion + combined + append + update + address-append
-		keys = append(keys, inclusionKeys...)
-		keys = append(keys, nonInclusionKeys...)
-		keys = append(keys, combinedKeys...)
-		keys = append(keys, appendWithSubtreesKeys...)
+		// keys = append(keys, inclusionKeys...)
+		// keys = append(keys, nonInclusionKeys...)
+		// keys = append(keys, combinedKeys...)
+		// keys = append(keys, appendWithProofsKeys...)
 		keys = append(keys, updateKeys...)
-		keys = append(keys, addressAppendKeys...)
 	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
