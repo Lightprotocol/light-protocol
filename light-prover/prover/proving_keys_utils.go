@@ -193,7 +193,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		// keys = append(keys, inclusionKeys...)
 		// keys = append(keys, nonInclusionKeys...)
 		// keys = append(keys, combinedKeys...)
-		// keys = append(keys, appendWithProofsKeys...)
+		keys = append(keys, appendWithProofsKeys...)
 		keys = append(keys, updateKeys...)
 	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
