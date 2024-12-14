@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    ParsedTokenAccount,
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,

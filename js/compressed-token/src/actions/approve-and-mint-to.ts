@@ -39,12 +39,21 @@ export async function approveAndMintTo(
     amount: number | BN,
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     const authorityTokenAccount = await getOrCreateAssociatedTokenAccount(
         rpc,
         payer,
         mint,
         authority.publicKey,
+        undefined,
+        undefined,
+        confirmOptions,
+        tokenProgramId,
     );
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -55,6 +64,7 @@ export async function approveAndMintTo(
         amount,
         toPubkey: destination,
         merkleTree,
+        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

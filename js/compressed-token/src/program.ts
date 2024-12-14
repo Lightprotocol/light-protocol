@@ -27,6 +27,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
+    TOKEN_2022_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
     createMintToInstruction,
@@ -65,6 +66,10 @@ export type CompressParams = {
      * public state tree if unspecified.
      */
     outputStateTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 export type CompressSplTokenAccountParams = {
@@ -92,6 +97,10 @@ export type CompressSplTokenAccountParams = {
      * The state tree that the compressed token account should be inserted into.
      */
     outputStateTree: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 export type DecompressParams = {
@@ -126,6 +135,10 @@ export type DecompressParams = {
      * Defaults to a public state tree if unspecified.
      */
     outputStateTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 export type TransferParams = {
@@ -192,6 +205,10 @@ export type CreateMintParams = {
      * lamport amount for mint account rent exemption
      */
     rentExemptBalance: number;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 /**
@@ -257,6 +274,10 @@ export type MintToParams = {
      * tree if unspecified.
      */
     merkleTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 /**
@@ -268,6 +289,10 @@ export type RegisterMintParams = {
     feePayer: PublicKey;
     /** Mint public key */
     mint: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 /**
@@ -303,6 +328,10 @@ export type ApproveAndMintToParams = {
      * tree if unspecified.
      */
     merkleTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
 };
 
 export type CreateTokenProgramLookupTableParams = {
@@ -548,14 +577,16 @@ export class CompressedTokenProgram {
     static async createMint(
         params: CreateMintParams,
     ): Promise<TransactionInstruction[]> {
-        const { mint, authority, feePayer, rentExemptBalance } = params;
+        const { mint, authority, feePayer, rentExemptBalance, tokenProgramId } =
+            params;
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         /// Create and initialize SPL Mint account
         const createMintAccountInstruction = SystemProgram.createAccount({
             fromPubkey: feePayer,
             lamports: rentExemptBalance,
             newAccountPubkey: mint,
-            programId: TOKEN_PROGRAM_ID,
+            programId: tokenProgram,
             space: MINT_SIZE,
         });
 
@@ -564,12 +595,13 @@ export class CompressedTokenProgram {
             params.decimals,
             authority,
             params.freezeAuthority,
-            TOKEN_PROGRAM_ID,
+            tokenProgram,
         );
 
         const ix = await this.createTokenPool({
             feePayer,
             mint,
+            tokenProgramId: tokenProgram,
         });
 
         return [createMintAccountInstruction, initializeMintInstruction, ix];
@@ -582,7 +614,9 @@ export class CompressedTokenProgram {
     static async createTokenPool(
         params: RegisterMintParams,
     ): Promise<TransactionInstruction> {
-        const { mint, feePayer } = params;
+        const { mint, feePayer, tokenProgramId } = params;
+
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
@@ -593,7 +627,7 @@ export class CompressedTokenProgram {
                 feePayer,
                 tokenPoolPda,
                 systemProgram: SystemProgram.programId,
-                tokenProgram: TOKEN_PROGRAM_ID,
+                tokenProgram,
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,
             })
             .instruction();
@@ -607,8 +641,16 @@ export class CompressedTokenProgram {
     static async mintTo(params: MintToParams): Promise<TransactionInstruction> {
         const systemKeys = defaultStaticAccountsStruct();
 
-        const { mint, feePayer, authority, merkleTree, toPubkey, amount } =
-            params;
+        const {
+            mint,
+            feePayer,
+            authority,
+            merkleTree,
+            toPubkey,
+            amount,
+            tokenProgramId,
+        } = params;
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
@@ -630,7 +672,7 @@ export class CompressedTokenProgram {
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,
                 mint,
                 tokenPoolPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
+                tokenProgram,
                 lightSystemProgram: LightSystemProgram.programId,
                 registeredProgramPda: systemKeys.registeredProgramPda,
                 noopProgram: systemKeys.noopProgram,
@@ -658,6 +700,7 @@ export class CompressedTokenProgram {
             authority,
             merkleTree,
             toPubkey,
+            tokenProgramId,
         } = params;
 
         const amount: bigint = BigInt(params.amount.toString());
@@ -668,6 +711,8 @@ export class CompressedTokenProgram {
             authorityTokenAccount,
             authority,
             amount,
+            [],
+            tokenProgramId,
         );
 
         /// 2. Compress from mint authority ATA to recipient compressed account
@@ -679,6 +724,7 @@ export class CompressedTokenProgram {
             mint,
             amount: params.amount,
             outputStateTree: merkleTree,
+            tokenProgramId,
         });
 
         return [splMintToInstruction, compressInstruction];
@@ -807,6 +853,7 @@ export class CompressedTokenProgram {
                 defaultTestStateTreeAccounts().addressQueue,
                 this.programId,
                 TOKEN_PROGRAM_ID,
+                TOKEN_2022_PROGRAM_ID,
                 authority,
                 ...optionalMintKeys,
                 ...(remainingAccounts ?? []),
@@ -826,8 +873,15 @@ export class CompressedTokenProgram {
     static async compress(
         params: CompressParams,
     ): Promise<TransactionInstruction> {
-        const { payer, owner, source, toAddress, mint, outputStateTree } =
-            params;
+        const {
+            payer,
+            owner,
+            source,
+            toAddress,
+            mint,
+            outputStateTree,
+            tokenProgramId,
+        } = params;
 
         if (Array.isArray(params.amount) !== Array.isArray(params.toAddress)) {
             throw new Error(
@@ -894,6 +948,7 @@ export class CompressedTokenProgram {
             'CompressedTokenInstructionDataTransfer',
             data,
         );
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         const instruction = await this.program.methods
             .transfer(encodedData)
@@ -912,7 +967,7 @@ export class CompressedTokenProgram {
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
                 compressOrDecompressTokenAccount: source, // token
-                tokenProgram: TOKEN_PROGRAM_ID,
+                tokenProgram,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -933,6 +988,7 @@ export class CompressedTokenProgram {
             outputStateTree,
             recentValidityProof,
             recentInputStateRootIndices,
+            tokenProgramId,
         } = params;
         const amount = bn(params.amount);
 
@@ -980,7 +1036,7 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
-
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
         const instruction = await this.program.methods
             .transfer(encodedData)
             .accounts({
@@ -995,7 +1051,7 @@ export class CompressedTokenProgram {
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
                 compressOrDecompressTokenAccount: toAddress,
-                tokenProgram: TOKEN_PROGRAM_ID,
+                tokenProgram,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -1045,7 +1101,9 @@ export class CompressedTokenProgram {
             mint,
             remainingAmount,
             outputStateTree,
+            tokenProgramId,
         } = params;
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         const remainingAccountMetas: AccountMeta[] = [
             {
@@ -1072,12 +1130,19 @@ export class CompressedTokenProgram {
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
                 compressOrDecompressTokenAccount: tokenAccount,
-                tokenProgram: TOKEN_PROGRAM_ID,
+                tokenProgram,
                 systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
         return instruction;
+    }
+
+    static async get_mint_program_id(
+        mint: PublicKey,
+        connection: Connection,
+    ): Promise<PublicKey | undefined> {
+        return (await connection.getAccountInfo(mint))?.owner;
     }
 }

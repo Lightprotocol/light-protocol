@@ -46,7 +46,12 @@ export async function decompress(
     /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     amount = bn(amount);
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -74,6 +79,7 @@ export async function decompress(
         outputStateTree: merkleTree,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
+        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

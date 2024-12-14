@@ -25,12 +25,18 @@ import {
 export async function createTokenPool(
     rpc: Rpc,
     payer: Signer,
-    mintAddress: PublicKey,
+    mint: PublicKey,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     const ix = await CompressedTokenProgram.createTokenPool({
         feePayer: payer.publicKey,
-        mint: mintAddress,
+        mint,
+        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

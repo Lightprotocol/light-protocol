@@ -40,7 +40,12 @@ export async function mintTo(
     amount: number | BN | number[] | BN[],
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
+    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
+    tokenProgramId = tokenProgramId
+        ? tokenProgramId
+        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     const ix = await CompressedTokenProgram.mintTo({
@@ -50,6 +55,7 @@ export async function mintTo(
         amount: amount,
         toPubkey: destination,
         merkleTree,
+        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

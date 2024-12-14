@@ -8,6 +8,7 @@ import {
 import { PublicKey } from "@solana/web3.js";
 import { decompress } from "@lightprotocol/compressed-token";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { CompressedTokenProgram } from "@lightprotocol/compressed-token";
 
 /// TODO: add ability to decompress from non-fee payer
 class DecompressSplCommand extends Command {
@@ -51,12 +52,20 @@ class DecompressSplCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
+      const tokenProgramId = await CompressedTokenProgram.get_mint_program_id(
+        mintPublicKey,
+        rpc(),
+      );
 
       const recipientAta = await getOrCreateAssociatedTokenAccount(
         rpc(),
         payer,
         mintPublicKey,
         toPublicKey,
+        undefined,
+        undefined,
+        undefined,
+        tokenProgramId,
       );
 
       txId = await decompress(
@@ -66,6 +75,9 @@ class DecompressSplCommand extends Command {
         amount,
         payer,
         recipientAta.address,
+        undefined,
+        undefined,
+        tokenProgramId,
       );
 
       loader.stop(false);

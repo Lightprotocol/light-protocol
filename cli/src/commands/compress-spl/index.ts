@@ -11,6 +11,7 @@ import { getTestRpc } from "@lightprotocol/stateless.js";
 import { compress } from "@lightprotocol/compressed-token";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { CompressedTokenProgram } from "@lightprotocol/compressed-token";
 
 /// TODO: add ability to compress from non-fee payer
 class CompressSplCommand extends Command {
@@ -54,11 +55,17 @@ class CompressSplCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
+      const tokenProgramId = await CompressedTokenProgram.get_mint_program_id(
+        mintPublicKey,
+        rpc(),
+      );
 
       /// TODO: add explicit check that the ata is valid
       const sourceAta = getAssociatedTokenAddressSync(
         mintPublicKey,
         payer.publicKey,
+        undefined,
+        tokenProgramId,
       );
 
       txId = await compress(
@@ -69,6 +76,9 @@ class CompressSplCommand extends Command {
         payer,
         sourceAta,
         toPublicKey,
+        undefined,
+        undefined,
+        tokenProgramId,
       );
 
       loader.stop(false);
