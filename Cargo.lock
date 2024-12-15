@@ -8619,12 +8619,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest 0.12.4",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
