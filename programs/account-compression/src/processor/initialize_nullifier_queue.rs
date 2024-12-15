@@ -1,7 +1,8 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
 use crate::{
     queue_from_bytes_zero_copy_init, AccessMetadata, QueueAccount, QueueType, RolloverMetadata,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     nullifier_queue_account_info: AccountInfo<'info>,

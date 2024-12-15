@@ -257,6 +257,7 @@ pub mod sdk {
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
+    use super::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke};
     use crate::{
         process_transfer::{
             get_cpi_authority_pda,
@@ -266,8 +267,6 @@ pub mod sdk {
         },
         token_data::TokenData,
     };
-
-    use super::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke};
 
     pub struct CreateApproveInstructionInputs {
         pub fee_payer: Pubkey,
@@ -435,13 +434,14 @@ pub mod sdk {
 
 #[cfg(test)]
 mod test {
+    use anchor_lang::solana_program::account_info::AccountInfo;
+    use light_system_program::sdk::compressed_account::PackedMerkleContext;
+
     use super::*;
     use crate::{
         freeze::test_freeze::create_expected_token_output_accounts, token_data::AccountState,
         TokenData,
     };
-    use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_system_program::sdk::compressed_account::PackedMerkleContext;
 
     // TODO: add randomized and edge case tests
     #[test]

@@ -1,12 +1,16 @@
-use crate::utils::decode_hash;
+use std::fmt::Debug;
+
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc::RpcConnection;
-use photon_api::apis::configuration::{ApiKey, Configuration};
-use photon_api::models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams};
+use photon_api::{
+    apis::configuration::{ApiKey, Configuration},
+    models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams},
+};
 use solana_sdk::bs58;
-use std::fmt::Debug;
 use tracing::debug;
+
+use crate::utils::decode_hash;
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,

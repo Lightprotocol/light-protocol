@@ -1,7 +1,5 @@
-use crate::{
-    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
-    NewAddressParamsPacked,
-};
+use std::mem;
+
 use account_compression::{
     utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
     StateMerkleTreeAccount,
@@ -16,7 +14,11 @@ use light_verifier::{
     verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
     verify_merkle_proof_zkp, CompressedProof,
 };
-use std::mem;
+
+use crate::{
+    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
+    NewAddressParamsPacked,
+};
 
 #[inline(never)]
 #[heap_neutral]
@@ -111,13 +113,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .enumerate()
     {
         // For heap neutrality we cannot allocate new heap memory in this function.
-        match &input_compressed_account_with_context
+        if let Some(address) = &input_compressed_account_with_context
             .compressed_account
             .address
         {
-            Some(address) => addresses[j] = Some(*address),
-            None => {}
-        };
+            addresses[j] = Some(*address);
+        }
+
         if input_compressed_account_with_context
             .merkle_context
             .queue_index

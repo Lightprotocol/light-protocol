@@ -1,19 +1,20 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
-use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use forester_utils::{
+    get_concurrent_merkle_tree, get_hash_set,
+    indexer::{Indexer, StateMerkleTreeAccounts},
+    AccountZeroCopy,
+};
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
-use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    event::PublicTransactionEvent,
+    event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
     invoke::get_sol_pool_pda,
 };
 use log::debug;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
-use solana_sdk::account::ReadableAccount;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};
 
 pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>> {
     pub rpc: &'a mut R,

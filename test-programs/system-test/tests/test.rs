@@ -1,13 +1,14 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::errors::AccountCompressionErrorCode;
-use anchor_lang::error::ErrorCode;
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use anchor_lang::{error::ErrorCode, AnchorSerialize, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
-use light_program_test::test_env::{
-    initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
-    EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
+use light_program_test::{
+    test_env::{
+        initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
+        EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
+    },
+    test_rpc::ProgramTestRpcConnection,
 };
-use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
@@ -23,16 +24,14 @@ use light_system_program::{
     InstructionDataInvoke, NewAddressParams,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
-    TransactionParams,
-};
-use light_test_utils::{
+    airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error,
+    assert_custom_error_or_program_error, assert_rpc_error,
     indexer::TestIndexer,
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
+    FeeConfig, Indexer, RpcConnection, RpcError, TransactionParams,
 };
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
@@ -41,10 +40,10 @@ use solana_cli_output::CliAccount;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction, InstructionError},
     pubkey::Pubkey,
+    signature::Keypair,
     signer::Signer,
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
-use solana_sdk::{signature::Keypair, transaction::TransactionError};
 use tokio::fs::write as async_write;
 // TODO: use lazy_static to spawn the server once
 
@@ -1634,8 +1633,9 @@ async fn regenerate_accounts() {
             rust_file.push_str(&code.to_string());
         }
     }
-    use light_utils::rustfmt;
     use std::io::Write;
+
+    use light_utils::rustfmt;
     let output_path = "../../test-utils/src/env_accounts.rs";
     let mut file = std::fs::File::create(&output_path).unwrap();
     file.write_all(

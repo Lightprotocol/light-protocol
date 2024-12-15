@@ -1,24 +1,19 @@
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_append_with_subtrees::{
-    calculate_hash_chain, get_batch_append_with_subtrees_inputs,
-};
-use light_prover_client::batch_update::get_batch_update_inputs;
-use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
-use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
 use light_prover_client::{
     batch_address_append::{
         get_batch_address_append_inputs_from_tree, get_test_batch_address_append_inputs,
     },
-    gnark::batch_address_append_json_formatter::to_json,
-};
-
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
-use light_prover_client::{
+    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
+    batch_append_with_subtrees::{calculate_hash_chain, get_batch_append_with_subtrees_inputs},
+    batch_update::get_batch_update_inputs,
     gnark::{
+        batch_address_append_json_formatter::to_json,
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
+        batch_append_with_subtrees_json_formatter::append_inputs_string,
+        batch_update_json_formatter::update_inputs_string,
         constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{spawn_prover, ProofType, ProverConfig},
         inclusion_json_formatter::inclusion_inputs_string,
     },
     helpers::init_logger,

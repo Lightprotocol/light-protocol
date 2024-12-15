@@ -31,7 +31,6 @@ pub mod account_compression {
         initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
         insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
     };
-
     use super::*;
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(

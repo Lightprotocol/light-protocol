@@ -1,15 +1,15 @@
 #![cfg(not(target_os = "solana"))]
+use account_compression::{
+    utils::constants::NOOP_PUBKEY, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
+};
+use anchor_lang::{prelude::*, InstructionData};
+use light_system_program::program::LightSystemProgram;
+use solana_sdk::instruction::Instruction;
+
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
-use account_compression::utils::constants::NOOP_PUBKEY;
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
-};
-use anchor_lang::prelude::*;
-use anchor_lang::InstructionData;
-use light_system_program::program::LightSystemProgram;
-use solana_sdk::instruction::Instruction;
 pub struct CreateNullifyInstructionInputs {
     pub authority: Pubkey,
     pub nullifier_queue: Pubkey,

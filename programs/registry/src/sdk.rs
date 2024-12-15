@@ -1,4 +1,11 @@
 #![cfg(not(target_os = "solana"))]
+use account_compression::{self, ID};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
+
 use crate::{
     protocol_config::state::ProtocolConfig,
     utils::{
@@ -6,12 +13,6 @@ use crate::{
         get_forester_epoch_pda_from_derivation, get_forester_pda, get_protocol_config_pda_address,
     },
     ForesterConfig,
-};
-use account_compression::{self, ID};
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
 };
 pub fn create_initialize_group_authority_instruction(
     signer_pubkey: Pubkey,

@@ -1,8 +1,7 @@
 use serde::Serialize;
 
-use crate::batch_append_with_proofs::BatchAppendWithProofsCircuitInputs;
-
 use super::helpers::{big_int_to_string, create_json_from_struct};
+use crate::batch_append_with_proofs::BatchAppendWithProofsCircuitInputs;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendWithProofsInputsJson {

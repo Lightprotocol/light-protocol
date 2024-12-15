@@ -1,8 +1,9 @@
+use serde::Serialize;
+
 use crate::{
     batch_update::BatchUpdateCircuitInputs,
     gnark::helpers::{big_int_to_string, create_json_from_struct},
 };
-use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct BatchUpdateProofInputsJson {

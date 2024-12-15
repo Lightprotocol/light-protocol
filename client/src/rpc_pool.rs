@@ -1,7 +1,8 @@
+use std::time::Duration;
+
 use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
 use solana_sdk::commitment_config::CommitmentConfig;
-use std::time::Duration;
 use thiserror::Error;
 use tokio::time::sleep;
 

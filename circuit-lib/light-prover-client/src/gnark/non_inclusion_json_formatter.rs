@@ -1,13 +1,13 @@
-use crate::gnark::helpers::big_int_to_string;
+use num_traits::ToPrimitive;
+use serde::Serialize;
+
 use crate::{
-    gnark::helpers::create_json_from_struct,
+    gnark::helpers::{big_int_to_string, create_json_from_struct},
     init_merkle_tree::non_inclusion_merkle_tree_inputs_26,
     non_inclusion::merkle_non_inclusion_proof_inputs::{
         NonInclusionMerkleProofInputs, NonInclusionProofInputs,
     },
 };
-use num_traits::ToPrimitive;
-use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 pub struct BatchNonInclusionJsonStruct {

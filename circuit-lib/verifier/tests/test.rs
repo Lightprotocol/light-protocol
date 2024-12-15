@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod test {
-    use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_prover, spawn_prover},
+            helpers::{kill_prover, spawn_prover, ProofType, ProverConfig},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },

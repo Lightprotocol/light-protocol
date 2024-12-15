@@ -1,10 +1,14 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, QueueType, RegisteredProgram,
-};
-use solana_sdk::signature::{Keypair, Signature, Signer};
-use solana_sdk::{instruction::InstructionError, transaction};
 use std::cmp;
+
+use account_compression::{
+    initialize_address_merkle_tree::Pubkey, AddressMerkleTreeConfig, AddressQueueConfig, QueueType,
+    RegisteredProgram,
+};
+use solana_sdk::{
+    instruction::InstructionError,
+    signature::{Keypair, Signature, Signer},
+    transaction,
+};
 
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
@@ -23,8 +27,6 @@ pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
 
-use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
-use crate::assert_queue::assert_address_queue_initialized;
 pub use forester_utils::{
     airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
@@ -46,6 +48,11 @@ pub use light_client::{
 use light_hasher::Poseidon;
 use light_program_test::test_env::create_address_merkle_tree_and_queue_account;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
+
+use crate::{
+    assert_address_merkle_tree::assert_address_merkle_tree_initialized,
+    assert_queue::assert_address_queue_initialized,
+};
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]

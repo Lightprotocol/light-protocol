@@ -1,70 +1,67 @@
-use log::{debug, info, warn};
-use num_bigint::BigUint;
-use solana_sdk::bs58;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
-use crate::create_address_merkle_tree_and_queue_account_with_assert;
-use crate::e2e_test_env::KeypairActionConfig;
-use crate::spl::create_initialize_mint_instructions;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof,
-    NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-    TokenDataWithContext,
+use anchor_lang::AnchorDeserialize;
+use forester_utils::{
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof,
+        NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        TokenDataWithContext,
+    },
 };
-use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::FeeConfig;
-use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
-use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_client::{rpc::RpcConnection, transaction_params::FeeConfig};
+use light_compressed_token::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
+    mint_sdk::create_create_token_pool_instruction, TokenData,
+};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_merkle_tree_reference::MerkleTree;
 use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
-use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
+use light_prover_client::{
+    gnark::{
+        combined_json_formatter::CombinedJsonStruct,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{spawn_prover, ProverConfig, ProverMode},
+        inclusion_json_formatter::BatchInclusionJsonStruct,
+        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    non_inclusion::merkle_non_inclusion_proof_inputs::{
+        get_non_inclusion_proof_inputs, NonInclusionProofInputs,
+    },
+};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{
+        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+        event::PublicTransactionEvent,
+    },
+};
 use light_utils::bigint::bigint_to_be_bytes_array;
-use {
-    account_compression::{
-        utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-        AddressMerkleTreeAccount, StateMerkleTreeAccount,
-    },
-    anchor_lang::AnchorDeserialize,
-    light_hasher::Poseidon,
-    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
-    light_merkle_tree_reference::MerkleTree,
-    light_prover_client::{
-        gnark::{
-            combined_json_formatter::CombinedJsonStruct,
-            constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::spawn_prover,
-            inclusion_json_formatter::BatchInclusionJsonStruct,
-            non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
-            proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-        },
-        inclusion::merkle_inclusion_proof_inputs::{
-            InclusionMerkleProofInputs, InclusionProofInputs,
-        },
-        non_inclusion::merkle_non_inclusion_proof_inputs::{
-            get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-        },
-    },
-    light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
-        },
-    },
-    num_bigint::BigInt,
-    num_traits::ops::bytes::FromBytes,
-    reqwest::Client,
-    solana_sdk::{
-        instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
-        signer::Signer,
-    },
-    spl_token::instruction::initialize_mint,
-    std::time::Duration,
+use log::{debug, info, warn};
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::bytes::FromBytes;
+use reqwest::Client;
+use solana_sdk::{
+    bs58, instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
+    signer::Signer,
+};
+use spl_token::instruction::initialize_mint;
+
+use crate::{
+    create_address_merkle_tree_and_queue_account_with_assert, e2e_test_env::KeypairActionConfig,
+    spl::create_initialize_mint_instructions,
 };
 
 // TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
@@ -495,7 +492,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()

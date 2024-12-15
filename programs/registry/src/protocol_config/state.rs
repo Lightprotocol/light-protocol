@@ -1,6 +1,7 @@
-use crate::errors::RegistryError;
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+
+use crate::errors::RegistryError;
 
 #[aligned_sized(anchor)]
 #[derive(Debug)]

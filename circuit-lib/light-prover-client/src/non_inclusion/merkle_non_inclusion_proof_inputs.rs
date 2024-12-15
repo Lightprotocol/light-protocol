@@ -1,7 +1,8 @@
-use crate::helpers::bigint_to_u8_32;
 use light_indexed_merkle_tree::array::IndexedArray;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
+
+use crate::helpers::bigint_to_u8_32;
 
 #[derive(Clone, Debug)]
 pub struct NonInclusionMerkleProofInputs {
