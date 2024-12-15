@@ -17,6 +17,7 @@ class SetupCommand extends Command {
     "$ light test-validator --skip-indexer",
     "$ light test-validator --geyser-config ./config.json",
     '$ light test-validator --validator-args "--limit-ledger-size 50000000"',
+    "$ light test-validator --sbf-program <address> <path/program>",
   ];
 
   protected finally(err: Error | undefined): Promise<any> {

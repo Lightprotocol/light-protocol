@@ -340,6 +340,12 @@ describe("test-validator command", function () {
       const connection = new Connection(`http://localhost:${defaultRpcPort}`);
       const version = await connection.getVersion();
       expect(version).to.have.property("solana-core");
+
+      let programAccountInfo = await connection.getAccountInfo(
+        testKeypair.publicKey,
+      );
+      expect(programAccountInfo).to.exist;
+      expect(programAccountInfo!.executable).to.be.true;
     } finally {
       fs.unlinkSync(testProgramPath);
     }
