@@ -34,6 +34,7 @@ use num_bigint::ToBigUint;
 use reqwest::Client;
 use serial_test::serial;
 
+#[serial]
 #[tokio::test]
 async fn prove_inclusion_full() {
     init_logger();
@@ -393,7 +394,7 @@ async fn prove_batch_address_append() {
     init_logger();
     println!("spawning prover");
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::BatchAddressAppendTest],

@@ -269,7 +269,7 @@ pub fn process<
             };
 
             let mut input_compressed_account_roots =
-                Vec::with_capacity(num_input_compressed_accounts);
+                Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
             fetch_input_compressed_account_roots(
                 &inputs.input_compressed_accounts_with_merkle_context,
                 &ctx,

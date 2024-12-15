@@ -104,7 +104,7 @@ func TestMain(m *testing.M) {
 
 	if isLightweightMode {
 		logging.Logger().Info().Msg("Running in lightweight mode")
-		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh lightweight")
+		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh light")
 	} else {
 		logging.Logger().Info().Msg("Running in full mode")
 		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")

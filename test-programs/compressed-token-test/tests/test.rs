@@ -60,6 +60,7 @@ use solana_sdk::{
 };
 use spl_token::{error::TokenError, instruction::initialize_mint};
 
+#[serial]
 #[tokio::test]
 async fn test_create_mint() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
@@ -67,6 +68,7 @@ async fn test_create_mint() {
     create_mint_helper(&mut rpc, &payer).await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_failing_create_token_pool() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
@@ -321,6 +323,7 @@ async fn test_failing_create_token_pool() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_wrapped_sol() {
     spawn_prover(
@@ -445,6 +448,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
 /// - Mint 20 more tokens to spl token account
 /// - failing to compress spl token account with 21 remaining balance
 /// - Compress spl token account with 1 remaining token
+#[serial]
 #[tokio::test]
 async fn compress_spl_account() {
     for is_token_22 in [false, true] {
@@ -544,6 +548,7 @@ async fn compress_spl_account() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_22_mint_to() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -565,26 +570,31 @@ async fn test_22_mint_to() {
     )
     .await;
 }
+#[serial]
 #[tokio::test]
 async fn test_22_transfer() {
     perform_transfer_22_test(1, 1, 12412, true, true).await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_1_mint_to() {
     test_mint_to(vec![10000], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_1_max_mint_to() {
     test_mint_to(vec![u64::MAX], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_5_mint_to() {
     test_mint_to(vec![0, 10000, 10000, 10000, 10000], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_10_mint_to() {
     let mut rng = rand::thread_rng();
@@ -593,6 +603,7 @@ async fn test_10_mint_to() {
     test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_20_mint_to() {
     let mut rng = rand::thread_rng();
@@ -601,6 +612,7 @@ async fn test_20_mint_to() {
     test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_25_mint_to() {
     let mut rng = rand::thread_rng();
@@ -611,6 +623,7 @@ async fn test_25_mint_to() {
     test_mint_to(amounts, 10, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_25_mint_to_zeros() {
     let amounts = vec![0; 25];
@@ -631,6 +644,7 @@ async fn test_25_mint_to_zeros() {
 /// 9. Invalid Merkle tree.
 /// 10. Mint more than `u64::MAX` tokens.
 /// 11. Multiple mints which overflow the token supply over `u64::MAX`.
+#[serial]
 #[tokio::test]
 async fn test_mint_to_failing() {
     for is_token_22 in vec![false, true] {
@@ -1036,6 +1050,7 @@ async fn test_mint_to_failing() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_transfers() {
     spawn_prover(
@@ -1061,6 +1076,7 @@ async fn test_transfers() {
         }
     }
 }
+#[serial]
 #[tokio::test]
 async fn test_1_transfer() {
     let possible_inputs = [1];
@@ -1079,6 +1095,7 @@ async fn test_1_transfer() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_2_transfer() {
     let possible_inputs = [2];
@@ -1097,6 +1114,7 @@ async fn test_2_transfer() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_8_transfer() {
     let possible_inputs = [8];
@@ -1187,6 +1205,7 @@ async fn perform_transfer_22_test(
     .await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_decompression() {
     spawn_prover(
@@ -1397,6 +1416,7 @@ async fn test_delegation(
 /// 1. Delegate tokens with approve
 /// 2. Delegate transfers a part of the delegated tokens
 /// 3. Delegate transfers all the remaining delegated tokens
+#[serial]
 #[tokio::test]
 async fn test_delegation_mixed() {
     let mint_amount: u64 = 10000;
@@ -1589,23 +1609,27 @@ async fn test_delegation_mixed() {
     kill_prover();
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_0() {
     let num_inputs = 1;
     test_delegation(0, num_inputs, 0, vec![0, 0], vec![0]).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_10000() {
     let num_inputs = 1;
     test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
 }
+#[serial]
 #[tokio::test]
 async fn test_delegation_8_inputs() {
     let num_inputs = 8;
     test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_max() {
     let num_inputs = 1;
@@ -1624,6 +1648,7 @@ async fn test_delegation_max() {
 /// 2. Invalid change compressed account Merkle tree.
 /// 3. Invalid proof.
 /// 4. Invalid mint.
+#[serial]
 #[tokio::test]
 async fn test_approve_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -1999,23 +2024,27 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_0() {
     let num_inputs = 1;
     test_revoke(num_inputs, 0, 0).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_10000() {
     let num_inputs = 1;
     test_revoke(num_inputs, 10000, 1000).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_8_inputs() {
     let num_inputs = 8;
     test_revoke(num_inputs, 10000, 1000).await
 }
+#[serial]
 #[tokio::test]
 async fn test_revoke_max() {
     let num_inputs = 1;
@@ -2026,6 +2055,7 @@ async fn test_revoke_max() {
 /// 1. Invalid root indices.
 /// 2. Invalid Merkle tree.
 /// 3. Invalid mint.
+#[serial]
 #[tokio::test]
 async fn test_revoke_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -2233,6 +2263,7 @@ async fn test_revoke_failing() {
 /// 1. Burn tokens
 /// 1. Delegate tokens with approve
 /// 2. Burn delegated tokens
+#[serial]
 #[tokio::test]
 async fn test_burn() {
     spawn_prover(
@@ -2381,6 +2412,7 @@ async fn test_burn() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn failing_tests_burn() {
     spawn_prover(
@@ -2784,11 +2816,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_freeze_and_thaw_0() {
     test_freeze_and_thaw(0, 0).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_freeze_and_thaw_10000() {
     test_freeze_and_thaw(10000, 1000).await
@@ -2799,6 +2833,7 @@ async fn test_freeze_and_thaw_10000() {
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
 /// 4. Freeze frozen compressed account.
+#[serial]
 #[tokio::test]
 async fn test_failing_freeze() {
     spawn_prover(
@@ -3062,6 +3097,7 @@ async fn test_failing_freeze() {
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
 /// 4. thaw compressed account which is not frozen
+#[serial]
 #[tokio::test]
 async fn test_failing_thaw() {
     spawn_prover(
@@ -3347,6 +3383,7 @@ async fn test_failing_thaw() {
 /// 7. Invalid compression amount -1
 /// 8. Invalid compression amount +1
 /// 9. Invalid compression amount 0
+#[serial]
 #[tokio::test]
 async fn test_failing_decompression() {
     spawn_prover(
@@ -3797,6 +3834,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
 /// 10. invalid root indices (ProofVerificationFailed)
 /// 11. invalid mint (ProofVerificationFailed)
 /// 12. invalid Merkle tree pubkey (ProofVerificationFailed)
+#[serial]
 #[tokio::test]
 async fn test_invalid_inputs() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -4214,6 +4252,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     rpc.process_transaction(transaction).await
 }
 
+#[serial]
 #[serial]
 #[tokio::test]
 async fn mint_with_batched_tree() {

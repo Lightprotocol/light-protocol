@@ -517,7 +517,7 @@ where
             address_root_indices.push(onchain_address_merkle_tree.root_index() as u16);
         }
         // if tree heights are not the same, panic
-        if tree_heights.iter().all(|&x| x == tree_heights[0]) {
+        if tree_heights.iter().any(|&x| x != tree_heights[0]) {
             panic!(
                 "All address merkle trees must have the same height {:?}",
                 tree_heights

@@ -2,7 +2,6 @@ package prover
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 )
 
@@ -163,7 +162,6 @@ func (p *BatchAddressAppendParameters) UpdateWithJSON(params BatchAddressAppendP
 	if err != nil {
 		return err
 	}
-	fmt.Printf("params: %v\n", params)
 	return nil
 }
 
