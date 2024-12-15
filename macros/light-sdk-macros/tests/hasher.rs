@@ -104,8 +104,7 @@ mod tests {
     }
 
     mod basic_hashing {
-        use super::fixtures::*;
-        use super::*;
+        use super::{fixtures::*, *};
 
         #[test]
         fn test_byte_representation() {
@@ -196,8 +195,7 @@ mod tests {
     }
 
     mod attribute_behavior {
-        use super::fixtures::*;
-        use super::*;
+        use super::{fixtures::*, *};
 
         mod truncate {
             use super::*;
@@ -543,8 +541,7 @@ mod tests {
     }
 
     mod option_handling {
-        use super::fixtures::*;
-        use super::*;
+        use super::{fixtures::*, *};
 
         #[test]
         fn test_option_hashing_with_reference_values() {

@@ -1,93 +1,97 @@
-use crate::create_address_merkle_tree_and_queue_account_with_assert;
-use crate::e2e_test_env::KeypairActionConfig;
-use crate::spl::create_initialize_mint_instructions;
+use std::{
+    future::Future,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
-    IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
+use anchor_lang::AnchorDeserialize;
+use forester_utils::{
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
+        IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult,
+        StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
+    },
+    AccountZeroCopy,
 };
-use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
-use light_batched_merkle_tree::constants::{
-    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
 };
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
-use light_client::rpc::{RpcConnection, RpcError};
-use light_client::transaction_params::FeeConfig;
-use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
-use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_client::{
+    rpc::{RpcConnection, RpcError},
+    transaction_params::FeeConfig,
+};
+use light_compressed_token::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
+    mint_sdk::create_create_token_pool_instruction, TokenData,
+};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_macros::pubkey;
-use light_program_test::test_batch_forester::create_batched_state_merkle_tree;
-use light_program_test::test_env::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR;
-use light_program_test::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    EnvAccounts,
+use light_merkle_tree_reference::MerkleTree;
+use light_program_test::{
+    test_batch_forester::create_batched_state_merkle_tree,
+    test_env::{
+        create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+        EnvAccounts, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+    },
 };
-use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::helpers::{
-    big_int_to_string, string_to_big_int, ProofType, ProverConfig, ProverMode,
+use light_prover_client::{
+    gnark::{
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
+        combined_json_formatter::CombinedJsonStruct,
+        combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{
+            big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig, ProverMode,
+        },
+        inclusion_json_formatter::BatchInclusionJsonStruct,
+        inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
+        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+        non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+    helpers::bigint_to_u8_32,
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
+    non_inclusion::merkle_non_inclusion_proof_inputs::{
+        get_non_inclusion_proof_inputs, NonInclusionProofInputs,
+    },
+    non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
-use light_prover_client::gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy;
-use light_prover_client::helpers::bigint_to_u8_32;
-use light_prover_client::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy;
-use light_system_program::sdk::compressed_account::QueueIndex;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::{create_hash_chain_from_slice, create_tx_hash};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{
+        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext, QueueIndex},
+        event::PublicTransactionEvent,
+    },
+};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    hashchain::{create_hash_chain_from_slice, create_tx_hash},
+};
 use log::{debug, info, warn};
-use num_bigint::BigUint;
-use solana_sdk::bs58;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
-use {
-    account_compression::{
-        utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-        AddressMerkleTreeAccount, StateMerkleTreeAccount,
-    },
-    anchor_lang::AnchorDeserialize,
-    light_hasher::Poseidon,
-    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
-    light_merkle_tree_reference::MerkleTree,
-    light_prover_client::{
-        gnark::{
-            combined_json_formatter::CombinedJsonStruct,
-            combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
-            constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::spawn_prover,
-            inclusion_json_formatter::BatchInclusionJsonStruct,
-            non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
-            non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
-            proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-        },
-        inclusion::merkle_inclusion_proof_inputs::{
-            InclusionMerkleProofInputs, InclusionProofInputs,
-        },
-        non_inclusion::merkle_non_inclusion_proof_inputs::{
-            get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-        },
-        non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
-    },
-    light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
-        },
-    },
-    num_bigint::BigInt,
-    num_traits::ops::bytes::FromBytes,
-    reqwest::Client,
-    solana_sdk::{
-        instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
-        signer::Signer,
-    },
-    spl_token::instruction::initialize_mint,
-    std::time::Duration,
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::bytes::FromBytes;
+use reqwest::Client;
+use solana_sdk::{
+    bs58, instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
+    signer::Signer,
+};
+use spl_token::instruction::initialize_mint;
+
+use crate::{
+    create_address_merkle_tree_and_queue_account_with_assert, e2e_test_env::KeypairActionConfig,
+    spl::create_initialize_mint_instructions,
 };
 
 #[derive(Debug)]
@@ -586,7 +590,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()
@@ -912,21 +916,21 @@ impl<R: RpcConnection> TestIndexer<R> {
     ) {
         let (rollover_fee, merkle_tree) = match version {
             1 => {
-                create_state_merkle_tree_and_queue_account(
-                    &self.payer,
-                    true,
-                    rpc,
-                    merkle_tree_keypair,
+        create_state_merkle_tree_and_queue_account(
+            &self.payer,
+            true,
+            rpc,
+            merkle_tree_keypair,
                     queue_keypair,
-                    Some(cpi_context_keypair),
-                    owning_program_id,
-                    forester,
-                    self.state_merkle_trees.len() as u64,
-                    &StateMerkleTreeConfig::default(),
-                    &NullifierQueueConfig::default(),
-                )
-                .await
-                .unwrap();
+            Some(cpi_context_keypair),
+            owning_program_id,
+            forester,
+            self.state_merkle_trees.len() as u64,
+            &StateMerkleTreeConfig::default(),
+            &NullifierQueueConfig::default(),
+        )
+        .await
+        .unwrap();
             let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
                 STATE_MERKLE_TREE_HEIGHT as usize,
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,

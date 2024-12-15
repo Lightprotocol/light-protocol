@@ -1,10 +1,24 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
+use account_compression::{
+    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig,
+};
 use anchor_lang::{InstructionData, Key, Lamports, ToAccountInfo, ToAccountMetas};
-use solana_sdk::clock::Slot;
+use forester_utils::{
+    create_account_instruction, get_hash_set, get_indexed_merkle_tree,
+    registry::{
+        create_rollover_address_merkle_tree_instructions,
+        create_rollover_state_merkle_tree_instructions,
+    },
+};
+use light_client::rpc::{RpcConnection, RpcError};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,
+    clock::Slot,
     instruction::Instruction,
     pubkey::Pubkey,
     signature::Keypair,
@@ -16,19 +30,6 @@ use crate::assert_rollover::{
     assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
     assert_rolledover_queues_metadata,
 };
-use account_compression::{
-    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
-    AddressMerkleTreeAccount,
-};
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use forester_utils::registry::{
-    create_rollover_address_merkle_tree_instructions,
-    create_rollover_state_merkle_tree_instructions,
-};
-use forester_utils::{create_account_instruction, get_hash_set, get_indexed_merkle_tree};
-use light_client::rpc::{RpcConnection, RpcError};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 
 pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     rpc: &mut R,

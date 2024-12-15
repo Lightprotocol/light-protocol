@@ -1,41 +1,36 @@
 use std::sync::Arc;
 
-use light_registry::account_compression_cpi::sdk::{
-    create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
-    CreateRolloverMerkleTreeInstructionInputs,
-};
-use light_registry::protocol_config::state::ProtocolConfig;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use solana_sdk::transaction::Transaction;
-use tokio::sync::Mutex;
-use tracing::{debug, info};
-
-use crate::errors::ForesterError;
-use crate::ForesterConfig;
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
 use account_compression::{
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use forester_utils::address_merkle_tree_config::{
-    get_address_bundle_config, get_state_bundle_config,
-};
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-};
-use forester_utils::registry::RentExemption;
 use forester_utils::{
-    create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
+    create_account_instruction,
+    forester_epoch::{TreeAccounts, TreeType},
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
+    registry::RentExemption,
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_rollover_address_merkle_tree_instruction,
+        create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
+    },
+    protocol_config::state::ProtocolConfig,
+};
+use solana_sdk::{
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
+use tokio::sync::Mutex;
+use tracing::info;
+
+use crate::{errors::ForesterError, ForesterConfig};
 
 enum TreeAccount {
     State(StateMerkleTreeAccount),
@@ -119,7 +114,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    debug!(
+    info!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );
@@ -147,6 +142,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     };
 
     if is_already_rolled_over {
+        info!("Tree {:?} is already rolled over", tree_pubkey);
         return Ok(false);
     }
 
@@ -171,7 +167,12 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: Arc<Mutex<I>>,
     tree_accounts: &TreeAccounts,
+    epoch: u64,
 ) -> Result<(), ForesterError> {
+    info!(
+        "Rolling over state merkle tree {:?}",
+        tree_accounts.merkle_tree
+    );
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
     let new_cpi_signature_keypair = Keypair::new();
@@ -186,6 +187,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &tree_accounts.merkle_tree,
         &tree_accounts.queue,
         &Pubkey::default(),
+        epoch,
     )
     .await?;
     info!("State rollover signature: {:?}", rollover_signature);
@@ -221,6 +223,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
     old_cpi_context_pubkey: &Pubkey,
+    epoch: u64,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
@@ -232,6 +235,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
         old_merkle_tree_pubkey,
         old_queue_pubkey,
         old_cpi_context_pubkey,
+        epoch,
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
@@ -254,6 +258,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: Arc<Mutex<I>>,
     tree_data: &TreeAccounts,
+    epoch: u64,
 ) -> Result<(), ForesterError> {
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
@@ -265,6 +270,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
         &new_merkle_tree_keypair,
         &tree_data.merkle_tree,
         &tree_data.queue,
+        epoch,
     )
     .await?;
     info!("Address rollover signature: {:?}", rollover_signature);
@@ -277,6 +283,7 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     payer: &Keypair,
     derivation: &Pubkey,
@@ -285,6 +292,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     new_address_merkle_tree_keypair: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
+    epoch: u64,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instructions = create_rollover_address_merkle_tree_instructions(
         context,
@@ -294,6 +302,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
         new_address_merkle_tree_keypair,
         old_merkle_tree_pubkey,
         old_queue_pubkey,
+        epoch,
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
@@ -306,6 +315,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     context.process_transaction(transaction).await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     rpc: &mut R,
     authority: &Pubkey,
@@ -314,6 +324,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
     new_address_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
+    epoch: u64,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_address_bundle_config(
         rpc,
@@ -356,7 +367,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             cpi_context_account: None,
             is_metadata_forester: false,
         },
-        0, // TODO: make epoch dynamic
+        epoch,
     );
     vec![
         create_nullifier_queue_instruction,
@@ -376,6 +387,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     old_cpi_context_pubkey: &Pubkey,
+    epoch: u64,
 ) -> Vec<Instruction> {
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
         rpc,
@@ -427,7 +439,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
             cpi_context_account: Some(new_cpi_context_keypair.pubkey()),
             is_metadata_forester: false,
         },
-        0, // TODO: make epoch dynamic
+        epoch,
     );
     vec![
         create_cpi_context_instruction,

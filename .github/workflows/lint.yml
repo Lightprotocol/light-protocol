@@ -33,4 +33,8 @@ jobs:
         run: |
           set -euxo pipefail
           source ./scripts/devenv.sh
+          rustup install nightly
+          rustup target add x86_64-unknown-linux-gnu --toolchain nightly
+          rustup component add --toolchain nightly rustfmt
+          rustup component add --toolchain nightly clippy
           ./scripts/lint.sh

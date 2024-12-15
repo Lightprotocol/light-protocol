@@ -1,18 +1,18 @@
+use std::{fmt, marker::PhantomData, mem, pin::Pin};
+
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_lang::solana_program::system_instruction;
+use anchor_lang::solana_program::{instruction::Instruction, system_instruction};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-use solana_sdk::account::Account;
-use solana_sdk::signature::{Keypair, Signer};
-use solana_sdk::transaction::Transaction;
-use std::marker::PhantomData;
-use std::pin::Pin;
-use std::{fmt, mem};
+use solana_sdk::{
+    account::Account,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 
 pub mod address_merkle_tree_config;
 pub mod forester_epoch;

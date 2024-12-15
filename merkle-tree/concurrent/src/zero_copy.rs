@@ -128,7 +128,7 @@ where
     }
 }
 
-impl<'a, H, const HEIGHT: usize> Deref for ConcurrentMerkleTreeZeroCopy<'a, H, HEIGHT>
+impl<H, const HEIGHT: usize> Deref for ConcurrentMerkleTreeZeroCopy<'_, H, HEIGHT>
 where
     H: Hasher,
 {
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<'a, H, const HEIGHT: usize> Drop for ConcurrentMerkleTreeZeroCopy<'a, H, HEIGHT>
+impl<H, const HEIGHT: usize> Drop for ConcurrentMerkleTreeZeroCopy<'_, H, HEIGHT>
 where
     H: Hasher,
 {
@@ -244,7 +244,7 @@ where
     }
 }
 
-impl<'a, H, const HEIGHT: usize> Deref for ConcurrentMerkleTreeZeroCopyMut<'a, H, HEIGHT>
+impl<H, const HEIGHT: usize> Deref for ConcurrentMerkleTreeZeroCopyMut<'_, H, HEIGHT>
 where
     H: Hasher,
 {
@@ -254,7 +254,7 @@ where
         &self.0.merkle_tree
     }
 }
-impl<'a, H, const HEIGHT: usize> DerefMut for ConcurrentMerkleTreeZeroCopyMut<'a, H, HEIGHT>
+impl<H, const HEIGHT: usize> DerefMut for ConcurrentMerkleTreeZeroCopyMut<'_, H, HEIGHT>
 where
     H: Hasher,
 {
@@ -265,12 +265,12 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     use ark_bn254::Fr;
     use ark_ff::{BigInteger, PrimeField, UniformRand};
     use light_hasher::Poseidon;
     use rand::{thread_rng, Rng};
+
+    use super::*;
 
     fn load_from_bytes<
         const HEIGHT: usize,

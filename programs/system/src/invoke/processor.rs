@@ -4,6 +4,7 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::hashchain::create_tx_hash;
 use light_verifier::CompressedProof as CompressedVerifierProof;
 
+use super::PackedReadOnlyAddress;
 use crate::{
     errors::SystemProgramError,
     invoke::{
@@ -25,8 +26,6 @@ use crate::{
     },
     InstructionDataInvoke,
 };
-
-use super::PackedReadOnlyAddress;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

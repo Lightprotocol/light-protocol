@@ -1,7 +1,3 @@
-use crate::assert_compressed_tx::{
-    assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
-    assert_public_transaction_event, MerkleTreeTestSnapShot,
-};
 use anchor_lang::AnchorSerialize;
 use forester_utils::indexer::{Indexer, TokenDataWithContext};
 use light_client::rpc::RpcConnection;
@@ -13,6 +9,11 @@ use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
+
+use crate::assert_compressed_tx::{
+    assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
+    assert_public_transaction_event, MerkleTreeTestSnapShot,
+};
 
 /// General token tx assert:
 /// 1. outputs created

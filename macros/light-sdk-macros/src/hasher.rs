@@ -140,9 +140,10 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use prettyplease::unparse;
     use syn::parse_quote;
+
+    use super::*;
 
     #[test]
     fn test_light_hasher() {

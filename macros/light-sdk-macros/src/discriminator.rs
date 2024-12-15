@@ -21,9 +21,9 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use syn::parse_quote;
+
+    use super::*;
 
     #[test]
     fn test_discriminator() {

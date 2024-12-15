@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, time::Duration};
+
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::Discriminator;
 use borsh::BorshDeserialize;
@@ -17,27 +19,24 @@ use light_client::{
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy;
-use light_prover_client::{
-    gnark::helpers::{big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig},
-    helpers::bigint_to_u8_32,
-};
-use light_prover_client::{
-    gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
-    inclusion::merkle_inclusion_proof_inputs::InclusionProofInputs,
-};
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
         constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::health_check,
+        helpers::{
+            big_int_to_string, health_check, spawn_prover, string_to_big_int, ProofType,
+            ProverConfig,
+        },
         inclusion_json_formatter::BatchInclusionJsonStruct,
+        inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
-    inclusion::merkle_inclusion_proof_inputs::InclusionMerkleProofInputs,
+    helpers::bigint_to_u8_32,
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
     non_inclusion::merkle_non_inclusion_proof_inputs::{
         get_non_inclusion_proof_inputs, NonInclusionProofInputs,
     },
@@ -59,7 +58,6 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-use std::{marker::PhantomData, time::Duration};
 
 #[derive(Debug)]
 pub struct TestIndexer<R>
@@ -343,7 +341,7 @@ where
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()

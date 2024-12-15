@@ -1,6 +1,3 @@
-use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::{FromBytes, ToPrimitive};
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     cmp::Ordering,
@@ -8,6 +5,10 @@ use std::{
     mem,
     ptr::NonNull,
 };
+
+use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
+use num_bigint::{BigUint, ToBigUint};
+use num_traits::{FromBytes, ToPrimitive};
 use thiserror::Error;
 
 pub mod zero_copy;
@@ -585,9 +586,8 @@ mod test {
     use ark_ff::UniformRand;
     use rand::{thread_rng, Rng};
 
-    use crate::zero_copy::HashSetZeroCopy;
-
     use super::*;
+    use crate::zero_copy::HashSetZeroCopy;
 
     #[test]
     fn test_is_valid() {

@@ -1,9 +1,7 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
-
-use crate::constants::FORESTER_SEED;
-use crate::protocol_config::state::ProtocolConfigPda;
 use aligned_sized::aligned_sized;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
+use crate::{constants::FORESTER_SEED, protocol_config::state::ProtocolConfigPda};
 
 #[aligned_sized(anchor)]
 #[account]

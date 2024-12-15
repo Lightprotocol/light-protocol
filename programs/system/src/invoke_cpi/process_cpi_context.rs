@@ -1,6 +1,7 @@
+use anchor_lang::prelude::*;
+
 use super::{account::CpiContextAccount, InstructionDataInvokeCpi};
 use crate::errors::SystemProgramError;
-use anchor_lang::prelude::*;
 
 /// Cpi context enables the use of input compressed accounts owned by different
 /// programs.
@@ -147,6 +148,9 @@ fn clean_input_data(inputs: &mut InstructionDataInvokeCpi) {
 mod tests {
     use std::cell::RefCell;
 
+    use anchor_lang::solana_program::pubkey::Pubkey;
+
+    use super::*;
     use crate::{
         sdk::{
             compressed_account::{
@@ -156,9 +160,6 @@ mod tests {
         },
         NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
     };
-
-    use super::*;
-    use anchor_lang::solana_program::pubkey::Pubkey;
 
     fn create_test_cpi_context_account() -> CpiContextAccount {
         CpiContextAccount {

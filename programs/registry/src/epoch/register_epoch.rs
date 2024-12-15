@@ -1,10 +1,12 @@
-use crate::constants::FORESTER_EPOCH_SEED;
-use crate::errors::RegistryError;
-use crate::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
-use crate::selection::forester::{ForesterConfig, ForesterPda};
 use aligned_sized::aligned_sized;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
+use crate::{
+    constants::FORESTER_EPOCH_SEED,
+    errors::RegistryError,
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    selection::forester::{ForesterConfig, ForesterPda},
+};
 
 /// Is used for tallying and rewards calculation
 #[account]
@@ -230,8 +232,9 @@ pub fn process_register_for_epoch(
 
 #[cfg(test)]
 mod test {
-    use solana_sdk::signature::{Keypair, Signer};
     use std::collections::HashMap;
+
+    use solana_sdk::signature::{Keypair, Signer};
 
     use super::*;
 

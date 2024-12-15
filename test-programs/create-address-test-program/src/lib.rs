@@ -1,7 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_system_program::invoke::processor::CompressedProof;
 pub mod create_pda;
 pub use create_pda::*;

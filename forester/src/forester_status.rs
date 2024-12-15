@@ -1,15 +1,16 @@
+use std::sync::Arc;
+
 use anchor_lang::{AccountDeserialize, Discriminator};
 use forester_utils::forester_epoch::TreeType;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
-use std::sync::Arc;
 use tracing::{debug, warn};
 
-use crate::rollover::get_tree_fullness;
 use crate::{
     cli::StatusArgs,
     metrics::{push_metrics, register_metrics},
+    rollover::get_tree_fullness,
     run_queue_info,
     tree_data_sync::fetch_trees,
     ForesterConfig,

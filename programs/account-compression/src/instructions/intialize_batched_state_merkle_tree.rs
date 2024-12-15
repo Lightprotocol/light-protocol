@@ -1,5 +1,4 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_lang::{prelude::*, solana_program::program_error::ProgramError};
 use light_batched_merkle_tree::{
     initialize_state_tree::{
         init_batched_state_merkle_tree_accounts, validate_batched_tree_params,
@@ -9,14 +8,13 @@ use light_batched_merkle_tree::{
     queue::get_output_queue_account_size,
 };
 
+use super::RegisteredProgram;
 use crate::utils::{
     check_account::check_account_balance_is_rent_exempt,
     check_signer_is_registered_or_authority::{
         check_signer_is_registered_or_authority, GroupAccounts,
     },
 };
-
-use super::RegisteredProgram;
 
 #[derive(Accounts)]
 pub struct InitializeBatchedStateMerkleTreeAndQueue<'info> {

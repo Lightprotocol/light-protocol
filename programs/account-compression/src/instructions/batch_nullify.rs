@@ -1,13 +1,14 @@
+use anchor_lang::prelude::*;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
+
 use crate::{
     emit_indexer_event,
     utils::check_signer_is_registered_or_authority::{
         check_signer_is_registered_or_authority, GroupAccounts,
     },
     RegisteredProgram,
-};
-use anchor_lang::prelude::*;
-use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
 };
 
 #[derive(Accounts)]

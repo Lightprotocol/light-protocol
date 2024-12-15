@@ -49,7 +49,7 @@ where
     }
 }
 
-impl<'a, 'b, 'c, 'info, T, U> DerefMut for LightContext<'a, 'b, 'c, 'info, T, U>
+impl<'a, T, U> DerefMut for LightContext<'a, '_, '_, '_, T, U>
 where
     T: Bumps,
     U: LightAccounts<'a>,

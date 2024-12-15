@@ -1,17 +1,18 @@
-use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
-use crate::helpers::bigint_to_u8_32;
-use crate::prove_utils::CircuitType;
-use crate::{
-    inclusion::{
-        merkle_inclusion_proof_inputs::InclusionProofInputs, merkle_tree_info::MerkleTreeInfo,
-    },
-    init_merkle_tree::inclusion_merkle_tree_inputs,
-};
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
+
+use crate::{
+    gnark::helpers::{big_int_to_string, create_json_from_struct},
+    helpers::bigint_to_u8_32,
+    inclusion::{
+        merkle_inclusion_proof_inputs::InclusionProofInputs, merkle_tree_info::MerkleTreeInfo,
+    },
+    init_merkle_tree::inclusion_merkle_tree_inputs,
+    prove_utils::CircuitType,
+};
 
 #[derive(Serialize, Debug)]
 pub struct BatchInclusionJsonStruct {

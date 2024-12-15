@@ -2,46 +2,55 @@
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use light_batched_merkle_tree::zero_copy::ZeroCopyError;
-use light_compressed_token::process_transfer::InputTokenDataWithContext;
-use light_compressed_token::token_data::AccountState;
-use light_hasher::{Hasher, Poseidon};
-use light_program_test::test_batch_forester::{
-    create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
+use light_batched_merkle_tree::{
+    errors::BatchedMerkleTreeError, initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, zero_copy::ZeroCopyError,
 };
-use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
-
+use light_compressed_token::{
+    process_transfer::InputTokenDataWithContext, token_data::AccountState,
+};
+use light_hasher::{Hasher, Poseidon};
+use light_program_test::{
+    test_batch_forester::{
+        create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
+    },
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
-use light_system_program::errors::SystemProgramError;
-use light_system_program::sdk::address::{derive_address, derive_address_legacy};
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
-    PackedMerkleContext,
+use light_system_program::{
+    errors::SystemProgramError,
+    sdk::{
+        address::{derive_address, derive_address_legacy},
+        compressed_account::{
+            CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+            PackedMerkleContext,
+        },
+        event::PublicTransactionEvent,
+        CompressedCpiContext,
+    },
+    NewAddressParams, ReadOnlyAddress,
 };
-use light_system_program::sdk::event::PublicTransactionEvent;
-use light_system_program::sdk::CompressedCpiContext;
-use light_system_program::{NewAddressParams, ReadOnlyAddress};
-use light_test_utils::e2e_test_env::init_program_test_env;
-use light_test_utils::indexer::TestIndexer;
-use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
-use light_test_utils::system_program::transfer_compressed_sol_test;
-use light_test_utils::{assert_rpc_error, Indexer, RpcConnection, RpcError, TokenDataWithContext};
+use light_test_utils::{
+    assert_rpc_error,
+    e2e_test_env::init_program_test_env,
+    indexer::TestIndexer,
+    spl::{create_mint_helper, mint_tokens_helper},
+    system_program::transfer_compressed_sol_test,
+    Indexer, RpcConnection, RpcError, TokenDataWithContext,
+};
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
 use serial_test::serial;
-use solana_sdk::account::WritableAccount;
-use solana_sdk::signature::Keypair;
-use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
-use system_cpi_test::sdk::{
-    create_invalidate_not_owned_account_instruction, create_pda_instruction,
-    CreateCompressedPdaInstructionInputs, InvalidateNotOwnedCompressedAccountInstructionInputs,
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use system_cpi_test::{
+    self,
+    sdk::{
+        create_invalidate_not_owned_account_instruction, create_pda_instruction,
+        CreateCompressedPdaInstructionInputs, InvalidateNotOwnedCompressedAccountInstructionInputs,
+    },
+    CreatePdaMode, RegisteredUser, TokenTransferData, WithInputAccountsMode, ID,
 };
-use system_cpi_test::{self, RegisteredUser, TokenTransferData, WithInputAccountsMode};
-use system_cpi_test::{CreatePdaMode, ID};
 
 /// Tests:
 /// 1. functional - 1 read only account proof by index
@@ -160,13 +169,15 @@ async fn test_read_only_accounts() {
                 )
                 .await
                 .unwrap();
-            let account = e2e_env
+            let mut account = e2e_env
                 .rpc
                 .get_account(env.batch_address_merkle_tree)
                 .await
-                .unwrap();
+                .unwrap()
+                .unwrap()
+                .data;
             let onchain_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                account.unwrap().data_as_mut_slice(),
+                account.as_mut_slice(),
             )
             .unwrap();
             e2e_env.indexer.finalize_batched_address_tree_update(

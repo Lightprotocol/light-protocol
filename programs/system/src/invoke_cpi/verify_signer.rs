@@ -1,3 +1,5 @@
+use std::mem;
+
 use account_compression::{
     errors::AccountCompressionErrorCode, utils::constants::CPI_AUTHORITY_PDA_SEED,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
@@ -11,7 +13,6 @@ use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
-use std::mem;
 
 use crate::{
     errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,

@@ -1,18 +1,22 @@
-use crate::errors::ProverClientError;
-use crate::helpers::compute_root_from_merkle_proof;
-use crate::indexed_changelog::patch_indexed_changelogs;
-
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_concurrent_merkle_tree::event::RawIndexedElement;
+use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::IndexedElement;
-use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_indexed_merkle_tree::{
+    array::{IndexedArray, IndexedElement},
+    changelog::IndexedChangelogEntry,
+    reference::IndexedMerkleTree,
+};
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::{create_hash_chain_from_array, create_hash_chain_from_slice};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    hashchain::{create_hash_chain_from_array, create_hash_chain_from_slice},
+};
 use num_bigint::BigUint;
+
+use crate::{
+    errors::ProverClientError, helpers::compute_root_from_merkle_proof,
+    indexed_changelog::patch_indexed_changelogs,
+};
 
 #[derive(Debug, Clone)]
 pub struct BatchAddressAppendInputs {
