@@ -1,5 +1,9 @@
 import { Command, Flags } from "@oclif/core";
-import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
+import {
+  initTestEnv,
+  stopTestEnv,
+  SYSTEM_PROGRAMS,
+} from "../../utils/initTestEnv";
 import { CustomLoader } from "../../utils/index";
 import path from "path";
 import fs from "fs";
@@ -15,7 +19,10 @@ class SetupCommand extends Command {
     '$ light test-validator --validator-args "--limit-ledger-size 50000000"',
   ];
 
-  protected finally(_: Error | undefined): Promise<any> {
+  protected finally(err: Error | undefined): Promise<any> {
+    if (err) {
+      console.error(err);
+    }
     process.exit();
   }
 
@@ -124,8 +131,49 @@ class SetupCommand extends Command {
         "Add a SBF program to the genesis configuration with upgrades disabled. If the ledger already exists then this parameter is silently ignored. First argument can be a pubkey string or path to a keypair",
       required: false,
       multiple: true,
+      summary: "Usage: --sbf-program <address> <path/program_name.so>",
     }),
   };
+
+  validatePrograms(programs: { address: string; path: string }[]): void {
+    // Check for duplicate addresses among provided programs
+    const addresses = new Set<string>();
+    for (const program of programs) {
+      if (addresses.has(program.address)) {
+        this.error(`Duplicate program address detected: ${program.address}`);
+      }
+      addresses.add(program.address);
+
+      // Get the program filename from the path
+      const programFileName = path.basename(program.path);
+
+      // Check for collisions with system programs (both address and filename)
+      const systemProgramCollision = SYSTEM_PROGRAMS.find(
+        (sysProg) =>
+          sysProg.id === program.address ||
+          (sysProg.name && programFileName === sysProg.name),
+      );
+
+      if (systemProgramCollision) {
+        const collisionType =
+          systemProgramCollision.id === program.address
+            ? `address (${program.address})`
+            : `filename (${programFileName})`;
+
+        this.error(
+          `Program ${collisionType} collides with system program ` +
+            `"${systemProgramCollision.name || systemProgramCollision.id}". ` +
+            `System programs cannot be overwritten.`,
+        );
+      }
+
+      // Validate program file exists
+      const programPath = path.resolve(program.path);
+      if (!fs.existsSync(programPath)) {
+        this.error(`Program file not found: ${programPath}`);
+      }
+    }
+  }
 
   async run() {
     const { flags } = await this.parse(SetupCommand);
@@ -158,6 +206,8 @@ class SetupCommand extends Command {
           path: rawValues[i + 1],
         });
       }
+
+      this.validatePrograms(programs);
 
       await initTestEnv({
         additionalPrograms: programs,

@@ -21,16 +21,14 @@ export async function startIndexer(
     throw new Error(message);
   } else {
     console.log("Starting indexer...");
-    let args: string[] = [];
+    const args: string[] = [
+      "--port",
+      indexerPort.toString(),
+      "--rpc-url",
+      rpcUrl,
+    ];
     if (photonDatabaseUrl) {
-      args = [
-        "--db-url",
-        photonDatabaseUrl,
-        "--port",
-        indexerPort.toString(),
-        "--rpc-url",
-        rpcUrl,
-      ];
+      args.push("--db-url", photonDatabaseUrl);
     }
     spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
