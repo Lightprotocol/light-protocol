@@ -3742,18 +3742,10 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
- "anchor-spl",
- "bytemuck",
- "light-hasher",
  "light-heap",
  "light-system-program",
- "light-utils",
- "num-bigint 0.4.6",
- "num-traits",
- "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
- "tokio",
 ]
 
 [[package]]
@@ -8307,12 +8299,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-utils",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest 0.11.27",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
@@ -8611,12 +8598,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest 0.12.4",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
