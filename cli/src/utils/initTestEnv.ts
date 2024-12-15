@@ -20,6 +20,35 @@ import {
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
 
+type Program = { id: string; name?: string; tag?: string; path?: string };
+export const SYSTEM_PROGRAMS: Program[] = [
+  {
+    id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    name: "spl_noop.so",
+    tag: SPL_NOOP_PROGRAM_TAG,
+  },
+  {
+    id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+    name: "light_system_program.so",
+    tag: LIGHT_SYSTEM_PROGRAM_TAG,
+  },
+  {
+    id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+    name: "light_compressed_token.so",
+    tag: LIGHT_COMPRESSED_TOKEN_TAG,
+  },
+  {
+    id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
+    name: "account_compression.so",
+    tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
+  },
+  {
+    id: "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX",
+    name: "light_registry.so",
+    tag: LIGHT_REGISTRY_TAG,
+  },
+];
+
 export async function stopTestEnv(options: {
   indexer: boolean;
   prover: boolean;
@@ -208,35 +237,8 @@ export async function getSolanaArgs({
   gossipHost?: string;
   downloadBinaries?: boolean;
 }): Promise<Array<string>> {
-  type Program = { id: string; name?: string; tag?: string; path?: string };
   // TODO: adjust program tags
-  const programs: Program[] = [
-    {
-      id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
-      name: "spl_noop.so",
-      tag: SPL_NOOP_PROGRAM_TAG,
-    },
-    {
-      id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
-      name: "light_system_program.so",
-      tag: LIGHT_SYSTEM_PROGRAM_TAG,
-    },
-    {
-      id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
-      name: "light_compressed_token.so",
-      tag: LIGHT_COMPRESSED_TOKEN_TAG,
-    },
-    {
-      id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
-      name: "account_compression.so",
-      tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
-    },
-    {
-      id: "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX",
-      name: "light_registry.so",
-      tag: LIGHT_REGISTRY_TAG,
-    },
-  ];
+  const programs: Program[] = [...SYSTEM_PROGRAMS];
   if (additionalPrograms)
     additionalPrograms.forEach((program) => {
       programs.push({ id: program.address, path: program.path });

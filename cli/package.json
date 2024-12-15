@@ -121,9 +121,10 @@
     "test-decompress-sol": "mocha ./test/commands/decompress-sol/index.test.ts -t 10000000 --exit",
     "test-compress-spl": "mocha ./test/commands/compress-spl/index.test.ts -t 10000000 --exit",
     "test-decompress-spl": "mocha ./test/commands/decompress-spl/index.test.ts -t 10000000 --exit",
+    "test-test-validator":  "mocha ./test/commands/test-validator/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
-    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-balance && pnpm test-compress-sol && pnpm test-decompress-sol && pnpm test-approve-and-mint-to",
+    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-balance && pnpm test-compress-sol && pnpm test-decompress-sol && pnpm test-approve-and-mint-to && pnpm test-test-validator",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/zk-compression-cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
