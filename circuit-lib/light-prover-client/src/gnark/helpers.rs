@@ -118,7 +118,10 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
 
             println!("Starting prover with command: {:?}", command);
 
-            let _ = command.spawn().expect("Failed to start prover process");
+            let _ = command
+                .spawn()
+                .expect("Failed to start prover process")
+                .wait();
 
             let health_result = health_check(20, 30).await;
             if health_result {
@@ -194,7 +197,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let mut result = false;
     for _ in 0..retries {
         match client
-            .get(&format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
+            .get(format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
             .send()
             .await
         {
@@ -305,11 +308,18 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
         println!("Starting validator with command: {}", path);
 
-        Command::new("sh")
+        let child = Command::new("sh")
             .arg("-c")
             .arg(path)
+            .stdin(Stdio::null()) // Detach from stdin
+            .stdout(Stdio::null()) // Detach from stdout
+            .stderr(Stdio::null()) // Detach from stderr
             .spawn()
             .expect("Failed to start server process");
+
+        // Explicitly `drop` the process to ensure we don't wait on it
+        std::mem::drop(child);
+
         tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
     }
 }

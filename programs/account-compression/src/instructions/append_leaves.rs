@@ -142,26 +142,26 @@ fn append_v1<'a, 'b, 'c: 'info, 'info>(
     batch_size: usize,
     leaves: &[&[u8; 32]],
 ) -> Result<u64> {
-    let rollover_fee = {
-        let merkle_tree_account =
-            AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                .map_err(ProgramError::from)?;
+            let rollover_fee = {
+                let merkle_tree_account =
+                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+                        .map_err(ProgramError::from)?;
 
-        {
-            let merkle_tree_account = merkle_tree_account.load()?;
+                {
+                    let merkle_tree_account = merkle_tree_account.load()?;
             let rollover_fee =
                 merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
 
-            check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
-                ctx,
-                &merkle_tree_account,
-            )?;
+                    check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
+                        ctx,
+                        &merkle_tree_account,
+                    )?;
 
-            rollover_fee
-        }
-    };
-    let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
-    let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
+                    rollover_fee
+                }
+            };
+            let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
+            let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
     merkle_tree
         .append_batch(leaves)
         .map_err(ProgramError::from)?;
@@ -176,7 +176,7 @@ fn append_v2<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<u64> {
     let output_queue_zero_copy =
         &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
-            .map_err(ProgramError::from)?;
+                .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
         ctx,
         output_queue_zero_copy.get_account(),

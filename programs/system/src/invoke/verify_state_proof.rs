@@ -47,7 +47,7 @@ pub fn fetch_input_roots<'a>(
             .merkle_context
             .queue_index
             .is_some()
-        {
+    {
             continue;
         }
         msg!(
@@ -81,7 +81,7 @@ pub fn fetch_input_roots<'a>(
         }
         let internal_height = fetch_root::<true, true>(
             &remaining_accounts[readonly_input_account
-                .merkle_context
+            .merkle_context
                 .merkle_tree_pubkey_index as usize],
             readonly_input_account.root_index,
             input_roots,
@@ -210,11 +210,11 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
                 );
             }
             let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
-            let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-                &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-            )
-            .map_err(ProgramError::from)?;
-            let fetched_roots = &merkle_tree.roots;
+        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+        )
+        .map_err(ProgramError::from)?;
+        let fetched_roots = &merkle_tree.roots;
 
             (*roots).push(fetched_roots[root_index as usize]);
             height = merkle_tree.height as u8;
@@ -347,13 +347,12 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .enumerate()
     {
         // For heap neutrality we cannot allocate new heap memory in this function.
-        match &input_compressed_account_with_context
+        if let Some(address) = &input_compressed_account_with_context
             .compressed_account
             .address
         {
-            Some(address) => addresses[j] = Some(*address),
-            None => {}
-        };
+            addresses[j] = Some(*address);
+        }
 
         #[allow(clippy::comparison_chain)]
         if current_mt_index
@@ -418,13 +417,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         }
         leaves.push(
             input_compressed_account_with_context
-                .compressed_account
-                .hash_with_hashed_values::<Poseidon>(
-                    &hashed_owner,
-                    &current_hashed_mt,
-                    &input_compressed_account_with_context
-                        .merkle_context
-                        .leaf_index,
+            .compressed_account
+            .hash_with_hashed_values::<Poseidon>(
+                &hashed_owner,
+                &current_hashed_mt,
+                &input_compressed_account_with_context
+                    .merkle_context
+                    .leaf_index,
                 )?,
         );
     }

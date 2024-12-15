@@ -110,9 +110,8 @@ mod test {
     use num_bigint::RandBigInt;
     use rand::thread_rng;
 
-    use crate::zero_copy::IndexedMerkleTreeZeroCopyMut;
-
     use super::*;
+    use crate::zero_copy::IndexedMerkleTreeZeroCopyMut;
 
     fn from_bytes_copy<
         const HEIGHT: usize,

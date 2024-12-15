@@ -138,14 +138,14 @@ async fn prove_non_inclusion() {
         for i in 1..=2 {
             let (inputs, _) = non_inclusion_inputs_string(i);
 
-            let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-                .header("Content-Type", "text/plain; charset=utf-8")
-                .body(inputs)
-                .send()
-                .await
-                .expect("Failed to execute request.");
-            assert!(response_result.status().is_success());
+    let response_result = client
+        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .header("Content-Type", "text/plain; charset=utf-8")
+        .body(inputs)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+    assert!(response_result.status().is_success());
         }
     }
     // height 40

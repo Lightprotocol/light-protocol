@@ -5,6 +5,8 @@ use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 
+use crate::helpers::bigint_to_u8_32;
+
 #[derive(Clone, Debug, Default)]
 pub struct BatchAppendWithSubtreesCircuitInputs {
     pub public_input_hash: BigInt,

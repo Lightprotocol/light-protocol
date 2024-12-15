@@ -1,12 +1,16 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::errors::AccountCompressionErrorCode;
+use std::str::FromStr;
+
 use account_compression::{
-    self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
+    self, errors::AccountCompressionErrorCode, utils::constants::GROUP_AUTHORITY_SEED,
+    GroupAuthority, RegisteredProgram, ID,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use light_program_test::test_env::{get_group_pda, OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
-use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_program_test::{
+    test_env::{get_group_pda, OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR},
+    test_rpc::ProgramTestRpcConnection,
+};
 use light_test_utils::{airdrop_lamports, assert_rpc_error, RpcConnection};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
@@ -15,7 +19,6 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use std::str::FromStr;
 
 /// Tests:
 /// 1. Create group authority

@@ -1,14 +1,19 @@
-use crate::cli::{StartArgs, StatusArgs};
-use crate::errors::ForesterError;
-use account_compression::initialize_address_merkle_tree::Pubkey;
-use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
+use std::{str::FromStr, time::Duration};
+
+use account_compression::{
+    initialize_address_merkle_tree::Pubkey,
+    utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES},
+};
 use anchor_lang::Id;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::signature::Keypair;
-use std::str::FromStr;
-use std::time::Duration;
+
+use crate::{
+    cli::{StartArgs, StatusArgs},
+    errors::ForesterError,
+};
 
 #[derive(Debug)]
 pub struct ForesterConfig {

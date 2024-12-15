@@ -1,11 +1,15 @@
-use crate::Result;
+use std::{
+    sync::Once,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use lazy_static::lazy_static;
 use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
 use reqwest::Client;
-use std::sync::Once;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tracing::{debug, error};
+
+use crate::Result;
 
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();

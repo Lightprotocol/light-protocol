@@ -586,7 +586,7 @@ pub mod light_registry {
         {
             let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
                 &ctx.accounts.merkle_tree,
-            )
+        )
             .map_err(ProgramError::from)?;
             let account = account.get_account();
             let metadata = account.metadata;

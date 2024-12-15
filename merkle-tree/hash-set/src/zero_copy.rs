@@ -119,7 +119,7 @@ impl<'a> HashSetZeroCopy<'a> {
     }
 }
 
-impl<'a> Drop for HashSetZeroCopy<'a> {
+impl Drop for HashSetZeroCopy<'_> {
     fn drop(&mut self) {
         // SAFETY: Don't do anything here! Why?
         //
@@ -134,7 +134,7 @@ impl<'a> Drop for HashSetZeroCopy<'a> {
     }
 }
 
-impl<'a> Deref for HashSetZeroCopy<'a> {
+impl Deref for HashSetZeroCopy<'_> {
     type Target = HashSet;
 
     fn deref(&self) -> &Self::Target {
@@ -142,7 +142,7 @@ impl<'a> Deref for HashSetZeroCopy<'a> {
     }
 }
 
-impl<'a> DerefMut for HashSetZeroCopy<'a> {
+impl DerefMut for HashSetZeroCopy<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.hash_set
     }

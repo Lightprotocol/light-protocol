@@ -213,7 +213,7 @@ pub async fn init_program_test_env(
         if skip_prover {
             None
         } else {
-            Some(ProverConfig {
+        Some(ProverConfig {
                 run_mode: None,
                 circuits: vec![
                     ProofType::BatchAppendWithProofsTest,
@@ -480,26 +480,26 @@ where
                 match state_tree_bundle.version {
                     1 => {
                         println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES v1\n --------------------------------------------------");
-                        // find forester which is eligible this slot for this tree
-                        if let Some(payer) = Self::get_eligible_forester_for_queue(
-                            &state_tree_bundle.accounts.nullifier_queue,
-                            &self.foresters,
-                            self.slot,
-                        ) {
-                            // TODO: add newly addeded trees to foresters
-                            nullify_compressed_accounts(
-                                &mut self.rpc,
-                                &payer,
-                                state_tree_bundle,
-                                self.epoch,
-                                false,
-                            )
-                            .await
-                            .unwrap();
-                        } else {
-                            println!("No forester found for nullifier queue");
-                        };
-                    }
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &state_tree_bundle.accounts.nullifier_queue,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    // TODO: add newly addeded trees to foresters
+                    nullify_compressed_accounts(
+                        &mut self.rpc,
+                        &payer,
+                        state_tree_bundle,
+                        self.epoch,
+                        false,
+                    )
+                    .await
+                    .unwrap();
+                } else {
+                    println!("No forester found for nullifier queue");
+                };
+            }
                     2 => {
                         let merkle_tree_pubkey = state_tree_bundle.accounts.merkle_tree;
                         let queue_pubkey = state_tree_bundle.accounts.nullifier_queue;
@@ -874,9 +874,9 @@ where
 
                         TreeAccounts {
                             tree_type,
-                            merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
-                            queue: state_merkle_tree_bundle.accounts.nullifier_queue,
-                            is_rolledover: false,
+                        merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
+                        queue: state_merkle_tree_bundle.accounts.nullifier_queue,
+                        is_rolledover: false,
                         }
                     })
                     .collect::<Vec<TreeAccounts>>();
@@ -1008,10 +1008,10 @@ where
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
         let state_tree_account = AccountZeroCopy::<account_compression::QueueAccount>::new(
-            &mut self.rpc,
-            nullifier_queue_keypair.pubkey(),
-        )
-        .await;
+                &mut self.rpc,
+                nullifier_queue_keypair.pubkey(),
+            )
+            .await;
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
@@ -2226,12 +2226,12 @@ where
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
-        let range_max: usize = std::cmp::min(
-            self.keypair_action_config
-                .max_output_accounts
-                .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
-            self.indexer.get_state_merkle_trees().len() as u64,
-        ) as usize;
+            let range_max: usize = std::cmp::min(
+                self.keypair_action_config
+                    .max_output_accounts
+                    .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
+                self.indexer.get_state_merkle_trees().len() as u64,
+            ) as usize;
 
         for _ in 0..num {
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);

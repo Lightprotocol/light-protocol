@@ -3878,7 +3878,7 @@ async fn test_invalid_inputs() {
             Some(vec![input_compressed_accounts[0].hash().unwrap()]),
             Some(vec![
                 input_compressed_accounts[0]
-                    .merkle_context
+                .merkle_context
                     .merkle_tree_pubkey,
             ]),
             None,
@@ -4153,7 +4153,7 @@ async fn test_invalid_inputs() {
         )
         .await;
         assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        .unwrap();
     }
     // Test 12: invalid Merkle tree pubkey
     {

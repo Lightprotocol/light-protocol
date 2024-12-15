@@ -83,14 +83,14 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info, MerkleTreeAccount: O
                 ctx.remaining_accounts,
             )?,
             _ => {
-                msg!(
+            msg!(
                     "Invalid account discriminator {:?}",
                     current_account_discriminator
                 );
                 return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch);
             }
         }
-    }
+        }
     if current_index != ctx.remaining_accounts.len() {
         msg!(
             "Number of remaining accounts does not match, expected {}, got {}",
@@ -132,33 +132,33 @@ fn process_queue_bundle_v1<'info>(
     queue_bundle: &QueueBundle<'_, '_>,
 ) -> Result<u64> {
     let queue = AccountLoader::<QueueAccount>::try_from(queue_bundle.accounts[0])?;
-    light_heap::bench_sbf_start!("acp_prep_insertion");
+        light_heap::bench_sbf_start!("acp_prep_insertion");
     let rollover_fee = {
-        let queue = queue.load()?;
+            let queue = queue.load()?;
         check_signer_is_registered_or_authority::<InsertIntoQueues, QueueAccount>(ctx, &queue)?;
 
         queue.metadata.rollover_metadata.rollover_fee * queue_bundle.elements.len() as u64
     };
-    {
-        let sequence_number = {
+        {
+            let sequence_number = {
             let merkle_tree = queue_bundle.accounts[1].try_borrow_data()?;
-            let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
-            merkle_tree.sequence_number()
-        };
+                let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
+                merkle_tree.sequence_number()
+            };
 
-        let queue = queue.to_account_info();
-        let mut queue = queue.try_borrow_mut_data()?;
-        let mut queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue).unwrap() };
-        light_heap::bench_sbf_end!("acp_prep_insertion");
-        light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
-        for element in queue_bundle.elements.iter() {
-            let element = BigUint::from_bytes_be(element.as_slice());
-            queue
-                .insert(&element, sequence_number)
-                .map_err(ProgramError::from)?;
+            let queue = queue.to_account_info();
+            let mut queue = queue.try_borrow_mut_data()?;
+            let mut queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue).unwrap() };
+            light_heap::bench_sbf_end!("acp_prep_insertion");
+            light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
+            for element in queue_bundle.elements.iter() {
+                let element = BigUint::from_bytes_be(element.as_slice());
+                queue
+                    .insert(&element, sequence_number)
+                    .map_err(ProgramError::from)?;
+            }
+            light_heap::bench_sbf_end!("acp_insert_nf_into_queue");
         }
-        light_heap::bench_sbf_end!("acp_insert_nf_into_queue");
-    }
     Ok(rollover_fee)
 }
 
@@ -217,7 +217,7 @@ fn process_address_queue_bundle_v2<'info>(
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
-    )?;
+            )?;
     let rollover_fee = merkle_tree
         .get_account()
         .metadata
@@ -230,7 +230,7 @@ fn process_address_queue_bundle_v2<'info>(
             .insert_address_into_current_batch(element)
             .map_err(ProgramError::from)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
-    }
+        }
     Ok(rollover_fee)
 }
 
