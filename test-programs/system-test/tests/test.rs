@@ -1034,7 +1034,7 @@ async fn invoke_test() {
                 .unwrap()]),
             Some(vec![
                 compressed_account_with_context
-                    .merkle_context
+                .merkle_context
                     .merkle_tree_pubkey,
             ]),
             None,
@@ -1554,7 +1554,7 @@ async fn test_with_compression() {
                 .unwrap()]),
             Some(vec![
                 compressed_account_with_context
-                    .merkle_context
+                .merkle_context
                     .merkle_tree_pubkey,
             ]),
             None,
@@ -1745,8 +1745,9 @@ async fn regenerate_accounts() {
             rust_file.push_str(&code.to_string());
         }
     }
-    use light_utils::rustfmt;
     use std::io::Write;
+
+    use light_utils::rustfmt;
     let output_path = "../../test-utils/src/env_accounts.rs";
     let mut file = std::fs::File::create(&output_path).unwrap();
     file.write_all(

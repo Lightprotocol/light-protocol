@@ -256,7 +256,7 @@ where
                         .await;
 
                     if let Some(payload) = payload {
-                        (indices, Vec::new(), payload.to_string())
+                    (indices, Vec::new(), payload.to_string())
                     } else {
                         (indices, Vec::new(), payload_legacy.unwrap().to_string())
                     }
@@ -318,8 +318,8 @@ where
                             address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                             public_input_hash: big_int_to_string(&public_input_hash),
                             inclusion: inclusion_payload.unwrap().inputs,
-                            non_inclusion: non_inclusion_payload.inputs,
-                        }
+                        non_inclusion: non_inclusion_payload.inputs,
+                    }
                         .to_string()
                     } else if let Some(non_inclusion_payload) = non_inclusion_payload_legacy {
                         CombinedJsonStructLegacy {
@@ -343,7 +343,7 @@ where
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()
@@ -538,7 +538,7 @@ where
             } else {
                 let mut merkle_tree_account = rpc
                     .get_account(merkle_tree_pubkeys[i])
-                    .await
+                .await
                     .unwrap()
                     .unwrap();
                 let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
@@ -638,8 +638,8 @@ where
                     NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
-                        BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                            &non_inclusion_proof_inputs,
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &non_inclusion_proof_inputs,
                         ),
                     ),
                     None,

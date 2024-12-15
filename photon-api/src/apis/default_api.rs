@@ -11,8 +11,10 @@
 use reqwest;
 
 use super::{configuration, Error};
-use crate::apis::configuration::Configuration;
-use crate::{apis::ResponseContent, models};
+use crate::{
+    apis::{configuration::Configuration, ResponseContent},
+    models,
+};
 
 /// struct for typed errors of method [`get_compressed_account_balance_post`]
 #[derive(Debug, Clone, Serialize, Deserialize)]

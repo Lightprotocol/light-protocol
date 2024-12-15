@@ -2,6 +2,10 @@ use std::fmt::{Debug, Formatter};
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
+use light_client::{
+    rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
+    transaction_params::TransactionParams,
+};
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
 use solana_sdk::{
@@ -16,9 +20,6 @@ use solana_sdk::{
     system_instruction,
     transaction::{Transaction, TransactionError},
 };
-
-use light_client::rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError};
-use light_client::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,

@@ -126,27 +126,27 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     let discriminator = merkle_tree.data[0..8].try_into().unwrap();
     match discriminator {
         StateMerkleTreeAccount::DISCRIMINATOR => {
-            {
-                let merkle_tree_deserialized =
-                    &mut ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
-                        &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
-                    )
-                    .unwrap();
-                unsafe {
-                    *merkle_tree_deserialized.next_index = next_index as usize;
-                }
-            }
+    {
+        let merkle_tree_deserialized =
+            &mut ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+                &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+            )
+            .unwrap();
+        unsafe {
+            *merkle_tree_deserialized.next_index = next_index as usize;
+        }
+    }
 
-            let mut account_share_data = AccountSharedData::from(merkle_tree);
-            account_share_data.set_lamports(lamports);
-            rpc.set_account(merkle_tree_pubkey, &account_share_data);
-            let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-            let merkle_tree_deserialized =
-                ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
-                    &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
-                )
-                .unwrap();
-            assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
+    let mut account_share_data = AccountSharedData::from(merkle_tree);
+    account_share_data.set_lamports(lamports);
+    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+    let merkle_tree_deserialized =
+        ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+            &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+        )
+        .unwrap();
+    assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {}
         _ => panic!("Invalid discriminator"),

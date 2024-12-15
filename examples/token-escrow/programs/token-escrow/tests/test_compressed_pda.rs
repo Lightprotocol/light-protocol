@@ -240,7 +240,7 @@ async fn create_escrow_ix<R: RpcConnection>(
             Some(vec![input_compressed_account_hash]),
             Some(vec![
                 compressed_input_account_with_context
-                    .merkle_context
+                .merkle_context
                     .merkle_tree_pubkey,
             ]),
             Some(&[address]),

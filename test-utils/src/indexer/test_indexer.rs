@@ -187,9 +187,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         merkle_tree_pubkey: [u8; 32],
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
-        let address_tree_bundle = self
-            .address_merkle_trees
-            .iter()
+            let address_tree_bundle = self
+                .address_merkle_trees
+                .iter()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey);
         if let Some(address_tree_bundle) = address_tree_bundle {
             Ok(address_tree_bundle.merkle_tree.merkle_tree.get_subtrees())
@@ -471,7 +471,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         )
                         .await;
                     if let Some(payload) = payload {
-                        (indices, Vec::new(), payload.to_string())
+                    (indices, Vec::new(), payload.to_string())
                     } else {
                         (indices, Vec::new(), payload_legacy.unwrap().to_string())
                     }
@@ -569,8 +569,8 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             state_tree_height: 26,
                             address_tree_height: 26,
                             inclusion: inclusion_payload_legacy.unwrap().inputs,
-                            non_inclusion: non_inclusion_payload.inputs,
-                        }
+                        non_inclusion: non_inclusion_payload.inputs,
+                    }
                         .to_string()
                     } else {
                         panic!("Unsupported tree height")
@@ -586,7 +586,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()
@@ -760,9 +760,9 @@ impl<R: RpcConnection> TestIndexer<R> {
         Self::new(
             vec![
                 StateMerkleTreeAccounts {
-                    merkle_tree: env.merkle_tree_pubkey,
-                    nullifier_queue: env.nullifier_queue_pubkey,
-                    cpi_context: env.cpi_context_account_pubkey,
+                merkle_tree: env.merkle_tree_pubkey,
+                nullifier_queue: env.nullifier_queue_pubkey,
+                cpi_context: env.cpi_context_account_pubkey,
                 },
                 StateMerkleTreeAccounts {
                     merkle_tree: env.batched_state_merkle_tree,
@@ -772,8 +772,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             ],
             vec![
                 AddressMerkleTreeAccounts {
-                    merkle_tree: env.address_merkle_tree_pubkey,
-                    queue: env.address_merkle_tree_queue_pubkey,
+                merkle_tree: env.address_merkle_tree_pubkey,
+                queue: env.address_merkle_tree_queue_pubkey,
                 },
                 AddressMerkleTreeAccounts {
                     merkle_tree: env.batch_address_merkle_tree,
@@ -812,10 +812,10 @@ impl<R: RpcConnection> TestIndexer<R> {
                 ));
                 (2, merkle_tree)
             } else {
-                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                    STATE_MERKLE_TREE_HEIGHT as usize,
-                    STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-                ));
+            let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+            ));
                 (1, merkle_tree)
             };
 
@@ -912,21 +912,21 @@ impl<R: RpcConnection> TestIndexer<R> {
     ) {
         let (rollover_fee, merkle_tree) = match version {
             1 => {
-                create_state_merkle_tree_and_queue_account(
-                    &self.payer,
-                    true,
-                    rpc,
-                    merkle_tree_keypair,
+        create_state_merkle_tree_and_queue_account(
+            &self.payer,
+            true,
+            rpc,
+            merkle_tree_keypair,
                     queue_keypair,
-                    Some(cpi_context_keypair),
-                    owning_program_id,
-                    forester,
-                    self.state_merkle_trees.len() as u64,
-                    &StateMerkleTreeConfig::default(),
-                    &NullifierQueueConfig::default(),
-                )
-                .await
-                .unwrap();
+            Some(cpi_context_keypair),
+            owning_program_id,
+            forester,
+            self.state_merkle_trees.len() as u64,
+            &StateMerkleTreeConfig::default(),
+            &NullifierQueueConfig::default(),
+        )
+        .await
+        .unwrap();
             let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
                 STATE_MERKLE_TREE_HEIGHT as usize,
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -1010,25 +1010,25 @@ impl<R: RpcConnection> TestIndexer<R> {
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
             let (root_index, root) = if bundle.version == 1 {
-                let fetched_merkle_tree = unsafe {
-                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-                        rpc,
-                        merkle_tree_pubkeys[i],
-                    )
-                    .await
-                };
-                for i in 0..fetched_merkle_tree.roots.len() {
-                    info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
-                }
-                info!(
-                    "sequence number {:?}",
-                    fetched_merkle_tree.sequence_number()
-                );
-                info!("root index {:?}", fetched_merkle_tree.root_index());
-                info!("local sequence number {:?}", merkle_tree.sequence_number);
+            let fetched_merkle_tree = unsafe {
+                get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                    rpc,
+                    merkle_tree_pubkeys[i],
+                )
+                .await
+            };
+            for i in 0..fetched_merkle_tree.roots.len() {
+                info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
+            }
+            info!(
+                "sequence number {:?}",
+                fetched_merkle_tree.sequence_number()
+            );
+            info!("root index {:?}", fetched_merkle_tree.root_index());
+            info!("local sequence number {:?}", merkle_tree.sequence_number);
                 (
                     fetched_merkle_tree.root_index() as u32,
-                    fetched_merkle_tree.root(),
+                fetched_merkle_tree.root(),
                 )
             } else {
                 let mut merkle_tree_account = rpc
@@ -1135,15 +1135,15 @@ impl<R: RpcConnection> TestIndexer<R> {
                     );
                 }
             } else {
-                let fetched_address_merkle_tree = unsafe {
-                    get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
-                        rpc,
-                        address_merkle_tree_pubkeys[i],
-                    )
-                    .await
-                };
-                address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
-            }
+            let fetched_address_merkle_tree = unsafe {
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+                    rpc,
+                    address_merkle_tree_pubkeys[i],
+                )
+                .await
+            };
+            address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
+        }
         }
         // if tree heights are not the same, panic
         if tree_heights.iter().any(|&x| x != tree_heights[0]) {
@@ -1169,8 +1169,8 @@ impl<R: RpcConnection> TestIndexer<R> {
                     NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
-                        BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                            &non_inclusion_proof_inputs,
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &non_inclusion_proof_inputs,
                         ),
                     ),
                     None,

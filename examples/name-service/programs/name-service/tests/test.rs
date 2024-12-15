@@ -60,7 +60,7 @@ async fn test_name_service() {
         leaf_index: 0,
         queue_index: None,
     };
-    let merkle_context = pack_merkle_context(merkle_context, &mut remaining_accounts);
+    let merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
 
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
@@ -72,7 +72,7 @@ async fn test_name_service() {
     let address = derive_address_legacy(&address_seed, &address_merkle_context);
 
     let address_merkle_context =
-        pack_address_merkle_context(address_merkle_context, &mut remaining_accounts);
+        pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts);
 
     let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
@@ -380,7 +380,8 @@ where
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    let merkle_context =
+        pack_merkle_context(&compressed_account.merkle_context, remaining_accounts);
 
     let inputs = vec![
         compressed_account
@@ -457,7 +458,8 @@ where
         )
         .await;
 
-    let merkle_context = pack_merkle_context(compressed_account.merkle_context, remaining_accounts);
+    let merkle_context =
+        pack_merkle_context(&compressed_account.merkle_context, remaining_accounts);
 
     let inputs = vec![
         compressed_account

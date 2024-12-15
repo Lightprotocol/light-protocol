@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use reqwest::Client;
 use serde::Serialize;
-use std::time::Duration;
 
 #[derive(Debug, Serialize)]
 struct PagerDutyPayload {

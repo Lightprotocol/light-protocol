@@ -23,7 +23,7 @@ impl<'a> InclusionProofInputs<'a> {
             public_input_hash,
             inputs,
         })
-    }
+        }
     pub fn public_input(
         inputs: &'a [InclusionMerkleProofInputs],
     ) -> Result<BigInt, ProverClientError> {

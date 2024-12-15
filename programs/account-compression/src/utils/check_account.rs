@@ -1,6 +1,9 @@
+use anchor_lang::{
+    prelude::*,
+    solana_program::{account_info::AccountInfo, msg, rent::Rent},
+};
+
 use crate::errors::AccountCompressionErrorCode;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{account_info::AccountInfo, msg, rent::Rent};
 
 /// Checks that the account balance is equal to rent exemption.
 pub fn check_account_balance_is_rent_exempt(
