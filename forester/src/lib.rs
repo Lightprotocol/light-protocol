@@ -17,6 +17,7 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
+pub mod batched_ops;
 
 use crate::epoch_manager::{run_service, WorkReport};
 use crate::errors::ForesterError;

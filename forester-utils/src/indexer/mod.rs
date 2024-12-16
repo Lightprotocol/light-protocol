@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use num_bigint::BigUint;
 use solana_sdk::signature::Keypair;
 use std::fmt::Debug;
@@ -72,48 +73,51 @@ pub struct AddressMerkleTreeBundle {
     pub queue_elements: Vec<[u8; 32]>,
 }
 
+pub struct ProofOfLeaf {
+    pub leaf: [u8; 32],
+    pub proof: Vec<[u8; 32]>,
+}
+
+#[async_trait]
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     /// Returns queue elements from the queue with the given pubkey. For input
     /// queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
-    fn get_queue_elements(
+    async fn get_queue_elements(
         &self,
         pubkey: [u8; 32],
         batch: u64,
         start_offset: u64,
         end_offset: u64,
-    ) -> impl std::future::Future<Output = Result<Vec<[u8; 32]>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
-    fn get_subtrees(
+    async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
-    ) -> impl std::future::Future<Output = Result<Vec<[u8; 32]>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
-    fn get_multiple_compressed_account_proofs(
+    async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    fn get_rpc_compressed_accounts_by_owner(
+    async fn get_rpc_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
+    ) -> Result<Vec<String>, IndexerError>;
 
-    fn get_multiple_new_address_proofs(
+    async fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<16>>, IndexerError>>
-           + Send
-           + Sync;
-    fn get_multiple_new_address_proofs_full(
+    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError>;
+
+    async fn get_multiple_new_address_proofs_full(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> impl std::future::Future<Output = Result<Vec<NewAddressProofWithContext<40>>, IndexerError>>
-           + Send
-           + Sync;
+    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError>;
 
     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
 
@@ -167,7 +171,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts(
         &mut self,
         _compressed_accounts: Option<Vec<[u8; 32]>>,
@@ -179,7 +182,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         unimplemented!()
     }
 
-    #[allow(async_fn_in_trait)]
     async fn create_proof_for_compressed_accounts2(
         &mut self,
         _compressed_accounts: Option<Vec<[u8; 32]>>,
@@ -214,6 +216,46 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
         unimplemented!()
     }
+
+    fn get_proof_by_index(&mut self, _merkle_tree_pubkey: Pubkey, _index: u64) -> ProofOfLeaf {
+        unimplemented!("get_proof_by_index not implemented")
+    }
+
+    fn get_proofs_by_indices(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _indices: &[u64],
+    ) -> Vec<ProofOfLeaf> {
+        unimplemented!("get_proof_by_index not implemented")
+    }
+
+    fn get_leaf_indices_tx_hashes(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _zkp_batch_size: usize,
+    ) -> Vec<(u32, [u8; 32], [u8; 32])> {
+        unimplemented!();
+    }
+
+    async fn update_test_indexer_after_append(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
+        _output_queue_pubkey: Pubkey,
+        _num_inserted_zkps: u64,
+    ) {
+        unimplemented!()
+    }
+
+    async fn update_test_indexer_after_nullification(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
+        _batch_index: usize,
+    ) {
+        unimplemented!()
+    }
+
 }
 
 #[derive(Debug, Clone)]

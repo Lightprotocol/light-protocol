@@ -5,6 +5,7 @@
   "scripts": {
     "build": "cargo build",
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
+    "test-batch": "cargo test --package forester --test batch_test -- --test-threads=1 --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {

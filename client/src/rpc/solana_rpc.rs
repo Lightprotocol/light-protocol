@@ -310,7 +310,8 @@ impl RpcConnection for SolanaRpcConnection {
 
             // a network_fee is charged if there are input compressed accounts or new addresses
             let mut network_fee: i64 = 0;
-            if transaction_params.num_input_compressed_accounts != 0 {
+            if transaction_params.num_input_compressed_accounts != 0
+                || transaction_params.num_output_compressed_accounts != 0 {
                 network_fee += transaction_params.fee_config.network_fee as i64;
             }
             if transaction_params.num_new_addresses != 0 {
@@ -323,7 +324,7 @@ impl RpcConnection for SolanaRpcConnection {
                 - i64::from(transaction_params.num_output_compressed_accounts)
                     * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
-                - 5000 * deduped_signers.len() as i64
+                - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
                 - network_fee;
             if post_balance as i64 != expected_post_balance {
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
@@ -430,6 +431,26 @@ impl RpcConnection for SolanaRpcConnection {
                     },
                 )
                 .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
+        self.retry(|| async {
+            Ok(self
+                .client
+                .get_transaction_with_config(
+                    signature,
+                    // UiTransactionEncoding::Json,
+                    // self.client.commitment(),
+                    RpcTransactionConfig {
+                        encoding: Some(UiTransactionEncoding::Base64),
+                        commitment: Some(self.client.commitment()),
+                        ..Default::default()
+                    },
+                )
+                .map_err(RpcError::from)?
+                .slot)
         })
         .await
     }

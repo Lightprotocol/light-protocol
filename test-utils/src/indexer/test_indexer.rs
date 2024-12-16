@@ -1,5 +1,8 @@
+use account_compression::batch::BatchState;
 use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
 use account_compression::batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use async_trait::async_trait;
+use light_hasher::Hasher;
 use light_macros::pubkey;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
 use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
@@ -22,9 +25,7 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
-    IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
+    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext, ProofOfLeaf, ProofRpcResult, StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext
 };
 use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
@@ -103,6 +104,7 @@ pub struct TestIndexer<R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
+#[async_trait]
 impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
     async fn get_queue_elements(
         &self,
@@ -630,6 +632,181 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
         self.get_state_merkle_trees_mut().push(state_bundle);
     }
+
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
+        let mut bundle = self
+            .state_merkle_trees
+            .iter_mut()
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+            .unwrap();
+
+        while bundle.merkle_tree.leaves().len() <= index as usize {
+            bundle.merkle_tree.append(&[0u8; 32]).unwrap();
+        }
+
+        let leaf = match bundle.merkle_tree.get_leaf(index as usize) {
+            Ok(leaf) => leaf,
+            Err(_) => {
+                bundle.merkle_tree.append(&[0u8; 32]).unwrap();
+                bundle.merkle_tree.get_leaf(index as usize).unwrap()
+            }
+        };
+
+        let proof = bundle
+            .merkle_tree
+            .get_proof_of_leaf(index as usize, true)
+            .unwrap()
+            .to_vec();
+
+        ProofOfLeaf { leaf, proof }
+    }
+
+    fn get_proofs_by_indices(
+        &mut self,
+        merkle_tree_pubkey: Pubkey,
+        indices: &[u64],
+    ) -> Vec<ProofOfLeaf> {
+        indices
+            .iter()
+            .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
+            .collect()
+    }
+
+    /// leaf index, leaf, tx hash
+    fn get_leaf_indices_tx_hashes(
+        &mut self,
+        merkle_tree_pubkey: Pubkey,
+        zkp_batch_size: usize,
+    ) -> Vec<(u32, [u8; 32], [u8; 32])> {
+        let mut state_merkle_tree_bundle = self
+            .state_merkle_trees
+            .iter_mut()
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+            .unwrap();
+
+        state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec()
+    }
+
+    async fn update_test_indexer_after_append(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_pubkey: Pubkey,
+        output_queue_pubkey: Pubkey,
+        num_inserted_zkps: u64,
+    ) {
+        Box::pin(async move {
+            let mut state_merkle_tree_bundle = self
+                .state_merkle_trees
+                .iter_mut()
+                .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+                .unwrap();
+
+            let (merkle_tree_next_index, root) = {
+                let mut merkle_tree_account =
+                    rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                    merkle_tree_account.data.as_mut_slice(),
+                )
+                .unwrap();
+                (
+                    merkle_tree.get_account().next_index as usize,
+                    *merkle_tree.root_history.last().unwrap(),
+                )
+            };
+
+            let (max_num_zkp_updates, zkp_batch_size) = {
+                let mut output_queue_account =
+                    rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
+                let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                    output_queue_account.data.as_mut_slice(),
+                )
+                .unwrap();
+
+                let output_queue_account = output_queue.get_account();
+                let max_num_zkp_updates = output_queue_account.queue.get_num_zkp_batches();
+                let zkp_batch_size = output_queue_account.queue.zkp_batch_size;
+                (max_num_zkp_updates, zkp_batch_size)
+            };
+
+            let leaves = state_merkle_tree_bundle.output_queue_elements.to_vec();
+
+            let start = (num_inserted_zkps as usize) * zkp_batch_size as usize;
+            let end = start + zkp_batch_size as usize;
+            let batch_update_leaves = leaves[start..end].to_vec();
+
+            for (i, _) in batch_update_leaves.iter().enumerate() {
+                // if leaves[i] == [0u8; 32] {
+                let index = merkle_tree_next_index + i - zkp_batch_size as usize;
+                // This is dangerous it should call self.get_leaf_by_index() but it
+                // can t for mutable borrow
+                // TODO: call a get_leaf_by_index equivalent, we could move the method to the reference merkle tree
+                let leaf = state_merkle_tree_bundle
+                    .merkle_tree
+                    .get_leaf(index)
+                    .unwrap();
+                if leaf == [0u8; 32] {
+                    state_merkle_tree_bundle
+                        .merkle_tree
+                        .update(&batch_update_leaves[i], index)
+                        .unwrap();
+                }
+            }
+            assert_eq!(
+                root,
+                state_merkle_tree_bundle.merkle_tree.root(),
+                "update indexer after append root invalid"
+            );
+            // check can we get rid of this and use the data from the merkle tree
+            if num_inserted_zkps == max_num_zkp_updates {
+                for _ in 0..zkp_batch_size {
+                    state_merkle_tree_bundle.output_queue_elements.remove(0);
+                }
+            }
+        });
+    }
+
+    async fn update_test_indexer_after_nullification(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_pubkey: Pubkey,
+        batch_index: usize,
+    ) {
+        Box::pin(async move {
+            let state_merkle_tree_bundle = self
+                .state_merkle_trees
+                .iter_mut()
+                .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+                .unwrap();
+
+            let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                merkle_tree_account.data.as_mut_slice(),
+            )
+            .unwrap();
+
+            let batch = &merkle_tree.batches[batch_index];
+            if batch.get_state() == BatchState::Inserted
+                // || batch.get_state() == BatchState::ReadyToUpdateTree
+            {
+                let batch_size = batch.zkp_batch_size;
+                let leaf_indices_tx_hashes =
+                    state_merkle_tree_bundle.input_leaf_indices[..batch_size as usize].to_vec();
+                for (index, leaf, tx_hash) in leaf_indices_tx_hashes.iter() {
+                    let index = *index as usize;
+                    let leaf = *leaf;
+                    let index_bytes = index.to_be_bytes();
+
+                    let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, tx_hash]).unwrap();
+
+                    state_merkle_tree_bundle.input_leaf_indices.remove(0);
+                    state_merkle_tree_bundle
+                        .merkle_tree
+                        .update(&nullifier, index)
+                        .unwrap();
+                }
+            }
+        });
+    }
 }
 
 impl<R: RpcConnection> TestIndexer<R> {
@@ -944,12 +1121,17 @@ impl<R: RpcConnection> TestIndexer<R> {
                 .unwrap();
             let merkle_tree = &bundle.merkle_tree;
             let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
-            let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
+            let proof_data = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap().to_vec();
+            let proof_elements: Vec<BigInt> = proof_data
+                .iter()
+                .map(|x| BigInt::from_be_bytes(x))
+                .collect();
+
             inclusion_proofs.push(InclusionMerkleProofInputs {
                 root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
                 leaf: BigInt::from_be_bytes(account),
                 path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
-                path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+                path_elements: proof_elements,
             });
             let (root_index, root) = if bundle.version == 1 {
                 let fetched_merkle_tree = unsafe {
