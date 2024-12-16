@@ -3,7 +3,7 @@
     "husky": "^9.1.5",
     "nx": "^20.2.1",
     "playwright": "^1.49.1",
-    "prettier": "^3.3.3",
+    "prettier": "^3.4.2",
     "snarkjs": "^0.7.5",
     "syncpack": "^13.0.0",
     "typescript": "^5.5.4"
