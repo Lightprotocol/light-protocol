@@ -1,8 +1,11 @@
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{prelude::*, BufRead, BufReader},
+    process::{Command, Stdio},
+};
+
 use clap::{ArgAction, Parser};
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
-use std::{fs::File, io::prelude::*};
 use tabled::{Table, Tabled};
 pub const DESTINATION: &str = "target/";
 

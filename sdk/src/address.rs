@@ -82,7 +82,7 @@ pub fn unpack_new_address_params(
 ///     &crate::ID,
 /// );
 /// ```
-pub(crate) fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
+pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
     let mut inputs = Vec::with_capacity(seeds.len() + 1);
 
     let program_id = program_id.to_bytes();

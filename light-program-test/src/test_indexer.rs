@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, time::Duration};
+
 use borsh::BorshDeserialize;
 use light_client::{
     indexer::{
@@ -10,12 +12,11 @@ use light_client::{
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::health_check,
+        helpers::{health_check, spawn_prover, ProofType, ProverConfig},
         inclusion_json_formatter::BatchInclusionJsonStruct,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -40,7 +41,6 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-use std::{marker::PhantomData, time::Duration};
 
 #[derive(Debug)]
 pub struct TestIndexer<R>
@@ -274,7 +274,7 @@ where
         let mut retries = 3;
         while retries > 0 {
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()

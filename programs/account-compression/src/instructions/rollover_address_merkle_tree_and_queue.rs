@@ -1,3 +1,5 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
@@ -12,7 +14,6 @@ use crate::{
     },
     AddressMerkleTreeAccount, RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {

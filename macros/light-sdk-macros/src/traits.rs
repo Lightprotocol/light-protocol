@@ -272,8 +272,9 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use syn::{parse_quote, DeriveInput, FieldsNamed};
+
+    use super::*;
 
     #[test]
     fn test_process_light_traits() {

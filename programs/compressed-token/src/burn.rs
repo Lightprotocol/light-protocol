@@ -175,6 +175,7 @@ pub mod sdk {
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
+    use super::CompressedTokenInstructionDataBurn;
     use crate::{
         get_token_pool_pda,
         process_transfer::{
@@ -186,8 +187,6 @@ pub mod sdk {
         },
         token_data::TokenData,
     };
-
-    use super::CompressedTokenInstructionDataBurn;
 
     pub struct CreateBurnInstructionInputs {
         pub fee_payer: Pubkey,
@@ -289,6 +288,10 @@ pub mod sdk {
 #[cfg(test)]
 mod test {
 
+    use anchor_lang::solana_program::account_info::AccountInfo;
+    use light_system_program::sdk::compressed_account::PackedMerkleContext;
+    use rand::Rng;
+
     use super::*;
     use crate::{
         freeze::test_freeze::{
@@ -298,9 +301,6 @@ mod test {
         token_data::AccountState,
         TokenData,
     };
-    use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_system_program::sdk::compressed_account::PackedMerkleContext;
-    use rand::Rng;
 
     // TODO: add randomized and edge case tests
     #[test]

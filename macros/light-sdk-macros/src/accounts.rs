@@ -597,8 +597,9 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use syn::{parse_quote, ItemStruct};
+
+    use super::*;
 
     #[test]
     fn test_process_light_system_accounts_adds_fields_correctly() {

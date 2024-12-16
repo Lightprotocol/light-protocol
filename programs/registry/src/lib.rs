@@ -1,29 +1,29 @@
 #![allow(clippy::too_many_arguments)]
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
+use account_compression::{
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use anchor_lang::prelude::*;
 
 pub mod account_compression_cpi;
 pub mod errors;
-pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub use account_compression_cpi::{
     initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_state_tree::*,
     update_address_tree::*,
 };
-
 pub use protocol_config::{initialize::*, update::*};
+
+pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub mod constants;
 pub mod epoch;
 pub mod protocol_config;
 pub mod selection;
 pub mod utils;
 use account_compression::MerkleTreeMetadata;
-pub use selection::forester::*;
-
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
 use protocol_config::state::ProtocolConfig;
+pub use selection::forester::*;
 
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;

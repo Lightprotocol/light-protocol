@@ -1,3 +1,5 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
 use crate::{
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
@@ -10,7 +12,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {

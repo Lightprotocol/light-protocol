@@ -1,5 +1,6 @@
-use crate::errors::AccountCompressionErrorCode;
 use anchor_lang::prelude::*;
+
+use crate::errors::AccountCompressionErrorCode;
 
 pub fn transfer_lamports<'info>(
     from: &AccountInfo<'info>,

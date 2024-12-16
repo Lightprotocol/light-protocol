@@ -1,15 +1,17 @@
-use crate::helpers::{compute_root_from_merkle_proof, hash_chain};
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_concurrent_merkle_tree::event::RawIndexedElement;
+use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::IndexedElement;
-use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
-use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_indexed_merkle_tree::{
+    array::{IndexedArray, IndexedElement},
+    changelog::IndexedChangelogEntry,
+    errors::IndexedMerkleTreeError,
+    reference::IndexedMerkleTree,
+};
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
+
+use crate::helpers::{compute_root_from_merkle_proof, hash_chain};
 
 #[derive(Debug, Clone)]
 pub struct BatchAddressAppendInputs {

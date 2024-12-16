@@ -1,44 +1,52 @@
 #![cfg(feature = "test-sbf")]
 
+use std::collections::HashSet;
+
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::forester_epoch::get_epoch_phases;
-use light_program_test::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
-    register_program_with_registry_program, setup_accounts, setup_test_programs,
-    setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
-    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
+use light_program_test::{
+    test_env::{
+        create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+        deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
+        register_program_with_registry_program, setup_accounts, setup_test_programs,
+        setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
+        EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
+    },
+    test_rpc::ProgramTestRpcConnection,
 };
-use light_program_test::test_rpc::ProgramTestRpcConnection;
-use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_nullify_instruction, create_update_address_merkle_tree_instruction,
+        CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    },
+    errors::RegistryError,
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    sdk::{
+        create_finalize_registration_instruction, create_report_work_instruction,
+        create_update_forester_pda_weight_instruction,
+    },
+    utils::{
+        get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_forester_pda,
+        get_protocol_config_pda_address,
+    },
+    ForesterConfig, ForesterEpochPda, ForesterPda,
 };
-use light_registry::errors::RegistryError;
-use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
-use light_registry::sdk::{
-    create_finalize_registration_instruction, create_report_work_instruction,
-    create_update_forester_pda_weight_instruction,
-};
-use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_forester_pda,
-    get_protocol_config_pda_address,
-};
-use light_registry::{ForesterConfig, ForesterEpochPda, ForesterPda};
-use light_test_utils::assert_epoch::{
-    assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
-    assert_report_work, fetch_epoch_and_forester_pdas,
-};
-use light_test_utils::e2e_test_env::init_program_test_env;
-use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use light_test_utils::{
+    assert_epoch::{
+        assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
+        assert_report_work, fetch_epoch_and_forester_pdas,
+    },
     assert_rpc_error, create_address_merkle_tree_and_queue_account_with_assert,
     create_rollover_address_merkle_tree_instructions,
-    create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
-    Epoch, RpcConnection, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts, TreeType,
+    create_rollover_state_merkle_tree_instructions,
+    e2e_test_env::init_program_test_env,
+    register_test_forester,
+    test_forester::{empty_address_queue_test, nullify_compressed_accounts},
+    update_test_forester, Epoch, RpcConnection, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts,
+    TreeType,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -47,7 +55,6 @@ use solana_sdk::{
     signature::{read_keypair_file, Keypair},
     signer::Signer,
 };
-use std::collections::HashSet;
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {

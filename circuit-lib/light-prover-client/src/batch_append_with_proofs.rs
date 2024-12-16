@@ -1,11 +1,12 @@
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
-
 use serde::Serialize;
 
-use crate::helpers::compute_root_from_merkle_proof;
-use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
+use crate::{
+    batch_append_with_subtrees::calculate_hash_chain,
+    helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendWithProofsCircuitInputs {

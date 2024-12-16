@@ -97,8 +97,8 @@ where
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
-    for IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT, NET_HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTreeZeroCopy<'_, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -204,8 +204,8 @@ where
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
-    for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT, NET_HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTreeZeroCopyMut<'_, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -226,8 +226,8 @@ where
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> DerefMut
-    for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT, NET_HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> DerefMut
+    for IndexedMerkleTreeZeroCopyMut<'_, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd

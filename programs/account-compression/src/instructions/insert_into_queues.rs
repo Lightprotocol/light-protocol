@@ -1,3 +1,6 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, ZeroCopy};
+use num_bigint::BigUint;
+
 use crate::{
     check_queue_type,
     errors::AccountCompressionErrorCode,
@@ -10,8 +13,6 @@ use crate::{
     },
     QueueType, RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, ZeroCopy};
-use num_bigint::BigUint;
 
 #[derive(Accounts)]
 pub struct InsertIntoQueues<'info> {

@@ -1,10 +1,14 @@
 #![cfg(feature = "test-sbf")]
 
-use light_program_test::test_env::setup_test_programs_with_accounts_with_protocol_config;
-use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_program_test::{
+    test_env::setup_test_programs_with_accounts_with_protocol_config,
+    test_rpc::ProgramTestRpcConnection,
+};
 use light_registry::protocol_config::state::ProtocolConfig;
-use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
-use light_test_utils::indexer::TestIndexer;
+use light_test_utils::{
+    e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig},
+    indexer::TestIndexer,
+};
 
 #[tokio::test]
 async fn test_10_all() {

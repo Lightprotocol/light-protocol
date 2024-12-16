@@ -1,12 +1,15 @@
 use serde::Serialize;
 
-use crate::combined::merkle_combined_proof_inputs::CombinedProofInputs;
-use crate::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
-use crate::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
-
 use super::{
     helpers::create_json_from_struct, inclusion_json_formatter::InclusionJsonStruct,
     non_inclusion_json_formatter::NonInclusionJsonStruct,
+};
+use crate::{
+    combined::merkle_combined_proof_inputs::CombinedProofInputs,
+    gnark::{
+        inclusion_json_formatter::BatchInclusionJsonStruct,
+        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+    },
 };
 
 #[derive(Serialize, Debug)]

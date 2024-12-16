@@ -1,6 +1,5 @@
 use std::{fmt, marker::PhantomData, ops::Deref};
 
-use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 use light_bounded_vec::CyclicBoundedVecMetadata;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
@@ -8,6 +7,8 @@ use light_concurrent_merkle_tree::{
 use light_hasher::Hasher;
 use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+
+use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
 pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
@@ -108,9 +109,8 @@ mod test {
     use num_bigint::RandBigInt;
     use rand::thread_rng;
 
-    use crate::zero_copy::IndexedMerkleTreeZeroCopyMut;
-
     use super::*;
+    use crate::zero_copy::IndexedMerkleTreeZeroCopyMut;
 
     fn from_bytes_copy<
         const HEIGHT: usize,

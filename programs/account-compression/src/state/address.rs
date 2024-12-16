@@ -1,15 +1,16 @@
 use std::mem;
 
-use crate::{
-    utils::check_signer_is_registered_or_authority::GroupAccess, AccessMetadata,
-    MerkleTreeMetadata, RolloverMetadata,
-};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     zero_copy::{IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut},
     IndexedMerkleTree,
+};
+
+use crate::{
+    utils::check_signer_is_registered_or_authority::GroupAccess, AccessMetadata,
+    MerkleTreeMetadata, RolloverMetadata,
 };
 
 #[account(zero_copy)]

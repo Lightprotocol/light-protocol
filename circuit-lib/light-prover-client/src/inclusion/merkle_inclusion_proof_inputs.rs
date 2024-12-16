@@ -1,5 +1,6 @@
-use crate::helpers::bigint_to_u8_32;
 use num_bigint::BigInt;
+
+use crate::helpers::bigint_to_u8_32;
 
 #[derive(Clone, Debug)]
 pub struct InclusionMerkleProofInputs {
