@@ -576,7 +576,10 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct createMint instruction for compressed tokens
+     * Construct createMint instruction for compressed tokens.
+     * @returns [createMintAccountInstruction, initializeMintInstruction, createTokenPoolInstruction]
+     *
+     * Note that `createTokenPoolInstruction` must be executed after `initializeMintInstruction`.
      */
     static async createMint(
         params: CreateMintParams,
@@ -609,13 +612,17 @@ export class CompressedTokenProgram {
             tokenProgram,
         );
 
-        const ix = await this.createTokenPool({
+        const createTokenPoolInstruction = await this.createTokenPool({
             feePayer,
             mint,
             tokenProgramId: tokenProgram,
         });
 
-        return [createMintAccountInstruction, initializeMintInstruction, ix];
+        return [
+            createMintAccountInstruction,
+            initializeMintInstruction,
+            createTokenPoolInstruction,
+        ];
     }
 
     /**
