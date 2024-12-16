@@ -21,12 +21,12 @@
         "@solana/wallet-adapter-unsafe-burner": "^0.1.7",
         "@solana/web3.js": "^1.95.3",
         "next": "15.0.4",
-        "react": "^18",
+        "react": "^19",
         "react-dom": "^18"
     },
     "devDependencies": {
         "@types/node": "^22.4.1",
-        "@types/react": "^18",
+        "@types/react": "^19",
         "@types/react-dom": "^18",
         "eslint": "8.57.0",
         "eslint-config-next": "14.2.5",
