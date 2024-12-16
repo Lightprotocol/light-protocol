@@ -3550,7 +3550,7 @@ dependencies = [
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
- "spl-token-2022 3.0.4",
+ "spl-token-2022 3.0.5",
 ]
 
 [[package]]
@@ -3867,7 +3867,7 @@ dependencies = [
  "solana-sdk",
  "solana-transaction-status",
  "spl-token",
- "spl-token-2022 3.0.4",
+ "spl-token-2022 3.0.5",
  "thiserror",
  "tokio",
 ]
@@ -7990,9 +7990,9 @@ dependencies = [
 
 [[package]]
 name = "spl-token-2022"
-version = "3.0.4"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b01d1b2851964e257187c0bca43a0de38d0af59192479ca01ac3e2b58b1bd95a"
+checksum = "4c39e416aeb1ea0b22f3b2bbecaf7e38a92a1aa8f4a0c5785c94179694e846a0"
 dependencies = [
  "arrayref",
  "bytemuck",

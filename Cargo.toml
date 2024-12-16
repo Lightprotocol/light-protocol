@@ -52,7 +52,7 @@ solana-transaction-status = "=1.18.22"
 solana-account-decoder = "=1.18.22"
 solana-rpc = "=1.18.22"
 spl-token = "=4.0.0"
-spl-token-2022 = {version="3.0.0", no-default-features = true, features = ["no-entrypoint"]}
+spl-token-2022 = {version="3.0.5", no-default-features = true, features = ["no-entrypoint"]}
 
 # Anchor
 anchor-lang = "=0.29.0"
