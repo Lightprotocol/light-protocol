@@ -22,7 +22,7 @@ light-bounded-vec = { path = "../../merkle-tree/bounded-vec", version = "1.1.0" 
 light-utils = { path = "../../utils", version = "1.1.0" }
 # ark dependencies
 ark-serialize = "0.4.2"
-ark-ec = "0.4.2"
+ark-ec = "0.5.0"
 ark-ff = "0.4.2"
 ark-relations = "0.4"
 ark-bn254 = { version = "0.4" }
