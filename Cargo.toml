@@ -69,7 +69,7 @@ syn = { version = "2.0", features = ["visit-mut", "full"] }
 # Async ecosystem
 tokio = { version = "1.39.1", features = ["rt", "macros", "rt-multi-thread"] }
 async-trait = "0.1.82"
-bb8 = "0.8.5"
+bb8 = "0.8.6"
 
 # Logging
 log = "0.4"
