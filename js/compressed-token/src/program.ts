@@ -209,6 +209,10 @@ export type CreateMintParams = {
      * Optional: The token program ID. Default: SPL Token Program ID
      */
     tokenProgramId?: PublicKey;
+    /**
+     * Optional: Mint size to use, defaults to MINT_SIZE
+     */
+    mintSize?: number;
 };
 
 /**
@@ -572,13 +576,24 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct createMint instruction for compressed tokens
+     * Construct createMint instruction for compressed tokens.
+     * @returns [createMintAccountInstruction, initializeMintInstruction, createTokenPoolInstruction]
+     *
+     * Note that `createTokenPoolInstruction` must be executed after `initializeMintInstruction`.
      */
     static async createMint(
         params: CreateMintParams,
     ): Promise<TransactionInstruction[]> {
-        const { mint, authority, feePayer, rentExemptBalance, tokenProgramId } =
-            params;
+        const {
+            mint,
+            authority,
+            feePayer,
+            rentExemptBalance,
+            tokenProgramId,
+            freezeAuthority,
+            mintSize,
+        } = params;
+
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         /// Create and initialize SPL Mint account
@@ -587,24 +602,27 @@ export class CompressedTokenProgram {
             lamports: rentExemptBalance,
             newAccountPubkey: mint,
             programId: tokenProgram,
-            space: MINT_SIZE,
+            space: mintSize ?? MINT_SIZE,
         });
-
         const initializeMintInstruction = createInitializeMint2Instruction(
             mint,
             params.decimals,
             authority,
-            params.freezeAuthority,
+            freezeAuthority,
             tokenProgram,
         );
 
-        const ix = await this.createTokenPool({
+        const createTokenPoolInstruction = await this.createTokenPool({
             feePayer,
             mint,
             tokenProgramId: tokenProgram,
         });
 
-        return [createMintAccountInstruction, initializeMintInstruction, ix];
+        return [
+            createMintAccountInstruction,
+            initializeMintInstruction,
+            createTokenPoolInstruction,
+        ];
     }
 
     /**
@@ -688,9 +706,8 @@ export class CompressedTokenProgram {
         return instruction;
     }
 
-    /// TODO: add compressBatch functionality for batch minting
     /**
-     * Mint tokens from registed SPL mint account to a compressed account
+     * Mint tokens from registered SPL mint account to a compressed account
      */
     static async approveAndMintTo(params: ApproveAndMintToParams) {
         const {
@@ -1036,7 +1053,9 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
+
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+
         const instruction = await this.program.methods
             .transfer(encodedData)
             .accounts({

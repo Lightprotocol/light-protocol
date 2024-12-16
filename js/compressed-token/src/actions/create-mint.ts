@@ -27,6 +27,7 @@ import {
  * @param decimals        Location of the decimal place
  * @param keypair         Optional keypair, defaulting to a new random one
  * @param confirmOptions  Options for confirming the transaction
+ * @param isToken22       Whether to create a Token 2022 mint. Defaults to false.
  *
  * @return Address of the new mint and the transaction signature
  */

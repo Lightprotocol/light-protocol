@@ -100,7 +100,7 @@ install_rust() {
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path        
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
-        cargo install cargo-expand wasm-pack
+        cargo install cargo-expand wasm-pack --locked
         cargo install photon-indexer --version $(get_version "photon") --locked
         log "rust"
     fi
