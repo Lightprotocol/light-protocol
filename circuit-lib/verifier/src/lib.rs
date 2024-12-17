@@ -173,29 +173,29 @@ pub fn select_verifying_key<'a>(
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
     match (num_leaves, num_addresses) {
         // Combined cases (depend on both num_leaves and num_addresses)
-        (1, 1) => Ok(&combined_26_40_1_1::VERIFYINGKEY),
-        (1, 2) => Ok(&combined_26_40_1_2::VERIFYINGKEY),
-        (1, 3) => Ok(&combined_26_40_1_3::VERIFYINGKEY),
-        (1, 4) => Ok(&combined_26_40_1_4::VERIFYINGKEY),
-        (2, 1) => Ok(&combined_26_40_2_1::VERIFYINGKEY),
-        (2, 2) => Ok(&combined_26_40_2_2::VERIFYINGKEY),
-        (2, 3) => Ok(&combined_26_40_2_3::VERIFYINGKEY),
-        (2, 4) => Ok(&combined_26_40_2_4::VERIFYINGKEY),
-        (3, 1) => Ok(&combined_26_40_3_1::VERIFYINGKEY),
-        (3, 2) => Ok(&combined_26_40_3_2::VERIFYINGKEY),
-        (3, 3) => Ok(&combined_26_40_3_3::VERIFYINGKEY),
-        (3, 4) => Ok(&combined_26_40_3_4::VERIFYINGKEY),
-        (4, 1) => Ok(&combined_26_40_4_1::VERIFYINGKEY),
-        (4, 2) => Ok(&combined_26_40_4_2::VERIFYINGKEY),
-        (4, 3) => Ok(&combined_26_40_4_3::VERIFYINGKEY),
-        (4, 4) => Ok(&combined_26_40_4_4::VERIFYINGKEY),
+        (1, 1) => Ok(&combined_32_40_1_1::VERIFYINGKEY),
+        (1, 2) => Ok(&combined_32_40_1_2::VERIFYINGKEY),
+        (1, 3) => Ok(&combined_32_40_1_3::VERIFYINGKEY),
+        (1, 4) => Ok(&combined_32_40_1_4::VERIFYINGKEY),
+        (2, 1) => Ok(&combined_32_40_2_1::VERIFYINGKEY),
+        (2, 2) => Ok(&combined_32_40_2_2::VERIFYINGKEY),
+        (2, 3) => Ok(&combined_32_40_2_3::VERIFYINGKEY),
+        (2, 4) => Ok(&combined_32_40_2_4::VERIFYINGKEY),
+        (3, 1) => Ok(&combined_32_40_3_1::VERIFYINGKEY),
+        (3, 2) => Ok(&combined_32_40_3_2::VERIFYINGKEY),
+        (3, 3) => Ok(&combined_32_40_3_3::VERIFYINGKEY),
+        (3, 4) => Ok(&combined_32_40_3_4::VERIFYINGKEY),
+        (4, 1) => Ok(&combined_32_40_4_1::VERIFYINGKEY),
+        (4, 2) => Ok(&combined_32_40_4_2::VERIFYINGKEY),
+        (4, 3) => Ok(&combined_32_40_4_3::VERIFYINGKEY),
+        (4, 4) => Ok(&combined_32_40_4_4::VERIFYINGKEY),
 
         // Inclusion cases (depend on num_leaves)
-        (1, _) => Ok(&inclusion_26_1::VERIFYINGKEY),
-        (2, _) => Ok(&inclusion_26_2::VERIFYINGKEY),
-        (3, _) => Ok(&inclusion_26_3::VERIFYINGKEY),
-        (4, _) => Ok(&inclusion_26_4::VERIFYINGKEY),
-        (8, _) => Ok(&inclusion_26_8::VERIFYINGKEY),
+        (1, _) => Ok(&inclusion_32_1::VERIFYINGKEY),
+        (2, _) => Ok(&inclusion_32_2::VERIFYINGKEY),
+        (3, _) => Ok(&inclusion_32_3::VERIFYINGKEY),
+        (4, _) => Ok(&inclusion_32_4::VERIFYINGKEY),
+        (8, _) => Ok(&inclusion_32_8::VERIFYINGKEY),
 
         // Non-inclusion cases (depend on num_addresses)
         (_, 1) => Ok(&non_inclusion_40_1::VERIFYINGKEY),
@@ -247,42 +247,6 @@ pub fn verify<const N: usize>(
 }
 
 #[inline(never)]
-pub fn verify_batch_append_with_subtrees(
-    batch_size: usize,
-    public_input_hash: [u8; 32],
-    compressed_proof: &CompressedProof,
-) -> Result<(), VerifierError> {
-    match batch_size {
-        1 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_subtrees_26_1::VERIFYINGKEY,
-        ),
-        10 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_subtrees_26_10::VERIFYINGKEY,
-        ),
-        100 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_subtrees_26_100::VERIFYINGKEY,
-        ),
-        500 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_subtrees_26_500::VERIFYINGKEY,
-        ),
-        1000 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_subtrees_26_1000::VERIFYINGKEY,
-        ),
-        _ => Err(crate::InvalidPublicInputsLength),
-    }
-}
-
-#[inline(never)]
 pub fn verify_batch_append_with_proofs(
     batch_size: usize,
     public_input_hash: [u8; 32],
@@ -292,27 +256,27 @@ pub fn verify_batch_append_with_proofs(
         1 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &append_with_proofs_26_1::VERIFYINGKEY,
+            &append_with_proofs_32_1::VERIFYINGKEY,
         ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &append_with_proofs_26_10::VERIFYINGKEY,
+            &append_with_proofs_32_10::VERIFYINGKEY,
         ),
         100 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &append_with_proofs_26_100::VERIFYINGKEY,
+            &append_with_proofs_32_100::VERIFYINGKEY,
         ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &append_with_proofs_26_500::VERIFYINGKEY,
+            &append_with_proofs_32_500::VERIFYINGKEY,
         ),
         1000 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &append_with_proofs_26_1000::VERIFYINGKEY,
+            &append_with_proofs_32_1000::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }
@@ -328,27 +292,27 @@ pub fn verify_batch_update(
         1 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &update_26_1::VERIFYINGKEY,
+            &update_32_1::VERIFYINGKEY,
         ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &update_26_10::VERIFYINGKEY,
+            &update_32_10::VERIFYINGKEY,
         ),
         100 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &update_26_100::VERIFYINGKEY,
+            &update_32_100::VERIFYINGKEY,
         ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &update_26_500::VERIFYINGKEY,
+            &update_32_500::VERIFYINGKEY,
         ),
         1000 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &update_26_1000::VERIFYINGKEY,
+            &update_32_1000::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }

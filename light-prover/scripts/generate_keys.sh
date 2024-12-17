@@ -24,10 +24,7 @@ generate_circuit() {
     local circuit_file
     local circuit_vkey_file
     local circuit_vkey_rs_file
-    if [ "$circuit_type" == "append-with-subtrees" ]; then
-        compressed_accounts=$batch_size
-        circuit_type_rs="append_with_subtrees"
-    elif [ "$circuit_type" == "append-with-proofs" ]; then
+    if [ "$circuit_type" == "append-with-proofs" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="append_with_proofs"
     elif [ "$circuit_type" == "update" ]; then
