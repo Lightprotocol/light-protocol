@@ -10,7 +10,7 @@ use std::{
 };
 
 use memoffset::span_of;
-use offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
+use offset::zero_copy::{read_array_like_ptr_at_mut, read_ptr_at, write_at};
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -380,7 +380,7 @@ where
             }
             Ok(ManuallyDrop::new(BoundedVec::from_raw_parts(
                 metadata,
-                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+                read_array_like_ptr_at_mut(account_data, start_offset, (*metadata).capacity()),
             )))
         }
     }
@@ -428,7 +428,7 @@ where
         Ok(unsafe {
             ManuallyDrop::new(BoundedVec::from_raw_parts(
                 meta,
-                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+                read_array_like_ptr_at_mut(account_data, start_offset, capacity),
             ))
         })
     }
@@ -949,7 +949,7 @@ where
         Ok(unsafe {
             ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
                 meta,
-                read_array_like_ptr_at(&*account_data, start_offset, capacity),
+                read_array_like_ptr_at_mut(account_data, start_offset, capacity),
             ))
         })
     }
@@ -981,7 +981,7 @@ where
 
             Ok(ManuallyDrop::new(CyclicBoundedVec::from_raw_parts(
                 metadata,
-                read_array_like_ptr_at(account_data, start_offset, (*metadata).capacity()),
+                read_array_like_ptr_at_mut(account_data, start_offset, (*metadata).capacity()),
             )))
         }
     }

@@ -34,6 +34,27 @@ pub unsafe fn read_array_like_ptr_at<T>(bytes: &[u8], offset: &mut usize, len: u
     ptr
 }
 
+/// Casts a part of provided `bytes` buffer with the given `offset` to a
+/// mutable pointer to `T`.
+///
+/// Should be used for array-type sequences.
+///
+/// # Safety
+///
+/// This is higly unsafe. This function doesn't ensure alignment and
+/// correctness of provided buffer. The responsibility of such checks is on
+/// the caller.
+pub unsafe fn read_array_like_ptr_at_mut<T>(
+    bytes: &mut [u8],
+    offset: &mut usize,
+    len: usize,
+) -> *mut T {
+    let size = mem::size_of::<T>() * len;
+    let ptr = bytes[*offset..*offset + size].as_ptr() as *mut T;
+    *offset += size;
+    ptr
+}
+
 /// Writes provided `data` into provided `bytes` buffer with the given
 /// `offset`.
 pub fn write_at<T>(bytes: &mut [u8], data: &[u8], offset: &mut usize) {
@@ -168,6 +189,44 @@ mod test {
             let mut offset = offset_of!(TestStruct, b);
             assert_eq!(offset, 256);
             let ptr: *mut u64 = read_array_like_ptr_at(&buf, &mut offset, 32);
+            for i in 0..32 {
+                assert_eq!(*(ptr.add(i)), i as u64);
+            }
+            assert_eq!(offset, 512);
+        }
+    }
+
+    #[test]
+    fn test_read_array_like_ptr_at_mut() {
+        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[repr(C)]
+        struct TestStruct {
+            a: [i64; 32],
+            b: [u64; 32],
+        }
+
+        let mut buf = vec![0_u8; mem::size_of::<TestStruct>()];
+        let s = buf.as_mut_ptr() as *mut TestStruct;
+
+        unsafe {
+            for (i, element) in (*s).a.iter_mut().enumerate() {
+                *element = -(i as i64);
+            }
+            for (i, element) in (*s).b.iter_mut().enumerate() {
+                *element = i as u64;
+            }
+
+            let mut offset = offset_of!(TestStruct, a);
+            assert_eq!(offset, 0);
+            let ptr: *mut i64 = read_array_like_ptr_at_mut(&mut buf, &mut offset, 32);
+            for i in 0..32 {
+                assert_eq!(*(ptr.add(i)), -(i as i64));
+            }
+            assert_eq!(offset, 256);
+
+            let mut offset = offset_of!(TestStruct, b);
+            assert_eq!(offset, 256);
+            let ptr: *mut u64 = read_array_like_ptr_at_mut(&mut buf, &mut offset, 32);
             for i in 0..32 {
                 assert_eq!(*(ptr.add(i)), i as u64);
             }
