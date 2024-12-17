@@ -24,13 +24,16 @@ generate_circuit() {
     local circuit_file
     local circuit_vkey_file
     local circuit_vkey_rs_file
-    if [ "$circuit_type" == "append-with-proofs" ]; then
+    if [ "$circuit_type" == "appendWithSubtrees" ]; then
+        compressed_accounts=$batch_size
+        circuit_type_rs="append_with_subtrees"
+    elif [ "$circuit_type" == "appendWithProofs" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="append_with_proofs"
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="update"
-    elif [ "$circuit_type" == "address-append" ]; then
+    elif [ "$circuit_type" == "addressAppend" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="address_append"
     elif [ "$circuit_type" == "inclusion" ]; then
@@ -58,6 +61,7 @@ generate_circuit() {
     fi
 
     echo "Generating ${circuit_type} circuit for ${compressed_accounts} COMPRESSED_ACCOUNTS with height ${height}..."
+    echo "non_inclusion_compressed_accounts: ${non_inclusion_compressed_accounts}"
     # Fixed variable references for batch sizes
     gnark setup \
         --circuit "${circuit_type}" \
@@ -80,37 +84,42 @@ generate_circuit() {
 main() {
     declare -a append_batch_sizes_arr=("1" "10" "100" "250" "500" "1000")
     
+    echo "Generating proving keys..."
     for batch_size in "${append_batch_sizes_arr[@]}"; do
-        echo "Generating append-with-proofs circuit for ${batch_size} COMPRESSED_ACCOUNTS with height 32..."
-        generate_circuit "append-with-proofs" "32" "0" "$batch_size" "0" "0"
+        echo "Generating address-append circuit for ${batch_size} COMPRESSED_ACCOUNTS with height ${height}..."
+        generate_circuit "addressAppend" "0" "$DEFAULT_ADDRESS_HEIGHT" "$batch_size" "0" "0" 
+    done
+    
+
+    for batch_size in "${append_batch_sizes_arr[@]}"; do
+        generate_circuit "appendWithProofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
-    # for batch_size in "${append_batch_sizes_arr[@]}"; do
-    #     echo "Generating address-append circuit for ${batch_size} COMPRESSED_ACCOUNTS with height ${height}..."
-    #     generate_circuit "addressAppend" "0" "$DEFAULT_ADDRESS_HEIGHT" "$batch_size" "0" "0" 
-    # done
-
-  
-    # declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    # for batch_size in "${append_batch_sizes_arr[@]}"; do
-    #     generate_circuit "appendWithSubtrees" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
-    # done
+    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
+    for batch_size in "${append_batch_sizes_arr[@]}"; do
+        generate_circuit "appendWithSubtrees" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
+    done
 
     declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
     for batch_size in "${update_batch_sizes_arr[@]}"; do
-        generate_circuit "update" "32" "0" "$batch_size" "0" "0"
+        generate_circuit "update" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
     declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
     for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
-        generate_circuit "inclusion" "32" "0" "0" "$compressed_accounts" "0"
+        generate_circuit "inclusion" "$DEFAULT_STATE_HEIGHT" "0" "0" "$compressed_accounts" "0"
+    done
+
+    declare -a non_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+    for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
+        generate_circuit "non-inclusion" "0" "$DEFAULT_ADDRESS_HEIGHT" "0" "0" "$compressed_accounts"
     done
 
     declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
     declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
     for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
         for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
-            generate_circuit "combined" "32" "40" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
+            generate_circuit "combined" "$DEFAULT_STATE_HEIGHT" "$DEFAULT_ADDRESS_HEIGHT" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
         done
     done
 
