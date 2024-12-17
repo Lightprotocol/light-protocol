@@ -16,6 +16,7 @@ use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
@@ -1305,7 +1306,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1324,7 +1325,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1376,7 +1377,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into(),
+        MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
     )
     .unwrap();
 }

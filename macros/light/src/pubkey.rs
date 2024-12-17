@@ -34,7 +34,7 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
     })?;
 
     Ok(quote! {
-        ::anchor_lang::prelude::Pubkey::new_from_array([ #(#arr),* ])
+        ::solana_program::pubkey::Pubkey::new_from_array([ #(#arr),* ])
     })
 }
 
@@ -48,7 +48,7 @@ mod tests {
         let res = pubkey(parse_quote! { "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK" });
         assert_eq!(
             res.unwrap().to_string(),
-            ":: anchor_lang :: prelude :: Pubkey :: new_from_array ([9u8 , 42u8 \
+            ":: solana_program :: pubkey :: Pubkey :: new_from_array ([9u8 , 42u8 \
              , 19u8 , 238u8 , 149u8 , 196u8 , 28u8 , 186u8 , 8u8 , 166u8 , \
              127u8 , 90u8 , 198u8 , 126u8 , 141u8 , 247u8 , 225u8 , 218u8 , \
              17u8 , 98u8 , 94u8 , 29u8 , 100u8 , 19u8 , 127u8 , 143u8 , 79u8 , \

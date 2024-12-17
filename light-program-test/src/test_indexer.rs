@@ -11,7 +11,6 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
-    batch_append_with_subtrees::calculate_hash_chain,
     gnark::helpers::{big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig},
     helpers::bigint_to_u8_32,
 };
@@ -42,6 +41,7 @@ use light_sdk::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
     TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
 };
+use light_utils::hashchain::create_hash_chain_from_slice;
 use log::warn;
 use num_bigint::BigInt;
 use num_traits::FromBytes;
@@ -277,7 +277,7 @@ where
                     let json_payload = if let Some(non_inclusion_payload) = non_inclusion_payload {
                         let public_input_hash = BigInt::from_bytes_be(
                             num_bigint::Sign::Plus,
-                            &calculate_hash_chain(&[
+                            &create_hash_chain_from_slice(&[
                                 bigint_to_u8_32(
                                     &string_to_big_int(&inclusion_payload.public_input_hash)
                                         .unwrap(),
@@ -288,7 +288,8 @@ where
                                         .unwrap(),
                                 )
                                 .unwrap(),
-                            ]),
+                            ])
+                            .unwrap(),
                         );
 
                         CombinedJsonStruct {
@@ -477,7 +478,8 @@ where
             root_indices.push(onchain_merkle_tree.root_index() as u16);
         }
 
-        let inclusion_proof_inputs = InclusionProofInputs::new(inclusion_proofs.as_slice());
+        let inclusion_proof_inputs =
+            InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
         let batch_inclusion_proof_inputs =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
 
@@ -538,7 +540,7 @@ where
                 )
             } else if tree_heights[0] == 40 {
                 let non_inclusion_proof_inputs =
-                    NonInclusionProofInputs::new(non_inclusion_proofs.as_slice());
+                    NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
                         BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(

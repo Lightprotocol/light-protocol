@@ -1,7 +1,7 @@
-use account_compression::{MerkleTreeMetadata, QueueMetadata};
 use anchor_lang::prelude::Pubkey;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::Hasher;
+use light_merkle_tree_metadata::{merkle_tree::MerkleTreeMetadata, queue::QueueMetadata};
 
 pub fn assert_rolledover_merkle_trees<H, const HEIGHT: usize>(
     old_merkle_tree: &ConcurrentMerkleTree<H, HEIGHT>,

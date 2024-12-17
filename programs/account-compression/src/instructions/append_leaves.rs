@@ -1,5 +1,4 @@
 use crate::{
-    batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
     state_merkle_tree_from_bytes_zero_copy_mut,
@@ -12,6 +11,8 @@ use crate::{
     RegisteredProgram,
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
+use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use light_hasher::Discriminator as HasherDiscriminator;
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
@@ -173,15 +174,18 @@ fn append_v2<'a, 'b, 'c: 'info, 'info>(
     batch_size: usize,
     leaves: &[(u8, [u8; 32])],
 ) -> Result<u64> {
-    let account_data = &mut merkle_tree_acc_info.try_borrow_mut_data()?;
-    let output_queue_zero_copy = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(account_data)?;
+    let output_queue_zero_copy =
+        &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
+            .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
         ctx,
         output_queue_zero_copy.get_account(),
     )?;
 
     for (_, leaf) in leaves {
-        output_queue_zero_copy.insert_into_current_batch(leaf)?;
+        output_queue_zero_copy
+            .insert_into_current_batch(leaf)
+            .map_err(ProgramError::from)?;
     }
 
     let rollover_fee = output_queue_zero_copy

@@ -39,6 +39,8 @@ num-bigint = "0.4"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
 light-verifier = { version = "1.0.0", path = "../../circuit-lib/verifier", features = ["solana"] }
+light-batched-merkle-tree = {workspace = true, features = ["solana"] }
+light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

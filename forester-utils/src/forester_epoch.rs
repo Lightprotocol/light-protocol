@@ -79,6 +79,7 @@ impl TreeAccounts {
     }
 }
 
+// TODO: unify with light-merkle-tree-metadata
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum TreeType {
     Address,

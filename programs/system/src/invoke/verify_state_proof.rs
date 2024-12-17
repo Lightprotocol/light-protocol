@@ -9,19 +9,22 @@ use crate::{
     NewAddressParamsPacked,
 };
 use account_compression::{
-    batched_merkle_tree::{
-        create_hash_chain_from_slice, BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
-    },
-    batched_queue::ZeroCopyBatchedQueueAccount,
-    errors::AccountCompressionErrorCode,
-    AddressMerkleTreeAccount, StateMerkleTreeAccount,
+    errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
+use light_batched_merkle_tree::{
+    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    queue::ZeroCopyBatchedQueueAccount,
+};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::Discriminator as LightDiscriminator;
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{
+    hash_to_bn254_field_size_be,
+    hashchain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
+};
 use light_verifier::{
     select_verifying_key, verify_create_addresses_and_merkle_proof_zkp,
     verify_create_addresses_zkp, CompressedProof,
@@ -158,7 +161,9 @@ pub fn verify_input_accounts_proof_by_index<'a>(
                     output_queue_account_info,
                 )
                 .map_err(ProgramError::from)?;
-            output_queue.could_exist_in_batches(account.merkle_context.leaf_index as u64)?;
+            output_queue
+                .could_exist_in_batches(account.merkle_context.leaf_index as u64)
+                .map_err(ProgramError::from)?;
         }
     }
     Ok(())
@@ -445,14 +450,16 @@ pub fn verify_state_proof(
     msg!("roots.len() == {}", roots.len());
     if address_tree_height == 40 || addresses.is_empty() {
         let public_input_hash = if !leaves.is_empty() {
-            create_two_inputs_hash_chain(roots, leaves)?
+            create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
         } else if !addresses.is_empty() {
-            create_two_inputs_hash_chain(address_roots, addresses)?
+            create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         } else {
             create_hash_chain_from_slice(&[
-                create_two_inputs_hash_chain(roots, leaves)?,
-                create_two_inputs_hash_chain(address_roots, addresses)?,
-            ])?
+                create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?,
+                create_two_inputs_hash_chain(address_roots, addresses)
+                    .map_err(ProgramError::from)?,
+            ])
+            .map_err(ProgramError::from)?
         };
         msg!("public_input_hash == {:?}", public_input_hash);
         let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
@@ -479,41 +486,4 @@ pub fn verify_state_proof(
     }
 
     Ok(())
-}
-
-pub fn create_tx_hash(
-    input_compressed_account_hashes: &[[u8; 32]],
-    output_compressed_account_hashes: &[[u8; 32]],
-    current_slot: u64,
-) -> Result<[u8; 32]> {
-    let version = [0u8; 32];
-    let mut slot_bytes = [0u8; 32];
-    slot_bytes[24..].copy_from_slice(&current_slot.to_be_bytes());
-    let inputs_hash_chain = create_hash_chain_from_slice(input_compressed_account_hashes)?;
-    let outputs_hash_chain = create_hash_chain_from_slice(output_compressed_account_hashes)?;
-    create_hash_chain_from_slice(&[version, inputs_hash_chain, outputs_hash_chain, slot_bytes])
-}
-
-pub fn create_two_inputs_hash_chain(
-    hashes_first: &[[u8; 32]],
-    hashes_second: &[[u8; 32]],
-) -> Result<[u8; 32]> {
-    msg!("hashes_first == {:?}", hashes_first);
-    msg!("hashes_second == {:?}", hashes_second);
-    if hashes_first.len() != hashes_second.len() {
-        return err!(SystemProgramError::HashChainInputsLenghtInconsistent);
-    }
-    if hashes_first.is_empty() {
-        return Ok([0u8; 32]);
-    }
-    let mut hash_chain = Poseidon::hashv(&[&hashes_first[0], &hashes_second[0]]).unwrap();
-
-    if hashes_first.len() == 1 {
-        return Ok(hash_chain);
-    }
-
-    for i in 1..hashes_first.len() {
-        hash_chain = Poseidon::hashv(&[&hash_chain, &hashes_first[i], &hashes_second[i]]).unwrap();
-    }
-    Ok(hash_chain)
 }

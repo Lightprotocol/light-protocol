@@ -1,7 +1,7 @@
-use crate::helpers::bigint_to_u8_32;
-use light_hasher::{Hasher, Poseidon};
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
+use light_hasher::Poseidon;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 
@@ -43,10 +43,10 @@ pub fn get_batch_append_with_subtrees_inputs<const HEIGHT: usize>(
     leaves: Vec<[u8; 32]>,
     // get from queue
     leaves_hashchain: [u8; 32],
-) -> BatchAppendWithSubtreesCircuitInputs {
+) -> Result<BatchAppendWithSubtreesCircuitInputs, ProverClientError> {
     let mut bigint_leaves = vec![];
     let old_subtrees = sub_trees;
-    let old_subtree_hashchain = calculate_hash_chain(&old_subtrees);
+    let old_subtree_hashchain = create_hash_chain_from_slice(&old_subtrees)?;
     let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(sub_trees, next_index);
     let start_index =
         bigint_to_be_bytes_array::<32>(&BigUint::from_usize(next_index).unwrap()).unwrap();
@@ -57,17 +57,17 @@ pub fn get_batch_append_with_subtrees_inputs<const HEIGHT: usize>(
 
     let new_root = BigInt::from_signed_bytes_be(merkle_tree.root().as_slice());
 
-    let new_subtree_hashchain = calculate_hash_chain(&merkle_tree.get_subtrees());
+    let new_subtree_hashchain = create_hash_chain_from_slice(&merkle_tree.get_subtrees())?;
 
-    let public_input_hash = calculate_hash_chain(&[
+    let public_input_hash = create_hash_chain_from_slice(&[
         old_subtree_hashchain,
         new_subtree_hashchain,
         merkle_tree.root(),
         leaves_hashchain,
         start_index,
-    ]);
+    ])?;
 
-    BatchAppendWithSubtreesCircuitInputs {
+    Ok(BatchAppendWithSubtreesCircuitInputs {
         subtrees: old_subtrees
             .iter()
             .map(|subtree| BigInt::from_bytes_be(Sign::Plus, subtree))
@@ -80,44 +80,5 @@ pub fn get_batch_append_with_subtrees_inputs<const HEIGHT: usize>(
         start_index: BigInt::from_bytes_be(Sign::Plus, &start_index),
         hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
         tree_height: BigInt::from_usize(merkle_tree.get_height()).unwrap(),
-    }
-}
-
-pub fn calculate_hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
-    if hashes.is_empty() {
-        return [0u8; 32];
-    }
-
-    if hashes.len() == 1 {
-        return hashes[0];
-    }
-
-    let mut hash_chain = hashes[0];
-    for hash in hashes.iter().skip(1) {
-        hash_chain = Poseidon::hashv(&[&hash_chain, hash]).unwrap();
-    }
-    hash_chain
-}
-
-// TODO: move to utils or sdk
-pub fn calculate_two_inputs_hash_chain(
-    hashes_first: &[[u8; 32]],
-    hashes_second: &[[u8; 32]],
-) -> [u8; 32] {
-    println!("hashes_first: {:?}", hashes_first);
-    println!("hashes_second: {:?}", hashes_second);
-    assert_eq!(hashes_first.len(), hashes_second.len());
-    if hashes_first.is_empty() {
-        return [0u8; 32];
-    }
-    let mut hash_chain = Poseidon::hashv(&[&hashes_first[0], &hashes_second[0]]).unwrap();
-
-    if hashes_first.len() == 1 {
-        return hash_chain;
-    }
-
-    for i in 1..hashes_first.len() {
-        hash_chain = Poseidon::hashv(&[&hash_chain, &hashes_first[i], &hashes_second[i]]).unwrap();
-    }
-    hash_chain
+    })
 }

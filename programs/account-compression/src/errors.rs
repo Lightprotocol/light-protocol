@@ -55,29 +55,9 @@ pub enum AccountCompressionErrorCode {
     UnsupportedAdditionalBytes,
     InvalidGroup,
     ProofLengthMismatch,
-    #[msg("Invalid commitment length")]
-    InvalidCommitmentLength,
-    #[msg("BloomFilterFull")]
-    BloomFilterFull,
-    #[msg("BatchInsertFailed")]
-    BatchInsertFailed,
-    #[msg("BatchNotReady")]
-    BatchNotReady,
-    SizeMismatch,
-    BatchAlreadyInserted,
-    InvalidBloomFilterCapacity,
-    InvalidCircuitBatchSize,
-    InvalidDiscriminator,
-    #[msg("batch_size is not divisible by zkp_batch_size")]
-    BatchSizeNotDivisibleByZkpBatchSize,
-    InclusionProofByIndexFailed,
     TxHashUndefined,
     InputDeserializationFailed,
-    InvalidBatch,
-    LeafIndexNotInBatch,
     UnsupportedParameters,
-    InvalidTreeType,
-    InvalidNetworkFee,
     AddressMerkleTreeAccountDiscriminatorMismatch,
     StateMerkleTreeAccountDiscriminatorMismatch,
 }

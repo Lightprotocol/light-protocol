@@ -1,7 +1,4 @@
 use crate::{
-    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
-    check_queue_type,
     errors::AccountCompressionErrorCode,
     state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
     state_merkle_tree_from_bytes_zero_copy,
@@ -10,9 +7,15 @@ use crate::{
         queue::{QueueBundle, QueueMap},
         transfer_lamports::transfer_lamports_cpi,
     },
-    QueueType, RegisteredProgram,
+    RegisteredProgram,
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator, ZeroCopy};
+use light_batched_merkle_tree::{
+    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+};
+use light_hasher::Discriminator as LightDiscriminator;
+use light_merkle_tree_metadata::queue::{check_queue_type, QueueType};
 use num_bigint::BigUint;
 
 #[derive(Accounts)]
@@ -166,9 +169,13 @@ fn process_queue_bundle_v2<'info>(
 ) -> Result<u64> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
         queue_bundle.accounts[0],
-    )?;
-    let output_queue_account_data = &mut queue_bundle.accounts[1].try_borrow_mut_data()?;
-    let output_queue = &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data)?;
+    )
+    .map_err(ProgramError::from)?;
+
+    let output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+        queue_bundle.accounts[1],
+    )
+    .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
@@ -188,8 +195,12 @@ fn process_queue_bundle_v2<'info>(
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
         // check for every account whether the value is still in the queue and zero it out.
         // If checked fail if the value is not in the queue.
-        output_queue.prove_inclusion_by_index_and_zero_out_leaf(*leaf_index as u64, element)?;
-        merkle_tree.insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)?;
+        output_queue
+            .prove_inclusion_by_index_and_zero_out_leaf(*leaf_index as u64, element)
+            .map_err(ProgramError::from)?;
+        merkle_tree
+            .insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)
+            .map_err(ProgramError::from)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
     }
     Ok(rollover_fee)
@@ -201,7 +212,8 @@ fn process_address_queue_bundle_v2<'info>(
 ) -> Result<u64> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
         queue_bundle.accounts[0],
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<InsertIntoQueues, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
@@ -214,7 +226,9 @@ fn process_address_queue_bundle_v2<'info>(
         * queue_bundle.elements.len() as u64;
     for element in queue_bundle.elements.iter() {
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
-        merkle_tree.insert_address_into_current_batch(element)?;
+        merkle_tree
+            .insert_address_into_current_batch(element)
+            .map_err(ProgramError::from)?;
         light_heap::bench_sbf_end!("acp_insert_nf_into_queue_v2");
     }
     Ok(rollover_fee)
@@ -234,7 +248,7 @@ fn add_queue_bundle_v1<'a, 'info>(
     let associated_merkle_tree = {
         let queue = AccountLoader::<QueueAccount>::try_from(queue)?;
         let queue = queue.load()?;
-        check_queue_type(&queue.metadata.queue_type, &queue_type)?;
+        check_queue_type(&queue.metadata.queue_type, &queue_type).map_err(ProgramError::from)?;
         queue.metadata.associated_merkle_tree
     };
     if merkle_tree.key() != associated_merkle_tree {
@@ -271,7 +285,8 @@ fn add_queue_bundle_v2<'a, 'info>(
         .get(*remaining_accounts_index + 1)
         .unwrap();
     let output_queue_account =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue.try_borrow_mut_data()?)?;
+        ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(output_queue)
+            .map_err(ProgramError::from)?;
     let associated_merkle_tree = output_queue_account
         .get_account()
         .metadata

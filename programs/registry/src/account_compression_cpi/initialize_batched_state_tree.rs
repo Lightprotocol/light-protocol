@@ -1,8 +1,5 @@
 use crate::protocol_config::state::ProtocolConfigPda;
-use account_compression::{
-    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED,
-    InitStateTreeAccountsInstructionData,
-};
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_system_program::program::LightSystemProgram;
 
@@ -31,7 +28,7 @@ pub struct InitializeBatchedStateMerkleTreeAndQueue<'info> {
 pub fn process_initialize_batched_state_merkle_tree(
     ctx: &Context<InitializeBatchedStateMerkleTreeAndQueue>,
     bump: u8,
-    params: InitStateTreeAccountsInstructionData,
+    params: Vec<u8>,
 ) -> Result<()> {
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];

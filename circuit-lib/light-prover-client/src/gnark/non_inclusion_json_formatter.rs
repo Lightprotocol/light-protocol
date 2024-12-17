@@ -1,4 +1,4 @@
-use crate::batch_append_with_subtrees::calculate_two_inputs_hash_chain;
+use crate::errors::ProverClientError;
 use crate::gnark::helpers::big_int_to_string;
 use crate::helpers::bigint_to_u8_32;
 use crate::prove_utils::CircuitType;
@@ -6,6 +6,7 @@ use crate::{
     gnark::helpers::create_json_from_struct, init_merkle_tree::non_inclusion_merkle_tree_inputs,
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
 };
+use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
@@ -44,7 +45,9 @@ pub struct NonInclusionJsonStruct {
 }
 
 impl BatchNonInclusionJsonStruct {
-    pub fn new_with_public_inputs(number_of_utxos: usize) -> (Self, [u8; 32]) {
+    pub fn new_with_public_inputs(
+        number_of_utxos: usize,
+    ) -> Result<(BatchNonInclusionJsonStruct, [u8; 32]), ProverClientError> {
         let merkle_inputs = non_inclusion_merkle_tree_inputs(40);
 
         let input = NonInclusionJsonStruct {
@@ -64,15 +67,15 @@ impl BatchNonInclusionJsonStruct {
             leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),
         };
         let inputs = vec![input; number_of_utxos];
-        let public_input_hash = calculate_two_inputs_hash_chain(
+        let public_input_hash = create_two_inputs_hash_chain(
             vec![bigint_to_u8_32(&merkle_inputs.root).unwrap(); number_of_utxos].as_slice(),
             vec![bigint_to_u8_32(&merkle_inputs.value).unwrap(); number_of_utxos].as_slice(),
-        );
+        )?;
         let public_input_hash_string = big_int_to_string(&BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
             &public_input_hash,
         ));
-        (
+        Ok((
             Self {
                 circuit_type: CircuitType::NonInclusion.to_string(),
                 address_tree_height: 40,
@@ -80,7 +83,7 @@ impl BatchNonInclusionJsonStruct {
                 inputs,
             },
             public_input_hash,
-        )
+        ))
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -117,6 +120,7 @@ impl BatchNonInclusionJsonStruct {
 }
 
 pub fn non_inclusion_inputs_string(number_of_utxos: usize) -> String {
-    let (json_struct, _) = BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+    let (json_struct, _) =
+        BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos).unwrap();
     json_struct.to_string()
 }

@@ -1,32 +1,35 @@
 use crate::constants::{BATCH_ADDRESS_MERKLE_TREE_HEIGHT, BATCH_STATE_MERKLE_TREE_HEIGHT};
-use account_compression::{
-    assert_address_mt_zero_copy_inited, assert_state_mt_roll_over,
-    assert_state_mt_zero_copy_inited,
-    batched_merkle_tree::{
-        get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchAppendEvent,
-        BatchNullifyEvent, BatchProofInputsIx, BatchedMerkleTreeAccount,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
-        ZeroCopyBatchedMerkleTreeAccount,
-    },
-    batched_queue::{
-        assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
-        ZeroCopyBatchedQueueAccount,
-    },
-    get_output_queue_account_default, InitAddressTreeAccountsInstructionData,
-    InitStateTreeAccountsInstructionData,
-};
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+
+use anchor_lang::AnchorDeserialize;
+use borsh::BorshSerialize;
 use forester_utils::{
     create_account_instruction,
     indexer::{Indexer, StateMerkleTreeBundle},
     AccountZeroCopy,
+};
+use light_batched_merkle_tree::{
+    event::{BatchAppendEvent, BatchNullifyEvent},
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::{
+        assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
+        create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
+    },
+    merkle_tree::{
+        get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
+        BatchedMerkleTreeAccount, CreateTreeParams, InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+    },
+    queue::{
+        assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
+        ZeroCopyBatchedQueueAccount,
+    },
+    rollover_state_tree::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    batch_append_with_subtrees::calculate_hash_chain,
     batch_update::get_batch_update_inputs,
     gnark::{
         batch_address_append_json_formatter::to_json,
@@ -45,7 +48,7 @@ use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use light_verifier::CompressedProof;
 use reqwest::Client;
 use solana_sdk::{
@@ -140,7 +143,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
             }
         }
 
-        let local_leaves_hashchain = calculate_hash_chain(&batch_update_leaves);
+        let local_leaves_hashchain = create_hash_chain_from_slice(&batch_update_leaves).unwrap();
         assert_eq!(leaves_hashchain, local_leaves_hashchain);
 
         let old_root = bundle.merkle_tree.root();
@@ -169,6 +172,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                 bundle.merkle_tree.update(leaf, index).unwrap();
             }
         }
+        // TODO: remove unwraps
         let circuit_inputs = get_batch_append_with_proofs_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
             old_root,
             merkle_tree_next_index as u32,
@@ -177,7 +181,8 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
             old_leaves,
             merkle_proofs,
             zkp_batch_size as u32,
-        );
+        )
+        .unwrap();
         assert_eq!(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             bundle.merkle_tree.root()
@@ -326,7 +331,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         bundle.merkle_tree.update(&nullifier, index).unwrap();
     }
     // local_leaves_hashchain is only used for a test assertion.
-    let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
+    let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
     assert_eq!(leaves_hashchain, local_nullifier_hashchain);
     let inputs = get_batch_update_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
         old_root,
@@ -337,7 +342,8 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         merkle_proofs,
         path_indices,
         zkp_batch_size as u32,
-    );
+    )
+    .unwrap();
     let client = Client::new();
     let circuit_inputs_new_root =
         bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
@@ -449,8 +455,9 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
             params,
         )
     } else {
-        let instruction =
-            account_compression::instruction::InitializeBatchedStateMerkleTree { params };
+        let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+            bytes: params.try_to_vec().unwrap(),
+        };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: payer.pubkey(),
             merkle_tree: merkle_tree_keypair.pubkey(),
@@ -497,21 +504,10 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         AccountZeroCopy::<BatchedMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
 
     let mut queue = AccountZeroCopy::<BatchedQueueAccount>::new(rpc, output_queue_pubkey).await;
-    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-        payer_pubkey,
-        params.program_owner,
-        params.forester,
-        params.rollover_threshold,
-        params.index,
-        params.network_fee.unwrap_or_default(),
-        params.input_queue_batch_size,
-        params.input_queue_zkp_batch_size,
-        params.bloom_filter_capacity,
-        params.root_history_capacity,
-        output_queue_pubkey,
-        params.height,
-        params.input_queue_num_batches,
-    );
+    let mt_params = CreateTreeParams::from_state_ix_params(params, payer_pubkey);
+
+    let ref_mt_account =
+        BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
     assert_state_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),
         ref_mt_account,
@@ -544,21 +540,9 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         .await
         .unwrap();
     let total_rent = queue_rent + mt_rent + additional_bytes_rent;
-    let ref_output_queue_account = get_output_queue_account_default(
-        payer_pubkey,
-        params.program_owner,
-        params.forester,
-        params.rollover_threshold,
-        params.index,
-        params.output_queue_batch_size,
-        params.output_queue_zkp_batch_size,
-        params.additional_bytes,
-        total_rent,
-        merkle_tree_pubkey,
-        params.height,
-        params.output_queue_num_batches,
-        params.network_fee.unwrap_or_default(),
-    );
+    let queue_params =
+        CreateOutputQueueParams::from(params, payer_pubkey, total_rent, merkle_tree_pubkey);
+    let ref_output_queue_account = create_output_queue_account(queue_params);
 
     assert_queue_zero_copy_inited(
         queue.account.data.as_mut_slice(),
@@ -700,21 +684,10 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
         .await
         .unwrap()
         .unwrap();
-    let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-        owner,
-        params.program_owner,
-        params.forester,
-        params.rollover_threshold,
-        params.index,
-        params.network_fee.unwrap_or_default(),
-        params.input_queue_batch_size,
-        params.input_queue_zkp_batch_size,
-        params.bloom_filter_capacity,
-        params.root_history_capacity,
-        old_queue_pubkey,
-        params.height,
-        params.input_queue_num_batches,
-    );
+    let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
+
+    let ref_mt_account =
+        BatchedMerkleTreeAccount::get_state_tree_default(create_tree_params, old_queue_pubkey);
     let old_queue_account_data = rpc
         .get_account(old_queue_pubkey)
         .await
@@ -723,42 +696,35 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
         .data;
     let new_queue_account = rpc.get_account(new_queue_pubkey).await.unwrap().unwrap();
 
-    let ref_queue_account = get_output_queue_account_default(
+    let queue_params = CreateOutputQueueParams::from(
+        params,
         owner,
-        params.program_owner,
-        params.forester,
-        params.rollover_threshold,
-        params.index,
-        params.output_queue_batch_size,
-        params.output_queue_zkp_batch_size,
-        params.additional_bytes,
-        new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent, //new_cpi_ctx_account.lamports,
+        new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent,
         old_state_merkle_tree_pubkey,
-        params.height,
-        params.output_queue_num_batches,
-        params.network_fee.unwrap_or_default(),
     );
+    let ref_queue_account = create_output_queue_account(queue_params);
     let mut new_ref_queue_account = ref_queue_account;
     new_ref_queue_account.metadata.associated_merkle_tree = new_state_merkle_tree_pubkey;
     let mut new_ref_mt_account = ref_mt_account;
     new_ref_mt_account.metadata.associated_queue = new_queue_pubkey;
     let slot = rpc.get_slot().await.unwrap();
-    assert_state_mt_roll_over(
-        old_state_merkle_tree.data.to_vec(),
-        new_ref_mt_account,
-        new_state_merkle_tree.data.to_vec(),
-        old_state_merkle_tree_pubkey,
-        new_state_merkle_tree_pubkey,
-        params.bloom_filter_num_iters,
-        ref_mt_account,
-        old_queue_account_data.to_vec(),
-        new_ref_queue_account,
-        new_queue_account.data.to_vec(),
+    let params = StateMtRollOverAssertParams {
+        mt_account_data: old_state_merkle_tree.data.to_vec(),
+        ref_rolledover_mt: ref_mt_account,
+        new_mt_account_data: new_state_merkle_tree.data.to_vec(),
+        old_mt_pubkey: old_state_merkle_tree_pubkey,
+        new_mt_pubkey: new_state_merkle_tree_pubkey,
+        bloom_filter_num_iters: params.bloom_filter_num_iters,
+        ref_mt_account: new_ref_mt_account,
+        queue_account_data: old_queue_account_data.to_vec(),
+        ref_rolledover_queue: ref_queue_account,
+        new_queue_account_data: new_queue_account.data.to_vec(),
         new_queue_pubkey,
-        ref_queue_account,
+        ref_queue_account: new_ref_queue_account,
         old_queue_pubkey,
         slot,
-    );
+    };
+    assert_state_mt_roll_over(params);
 }
 pub async fn create_batch_address_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
@@ -820,21 +786,8 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
         .get_minimum_balance_for_rent_exemption(mt_account_size)
         .await
         .unwrap();
-    let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(
-        payer_pubkey,
-        params.program_owner,
-        params.forester,
-        params.rollover_threshold,
-        params.index,
-        params.network_fee.unwrap_or_default(),
-        params.input_queue_batch_size,
-        params.input_queue_zkp_batch_size,
-        params.bloom_filter_capacity,
-        params.root_history_capacity,
-        params.height,
-        params.input_queue_num_batches,
-        mt_rent,
-    );
+    let mt_params = CreateTreeParams::from_address_ix_params(params, payer_pubkey);
+    let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(mt_params, mt_rent);
     assert_address_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),
         ref_mt_account,
@@ -876,7 +829,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .unwrap();
     println!("addresses {:?}", addresses);
     // // local_leaves_hashchain is only used for a test assertion.
-    // let local_nullifier_hashchain = calculate_hash_chain(&addresses);
+    // let local_nullifier_hashchain = create_hash_chain(&addresses);
     // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
     let start_index = merkle_tree.get_account().next_index as usize;
     assert!(
@@ -921,7 +874,8 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         leaves_hashchain,
         batch_start_index as usize,
         batch.zkp_batch_size as usize,
-    );
+    )
+    .unwrap();
     let client = Client::new();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);

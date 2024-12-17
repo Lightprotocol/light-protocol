@@ -1,5 +1,4 @@
 use crate::{
-    batched_merkle_tree::{InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount},
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
     utils::check_signer_is_registered_or_authority::{
@@ -8,6 +7,9 @@ use crate::{
     RegisteredProgram,
 };
 use anchor_lang::prelude::*;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
 
 #[derive(Accounts)]
 pub struct BatchAppend<'info> {
@@ -16,10 +18,10 @@ pub struct BatchAppend<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: in from_bytes_mut.
+    /// CHECK: in from_account_info.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-    /// CHECK: in from_bytes_mut.
+    /// CHECK: in from_account_info.
     #[account(mut)]
     pub output_queue: AccountInfo<'info>,
 }
@@ -39,7 +41,8 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
         &ctx.accounts.merkle_tree,
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<BatchAppend, ZeroCopyBatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
@@ -49,11 +52,12 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
 
-    let output_queue_data = &mut ctx.accounts.output_queue.try_borrow_mut_data()?;
-    let event = merkle_tree.update_output_queue(
-        output_queue_data,
-        instruction_data,
-        ctx.accounts.merkle_tree.key().to_bytes(),
-    )?;
+    let event = merkle_tree
+        .update_output_queue_account_info(
+            &ctx.accounts.output_queue,
+            instruction_data,
+            ctx.accounts.merkle_tree.key().to_bytes(),
+        )
+        .map_err(ProgramError::from)?;
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
 }

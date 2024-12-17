@@ -1,6 +1,6 @@
 use groth16_solana::decompression::{decompress_g1, decompress_g2};
 
-use crate::errors::CircuitsError;
+use crate::errors::ProverClientError;
 
 pub struct ProofResult {
     pub proof: ProofCompressed,
@@ -15,7 +15,7 @@ pub struct ProofCompressed {
 }
 
 impl ProofCompressed {
-    pub fn try_decompress(&self) -> Result<Proof, CircuitsError> {
+    pub fn try_decompress(&self) -> Result<Proof, ProverClientError> {
         let proof_a = decompress_g1(&self.a)?;
         let proof_b = decompress_g2(&self.b)?;
         let proof_c = decompress_g1(&self.c)?;

@@ -943,9 +943,7 @@ export type LightRegistry = {
                 },
                 {
                     name: 'params';
-                    type: {
-                        defined: 'InitStateTreeAccountsInstructionData';
-                    };
+                    type: 'bytes';
                 },
             ];
         },
@@ -1097,9 +1095,7 @@ export type LightRegistry = {
                 },
                 {
                     name: 'params';
-                    type: {
-                        defined: 'InitAddressTreeAccountsInstructionData';
-                    };
+                    type: 'bytes';
                 },
             ];
         },
@@ -2632,9 +2628,7 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'params',
-                    type: {
-                        defined: 'InitStateTreeAccountsInstructionData',
-                    },
+                    type: 'bytes',
                 },
             ],
         },
@@ -2786,9 +2780,7 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'params',
-                    type: {
-                        defined: 'InitAddressTreeAccountsInstructionData',
-                    },
+                    type: 'bytes',
                 },
             ],
         },

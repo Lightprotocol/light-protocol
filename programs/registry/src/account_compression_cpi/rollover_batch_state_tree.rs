@@ -1,8 +1,8 @@
 use crate::protocol_config::state::ProtocolConfigPda;
 use crate::ForesterEpochPda;
-use account_compression::utils::if_equals_zero_u64;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+use light_merkle_tree_metadata::utils::if_equals_zero_u64;
 
 #[derive(Accounts)]
 pub struct RolloverBatchStateMerkleTree<'info> {

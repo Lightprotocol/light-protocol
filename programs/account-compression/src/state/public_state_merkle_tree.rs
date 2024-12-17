@@ -7,8 +7,9 @@ use light_concurrent_merkle_tree::{
     ConcurrentMerkleTree,
 };
 use light_hasher::Poseidon;
-
-use crate::{AccessMetadata, MerkleTreeMetadata, RolloverMetadata};
+use light_merkle_tree_metadata::{
+    access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
+};
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]

@@ -19,6 +19,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "bytemuck",
+ "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
@@ -26,6 +27,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-prover-client",
  "light-utils",
@@ -48,6 +50,7 @@ dependencies = [
  "anchor-spl",
  "ark-bn254",
  "ark-ff 0.4.2",
+ "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-bounded-vec",
  "light-compressed-token",
@@ -55,6 +58,7 @@ dependencies = [
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
@@ -2163,6 +2167,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-batched-merkle-tree",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",
@@ -2507,6 +2512,7 @@ dependencies = [
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
@@ -2552,6 +2558,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "async-trait",
+ "light-batched-merkle-tree",
  "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
@@ -3703,6 +3710,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-batched-merkle-tree"
+version = "0.1.0"
+dependencies = [
+ "aligned-sized",
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+ "light-bloom-filter",
+ "light-bounded-vec",
+ "light-hasher",
+ "light-macros",
+ "light-merkle-tree-metadata",
+ "light-merkle-tree-reference",
+ "light-prover-client",
+ "light-utils",
+ "light-verifier",
+ "rand 0.8.5",
+ "serial_test",
+ "solana-program",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "light-bloom-filter"
 version = "0.1.0"
 dependencies = [
@@ -3877,6 +3908,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-merkle-tree-metadata"
+version = "0.1.0"
+dependencies = [
+ "aligned-sized",
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
 name = "light-merkle-tree-reference"
 version = "1.1.0"
 dependencies = [
@@ -3909,6 +3952,7 @@ dependencies = [
  "async-trait",
  "borsh 0.10.3",
  "forester-utils",
+ "light-batched-merkle-tree",
  "light-client",
  "light-compressed-token",
  "light-hasher",
@@ -3978,8 +4022,10 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
+ "light-batched-merkle-tree",
  "light-hasher",
  "light-heap",
+ "light-merkle-tree-metadata",
  "light-system-program",
  "light-utils",
  "num-bigint 0.4.6",
@@ -4047,6 +4093,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "groth16-solana",
+ "light-batched-merkle-tree",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-heap",
@@ -4071,6 +4118,7 @@ dependencies = [
  "async-trait",
  "create-address-test-program",
  "forester-utils",
+ "light-batched-merkle-tree",
  "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
@@ -4078,6 +4126,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
@@ -4112,6 +4161,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "bytemuck",
  "light-bounded-vec",
+ "light-hasher",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",
@@ -4126,6 +4176,7 @@ dependencies = [
  "borsh 0.10.3",
  "groth16-solana",
  "light-prover-client",
+ "light-utils",
  "reqwest 0.11.27",
  "serial_test",
  "solana-program",
@@ -5624,6 +5675,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "forester-utils",
+ "light-batched-merkle-tree",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",
@@ -8541,6 +8593,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-batched-merkle-tree",
  "light-compressed-token",
  "light-hasher",
  "light-program-test",
@@ -8567,10 +8620,12 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-batched-merkle-tree",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",
  "light-registry",

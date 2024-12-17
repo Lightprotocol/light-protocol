@@ -1,8 +1,5 @@
 use crate::ForesterEpochPda;
-use account_compression::{
-    batched_merkle_tree::BatchedMerkleTreeAccount, batched_queue::BatchedQueueAccount,
-    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED,
-};
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -21,10 +18,10 @@ pub struct BatchAppend<'info> {
     pub log_wrapper: UncheckedAccount<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, BatchedMerkleTreeAccount>,
+    pub merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
-    pub output_queue: AccountLoader<'info, BatchedQueueAccount>,
+    pub output_queue: AccountInfo<'info>,
 }
 
 pub fn process_batch_append(ctx: &Context<BatchAppend>, bump: u8, data: Vec<u8>) -> Result<()> {

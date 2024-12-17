@@ -4,12 +4,13 @@ use crate::{
     AccountZeroCopy,
 };
 use account_compression::{
-    batched_merkle_tree::BatchedMerkleTreeAccount, AddressMerkleTreeAccount,
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
-    StateMerkleTreeAccount, StateMerkleTreeConfig,
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
+    QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
+use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::Poseidon;
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;

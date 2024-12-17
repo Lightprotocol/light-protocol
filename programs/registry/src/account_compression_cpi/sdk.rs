@@ -5,11 +5,12 @@ use crate::utils::{
 
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, InitAddressTreeAccountsInstructionData,
-    InitStateTreeAccountsInstructionData, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_system_program::program::LightSystemProgram;
 use solana_sdk::instruction::Instruction;
 pub struct CreateNullifyInstructionInputs {
@@ -294,7 +295,10 @@ pub fn create_initialize_batched_merkle_tree_instruction(
     let register_program_pda = get_registered_program_pda(&crate::ID);
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let protocol_config_pda = get_protocol_config_pda_address().0;
-    let instruction_data = crate::instruction::InitializeBatchedStateMerkleTree { bump, params };
+    let instruction_data = crate::instruction::InitializeBatchedStateMerkleTree {
+        bump,
+        params: params.try_to_vec().unwrap(),
+    };
     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: payer,
         registered_program_pda: register_program_pda,
@@ -422,7 +426,10 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
     let register_program_pda = get_registered_program_pda(&crate::ID);
     let (cpi_authority, bump) = get_cpi_authority_pda();
 
-    let instruction_data = crate::instruction::InitializeBatchedAddressMerkleTree { bump, params };
+    let instruction_data = crate::instruction::InitializeBatchedAddressMerkleTree {
+        bump,
+        params: params.try_to_vec().unwrap(),
+    };
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let accounts = crate::accounts::InitializeBatchedAddressTree {
         authority: payer,

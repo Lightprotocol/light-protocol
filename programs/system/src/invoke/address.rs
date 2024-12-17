@@ -1,8 +1,10 @@
 use account_compression::{
-    batched_merkle_tree::BatchedMerkleTreeAccount, errors::AccountCompressionErrorCode,
-    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
+    errors::AccountCompressionErrorCode, utils::constants::CPI_AUTHORITY_PDA_SEED,
+    AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_hasher::Discriminator as LightDiscriminator;
 
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,

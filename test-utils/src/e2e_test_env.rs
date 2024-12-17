@@ -63,14 +63,14 @@
 // second pr
 // refactor sol tests to functions that can be reused
 
+use light_batched_merkle_tree::batch::BatchState;
+use light_batched_merkle_tree::constants::TEST_DEFAULT_BATCH_SIZE;
+use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
-
-use account_compression::batch::BatchState;
-use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use light_compressed_token::token_data::AccountState;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
@@ -108,7 +108,7 @@ use crate::system_program::{
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE,
+    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,

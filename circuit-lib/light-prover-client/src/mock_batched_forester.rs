@@ -1,17 +1,15 @@
-use std::fmt::Error;
-
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use num_bigint::BigUint;
 use reqwest::Client;
 
 use crate::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    batch_append_with_subtrees::calculate_hash_chain,
     batch_update::get_batch_update_inputs,
+    errors::ProverClientError,
     gnark::{
         batch_address_append_json_formatter::to_json,
         batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
@@ -60,7 +58,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         batch_size: u32,
         leaves_hashchain: [u8; 32],
         max_num_zkp_updates: u32,
-    ) -> Result<(CompressedProof, [u8; 32]), Error> {
+    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
         let leaves = self.output_queue_leaves.to_vec();
         let start = num_zkp_updates as usize * batch_size as usize;
         let end = start + batch_size as usize;
@@ -71,7 +69,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 self.output_queue_leaves.remove(0);
             }
         }
-        let local_leaves_hashchain = calculate_hash_chain(&leaves);
+        let local_leaves_hashchain = create_hash_chain_from_slice(&leaves)?;
         assert_eq!(leaves_hashchain, local_leaves_hashchain);
         let old_root = self.merkle_tree.root();
         let mut old_leaves = vec![];
@@ -107,7 +105,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             old_leaves,
             merkle_proofs,
             batch_size,
-        );
+        )?;
         assert_eq!(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             self.merkle_tree.root()
@@ -137,14 +135,14 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                     .unwrap(),
             ));
         }
-        Err(Error)
+        Err(ProverClientError::RpcError)
     }
 
     pub async fn get_batched_update_proof(
         &mut self,
         batch_size: u32,
         leaves_hashchain: [u8; 32],
-    ) -> Result<(CompressedProof, [u8; 32]), Error> {
+    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
         let mut merkle_proofs = vec![];
         let mut path_indices = vec![];
         let leaves = self.input_queue_leaves[..batch_size as usize].to_vec();
@@ -181,7 +179,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             self.merkle_tree.update(&nullifier, index).unwrap();
         }
         // local_leaves_hashchain is only used for a test assertion.
-        let local_nullifier_hashchain = calculate_hash_chain(&nullifiers);
+        let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers)?;
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);
         let inputs = get_batch_update_inputs::<HEIGHT>(
             old_root,
@@ -192,7 +190,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             merkle_proofs,
             path_indices,
             batch_size,
-        );
+        )?;
         let client = Client::new();
         let circuit_inputs_new_root =
             bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
@@ -222,7 +220,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 new_root,
             ));
         }
-        Err(Error)
+        Err(ProverClientError::RpcError)
     }
 }
 
@@ -262,7 +260,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         start_index: usize,
         batch_start_index: usize,
         current_root: [u8; 32],
-    ) -> Result<(CompressedProof, [u8; 32]), Error> {
+    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
         println!("batch size {:?}", batch_size);
         println!("start index {:?}", start_index);
         println!("batch start index {:?}", batch_start_index);
@@ -319,7 +317,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             leaves_hashchain,
             batch_start_index,
             zkp_batch_size as usize,
-        );
+        )?;
         println!("inputs {:?}", inputs);
         let client = Client::new();
         let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
@@ -348,7 +346,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             ));
         }
         println!("response result {:?}", response_result);
-        Err(Error)
+        Err(ProverClientError::RpcError)
     }
 
     pub fn finalize_batch_address_update(&mut self, batch_size: usize) {

@@ -1,8 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::{
-    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
-};
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_program_test::test_env::setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};

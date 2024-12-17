@@ -1,8 +1,7 @@
 on:
   push:
     branches:
-      - "*"
-      - jorrit/feat-bloomfilter-queues
+      - main
     paths:
       - "forester/**"
       - "photon-api/**"

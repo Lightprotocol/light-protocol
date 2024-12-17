@@ -1,4 +1,5 @@
-use crate::helpers::{compute_root_from_merkle_proof, hash_chain};
+use crate::errors::ProverClientError;
+use crate::helpers::compute_root_from_merkle_proof;
 
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
@@ -10,6 +11,7 @@ use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::hashchain::{create_hash_chain, create_hash_chain_from_slice};
 use num_bigint::BigUint;
 
 #[derive(Debug, Clone)]
@@ -46,7 +48,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     // Merkle tree index at batch index 0. (Indexer next index)
     batch_start_index: usize,
     zkp_batch_size: usize,
-) -> BatchAddressAppendInputs {
+) -> Result<BatchAddressAppendInputs, ProverClientError> {
     // 1. input all elements of a batch.
     // 2. iterate over elements 0..end_index
     // 3. only use elements start_index..end_index in the circuit (we need to
@@ -229,16 +231,16 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         }
     }
 
-    let hash_chain_inputs = vec![
+    let hash_chain_inputs = [
         current_root,
         new_root,
         leaves_hashchain,
         bigint_to_be_bytes_array::<32>(&next_index.into()).unwrap(),
     ];
     println!("hash_chain_inputs: {:?}", hash_chain_inputs);
-    let public_input_hash = hash_chain(hash_chain_inputs.as_slice());
+    let public_input_hash = create_hash_chain(hash_chain_inputs)?;
 
-    BatchAddressAppendInputs {
+    Ok(BatchAddressAppendInputs {
         batch_size: patched_low_element_values.len(),
         hashchain_hash: BigUint::from_bytes_be(&leaves_hashchain),
         low_element_values: patched_low_element_values
@@ -268,7 +270,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         public_input_hash: BigUint::from_bytes_be(&public_input_hash),
         start_index: next_index,
         tree_height: HEIGHT,
-    }
+    })
 }
 
 // Keep this for testing purposes
@@ -341,14 +343,14 @@ pub fn get_test_batch_address_append_inputs(
         .map(|x| bigint_to_be_bytes_array::<32>(x).unwrap())
         .collect::<Vec<_>>();
 
-    let leaves_hashchain = hash_chain(&addresses_bytes);
+    let leaves_hashchain = create_hash_chain_from_slice(&addresses_bytes).unwrap();
     let hash_chain_inputs = vec![
         old_root,
         new_root,
         leaves_hashchain,
         bigint_to_be_bytes_array::<32>(&start_index.into()).unwrap(),
     ];
-    let public_input_hash = hash_chain(hash_chain_inputs.as_slice());
+    let public_input_hash = create_hash_chain_from_slice(hash_chain_inputs.as_slice()).unwrap();
 
     BatchAddressAppendInputs {
         batch_size: addresses.len(),

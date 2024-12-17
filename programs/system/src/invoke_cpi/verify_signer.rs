@@ -1,13 +1,14 @@
 use account_compression::{
-    batched_merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
-    errors::AccountCompressionErrorCode,
-    utils::constants::CPI_AUTHORITY_PDA_SEED,
+    errors::AccountCompressionErrorCode, utils::constants::CPI_AUTHORITY_PDA_SEED,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Discriminator};
+use light_batched_merkle_tree::{
+    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::Poseidon;
+use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
 use std::mem;

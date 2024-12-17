@@ -4,7 +4,6 @@ use crate::assert_rollover::{
     assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
     assert_rolledover_queues_metadata,
 };
-use account_compression::batched_merkle_tree::BatchedMerkleTreeAccount;
 use account_compression::NullifierQueueConfig;
 use account_compression::{
     self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount,
@@ -12,11 +11,13 @@ use account_compression::{
 };
 use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
 use forester_utils::{create_account_instruction, get_hash_set};
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
+use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::Poseidon;
 use solana_sdk::clock::Slot;
 use solana_sdk::{

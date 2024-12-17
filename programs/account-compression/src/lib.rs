@@ -10,7 +10,13 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
-use batched_merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs};
+
+use errors::AccountCompressionErrorCode;
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::InstructionDataBatchAppendInputs, merkle_tree::InstructionDataBatchNullifyInputs,
+};
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
@@ -25,7 +31,7 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
-    use errors::AccountCompressionErrorCode;
+    use light_merkle_tree_metadata::queue::QueueType;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
 
@@ -33,8 +39,10 @@ pub mod account_compression {
 
     pub fn initialize_batched_state_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
-        params: InitStateTreeAccountsInstructionData,
+        bytes: Vec<u8>,
     ) -> Result<()> {
+        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_initialize_batched_state_merkle_tree(ctx, params)
     }
 
@@ -238,8 +246,10 @@ pub mod account_compression {
 
     pub fn intialize_batched_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
-        params: InitAddressTreeAccountsInstructionData,
+        bytes: Vec<u8>,
     ) -> Result<()> {
+        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_initialize_batched_address_merkle_tree(ctx, params)
     }
 

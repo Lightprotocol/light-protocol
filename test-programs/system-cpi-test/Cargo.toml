@@ -28,6 +28,7 @@ light-registry = { workspace = true }
 account-compression = { workspace = true  }
 light-hasher = { path = "../../merkle-tree/hasher", version = "1.1.0" }
 light-utils = { path = "../../utils", version = "1.1.0" }
+light-batched-merkle-tree = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

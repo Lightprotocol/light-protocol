@@ -1,12 +1,14 @@
 #![cfg(feature = "test-sbf")]
-use account_compression::batched_queue::ZeroCopyBatchedQueueAccount;
 use account_compression::errors::AccountCompressionErrorCode;
-use account_compression::{
-    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
-};
 use anchor_lang::error::ErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use light_batched_merkle_tree::zero_copy::ZeroCopyError;
 use light_hasher::Poseidon;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::test_batch_forester::perform_batch_append;
 use light_program_test::test_env::{
     initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
@@ -507,7 +509,7 @@ pub async fn failing_transaction_inputs_inner(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::InvalidQueueType.into(),
+            MerkleTreeMetadataError::InvalidQueueType.into(),
         )
         .await
         .unwrap();
@@ -648,7 +650,7 @@ pub async fn failing_transaction_address(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::InvalidQueueType.into(),
+            MerkleTreeMetadataError::InvalidQueueType.into(),
         )
         .await
         .unwrap();
@@ -871,18 +873,10 @@ pub async fn create_instruction_and_failing_transaction(
         data: instruction_data.data(),
     };
 
-    let result = match context
+    let result = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
-        .await
-    {
-        Ok(_) => {
-            println!("inputs_struct: {:?}", inputs_struct);
-            println!("expected_error_code: {}", expected_error_code);
-            panic!("Transaction should have failed");
-        }
-        Err(e) => e,
-    };
-    assert_rpc_error::<()>(Err(result), 0, expected_error_code)
+        .await;
+    assert_rpc_error(result, 0, expected_error_code)
 }
 
 /// Tests Execute compressed transaction:
@@ -1984,7 +1978,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2032,7 +2026,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2160,7 +2154,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             1,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2191,7 +2185,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             1,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2221,7 +2215,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             1,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2251,7 +2245,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             1,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2326,7 +2320,7 @@ async fn batch_invoke_test() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::InclusionProofByIndexFailed.into(),
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
     }
@@ -2367,12 +2361,7 @@ async fn batch_invoke_test() {
             .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
             .await;
         // Should fail because it tries to deserialize an output queue account from a nullifier queue account
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
 }
 

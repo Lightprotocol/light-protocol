@@ -1,26 +1,28 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::batched_merkle_tree::{
-    get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
-    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
-    ZeroCopyBatchedMerkleTreeAccount,
-};
-use account_compression::batched_queue::{
-    assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
-    ZeroCopyBatchedQueueAccount,
-};
 use account_compression::errors::AccountCompressionErrorCode;
-use account_compression::{
-    assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
-    get_output_queue_account_default, InitAddressTreeAccountsInstructionData,
-};
-use account_compression::{
-    batched_merkle_tree::BatchedMerkleTreeAccount, InitStateTreeAccountsInstructionData, ID,
-};
+use account_compression::ID;
 use anchor_lang::error::ErrorCode;
 use anchor_lang::prelude::AccountMeta;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use anchor_spl::token::Mint;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::{
+    assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
+    create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
+};
+use light_batched_merkle_tree::merkle_tree::{
+    get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
+    BatchedMerkleTreeAccount, CreateTreeParams, InstructionDataBatchAppendInputs,
+    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
+use light_batched_merkle_tree::queue::{
+    assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
+    ZeroCopyBatchedQueueAccount,
+};
+use light_batched_merkle_tree::zero_copy::ZeroCopyError;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::test_batch_forester::assert_perform_state_mt_roll_over;
 use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
@@ -28,7 +30,6 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig}
 use light_prover_client::mock_batched_forester::{
     self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
 };
-use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_test_utils::address::insert_addresses;
 use light_test_utils::spl::create_initialize_mint_instructions;
 use light_test_utils::AccountZeroCopy;
@@ -36,6 +37,7 @@ use light_test_utils::{
     airdrop_lamports, assert_rpc_error, create_account_instruction, RpcConnection, RpcError,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::hashchain::create_tx_hash;
 use light_verifier::{CompressedProof, VerifierError};
 use num_bigint::ToBigUint;
 use serial_test::serial;
@@ -133,8 +135,9 @@ async fn test_batch_state_merkle_tree() {
             Some(&merkle_tree_keypair),
         );
 
-        let instruction =
-            account_compression::instruction::InitializeBatchedStateMerkleTree { params };
+        let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+            bytes: params.try_to_vec().unwrap(),
+        };
         let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
             authority: context.get_payer().pubkey(),
             merkle_tree: merkle_tree_pubkey,
@@ -163,43 +166,18 @@ async fn test_batch_state_merkle_tree() {
             AccountZeroCopy::<BatchedQueueAccount>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
 
-        let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.network_fee.unwrap_or_default(),
-            params.input_queue_batch_size,
-            params.input_queue_zkp_batch_size,
-            params.bloom_filter_capacity,
-            params.root_history_capacity,
-            output_queue_pubkey,
-            params.height,
-            params.input_queue_num_batches,
-        );
+        let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let ref_mt_account =
+            BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
 
         assert_state_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
-
-        let ref_output_queue_account = get_output_queue_account_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.output_queue_batch_size,
-            params.output_queue_zkp_batch_size,
-            params.additional_bytes,
-            total_rent,
-            merkle_tree_pubkey,
-            params.height,
-            params.output_queue_num_batches,
-            params.network_fee.unwrap_or_default(),
-        );
+        let output_queue_params =
+            CreateOutputQueueParams::from(params, owner, total_rent, merkle_tree_pubkey);
+        let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
             ref_output_queue_account,
@@ -309,12 +287,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
     // 7. Failing Invalid Registered Program (batch append)
     {
@@ -439,12 +412,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
     // 14. Failing Invalid registered program (batch nullify)
     {
@@ -833,22 +801,10 @@ async fn test_init_batch_state_merkle_trees() {
         let mut queue =
             AccountZeroCopy::<BatchedQueueAccount>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
+        let mt_params = CreateTreeParams::from_state_ix_params(*params, owner);
 
-        let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.network_fee.unwrap_or_default(),
-            params.input_queue_batch_size,
-            params.input_queue_zkp_batch_size,
-            params.bloom_filter_capacity,
-            params.root_history_capacity,
-            output_queue_pubkey,
-            params.height,
-            params.input_queue_num_batches,
-        );
+        let ref_mt_account =
+            BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
 
         let mut tree_data = merkle_tree.account.data.clone();
         assert_state_mt_zero_copy_inited(
@@ -856,22 +812,10 @@ async fn test_init_batch_state_merkle_trees() {
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
+        let output_queue_params =
+            CreateOutputQueueParams::from(*params, owner, total_rent, merkle_tree_pubkey);
 
-        let ref_output_queue_account = get_output_queue_account_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.output_queue_batch_size,
-            params.output_queue_zkp_batch_size,
-            params.additional_bytes,
-            total_rent,
-            merkle_tree_pubkey,
-            params.height,
-            params.output_queue_num_batches,
-            params.network_fee.unwrap_or_default(),
-        );
+        let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
             ref_output_queue_account,
@@ -932,7 +876,9 @@ pub async fn perform_init_batch_state_merkle_tree(
         Some(&merkle_tree_keypair),
     );
 
-    let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree { params };
+    let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+        bytes: params.try_to_vec().unwrap(),
+    };
     let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: context.get_payer().pubkey(),
         merkle_tree: merkle_tree_pubkey,
@@ -981,7 +927,6 @@ async fn test_rollover_batch_state_merkle_trees() {
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
-    println!("Init new mt with params {:?}", params);
     let merkle_tree_keypair = Keypair::new();
     let nullifier_queue_keypair = Keypair::new();
     perform_init_batch_state_merkle_tree(
@@ -1047,7 +992,12 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 2, ErrorCode::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(
+            result,
+            2,
+            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
+        )
+        .unwrap();
     }
     // 3. failing - queue invalid program owner
     {
@@ -1063,7 +1013,12 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerQueue,
         )
         .await;
-        assert_rpc_error(result, 2, ErrorCode::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(
+            result,
+            2,
+            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
+        )
+        .unwrap();
     }
     // 4. failing - state tree invalid discriminator
     {
@@ -1079,12 +1034,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorMerkleTree,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
     // 5. failing - queue invalid discriminator
     {
@@ -1100,12 +1050,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorQueue,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
     // 6. failing -  merkle tree and queue not associated
     {
@@ -1135,7 +1080,7 @@ async fn test_rollover_batch_state_merkle_trees() {
         assert_rpc_error(
             result,
             2,
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
         )
         .unwrap();
     }
@@ -1343,8 +1288,9 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
         Some(&merkle_tree_keypair),
     );
 
-    let instruction =
-        account_compression::instruction::InitializeBatchedStateMerkleTree { params: *params };
+    let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+        bytes: params.try_to_vec().unwrap(),
+    };
     let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
         authority: context.get_payer().pubkey(),
         merkle_tree: merkle_tree_pubkey,
@@ -1399,21 +1345,9 @@ async fn test_init_batch_address_merkle_trees() {
         let merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey)
                 .await;
-        let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(
-            owner,
-            None,
-            None,
-            params.rollover_threshold,
-            0,
-            params.network_fee.unwrap_or_default(),
-            params.input_queue_batch_size,
-            params.input_queue_zkp_batch_size,
-            params.bloom_filter_capacity,
-            params.root_history_capacity,
-            params.height,
-            params.input_queue_num_batches,
-            mt_rent,
-        );
+        let mt_params = CreateTreeParams::from_address_ix_params(*params, owner);
+
+        let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
         assert_address_mt_zero_copy_inited(
@@ -1452,8 +1386,9 @@ pub async fn perform_init_batch_address_merkle_tree(
         Some(&merkle_tree_keypair),
     );
 
-    let instruction =
-        account_compression::instruction::IntializeBatchedAddressMerkleTree { params: *params };
+    let instruction = account_compression::instruction::IntializeBatchedAddressMerkleTree {
+        bytes: params.try_to_vec().unwrap(),
+    };
     let accounts = account_compression::accounts::InitializeBatchAddressMerkleTree {
         authority: context.get_payer().pubkey(),
         merkle_tree: merkle_tree_pubkey,
@@ -1564,12 +1499,7 @@ async fn test_batch_address_merkle_trees() {
             addresses.clone(),
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidTreeType.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidTreeType.into()).unwrap();
     }
     // fill address queue batch
     {
@@ -1654,12 +1584,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidTreeType.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidTreeType.into()).unwrap();
     }
     // 10. Failing: invalid tree account (invalid discriminator)
     {
@@ -1673,12 +1598,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
     let mint = Keypair::new();
     // 11. Failing: invalid tree account (invalid program owner)
@@ -1707,7 +1627,12 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(result, 0, ErrorCode::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
+        )
+        .unwrap();
     }
     // 12. functional: rollover
     let (_, new_address_merkle_tree) = {
@@ -1736,7 +1661,7 @@ async fn test_batch_address_merkle_trees() {
         assert_rpc_error(
             result,
             1,
-            AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into(),
+            MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
         )
         .unwrap();
     }
@@ -1808,12 +1733,7 @@ async fn test_batch_address_merkle_trees() {
             RolloverBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(
-            result,
-            1,
-            AccountCompressionErrorCode::InvalidNetworkFee.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 1, BatchedMerkleTreeError::InvalidNetworkFee.into()).unwrap();
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

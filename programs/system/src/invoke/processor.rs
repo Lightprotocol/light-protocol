@@ -1,6 +1,7 @@
 use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Bumps};
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_utils::hashchain::create_tx_hash;
 use light_verifier::CompressedProof as CompressedVerifierProof;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_state_proof::{
-            create_tx_hash, fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
+            fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
             hash_input_compressed_accounts, verify_input_accounts_proof_by_index,
             verify_read_only_account_inclusion, verify_read_only_address_queue_non_inclusion,
             verify_state_proof,
@@ -218,7 +219,8 @@ pub fn process<
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
-        )?;
+        )
+        .map_err(ProgramError::from)?;
         // Insert nullifiers for compressed input account hashes into nullifier
         // queue except read-only accounts.
         insert_nullifiers(

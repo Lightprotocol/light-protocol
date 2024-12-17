@@ -2,10 +2,13 @@ use ark_relations::r1cs::SynthesisError;
 use ark_serialize::SerializationError;
 use color_eyre::Report;
 use groth16_solana::errors::Groth16Error;
+use light_utils::UtilsError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum CircuitsError {
+pub enum ProverClientError {
+    #[error("RPC error")]
+    RpcError,
     #[error("Error: {0}")]
     GenericError(String),
 
@@ -26,28 +29,30 @@ pub enum CircuitsError {
 
     #[error("Wrong number of UTXO's")]
     WrongNumberOfUtxos,
+    #[error("Utils error: {0}")]
+    UtilsError(#[from] UtilsError),
 }
 
-impl From<SerializationError> for CircuitsError {
+impl From<SerializationError> for ProverClientError {
     fn from(error: SerializationError) -> Self {
-        CircuitsError::ArkworksSerializationError(error.to_string())
+        ProverClientError::ArkworksSerializationError(error.to_string())
     }
 }
 
-impl From<SynthesisError> for CircuitsError {
+impl From<SynthesisError> for ProverClientError {
     fn from(error: SynthesisError) -> Self {
-        CircuitsError::ArkworksProverError(error.to_string())
+        ProverClientError::ArkworksProverError(error.to_string())
     }
 }
 
-impl From<Report> for CircuitsError {
+impl From<Report> for ProverClientError {
     fn from(error: Report) -> Self {
-        CircuitsError::GenericError(error.to_string())
+        ProverClientError::GenericError(error.to_string())
     }
 }
 
-impl From<Groth16Error> for CircuitsError {
+impl From<Groth16Error> for ProverClientError {
     fn from(error: Groth16Error) -> Self {
-        CircuitsError::Groth16SolanaError(error)
+        ProverClientError::Groth16SolanaError(error)
     }
 }

@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - "*"
+      - main
     paths:
       - "examples/**"
       - "macros/light-sdk-macros/**"

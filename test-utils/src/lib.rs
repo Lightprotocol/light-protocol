@@ -1,7 +1,6 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, QueueType, RegisteredProgram,
-};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
+use light_merkle_tree_metadata::queue::QueueType;
 use solana_sdk::signature::{Keypair, Signature, Signer};
 use solana_sdk::{instruction::InstructionError, transaction};
 use std::cmp;

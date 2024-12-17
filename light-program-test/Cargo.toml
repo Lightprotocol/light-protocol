@@ -32,3 +32,4 @@ num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
 light-verifier = { workspace = true }
+light-batched-merkle-tree = { workspace = true }

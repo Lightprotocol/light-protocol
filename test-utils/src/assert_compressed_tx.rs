@@ -1,12 +1,13 @@
-use account_compression::batched_merkle_tree::{
-    BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
-};
-use account_compression::batched_queue::BatchedQueueAccount;
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
 use forester_utils::indexer::{Indexer, StateMerkleTreeAccounts};
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use light_batched_merkle_tree::merkle_tree::{
+    BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
+};
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_client::rpc::RpcConnection;
+use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{

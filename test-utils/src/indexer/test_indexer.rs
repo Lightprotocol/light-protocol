@@ -1,12 +1,12 @@
-use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use account_compression::batched_queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
 use light_macros::pubkey;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_append_with_subtrees::calculate_hash_chain;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
 use light_prover_client::helpers::bigint_to_u8_32;
-use light_system_program::invoke::verify_state_proof::create_tx_hash;
 use light_system_program::sdk::compressed_account::QueueIndex;
+use light_utils::hashchain::{create_hash_chain_from_slice, create_tx_hash};
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -18,8 +18,7 @@ use crate::create_address_merkle_tree_and_queue_account_with_assert;
 use crate::e2e_test_env::KeypairActionConfig;
 use crate::spl::create_initialize_mint_instructions;
 use account_compression::{
-    rollover, AddressMerkleTreeConfig, AddressQueueConfig, InitStateTreeAccountsInstructionData,
-    NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use forester_utils::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
@@ -507,7 +506,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                     let json_payload = if let Some(non_inclusion_payload) = non_inclusion_payload {
                         let public_input_hash = BigInt::from_bytes_be(
                             num_bigint::Sign::Plus,
-                            &calculate_hash_chain(&[
+                            &create_hash_chain_from_slice(&[
                                 bigint_to_u8_32(
                                     &string_to_big_int(&inclusion_payload.public_input_hash)
                                         .unwrap(),
@@ -518,7 +517,8 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                                         .unwrap(),
                                 )
                                 .unwrap(),
-                            ]),
+                            ])
+                            .unwrap(),
                         );
 
                         CombinedJsonStruct {
@@ -992,7 +992,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             root_indices.push(root_index as u16);
         }
 
-        let inclusion_proof_inputs = InclusionProofInputs::new(inclusion_proofs.as_slice());
+        let inclusion_proof_inputs =
+            InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
         let batch_inclusion_proof_inputs =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
 
@@ -1089,7 +1090,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 )
             } else if tree_heights[0] == 40 {
                 let non_inclusion_proof_inputs =
-                    NonInclusionProofInputs::new(non_inclusion_proofs.as_slice());
+                    NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
                         BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(

@@ -1,5 +1,4 @@
 use crate::protocol_config::state::ProtocolConfigPda;
-use account_compression::InitAddressTreeAccountsInstructionData;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 
@@ -22,7 +21,7 @@ pub struct InitializeBatchedAddressTree<'info> {
 pub fn process_initialize_batched_address_merkle_tree(
     ctx: &Context<InitializeBatchedAddressTree>,
     bump: u8,
-    params: InitAddressTreeAccountsInstructionData,
+    params: Vec<u8>,
 ) -> Result<()> {
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];

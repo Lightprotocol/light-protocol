@@ -84,33 +84,6 @@ export type AccountCompression = {
             };
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
         },
-        {
-            name: 'TEST_DEFAULT_BATCH_SIZE';
-            type: 'u64';
-            value: '50';
-        },
-        {
-            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE';
-            type: 'u64';
-            value: '10';
-        },
-        {
-            name: 'DEFAULT_BATCH_SIZE';
-            type: 'u64';
-            value: '50000';
-        },
-        {
-            name: 'DEFAULT_ZKP_BATCH_SIZE';
-            type: 'u64';
-            value: '500';
-        },
-        {
-            name: 'ADDRESS_TREE_INIT_ROOT_40';
-            type: {
-                array: ['u8', 32];
-            };
-            value: '[12 , 181 , 82 , 66 , 55 , 110 , 245 , 173 , 233 , 250 , 111 , 145 , 10 , 171 , 183 , 79 , 64 , 245 , 169 , 160 , 8 , 34 , 54 , 170 , 14 , 74 , 170 , 75 , 72 , 147 , 141 , 17 ,]';
-        },
     ];
     instructions: [
         {
@@ -140,10 +113,8 @@ export type AccountCompression = {
             ];
             args: [
                 {
-                    name: 'params';
-                    type: {
-                        defined: 'InitStateTreeAccountsInstructionData';
-                    };
+                    name: 'bytes';
+                    type: 'bytes';
                 },
             ];
         },
@@ -866,10 +837,8 @@ export type AccountCompression = {
             ];
             args: [
                 {
-                    name: 'params';
-                    type: {
-                        defined: 'InitAddressTreeAccountsInstructionData';
-                    };
+                    name: 'bytes';
+                    type: 'bytes';
                 },
             ];
         },
@@ -990,38 +959,6 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'accessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'forester';
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ];
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'addressMerkleTreeAccount';
             type: {
                 kind: 'struct';
@@ -1031,149 +968,6 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'batchedMerkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedOutputQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'treeType';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'batchedMerkleTreeAccount';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'metadata';
-                        type: {
-                            defined: 'MerkleTreeMetadata';
-                        };
-                    },
-                    {
-                        name: 'sequenceNumber';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'treeType';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'nextIndex';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'rootHistoryCapacity';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'queue';
-                        type: {
-                            defined: 'BatchedQueue';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'batchedQueueAccount';
-            docs: [
-                'Memory layout:',
-                '1. QueueMetadata',
-                '2. num_batches: u64',
-                '3. hash_chain hash bounded vec',
-                '3. for num_batches every 33 bytes is a bloom filter',
-                '3. (output queue) rest of account is bounded vec',
-                '',
-                'One Batch account contains multiple batches.',
-            ];
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'metadata';
-                        type: {
-                            defined: 'QueueMetadata';
-                        };
-                    },
-                    {
-                        name: 'queue';
-                        type: {
-                            defined: 'BatchedQueue';
-                        };
-                    },
-                    {
-                        name: 'nextIndex';
-                        docs: [
-                            'Output queue requires next index to derive compressed account hashes.',
-                            'next_index in queue is ahead or equal to next index in the associated',
-                            'batched Merkle tree account.',
-                        ];
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'batchedQueue';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'numBatches';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'batchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'zkpBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'currentlyProcessingBatchIndex';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'nextFullBatchIndex';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'bloomFilterCapacity';
-                        type: 'u64';
                     },
                 ];
             };
@@ -1189,34 +983,6 @@ export type AccountCompression = {
                     },
                     {
                         name: 'seed';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'merkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
                         type: 'publicKey';
                     },
                 ];
@@ -1240,38 +1006,6 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'queueMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedMerkleTree';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'queueType';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
             name: 'queueAccount';
             type: {
                 kind: 'struct';
@@ -1281,63 +1015,6 @@ export type AccountCompression = {
                         type: {
                             defined: 'QueueMetadata';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'rolloverMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'additionalBytes';
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ];
-                        type: 'u64';
                     },
                 ];
             };
@@ -1470,222 +1147,6 @@ export type AccountCompression = {
                         type: {
                             option: 'u64';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InitAddressTreeAccountsInstructionData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'programOwner';
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'forester';
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'inputQueueBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'inputQueueZkpBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'bloomFilterNumIters';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'bloomFilterCapacity';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rootHistoryCapacity';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'closeThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'inputQueueNumBatches';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InitStateTreeAccountsInstructionData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'programOwner';
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'forester';
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'additionalBytes';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'inputQueueBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'outputQueueBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'inputQueueZkpBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'outputQueueZkpBatchSize';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'bloomFilterNumIters';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'bloomFilterCapacity';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rootHistoryCapacity';
-                        type: 'u32';
-                    },
-                    {
-                        name: 'networkFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'closeThreshold';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'inputQueueNumBatches';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'outputQueueNumBatches';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'height';
-                        type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'BatchState';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'CanBeFilled';
-                    },
-                    {
-                        name: 'Inserted';
-                    },
-                    {
-                        name: 'Full';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'TreeType';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'State';
-                    },
-                    {
-                        name: 'Address';
-                    },
-                    {
-                        name: 'BatchedState';
-                    },
-                    {
-                        name: 'BatchedAddress';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'QueueType';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'NullifierQueue';
-                    },
-                    {
-                        name: 'AddressQueue';
-                    },
-                    {
-                        name: 'Input';
-                    },
-                    {
-                        name: 'Address';
-                    },
-                    {
-                        name: 'Output';
                     },
                 ];
             };
@@ -2007,33 +1468,6 @@ export const IDL: AccountCompression = {
             },
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
         },
-        {
-            name: 'TEST_DEFAULT_BATCH_SIZE',
-            type: 'u64',
-            value: '50',
-        },
-        {
-            name: 'TEST_DEFAULT_ZKP_BATCH_SIZE',
-            type: 'u64',
-            value: '10',
-        },
-        {
-            name: 'DEFAULT_BATCH_SIZE',
-            type: 'u64',
-            value: '50000',
-        },
-        {
-            name: 'DEFAULT_ZKP_BATCH_SIZE',
-            type: 'u64',
-            value: '500',
-        },
-        {
-            name: 'ADDRESS_TREE_INIT_ROOT_40',
-            type: {
-                array: ['u8', 32],
-            },
-            value: '[12 , 181 , 82 , 66 , 55 , 110 , 245 , 173 , 233 , 250 , 111 , 145 , 10 , 171 , 183 , 79 , 64 , 245 , 169 , 160 , 8 , 34 , 54 , 170 , 14 , 74 , 170 , 75 , 72 , 147 , 141 , 17 ,]',
-        },
     ],
     instructions: [
         {
@@ -2063,10 +1497,8 @@ export const IDL: AccountCompression = {
             ],
             args: [
                 {
-                    name: 'params',
-                    type: {
-                        defined: 'InitStateTreeAccountsInstructionData',
-                    },
+                    name: 'bytes',
+                    type: 'bytes',
                 },
             ],
         },
@@ -2789,10 +2221,8 @@ export const IDL: AccountCompression = {
             ],
             args: [
                 {
-                    name: 'params',
-                    type: {
-                        defined: 'InitAddressTreeAccountsInstructionData',
-                    },
+                    name: 'bytes',
+                    type: 'bytes',
                 },
             ],
         },
@@ -2913,38 +2343,6 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'accessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'addressMerkleTreeAccount',
             type: {
                 kind: 'struct',
@@ -2954,149 +2352,6 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'batchedMerkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedOutputQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'treeType',
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'batchedMerkleTreeAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'MerkleTreeMetadata',
-                        },
-                    },
-                    {
-                        name: 'sequenceNumber',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'treeType',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'nextIndex',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'rootHistoryCapacity',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'queue',
-                        type: {
-                            defined: 'BatchedQueue',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'batchedQueueAccount',
-            docs: [
-                'Memory layout:',
-                '1. QueueMetadata',
-                '2. num_batches: u64',
-                '3. hash_chain hash bounded vec',
-                '3. for num_batches every 33 bytes is a bloom filter',
-                '3. (output queue) rest of account is bounded vec',
-                '',
-                'One Batch account contains multiple batches.',
-            ],
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'QueueMetadata',
-                        },
-                    },
-                    {
-                        name: 'queue',
-                        type: {
-                            defined: 'BatchedQueue',
-                        },
-                    },
-                    {
-                        name: 'nextIndex',
-                        docs: [
-                            'Output queue requires next index to derive compressed account hashes.',
-                            'next_index in queue is ahead or equal to next index in the associated',
-                            'batched Merkle tree account.',
-                        ],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'batchedQueue',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'numBatches',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'batchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'zkpBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'currentlyProcessingBatchIndex',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'nextFullBatchIndex',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'bloomFilterCapacity',
-                        type: 'u64',
                     },
                 ],
             },
@@ -3112,34 +2367,6 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'seed',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'merkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
                         type: 'publicKey',
                     },
                 ],
@@ -3163,38 +2390,6 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'queueMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedMerkleTree',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'queueType',
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
             name: 'queueAccount',
             type: {
                 kind: 'struct',
@@ -3204,63 +2399,6 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'QueueMetadata',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'rolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
                     },
                 ],
             },
@@ -3393,222 +2531,6 @@ export const IDL: AccountCompression = {
                         type: {
                             option: 'u64',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InitAddressTreeAccountsInstructionData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'programOwner',
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'forester',
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'inputQueueBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'inputQueueZkpBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'bloomFilterNumIters',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'bloomFilterCapacity',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rootHistoryCapacity',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'closeThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'inputQueueNumBatches',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InitStateTreeAccountsInstructionData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'programOwner',
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'forester',
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'additionalBytes',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'inputQueueBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'outputQueueBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'inputQueueZkpBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'outputQueueZkpBatchSize',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'bloomFilterNumIters',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'bloomFilterCapacity',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rootHistoryCapacity',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'networkFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'closeThreshold',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'inputQueueNumBatches',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'outputQueueNumBatches',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'height',
-                        type: 'u32',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'BatchState',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'CanBeFilled',
-                    },
-                    {
-                        name: 'Inserted',
-                    },
-                    {
-                        name: 'Full',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TreeType',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'State',
-                    },
-                    {
-                        name: 'Address',
-                    },
-                    {
-                        name: 'BatchedState',
-                    },
-                    {
-                        name: 'BatchedAddress',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'QueueType',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'NullifierQueue',
-                    },
-                    {
-                        name: 'AddressQueue',
-                    },
-                    {
-                        name: 'Input',
-                    },
-                    {
-                        name: 'Address',
-                    },
-                    {
-                        name: 'Output',
                     },
                 ],
             },

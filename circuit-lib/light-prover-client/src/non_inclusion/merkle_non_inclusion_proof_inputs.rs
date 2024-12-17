@@ -1,7 +1,6 @@
-use crate::{
-    batch_append_with_subtrees::calculate_two_inputs_hash_chain, helpers::bigint_to_u8_32,
-};
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
 use light_indexed_merkle_tree::array::IndexedArray;
+use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
 
@@ -55,16 +54,18 @@ pub fn get_non_inclusion_proof_inputs(
 }
 
 impl<'a> NonInclusionProofInputs<'a> {
-    pub fn new(inputs: &'a [NonInclusionMerkleProofInputs]) -> Self {
-        let public_input_hash = Self::public_input(inputs);
-        Self {
+    pub fn new(inputs: &'a [NonInclusionMerkleProofInputs]) -> Result<Self, ProverClientError> {
+        let public_input_hash = Self::public_input(inputs)?;
+        Ok(Self {
             public_input_hash,
             inputs,
-        }
+        })
     }
 
-    pub fn public_input(inputs: &'a [NonInclusionMerkleProofInputs]) -> BigInt {
-        let public_input_hash = calculate_two_inputs_hash_chain(
+    pub fn public_input(
+        inputs: &'a [NonInclusionMerkleProofInputs],
+    ) -> Result<BigInt, ProverClientError> {
+        let public_input_hash = create_two_inputs_hash_chain(
             &inputs
                 .iter()
                 .map(|x| bigint_to_u8_32(&x.root).unwrap())
@@ -73,7 +74,10 @@ impl<'a> NonInclusionProofInputs<'a> {
                 .iter()
                 .map(|x| bigint_to_u8_32(&x.value).unwrap())
                 .collect::<Vec<_>>(),
-        );
-        BigInt::from_bytes_be(num_bigint::Sign::Plus, &public_input_hash)
+        )?;
+        Ok(BigInt::from_bytes_be(
+            num_bigint::Sign::Plus,
+            &public_input_hash,
+        ))
     }
 }

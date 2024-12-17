@@ -13,8 +13,8 @@ pub enum BloomFilterError {
 impl From<BloomFilterError> for u32 {
     fn from(e: BloomFilterError) -> u32 {
         match e {
-            BloomFilterError::Full => 16001,
-            BloomFilterError::InvalidStoreCapacity => 16002,
+            BloomFilterError::Full => 14201,
+            BloomFilterError::InvalidStoreCapacity => 14202,
         }
     }
 }

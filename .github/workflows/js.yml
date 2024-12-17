@@ -1,8 +1,7 @@
 on:
   push:
     branches:
-      - "*"
-      - jorrit/feat-bloomfilter-queues
+      - main
   pull_request:
     branches:
       - "*"

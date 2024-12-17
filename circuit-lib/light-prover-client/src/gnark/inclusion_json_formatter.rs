@@ -1,4 +1,3 @@
-use crate::batch_append_with_subtrees::calculate_two_inputs_hash_chain;
 use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
 use crate::helpers::bigint_to_u8_32;
 use crate::prove_utils::CircuitType;
@@ -8,6 +7,7 @@ use crate::{
     },
     init_merkle_tree::inclusion_merkle_tree_inputs,
 };
+use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
@@ -53,10 +53,11 @@ impl BatchInclusionJsonStruct {
         };
 
         let inputs = vec![input; number_of_utxos];
-        let public_input_hash = calculate_two_inputs_hash_chain(
+        let public_input_hash = create_two_inputs_hash_chain(
             vec![bigint_to_u8_32(&merkle_inputs.root).unwrap(); number_of_utxos].as_slice(),
             vec![bigint_to_u8_32(&merkle_inputs.leaf).unwrap(); number_of_utxos].as_slice(),
-        );
+        )
+        .unwrap();
         let public_input_hash_string = big_int_to_string(&BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
             &public_input_hash,

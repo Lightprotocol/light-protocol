@@ -8,14 +8,13 @@ use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, InitAddressTreeAccountsInstructionData,
-    InitStateTreeAccountsInstructionData,
-};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
 use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, create_account_instruction};
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::solana_rpc::SolanaRpcUrl;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};

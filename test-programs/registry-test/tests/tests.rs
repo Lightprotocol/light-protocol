@@ -1,16 +1,18 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
-use account_compression::batched_merkle_tree::{
-    BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
-};
 use account_compression::{
-    assert_address_mt_zero_copy_inited, AddressMerkleTreeConfig, AddressQueueConfig,
-    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
-    NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use forester_utils::airdrop_lamports;
 use forester_utils::forester_epoch::get_epoch_phases;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::{
+    assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
+};
+use light_batched_merkle_tree::merkle_tree::{
+    BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount,
+};
 use light_program_test::test_batch_forester::{
     assert_perform_state_mt_roll_over, create_append_batch_ix_data,
     create_batch_address_merkle_tree, create_batch_update_address_tree_instruction_data_with_proof,
@@ -1762,21 +1764,9 @@ async fn test_rollover_batch_address_tree() {
         .await
         .unwrap()
         .unwrap();
-    let zero_copy_account = BatchedMerkleTreeAccount::get_address_tree_default(
-        env.group_pda,
-        tree_params.program_owner,
-        tree_params.forester,
-        Some(0),
-        tree_params.index,
-        tree_params.network_fee.unwrap_or_default(),
-        tree_params.input_queue_batch_size,
-        tree_params.input_queue_zkp_batch_size,
-        tree_params.bloom_filter_capacity,
-        tree_params.root_history_capacity,
-        tree_params.height,
-        2,
-        account.lamports,
-    );
+    let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda);
+    let zero_copy_account =
+        BatchedMerkleTreeAccount::get_address_tree_default(mt_params, account.lamports);
     assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account, 3);
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)

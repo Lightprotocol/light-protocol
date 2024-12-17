@@ -1,8 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
-use account_compression::InitStateTreeAccountsInstructionData;
 use anchor_lang::AnchorDeserialize;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use light_batched_merkle_tree::zero_copy::ZeroCopyError;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
 use light_hasher::{Hasher, Poseidon};
@@ -251,12 +252,7 @@ async fn test_read_only_accounts() {
             CreatePdaMode::Functional,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
 
     let seed = [205u8; 32];
@@ -301,12 +297,7 @@ async fn test_read_only_accounts() {
         )
         .await;
 
-        assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
     }
 
     // 7. failing - proof by index for invalidated account

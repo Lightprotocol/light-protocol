@@ -1,11 +1,13 @@
+use light_utils::hashchain::create_hash_chain;
 use num_bigint::BigInt;
 use serde::Serialize;
 
-use crate::batch_append_with_subtrees::calculate_hash_chain;
-use crate::combined::merkle_combined_proof_inputs::CombinedProofInputs;
 use crate::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
 use crate::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
 use crate::prove_utils::CircuitType;
+use crate::{
+    combined::merkle_combined_proof_inputs::CombinedProofInputs, errors::ProverClientError,
+};
 
 use super::{
     helpers::{big_int_to_string, create_json_from_struct},
@@ -31,16 +33,16 @@ pub struct CombinedJsonStruct {
 }
 
 impl CombinedJsonStruct {
-    fn new_with_public_inputs(number_of_utxos: usize) -> Self {
+    fn new_with_public_inputs(number_of_utxos: usize) -> Result<Self, ProverClientError> {
         let (inclusion, inclusion_public_input_hash) =
             BatchInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
         let (non_inclusion, non_inclusion_public_input_hash) =
-            BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+            BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos)?;
 
         let public_inputs_hash =
-            calculate_hash_chain(&[inclusion_public_input_hash, non_inclusion_public_input_hash]);
+            create_hash_chain([inclusion_public_input_hash, non_inclusion_public_input_hash])?;
 
-        Self {
+        Ok(Self {
             circuit_type: CircuitType::Combined.to_string(),
             state_tree_height: 26,
             address_tree_height: 40,
@@ -50,7 +52,7 @@ impl CombinedJsonStruct {
             )),
             inclusion: inclusion.inputs,
             non_inclusion: non_inclusion.inputs,
-        }
+        })
     }
 
     pub fn from_combined_inputs(inputs: &CombinedProofInputs) -> Self {
@@ -78,5 +80,5 @@ impl CombinedJsonStruct {
 
 pub fn combined_inputs_string(number_of_utxos: usize) -> String {
     let json_struct = CombinedJsonStruct::new_with_public_inputs(number_of_utxos);
-    json_struct.to_string()
+    json_struct.unwrap().to_string()
 }

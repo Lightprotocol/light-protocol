@@ -1,5 +1,4 @@
 use crate::{
-    batched_merkle_tree::{InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount},
     emit_indexer_event,
     utils::check_signer_is_registered_or_authority::{
         check_signer_is_registered_or_authority, GroupAccounts,
@@ -7,6 +6,9 @@ use crate::{
     RegisteredProgram,
 };
 use anchor_lang::prelude::*;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
 
 #[derive(Accounts)]
 pub struct BatchUpdateAddressTree<'info> {
@@ -15,7 +17,7 @@ pub struct BatchUpdateAddressTree<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: in from_bytes_mut.
+    /// CHECK: in from_account_info.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
 }
@@ -35,12 +37,14 @@ pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
         &ctx.accounts.merkle_tree,
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<
         BatchUpdateAddressTree,
         ZeroCopyBatchedMerkleTreeAccount,
     >(ctx, merkle_tree)?;
     let event = merkle_tree
-        .update_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())?;
+        .update_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
+        .map_err(ProgramError::from)?;
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
 }

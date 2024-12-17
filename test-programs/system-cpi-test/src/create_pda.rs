@@ -1,9 +1,10 @@
 use account_compression::{
-    batched_merkle_tree::BatchedMerkleTreeAccount, program::AccountCompression,
-    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
+    program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
 use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
 use light_system_program::sdk::compressed_account::PackedReadOnlyCompressedAccount;

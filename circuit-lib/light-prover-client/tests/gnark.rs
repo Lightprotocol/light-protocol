@@ -1,9 +1,7 @@
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_append_with_subtrees::{
-    calculate_hash_chain, get_batch_append_with_subtrees_inputs,
-};
+use light_prover_client::batch_append_with_subtrees::get_batch_append_with_subtrees_inputs;
 use light_prover_client::batch_update::get_batch_update_inputs;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
 use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
@@ -29,6 +27,7 @@ use light_prover_client::{
     helpers::init_logger,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::hashchain::create_hash_chain_from_slice;
 use log::info;
 use num_bigint::ToBigUint;
 use reqwest::Client;
@@ -185,7 +184,7 @@ async fn prove_batch_update() {
             path_indices.push(index as u32);
         }
         let root = merkle_tree.root();
-        let leaves_hashchain = calculate_hash_chain(&nullifiers);
+        let leaves_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
         let inputs = get_batch_update_inputs::<HEIGHT>(
             root,
             vec![tx_hash; num_insertions],
@@ -195,7 +194,8 @@ async fn prove_batch_update() {
             merkle_proofs,
             path_indices,
             num_insertions as u32,
-        );
+        )
+        .unwrap();
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
         let response_result = client
@@ -252,7 +252,7 @@ async fn prove_batch_append_with_subtrees() {
             leaves.push(leaf);
         }
 
-        let leaves_hashchain = calculate_hash_chain(&leaves);
+        let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
 
         // Generate inputs for batch append operation
         let inputs = get_batch_append_with_subtrees_inputs::<HEIGHT>(
@@ -260,7 +260,8 @@ async fn prove_batch_append_with_subtrees() {
             old_subtrees.try_into().unwrap(),
             leaves,
             leaves_hashchain,
-        );
+        )
+        .unwrap();
 
         // Send proof request to the server
         let client = Client::new();
@@ -336,7 +337,7 @@ async fn prove_batch_append_with_proofs() {
 
         // Retrieve tree root and compute leaves hash chain
         let root = merkle_tree.root();
-        let leaves_hashchain = calculate_hash_chain(&leaves);
+        let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
 
         // Generate inputs for BatchAppendWithProofsCircuit
         let inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
@@ -347,7 +348,8 @@ async fn prove_batch_append_with_proofs() {
             old_leaves.clone(),
             merkle_proofs.clone(),
             num_insertions as u32,
-        );
+        )
+        .unwrap();
 
         // Serialize inputs to JSON
         let client = Client::new();
@@ -446,7 +448,7 @@ async fn prove_batch_address_append() {
         .iter()
         .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
         .collect::<Vec<_>>();
-    let hash_chain = calculate_hash_chain(&new_element_values);
+    let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
     let batch_start_index = start_index;
     // Generate circuit inputs
     let inputs = get_batch_address_append_circuit_inputs::<TREE_HEIGHT>(
@@ -466,7 +468,8 @@ async fn prove_batch_address_append() {
         hash_chain,
         batch_start_index,
         zkp_batch_size,
-    );
+    )
+    .unwrap();
     // Convert inputs to JSON format
     let inputs_json = to_json(&inputs);
     // Send proof request to server

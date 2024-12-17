@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_hasher::Discriminator as LightDiscriminator;
 
 pub mod invoke;
 pub use invoke::instruction::*;
@@ -21,13 +22,13 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-use account_compression::{batched_merkle_tree::BatchedMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
 
 #[program]
 pub mod light_system_program {
 
-    use account_compression::errors::AccountCompressionErrorCode;
+    use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     use light_heap::{bench_sbf_end, bench_sbf_start};
 
     use self::{

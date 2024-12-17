@@ -3,6 +3,7 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::prelude::*;
+use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 pub mod account_compression_cpi;
 pub mod errors;
@@ -20,16 +21,16 @@ pub mod epoch;
 pub mod protocol_config;
 pub mod selection;
 pub mod utils;
-use account_compression::MerkleTreeMetadata;
 pub use selection::forester::*;
 
-use account_compression::{
-    InitAddressTreeAccountsInstructionData, InitStateTreeAccountsInstructionData,
-};
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use light_batched_merkle_tree::{
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
+};
 use protocol_config::state::ProtocolConfig;
-
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
 
@@ -47,7 +48,6 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 #[program]
 pub mod light_registry {
 
-    use account_compression::batched_merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
     use constants::DEFAULT_WORK_V1;
 
     use super::*;
@@ -473,8 +473,9 @@ pub mod light_registry {
     pub fn initialize_batched_state_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
         bump: u8,
-        params: InitStateTreeAccountsInstructionData,
+        params: Vec<u8>,
     ) -> Result<()> {
+        let params = InitStateTreeAccountsInstructionData::try_from_slice(&params)?;
         if let Some(network_fee) = params.network_fee {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
@@ -493,7 +494,7 @@ pub mod light_registry {
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
-        process_initialize_batched_state_merkle_tree(&ctx, bump, params)?;
+        process_initialize_batched_state_merkle_tree(&ctx, bump, params.try_to_vec().unwrap())?;
 
         process_initialize_cpi_context(
             bump,
@@ -510,14 +511,17 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let account = ctx.accounts.merkle_tree.load()?;
-            let metadata = account.metadata;
+            let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                &ctx.accounts.merkle_tree,
+            )
+            .map_err(ProgramError::from)?;
+            let metadata = account.get_account().metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                account.queue.batch_size,
+                account.get_account().queue.batch_size,
             )?;
         }
         process_batch_nullify(&ctx, bump, data)
@@ -529,14 +533,21 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let queue_account = ctx.accounts.output_queue.load()?;
-            let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+            let queue_account = ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+                &ctx.accounts.output_queue,
+            )
+            .map_err(ProgramError::from)?;
+            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                &ctx.accounts.merkle_tree,
+            )
+            .map_err(ProgramError::from)?;
+            let metadata = merkle_tree.get_account().metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                queue_account.queue.batch_size,
+                queue_account.get_account().queue.batch_size,
             )?;
         }
         process_batch_append(&ctx, bump, data)
@@ -545,8 +556,9 @@ pub mod light_registry {
     pub fn initialize_batched_address_merkle_tree(
         ctx: Context<InitializeBatchedAddressTree>,
         bump: u8,
-        params: InitAddressTreeAccountsInstructionData,
+        params: Vec<u8>,
     ) -> Result<()> {
+        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&params)?;
         if let Some(network_fee) = params.network_fee {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
@@ -560,7 +572,7 @@ pub mod light_registry {
             msg!("Trees without a network fee will not be serviced by light foresters.");
             return err!(RegistryError::ForesterUndefined);
         }
-        process_initialize_batched_address_merkle_tree(&ctx, bump, params)
+        process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec().unwrap())
     }
 
     pub fn batch_update_address_tree<'info>(
@@ -569,7 +581,11 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let account = ctx.accounts.merkle_tree.load()?;
+            let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                &ctx.accounts.merkle_tree,
+            )
+            .map_err(ProgramError::from)?;
+            let account = account.get_account();
             let metadata = account.metadata;
             check_forester(
                 &metadata,
@@ -588,7 +604,8 @@ pub mod light_registry {
     ) -> Result<()> {
         let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
             &ctx.accounts.old_address_merkle_tree,
-        )?;
+        )
+        .map_err(ProgramError::from)?;
         check_forester(
             &account.get_account().metadata,
             ctx.accounts.authority.key(),
@@ -605,7 +622,8 @@ pub mod light_registry {
     ) -> Result<()> {
         let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
             &ctx.accounts.old_state_merkle_tree,
-        )?;
+        )
+        .map_err(ProgramError::from)?;
         check_forester(
             &account.get_account().metadata,
             ctx.accounts.authority.key(),

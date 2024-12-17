@@ -35,6 +35,8 @@ light-utils = { version = "1.1.0", path = "../../utils" }
 num-bigint = "0.4.5"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
+light-merkle-tree-metadata = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 

@@ -1,8 +1,10 @@
+use crate::errors::ProverClientError;
+use crate::helpers::bigint_to_u8_32;
 use crate::helpers::compute_root_from_merkle_proof;
-use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
+use light_utils::hashchain::create_hash_chain;
 use num_bigint::{BigInt, Sign};
 use num_traits::FromBytes;
 
@@ -55,7 +57,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     path_indices: Vec<u32>,
     // get from account (every mt account has a hardcoded batch size)
     batch_size: u32,
-) -> BatchUpdateCircuitInputs {
+) -> Result<BatchUpdateCircuitInputs, ProverClientError> {
     let mut new_root = [0u8; 32];
     let old_root = current_root;
     // We need a changelog because all subsequent proofs change after one update.
@@ -91,9 +93,9 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         circuit_merkle_proofs.push(merkle_proof);
     }
 
-    let public_input_hash = calculate_hash_chain(&[old_root, new_root, leaves_hashchain]);
+    let public_input_hash = create_hash_chain([old_root, new_root, leaves_hashchain])?;
 
-    BatchUpdateCircuitInputs {
+    Ok(BatchUpdateCircuitInputs {
         public_input_hash: BigInt::from_be_bytes(&public_input_hash),
         old_root: BigInt::from_be_bytes(&old_root),
         new_root: BigInt::from_be_bytes(&new_root),
@@ -122,5 +124,5 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         path_indices,
         height: HEIGHT as u32,
         batch_size,
-    }
+    })
 }

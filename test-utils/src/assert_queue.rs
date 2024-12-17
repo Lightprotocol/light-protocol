@@ -1,6 +1,11 @@
-use account_compression::{QueueAccount, QueueMetadata, QueueType, RolloverMetadata};
+use account_compression::QueueAccount;
 use forester_utils::{get_hash_set, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
+use light_merkle_tree_metadata::{
+    access::AccessMetadata,
+    queue::{QueueMetadata, QueueType},
+    rollover::RolloverMetadata,
+};
 use light_utils::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 
@@ -165,7 +170,7 @@ pub async fn assert_queue<R: RpcConnection>(
         close_threshold: associated_tree_config.close_threshold.unwrap_or(u64::MAX),
         additional_bytes: 0,
     };
-    let expected_access_meta_data = account_compression::AccessMetadata {
+    let expected_access_meta_data = AccessMetadata {
         owner: *payer_pubkey,
         program_owner: expected_program_owner.unwrap_or_default(),
         forester: expected_forester.unwrap_or_default(),

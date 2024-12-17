@@ -1,9 +1,25 @@
-use anchor_lang::prelude::*;
+use bytemuck::{Pod, Zeroable};
+use solana_program::pubkey::Pubkey;
 
-use crate::{errors::AccountCompressionErrorCode, AccessMetadata, RolloverMetadata};
+use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
-#[account(zero_copy)]
-#[derive(AnchorDeserialize, Debug, PartialEq, Default)]
+#[repr(u64)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TreeType {
+    State = 1,
+    Address = 2,
+    BatchedState = 3,
+    BatchedAddress = 4,
+}
+
+#[repr(C)]
+#[derive(
+    AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default, Clone, Copy, Pod, Zeroable,
+)]
 pub struct MerkleTreeMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
@@ -29,9 +45,9 @@ impl MerkleTreeMetadata {
         &mut self,
         old_associated_queue: Pubkey,
         next_merkle_tree: Pubkey,
-    ) -> Result<()> {
+    ) -> Result<(), MerkleTreeMetadataError> {
         if self.associated_queue != old_associated_queue {
-            return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+            return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated);
         }
 
         self.rollover_metadata.rollover()?;

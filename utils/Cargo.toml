@@ -10,6 +10,7 @@ edition = "2021"
 anyhow = "1.0"
 ark-ff = "0.4"
 light-bounded-vec = { version = "1.1.0", path = "../merkle-tree/bounded-vec" }
+light-hasher = {workspace = true}
 num-bigint = { version = "0.4", features = ["rand"] }
 thiserror = "1.0"
 solana-program = { workspace = true }

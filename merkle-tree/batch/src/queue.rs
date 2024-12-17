@@ -1,82 +1,42 @@
-use crate::utils::constants::TEST_DEFAULT_BATCH_SIZE;
-use crate::{batch::Batch, errors::AccountCompressionErrorCode, QueueMetadata, QueueType};
-use crate::{bytes_to_struct_checked, InitStateTreeAccountsInstructionData};
+use super::batch::BatchState;
+use crate::batch_metadata::BatchMetadata;
+use crate::constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, TEST_DEFAULT_BATCH_SIZE};
+use crate::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use crate::zero_copy::{bytes_to_struct_checked, ZeroCopyError};
+use crate::{batch::Batch, errors::BatchedMerkleTreeError};
+use crate::{BorshDeserialize, BorshSerialize};
 use aligned_sized::aligned_sized;
-use anchor_lang::prelude::*;
+use bytemuck::{Pod, Zeroable};
 use light_bounded_vec::{BoundedVec, BoundedVecMetadata};
+use light_hasher::Discriminator;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
+use solana_program::account_info::AccountInfo;
+use solana_program::msg;
 use std::mem::ManuallyDrop;
 
-use super::batch::BatchState;
-
-/// Memory layout:
-/// 1. QueueMetadata
-/// 2. num_batches: u64
-/// 3. hash_chain hash bounded vec
-/// 3. for num_batches every 33 bytes is a bloom filter
-/// 3. (output queue) rest of account is bounded vec
-///
-/// One Batch account contains multiple batches.
-#[account(zero_copy)]
+#[repr(C)]
+#[derive(
+    BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Pod, Zeroable, Clone, Copy,
+)]
 #[aligned_sized(anchor)]
-#[derive(AnchorDeserialize, Debug, Default, PartialEq)]
 pub struct BatchedQueueAccount {
     pub metadata: QueueMetadata,
-    pub queue: BatchedQueue,
+    pub queue: BatchMetadata,
     /// Output queue requires next index to derive compressed account hashes.
     /// next_index in queue is ahead or equal to next index in the associated
     /// batched Merkle tree account.
     pub next_index: u64,
 }
 
-#[account(zero_copy)]
-#[derive(AnchorDeserialize, Debug, Default, PartialEq)]
-pub struct BatchedQueue {
-    pub num_batches: u64,
-    pub batch_size: u64,
-    pub zkp_batch_size: u64,
-    pub currently_processing_batch_index: u64,
-    pub next_full_batch_index: u64,
-    pub bloom_filter_capacity: u64,
+impl Discriminator for BatchedQueueAccount {
+    const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
 
-impl BatchedQueue {
-    pub fn get_num_zkp_batches(&self) -> u64 {
-        self.batch_size / self.zkp_batch_size
-    }
-
-    pub fn get_output_queue_default(
-        batch_size: u64,
-        zkp_batch_size: u64,
-        num_batches: u64,
-    ) -> Self {
-        BatchedQueue {
-            num_batches,
-            zkp_batch_size,
-            batch_size,
-            currently_processing_batch_index: 0,
-            next_full_batch_index: 0,
-            bloom_filter_capacity: 0,
-        }
-    }
-
-    pub fn get_input_queue_default(
-        batch_size: u64,
-        bloom_filter_capacity: u64,
-        zkp_batch_size: u64,
-        num_batches: u64,
-    ) -> Self {
-        BatchedQueue {
-            num_batches,
-            zkp_batch_size,
-            batch_size,
-            currently_processing_batch_index: 0,
-            next_full_batch_index: 0,
-            bloom_filter_capacity,
-        }
-    }
-}
-
-pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usize> {
+pub fn queue_account_size(
+    account: &BatchMetadata,
+    queue_type: u64,
+) -> Result<usize, BatchedMerkleTreeError> {
     let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
         account.get_size_parameters(queue_type)?;
     let account_size = if queue_type != QueueType::Output as u64 {
@@ -105,7 +65,7 @@ pub fn queue_account_size(account: &BatchedQueue, queue_type: u64) -> Result<usi
 }
 
 impl BatchedQueueAccount {
-    pub fn get_size_parameters(&self) -> Result<(usize, usize, usize)> {
+    pub fn get_size_parameters(&self) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
         self.queue.get_size_parameters(self.metadata.queue_type)
     }
     pub fn init(
@@ -115,7 +75,7 @@ impl BatchedQueueAccount {
         batch_size: u64,
         zkp_batch_size: u64,
         bloom_filter_capacity: u64,
-    ) -> Result<()> {
+    ) -> Result<(), BatchedMerkleTreeError> {
         self.metadata = meta_data;
         self.queue.init(num_batches, batch_size, zkp_batch_size)?;
         self.queue.bloom_filter_capacity = bloom_filter_capacity;
@@ -123,19 +83,27 @@ impl BatchedQueueAccount {
     }
 }
 
-impl BatchedQueue {
-    pub fn init(&mut self, num_batches: u64, batch_size: u64, zkp_batch_size: u64) -> Result<()> {
+impl BatchMetadata {
+    pub fn init(
+        &mut self,
+        num_batches: u64,
+        batch_size: u64,
+        zkp_batch_size: u64,
+    ) -> Result<(), BatchedMerkleTreeError> {
         self.num_batches = num_batches;
         self.batch_size = batch_size;
         // Check that batch size is divisible by zkp_batch_size.
         if batch_size % zkp_batch_size != 0 {
-            return err!(AccountCompressionErrorCode::BatchSizeNotDivisibleByZkpBatchSize);
+            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
         }
         self.zkp_batch_size = zkp_batch_size;
         Ok(())
     }
 
-    pub fn get_size_parameters(&self, queue_type: u64) -> Result<(usize, usize, usize)> {
+    pub fn get_size_parameters(
+        &self,
+        queue_type: u64,
+    ) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
         let num_batches = self.num_batches as usize;
         // Input queues don't store values
         let num_value_stores = if queue_type == QueueType::Output as u64 {
@@ -143,7 +111,7 @@ impl BatchedQueue {
         } else if queue_type == QueueType::Input as u64 {
             0
         } else {
-            return err!(AccountCompressionErrorCode::InvalidQueueType);
+            return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         // Output queues don't use bloom filters.
         let num_stores = if queue_type == QueueType::Input as u64 {
@@ -151,7 +119,7 @@ impl BatchedQueue {
         } else if queue_type == QueueType::Output as u64 && self.bloom_filter_capacity == 0 {
             0
         } else {
-            return err!(AccountCompressionErrorCode::InvalidQueueType);
+            return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         Ok((num_value_stores, num_stores, num_batches))
     }
@@ -179,22 +147,24 @@ impl ZeroCopyBatchedQueueAccount {
 
     pub fn output_queue_from_account_info_mut(
         account_info: &AccountInfo<'_>,
-    ) -> Result<ZeroCopyBatchedQueueAccount> {
-        if *account_info.owner != crate::ID {
-            return err!(ErrorCode::AccountOwnedByWrongProgram);
+    ) -> Result<ZeroCopyBatchedQueueAccount, BatchedMerkleTreeError> {
+        if *account_info.owner != ACCOUNT_COMPRESSION_PROGRAM_ID {
+            return Err(BatchedMerkleTreeError::AccountOwnedByWrongProgram);
         }
         if !account_info.is_writable {
-            return err!(ErrorCode::AccountNotMutable);
+            return Err(BatchedMerkleTreeError::AccountNotMutable);
         }
         let account_data = &mut account_info.try_borrow_mut_data()?;
         let queue = Self::from_bytes_mut(account_data)?;
         if queue.get_account().metadata.queue_type != QueueType::Output as u64 {
-            return err!(AccountCompressionErrorCode::InvalidQueueType);
+            return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
         Ok(queue)
     }
 
-    pub fn from_bytes_mut(account_data: &mut [u8]) -> Result<ZeroCopyBatchedQueueAccount> {
+    pub fn from_bytes_mut(
+        account_data: &mut [u8],
+    ) -> Result<ZeroCopyBatchedQueueAccount, BatchedMerkleTreeError> {
         let account = bytes_to_struct_checked::<BatchedQueueAccount, false>(account_data)?;
         unsafe {
             let (num_value_stores, num_stores, num_hashchain_stores) =
@@ -225,7 +195,7 @@ impl ZeroCopyBatchedQueueAccount {
         account_data: &mut [u8],
         num_iters: u64,
         bloom_filter_capacity: u64,
-    ) -> Result<ZeroCopyBatchedQueueAccount> {
+    ) -> Result<ZeroCopyBatchedQueueAccount, BatchedMerkleTreeError> {
         let account = bytes_to_struct_checked::<BatchedQueueAccount, true>(account_data)?;
         unsafe {
             (*account).init(
@@ -255,7 +225,10 @@ impl ZeroCopyBatchedQueueAccount {
         }
     }
 
-    pub fn insert_into_current_batch(&mut self, value: &[u8; 32]) -> Result<()> {
+    pub fn insert_into_current_batch(
+        &mut self,
+        value: &[u8; 32],
+    ) -> Result<(), BatchedMerkleTreeError> {
         let current_index = self.get_account().next_index;
         unsafe {
             insert_into_current_batch(
@@ -274,32 +247,39 @@ impl ZeroCopyBatchedQueueAccount {
         Ok(())
     }
 
-    pub fn prove_inclusion_by_index(&mut self, leaf_index: u64, value: &[u8; 32]) -> Result<bool> {
+    pub fn prove_inclusion_by_index(
+        &mut self,
+        leaf_index: u64,
+        value: &[u8; 32],
+    ) -> Result<bool, BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batches.iter().enumerate() {
             if batch.value_is_inserted_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
-                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
+                    .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
 
                 if element == value {
                     return Ok(true);
                 } else {
-                    return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
+                    return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
             }
         }
         Ok(false)
     }
 
-    pub fn could_exist_in_batches(&mut self, leaf_index: u64) -> Result<()> {
+    pub fn could_exist_in_batches(
+        &mut self,
+        leaf_index: u64,
+    ) -> Result<(), BatchedMerkleTreeError> {
         for batch in self.batches.iter() {
             let res = batch.value_is_inserted_in_batch(leaf_index)?;
             if res {
                 return Ok(());
             }
         }
-        err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
+        Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
     }
 
     /// Zero out a leaf by index if it exists in the queues value vec. If
@@ -308,19 +288,19 @@ impl ZeroCopyBatchedQueueAccount {
         &mut self,
         leaf_index: u64,
         value: &[u8; 32],
-    ) -> Result<()> {
+    ) -> Result<(), BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batches.iter().enumerate() {
             if batch.value_is_inserted_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
-                    .ok_or(AccountCompressionErrorCode::InclusionProofByIndexFailed)?;
+                    .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
 
                 if element == value {
                     *element = [0u8; 32];
                     return Ok(());
                 } else {
-                    return err!(AccountCompressionErrorCode::InclusionProofByIndexFailed);
+                    return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
             }
         }
@@ -334,19 +314,19 @@ impl ZeroCopyBatchedQueueAccount {
     }
 }
 
-#[allow(clippy::ptr_arg)]
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn insert_into_current_batch(
     queue_type: u64,
-    account: &mut BatchedQueue,
+    account: &mut BatchMetadata,
     batches: &mut ManuallyDrop<BoundedVec<Batch>>,
-    value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    bloom_filter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
-    hashchain_store: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    value_vecs: &mut [ManuallyDrop<BoundedVec<[u8; 32]>>],
+    bloom_filter_stores: &mut [ManuallyDrop<BoundedVec<u8>>],
+    hashchain_store: &mut [ManuallyDrop<BoundedVec<[u8; 32]>>],
     value: &[u8; 32],
     leaves_hash_value: Option<&[u8; 32]>,
     current_index: Option<u64>,
-) -> Result<(Option<u32>, Option<u64>)> {
+) -> Result<(Option<u32>, Option<u64>), BatchedMerkleTreeError> {
     let len = batches.len();
     let mut root_index = None;
     let mut sequence_number = None;
@@ -373,7 +353,7 @@ pub fn insert_into_current_batch(
             for batch in batches.iter_mut() {
                 msg!("batch {:?}", batch);
             }
-            return err!(AccountCompressionErrorCode::BatchNotReady);
+            return Err(BatchedMerkleTreeError::BatchNotReady);
         }
         println!("leaves_hash_value {:?}", leaves_hash_value);
         println!("value {:?}", value);
@@ -419,7 +399,7 @@ pub fn insert_into_current_batch(
                 value_store.unwrap(),
                 hashchain_store.unwrap(),
             ),
-            _ => err!(AccountCompressionErrorCode::InvalidQueueType),
+            _ => Err(MerkleTreeMetadataError::InvalidQueueType.into()),
         }?;
     }
 
@@ -448,73 +428,75 @@ pub fn output_queue_from_bytes(
     num_stores: usize,
     num_hashchain_stores: usize,
     account_data: &mut [u8],
-) -> Result<(
-    ManuallyDrop<BoundedVec<Batch>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    Vec<ManuallyDrop<BoundedVec<u8>>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-)> {
+) -> Result<
+    (
+        ManuallyDrop<BoundedVec<Batch>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+        Vec<ManuallyDrop<BoundedVec<u8>>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    ),
+    BatchedMerkleTreeError,
+> {
     let mut start_offset = BatchedQueueAccount::LEN;
-    let batches =
-        BoundedVec::deserialize(account_data, &mut start_offset).map_err(ProgramError::from)?;
+    let batches = BoundedVec::deserialize(account_data, &mut start_offset)?;
     let value_vecs =
-        BoundedVec::deserialize_multiple(num_value_stores, account_data, &mut start_offset)
-            .map_err(ProgramError::from)?;
+        BoundedVec::deserialize_multiple(num_value_stores, account_data, &mut start_offset)?;
     let bloom_filter_stores =
-        BoundedVec::deserialize_multiple(num_stores, account_data, &mut start_offset)
-            .map_err(ProgramError::from)?;
+        BoundedVec::deserialize_multiple(num_stores, account_data, &mut start_offset)?;
     let hashchain_store =
-        BoundedVec::deserialize_multiple(num_hashchain_stores, account_data, &mut start_offset)
-            .map_err(ProgramError::from)?;
+        BoundedVec::deserialize_multiple(num_hashchain_stores, account_data, &mut start_offset)?;
     Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
 }
 
 #[allow(clippy::type_complexity)]
 pub fn input_queue_bytes(
-    account: &BatchedQueue,
+    account: &BatchMetadata,
     account_data: &mut [u8],
     queue_type: u64,
     start_offset: &mut usize,
-) -> Result<(
-    ManuallyDrop<BoundedVec<Batch>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    Vec<ManuallyDrop<BoundedVec<u8>>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-)> {
+) -> Result<
+    (
+        ManuallyDrop<BoundedVec<Batch>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+        Vec<ManuallyDrop<BoundedVec<u8>>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    ),
+    BatchedMerkleTreeError,
+> {
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
     if queue_type == QueueType::Output as u64 {
         *start_offset += BatchedQueueAccount::LEN;
     }
-    let batches =
-        BoundedVec::deserialize(account_data, start_offset).map_err(ProgramError::from)?;
-    let value_vecs = BoundedVec::deserialize_multiple(num_value_stores, account_data, start_offset)
-        .map_err(ProgramError::from)?;
+    let batches = BoundedVec::deserialize(account_data, start_offset)?;
+    let value_vecs =
+        BoundedVec::deserialize_multiple(num_value_stores, account_data, start_offset)?;
     let bloom_filter_stores =
-        BoundedVec::deserialize_multiple(num_stores, account_data, start_offset)
-            .map_err(ProgramError::from)?;
+        BoundedVec::deserialize_multiple(num_stores, account_data, start_offset)?;
     let hashchain_store =
-        BoundedVec::deserialize_multiple(hashchain_store_capacity, account_data, start_offset)
-            .map_err(ProgramError::from)?;
+        BoundedVec::deserialize_multiple(hashchain_store_capacity, account_data, start_offset)?;
 
     Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
 }
 
 #[allow(clippy::type_complexity)]
 pub fn init_queue(
-    account: &BatchedQueue,
+    account: &BatchMetadata,
     queue_type: u64,
     account_data: &mut [u8],
     num_iters: u64,
     bloom_filter_capacity: u64,
     start_offset: &mut usize,
     batch_start_index: u64,
-) -> Result<(
-    ManuallyDrop<BoundedVec<Batch>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    Vec<ManuallyDrop<BoundedVec<u8>>>,
-    Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-)> {
+) -> Result<
+    (
+        ManuallyDrop<BoundedVec<Batch>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+        Vec<ManuallyDrop<BoundedVec<u8>>>,
+        Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    ),
+    BatchedMerkleTreeError,
+> {
     if account_data.len() - *start_offset != queue_account_size(account, queue_type)? {
         msg!("*start_offset {:?}", *start_offset);
         msg!("account_data.len() {:?}", account_data.len());
@@ -523,7 +505,7 @@ pub fn init_queue(
             "queue_account_size {:?}",
             queue_account_size(account, queue_type)?
         );
-        return err!(AccountCompressionErrorCode::SizeMismatch);
+        return Err(ZeroCopyError::InvalidAccountSize.into());
     }
     let (num_value_stores, num_stores, num_hashchain_stores) =
         account.get_size_parameters(queue_type)?;
@@ -537,19 +519,16 @@ pub fn init_queue(
         account_data,
         start_offset,
         false,
-    )
-    .map_err(ProgramError::from)?;
+    )?;
 
     for i in 0..account.num_batches {
-        batches
-            .push(Batch::new(
-                num_iters,
-                bloom_filter_capacity,
-                account.batch_size,
-                account.zkp_batch_size,
-                account.batch_size * i + batch_start_index,
-            ))
-            .map_err(ProgramError::from)?;
+        batches.push(Batch::new(
+            num_iters,
+            bloom_filter_capacity,
+            account.batch_size,
+            account.zkp_batch_size,
+            account.batch_size * i + batch_start_index,
+        ))?;
     }
 
     let value_vecs = BoundedVec::init_multiple(
@@ -558,8 +537,7 @@ pub fn init_queue(
         account_data,
         start_offset,
         false,
-    )
-    .map_err(ProgramError::from)?;
+    )?;
 
     let bloom_filter_stores = BoundedVec::init_multiple(
         num_stores,
@@ -567,8 +545,7 @@ pub fn init_queue(
         account_data,
         start_offset,
         true,
-    )
-    .map_err(ProgramError::from)?;
+    )?;
 
     let hashchain_store = BoundedVec::init_multiple(
         num_hashchain_stores,
@@ -576,8 +553,7 @@ pub fn init_queue(
         account_data,
         start_offset,
         false,
-    )
-    .map_err(ProgramError::from)?;
+    )?;
 
     Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
 }
@@ -586,7 +562,7 @@ pub fn get_output_queue_account_size_default() -> usize {
     let account = BatchedQueueAccount {
         metadata: QueueMetadata::default(),
         next_index: 0,
-        queue: BatchedQueue {
+        queue: BatchMetadata {
             num_batches: 2,
             batch_size: TEST_DEFAULT_BATCH_SIZE,
             zkp_batch_size: 10,
@@ -602,7 +578,7 @@ pub fn get_output_queue_account_size_from_params(
     let account = BatchedQueueAccount {
         metadata: QueueMetadata::default(),
         next_index: 0,
-        queue: BatchedQueue {
+        queue: BatchMetadata {
             num_batches: ix_data.output_queue_num_batches,
             batch_size: ix_data.output_queue_batch_size,
             zkp_batch_size: ix_data.output_queue_zkp_batch_size,
@@ -620,7 +596,7 @@ pub fn get_output_queue_account_size(
     let account = BatchedQueueAccount {
         metadata: QueueMetadata::default(),
         next_index: 0,
-        queue: BatchedQueue {
+        queue: BatchMetadata {
             num_batches,
             batch_size,
             zkp_batch_size,
@@ -630,9 +606,10 @@ pub fn get_output_queue_account_size(
     queue_account_size(&account.queue, QueueType::Output as u64).unwrap()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn assert_queue_inited(
-    queue: BatchedQueue,
-    ref_queue: BatchedQueue,
+    queue: BatchMetadata,
+    ref_queue: BatchMetadata,
     queue_type: u64,
     value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
     bloom_filter_stores: &mut Vec<ManuallyDrop<BoundedVec<u8>>>,
@@ -727,162 +704,4 @@ pub fn assert_queue_zero_copy_inited(
         num_iters,
         next_index,
     );
-}
-
-#[cfg(test)]
-pub mod tests {
-
-    use crate::{AccessMetadata, RolloverMetadata};
-
-    use super::*;
-
-    pub fn get_test_account_and_account_data(
-        batch_size: u64,
-        num_batches: u64,
-        queue_type: QueueType,
-        bloom_filter_capacity: u64,
-    ) -> (BatchedQueueAccount, Vec<u8>) {
-        let metadata = QueueMetadata {
-            next_queue: Pubkey::new_unique(),
-            access_metadata: AccessMetadata::default(),
-            rollover_metadata: RolloverMetadata::default(),
-            queue_type: queue_type as u64,
-            associated_merkle_tree: Pubkey::new_unique(),
-        };
-
-        let account = BatchedQueueAccount {
-            metadata: metadata.clone(),
-            next_index: 0,
-            queue: BatchedQueue {
-                batch_size: batch_size as u64,
-                num_batches: num_batches as u64,
-                currently_processing_batch_index: 0,
-                next_full_batch_index: 0,
-                bloom_filter_capacity,
-                zkp_batch_size: 10,
-            },
-        };
-        let account_data: Vec<u8> =
-            vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
-        (account, account_data)
-    }
-
-    #[test]
-    fn test_output_queue_account() {
-        let batch_size = 100;
-        // 1 batch in progress, 1 batch ready to be processed
-        let num_batches = 2;
-        let bloom_filter_capacity = 0;
-        let bloom_filter_num_iters = 0;
-        for queue_type in vec![QueueType::Output] {
-            let (ref_account, mut account_data) = get_test_account_and_account_data(
-                batch_size,
-                num_batches,
-                queue_type,
-                bloom_filter_capacity,
-            );
-            ZeroCopyBatchedQueueAccount::init(
-                ref_account.metadata,
-                num_batches,
-                batch_size,
-                10,
-                &mut account_data,
-                bloom_filter_num_iters,
-                bloom_filter_capacity,
-            )
-            .unwrap();
-
-            assert_queue_zero_copy_inited(&mut account_data, ref_account, bloom_filter_num_iters);
-            let mut zero_copy_account =
-                ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut account_data).unwrap();
-            let value = [1u8; 32];
-            zero_copy_account.insert_into_current_batch(&value).unwrap();
-            // assert!(zero_copy_account.insert_into_current_batch(&value).is_ok());
-            if queue_type != QueueType::Output {
-                assert!(zero_copy_account.insert_into_current_batch(&value).is_err());
-            }
-        }
-    }
-
-    #[test]
-    fn test_value_exists_in_value_vec_present() {
-        let (account, mut account_data) =
-            get_test_account_and_account_data(100, 2, QueueType::Output, 0);
-        let mut zero_copy_account = ZeroCopyBatchedQueueAccount::init(
-            account.metadata.clone(),
-            2,
-            100,
-            10,
-            &mut account_data,
-            0,
-            0,
-        )
-        .unwrap();
-
-        let value = [1u8; 32];
-        let value2 = [2u8; 32];
-
-        // 1. Functional for 1 value
-        {
-            zero_copy_account.insert_into_current_batch(&value).unwrap();
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index(1, &value),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-            assert!(zero_copy_account
-                .prove_inclusion_by_index(0, &value)
-                .is_ok());
-            // prove inclusion for value out of range returns false
-            assert_eq!(
-                zero_copy_account
-                    .prove_inclusion_by_index(100000, &[0u8; 32])
-                    .unwrap(),
-                false
-            );
-            assert!(zero_copy_account
-                .prove_inclusion_by_index_and_zero_out_leaf(0, &value)
-                .is_ok());
-        }
-        // 2. Functional does not succeed on second invocation
-        {
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index(0, &value),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-        }
-
-        // 3. Functional for 2 values
-        {
-            zero_copy_account
-                .insert_into_current_batch(&value2)
-                .unwrap();
-
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-            assert!(zero_copy_account
-                .prove_inclusion_by_index_and_zero_out_leaf(1, &value2)
-                .is_ok());
-        }
-        // 4. Functional does not succeed on second invocation
-        {
-            assert_eq!(
-                zero_copy_account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2),
-                anchor_lang::err!(AccountCompressionErrorCode::InclusionProofByIndexFailed)
-            );
-        }
-    }
 }

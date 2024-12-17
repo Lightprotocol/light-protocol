@@ -5,7 +5,7 @@ use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 use thiserror::Error;
 
 pub mod verifying_keys;
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum VerifierError {
     #[error("PublicInputsTryIntoFailed")]
     PublicInputsTryIntoFailed,
