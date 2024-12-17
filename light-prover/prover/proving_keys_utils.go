@@ -99,6 +99,11 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "inclusion_26_3.key",
 		keysDir + "inclusion_26_4.key",
 		keysDir + "inclusion_26_8.key",
+		keysDir + "inclusion_32_1.key",
+		keysDir + "inclusion_32_2.key",
+		keysDir + "inclusion_32_3.key",
+		keysDir + "inclusion_32_4.key",
+		keysDir + "inclusion_32_8.key",
 		keysDir + "mainnet_inclusion_26_1.key",
 		keysDir + "mainnet_inclusion_26_2.key",
 		keysDir + "mainnet_inclusion_26_3.key",
@@ -130,6 +135,15 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "combined_26_40_3_2.key",
 		keysDir + "combined_26_40_4_1.key",
 		keysDir + "combined_26_40_4_2.key",
+
+		keysDir + "combined_32_40_1_1.key",
+		keysDir + "combined_32_40_1_2.key",
+		keysDir + "combined_32_40_2_1.key",
+		keysDir + "combined_32_40_2_2.key",
+		keysDir + "combined_32_40_3_1.key",
+		keysDir + "combined_32_40_3_2.key",
+		keysDir + "combined_32_40_4_1.key",
+		keysDir + "combined_32_40_4_2.key",
 	}
 
 	var appendWithSubtreesKeys []string = []string{
@@ -146,6 +160,12 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "append-with-proofs_26_100.key",
 		keysDir + "append-with-proofs_26_500.key",
 		keysDir + "append-with-proofs_26_1000.key",
+
+		keysDir + "append-with-proofs_32_1.key",
+		keysDir + "append-with-proofs_32_10.key",
+		keysDir + "append-with-proofs_32_100.key",
+		keysDir + "append-with-proofs_32_500.key",
+		keysDir + "append-with-proofs_32_1000.key",
 	}
 
 	var updateKeys []string = []string{
@@ -154,6 +174,12 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "update_26_100.key",
 		keysDir + "update_26_500.key",
 		keysDir + "update_26_1000.key",
+
+		keysDir + "update_32_1.key",
+		keysDir + "update_32_10.key",
+		keysDir + "update_32_100.key",
+		keysDir + "update_32_500.key",
+		keysDir + "update_32_1000.key",
 	}
 
 	var appendWithSubtreesTestKeys []string = []string{
@@ -162,10 +188,14 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 
 	var appendWithProofsTestKeys []string = []string{
 		keysDir + "append-with-proofs_26_10.key",
+
+		keysDir + "append-with-proofs_32_10.key",
 	}
 
 	var updateTestKeys []string = []string{
 		keysDir + "update_26_10.key",
+
+		keysDir + "update_32_10.key",
 	}
 
 	var addressAppendKeys []string = []string{

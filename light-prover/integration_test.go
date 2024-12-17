@@ -171,9 +171,13 @@ func runLightweightOnlyTests(t *testing.T) {
 	t.Run("testBatchAppendWithProofsHappyPath26_10", testBatchAppendWithProofsHappyPath26_10)
 	t.Run("testBatchAppendWithProofsPreviousState26_10", testBatchAppendWithProofsPreviousState26_10)
 
+	t.Run("testBatchAppendWithProofsHappyPath32_10", testBatchAppendWithProofsHappyPath32_10)
+
 	t.Run("testBatchUpdateHappyPath26_10", testBatchUpdateHappyPath26_10)
 	t.Run("testBatchUpdateWithPreviousState26_10", testBatchUpdateWithPreviousState26_10)
 	t.Run("testBatchUpdateInvalidInput26_10", testBatchUpdateInvalidInput26_10)
+
+	t.Run("testBatchUpdateHappyPath32_10", testBatchUpdateHappyPath32_10)
 
 	t.Run("testBatchAddressAppendHappyPath40_10", testBatchAddressAppendHappyPath40_10)
 	t.Run("testBatchAddressAppendWithPreviousState40_10", testBatchAddressAppendWithPreviousState40_10)
@@ -426,6 +430,26 @@ func testBatchAppendWithProofsHappyPath26_1000(t *testing.T) {
 	}
 }
 
+func testBatchAppendWithProofsHappyPath32_10(t *testing.T) {
+	treeDepth := 32
+	batchSize := 10
+	startIndex := 0
+	params := prover.BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, true)
+
+	jsonBytes, _ := params.MarshalJSON()
+
+	response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("Expected status code %d, got %d. Response body: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+}
+
 func testBatchAppendWithSubtreesHappyPath26_10(t *testing.T) {
 	treeDepth := uint32(26)
 	batchSize := uint32(10)
@@ -641,6 +665,10 @@ func testBatchUpdateInvalidInput26_10(t *testing.T) {
 
 func testBatchUpdateHappyPath26_10(t *testing.T) {
 	runBatchUpdateTest(t, 26, 10)
+}
+
+func testBatchUpdateHappyPath32_10(t *testing.T) {
+	runBatchUpdateTest(t, 32, 10)
 }
 
 func testBatchUpdateHappyPath26_100(t *testing.T) {
