@@ -891,12 +891,12 @@ async fn invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer, &env,
-        // Some(ProverConfig {
-        //     run_mode: Some(ProverMode::Rpc),
-        //     circuits: vec![],
-        // }),
-        None,
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
 
@@ -2046,8 +2046,28 @@ async fn batch_invoke_test() {
     }
     // 7. Should success: Spend compressed accounts by zkp and index, with v1 and v2 trees
     {
-        let compressed_account_with_context_1 = test_indexer.compressed_accounts[0].clone();
-        let compressed_account_with_context_2 = test_indexer.compressed_accounts[1].clone();
+        let compressed_account_with_context_1 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+            .last()
+            .unwrap()
+            .clone();
+
+        let compressed_account_with_context_2 = test_indexer
+            .compressed_accounts
+            .iter()
+            .filter(|x| {
+                x.compressed_account.owner == payer_pubkey
+                    && x.merkle_context.nullifier_queue_pubkey == env.nullifier_queue_pubkey
+            })
+            .collect::<Vec<_>>()[0]
+            .clone();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts2(
                 Some(vec![
@@ -2086,10 +2106,7 @@ async fn batch_invoke_test() {
             },
         ];
         let merkle_context_1 = compressed_account_with_context_1.merkle_context;
-        let mut merkle_context_2 = compressed_account_with_context_2.merkle_context;
-        // // Queue index is not used it is just Some to signal that the value is not in the proof
-        merkle_context_2.queue_index = Some(QueueIndex::default());
-        println!("root indices {:?}", proof_rpc_result.root_indices);
+        let merkle_context_2 = compressed_account_with_context_2.merkle_context;
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2097,8 +2114,8 @@ async fn batch_invoke_test() {
             &output_compressed_accounts,
             &[merkle_context_1, merkle_context_2],
             &[
-                merkle_context_1.merkle_tree_pubkey,
-                merkle_context_2.nullifier_queue_pubkey,
+                merkle_context_1.nullifier_queue_pubkey, // output queue
+                merkle_context_2.merkle_tree_pubkey,
             ],
             &proof_rpc_result.root_indices,
             &Vec::new(),
@@ -2110,15 +2127,13 @@ async fn batch_invoke_test() {
         );
         println!("Combined Transaction with index and zkp -------------------------");
 
-        let result = context
-            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
-            .await;
-        assert_rpc_error(
-            result,
-            0,
-            SystemProgramError::InvalidAddressTreeHeight.into(),
-        )
-        .unwrap();
+        let event = context
+            .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[&payer], None)
+            .await
+            .unwrap()
+            .unwrap();
+        let slot = context.get_slot().await.unwrap();
+        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
     }
     create_compressed_accounts_in_batch_merkle_tree(
         &mut context,
@@ -2483,7 +2498,8 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }
-    for _ in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+    for i in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+        println!("Performing batch append {}", i);
         let bundle = test_indexer
             .state_merkle_trees
             .iter_mut()

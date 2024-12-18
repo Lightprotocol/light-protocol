@@ -78,7 +78,7 @@
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test-all": "vitest run",
         "test:unit:all": "vitest run tests/unit",
-        "test-validator": "./../../cli/test_bin/run test-validator --skip-prover",
+        "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",
         "test:e2e:test-rpc": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts",
