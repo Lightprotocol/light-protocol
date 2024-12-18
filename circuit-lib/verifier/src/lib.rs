@@ -225,6 +225,11 @@ pub fn select_verifying_key<'a>(
     num_leaves: usize,
     num_addresses: usize,
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
+    solana_program::msg!(
+        "select_verifying_key num_leaves: {}, num_addresses: {}",
+        num_leaves,
+        num_addresses
+    );
     match (num_leaves, num_addresses) {
         // Combined cases (depend on both num_leaves and num_addresses)
         (1, 1) => Ok(&combined_32_40_1_1::VERIFYINGKEY),

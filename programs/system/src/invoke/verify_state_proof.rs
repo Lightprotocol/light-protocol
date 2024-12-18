@@ -43,6 +43,13 @@ pub fn fetch_input_roots<'a>(
     for input_compressed_account_with_context in
         input_compressed_accounts_with_merkle_context.iter()
     {
+        if input_compressed_account_with_context
+            .merkle_context
+            .queue_index
+            .is_some()
+        {
+            continue;
+        }
         msg!(
             "merkle tree account pubkey {}",
             remaining_accounts[input_compressed_account_with_context
@@ -69,6 +76,9 @@ pub fn fetch_input_roots<'a>(
         }
     }
     for readonly_input_account in read_only_accounts.iter() {
+        if readonly_input_account.merkle_context.queue_index.is_some() {
+            continue;
+        }
         let internal_height = fetch_root::<true, true>(
             &remaining_accounts[readonly_input_account
                 .merkle_context
@@ -455,17 +465,19 @@ pub fn verify_state_proof(
     if state_tree_height as u32 == DEFAULT_BATCH_STATE_TREE_HEIGHT
         || address_tree_height as u32 == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
     {
-        let public_input_hash = if !leaves.is_empty() {
+        let public_input_hash = if !leaves.is_empty() && !addresses.is_empty() {
+            let inclusion_hash =
+                create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?;
+            let non_inclusion_hash = create_two_inputs_hash_chain(address_roots, addresses)
+                .map_err(ProgramError::from)?;
+            msg!("inclusion_hash == {:?}", inclusion_hash);
+            msg!("non_inclusion_hash == {:?}", non_inclusion_hash);
+            create_hash_chain_from_slice(&[inclusion_hash, non_inclusion_hash])
+                .map_err(ProgramError::from)?
+        } else if !leaves.is_empty() {
             create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
-        } else if !addresses.is_empty() {
-            create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         } else {
-            create_hash_chain_from_slice(&[
-                create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?,
-                create_two_inputs_hash_chain(address_roots, addresses)
-                    .map_err(ProgramError::from)?,
-            ])
-            .map_err(ProgramError::from)?
+            create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         };
         msg!("public_input_hash == {:?}", public_input_hash);
         let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;

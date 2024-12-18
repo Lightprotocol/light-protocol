@@ -418,6 +418,10 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.Pr
 
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
+		fmt.Printf("provingSystem inputs %+v\n", provingSystem.InclusionNumberOfCompressedAccounts)
+		fmt.Printf("provingSystem addresses %+v\n", provingSystem.NonInclusionNumberOfCompressedAccounts)
+		fmt.Printf("provingSystem inclusionTreeHeight %+v\n", provingSystem.InclusionTreeHeight)
+		fmt.Printf("provingSystem nonInclusionTreeHeight %+v\n", provingSystem.NonInclusionTreeHeight)
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
 			ps = provingSystem
 			break

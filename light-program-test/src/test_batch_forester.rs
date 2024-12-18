@@ -859,7 +859,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
 
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
-
+    println!("start_index {:?}", start_index);
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,

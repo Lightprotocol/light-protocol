@@ -217,6 +217,7 @@ pub async fn init_program_test_env(
                 run_mode: None,
                 circuits: vec![
                     ProofType::BatchAppendWithProofsTest,
+                    ProofType::BatchAddressAppendTest,
                     ProofType::BatchUpdateTest,
                     ProofType::Inclusion,
                     ProofType::NonInclusion,

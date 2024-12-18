@@ -530,10 +530,33 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             ])
                             .unwrap(),
                         );
+                        println!(
+                            "inclusion public input hash offchain {:?}",
+                            bigint_to_u8_32(
+                                &string_to_big_int(
+                                    &inclusion_payload.as_ref().unwrap().public_input_hash,
+                                )
+                                .unwrap(),
+                            )
+                            .unwrap()
+                        );
+                        println!(
+                            "non inclusion public input hash offchain {:?}",
+                            bigint_to_u8_32(
+                                &string_to_big_int(&non_inclusion_payload.public_input_hash)
+                                    .unwrap()
+                            )
+                            .unwrap()
+                        );
+
+                        println!(
+                            "public input hash offchain {:?}",
+                            public_input_hash.to_bytes_be()
+                        );
 
                         CombinedJsonStruct {
                             circuit_type: ProofType::Combined.to_string(),
-                            state_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+                            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
                             address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                             public_input_hash: big_int_to_string(&public_input_hash),
                             inclusion: inclusion_payload.unwrap().inputs,

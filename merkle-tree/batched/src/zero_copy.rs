@@ -16,8 +16,8 @@ pub enum ZeroCopyError {
 impl From<ZeroCopyError> for u32 {
     fn from(e: ZeroCopyError) -> u32 {
         match e {
-            ZeroCopyError::InvalidAccountSize => 14301,
-            ZeroCopyError::InvalidDiscriminator => 14302,
+            ZeroCopyError::InvalidAccountSize => 14401,
+            ZeroCopyError::InvalidDiscriminator => 14402,
         }
     }
 }
