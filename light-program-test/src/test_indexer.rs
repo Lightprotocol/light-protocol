@@ -1,4 +1,11 @@
+use account_compression::StateMerkleTreeAccount;
+use anchor_lang::Discriminator;
 use borsh::BorshDeserialize;
+use forester_utils::get_concurrent_merkle_tree;
+use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
+    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+};
 use light_client::{
     indexer::{
         AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
@@ -7,12 +14,17 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
 };
-use light_hasher::Poseidon;
+use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
+use light_prover_client::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy;
 use light_prover_client::{
     gnark::helpers::{big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig},
     helpers::bigint_to_u8_32,
+};
+use light_prover_client::{
+    gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
+    inclusion::merkle_inclusion_proof_inputs::InclusionProofInputs,
 };
 use light_prover_client::{
     gnark::{
@@ -25,7 +37,7 @@ use light_prover_client::{
         non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
-    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    inclusion::merkle_inclusion_proof_inputs::InclusionMerkleProofInputs,
     non_inclusion::merkle_non_inclusion_proof_inputs::{
         get_non_inclusion_proof_inputs, NonInclusionProofInputs,
     },
@@ -239,10 +251,15 @@ where
         let (root_indices, address_root_indices, json_payload) =
             match (compressed_accounts, new_addresses) {
                 (Some(accounts), None) => {
-                    let (payload, indices) = self
+                    let (payload, payload_legacy, indices) = self
                         .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
                         .await;
-                    (indices, Vec::new(), payload.to_string())
+
+                    if let Some(payload) = payload {
+                        (indices, Vec::new(), payload.to_string())
+                    } else {
+                        (indices, Vec::new(), payload_legacy.unwrap().to_string())
+                    }
                 }
                 (None, Some(addresses)) => {
                     let (payload, payload_legacy, indices) = self
@@ -260,9 +277,10 @@ where
                     (Vec::<u16>::new(), indices, payload_string)
                 }
                 (Some(accounts), Some(addresses)) => {
-                    let (inclusion_payload, inclusion_indices) = self
+                    let (inclusion_payload, inclusion_payload_legacy, inclusion_indices) = self
                         .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
                         .await;
+
                     let (
                         non_inclusion_payload,
                         non_inclusion_payload_legacy,
@@ -279,8 +297,10 @@ where
                             num_bigint::Sign::Plus,
                             &create_hash_chain_from_slice(&[
                                 bigint_to_u8_32(
-                                    &string_to_big_int(&inclusion_payload.public_input_hash)
-                                        .unwrap(),
+                                    &string_to_big_int(
+                                        &inclusion_payload.as_ref().unwrap().public_input_hash,
+                                    )
+                                    .unwrap(),
                                 )
                                 .unwrap(),
                                 bigint_to_u8_32(
@@ -294,10 +314,10 @@ where
 
                         CombinedJsonStruct {
                             circuit_type: ProofType::Combined.to_string(),
-                            state_tree_height: 26,
-                            address_tree_height: 40,
+                            state_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+                            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                             public_input_hash: big_int_to_string(&public_input_hash),
-                            inclusion: inclusion_payload.inputs,
+                            inclusion: inclusion_payload.unwrap().inputs,
                             non_inclusion: non_inclusion_payload.inputs,
                         }
                         .to_string()
@@ -306,8 +326,7 @@ where
                             circuit_type: ProofType::Combined.to_string(),
                             state_tree_height: 26,
                             address_tree_height: 26,
-
-                            inclusion: inclusion_payload.inputs,
+                            inclusion: inclusion_payload_legacy.unwrap().inputs,
                             non_inclusion: non_inclusion_payload.inputs,
                         }
                         .to_string()
@@ -409,7 +428,7 @@ where
             prover_config.circuits.push(ProofType::NonInclusion);
         }
 
-        spawn_prover(true, prover_config).await;
+        spawn_prover(false, prover_config).await;
 
         health_check(20, 1).await;
 
@@ -452,9 +471,15 @@ where
         merkle_tree_pubkeys: &[Pubkey],
         accounts: &[[u8; 32]],
         rpc: &mut R,
-    ) -> (BatchInclusionJsonStruct, Vec<u16>) {
+    ) -> (
+        Option<BatchInclusionJsonStruct>,
+        Option<BatchInclusionJsonStructLegacy>,
+        Vec<u16>,
+    ) {
         let mut inclusion_proofs = Vec::new();
         let mut root_indices = Vec::new();
+        let mut height = 0;
+
         for (i, account) in accounts.iter().enumerate() {
             let bundle = &self
                 .state_merkle_trees
@@ -463,27 +488,97 @@ where
                 .unwrap();
             let merkle_tree = &bundle.merkle_tree;
             let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
+            println!("merkle_tree height {:?}", merkle_tree.height);
             let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
+            println!("proof length {:?}", proof.len());
+            let merkle_tree_account = rpc
+                .get_account(merkle_tree_pubkeys[i])
+                .await
+                .unwrap()
+                .unwrap();
+
+            let discriminator = merkle_tree_account.data[0..8].try_into().unwrap();
+            let version = match discriminator {
+                StateMerkleTreeAccount::DISCRIMINATOR => 1,
+                BatchedMerkleTreeAccount::DISCRIMINATOR => 2,
+                _ => panic!("Unsupported discriminator"),
+            };
+            println!("bundle.version {:?}", version);
+            if height == 0 {
+                height = merkle_tree.height;
+            } else {
+                assert_eq!(height, merkle_tree.height);
+            }
             inclusion_proofs.push(InclusionMerkleProofInputs {
                 root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
                 leaf: BigInt::from_be_bytes(account),
                 path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
-            let onchain_merkle_tree = rpc
-                .get_state_merkle_tree(merkle_tree_pubkeys[i])
-                .await
+            let (root_index, root) = if version == 1 {
+                let fetched_merkle_tree =
+                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                        rpc,
+                        merkle_tree_pubkeys[i],
+                    )
+                    .await;
+                // for i in 0..fetched_merkle_tree.roots.len() {
+                //     inf!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
+                // }
+                // info!(
+                //     "sequence number {:?}",
+                //     fetched_merkle_tree.sequence_number()
+                // );
+                // info!("root index {:?}", fetched_merkle_tree.root_index());
+                // info!("local sequence number {:?}", merkle_tree.sequence_number);
+                (
+                    fetched_merkle_tree.root_index() as u32,
+                    fetched_merkle_tree.root(),
+                )
+            } else {
+                let mut merkle_tree_account = rpc
+                    .get_account(merkle_tree_pubkeys[i])
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                    merkle_tree_account.data.as_mut_slice(),
+                )
                 .unwrap();
+                (
+                    merkle_tree.get_root_index(),
+                    merkle_tree.get_root().unwrap(),
+                )
+            };
+            assert_eq!(merkle_tree.root(), root, "Merkle tree root mismatch");
 
-            root_indices.push(onchain_merkle_tree.root_index() as u16);
+            root_indices.push(root_index as u16);
         }
 
-        let inclusion_proof_inputs =
-            InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
-        let batch_inclusion_proof_inputs =
-            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
+        let (batch_inclusion_proof_inputs, legacy) = if height
+            == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
+        {
+            let inclusion_proof_inputs =
+                InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
+            (
+                Some(BatchInclusionJsonStruct::from_inclusion_proof_inputs(
+                    &inclusion_proof_inputs,
+                )),
+                None,
+            )
+        } else if height == STATE_MERKLE_TREE_HEIGHT as usize {
+            let inclusion_proof_inputs = InclusionProofInputsLegacy(inclusion_proofs.as_slice());
+            (
+                None,
+                Some(BatchInclusionJsonStructLegacy::from_inclusion_proof_inputs(
+                    &inclusion_proof_inputs,
+                )),
+            )
+        } else {
+            panic!("Unsupported tree height")
+        };
 
-        (batch_inclusion_proof_inputs, root_indices)
+        (batch_inclusion_proof_inputs, legacy, root_indices)
     }
 
     async fn process_non_inclusion_proofs(
