@@ -566,7 +566,7 @@ where
                 )),
                 None,
             )
-        } else if height == STATE_MERKLE_TREE_HEIGHT as usize {
+        } else if height == STATE_MERKLE_TREE_HEIGHT {
             let inclusion_proof_inputs = InclusionProofInputsLegacy(inclusion_proofs.as_slice());
             (
                 None,
