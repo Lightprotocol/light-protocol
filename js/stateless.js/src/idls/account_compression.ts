@@ -1296,87 +1296,22 @@ export type AccountCompression = {
         },
         {
             code: 6027;
-            name: 'InvalidCommitmentLength';
-            msg: 'Invalid commitment length';
-        },
-        {
-            code: 6028;
-            name: 'BloomFilterFull';
-            msg: 'BloomFilterFull';
-        },
-        {
-            code: 6029;
-            name: 'BatchInsertFailed';
-            msg: 'BatchInsertFailed';
-        },
-        {
-            code: 6030;
-            name: 'BatchNotReady';
-            msg: 'BatchNotReady';
-        },
-        {
-            code: 6031;
-            name: 'SizeMismatch';
-        },
-        {
-            code: 6032;
-            name: 'BatchAlreadyInserted';
-        },
-        {
-            code: 6033;
-            name: 'InvalidBloomFilterCapacity';
-        },
-        {
-            code: 6034;
-            name: 'InvalidCircuitBatchSize';
-        },
-        {
-            code: 6035;
-            name: 'InvalidDiscriminator';
-        },
-        {
-            code: 6036;
-            name: 'BatchSizeNotDivisibleByZkpBatchSize';
-            msg: 'batch_size is not divisible by zkp_batch_size';
-        },
-        {
-            code: 6037;
-            name: 'InclusionProofByIndexFailed';
-        },
-        {
-            code: 6038;
             name: 'TxHashUndefined';
         },
         {
-            code: 6039;
+            code: 6028;
             name: 'InputDeserializationFailed';
         },
         {
-            code: 6040;
-            name: 'InvalidBatch';
-        },
-        {
-            code: 6041;
-            name: 'LeafIndexNotInBatch';
-        },
-        {
-            code: 6042;
+            code: 6029;
             name: 'UnsupportedParameters';
         },
         {
-            code: 6043;
-            name: 'InvalidTreeType';
-        },
-        {
-            code: 6044;
-            name: 'InvalidNetworkFee';
-        },
-        {
-            code: 6045;
+            code: 6030;
             name: 'AddressMerkleTreeAccountDiscriminatorMismatch';
         },
         {
-            code: 6046;
+            code: 6031;
             name: 'StateMerkleTreeAccountDiscriminatorMismatch';
         },
     ];
@@ -2680,87 +2615,22 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6027,
-            name: 'InvalidCommitmentLength',
-            msg: 'Invalid commitment length',
-        },
-        {
-            code: 6028,
-            name: 'BloomFilterFull',
-            msg: 'BloomFilterFull',
-        },
-        {
-            code: 6029,
-            name: 'BatchInsertFailed',
-            msg: 'BatchInsertFailed',
-        },
-        {
-            code: 6030,
-            name: 'BatchNotReady',
-            msg: 'BatchNotReady',
-        },
-        {
-            code: 6031,
-            name: 'SizeMismatch',
-        },
-        {
-            code: 6032,
-            name: 'BatchAlreadyInserted',
-        },
-        {
-            code: 6033,
-            name: 'InvalidBloomFilterCapacity',
-        },
-        {
-            code: 6034,
-            name: 'InvalidCircuitBatchSize',
-        },
-        {
-            code: 6035,
-            name: 'InvalidDiscriminator',
-        },
-        {
-            code: 6036,
-            name: 'BatchSizeNotDivisibleByZkpBatchSize',
-            msg: 'batch_size is not divisible by zkp_batch_size',
-        },
-        {
-            code: 6037,
-            name: 'InclusionProofByIndexFailed',
-        },
-        {
-            code: 6038,
             name: 'TxHashUndefined',
         },
         {
-            code: 6039,
+            code: 6028,
             name: 'InputDeserializationFailed',
         },
         {
-            code: 6040,
-            name: 'InvalidBatch',
-        },
-        {
-            code: 6041,
-            name: 'LeafIndexNotInBatch',
-        },
-        {
-            code: 6042,
+            code: 6029,
             name: 'UnsupportedParameters',
         },
         {
-            code: 6043,
-            name: 'InvalidTreeType',
-        },
-        {
-            code: 6044,
-            name: 'InvalidNetworkFee',
-        },
-        {
-            code: 6045,
+            code: 6030,
             name: 'AddressMerkleTreeAccountDiscriminatorMismatch',
         },
         {
-            code: 6046,
+            code: 6031,
             name: 'StateMerkleTreeAccountDiscriminatorMismatch',
         },
     ],

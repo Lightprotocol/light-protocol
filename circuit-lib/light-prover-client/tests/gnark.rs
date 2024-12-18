@@ -1,11 +1,11 @@
+use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_append_with_subtrees::get_batch_append_with_subtrees_inputs;
 use light_prover_client::batch_update::get_batch_update_inputs;
 use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::batch_append_with_subtrees_json_formatter::append_inputs_string;
 use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
+use light_prover_client::gnark::inclusion_json_formatter_legacy;
 use light_prover_client::gnark::non_inclusion_json_formatter_legacy::non_inclusion_inputs_string;
 use light_prover_client::gnark::{
     combined_json_formatter::combined_inputs_string,
@@ -35,7 +35,7 @@ use serial_test::serial;
 
 #[serial]
 #[tokio::test]
-async fn prove_inclusion_full() {
+async fn prove_inclusion() {
     init_logger();
     spawn_prover(
         true,
@@ -57,6 +57,22 @@ async fn prove_inclusion_full() {
             .expect("Failed to execute request.");
         assert!(response_result.status().is_success());
     }
+
+    // legacy height 26
+    {
+        for number_of_utxos in &[1, 2, 3, 4, 8] {
+            let inputs =
+                inclusion_json_formatter_legacy::inclusion_inputs_string(*number_of_utxos as usize);
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(inputs)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+        }
+    }
 }
 
 #[serial]
@@ -73,26 +89,34 @@ async fn prove_combined() {
     .await;
     let client = Client::new();
     {
-        let inputs = combined_inputs_string_legacy(1);
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
+        for i in 1..=4 {
+            for non_i in 1..=2 {
+                let inputs = combined_inputs_string_legacy(i, non_i);
+                let response_result = client
+                    .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                    .header("Content-Type", "text/plain; charset=utf-8")
+                    .body(inputs)
+                    .send()
+                    .await
+                    .expect("Failed to execute request.");
+                assert!(response_result.status().is_success());
+            }
+        }
     }
     {
-        let inputs = combined_inputs_string(1);
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
+        for i in 1..=4 {
+            for non_i in 1..=2 {
+                let inputs = combined_inputs_string(i, non_i);
+                let response_result = client
+                    .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                    .header("Content-Type", "text/plain; charset=utf-8")
+                    .body(inputs)
+                    .send()
+                    .await
+                    .expect("Failed to execute request.");
+                assert!(response_result.status().is_success());
+            }
+        }
     }
 }
 
@@ -111,32 +135,36 @@ async fn prove_non_inclusion() {
     let client = Client::new();
     // legacy height 26
     {
-        let (inputs, _) = non_inclusion_inputs_string(1);
+        for i in 1..=2 {
+            let (inputs, _) = non_inclusion_inputs_string(i);
 
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(inputs)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+        }
     }
     // height 40
     {
-        let inputs =
+        for i in [1, 2].iter() {
+            let inputs =
             light_prover_client::gnark::non_inclusion_json_formatter::non_inclusion_inputs_string(
-                1,
+                i.to_owned(),
             );
 
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(inputs)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+        }
     }
 }
 
@@ -152,7 +180,7 @@ async fn prove_batch_update() {
         },
     )
     .await;
-    const HEIGHT: usize = 26;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
@@ -219,74 +247,6 @@ async fn prove_batch_update() {
 
 #[serial]
 #[tokio::test]
-async fn prove_batch_append_with_subtrees() {
-    init_logger();
-    println!("spawning prover");
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAppendWithSubtreesTest],
-        },
-    )
-    .await;
-    println!("prover spawned");
-
-    const HEIGHT: usize = 26;
-    const CANOPY: usize = 0;
-    let num_insertions = 10;
-
-    // Do multiple rounds of batch appends
-    for _ in 0..2 {
-        info!("initializing merkle tree for append.");
-        let merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
-
-        let old_subtrees = merkle_tree.get_subtrees();
-        let mut leaves = vec![];
-
-        // Create leaves for this batch append
-        for i in 0..num_insertions {
-            let mut bn: [u8; 32] = [0; 32];
-            bn[31] = i as u8;
-            let leaf: [u8; 32] = Poseidon::hash(&bn).unwrap();
-            leaves.push(leaf);
-        }
-
-        let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
-
-        // Generate inputs for batch append operation
-        let inputs = get_batch_append_with_subtrees_inputs::<HEIGHT>(
-            merkle_tree.layers[0].len(),
-            old_subtrees.try_into().unwrap(),
-            leaves,
-            leaves_hashchain,
-        )
-        .unwrap();
-
-        // Send proof request to the server
-        let client = Client::new();
-        let inputs = append_inputs_string(&inputs);
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-
-        let status = response_result.status();
-        let body = response_result.text().await.unwrap();
-        assert!(
-            status.is_success(),
-            "Batch append proof generation failed. Status: {}, Body: {}",
-            status,
-            body
-        );
-    }
-}
-
-#[serial]
-#[tokio::test]
 async fn prove_batch_append_with_proofs() {
     init_logger();
 
@@ -300,7 +260,7 @@ async fn prove_batch_append_with_proofs() {
     )
     .await;
 
-    const HEIGHT: usize = 26;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     info!("Initializing Merkle tree for append.");

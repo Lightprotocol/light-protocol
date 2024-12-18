@@ -1,3 +1,6 @@
+use light_batched_merkle_tree::constants::{
+    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+};
 use light_utils::hashchain::create_hash_chain;
 use num_bigint::BigInt;
 use serde::Serialize;
@@ -33,19 +36,22 @@ pub struct CombinedJsonStruct {
 }
 
 impl CombinedJsonStruct {
-    fn new_with_public_inputs(number_of_utxos: usize) -> Result<Self, ProverClientError> {
+    fn new_with_public_inputs(
+        num_inclusion: usize,
+        num_non_inclusion: usize,
+    ) -> Result<Self, ProverClientError> {
         let (inclusion, inclusion_public_input_hash) =
-            BatchInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+            BatchInclusionJsonStruct::new_with_public_inputs(num_inclusion);
         let (non_inclusion, non_inclusion_public_input_hash) =
-            BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos)?;
+            BatchNonInclusionJsonStruct::new_with_public_inputs(num_non_inclusion)?;
 
         let public_inputs_hash =
             create_hash_chain([inclusion_public_input_hash, non_inclusion_public_input_hash])?;
 
         Ok(Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: 26,
-            address_tree_height: 40,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&BigInt::from_bytes_be(
                 num_bigint::Sign::Plus,
                 public_inputs_hash.as_slice(),
@@ -64,8 +70,8 @@ impl CombinedJsonStruct {
 
         Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: 26,
-            address_tree_height: 40,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,
@@ -78,7 +84,7 @@ impl CombinedJsonStruct {
     }
 }
 
-pub fn combined_inputs_string(number_of_utxos: usize) -> String {
-    let json_struct = CombinedJsonStruct::new_with_public_inputs(number_of_utxos);
+pub fn combined_inputs_string(num_inclusion: usize, num_non_inclusion: usize) -> String {
+    let json_struct = CombinedJsonStruct::new_with_public_inputs(num_inclusion, num_non_inclusion);
     json_struct.unwrap().to_string()
 }

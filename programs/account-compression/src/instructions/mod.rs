@@ -54,3 +54,6 @@ pub use batch_update_address_tree::*;
 
 pub mod rollover_batch_address_merkle_tree;
 pub use rollover_batch_address_merkle_tree::*;
+
+pub mod migrate_state;
+pub use migrate_state::*;

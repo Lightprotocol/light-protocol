@@ -4,6 +4,7 @@ pub mod batch_update_address_tree;
 pub mod initialize_batched_address_tree;
 pub mod initialize_batched_state_tree;
 pub mod initialize_tree_and_queue;
+pub mod migrate_state;
 pub mod nullify;
 pub mod register_program;
 pub mod rollover_batch_address_tree;

@@ -1,18 +1,16 @@
 use crate::{
     errors::SystemProgramError,
-    sdk::{
-        accounts::InvokeAccounts,
-        compressed_account::{
-            FetchRoot, PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
-        },
+    sdk::compressed_account::{
+        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
     },
     NewAddressParamsPacked,
 };
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, Bumps, Discriminator};
+use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
     queue::ZeroCopyBatchedQueueAccount,
 };
@@ -26,8 +24,8 @@ use light_utils::{
     hashchain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
 };
 use light_verifier::{
-    select_verifying_key, verify_create_addresses_and_merkle_proof_zkp,
-    verify_create_addresses_zkp, CompressedProof,
+    select_verifying_key, verify_create_addresses_and_inclusion_proof,
+    verify_create_addresses_proof, verify_inclusion_proof, CompressedProof,
 };
 use std::mem;
 
@@ -35,112 +33,93 @@ use super::PackedReadOnlyAddress;
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_input_compressed_account_roots<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + Bumps,
-    F: FetchRoot,
->(
-    input_compressed_accounts_with_merkle_context: &'a [F],
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    roots: &'a mut Vec<[u8; 32]>,
-) -> Result<()> {
+pub fn fetch_input_roots<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
+    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
+    read_only_accounts: &'a [PackedReadOnlyCompressedAccount],
+    input_roots: &'a mut Vec<[u8; 32]>,
+) -> Result<u8> {
+    let mut state_tree_height = 0;
     for input_compressed_account_with_context in
         input_compressed_accounts_with_merkle_context.iter()
     {
-        // Skip accounts which prove inclusion by index in output queue.
-        if input_compressed_account_with_context
-            .get_merkle_context()
-            .queue_index
-            .is_some()
-        {
-            continue;
-        }
-        let merkle_tree_account_info = &ctx.remaining_accounts[input_compressed_account_with_context
-            .get_merkle_context()
-            .merkle_tree_pubkey_index
-            as usize];
-        let mut discriminator_bytes = [0u8; 8];
-        discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
-        match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => {
-                let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
-                let merkle_tree =
-                    ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-                        &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-                    )
-                    .map_err(ProgramError::from)?;
-                let fetched_roots = &merkle_tree.roots;
-
-                (*roots).push(
-                    fetched_roots[input_compressed_account_with_context.get_root_index() as usize],
-                );
-            }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                let merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                        merkle_tree_account_info,
-                    )
-                    .map_err(ProgramError::from)?;
-                (*roots).push(
-                    merkle_tree.root_history
-                        [input_compressed_account_with_context.get_root_index() as usize],
-                );
-            }
-            _ => {
-                return err!(
-                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                );
-            }
+        msg!(
+            "merkle tree account pubkey {}",
+            remaining_accounts[input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as usize]
+                .key()
+        );
+        let internal_height = fetch_root::<false, true>(
+            &remaining_accounts[input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as usize],
+            input_compressed_account_with_context.root_index,
+            input_roots,
+        )?;
+        if state_tree_height == 0 {
+            state_tree_height = internal_height;
+        } else if state_tree_height != internal_height {
+            msg!(
+                "tree height {} != internal height {}",
+                state_tree_height,
+                internal_height
+            );
+            return err!(SystemProgramError::InvalidAddressTreeHeight);
         }
     }
-    Ok(())
+    for readonly_input_account in read_only_accounts.iter() {
+        let internal_height = fetch_root::<true, true>(
+            &remaining_accounts[readonly_input_account
+                .merkle_context
+                .merkle_tree_pubkey_index as usize],
+            readonly_input_account.root_index,
+            input_roots,
+        )?;
+        if state_tree_height == 0 {
+            state_tree_height = internal_height;
+        } else if state_tree_height != internal_height {
+            return err!(SystemProgramError::InvalidAddressTreeHeight);
+        }
+    }
+    Ok(state_tree_height)
 }
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_roots_address_merkle_tree<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + Bumps,
->(
+pub fn fetch_address_roots<'a>(
+    remaining_accounts: &'a [AccountInfo<'_>],
     new_address_params: &'a [NewAddressParamsPacked],
     read_only_addresses: &'a [PackedReadOnlyAddress],
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    roots: &'a mut Vec<[u8; 32]>,
+    address_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8> {
-    let mut height = 0;
+    let mut address_tree_height = 0;
     for new_address_param in new_address_params.iter() {
-        let _height = fetch_address_root::<false, A>(
-            ctx,
-            new_address_param.address_merkle_tree_account_index,
+        let internal_height = fetch_root::<false, false>(
+            &remaining_accounts[new_address_param.address_merkle_tree_account_index as usize],
             new_address_param.address_merkle_tree_root_index,
-            roots,
+            address_roots,
         )?;
-        if height == 0 {
-            height = _height;
-        } else if height != _height {
+        if address_tree_height == 0 {
+            address_tree_height = internal_height;
+        } else if address_tree_height != internal_height {
             return err!(SystemProgramError::InvalidAddressTreeHeight);
         }
     }
     for read_only_address in read_only_addresses.iter() {
-        let _height = fetch_address_root::<true, A>(
-            ctx,
-            read_only_address.address_merkle_tree_account_index,
+        let internal_height = fetch_root::<true, false>(
+            &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize],
             read_only_address.address_merkle_tree_root_index,
-            roots,
+            address_roots,
         )?;
-        if height == 0 {
-            height = _height;
-        } else if height != _height {
+        if address_tree_height == 0 {
+            address_tree_height = internal_height;
+        } else if address_tree_height != internal_height {
             return err!(SystemProgramError::InvalidAddressTreeHeight);
         }
     }
-    Ok(height)
+
+    Ok(address_tree_height)
 }
 
 /// For each input account which is marked to be proven by index
@@ -148,9 +127,9 @@ pub fn fetch_roots_address_merkle_tree<
 /// - note the output queue checks whether the value acutally exists in the queue
 /// - the purpose of this check is to catch marked input accounts which shouldn't be proven by index
 #[inline(always)]
-pub fn verify_input_accounts_proof_by_index<'a>(
-    remaining_accounts: &'a [AccountInfo<'_>],
-    input_accounts: &'a [PackedCompressedAccountWithMerkleContext],
+pub fn verify_input_accounts_proof_by_index(
+    remaining_accounts: &[AccountInfo<'_>],
+    input_accounts: &[PackedCompressedAccountWithMerkleContext],
 ) -> Result<()> {
     for account in input_accounts.iter() {
         if account.merkle_context.queue_index.is_some() {
@@ -167,6 +146,82 @@ pub fn verify_input_accounts_proof_by_index<'a>(
         }
     }
     Ok(())
+}
+
+fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
+    merkle_tree_account_info: &AccountInfo<'_>,
+    root_index: u16,
+    roots: &mut Vec<[u8; 32]>,
+) -> Result<u8> {
+    let height;
+    let mut discriminator_bytes = [0u8; 8];
+    discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
+    match discriminator_bytes {
+        AddressMerkleTreeAccount::DISCRIMINATOR => {
+            if IS_READ_ONLY {
+                msg!("Read only addresses are only supported for batch address trees.");
+                return err!(
+                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
+                );
+            }
+            let merkle_tree = merkle_tree_account_info.try_borrow_data()?;
+            let merkle_tree =
+                IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(
+                    &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
+                )
+                .map_err(ProgramError::from)?;
+            height = merkle_tree.height as u8;
+            (*roots).push(merkle_tree.roots[root_index as usize]);
+        }
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            if IS_STATE {
+                let merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                        merkle_tree_account_info,
+                    )
+                    .map_err(ProgramError::from)?;
+                (*roots).push(merkle_tree.root_history[root_index as usize]);
+                height = merkle_tree.get_account().height as u8;
+            } else {
+                let merkle_tree =
+                    ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+                        merkle_tree_account_info,
+                    )
+                    .map_err(ProgramError::from)?;
+                height = merkle_tree.get_account().height as u8;
+                (*roots).push(merkle_tree.root_history[root_index as usize]);
+            }
+        }
+        StateMerkleTreeAccount::DISCRIMINATOR => {
+            if IS_READ_ONLY {
+                msg!("Read only addresses are only supported for batch address trees.");
+                return err!(
+                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                );
+            }
+            let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
+            let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+                &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+            )
+            .map_err(ProgramError::from)?;
+            let fetched_roots = &merkle_tree.roots;
+
+            (*roots).push(fetched_roots[root_index as usize]);
+            height = merkle_tree.height as u8;
+        }
+        _ => {
+            if IS_STATE {
+                return err!(
+                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                );
+            } else {
+                return err!(
+                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
+                );
+            }
+        }
+    }
+    Ok(height)
 }
 
 /// For each read-only account
@@ -251,59 +306,6 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
         }
     }
     Ok(())
-}
-
-fn fetch_address_root<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    const IS_READ_ONLY: bool,
-    A: InvokeAccounts<'info> + Bumps,
->(
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    address_merkle_tree_account_index: u8,
-    address_merkle_tree_root_index: u16,
-    roots: &'a mut Vec<[u8; 32]>,
-) -> Result<u8> {
-    let height;
-    let merkle_tree_account_info =
-        &ctx.remaining_accounts[address_merkle_tree_account_index as usize];
-    let mut discriminator_bytes = [0u8; 8];
-    discriminator_bytes.copy_from_slice(&merkle_tree_account_info.try_borrow_data()?[0..8]);
-    match discriminator_bytes {
-        AddressMerkleTreeAccount::DISCRIMINATOR => {
-            if IS_READ_ONLY {
-                msg!("Read only addresses are only supported for batch address trees.");
-                return err!(
-                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-                );
-            }
-            let merkle_tree = merkle_tree_account_info.try_borrow_data()?;
-            let merkle_tree =
-                IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(
-                    &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
-                )
-                .map_err(ProgramError::from)?;
-            height = merkle_tree.height as u8;
-            (*roots).push(merkle_tree.roots[address_merkle_tree_root_index as usize]);
-        }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                merkle_tree_account_info,
-            )
-            .map_err(ProgramError::from)?;
-            height = merkle_tree.get_account().height as u8;
-
-            (*roots).push(merkle_tree.root_history[address_merkle_tree_root_index as usize]);
-        }
-        _ => {
-            return err!(
-                AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-            );
-        }
-    }
-    Ok(height)
 }
 
 /// Hashes the input compressed accounts and stores the results in the leaves array.
@@ -429,6 +431,7 @@ pub fn verify_state_proof(
     addresses: &[[u8; 32]],
     compressed_proof: &CompressedProof,
     address_tree_height: u8,
+    state_tree_height: u8,
 ) -> anchor_lang::Result<()> {
     // Accounts proven by index are not part of the zkp.
     // filter out accounts which are proven by index with queue_index.is_some()
@@ -443,12 +446,15 @@ pub fn verify_state_proof(
         }
     }
     // leave here for debugging
+    msg!("state_tree_height == {}", state_tree_height);
     msg!("address_tree_height == {}", address_tree_height);
     msg!("addresses.len() == {}", addresses.len());
     msg!("address_roots.len() == {}", address_roots.len());
     msg!("leaves.len() == {}", leaves.len());
     msg!("roots.len() == {}", roots.len());
-    if address_tree_height == 40 || addresses.is_empty() {
+    if state_tree_height as u32 == DEFAULT_BATCH_STATE_TREE_HEIGHT
+        || address_tree_height as u32 == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
+    {
         let public_input_hash = if !leaves.is_empty() {
             create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
         } else if !addresses.is_empty() {
@@ -465,22 +471,20 @@ pub fn verify_state_proof(
         let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
         light_verifier::verify(&[public_input_hash], compressed_proof, vk)
             .map_err(ProgramError::from)?;
+    } else if state_tree_height == 26 && address_tree_height == 26 {
+        verify_create_addresses_and_inclusion_proof(
+            roots,
+            leaves,
+            address_roots,
+            addresses,
+            compressed_proof,
+        )
+        .map_err(ProgramError::from)?;
+    } else if state_tree_height == 26 {
+        verify_inclusion_proof(roots, leaves, compressed_proof).map_err(ProgramError::from)?;
     } else if address_tree_height == 26 {
-        if !addresses.is_empty() && !leaves.is_empty() {
-            verify_create_addresses_and_merkle_proof_zkp(
-                roots,
-                leaves,
-                address_roots,
-                addresses,
-                compressed_proof,
-            )
+        verify_create_addresses_proof(address_roots, addresses, compressed_proof)
             .map_err(ProgramError::from)?;
-        } else if !addresses.is_empty() {
-            verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
-                .map_err(ProgramError::from)?;
-        } else {
-            return err!(SystemProgramError::InvalidAddressTreeHeight);
-        }
     } else {
         return err!(SystemProgramError::InvalidAddressTreeHeight);
     }

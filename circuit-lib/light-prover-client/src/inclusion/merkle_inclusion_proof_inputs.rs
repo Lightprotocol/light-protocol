@@ -10,14 +10,6 @@ pub struct InclusionMerkleProofInputs {
     pub path_elements: Vec<BigInt>,
 }
 
-impl InclusionMerkleProofInputs {
-    pub fn public_inputs_arr(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let leaf = bigint_to_u8_32(&self.leaf).unwrap();
-        [root, leaf]
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct InclusionProofInputs<'a> {
     pub public_input_hash: BigInt,

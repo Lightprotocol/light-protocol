@@ -8,7 +8,7 @@ pub struct MerkleTreeEvents {
 /// [`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)
 /// change. Indexers can use this type of events to re-build a non-sparse
 /// version of state Merkle tree.
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 #[repr(C)]
 pub enum MerkleTreeEvent {
     V1(ChangelogEvent),
@@ -25,7 +25,7 @@ pub struct PathNode {
 }
 
 /// Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct ChangelogEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
@@ -37,7 +37,7 @@ pub struct ChangelogEvent {
     pub index: u32,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct NullifierEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
@@ -61,7 +61,7 @@ where
     pub index: I,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone, PartialEq)]
 pub struct IndexedMerkleTreeUpdate<I>
 where
     I: Clone,
@@ -75,7 +75,7 @@ where
     pub new_high_element_hash: [u8; 32],
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct IndexedMerkleTreeEvent {
     /// Public key of the tree.
     pub id: [u8; 32],

@@ -1,6 +1,3 @@
-use ark_relations::r1cs::SynthesisError;
-use ark_serialize::SerializationError;
-use color_eyre::Report;
 use groth16_solana::errors::Groth16Error;
 use light_utils::UtilsError;
 use thiserror::Error;
@@ -31,24 +28,6 @@ pub enum ProverClientError {
     WrongNumberOfUtxos,
     #[error("Utils error: {0}")]
     UtilsError(#[from] UtilsError),
-}
-
-impl From<SerializationError> for ProverClientError {
-    fn from(error: SerializationError) -> Self {
-        ProverClientError::ArkworksSerializationError(error.to_string())
-    }
-}
-
-impl From<SynthesisError> for ProverClientError {
-    fn from(error: SynthesisError) -> Self {
-        ProverClientError::ArkworksProverError(error.to_string())
-    }
-}
-
-impl From<Report> for ProverClientError {
-    fn from(error: Report) -> Self {
-        ProverClientError::GenericError(error.to_string())
-    }
 }
 
 impl From<Groth16Error> for ProverClientError {

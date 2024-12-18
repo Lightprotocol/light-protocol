@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 type G1 = ark_bn254::g1::G1Affine;
-use std::ops::Neg;
-
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 use num_traits::Num;
 use solana_program::alt_bn128::compression::prelude::{
     alt_bn128_g1_compress, alt_bn128_g2_compress, convert_endianness,
 };
+use std::ops::Neg;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GnarkProofJson {

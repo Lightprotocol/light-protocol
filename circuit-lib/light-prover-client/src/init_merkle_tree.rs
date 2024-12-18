@@ -18,9 +18,13 @@ use crate::{
 pub static MT_PROOF_INPUTS_26: Lazy<Mutex<InclusionMerkleProofInputs>> =
     Lazy::new(|| Mutex::new(internal_inclusion_merkle_tree_inputs(26)));
 
+pub static MT_PROOF_INPUTS_32: Lazy<Mutex<InclusionMerkleProofInputs>> =
+    Lazy::new(|| Mutex::new(internal_inclusion_merkle_tree_inputs(32)));
+
 pub fn inclusion_merkle_tree_inputs(mt_height: MerkleTreeInfo) -> InclusionMerkleProofInputs {
     match mt_height {
         MerkleTreeInfo::H26 => (*MT_PROOF_INPUTS_26.lock().unwrap()).clone(),
+        MerkleTreeInfo::H32 => (*MT_PROOF_INPUTS_32.lock().unwrap()).clone(),
     }
 }
 

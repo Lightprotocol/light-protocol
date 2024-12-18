@@ -5,7 +5,8 @@ use crate::utils::{
 
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, MigrateLeafParams, NullifierQueueConfig,
+    StateMerkleTreeConfig,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
@@ -49,6 +50,46 @@ pub fn create_nullify_instruction(
         registered_forester_pda,
         registered_program_pda: register_program_pda,
         nullifier_queue: inputs.nullifier_queue,
+        merkle_tree: inputs.merkle_tree,
+        log_wrapper: NOOP_PUBKEY.into(),
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateMigrateStateInstructionInputs {
+    pub authority: Pubkey,
+    pub output_queue: Pubkey,
+    pub merkle_tree: Pubkey,
+    pub inputs: MigrateLeafParams,
+    pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
+}
+
+pub fn create_migrate_state_instruction(
+    inputs: CreateMigrateStateInstructionInputs,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda =
+        get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0;
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::MigrateState {
+        bump,
+        inputs: inputs.inputs,
+    };
+
+    let accounts = crate::accounts::MigrateState {
+        authority: inputs.authority,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        output_queue: inputs.output_queue,
         merkle_tree: inputs.merkle_tree,
         log_wrapper: NOOP_PUBKEY.into(),
         cpi_authority,

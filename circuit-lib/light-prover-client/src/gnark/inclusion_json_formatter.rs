@@ -7,6 +7,7 @@ use crate::{
     },
     init_merkle_tree::inclusion_merkle_tree_inputs,
 };
+use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
@@ -39,7 +40,7 @@ pub struct InclusionJsonStruct {
 
 impl BatchInclusionJsonStruct {
     pub fn new_with_public_inputs(number_of_utxos: usize) -> (Self, [u8; 32]) {
-        let merkle_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);
+        let merkle_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H32);
 
         let input = InclusionJsonStruct {
             root: big_int_to_string(&merkle_inputs.root),
@@ -65,7 +66,7 @@ impl BatchInclusionJsonStruct {
         (
             Self {
                 circuit_type: CircuitType::Inclusion.to_string(),
-                state_tree_height: 26,
+                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
                 public_input_hash: public_input_hash_string,
                 inputs,
             },
@@ -91,7 +92,7 @@ impl BatchInclusionJsonStruct {
         }
         Self {
             circuit_type: CircuitType::Inclusion.to_string(),
-            state_tree_height: 26,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inputs: proof_inputs,
         }

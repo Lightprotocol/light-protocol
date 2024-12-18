@@ -1,8 +1,9 @@
 use crate::{
     batch_metadata::BatchMetadata,
     constants::{
-        ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_SIZE, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
-        DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
+        ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+        DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE, DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE,
+        TEST_DEFAULT_ZKP_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
     merkle_tree::{
@@ -56,7 +57,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
             output_queue_num_batches: 2,
-            height: 26,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -78,7 +79,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
             output_queue_num_batches: 2,
-            height: 26,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -102,7 +103,7 @@ impl Default for InitStateTreeAccountsInstructionData {
             output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             input_queue_num_batches: 2,
             output_queue_num_batches: 2,
-            height: 26,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: (DEFAULT_BATCH_SIZE + 1) * 8,
             network_fee: Some(5000),
@@ -139,6 +140,7 @@ pub fn init_batched_state_merkle_tree_accounts(
             }
             None => 0,
         };
+
         msg!(" Output queue rollover_fee: {}", rollover_fee);
         let metadata = QueueMetadata {
             next_queue: Pubkey::default(),
@@ -231,7 +233,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     assert_eq!(params.input_queue_num_batches, 2);
     assert_eq!(params.output_queue_num_batches, 2);
     assert_eq!(params.close_threshold, None);
-    assert_eq!(params.height, 26);
+    assert_eq!(params.height, DEFAULT_BATCH_STATE_TREE_HEIGHT);
 }
 
 pub fn match_circuit_size(size: u64) -> bool {

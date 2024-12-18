@@ -1,11 +1,14 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::errors::AccountCompressionErrorCode;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, MigrateLeafParams, NullifierQueueConfig,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use forester_utils::airdrop_lamports;
 use forester_utils::forester_epoch::get_epoch_phases;
+use forester_utils::indexer::Indexer;
+use forester_utils::{airdrop_lamports, get_concurrent_merkle_tree};
 use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
 use light_batched_merkle_tree::initialize_state_tree::{
     assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
@@ -13,6 +16,10 @@ use light_batched_merkle_tree::initialize_state_tree::{
 use light_batched_merkle_tree::merkle_tree::{
     BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount,
 };
+
+use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use light_batched_merkle_tree::zero_copy::ZeroCopyError;
+use light_hasher::Poseidon;
 use light_program_test::test_batch_forester::{
     assert_perform_state_mt_roll_over, create_append_batch_ix_data,
     create_batch_address_merkle_tree, create_batch_update_address_tree_instruction_data_with_proof,
@@ -25,14 +32,15 @@ use light_program_test::test_env::{
     register_program_with_registry_program, setup_accounts, setup_test_programs,
     setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR,
+    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, NOOP_PROGRAM_ID, OLD_REGISTRY_ID_TEST_KEYPAIR,
 };
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
-    create_batch_update_address_tree_instruction, create_nullify_instruction,
-    create_update_address_merkle_tree_instruction, CreateNullifyInstructionInputs,
+    create_batch_update_address_tree_instruction, create_migrate_state_instruction,
+    create_nullify_instruction, create_update_address_merkle_tree_instruction,
+    CreateMigrateStateInstructionInputs, CreateNullifyInstructionInputs,
     UpdateAddressMerkleTreeInstructionInputs,
 };
 use light_registry::errors::RegistryError;
@@ -62,6 +70,7 @@ use light_test_utils::{
     CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
 use serial_test::serial;
+use solana_sdk::account::WritableAccount;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::Instruction,
@@ -1366,6 +1375,260 @@ async fn init_accounts() {
     setup_accounts(keypairs, SolanaRpcUrl::Localnet).await;
 }
 
+/// Tests:
+/// 1. Functional: migrate state
+/// 2. Failing - Invalid authority
+/// 3. Failing - Invalid merkle tree
+/// 4. Failing - Invalid output queue
+/// 5. Failing - Invalid derivation
+/// 6. Failing - Failing - invoke account compression program migrate state without registered program PDA
+///
+#[serial]
+#[tokio::test]
+async fn test_migrate_state() {
+    let (mut rpc, env_accounts) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig::default(),
+            true,
+            InitStateTreeAccountsInstructionData::test_default(),
+            InitAddressTreeAccountsInstructionData::test_default(),
+        )
+        .await;
+    let payer = rpc.get_payer().insecure_clone();
+    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
+        TestIndexer::init_from_env(&env_accounts.forester.insecure_clone(), &env_accounts, None)
+            .await;
+    for _ in 0..4 {
+        light_test_utils::system_program::compress_sol_test(
+            &mut rpc,
+            &mut test_indexer,
+            &payer,
+            &[],
+            false,
+            1_000_000,
+            &env_accounts.merkle_tree_pubkey,
+            None,
+        )
+        .await
+        .unwrap();
+    }
+    // 1. Functional: migrate state
+    {
+        let merkle_tree = get_concurrent_merkle_tree::<
+            StateMerkleTreeAccount,
+            ProgramTestRpcConnection,
+            Poseidon,
+            26,
+        >(&mut rpc, env_accounts.merkle_tree_pubkey)
+        .await;
+        let compressed_account = &test_indexer.get_compressed_accounts_by_owner(&payer.pubkey())[0];
+        let hash = compressed_account.hash().unwrap();
+        let bundle = &test_indexer
+            .get_state_merkle_trees()
+            .iter()
+            .find(|b| {
+                b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+            })
+            .unwrap();
+        assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());
+        let leaf_index = compressed_account.merkle_context.leaf_index as u64;
+        let merkle_proof = bundle
+            .merkle_tree
+            .get_proof_of_leaf(leaf_index as usize, false)
+            .unwrap();
+        let merkle_leaf = bundle.merkle_tree.get_leaf(leaf_index as usize).unwrap();
+        assert_eq!(merkle_leaf, hash);
+
+        let inputs = MigrateLeafParams {
+            change_log_index: merkle_tree.changelog_index() as u64,
+            leaf: hash,
+            leaf_index,
+            proof: merkle_proof.to_array().unwrap(),
+        };
+        let params = CreateMigrateStateInstructionInputs {
+            authority: env_accounts.forester.pubkey(),
+            merkle_tree: env_accounts.merkle_tree_pubkey,
+            output_queue: env_accounts.batched_output_queue,
+            derivation: env_accounts.forester.pubkey(),
+            inputs,
+            is_metadata_forester: false,
+        };
+
+        let instruction = create_migrate_state_instruction(params, 0);
+        rpc.create_and_send_transaction(
+            &[instruction],
+            &env_accounts.forester.pubkey(),
+            &[&env_accounts.forester],
+        )
+        .await
+        .unwrap();
+        // assert leaf was nullified and inserted into output queue
+        {
+            let merkle_tree = get_concurrent_merkle_tree::<
+                StateMerkleTreeAccount,
+                ProgramTestRpcConnection,
+                Poseidon,
+                26,
+            >(&mut rpc, env_accounts.merkle_tree_pubkey)
+            .await;
+            let bundle = test_indexer
+                .get_state_merkle_trees_mut()
+                .iter_mut()
+                .find(|b| {
+                    b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+                })
+                .unwrap();
+            bundle
+                .merkle_tree
+                .update(&[0u8; 32], leaf_index as usize)
+                .unwrap();
+            assert_eq!(merkle_tree.root(), bundle.merkle_tree.root(),);
+            let get_leaf = bundle.merkle_tree.get_leaf(leaf_index as usize).unwrap();
+            assert_eq!(get_leaf, [0u8; 32]);
+            let mut output_queue_account = rpc
+                .get_account(env_accounts.batched_output_queue)
+                .await
+                .unwrap()
+                .unwrap();
+            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                output_queue_account.data_as_mut_slice(),
+            )
+            .unwrap();
+            assert_eq!(output_queue.value_vecs[0][0], hash);
+        }
+    }
+    let instruction_params = {
+        let merkle_tree = get_concurrent_merkle_tree::<
+            StateMerkleTreeAccount,
+            ProgramTestRpcConnection,
+            Poseidon,
+            26,
+        >(&mut rpc, env_accounts.merkle_tree_pubkey)
+        .await;
+        let compressed_account = &test_indexer.get_compressed_accounts_by_owner(&payer.pubkey())[1];
+        let hash = compressed_account.hash().unwrap();
+        let bundle = &test_indexer
+            .get_state_merkle_trees()
+            .iter()
+            .find(|b| {
+                b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+            })
+            .unwrap();
+        assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());
+        let leaf_index = compressed_account.merkle_context.leaf_index as u64;
+        let merkle_proof = bundle
+            .merkle_tree
+            .get_proof_of_leaf(leaf_index as usize, false)
+            .unwrap();
+        let merkle_leaf = bundle.merkle_tree.get_leaf(leaf_index as usize).unwrap();
+        assert_eq!(merkle_leaf, hash);
+
+        let inputs = MigrateLeafParams {
+            change_log_index: merkle_tree.changelog_index() as u64,
+            leaf: hash,
+            leaf_index,
+            proof: merkle_proof.to_array().unwrap(),
+        };
+        CreateMigrateStateInstructionInputs {
+            authority: env_accounts.forester.pubkey(),
+            merkle_tree: env_accounts.merkle_tree_pubkey,
+            output_queue: env_accounts.batched_output_queue,
+            derivation: env_accounts.forester.pubkey(),
+            inputs,
+            is_metadata_forester: false,
+        }
+    };
+    // 2. Failing - invalid authority
+    {
+        let mut params = instruction_params.clone();
+        params.authority = payer.pubkey();
+        let instruction = create_migrate_state_instruction(params, 0);
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(result, 0, RegistryError::InvalidForester.into()).unwrap();
+    }
+    // 3. Failing - invalid output queue
+    {
+        let mut params = instruction_params.clone();
+        params.output_queue = env_accounts.batch_address_merkle_tree;
+        let instruction = create_migrate_state_instruction(params, 0);
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &env_accounts.forester.pubkey(),
+                &[&env_accounts.forester],
+            )
+            .await;
+        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+    }
+    // 4. Failing - invalid state Merkle tree
+    {
+        let mut params = instruction_params.clone();
+        params.merkle_tree = env_accounts.address_merkle_tree_pubkey;
+        let instruction = create_migrate_state_instruction(params, 0);
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &env_accounts.forester.pubkey(),
+                &[&env_accounts.forester],
+            )
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
+    }
+    // 5. Failing - invalid derivation
+    {
+        let mut params = instruction_params.clone();
+        params.derivation = payer.pubkey();
+        let instruction = create_migrate_state_instruction(params, 0);
+        let result = rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &env_accounts.forester.pubkey(),
+                &[&env_accounts.forester],
+            )
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
+        )
+        .unwrap();
+    }
+    // 6. Failing - invoke account compression program migrate state without registered program PDA
+    {
+        let instruction = account_compression::instruction::MigrateState {
+            input: instruction_params.inputs,
+        };
+        let accounts = account_compression::accounts::MigrateState {
+            authority: payer.pubkey(),
+            merkle_tree: instruction_params.merkle_tree,
+            output_queue: instruction_params.output_queue,
+            registered_program_pda: None,
+            log_wrapper: NOOP_PROGRAM_ID,
+        };
+        let ix = Instruction {
+            program_id: account_compression::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction.data(),
+        };
+        let result = rpc
+            .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::RegistryProgramIsNone.into(),
+        )
+        .unwrap();
+    }
+}
 /// Test:
 /// 1. Failing: rollover with invalid forester
 /// 2. Functional: rollover with network fee

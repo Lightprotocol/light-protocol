@@ -3,12 +3,14 @@ use std::fmt;
 #[derive(Clone, Debug)]
 pub enum MerkleTreeInfo {
     H26,
+    H32,
 }
 
 impl MerkleTreeInfo {
     pub fn height(&self) -> u8 {
         match self {
             MerkleTreeInfo::H26 => 26,
+            MerkleTreeInfo::H32 => 32,
         }
     }
 

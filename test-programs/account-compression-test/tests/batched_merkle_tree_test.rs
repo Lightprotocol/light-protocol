@@ -184,7 +184,7 @@ async fn test_batch_state_merkle_tree() {
             0,
         );
     }
-    let mut mock_indexer = MockBatchedForester::<26>::default();
+    let mut mock_indexer = MockBatchedForester::<32>::default();
     let invalid_payer = Keypair::new();
     context
         .airdrop_lamports(&invalid_payer.pubkey(), 1_000_000_000)
@@ -451,7 +451,7 @@ async fn test_batch_state_merkle_tree() {
 
 pub async fn perform_insert_into_output_queue(
     context: &mut ProgramTestRpcConnection,
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
     counter: &mut u32,
@@ -499,7 +499,7 @@ pub async fn perform_insert_into_output_queue(
 }
 pub async fn perform_batch_append(
     context: &mut ProgramTestRpcConnection,
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
@@ -556,7 +556,7 @@ pub async fn perform_batch_append(
 }
 pub async fn perform_batch_nullify(
     context: &mut ProgramTestRpcConnection,
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
@@ -597,7 +597,7 @@ pub async fn perform_batch_nullify(
 
 pub async fn perform_insert_into_input_queue(
     context: &mut ProgramTestRpcConnection,
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
     output_queue_pubkey: Pubkey,
@@ -661,7 +661,7 @@ pub async fn perform_insert_into_input_queue(
 }
 
 pub async fn create_append_batch_ix_data(
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     mt_account_data: &mut [u8],
     output_queue_account_data: &mut [u8],
 ) -> InstructionDataBatchAppendInputs {
@@ -707,7 +707,7 @@ pub async fn create_append_batch_ix_data(
 }
 
 pub async fn create_nullify_batch_ix_data(
-    mock_indexer: &mut MockBatchedForester<26>,
+    mock_indexer: &mut MockBatchedForester<32>,
     account_data: &mut [u8],
 ) -> InstructionDataBatchNullifyInputs {
     let zero_copy_account: ZeroCopyBatchedMerkleTreeAccount =
@@ -938,7 +938,7 @@ async fn test_rollover_batch_state_merkle_trees() {
     )
     .await
     .unwrap();
-    let mut mock_indexer = MockBatchedForester::<26>::default();
+    let mut mock_indexer = MockBatchedForester::<32>::default();
     let output_queue_pubkey = nullifier_queue_keypair.pubkey();
 
     perform_insert_into_output_queue(

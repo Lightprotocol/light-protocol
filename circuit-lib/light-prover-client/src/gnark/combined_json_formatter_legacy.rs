@@ -24,15 +24,15 @@ pub struct CombinedJsonStruct {
 }
 
 impl CombinedJsonStruct {
-    fn new_with_public_inputs(number_of_utxos: usize) -> Self {
-        let inclusion = BatchInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+    fn new_with_public_inputs(num_inclusion: usize, num_non_inclusion: usize) -> Self {
+        let inclusion = BatchInclusionJsonStruct::new_with_public_inputs(num_inclusion);
         let (non_inclusion, _) =
-            BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+            BatchNonInclusionJsonStruct::new_with_public_inputs(num_non_inclusion);
 
         Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: 26,
-            address_tree_height: 26,
+            state_tree_height: inclusion.state_tree_height,
+            address_tree_height: non_inclusion.address_tree_height,
 
             inclusion: inclusion.inputs,
             non_inclusion: non_inclusion.inputs,
@@ -47,8 +47,8 @@ impl CombinedJsonStruct {
         );
         Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: 26,
-            address_tree_height: 26,
+            state_tree_height: inclusion_parameters.state_tree_height,
+            address_tree_height: non_inclusion_parameters.address_tree_height,
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,
         }
@@ -59,7 +59,7 @@ impl CombinedJsonStruct {
     }
 }
 
-pub fn combined_inputs_string(number_of_utxos: usize) -> String {
-    let json_struct = CombinedJsonStruct::new_with_public_inputs(number_of_utxos);
+pub fn combined_inputs_string(num_inclusion: usize, num_non_inclusion: usize) -> String {
+    let json_struct = CombinedJsonStruct::new_with_public_inputs(num_inclusion, num_non_inclusion);
     json_struct.to_string()
 }

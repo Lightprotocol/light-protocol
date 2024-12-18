@@ -2110,13 +2110,15 @@ async fn batch_invoke_test() {
         );
         println!("Combined Transaction with index and zkp -------------------------");
 
-        let event = context
-            .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[&payer], None)
-            .await
-            .unwrap()
-            .unwrap();
-        let slot: u64 = context.get_slot().await.unwrap();
-        test_indexer.add_event_and_compressed_accounts(slot, &event.0);
+        let result = context
+            .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::InvalidAddressTreeHeight.into(),
+        )
+        .unwrap();
     }
     create_compressed_accounts_in_batch_merkle_tree(
         &mut context,

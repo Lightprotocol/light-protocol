@@ -99,7 +99,7 @@ light-system-program = { path = "programs/system", version = "1.2.0", features =
 light-registry = { path = "programs/registry", version = "1.2.0",  features = ["cpi"]}
 create-address-test-program = { path = "test-programs/create-address-test-program", version = "1.0.0", features = ["cpi"] }
 light-program-test = { path = "light-program-test", version = "0.1.0" }
-light-batched-merkle-tree = { path = "merkle-tree/batch", version = "0.1.0" }
+light-batched-merkle-tree = { path = "merkle-tree/batched", version = "0.1.0" }
 light-merkle-tree-metadata = { path = "merkle-tree/metadata", version = "0.1.0" }
 aligned-sized = { path = "macros/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "merkle-tree/bloom-filter", version = "0.1.0" }

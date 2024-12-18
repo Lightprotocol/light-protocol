@@ -1,10 +1,8 @@
 use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
+use crate::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs;
 use crate::prove_utils::CircuitType;
 use crate::{
-    inclusion::{
-        merkle_inclusion_proof_inputs::InclusionProofInputs, merkle_tree_info::MerkleTreeInfo,
-    },
-    init_merkle_tree::inclusion_merkle_tree_inputs,
+    inclusion::merkle_tree_info::MerkleTreeInfo, init_merkle_tree::inclusion_merkle_tree_inputs,
 };
 use num_traits::ToPrimitive;
 use serde::Serialize;
@@ -51,7 +49,7 @@ impl BatchInclusionJsonStruct {
 
     pub fn from_inclusion_proof_inputs(inputs: &InclusionProofInputs) -> Self {
         let mut proof_inputs: Vec<InclusionJsonStruct> = Vec::new();
-        for input in inputs.inputs.iter() {
+        for input in inputs.0.iter() {
             let prof_input = InclusionJsonStruct {
                 root: big_int_to_string(&input.root),
                 leaf: big_int_to_string(&input.leaf),

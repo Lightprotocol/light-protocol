@@ -2184,9 +2184,36 @@ where
         let input_compressed_accounts = self
             .indexer
             .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
-        let range = std::cmp::min(input_compressed_accounts.len(), 4);
+        if input_compressed_accounts.is_empty() {
+            return vec![];
+        }
+        let index = Self::safe_gen_range(&mut self.rng, 0..input_compressed_accounts.len(), 0);
+        // pick random first account to decompress
+        let first_account = &input_compressed_accounts[index];
+        let first_mt = self
+            .indexer
+            .get_state_merkle_trees()
+            .iter()
+            .find(|x| x.accounts.merkle_tree == first_account.merkle_context.merkle_tree_pubkey)
+            .unwrap()
+            .version;
+        let input_compressed_accounts_with_same_version = input_compressed_accounts
+            .iter()
+            .filter(|x| {
+                self.indexer
+                    .get_state_merkle_trees()
+                    .iter()
+                    .find(|y| y.accounts.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+                    .unwrap()
+                    .version
+                    == first_mt
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let range = std::cmp::min(input_compressed_accounts_with_same_version.len(), 4);
+
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
-        input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
+        input_compressed_accounts_with_same_version[0..number_of_compressed_accounts].to_vec()
     }
 
     pub fn get_compressed_sol_accounts(
@@ -2198,25 +2225,23 @@ where
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
-        for _ in 0..num {
-            let range_max: usize = std::cmp::min(
-                self.keypair_action_config
-                    .max_output_accounts
-                    .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
-                self.indexer.get_state_merkle_trees().len() as u64,
-            ) as usize;
+        let range_max: usize = std::cmp::min(
+            self.keypair_action_config
+                .max_output_accounts
+                .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
+            self.indexer.get_state_merkle_trees().len() as u64,
+        ) as usize;
 
+        for _ in 0..num {
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);
             let bundle = &self.indexer.get_state_merkle_trees()[index];
+            let accounts = &bundle.accounts;
+
             // For batched trees we need to use the output queue
             if bundle.version == 2 {
-                pubkeys.push(bundle.accounts.nullifier_queue);
+                pubkeys.push(accounts.nullifier_queue);
             } else {
-                pubkeys.push(
-                    self.indexer.get_state_merkle_trees()[index]
-                        .accounts
-                        .merkle_tree,
-                );
+                pubkeys.push(accounts.merkle_tree);
             }
         }
         pubkeys.sort();
@@ -2226,7 +2251,8 @@ where
     pub fn get_address_merkle_tree_pubkeys(&mut self, num: u64) -> (Vec<Pubkey>, Vec<Pubkey>) {
         let mut pubkeys = vec![];
         let mut queue_pubkeys = vec![];
-        for _ in 0..num {
+        let mut version = 0;
+        for i in 0..num {
             let index = Self::safe_gen_range(
                 &mut self.rng,
                 0..self
@@ -2238,24 +2264,30 @@ where
                     .len(),
                 0,
             );
-            pubkeys.push(
-                self.indexer
-                    .get_address_merkle_trees()
-                    .iter()
-                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
-                    .collect::<Vec<_>>()[index]
-                    .accounts
-                    .merkle_tree,
-            );
-            queue_pubkeys.push(
-                self.indexer
-                    .get_address_merkle_trees()
-                    .iter()
-                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
-                    .collect::<Vec<_>>()[index]
-                    .accounts
-                    .queue,
-            );
+            let accounts = &self
+                .indexer
+                .get_address_merkle_trees()
+                .iter()
+                .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                .collect::<Vec<_>>()[index]
+                .accounts;
+            let local_version = if accounts.merkle_tree == accounts.queue {
+                2
+            } else {
+                1
+            };
+            // Versions of all trees must be consistent
+            // if selected trees version is different reuse the first tree
+            if i == 0 {
+                version = local_version;
+            }
+            if version != local_version {
+                pubkeys.push(pubkeys[0]);
+                queue_pubkeys.push(queue_pubkeys[0]);
+            } else {
+                pubkeys.push(accounts.merkle_tree);
+                queue_pubkeys.push(accounts.queue);
+            }
         }
         (pubkeys, queue_pubkeys)
     }
@@ -2288,6 +2320,7 @@ where
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
         let mut token_accounts_with_mint;
         let mint;
+        let tree_version;
         if user_token_accounts.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
@@ -2295,9 +2328,9 @@ where
             .token_data
             .mint;
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
-            let mt_pubkey = self.indexer.get_state_merkle_trees()[0]
-                .accounts
-                .merkle_tree;
+            let bundle = &self.indexer.get_state_merkle_trees()[0];
+            let mt_pubkey = bundle.accounts.merkle_tree;
+            tree_version = bundle.version;
             mint_tokens_helper(
                 &mut self.rpc,
                 &mut self.indexer,
@@ -2311,21 +2344,65 @@ where
                 vec![*user; number_of_compressed_accounts],
             )
             .await;
+            // filter for token accounts with the same version and mint
             token_accounts_with_mint = self
                 .indexer
                 .get_compressed_token_accounts_by_owner(user)
                 .iter()
-                .filter(|token_account| token_account.token_data.mint == mint)
+                .filter(|token_account| {
+                    let version = self
+                        .indexer
+                        .get_state_merkle_trees()
+                        .iter()
+                        .find(|x| {
+                            x.accounts.merkle_tree
+                                == token_account
+                                    .compressed_account
+                                    .merkle_context
+                                    .merkle_tree_pubkey
+                        })
+                        .unwrap()
+                        .version;
+                    token_account.token_data.mint == mint && tree_version == version
+                })
                 .cloned()
                 .collect::<Vec<_>>();
         } else {
-            mint = user_token_accounts
-                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.len(), 0)]
-            .token_data
-            .mint;
+            let token_account = &user_token_accounts
+                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.len(), 0)];
+            mint = token_account.token_data.mint;
+            tree_version = self
+                .indexer
+                .get_state_merkle_trees()
+                .iter()
+                .find(|x| {
+                    x.accounts.merkle_tree
+                        == token_account
+                            .compressed_account
+                            .merkle_context
+                            .merkle_tree_pubkey
+                })
+                .unwrap()
+                .version;
+
             token_accounts_with_mint = user_token_accounts
                 .iter()
-                .filter(|token_account| token_account.token_data.mint == mint)
+                .filter(|token_account| {
+                    let version = self
+                        .indexer
+                        .get_state_merkle_trees()
+                        .iter()
+                        .find(|x| {
+                            x.accounts.merkle_tree
+                                == token_account
+                                    .compressed_account
+                                    .merkle_context
+                                    .merkle_tree_pubkey
+                        })
+                        .unwrap()
+                        .version;
+                    token_account.token_data.mint == mint && tree_version == version
+                })
                 .map(|token_account| (*token_account).clone())
                 .collect::<Vec<TokenDataWithContext>>();
         }

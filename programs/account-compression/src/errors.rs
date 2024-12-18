@@ -60,4 +60,6 @@ pub enum AccountCompressionErrorCode {
     UnsupportedParameters,
     AddressMerkleTreeAccountDiscriminatorMismatch,
     StateMerkleTreeAccountDiscriminatorMismatch,
+    RegistryProgramIsNone,
+    EmptyLeaf,
 }

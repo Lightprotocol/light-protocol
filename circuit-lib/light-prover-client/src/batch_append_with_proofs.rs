@@ -44,6 +44,7 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     batch_size: u32,
 ) -> Result<BatchAppendWithProofsCircuitInputs, ProverClientError> {
+    println!("height: {:?}", HEIGHT);
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);

@@ -11,8 +11,9 @@ pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work:
 pub use account_compression_cpi::{
     batch_append::*, batch_nullify::*, batch_update_address_tree::*,
     initialize_batched_address_tree::*, initialize_batched_state_tree::*,
-    initialize_tree_and_queue::*, nullify::*, register_program::*, rollover_batch_address_tree::*,
-    rollover_batch_state_tree::*, rollover_state_tree::*, update_address_tree::*,
+    initialize_tree_and_queue::*, migrate_state::*, nullify::*, register_program::*,
+    rollover_batch_address_tree::*, rollover_batch_state_tree::*, rollover_state_tree::*,
+    update_address_tree::*,
 };
 
 pub use protocol_config::{initialize::*, update::*};
@@ -23,6 +24,7 @@ pub mod selection;
 pub mod utils;
 pub use selection::forester::*;
 
+use account_compression::MigrateLeafParams;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
 use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
@@ -30,6 +32,7 @@ use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstr
 use light_batched_merkle_tree::{
     merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
 };
+
 use protocol_config::state::ProtocolConfig;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
@@ -581,7 +584,7 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+            let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
@@ -645,6 +648,21 @@ pub mod light_registry {
             ctx.accounts.new_state_merkle_tree.to_account_info(),
             ctx.accounts.light_system_program.to_account_info(),
         )
+    }
+
+    pub fn migrate_state<'info>(
+        ctx: Context<'_, '_, '_, 'info, MigrateState<'info>>,
+        bump: u8,
+        inputs: MigrateLeafParams,
+    ) -> Result<()> {
+        check_forester(
+            &ctx.accounts.merkle_tree.load()?.metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.merkle_tree.key(),
+            &mut Some(ctx.accounts.registered_forester_pda.clone()),
+            DEFAULT_WORK_V1,
+        )?;
+        process_migrate_state(&ctx, bump, inputs)
     }
 }
 

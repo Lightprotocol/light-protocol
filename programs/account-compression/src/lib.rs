@@ -267,4 +267,11 @@ pub mod account_compression {
     ) -> Result<()> {
         process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
     }
+
+    pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+        input: MigrateLeafParams,
+    ) -> Result<()> {
+        process_migrate_state(&ctx, input)
+    }
 }

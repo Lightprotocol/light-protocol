@@ -322,7 +322,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	if ps == nil {
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
-
+	fmt.Println(proofRequestMeta)
 	if proofRequestMeta.Version == 0 {
 		var proof *prover.Proof
 		var params prover.LegacyInclusionParameters

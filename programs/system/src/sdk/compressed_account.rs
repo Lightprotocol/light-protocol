@@ -6,11 +6,6 @@ use light_utils::hash_to_bn254_field_size_be;
 
 use super::address::pack_account;
 
-pub trait FetchRoot {
-    fn get_root_index(&self) -> u16;
-    fn get_merkle_context(&self) -> PackedMerkleContext;
-}
-
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -19,14 +14,6 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub root_index: u16,
     /// Placeholder to mark accounts read-only unimplemented set to false.
     pub read_only: bool,
-}
-impl FetchRoot for PackedCompressedAccountWithMerkleContext {
-    fn get_root_index(&self) -> u16 {
-        self.root_index
-    }
-    fn get_merkle_context(&self) -> PackedMerkleContext {
-        self.merkle_context
-    }
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -100,14 +87,6 @@ pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
-}
-impl FetchRoot for PackedReadOnlyCompressedAccount {
-    fn get_root_index(&self) -> u16 {
-        self.root_index
-    }
-    fn get_merkle_context(&self) -> PackedMerkleContext {
-        self.merkle_context
-    }
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]

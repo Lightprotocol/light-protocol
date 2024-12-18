@@ -1,5 +1,5 @@
 use crate::{
-    inclusion::merkle_inclusion_proof_inputs::InclusionProofInputs,
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs,
     non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
 };
 

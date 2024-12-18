@@ -63,7 +63,7 @@ impl Default for CompressedProof {
     }
 }
 
-pub fn verify_create_addresses_zkp(
+pub fn verify_create_addresses_proof(
     address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],
     compressed_proof: &CompressedProof,
@@ -89,7 +89,7 @@ pub fn verify_create_addresses_zkp(
 }
 
 #[inline(never)]
-pub fn verify_create_addresses_and_merkle_proof_zkp(
+pub fn verify_create_addresses_and_inclusion_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],
     address_roots: &[[u8; 32]],
@@ -162,6 +162,60 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 .map_err(|_| PublicInputsTryIntoFailed)?,
             compressed_proof,
             &crate::verifying_keys::combined_26_26_4_2::VERIFYINGKEY,
+        ),
+        _ => Err(crate::InvalidPublicInputsLength),
+    }
+}
+
+#[inline(never)]
+pub fn verify_inclusion_proof(
+    roots: &[[u8; 32]],
+    leaves: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<(), VerifierError> {
+    let public_inputs = [roots, leaves].concat();
+
+    // The public inputs are expected to be a multiple of 2
+    // 2 inputs means 1 inclusion proof (1 root and 1 leaf)
+    // 4 inputs means 2 inclusion proofs (2 roots and 2 leaves)
+    // 6 inputs means 3 inclusion proofs (3 roots and 3 leaves)
+    // 8 inputs means 4 inclusion proofs (4 roots and 4 leaves)
+    // 16 inputs means 8 inclusion proofs (8 roots and 8 leaves)
+    match public_inputs.len() {
+        2 => verify::<2>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+        ),
+        4 => verify::<4>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY,
+        ),
+        6 => verify::<6>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY,
+        ),
+        8 => verify::<8>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_4::VERIFYINGKEY,
+        ),
+        16 => verify::<16>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_8::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }

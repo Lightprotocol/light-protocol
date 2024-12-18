@@ -128,6 +128,8 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     let (seq, next_index, network_fee, program_owner, merkle_tree_pubkey) = {
         let mut discriminator_bytes = [0u8; 8];
         discriminator_bytes.copy_from_slice(&merkle_tree_acc_info.try_borrow_data()?[0..8]);
+        msg!("discriminator_bytes: {:?}", discriminator_bytes);
+        msg!("pubkey {:?}", merkle_tree_acc_info.key());
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 let (seq, next_index) = {

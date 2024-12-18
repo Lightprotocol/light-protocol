@@ -1,5 +1,6 @@
 use crate::{
     batch_metadata::BatchMetadata,
+    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -744,7 +745,7 @@ pub fn get_merkle_tree_account_size_default() -> usize {
         next_index: 0,
         sequence_number: 0,
         tree_type: TreeType::BatchedState as u64,
-        height: 26,
+        height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
         root_history_capacity: 20,
         queue: BatchMetadata {
             currently_processing_batch_index: 0,

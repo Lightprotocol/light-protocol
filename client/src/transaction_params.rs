@@ -39,7 +39,7 @@ impl FeeConfig {
     pub fn test_batched() -> Self {
         Self {
             // rollover fee plus additonal lamports for the cpi account
-            state_merkle_tree_rollover: 8,
+            state_merkle_tree_rollover: 1,
             address_queue_rollover: 392, // not batched
             network_fee: 5000,
             address_network_fee: 5000,

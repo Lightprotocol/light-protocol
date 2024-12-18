@@ -1,11 +1,12 @@
-use crate::constants::{BATCH_ADDRESS_MERKLE_TREE_HEIGHT, BATCH_STATE_MERKLE_TREE_HEIGHT};
-
 use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
 use forester_utils::{
     create_account_instruction,
     indexer::{Indexer, StateMerkleTreeBundle},
     AccountZeroCopy,
+};
+use light_batched_merkle_tree::constants::{
+    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
 use light_batched_merkle_tree::{
     event::{BatchAppendEvent, BatchNullifyEvent},
@@ -161,6 +162,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                     }
                 }
             }
+            println!("merkle tree height {:?}", bundle.merkle_tree.height);
             let proof = bundle.merkle_tree.get_proof_of_leaf(i, true).unwrap();
             merkle_proofs.push(proof.to_vec());
         }
@@ -172,17 +174,19 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                 bundle.merkle_tree.update(leaf, index).unwrap();
             }
         }
+
         // TODO: remove unwraps
-        let circuit_inputs = get_batch_append_with_proofs_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
-            old_root,
-            merkle_tree_next_index as u32,
-            batch_update_leaves,
-            local_leaves_hashchain,
-            old_leaves,
-            merkle_proofs,
-            zkp_batch_size as u32,
-        )
-        .unwrap();
+        let circuit_inputs =
+            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+                old_root,
+                merkle_tree_next_index as u32,
+                batch_update_leaves,
+                local_leaves_hashchain,
+                old_leaves,
+                merkle_proofs,
+                zkp_batch_size as u32,
+            )
+            .unwrap();
         assert_eq!(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             bundle.merkle_tree.root()
@@ -333,7 +337,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     // local_leaves_hashchain is only used for a test assertion.
     let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
     assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-    let inputs = get_batch_update_inputs::<BATCH_STATE_MERKLE_TREE_HEIGHT>(
+    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
@@ -856,26 +860,27 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
 
-    let inputs = get_batch_address_append_circuit_inputs::<BATCH_ADDRESS_MERKLE_TREE_HEIGHT>(
-        start_index,
-        current_root,
-        low_element_values,
-        low_element_next_values,
-        low_element_indices,
-        low_element_next_indices,
-        low_element_proofs,
-        addresses,
-        indexer
-            .get_subtrees(merkle_tree_pubkey.to_bytes())
-            .await
-            .unwrap()
-            .try_into()
-            .unwrap(),
-        leaves_hashchain,
-        batch_start_index as usize,
-        batch.zkp_batch_size as usize,
-    )
-    .unwrap();
+    let inputs =
+        get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+            start_index,
+            current_root,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            addresses,
+            indexer
+                .get_subtrees(merkle_tree_pubkey.to_bytes())
+                .await
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            leaves_hashchain,
+            batch_start_index as usize,
+            batch.zkp_batch_size as usize,
+        )
+        .unwrap();
     let client = Client::new();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);

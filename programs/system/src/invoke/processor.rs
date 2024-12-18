@@ -14,10 +14,9 @@ use crate::{
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_state_proof::{
-            fetch_input_compressed_account_roots, fetch_roots_address_merkle_tree,
-            hash_input_compressed_accounts, verify_input_accounts_proof_by_index,
-            verify_read_only_account_inclusion, verify_read_only_address_queue_non_inclusion,
-            verify_state_proof,
+            fetch_address_roots, fetch_input_roots, hash_input_compressed_accounts,
+            verify_input_accounts_proof_by_index, verify_read_only_account_inclusion,
+            verify_read_only_address_queue_non_inclusion, verify_state_proof,
         },
     },
     sdk::{
@@ -118,7 +117,6 @@ pub fn process<
     // Verify state and or address proof ---------------------------------------------------
     let read_only_addresses = read_only_addresses.unwrap_or_default();
     let num_of_read_only_addresses = read_only_addresses.len();
-    let mut new_address_roots = Vec::with_capacity(num_new_addresses + num_of_read_only_addresses);
     let mut new_addresses = Vec::with_capacity(num_new_addresses + num_of_read_only_addresses);
 
     // hash input compressed accounts ---------------------------------------------------
@@ -264,51 +262,56 @@ pub fn process<
         bench_sbf_start!("cpda_verify_state_proof");
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
+
+            let mut input_compressed_account_roots =
+                Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
+            // We need to clone to add read only accounts which shouldn't be part of the event
+            // and we remove accounts proven by index which should be part of the event.
+            let mut input_compressed_account_hashes = input_compressed_account_hashes.clone();
+
+            let state_tree_height = {
+                verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
+
+                for read_only_account in read_only_accounts.iter() {
+                    // only push read only account hashes which are not marked as proof by index
+                    if read_only_account.merkle_context.queue_index.is_none() {
+                        input_compressed_account_hashes.push(read_only_account.account_hash);
+                    }
+                }
+                fetch_input_roots(
+                    ctx.remaining_accounts,
+                    &inputs.input_compressed_accounts_with_merkle_context,
+                    &read_only_accounts,
+                    &mut input_compressed_account_roots,
+                )?
+            };
+
+            let mut new_address_roots =
+                Vec::with_capacity(num_new_addresses + num_of_read_only_addresses);
+
+            let address_tree_height = {
+                verify_read_only_address_queue_non_inclusion(
+                    ctx.remaining_accounts,
+                    &read_only_addresses,
+                )?;
+
+                for read_only_address in read_only_addresses.iter() {
+                    new_addresses.push(read_only_address.address);
+                }
+
+                fetch_address_roots(
+                    ctx.remaining_accounts,
+                    &inputs.new_address_params,
+                    &read_only_addresses,
+                    &mut new_address_roots,
+                )?
+            };
+
             let compressed_verifier_proof = CompressedVerifierProof {
                 a: proof.a,
                 b: proof.b,
                 c: proof.c,
             };
-
-            let mut input_compressed_account_roots =
-                Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
-            fetch_input_compressed_account_roots(
-                &inputs.input_compressed_accounts_with_merkle_context,
-                &ctx,
-                &mut input_compressed_account_roots,
-            )?;
-
-            fetch_input_compressed_account_roots(
-                &read_only_accounts,
-                &ctx,
-                &mut input_compressed_account_roots,
-            )?;
-            verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
-
-            let address_tree_height = fetch_roots_address_merkle_tree(
-                &inputs.new_address_params,
-                &read_only_addresses,
-                &ctx,
-                &mut new_address_roots,
-            )?;
-            verify_read_only_address_queue_non_inclusion(
-                ctx.remaining_accounts,
-                &read_only_addresses,
-            )?;
-
-            for read_only_address in read_only_addresses.iter() {
-                new_addresses.push(read_only_address.address);
-            }
-            // We need to clone to add read only accounts which shouldn't be part of the event
-            // and we remove accounts proven by index which should be part of the event.
-            let mut input_compressed_account_hashes = input_compressed_account_hashes.clone();
-            for read_only_account in read_only_accounts.iter() {
-                // only push read only account hashes which are not marked as proof by index
-                if read_only_account.merkle_context.queue_index.is_none() {
-                    input_compressed_account_hashes.push(read_only_account.account_hash);
-                }
-            }
-
             match verify_state_proof(
                 &inputs.input_compressed_accounts_with_merkle_context,
                 &input_compressed_account_roots,
@@ -317,6 +320,7 @@ pub fn process<
                 &new_addresses,
                 &compressed_verifier_proof,
                 address_tree_height,
+                state_tree_height,
             ) {
                 Ok(_) => Ok(()),
                 Err(e) => {

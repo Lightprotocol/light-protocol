@@ -14,9 +14,9 @@ use super::non_inclusion_json_formatter::NonInclusionJsonStruct;
 #[derive(Serialize, Debug)]
 pub struct BatchNonInclusionJsonStruct {
     #[serde(rename = "circuitType")]
-    circuit_type: String,
+    pub circuit_type: String,
     #[serde(rename = "addressTreeHeight")]
-    address_tree_height: u32,
+    pub address_tree_height: u32,
     #[serde(rename(serialize = "newAddresses"))]
     pub inputs: Vec<NonInclusionJsonStruct>,
 }

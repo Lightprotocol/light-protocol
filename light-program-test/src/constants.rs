@@ -1,2 +1,0 @@
-pub const BATCH_STATE_MERKLE_TREE_HEIGHT: usize = 26;
-pub const BATCH_ADDRESS_MERKLE_TREE_HEIGHT: usize = 40;
