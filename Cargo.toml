@@ -27,6 +27,7 @@ members = [
     "test-programs/system-cpi-test/",
     "test-programs/system-test/",
     "test-programs/sdk-test-program/programs/sdk-test/",
+    "test-programs/create-address-test-program/",
     "forester-utils",
     "forester",
     "photon-api", 
@@ -96,13 +97,22 @@ account-compression = { path = "programs/account-compression", version = "1.2.0"
 light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = ["cpi"] }
 light-system-program = { path = "programs/system", version = "1.2.0", features = ["cpi"] }
 light-registry = { path = "programs/registry", version = "1.2.0",  features = ["cpi"]}
+create-address-test-program = { path = "test-programs/create-address-test-program", version = "1.0.0", features = ["cpi"] }
 light-program-test = { path = "light-program-test", version = "0.1.0" }
+light-batched-merkle-tree = { path = "merkle-tree/batched", version = "0.1.0" }
+light-merkle-tree-metadata = { path = "merkle-tree/metadata", version = "0.1.0" }
+aligned-sized = { path = "macros/aligned-sized", version = "1.1.0" }
+light-bloom-filter = { path = "merkle-tree/bloom-filter", version = "0.1.0" }
+light-bounded-vec = { path = "merkle-tree/bounded-vec", version = "1.1.0" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 
 # HTTP client
 reqwest = "0.11.26"
+
+# Testing
+serial_test = "3.1.1"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }

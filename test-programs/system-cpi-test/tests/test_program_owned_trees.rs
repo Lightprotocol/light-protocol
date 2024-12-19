@@ -28,6 +28,7 @@ use light_test_utils::{
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
 use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
+use serial_test::serial;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::Signature;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
@@ -36,6 +37,7 @@ use system_cpi_test::sdk::{
     create_initialize_merkle_tree_instruction,
 };
 
+#[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
@@ -60,6 +62,7 @@ async fn test_program_owned_merkle_tree() {
         }),
     )
     .await;
+
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,
@@ -68,6 +71,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
+            1,
         )
         .await;
 
@@ -114,11 +118,12 @@ async fn test_program_owned_merkle_tree() {
         26,
     >(&mut rpc, program_owned_merkle_tree_pubkey)
     .await;
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot: u64 = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),
-        test_indexer.state_merkle_trees[1].merkle_tree.root()
+        test_indexer.state_merkle_trees[2].merkle_tree.root()
     );
 
     let invalid_program_owned_merkle_tree_keypair = Keypair::new();
@@ -134,6 +139,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
             None,
+            1,
         )
         .await;
     let recipient_keypair = Keypair::new();
@@ -187,6 +193,7 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 /// 10. FAIL: insert into nullifier queue with invalid group
 /// 11. FAIL: create address Merkle tree with invalid group
 /// 12. FAIL: create state Merkle tree with invalid group
+#[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(

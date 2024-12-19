@@ -293,6 +293,7 @@ func (ps *ProvingSystemV2) ProveBatchAddressAppend(params *BatchAddressAppendPar
 	if params == nil {
 		panic("params cannot be nil")
 	}
+
 	if err := params.ValidateShape(); err != nil {
 		return nil, err
 	}

@@ -34,6 +34,7 @@ light-utils = { version = "1.1.0", path = "../../utils" }
 groth16-solana = "0.0.3"
 light-verifier = { path = "../../circuit-lib/verifier", version = "1.1.0", features = ["solana"] }
 solana-security-txt = "1.1.0"
+light-batched-merkle-tree = {workspace = true, features = ["solana"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

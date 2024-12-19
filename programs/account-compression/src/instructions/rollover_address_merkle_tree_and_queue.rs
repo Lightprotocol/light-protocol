@@ -48,7 +48,7 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 ///
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and nullifier queue with the same parameters
+/// 2. initialize new Merkle tree and queue with the same parameters
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
@@ -74,14 +74,20 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
                 RolloverAddressMerkleTreeAndQueue,
                 AddressMerkleTreeAccount,
             >(&ctx, &merkle_tree_account_loaded)?;
-            merkle_tree_account_loaded.metadata.rollover(
-                ctx.accounts.old_queue.key(),
-                ctx.accounts.new_address_merkle_tree.key(),
-            )?;
-            queue_account_loaded.metadata.rollover(
-                ctx.accounts.old_address_merkle_tree.key(),
-                ctx.accounts.new_queue.key(),
-            )?;
+            merkle_tree_account_loaded
+                .metadata
+                .rollover(
+                    ctx.accounts.old_queue.key(),
+                    ctx.accounts.new_address_merkle_tree.key(),
+                )
+                .map_err(ProgramError::from)?;
+            queue_account_loaded
+                .metadata
+                .rollover(
+                    ctx.accounts.old_address_merkle_tree.key(),
+                    ctx.accounts.new_queue.key(),
+                )
+                .map_err(ProgramError::from)?;
 
             let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
             let queue_metadata = queue_account_loaded.metadata;

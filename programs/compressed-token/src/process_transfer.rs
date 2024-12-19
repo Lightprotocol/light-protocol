@@ -595,7 +595,9 @@ pub mod transfer_sdk {
     use anchor_spl::{token::Token, token_2022::Token2022};
     use light_system_program::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
+        sdk::compressed_account::{
+            CompressedAccount, MerkleContext, PackedMerkleContext, QueueIndex,
+        },
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -628,7 +630,7 @@ pub mod transfer_sdk {
         owner: &Pubkey,
         input_merkle_context: &[MerkleContext],
         output_compressed_accounts: &[TokenTransferOutputData],
-        root_indices: &[u16],
+        root_indices: &[Option<u16>],
         proof: &Option<CompressedProof>,
         input_token_data: &[TokenData],
         input_compressed_accounts: &[CompressedAccount],
@@ -719,7 +721,7 @@ pub mod transfer_sdk {
         input_merkle_context: &[MerkleContext],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
-        root_indices: &[u16],
+        root_indices: &[Option<u16>],
         proof: &Option<CompressedProof>,
         mint: Pubkey,
         owner: &Pubkey,
@@ -769,7 +771,7 @@ pub mod transfer_sdk {
         input_merkle_context: &[MerkleContext],
         delegate: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
-        root_indices: &[u16],
+        root_indices: &[Option<u16>],
         proof: &Option<CompressedProof>,
         mint: Pubkey,
         is_compress: bool,
@@ -838,7 +840,7 @@ pub mod transfer_sdk {
         input_token_data: &[TokenData],
         input_compressed_accounts: &[CompressedAccount],
         input_merkle_context: &[MerkleContext],
-        root_indices: &[u16],
+        root_indices: &[Option<u16>],
         output_compressed_accounts: &[TokenTransferOutputData],
     ) -> (
         HashMap<Pubkey, usize>,
@@ -883,6 +885,12 @@ pub mod transfer_sdk {
             } else {
                 None
             };
+            // Potential footgun queue index is set in merkle tree but its not used here
+            let queue_index = if root_indices[i].is_none() {
+                Some(QueueIndex::default())
+            } else {
+                None
+            };
             let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
                 delegate_index,
@@ -892,9 +900,9 @@ pub mod transfer_sdk {
                         .unwrap() as u8,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
-                    queue_index: None,
+                    queue_index,
                 },
-                root_index: root_indices[i],
+                root_index: root_indices[i].unwrap_or_default(),
                 lamports,
                 tlv: None,
             };

@@ -6,6 +6,7 @@ use std::{
 };
 
 use ark_ff::PrimeField;
+use light_hasher::HasherError;
 use num_bigint::BigUint;
 
 use solana_program::keccak::hashv;
@@ -13,7 +14,7 @@ use thiserror::Error;
 
 pub mod bigint;
 pub mod fee;
-pub mod offset;
+pub mod hashchain;
 pub mod prime;
 pub mod rand;
 
@@ -27,6 +28,8 @@ pub enum UtilsError {
     InvalidSeeds,
     #[error("Invalid rollover thresold")]
     InvalidRolloverThreshold,
+    #[error("Hasher error {0}")]
+    HasherError(#[from] HasherError),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -38,6 +41,7 @@ impl From<UtilsError> for u32 {
             UtilsError::InvalidChunkSize => 12002,
             UtilsError::InvalidSeeds => 12003,
             UtilsError::InvalidRolloverThreshold => 12004,
+            UtilsError::HasherError(e) => u32::from(e),
         }
     }
 }

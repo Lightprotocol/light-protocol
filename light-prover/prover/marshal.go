@@ -249,6 +249,11 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		return ps, nil
 	} else {
 		ps := new(ProvingSystemV1)
+		if strings.Contains(strings.ToLower(path), "mainnet") {
+			ps.Version = 0
+		} else {
+			ps.Version = 1
+		}
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err

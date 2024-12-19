@@ -17,7 +17,10 @@ type NonInclusionProofInputsJSON struct {
 }
 
 type NonInclusionParametersJSON struct {
-	Inputs []NonInclusionProofInputsJSON `json:"new-addresses"`
+	CircuitType        CircuitType                   `json:"circuitType"`
+	AddressTreeHeight  uint32                        `json:"addressTreeHeight"`
+	PublicInputHash    string                        `json:"publicInputHash"`
+	NonInclusionInputs []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
 func ParseNonInclusion(inputJSON string) (NonInclusionParameters, error) {
@@ -36,19 +39,23 @@ func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
 
 func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusionParametersJSON {
 	paramsJson := NonInclusionParametersJSON{}
-	paramsJson.Inputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+	paramsJson.CircuitType = NonInclusionCircuitType
+	paramsJson.AddressTreeHeight = uint32(len(p.Inputs[0].PathElements))
+	paramsJson.NonInclusionInputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
-		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
-		paramsJson.Inputs[i].Value = toHex(&p.Inputs[i].Value)
-		paramsJson.Inputs[i].PathIndex = p.Inputs[i].PathIndex
-		paramsJson.Inputs[i].PathElements = make([]string, len(p.Inputs[i].PathElements))
+		paramsJson.NonInclusionInputs[i].Root = toHex(&p.Inputs[i].Root)
+		paramsJson.NonInclusionInputs[i].Value = toHex(&p.Inputs[i].Value)
+		paramsJson.NonInclusionInputs[i].PathIndex = p.Inputs[i].PathIndex
+		paramsJson.NonInclusionInputs[i].PathElements = make([]string, len(p.Inputs[i].PathElements))
 		for j := 0; j < len(p.Inputs[i].PathElements); j++ {
-			paramsJson.Inputs[i].PathElements[j] = toHex(&p.Inputs[i].PathElements[j])
+			paramsJson.NonInclusionInputs[i].PathElements[j] = toHex(&p.Inputs[i].PathElements[j])
 		}
-		paramsJson.Inputs[i].LeafLowerRangeValue = toHex(&p.Inputs[i].LeafLowerRangeValue)
-		paramsJson.Inputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
-		paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
+		paramsJson.NonInclusionInputs[i].LeafLowerRangeValue = toHex(&p.Inputs[i].LeafLowerRangeValue)
+		paramsJson.NonInclusionInputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
+		paramsJson.NonInclusionInputs[i].NextIndex = p.Inputs[i].NextIndex
 	}
+	paramsJson.PublicInputHash = toHex(&p.PublicInputHash)
+	paramsJson.CircuitType = NonInclusionCircuitType
 	return paramsJson
 }
 
@@ -66,33 +73,34 @@ func (p *NonInclusionParameters) UnmarshalJSON(data []byte) error {
 }
 
 func (p *NonInclusionParameters) UpdateWithJSON(params NonInclusionParametersJSON, err error) error {
-	p.Inputs = make([]NonInclusionInputs, len(params.Inputs))
-	for i := 0; i < len(params.Inputs); i++ {
-		err = fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)
+	fromHex(&p.PublicInputHash, params.PublicInputHash)
+	p.Inputs = make([]NonInclusionInputs, len(params.NonInclusionInputs))
+	for i := 0; i < len(params.NonInclusionInputs); i++ {
+		err = fromHex(&p.Inputs[i].Root, params.NonInclusionInputs[i].Root)
 		if err != nil {
 			return err
 		}
-		err = fromHex(&p.Inputs[i].Value, params.Inputs[i].Value)
+		err = fromHex(&p.Inputs[i].Value, params.NonInclusionInputs[i].Value)
 		if err != nil {
 			return err
 		}
-		p.Inputs[i].PathIndex = params.Inputs[i].PathIndex
-		p.Inputs[i].PathElements = make([]big.Int, len(params.Inputs[i].PathElements))
-		for j := 0; j < len(params.Inputs[i].PathElements); j++ {
-			err = fromHex(&p.Inputs[i].PathElements[j], params.Inputs[i].PathElements[j])
+		p.Inputs[i].PathIndex = params.NonInclusionInputs[i].PathIndex
+		p.Inputs[i].PathElements = make([]big.Int, len(params.NonInclusionInputs[i].PathElements))
+		for j := 0; j < len(params.NonInclusionInputs[i].PathElements); j++ {
+			err = fromHex(&p.Inputs[i].PathElements[j], params.NonInclusionInputs[i].PathElements[j])
 			if err != nil {
 				return err
 			}
 		}
-		err = fromHex(&p.Inputs[i].LeafLowerRangeValue, params.Inputs[i].LeafLowerRangeValue)
+		err = fromHex(&p.Inputs[i].LeafLowerRangeValue, params.NonInclusionInputs[i].LeafLowerRangeValue)
 		if err != nil {
 			return err
 		}
-		err = fromHex(&p.Inputs[i].LeafHigherRangeValue, params.Inputs[i].LeafHigherRangeValue)
+		err = fromHex(&p.Inputs[i].LeafHigherRangeValue, params.NonInclusionInputs[i].LeafHigherRangeValue)
 		if err != nil {
 			return err
 		}
-		p.Inputs[i].NextIndex = params.Inputs[i].NextIndex
+		p.Inputs[i].NextIndex = params.NonInclusionInputs[i].NextIndex
 	}
 	return nil
 }

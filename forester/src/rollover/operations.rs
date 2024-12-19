@@ -101,7 +101,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             let threshold = ((1 << height)
                 * queue_account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
-            let next_index = merkle_tree.next_index() - 3;
+            let next_index = merkle_tree.next_index().saturating_sub(3);
             let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
@@ -110,6 +110,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
+        _ => panic!("get tree fullness: Invalid tree type {:?}", tree_type),
     }
 }
 
@@ -134,6 +135,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await?
                 .unwrap(),
         ),
+        _ => panic!(
+            "is_tree_ready_for_rollover: Invalid tree type {:?}",
+            tree_type
+        ),
     };
 
     let is_already_rolled_over = match &account {
@@ -154,6 +159,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
         TreeType::Address => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
+        _ => panic!(
+            "is_tree_ready_for_rollover: Invalid tree type {:?}",
+            tree_type
+        ),
     }
 }
 
@@ -193,6 +202,9 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         )),
+        version: 1,
+        input_leaf_indices: vec![],
+        output_queue_elements: vec![],
     };
     indexer.lock().await.add_state_bundle(state_bundle);
     Ok(())

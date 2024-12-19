@@ -81,14 +81,20 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
                 RolloverStateMerkleTreeAndNullifierQueue,
                 StateMerkleTreeAccount,
             >(&ctx, &merkle_tree_account_loaded)?;
-            merkle_tree_account_loaded.metadata.rollover(
-                ctx.accounts.old_nullifier_queue.key(),
-                ctx.accounts.new_state_merkle_tree.key(),
-            )?;
-            queue_account_loaded.metadata.rollover(
-                ctx.accounts.old_state_merkle_tree.key(),
-                ctx.accounts.new_nullifier_queue.key(),
-            )?;
+            merkle_tree_account_loaded
+                .metadata
+                .rollover(
+                    ctx.accounts.old_nullifier_queue.key(),
+                    ctx.accounts.new_state_merkle_tree.key(),
+                )
+                .map_err(ProgramError::from)?;
+            queue_account_loaded
+                .metadata
+                .rollover(
+                    ctx.accounts.old_state_merkle_tree.key(),
+                    ctx.accounts.new_nullifier_queue.key(),
+                )
+                .map_err(ProgramError::from)?;
 
             let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
             let queue_metadata = queue_account_loaded.metadata;

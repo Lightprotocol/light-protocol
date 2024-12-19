@@ -46,6 +46,7 @@ import {
     MerkleContextWithNewAddressProof,
     convertMerkleProofsWithContextToHex,
     convertNonInclusionMerkleProofInputsToHex,
+    getPublicInputHash,
     proverRequest,
 } from '../../rpc';
 
@@ -683,11 +684,21 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const inputs = convertMerkleProofsWithContextToHex(
                 merkleProofsWithContext,
             );
+
+            // TODO: reactivate to handle proofs of height 32
+            // const publicInputHash = getPublicInputHash(
+            //     merkleProofsWithContext,
+            //     hashes,
+            //     [],
+            //     this.lightWasm,
+            // );
+
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
                 this.log,
+                // publicInputHash,
             );
             validityProof = {
                 compressedProof,
@@ -713,12 +724,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const inputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            // const publicInputHash = getPublicInputHash(
+            //     [],
+            //     [],
+            //     newAddressProofs,
+            //     this.lightWasm,
+            // );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'new-address',
                 inputs,
                 this.log,
+                // publicInputHash,
             );
 
             validityProof = {
@@ -749,12 +766,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const newAddressInputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            // const publicInputHash = getPublicInputHash(
+            //     merkleProofsWithContext,
+            //     hashes,
+            //     newAddressProofs,
+            //     this.lightWasm,
+            // );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'combined',
                 [inputs, newAddressInputs],
                 this.log,
+                // publicInputHash,
             );
 
             validityProof = {

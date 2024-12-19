@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod test {
+
     use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
+    use light_prover_client::inclusion::merkle_tree_info::MerkleTreeInfo;
+    use light_prover_client::init_merkle_tree::inclusion_merkle_tree_inputs;
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -10,7 +13,10 @@ mod test {
         },
         helpers::init_logger,
     };
-    use light_verifier::{verify_merkle_proof_zkp, CompressedProof};
+    use light_utils::hashchain::{
+        create_hash_chain, create_hash_chain_from_slice, create_two_inputs_hash_chain,
+    };
+    use light_verifier::{select_verifying_key, verify, CompressedProof};
     use reqwest::Client;
     use serial_test::serial;
 
@@ -28,7 +34,9 @@ mod test {
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
-            let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
+            let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);
+
+            let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -48,15 +56,16 @@ mod test {
                 roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
                 leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
-
-            verify_merkle_proof_zkp(
-                &roots,
-                &leaves,
+            let public_input_hash = create_two_inputs_hash_chain(&roots, &leaves).unwrap();
+            let vk = select_verifying_key(leaves.len(), 0).unwrap();
+            verify::<1>(
+                &[public_input_hash],
                 &CompressedProof {
                     a: proof_a,
                     b: proof_b,
                     c: proof_c,
                 },
+                vk,
             )
             .unwrap();
         }
@@ -68,7 +77,7 @@ mod test {
     async fn prove_inclusion_full() {
         init_logger();
         spawn_prover(
-            false,
+            true,
             ProverConfig {
                 run_mode: None,
                 circuits: vec![ProofType::Inclusion],
@@ -77,7 +86,9 @@ mod test {
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
-            let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
+            let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);
+
+            let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -98,14 +109,19 @@ mod test {
                 leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
 
-            verify_merkle_proof_zkp(
-                &roots,
-                &leaves,
+            let roots_hash_chain = create_hash_chain_from_slice(&roots).unwrap();
+            let leaves_hash_chain = create_hash_chain_from_slice(&leaves).unwrap();
+            let public_input_hash =
+                create_hash_chain([roots_hash_chain, leaves_hash_chain]).unwrap();
+            let vk = select_verifying_key(leaves.len(), 0).unwrap();
+            verify::<1>(
+                &[public_input_hash],
                 &CompressedProof {
                     a: proof_a,
                     b: proof_b,
                     c: proof_c,
                 },
+                vk,
             )
             .unwrap();
         }

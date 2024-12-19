@@ -55,4 +55,11 @@ pub enum AccountCompressionErrorCode {
     UnsupportedAdditionalBytes,
     InvalidGroup,
     ProofLengthMismatch,
+    TxHashUndefined,
+    InputDeserializationFailed,
+    UnsupportedParameters,
+    AddressMerkleTreeAccountDiscriminatorMismatch,
+    StateMerkleTreeAccountDiscriminatorMismatch,
+    RegistryProgramIsNone,
+    EmptyLeaf,
 }

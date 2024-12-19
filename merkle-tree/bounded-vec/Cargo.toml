@@ -17,3 +17,4 @@ thiserror = "1.0"
 
 [dev-dependencies]
 rand = "0.8"
+bytemuck = { version = "1.17", features = ["derive"] }

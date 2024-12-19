@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
+use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
 };
@@ -48,6 +49,7 @@ use light_test_utils::{
 use light_test_utils::{assert_custom_error_or_program_error, indexer::TestIndexer};
 use light_verifier::VerifierError;
 use rand::Rng;
+use serial_test::serial;
 use solana_sdk::system_instruction;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
@@ -58,6 +60,7 @@ use solana_sdk::{
 };
 use spl_token::{error::TokenError, instruction::initialize_mint};
 
+#[serial]
 #[tokio::test]
 async fn test_create_mint() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
@@ -65,6 +68,7 @@ async fn test_create_mint() {
     create_mint_helper(&mut rpc, &payer).await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_failing_create_token_pool() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
@@ -319,10 +323,11 @@ async fn test_failing_create_token_pool() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_wrapped_sol() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -443,6 +448,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
 /// - Mint 20 more tokens to spl token account
 /// - failing to compress spl token account with 21 remaining balance
 /// - Compress spl token account with 1 remaining token
+#[serial]
 #[tokio::test]
 async fn compress_spl_account() {
     for is_token_22 in [false, true] {
@@ -542,6 +548,7 @@ async fn compress_spl_account() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_22_mint_to() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -563,26 +570,31 @@ async fn test_22_mint_to() {
     )
     .await;
 }
+#[serial]
 #[tokio::test]
 async fn test_22_transfer() {
-    perform_transfer_22_test(1, 1, 12412, true).await;
+    perform_transfer_22_test(1, 1, 12412, true, true).await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_1_mint_to() {
     test_mint_to(vec![10000], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_1_max_mint_to() {
     test_mint_to(vec![u64::MAX], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_5_mint_to() {
     test_mint_to(vec![0, 10000, 10000, 10000, 10000], 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_10_mint_to() {
     let mut rng = rand::thread_rng();
@@ -591,6 +603,7 @@ async fn test_10_mint_to() {
     test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_20_mint_to() {
     let mut rng = rand::thread_rng();
@@ -599,6 +612,7 @@ async fn test_20_mint_to() {
     test_mint_to(amounts, 1, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_25_mint_to() {
     let mut rng = rand::thread_rng();
@@ -609,6 +623,7 @@ async fn test_25_mint_to() {
     test_mint_to(amounts, 10, Some(1_000_000)).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_25_mint_to_zeros() {
     let amounts = vec![0; 25];
@@ -629,6 +644,7 @@ async fn test_25_mint_to_zeros() {
 /// 9. Invalid Merkle tree.
 /// 10. Mint more than `u64::MAX` tokens.
 /// 11. Multiple mints which overflow the token supply over `u64::MAX`.
+#[serial]
 #[tokio::test]
 async fn test_mint_to_failing() {
     for is_token_22 in vec![false, true] {
@@ -1034,8 +1050,17 @@ async fn test_mint_to_failing() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_transfers() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+        },
+    )
+    .await;
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
         for output_num in 1..8 {
@@ -1047,10 +1072,11 @@ async fn test_transfers() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, false).await
         }
     }
 }
+#[serial]
 #[tokio::test]
 async fn test_1_transfer() {
     let possible_inputs = [1];
@@ -1064,11 +1090,12 @@ async fn test_1_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, true).await
         }
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_2_transfer() {
     let possible_inputs = [2];
@@ -1082,11 +1109,12 @@ async fn test_2_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000).await
+            perform_transfer_test(input_num, output_num, 10_000, true).await
         }
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_8_transfer() {
     let possible_inputs = [8];
@@ -1096,28 +1124,40 @@ async fn test_8_transfer() {
             "\n\ninput num: {}, output num: {}\n\n",
             input_num, output_num
         );
-        perform_transfer_test(input_num, output_num, 10_000).await
+        perform_transfer_test(input_num, output_num, 10_000, true).await
     }
 }
 
 /// Creates inputs compressed accounts with amount tokens each
 /// Transfers all tokens from inputs compressed accounts evenly distributed to outputs compressed accounts
-async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
-    perform_transfer_22_test(inputs, outputs, amount, false).await;
+async fn perform_transfer_test(
+    inputs: usize,
+    outputs: usize,
+    amount: u64,
+    start_prover_server: bool,
+) {
+    perform_transfer_22_test(inputs, outputs, amount, false, start_prover_server).await;
 }
-async fn perform_transfer_22_test(inputs: usize, outputs: usize, amount: u64, token_22: bool) {
+async fn perform_transfer_22_test(
+    inputs: usize,
+    outputs: usize,
+    amount: u64,
+    token_22: bool,
+    start_prover_server: bool,
+) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
+    let prover_config = if start_prover_server {
         Some(ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+        })
+    } else {
+        None
+    };
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, prover_config).await;
     let mint = if token_22 {
         create_mint_22_helper(&mut rpc, &payer).await
     } else {
@@ -1165,6 +1205,7 @@ async fn perform_transfer_22_test(inputs: usize, outputs: usize, amount: u64, to
     .await;
 }
 
+#[serial]
 #[tokio::test]
 async fn test_decompression() {
     spawn_prover(
@@ -1375,6 +1416,7 @@ async fn test_delegation(
 /// 1. Delegate tokens with approve
 /// 2. Delegate transfers a part of the delegated tokens
 /// 3. Delegate transfers all the remaining delegated tokens
+#[serial]
 #[tokio::test]
 async fn test_delegation_mixed() {
     let mint_amount: u64 = 10000;
@@ -1567,23 +1609,27 @@ async fn test_delegation_mixed() {
     kill_prover();
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_0() {
     let num_inputs = 1;
     test_delegation(0, num_inputs, 0, vec![0, 0], vec![0]).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_10000() {
     let num_inputs = 1;
     test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
 }
+#[serial]
 #[tokio::test]
 async fn test_delegation_8_inputs() {
     let num_inputs = 8;
     test_delegation(10000, num_inputs, 1000, vec![900, 100], vec![100]).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_delegation_max() {
     let num_inputs = 1;
@@ -1602,6 +1648,7 @@ async fn test_delegation_max() {
 /// 2. Invalid change compressed account Merkle tree.
 /// 3. Invalid proof.
 /// 4. Invalid mint.
+#[serial]
 #[tokio::test]
 async fn test_approve_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -1655,8 +1702,8 @@ async fn test_approve_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -1763,7 +1810,7 @@ async fn test_approve_failing() {
         let invalid_proof = CompressedProof {
             a: [0; 32],
             b: [0; 64],
-            c: [0; 32],
+            c: [1; 32],
         };
 
         let inputs = CreateApproveInstructionInputs {
@@ -1977,23 +2024,27 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_0() {
     let num_inputs = 1;
     test_revoke(num_inputs, 0, 0).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_10000() {
     let num_inputs = 1;
     test_revoke(num_inputs, 10000, 1000).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_revoke_8_inputs() {
     let num_inputs = 8;
     test_revoke(num_inputs, 10000, 1000).await
 }
+#[serial]
 #[tokio::test]
 async fn test_revoke_max() {
     let num_inputs = 1;
@@ -2004,6 +2055,7 @@ async fn test_revoke_max() {
 /// 1. Invalid root indices.
 /// 2. Invalid Merkle tree.
 /// 3. Invalid mint.
+#[serial]
 #[tokio::test]
 async fn test_revoke_failing() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -2080,8 +2132,8 @@ async fn test_revoke_failing() {
         .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&input_compressed_account_hashes),
-            Some(&input_merkle_tree_pubkeys),
+            Some(input_compressed_account_hashes),
+            Some(input_merkle_tree_pubkeys),
             None,
             None,
             &mut rpc,
@@ -2090,7 +2142,7 @@ async fn test_revoke_failing() {
 
     // 1. Invalid root indices.
     {
-        let invalid_root_indices = vec![0];
+        let invalid_root_indices = vec![Some(0)];
 
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
@@ -2211,10 +2263,11 @@ async fn test_revoke_failing() {
 /// 1. Burn tokens
 /// 1. Delegate tokens with approve
 /// 2. Burn delegated tokens
+#[serial]
 #[tokio::test]
 async fn test_burn() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2359,10 +2412,11 @@ async fn test_burn() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn failing_tests_burn() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2599,7 +2653,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -2614,7 +2668,7 @@ async fn failing_tests_burn() {
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2762,11 +2816,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_freeze_and_thaw_0() {
     test_freeze_and_thaw(0, 0).await
 }
 
+#[serial]
 #[tokio::test]
 async fn test_freeze_and_thaw_10000() {
     test_freeze_and_thaw(10000, 1000).await
@@ -2777,10 +2833,11 @@ async fn test_freeze_and_thaw_10000() {
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
 /// 4. Freeze frozen compressed account.
+#[serial]
 #[tokio::test]
 async fn test_failing_freeze() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -2837,8 +2894,8 @@ async fn test_failing_freeze() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -2927,7 +2984,7 @@ async fn test_failing_freeze() {
         // 3. Invalid proof.
         {
             let invalid_proof = CompressedProof {
-                a: [0; 32],
+                a: [1; 32],
                 b: [0; 64],
                 c: [0; 32],
             };
@@ -2995,8 +3052,8 @@ async fn test_failing_freeze() {
                 .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
                 .create_proof_for_compressed_accounts(
-                    Some(&input_compressed_account_hashes),
-                    Some(&input_merkle_tree_pubkeys),
+                    Some(input_compressed_account_hashes),
+                    Some(input_merkle_tree_pubkeys),
                     None,
                     None,
                     &mut rpc,
@@ -3040,10 +3097,11 @@ async fn test_failing_freeze() {
 /// 2. Invalid Merkle tree.
 /// 3. Invalid proof.
 /// 4. thaw compressed account which is not frozen
+#[serial]
 #[tokio::test]
 async fn test_failing_thaw() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -3126,8 +3184,8 @@ async fn test_failing_thaw() {
             .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 &mut rpc,
@@ -3216,7 +3274,7 @@ async fn test_failing_thaw() {
         // 3. Invalid proof.
         {
             let invalid_proof = CompressedProof {
-                a: [0; 32],
+                a: [1; 32],
                 b: [0; 64],
                 c: [0; 32],
             };
@@ -3275,8 +3333,8 @@ async fn test_failing_thaw() {
                 .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
                 .create_proof_for_compressed_accounts(
-                    Some(&input_compressed_account_hashes),
-                    Some(&input_merkle_tree_pubkeys),
+                    Some(input_compressed_account_hashes),
+                    Some(input_merkle_tree_pubkeys),
                     None,
                     None,
                     &mut rpc,
@@ -3325,6 +3383,7 @@ async fn test_failing_thaw() {
 /// 7. Invalid compression amount -1
 /// 8. Invalid compression amount +1
 /// 9. Invalid compression amount 0
+#[serial]
 #[tokio::test]
 async fn test_failing_decompression() {
     spawn_prover(
@@ -3674,8 +3733,8 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
     let (root_indices, proof) = if !input_compressed_account_hashes.is_empty() {
         let proof_rpc_result = test_indexer
             .create_proof_for_compressed_accounts(
-                Some(&input_compressed_account_hashes),
-                Some(&input_merkle_tree_pubkeys),
+                Some(input_compressed_account_hashes),
+                Some(input_merkle_tree_pubkeys),
                 None,
                 None,
                 rpc,
@@ -3775,6 +3834,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
 /// 10. invalid root indices (ProofVerificationFailed)
 /// 11. invalid mint (ProofVerificationFailed)
 /// 12. invalid Merkle tree pubkey (ProofVerificationFailed)
+#[serial]
 #[tokio::test]
 async fn test_invalid_inputs() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -3815,10 +3875,12 @@ async fn test_invalid_inputs() {
         .clone()];
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_accounts[0].hash().unwrap()]),
-            Some(&[input_compressed_accounts[0]
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_accounts[0].hash().unwrap()]),
+            Some(vec![
+                input_compressed_accounts[0]
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             &mut rpc,
@@ -4057,7 +4119,8 @@ async fn test_invalid_inputs() {
     // Test 10: invalid root indices
     {
         let mut root_indices = proof_rpc_result.root_indices.clone();
-        root_indices[0] += 1;
+        let root_index = root_indices[0].as_mut().unwrap();
+        *root_index += 1;
         let res = perform_transfer_failing_test(
             &mut rpc,
             change_out_compressed_account_0,
@@ -4080,7 +4143,7 @@ async fn test_invalid_inputs() {
             &mut rpc,
             change_out_compressed_account_0,
             transfer_recipient_out_compressed_account_0,
-            &nullifier_queue_pubkey,
+            &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &payer,
             &Some(proof_rpc_result.proof.clone()),
@@ -4089,11 +4152,8 @@ async fn test_invalid_inputs() {
             true,
         )
         .await;
-        assert_custom_error_or_program_error(
-            res,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
-        )
-        .unwrap();
+        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
+            .unwrap();
     }
     // Test 12: invalid Merkle tree pubkey
     {
@@ -4113,7 +4173,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -4129,7 +4189,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
     payer: &Keypair,
     proof: &Option<CompressedProof>,
-    root_indices: &[u16],
+    root_indices: &[Option<u16>],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     invalid_mint: bool,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
@@ -4190,4 +4250,36 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         latest_blockhash,
     );
     rpc.process_transaction(transaction).await
+}
+
+#[serial]
+#[serial]
+#[tokio::test]
+async fn mint_with_batched_tree() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.batched_output_queue;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    let num_recipients = 25;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount; num_recipients],
+        vec![sender.pubkey(); num_recipients],
+    )
+    .await;
 }

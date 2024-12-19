@@ -177,6 +177,78 @@ export type LightSystemProgram = {
             ];
         },
         {
+            name: 'invokeCpiWithReadOnly';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'invokingProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'decompressionRecipient';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
             name: 'stubIdlBuild';
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
@@ -272,23 +344,6 @@ export type LightSystemProgram = {
     ];
     accounts: [
         {
-            name: 'stateMerkleTreeAccount';
-            docs: [
-                'Concurrent state Merkle tree used for public compressed transactions.',
-            ];
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'metadata';
-                        type: {
-                            defined: 'MerkleTreeMetadata';
-                        };
-                    },
-                ];
-            };
-        },
-        {
             name: 'cpiContextAccount';
             docs: [
                 'Collects instruction data without executing a compressed transaction.',
@@ -322,123 +377,6 @@ export type LightSystemProgram = {
         },
     ];
     types: [
-        {
-            name: 'AccessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'forester';
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ];
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'RolloverMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'additionalBytes';
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ];
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
         {
             name: 'InstructionDataInvoke';
             type: {
@@ -769,10 +707,6 @@ export type LightSystemProgram = {
                     },
                     {
                         name: 'queueIndex';
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ];
                         type: {
                             option: {
                                 defined: 'QueueIndex';
@@ -1060,6 +994,22 @@ export type LightSystemProgram = {
             code: 6033;
             name: 'DataFieldUndefined';
         },
+        {
+            code: 6034;
+            name: 'ReadOnlyAddressAlreadyExists';
+        },
+        {
+            code: 6035;
+            name: 'ReadOnlyAccountDoesNotExist';
+        },
+        {
+            code: 6036;
+            name: 'HashChainInputsLenghtInconsistent';
+        },
+        {
+            code: 6037;
+            name: 'InvalidAddressTreeHeight';
+        },
     ];
 };
 
@@ -1242,6 +1192,78 @@ export const IDL: LightSystemProgram = {
             ],
         },
         {
+            name: 'invokeCpiWithReadOnly',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Fee payer needs to be mutable to pay rollover and protocol fees.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'invokingProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'decompressionRecipient',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
             name: 'stubIdlBuild',
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
@@ -1337,23 +1359,6 @@ export const IDL: LightSystemProgram = {
     ],
     accounts: [
         {
-            name: 'stateMerkleTreeAccount',
-            docs: [
-                'Concurrent state Merkle tree used for public compressed transactions.',
-            ],
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'MerkleTreeMetadata',
-                        },
-                    },
-                ],
-            },
-        },
-        {
             name: 'cpiContextAccount',
             docs: [
                 'Collects instruction data without executing a compressed transaction.',
@@ -1387,123 +1392,6 @@ export const IDL: LightSystemProgram = {
         },
     ],
     types: [
-        {
-            name: 'AccessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'RolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
         {
             name: 'InstructionDataInvoke',
             type: {
@@ -1838,10 +1726,6 @@ export const IDL: LightSystemProgram = {
                     },
                     {
                         name: 'queueIndex',
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ],
                         type: {
                             option: {
                                 defined: 'QueueIndex',
@@ -2129,6 +2013,22 @@ export const IDL: LightSystemProgram = {
         {
             code: 6033,
             name: 'DataFieldUndefined',
+        },
+        {
+            code: 6034,
+            name: 'ReadOnlyAddressAlreadyExists',
+        },
+        {
+            code: 6035,
+            name: 'ReadOnlyAccountDoesNotExist',
+        },
+        {
+            code: 6036,
+            name: 'HashChainInputsLenghtInconsistent',
+        },
+        {
+            code: 6037,
+            name: 'InvalidAddressTreeHeight',
         },
     ],
 };

@@ -8,8 +8,8 @@ use account_compression::{
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueType,
-    StateMerkleTreeAccount, StateMerkleTreeConfig, ID, SAFETY_MARGIN,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeAccount,
+    StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
@@ -18,6 +18,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::assert_queue::assert_nullifier_queue_initialized;
@@ -530,12 +531,7 @@ async fn failing_queue(
         &mut rpc,
     )
     .await;
-    assert_rpc_error(
-        result,
-        0,
-        AccountCompressionErrorCode::InvalidQueueType.into(),
-    )
-    .unwrap();
+    assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidQueueType.into()).unwrap();
     let nullifier_2 = [2u8; 32];
 
     // CHECK 3.3: pass non associated queue account
@@ -757,7 +753,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -776,7 +772,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -832,7 +828,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into(),
+        MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
     )
     .unwrap();
 }
@@ -937,7 +933,7 @@ async fn test_append_functional_and_failing(
         &mut context,
         &[queue_keypair.pubkey()],
         vec![(0, [1u8; 32])],
-        ErrorCode::AccountDiscriminatorMismatch.into(),
+        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
     )
     .await
     .unwrap();
@@ -1357,6 +1353,8 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
+        leaf_indices: Vec::new(),
+        tx_hash: None,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1401,6 +1399,8 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
+        leaf_indices: Vec::new(),
+        tx_hash: None,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),

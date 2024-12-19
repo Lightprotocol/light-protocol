@@ -1,8 +1,9 @@
 use light_poseidon::PoseidonError;
-use solana_program::poseidon::PoseidonSyscallError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+use crate::poseidon::PoseidonSyscallError;
+
+#[derive(Debug, Error, PartialEq)]
 pub enum HasherError {
     #[error("Integer overflow, value too large")]
     IntegerOverflow,

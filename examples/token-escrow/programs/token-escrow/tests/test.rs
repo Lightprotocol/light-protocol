@@ -237,10 +237,12 @@ pub async fn perform_escrow<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             rpc,
@@ -301,7 +303,8 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
         )
         .await?
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     Ok(())
 }
 
@@ -395,10 +398,12 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[input_compressed_account_hash]),
-            Some(&[compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![input_compressed_account_hash]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             None,
             None,
             context,
@@ -457,7 +462,8 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
         )
         .await?
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(&event.0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     Ok(())
 }
 

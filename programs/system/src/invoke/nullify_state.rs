@@ -4,9 +4,11 @@ use light_macros::heap_neutral;
 
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
-    invoke::InstructionDataInvoke,
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    sdk::{
+        accounts::{InvokeAccounts, SignerAccounts},
+        compressed_account::PackedCompressedAccountWithMerkleContext,
+    },
 };
 
 /// 1. Checks that if nullifier queue has program_owner it invoking_program is
@@ -20,10 +22,11 @@ pub fn insert_nullifiers<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataInvoke,
+    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     nullifiers: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
+    tx_hash: [u8; 32],
 ) -> Result<Option<(u8, u64)>> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
@@ -44,6 +47,8 @@ pub fn insert_nullifiers<
         AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
+
+    let mut leaf_indices = Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
     // If the transaction contains at least one input compressed account a
     // network fee is paid. This network fee is paid in addition to the address
     // network fee. The network fee is paid once per transaction, defined in the
@@ -51,7 +56,9 @@ pub fn insert_nullifiers<
     // nullifier queue is mutable. The network fee field in the queue is not
     // used.
     let mut network_fee_bundle = None;
-    for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
+    for account in input_compressed_accounts_with_merkle_context.iter() {
+        leaf_indices.push(account.merkle_context.leaf_index);
+
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
         accounts.push(AccountMeta {
@@ -60,7 +67,7 @@ pub fn insert_nullifiers<
             is_writable: true,
         });
         account_infos.push(account_info.clone());
-        let (_, network_fee, _) = check_program_owner_state_merkle_tree(
+        let (_, network_fee, _, _) = check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
             invoking_program,
         )?;
@@ -75,7 +82,7 @@ pub fn insert_nullifiers<
         accounts.push(AccountMeta {
             pubkey: account_info.key(),
             is_signer: false,
-            is_writable: false,
+            is_writable: true,
         });
         account_infos.push(account_info.clone());
     }
@@ -85,6 +92,8 @@ pub fn insert_nullifiers<
 
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: nullifiers.to_vec(),
+        leaf_indices,
+        tx_hash: Some(tx_hash),
     };
 
     let data = instruction_data.data();

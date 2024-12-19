@@ -52,11 +52,17 @@ pub fn process_freeze_or_thaw<
             &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
         )?;
+    // TODO: discuss
+    let proof = if inputs.proof == CompressedProof::default() {
+        None
+    } else {
+        Some(inputs.proof)
+    };
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
         &output_compressed_accounts,
-        Some(inputs.proof),
+        proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
         ctx.accounts.light_system_program.to_account_info(),
@@ -212,7 +218,7 @@ pub mod sdk {
     pub struct CreateInstructionInputs {
         pub fee_payer: Pubkey,
         pub authority: Pubkey,
-        pub root_indices: Vec<u16>,
+        pub root_indices: Vec<Option<u16>>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
         pub input_compressed_accounts: Vec<CompressedAccount>,

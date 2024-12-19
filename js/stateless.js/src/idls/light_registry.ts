@@ -17,6 +17,11 @@ export type LightRegistry = {
             type: 'bytes';
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]';
         },
+        {
+            name: 'DEFAULT_WORK_V1';
+            type: 'u64';
+            value: '1';
+        },
     ];
     instructions: [
         {
@@ -882,6 +887,393 @@ export type LightRegistry = {
                 },
             ];
         },
+        {
+            name: 'initializeBatchedStateMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'params';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchNullify';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchAppend';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'outputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'initializeBatchedAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'params';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchUpdateAddressTree';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'newAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'newStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'protocolConfigPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
     ];
     accounts: [
         {
@@ -1309,6 +1701,11 @@ export const IDL: LightRegistry = {
             name: 'PROTOCOL_CONFIG_PDA_SEED',
             type: 'bytes',
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]',
+        },
+        {
+            name: 'DEFAULT_WORK_V1',
+            type: 'u64',
+            value: '1',
         },
     ],
     instructions: [
@@ -2164,6 +2561,393 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'initializeBatchedStateMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'params',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchNullify',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchAppend',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'outputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'initializeBatchedAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'params',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchUpdateAddressTree',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'newAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'newStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'protocolConfigPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
                     isMut: false,
                     isSigner: false,
                 },

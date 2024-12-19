@@ -2,12 +2,16 @@
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
 };
+
 use account_compression::utils::constants::NOOP_PUBKEY;
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, MigrateLeafParams, NullifierQueueConfig,
+    StateMerkleTreeConfig,
 };
 use anchor_lang::prelude::*;
 use anchor_lang::InstructionData;
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_system_program::program::LightSystemProgram;
 use solana_sdk::instruction::Instruction;
 pub struct CreateNullifyInstructionInputs {
@@ -46,6 +50,46 @@ pub fn create_nullify_instruction(
         registered_forester_pda,
         registered_program_pda: register_program_pda,
         nullifier_queue: inputs.nullifier_queue,
+        merkle_tree: inputs.merkle_tree,
+        log_wrapper: NOOP_PUBKEY.into(),
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateMigrateStateInstructionInputs {
+    pub authority: Pubkey,
+    pub output_queue: Pubkey,
+    pub merkle_tree: Pubkey,
+    pub inputs: MigrateLeafParams,
+    pub derivation: Pubkey,
+    pub is_metadata_forester: bool,
+}
+
+pub fn create_migrate_state_instruction(
+    inputs: CreateMigrateStateInstructionInputs,
+    epoch: u64,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda =
+        get_forester_epoch_pda_from_authority(&inputs.derivation, epoch).0;
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::MigrateState {
+        bump,
+        inputs: inputs.inputs,
+    };
+
+    let accounts = crate::accounts::MigrateState {
+        authority: inputs.authority,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        output_queue: inputs.output_queue,
         merkle_tree: inputs.merkle_tree,
         log_wrapper: NOOP_PUBKEY.into(),
         cpi_authority,
@@ -275,6 +319,224 @@ pub fn create_initialize_merkle_tree_instruction(
         light_system_program: Some(LightSystemProgram::id()),
         cpi_context_account: Some(cpi_context_pubkey),
     };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_batched_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    queue_pubkey: Pubkey,
+    cpi_context_pubkey: Pubkey,
+    params: InitStateTreeAccountsInstructionData,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let instruction_data = crate::instruction::InitializeBatchedStateMerkleTree {
+        bump,
+        params: params.try_to_vec().unwrap(),
+    };
+    let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        queue: queue_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda,
+        light_system_program: LightSystemProgram::id(),
+        cpi_context_account: cpi_context_pubkey,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_append_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    output_queue_pubkey: Pubkey,
+    epoch: u64,
+    data: Vec<u8>,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchAppend {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        output_queue: output_queue_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchAppend { bump, data };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_nullify_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    epoch: u64,
+    data: Vec<u8>,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchNullify {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchNullify { bump, data };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_rollover_batch_state_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    old_state_merkle_tree: Pubkey,
+    new_state_merkle_tree: Pubkey,
+    old_output_queue: Pubkey,
+    new_output_queue: Pubkey,
+    cpi_context_account: Pubkey,
+    epoch: u64,
+    light_forester: bool,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let registered_forester_pda =
+        get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+    let instruction_data = crate::instruction::RolloverBatchStateMerkleTree { bump };
+    let registered_forester_pda = if !light_forester {
+        None
+    } else {
+        Some(registered_forester_pda)
+    };
+
+    let accounts = crate::accounts::RolloverBatchStateMerkleTree {
+        authority: forester,
+        registered_forester_pda,
+        registered_program_pda: register_program_pda,
+        old_state_merkle_tree,
+        new_state_merkle_tree,
+        old_output_queue,
+        new_output_queue,
+        cpi_context_account,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda: get_protocol_config_pda_address().0,
+        light_system_program: LightSystemProgram::id(),
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_initialize_batched_address_merkle_tree_instruction(
+    payer: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    params: InitAddressTreeAccountsInstructionData,
+) -> Instruction {
+    let register_program_pda = get_registered_program_pda(&crate::ID);
+    let (cpi_authority, bump) = get_cpi_authority_pda();
+
+    let instruction_data = crate::instruction::InitializeBatchedAddressMerkleTree {
+        bump,
+        params: params.try_to_vec().unwrap(),
+    };
+    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let accounts = crate::accounts::InitializeBatchedAddressTree {
+        authority: payer,
+        registered_program_pda: register_program_pda,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_batch_update_address_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
+    epoch: u64,
+    data: Vec<u8>,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::BatchUpdateAddressTree {
+        authority: forester,
+        merkle_tree: merkle_tree_pubkey,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        log_wrapper: NOOP_PUBKEY.into(),
+    };
+    let instruction_data = crate::instruction::BatchUpdateAddressTree { bump, data };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_rollover_batch_address_tree_instruction(
+    forester: Pubkey,
+    derivation_pubkey: Pubkey,
+    old_merkle_tree: Pubkey,
+    new_merkle_tree: Pubkey,
+    epoch: u64,
+) -> Instruction {
+    let forester_epoch_pda = get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
+    let registered_program_pda = get_registered_program_pda(&crate::ID);
+
+    let (cpi_authority_pda, bump) = get_cpi_authority_pda();
+    let accounts = crate::accounts::RolloverBatchAddressMerkleTree {
+        authority: forester,
+        new_address_merkle_tree: new_merkle_tree,
+        old_address_merkle_tree: old_merkle_tree,
+        cpi_authority: cpi_authority_pda,
+        registered_forester_pda: Some(forester_epoch_pda),
+        registered_program_pda,
+        account_compression_program: account_compression::ID,
+        protocol_config_pda: get_protocol_config_pda_address().0,
+    };
+    let instruction_data = crate::instruction::RolloverBatchAddressMerkleTree { bump };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),

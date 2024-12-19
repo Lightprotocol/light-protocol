@@ -8,9 +8,11 @@ import (
 )
 
 type NonInclusionCircuit struct {
-	// public inputs
-	Roots  []frontend.Variable `gnark:",public"`
-	Values []frontend.Variable `gnark:",public"`
+	PublicInputHash frontend.Variable `gnark:",public"`
+
+	// hashed public inputs
+	Roots  []frontend.Variable `gnark:"input"`
+	Values []frontend.Variable `gnark:"input"`
 
 	// private inputs
 	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
@@ -25,6 +27,9 @@ type NonInclusionCircuit struct {
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
+	publicInputsHashChain := createTwoInputsHashChain(api, circuit.Roots, circuit.Values)
+	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
+
 	proof := NonInclusionProof{
 		Roots:  circuit.Roots,
 		Values: circuit.Values,

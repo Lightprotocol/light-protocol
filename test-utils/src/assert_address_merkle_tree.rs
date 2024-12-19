@@ -1,6 +1,7 @@
 use forester_utils::{get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
+use light_merkle_tree_metadata::access::AccessMetadata;
 use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]
@@ -31,7 +32,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
             .metadata
             .rollover_metadata
             .rollover_threshold,
-        merkle_tree_config.rollover_threshold.unwrap_or_default()
+        merkle_tree_config.rollover_threshold.unwrap_or(u64::MAX)
     );
     assert_eq!(
         merkle_tree_account.metadata.rollover_metadata.network_fee,
@@ -67,7 +68,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         merkle_tree_account.metadata.next_merkle_tree,
         Pubkey::default()
     );
-    let expected_access_meta_data = account_compression::AccessMetadata {
+    let expected_access_meta_data = AccessMetadata {
         owner: *owner_pubkey,
         program_owner: program_owner.unwrap_or_default(),
         forester: forester.unwrap_or_default(),

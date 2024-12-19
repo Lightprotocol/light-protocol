@@ -60,6 +60,7 @@ import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 import { toCamelCase, toHex } from './utils/conversion';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 import {
     proofFromJsonStruct,
@@ -290,6 +291,7 @@ export const proverRequest = async (
     method: 'inclusion' | 'new-address' | 'combined',
     params: any = [],
     log = false,
+    publicInputHash: BN | undefined = undefined,
 ): Promise<CompressedProof> => {
     let logMsg: string = '';
 
@@ -300,13 +302,27 @@ export const proverRequest = async (
 
     let body;
     if (method === 'inclusion') {
-        body = JSON.stringify({ 'input-compressed-accounts': params });
+        body = JSON.stringify({
+            circuitType: 'inclusion',
+            stateTreeHeight: 26,
+            inputCompressedAccounts: params,
+            // publicInputHash: publicInputHash.toString('hex'),
+        });
     } else if (method === 'new-address') {
-        body = JSON.stringify({ 'new-addresses': params });
+        body = JSON.stringify({
+            circuitType: 'non-inclusion',
+            addressTreeHeight: 26,
+            // publicInputHash: publicInputHash.toString('hex'),
+            newAddresses: params,
+        });
     } else if (method === 'combined') {
         body = JSON.stringify({
-            'input-compressed-accounts': params[0],
-            'new-addresses': params[1],
+            circuitType: 'combined',
+            // publicInputHash: publicInputHash.toString('hex'),
+            stateTreeHeight: 26,
+            addressTreeHeight: 26,
+            inputCompressedAccounts: params[0],
+            newAddresses: params[1],
         });
     }
 
@@ -407,6 +423,69 @@ export function convertNonInclusionMerkleProofInputsToHex(
         inputs.push(input);
     }
     return inputs;
+}
+import { LightWasm } from './test-helpers';
+
+function calculateTwoInputsHashChain(
+    hashesFirst: BN[],
+    hashesSecond: BN[],
+    lightWasm: LightWasm,
+): BN {
+    if (hashesFirst.length !== hashesSecond.length) {
+        throw new Error('Input lengths must match.');
+    }
+    if (hashesFirst.length === 0) {
+        return new BN(0);
+    }
+
+    let hashChain = lightWasm.poseidonHashBN([
+        hashesFirst[0].toString(),
+        hashesSecond[0].toString(),
+    ]);
+
+    for (let i = 1; i < hashesFirst.length; i++) {
+        hashChain = lightWasm.poseidonHashBN([
+            hashChain.toString(),
+            hashesFirst[i].toString(),
+            hashesSecond[i].toString(),
+        ]);
+    }
+
+    return hashChain;
+}
+
+export function getPublicInputHash(
+    accountProofs: MerkleContextWithMerkleProof[],
+    accountHashes: BN254[],
+    newAddressProofs: MerkleContextWithNewAddressProof[],
+    lightWasm: LightWasm,
+): BN {
+    const accountRoots = accountProofs.map(x => x.root);
+    const inclusionHashChain = calculateTwoInputsHashChain(
+        accountRoots,
+        accountHashes,
+        lightWasm,
+    );
+
+    const newAddressHashes = newAddressProofs.map(x => x.value);
+    const newAddressRoots = newAddressProofs.map(x => x.root);
+    const nonInclusionHashChain = calculateTwoInputsHashChain(
+        newAddressRoots,
+        newAddressHashes,
+        lightWasm,
+    );
+
+    if (!nonInclusionHashChain.isZero()) {
+        return nonInclusionHashChain;
+    } else if (!inclusionHashChain.isZero()) {
+        return inclusionHashChain;
+    } else {
+        return calculateTwoInputsHashChain(
+            [inclusionHashChain],
+            [nonInclusionHashChain],
+            lightWasm,
+        );
+    }
 }
 
 /// TODO: replace with dynamic nullifierQueue
@@ -1372,11 +1451,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
             const inputs = convertMerkleProofsWithContextToHex(
                 merkleProofsWithContext,
             );
+            // const lightWasm = await WasmFactory.getInstance();
+            // const publicInputHash = getPublicInputHash(
+            //     merkleProofsWithContext,
+            //     hashes,
+            //     [],
+            //     lightWasm,
+            // );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
                 false,
+                // publicInputHash,
             );
             validityProof = {
                 compressedProof,
@@ -1402,12 +1489,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
             const inputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            // const lightWasm = await WasmFactory.getInstance();
+            // const publicInputHash = getPublicInputHash(
+            //     [],
+            //     [],
+            //     newAddressProofs,
+            //     lightWasm,
+            // );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'new-address',
                 inputs,
                 false,
+                // publicInputHash,
             );
 
             validityProof = {
@@ -1435,12 +1529,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
             const newAddressInputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-
+            // const lightWasm = await WasmFactory.getInstance();
+            // const publicInputHash = getPublicInputHash(
+            //     merkleProofsWithContext,
+            //     hashes,
+            //     newAddressProofs,
+            //     lightWasm,
+            // );
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'combined',
                 [inputs, newAddressInputs],
                 false,
+                // publicInputHash,
             );
 
             validityProof = {

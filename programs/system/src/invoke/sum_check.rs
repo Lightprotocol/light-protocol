@@ -14,11 +14,22 @@ pub fn sum_check(
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
-) -> Result<()> {
+) -> Result<usize> {
     let mut sum: u64 = 0;
+    let mut num_prove_by_index_accounts = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
+        if compressed_account_with_context
+            .merkle_context
+            .queue_index
+            .is_some()
+        {
+            num_prove_by_index_accounts += 1;
+        }
+        // Readonly accounts are only supported as separate inputs.
         if compressed_account_with_context.read_only {
-            unimplemented!("read_only accounts are not supported. Set read_only to false.");
+            unimplemented!(
+                "Read accounts are only supported as separate inputs in the invoke_cpi_with_read_only instruction. Set read_only to false."
+            );
         }
         sum = sum
             .checked_add(compressed_account_with_context.compressed_account.lamports)
@@ -58,7 +69,7 @@ pub fn sum_check(
     }
 
     if sum == 0 {
-        Ok(())
+        Ok(num_prove_by_index_accounts)
     } else {
         Err(SystemProgramError::SumCheckFailed.into())
     }
@@ -69,7 +80,7 @@ mod test {
     use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
+    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext, QueueIndex};
 
     #[test]
     fn test_sum_check() {
@@ -117,8 +128,10 @@ mod test {
         // FAIL: relay fee
         sum_check_test(&[100, 50], &[2125], Some(25 - 1), None, false).unwrap_err();
         sum_check_test(&[100, 50], &[2125], Some(25 + 1), None, false).unwrap_err();
+        for i in 0..10 {
+            sum_check_test_with_num(&vec![150; i], &vec![150; i], None, None, false, i).unwrap();
+        }
     }
-
     fn sum_check_test(
         input_amounts: &[u64],
         output_amounts: &[u64],
@@ -126,8 +139,30 @@ mod test {
         compress_or_decompress_lamports: Option<u64>,
         is_compress: bool,
     ) -> Result<()> {
+        sum_check_test_with_num(
+            input_amounts,
+            output_amounts,
+            relay_fee,
+            compress_or_decompress_lamports,
+            is_compress,
+            0,
+        )
+    }
+    fn sum_check_test_with_num(
+        input_amounts: &[u64],
+        output_amounts: &[u64],
+        relay_fee: Option<u64>,
+        compress_or_decompress_lamports: Option<u64>,
+        is_compress: bool,
+        num_by_index: usize,
+    ) -> Result<()> {
         let mut inputs = Vec::new();
-        for i in input_amounts.iter() {
+        for (index, i) in input_amounts.iter().enumerate() {
+            let queue_index = if index < num_by_index {
+                Some(QueueIndex::default())
+            } else {
+                None
+            };
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Keypair::new().pubkey(),
@@ -139,7 +174,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
-                    queue_index: None,
+                    queue_index,
                 },
                 root_index: 1,
                 read_only: false,
@@ -158,12 +193,15 @@ mod test {
             });
         }
 
-        sum_check(
+        let calc_num_prove_by_index_accounts = sum_check(
             &inputs,
             &outputs,
             &relay_fee,
             &compress_or_decompress_lamports,
             &is_compress,
-        )
+        )?;
+
+        assert_eq!(num_by_index, calc_num_prove_by_index_accounts);
+        Ok(())
     }
 }

@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
+use light_merkle_tree_metadata::{
+    access::AccessMetadata,
+    queue::QueueType,
+    rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+};
 use light_utils::fee::compute_rollover_fee;
 
-use crate::{
-    state::{queue_from_bytes_zero_copy_init, QueueAccount},
-    AccessMetadata, QueueType, RolloverMetadata,
-};
+use crate::state::{queue_from_bytes_zero_copy_init, QueueAccount};
 
 pub fn process_initialize_address_queue<'info>(
     queue_account_info: &AccountInfo<'info>,
@@ -40,7 +42,8 @@ pub fn process_initialize_address_queue<'info>(
                 merkle_tree_rent,
                 rollover_threshold,
                 height,
-            )?;
+            )
+            .map_err(ProgramError::from)?;
             msg!("address queue rollover_fee: {}", rollover_fee);
             rollover_fee
         } else {
@@ -73,31 +76,5 @@ pub fn process_initialize_address_queue<'info>(
         .map_err(ProgramError::from)?;
     }
 
-    Ok(())
-}
-
-pub fn check_rollover_fee_sufficient(
-    rollover_fee: u64,
-    queue_rent: u64,
-    merkle_tree_rent: u64,
-    rollover_threshold: u64,
-    height: u32,
-) -> Result<()> {
-    if rollover_fee != queue_rent + merkle_tree_rent
-        && (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
-            < queue_rent + merkle_tree_rent
-    {
-        msg!("rollover_fee: {}", rollover_fee);
-        msg!("rollover_threshold: {}", rollover_threshold);
-        msg!("height: {}", height);
-        msg!("merkle_tree_rent: {}", merkle_tree_rent);
-        msg!("queue_rent: {}", queue_rent);
-        msg!(
-            "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
-            ((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100),
-            queue_rent + merkle_tree_rent
-        );
-        return err!(crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee);
-    }
     Ok(())
 }

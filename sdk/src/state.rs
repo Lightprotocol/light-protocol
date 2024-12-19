@@ -10,7 +10,7 @@ pub struct MerkleTreeMetadata {
     // Next Merkle tree to be used after rollover.
     pub next_merkle_tree: Pubkey,
 }
-
+// TODO: use merkle-tree/metadata/src/access.rs instead
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
 pub struct AccessMetadata {
     /// Owner of the Merkle tree.

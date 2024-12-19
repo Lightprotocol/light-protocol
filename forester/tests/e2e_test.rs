@@ -113,6 +113,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         Some(0),
     )
     .await;
+    // removing batched Merkle tree
+    env.indexer.state_merkle_trees.remove(1);
 
     let user_index = 0;
     let balance = env
@@ -370,7 +372,10 @@ async fn test_epoch_monitor_with_2_foresters() {
         Some(0),
     )
     .await;
-
+    // removing batched Merkle tree
+    env.indexer.state_merkle_trees.remove(1);
+    // removing batched address tree
+    env.indexer.address_merkle_trees.remove(1);
     let user_index = 0;
     let balance = env
         .rpc
@@ -669,9 +674,9 @@ async fn test_epoch_double_registration() {
 
     let config = Arc::new(config);
 
-    let indexer: TestIndexer<SolanaRpcConnection> =
+    let mut indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
-
+    indexer.state_merkle_trees.remove(1);
     let indexer = Arc::new(Mutex::new(indexer));
 
     for _ in 0..10 {

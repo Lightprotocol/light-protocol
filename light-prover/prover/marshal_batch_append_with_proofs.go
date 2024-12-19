@@ -6,16 +6,18 @@ import (
 )
 
 type BatchAppendWithProofsInputsJSON struct {
-	PublicInputHash     string     `json:"publicInputHash"`
-	OldRoot             string     `json:"oldRoot"`
-	NewRoot             string     `json:"newRoot"`
-	LeavesHashchainHash string     `json:"leavesHashchainHash"`
-	StartIndex          uint32     `json:"startIndex"`
-	OldLeaves           []string   `json:"oldLeaves"`
-	Leaves              []string   `json:"leaves"`
-	MerkleProofs        [][]string `json:"merkleProofs"`
-	Height              uint32     `json:"height"`
-	BatchSize           uint32     `json:"batchSize"`
+	CircuitType         CircuitType `json:"circuitType"`
+	StateTreeHeight     uint32      `json:"stateTreeHeight"`
+	PublicInputHash     string      `json:"publicInputHash"`
+	OldRoot             string      `json:"oldRoot"`
+	NewRoot             string      `json:"newRoot"`
+	LeavesHashchainHash string      `json:"leavesHashchainHash"`
+	StartIndex          uint32      `json:"startIndex"`
+	OldLeaves           []string    `json:"oldLeaves"`
+	Leaves              []string    `json:"leaves"`
+	MerkleProofs        [][]string  `json:"merkleProofs"`
+	Height              uint32      `json:"height"`
+	BatchSize           uint32      `json:"batchSize"`
 }
 
 func (p *BatchAppendWithProofsParameters) MarshalJSON() ([]byte, error) {
@@ -25,6 +27,7 @@ func (p *BatchAppendWithProofsParameters) MarshalJSON() ([]byte, error) {
 
 func (p *BatchAppendWithProofsParameters) createBatchAppendWithProofsParametersJSON() BatchAppendWithProofsInputsJSON {
 	paramsJSON := BatchAppendWithProofsInputsJSON{
+		CircuitType:         BatchAppendWithProofsCircuitType,
 		PublicInputHash:     toHex(p.PublicInputHash),
 		OldRoot:             toHex(p.OldRoot),
 		NewRoot:             toHex(p.NewRoot),

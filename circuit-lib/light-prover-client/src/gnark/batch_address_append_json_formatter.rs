@@ -1,42 +1,46 @@
 use crate::batch_address_append::BatchAddressAppendInputs;
 use crate::gnark::helpers::{big_uint_to_string, create_json_from_struct};
+use crate::prove_utils::CircuitType;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAddressAppendInputsJson {
-    #[serde(rename = "BatchSize")]
+    #[serde(rename = "circuitType")]
+    pub circuit_type: String,
+    #[serde(rename = "batchSize")]
     pub batch_size: usize,
-    #[serde(rename = "HashchainHash")]
+    #[serde(rename = "hashchainHash")]
     pub hashchain_hash: String,
-    #[serde(rename = "LowElementValues")]
+    #[serde(rename = "lowElementValues")]
     pub low_element_values: Vec<String>,
-    #[serde(rename = "LowElementIndices")]
+    #[serde(rename = "lowElementIndices")]
     pub low_element_indices: Vec<String>,
-    #[serde(rename = "LowElementNextIndices")]
+    #[serde(rename = "lowElementNextIndices")]
     pub low_element_next_indices: Vec<String>,
-    #[serde(rename = "LowElementNextValues")]
+    #[serde(rename = "lowElementNextValues")]
     pub low_element_next_values: Vec<String>,
-    #[serde(rename = "LowElementProofs")]
+    #[serde(rename = "lowElementProofs")]
     pub low_element_proofs: Vec<Vec<String>>,
-    #[serde(rename = "NewElementValues")]
+    #[serde(rename = "newElementValues")]
     pub new_element_values: Vec<String>,
-    #[serde(rename = "NewElementProofs")]
+    #[serde(rename = "newElementProofs")]
     pub new_element_proofs: Vec<Vec<String>>,
-    #[serde(rename = "NewRoot")]
+    #[serde(rename = "newRoot")]
     pub new_root: String,
-    #[serde(rename = "OldRoot")]
+    #[serde(rename = "oldRoot")]
     pub old_root: String,
-    #[serde(rename = "PublicInputHash")]
+    #[serde(rename = "publicInputHash")]
     pub public_input_hash: String,
-    #[serde(rename = "StartIndex")]
+    #[serde(rename = "startIndex")]
     pub start_index: usize,
-    #[serde(rename = "TreeHeight")]
+    #[serde(rename = "treeHeight")]
     pub tree_height: usize,
 }
 
 impl BatchAddressAppendInputsJson {
     pub fn from_inputs(inputs: &BatchAddressAppendInputs) -> Self {
         Self {
+            circuit_type: CircuitType::BatchAddressAppend.to_string(),
             batch_size: inputs.batch_size,
             hashchain_hash: big_uint_to_string(&inputs.hashchain_hash),
             low_element_values: inputs

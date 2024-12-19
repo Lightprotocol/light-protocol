@@ -11,6 +11,13 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
+use errors::AccountCompressionErrorCode;
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::InstructionDataBatchAppendInputs, merkle_tree::InstructionDataBatchNullifyInputs,
+};
+
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -21,18 +28,23 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-
 #[program]
 pub mod account_compression {
 
-    use errors::AccountCompressionErrorCode;
+    use light_merkle_tree_metadata::queue::QueueType;
 
-    use self::{
-        initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
-        insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
-    };
+    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
 
     use super::*;
+
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
@@ -59,7 +71,9 @@ pub mod account_compression {
         process_insert_into_queues::<AddressMerkleTreeAccount>(
             ctx,
             addresses.as_slice(),
+            Vec::new(),
             QueueType::AddressQueue,
+            None,
         )
     }
 
@@ -185,11 +199,15 @@ pub mod account_compression {
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         nullifiers: Vec<[u8; 32]>,
+        leaf_indices: Vec<u32>,
+        tx_hash: Option<[u8; 32]>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
             &nullifiers,
+            leaf_indices,
             QueueType::NullifierQueue,
+            tx_hash,
         )
     }
 
@@ -197,5 +215,63 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
+    }
+
+    pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_nullify(&ctx, instruction_data)
+    }
+
+    pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchAppendInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_append_leaves(&ctx, instruction_data)
+    }
+
+    pub fn batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
+        let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_batch_update_address_tree(&ctx, instruction_data)
+    }
+
+    pub fn intialize_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_address_merkle_tree(ctx, params)
+    }
+
+    pub fn rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchAddressMerkleTree<'info>>,
+        network_fee: Option<u64>,
+    ) -> Result<()> {
+        process_rollover_batch_address_merkle_tree(ctx, network_fee)
+    }
+
+    pub fn rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
+        additional_bytes: u64,
+        network_fee: Option<u64>,
+    ) -> Result<()> {
+        process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
+    }
+
+    pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+        input: MigrateLeafParams,
+    ) -> Result<()> {
+        process_migrate_state(&ctx, input)
     }
 }

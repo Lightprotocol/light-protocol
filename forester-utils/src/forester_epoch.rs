@@ -79,10 +79,12 @@ impl TreeAccounts {
     }
 }
 
+// TODO: unify with light-merkle-tree-metadata
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum TreeType {
     Address,
     State,
+    BatchedState,
 }
 
 impl Display for TreeType {
@@ -90,6 +92,7 @@ impl Display for TreeType {
         match self {
             TreeType::Address => write!(f, "address"),
             TreeType::State => write!(f, "state"),
+            TreeType::BatchedState => write!(f, "batched state"),
         }
     }
 }

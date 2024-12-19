@@ -1,0 +1,20 @@
+[package]
+name = "light-merkle-tree-metadata"
+version = "0.1.0"
+description = "Merkle tree utils."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+default = ["solana"]
+anchor = ["anchor-lang", "solana"]
+solana = []
+
+[dependencies]
+thiserror = "1.0"
+borsh = "0.10.0"
+bytemuck = "1.17"
+solana-program = { workspace = true }
+anchor-lang = { workspace = true , optional = true }
+aligned-sized = { workspace = true }

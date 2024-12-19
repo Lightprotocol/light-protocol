@@ -14,11 +14,13 @@ use account_compression::{
 };
 pub use invalidate_not_owned_account::*;
 use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
+use light_system_program::sdk::compressed_account::PackedReadOnlyCompressedAccount;
 use light_system_program::sdk::CompressedCpiContext;
+use light_system_program::PackedReadOnlyAddress;
+
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
-
 pub mod system_cpi_test {
 
     use super::*;
@@ -32,6 +34,9 @@ pub mod system_cpi_test {
         signer_is_program: CreatePdaMode,
         bump: u8,
         cpi_context: Option<CompressedCpiContext>,
+        read_only_address: Option<Vec<PackedReadOnlyAddress>>,
+        read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+        input_accounts: Option<Vec<PackedCompressedAccountWithMerkleContext>>,
     ) -> Result<()> {
         process_create_pda(
             ctx,
@@ -42,6 +47,9 @@ pub mod system_cpi_test {
             cpi_context,
             signer_is_program,
             bump,
+            read_only_address,
+            read_only_accounts,
+            input_accounts,
         )
     }
 
@@ -138,7 +146,12 @@ pub mod system_cpi_test {
             ctx.accounts.merkle_tree.to_account_info(),
         ];
 
-        account_compression::cpi::insert_into_nullifier_queues(cpi_context, vec![[1u8; 32]])?;
+        account_compression::cpi::insert_into_nullifier_queues(
+            cpi_context,
+            vec![[1u8; 32]],
+            vec![],
+            None,
+        )?;
 
         Ok(())
     }

@@ -87,6 +87,38 @@ export type AccountCompression = {
     ];
     instructions: [
         {
+            name: 'initializeBatchedStateMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'bytes';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
             name: 'initializeAddressMerkleTreeAndQueue';
             accounts: [
                 {
@@ -621,6 +653,20 @@ export type AccountCompression = {
                         };
                     };
                 },
+                {
+                    name: 'leafIndices';
+                    type: {
+                        vec: 'u32';
+                    };
+                },
+                {
+                    name: 'txHash';
+                    type: {
+                        option: {
+                            array: ['u8', 32];
+                        };
+                    };
+                },
             ];
         },
         {
@@ -668,6 +714,232 @@ export type AccountCompression = {
             ];
             args: [];
         },
+        {
+            name: 'batchNullify';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchAppend';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'outputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'batchUpdateAddressTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'data';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'intializeBatchedAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'bytes';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'networkFee';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldOutputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'additionalBytes';
+                    type: 'u64';
+                },
+                {
+                    name: 'networkFee';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+            ];
+        },
     ];
     accounts: [
         {
@@ -681,38 +953,6 @@ export type AccountCompression = {
                     },
                     {
                         name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'accessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'forester';
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ];
                         type: 'publicKey';
                     },
                 ];
@@ -749,34 +989,6 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'merkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
             name: 'stateMerkleTreeAccount';
             docs: [
                 'Concurrent state Merkle tree used for public compressed transactions.',
@@ -789,38 +1001,6 @@ export type AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'queueMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedMerkleTree';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'queueType';
-                        type: 'u64';
                     },
                 ];
             };
@@ -839,65 +1019,28 @@ export type AccountCompression = {
                 ];
             };
         },
+    ];
+    types: [
         {
-            name: 'rolloverMetadata';
+            name: 'ZeroOutLeafIndex';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
+                        name: 'treeIndex';
+                        type: 'u8';
                     },
                     {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
+                        name: 'batchIndex';
+                        type: 'u8';
                     },
                     {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'additionalBytes';
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ];
-                        type: 'u64';
+                        name: 'leafIndex';
+                        type: 'u16';
                     },
                 ];
             };
         },
-    ];
-    types: [
         {
             name: 'AddressMerkleTreeConfig';
             type: {
@@ -1004,20 +1147,6 @@ export type AccountCompression = {
                         type: {
                             option: 'u64';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'QueueType';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'NullifierQueue';
-                    },
-                    {
-                        name: 'AddressQueue';
                     },
                 ];
             };
@@ -1165,6 +1294,26 @@ export type AccountCompression = {
             code: 6026;
             name: 'ProofLengthMismatch';
         },
+        {
+            code: 6027;
+            name: 'TxHashUndefined';
+        },
+        {
+            code: 6028;
+            name: 'InputDeserializationFailed';
+        },
+        {
+            code: 6029;
+            name: 'UnsupportedParameters';
+        },
+        {
+            code: 6030;
+            name: 'AddressMerkleTreeAccountDiscriminatorMismatch';
+        },
+        {
+            code: 6031;
+            name: 'StateMerkleTreeAccountDiscriminatorMismatch';
+        },
     ];
 };
 
@@ -1256,6 +1405,38 @@ export const IDL: AccountCompression = {
         },
     ],
     instructions: [
+        {
+            name: 'initializeBatchedStateMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'bytes',
+                    type: 'bytes',
+                },
+            ],
+        },
         {
             name: 'initializeAddressMerkleTreeAndQueue',
             accounts: [
@@ -1791,6 +1972,20 @@ export const IDL: AccountCompression = {
                         },
                     },
                 },
+                {
+                    name: 'leafIndices',
+                    type: {
+                        vec: 'u32',
+                    },
+                },
+                {
+                    name: 'txHash',
+                    type: {
+                        option: {
+                            array: ['u8', 32],
+                        },
+                    },
+                },
             ],
         },
         {
@@ -1838,6 +2033,232 @@ export const IDL: AccountCompression = {
             ],
             args: [],
         },
+        {
+            name: 'batchNullify',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchAppend',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'outputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'batchUpdateAddressTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'data',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'intializeBatchedAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'bytes',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'networkFee',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'rolloverBatchStateMerkleTree',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldOutputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'additionalBytes',
+                    type: 'u64',
+                },
+                {
+                    name: 'networkFee',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+            ],
+        },
     ],
     accounts: [
         {
@@ -1851,38 +2272,6 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'accessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
                         type: 'publicKey',
                     },
                 ],
@@ -1919,34 +2308,6 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'merkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
             name: 'stateMerkleTreeAccount',
             docs: [
                 'Concurrent state Merkle tree used for public compressed transactions.',
@@ -1959,38 +2320,6 @@ export const IDL: AccountCompression = {
                         type: {
                             defined: 'MerkleTreeMetadata',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'queueMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedMerkleTree',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'queueType',
-                        type: 'u64',
                     },
                 ],
             },
@@ -2009,65 +2338,28 @@ export const IDL: AccountCompression = {
                 ],
             },
         },
+    ],
+    types: [
         {
-            name: 'rolloverMetadata',
+            name: 'ZeroOutLeafIndex',
             type: {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
+                        name: 'treeIndex',
+                        type: 'u8',
                     },
                     {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
+                        name: 'batchIndex',
+                        type: 'u8',
                     },
                     {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
+                        name: 'leafIndex',
+                        type: 'u16',
                     },
                 ],
             },
         },
-    ],
-    types: [
         {
             name: 'AddressMerkleTreeConfig',
             type: {
@@ -2174,20 +2466,6 @@ export const IDL: AccountCompression = {
                         type: {
                             option: 'u64',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'QueueType',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'NullifierQueue',
-                    },
-                    {
-                        name: 'AddressQueue',
                     },
                 ],
             },
@@ -2334,6 +2612,26 @@ export const IDL: AccountCompression = {
         {
             code: 6026,
             name: 'ProofLengthMismatch',
+        },
+        {
+            code: 6027,
+            name: 'TxHashUndefined',
+        },
+        {
+            code: 6028,
+            name: 'InputDeserializationFailed',
+        },
+        {
+            code: 6029,
+            name: 'UnsupportedParameters',
+        },
+        {
+            code: 6030,
+            name: 'AddressMerkleTreeAccountDiscriminatorMismatch',
+        },
+        {
+            code: 6031,
+            name: 'StateMerkleTreeAccountDiscriminatorMismatch',
         },
     ],
 };

@@ -29,7 +29,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
@@ -37,7 +37,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     invoking_program: &Option<Pubkey>,
     hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
     sequence_numbers: &'a mut Vec<MerkleTreeSequenceNumber>,
-) -> Result<()> {
+) -> Result<Option<(u8, u64)>> {
     bench_sbf_start!("cpda_append_data_init");
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(), // fee payer
@@ -61,7 +61,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
-    let instruction_data = create_cpi_accounts_and_instruction_data(
+    let (instruction_data, network_fee_bundle) = create_cpi_accounts_and_instruction_data(
         output_compressed_accounts,
         output_compressed_account_indices,
         output_compressed_account_hashes,
@@ -84,7 +84,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     invoke_signed(&instruction, account_infos.as_slice(), seeds)?;
     bench_sbf_end!("cpda_append_rest");
 
-    Ok(())
+    Ok(network_fee_bundle)
 }
 
 /// Creates CPI accounts, instruction data, and performs checks.
@@ -100,6 +100,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 ///    exist in input compressed accounts. An address may not be used in an
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn create_cpi_accounts_and_instruction_data<'a>(
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     output_compressed_account_indices: &mut [u32],
@@ -111,10 +112,11 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     remaining_accounts: &'a [AccountInfo<'a>],
     account_infos: &mut Vec<AccountInfo<'a>>,
     accounts: &mut Vec<AccountMeta>,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, Option<(u8, u64)>)> {
     let mut current_index: i16 = -1;
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
+    let mut network_fee_bundle = None;
     let num_leaves = output_compressed_account_hashes.len();
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
@@ -137,22 +139,28 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
         } else if account.merkle_tree_index as i16 > current_index {
             current_index = account.merkle_tree_index.into();
             let seq;
+            let merkle_tree_pubkey;
+            let network_fee;
             // Check 1.
-            (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
-                &remaining_accounts[account.merkle_tree_index as usize],
-                invoking_program,
-            )?;
+            (mt_next_index, network_fee, seq, merkle_tree_pubkey) =
+                check_program_owner_state_merkle_tree(
+                    &remaining_accounts[account.merkle_tree_index as usize],
+                    invoking_program,
+                )?;
+            if network_fee_bundle.is_none() && network_fee.is_some() {
+                network_fee_bundle = Some((account.merkle_tree_index, network_fee.unwrap()));
+            }
             let account_info =
                 remaining_accounts[account.merkle_tree_index as usize].to_account_info();
-
             sequence_numbers.push(MerkleTreeSequenceNumber {
                 pubkey: account_info.key(),
                 seq,
             });
-            hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
+
+            hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == merkle_tree_pubkey) {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,
                 None => {
-                    hash_to_bn254_field_size_be(&account_info.key().to_bytes())
+                    hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                         .unwrap()
                         .0
                 }
@@ -232,7 +240,8 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
         instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
-    Ok(instruction_data)
+
+    Ok((instruction_data, network_fee_bundle))
 }
 
 #[test]
@@ -243,9 +252,12 @@ fn test_instruction_data_borsh_compat() {
     vec.extend_from_slice(&[2u8; 32]);
     vec.push(3);
     vec.extend_from_slice(&[4u8; 32]);
+
     let refe = vec![(1, [2u8; 32]), (3, [4u8; 32])];
-    let mut serialized = Vec::new();
-    Vec::<(u8, [u8; 32])>::serialize(&refe, &mut serialized).unwrap();
+    use anchor_lang::InstructionData;
+    let instruction_data =
+        account_compression::instruction::AppendLeavesToMerkleTrees { leaves: refe };
+    let serialized = instruction_data.data()[8..].to_vec();
     assert_eq!(serialized, vec);
     let res = Vec::<(u8, [u8; 32])>::deserialize(&mut vec.as_slice()).unwrap();
     assert_eq!(res, vec![(1, [2u8; 32]), (3, [4u8; 32])]);

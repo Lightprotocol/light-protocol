@@ -60,6 +60,7 @@ describe('rpc-interop', () => {
 
         assert.equal(accs.items.length, 1);
     });
+
     it('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,

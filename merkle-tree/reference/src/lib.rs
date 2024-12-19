@@ -100,6 +100,10 @@ where
         self.layers[0].push(*leaf);
 
         let i = self.rightmost_index;
+        if self.rightmost_index == self.capacity {
+            println!("Merkle tree full");
+            return Err(HasherError::IntegerOverflow);
+        }
         self.rightmost_index += 1;
 
         self.update_upper_layers(i)?;
@@ -210,7 +214,7 @@ where
         Ok(canopy)
     }
 
-    pub fn get_leaf(&self, leaf_index: usize) -> [u8; 32] {
+    pub fn leaf(&self, leaf_index: usize) -> [u8; 32] {
         self.layers[0]
             .get(leaf_index)
             .cloned()
@@ -281,6 +285,17 @@ where
         }
         subtrees
     }
+
+    pub fn get_next_index(&self) -> usize {
+        self.rightmost_index + 1
+    }
+
+    pub fn get_leaf(&self, index: usize) -> Result<[u8; 32], ReferenceMerkleTreeError> {
+        self.layers[0]
+            .get(index)
+            .cloned()
+            .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(index))
+    }
 }
 
 #[cfg(test)]
@@ -330,7 +345,7 @@ mod tests {
     #[test]
     fn test_subtrees() {
         let tree_depth = 4;
-        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0); // Replace TestHasher with your specific hasher.
+        let mut tree = MerkleTree::<Poseidon>::new(tree_depth, 0);
 
         let subtrees = tree.get_subtrees();
         for (i, subtree) in subtrees.iter().enumerate() {

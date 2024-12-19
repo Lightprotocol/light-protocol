@@ -37,18 +37,6 @@ pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error
     Ok(array)
 }
 
-pub fn hash_chain(hashes: &[[u8; 32]]) -> [u8; 32] {
-    if hashes.is_empty() {
-        return [0; 32];
-    }
-    let mut current_hash = *hashes.first().unwrap();
-
-    for hash in hashes.iter().skip(1) {
-        current_hash = Poseidon::hashv(&[&current_hash[..], &hash[..]]).unwrap();
-    }
-    current_hash
-}
-
 pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     leaf: [u8; 32],
     path_elements: &[[u8; 32]; HEIGHT],

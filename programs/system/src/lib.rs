@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_hasher::Discriminator as LightDiscriminator;
 
 pub mod invoke;
 pub use invoke::instruction::*;
@@ -21,10 +22,13 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
+use anchor_lang::Discriminator;
 
 #[program]
 pub mod light_system_program {
 
+    use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     use light_heap::{bench_sbf_end, bench_sbf_start};
 
     use self::{
@@ -35,7 +39,17 @@ pub mod light_system_program {
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
         // Check that Merkle tree is initialized.
-        ctx.accounts.associated_merkle_tree.load()?;
+        let data = ctx.accounts.associated_merkle_tree.data.borrow();
+
+        let mut discriminator_bytes = [0u8; 8];
+        discriminator_bytes.copy_from_slice(&data[0..8]);
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => Ok(()),
+            BatchedMerkleTreeAccount::DISCRIMINATOR => Ok(()),
+            _ => {
+                err!(AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch)
+            }
+        }?;
         ctx.accounts
             .cpi_context_account
             .init(ctx.accounts.associated_merkle_tree.key());
@@ -53,7 +67,7 @@ pub mod light_system_program {
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx.accounts.authority.key(),
         )?;
-        process(inputs, None, ctx, 0)
+        process(inputs, None, ctx, 0, None, None)
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
@@ -65,7 +79,30 @@ pub mod light_system_program {
             InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
         bench_sbf_end!("cpda_deserialize");
 
-        process_invoke_cpi(ctx, inputs)
+        process_invoke_cpi(ctx, inputs, None, None)
+    }
+
+    pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        bench_sbf_start!("cpda_deserialize");
+        let inputs = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut inputs.as_slice())?;
+        bench_sbf_end!("cpda_deserialize");
+        // disable set cpi context because cpi context account uses InvokeCpiInstruction
+        if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
+            if cpi_context.set_context {
+                msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
+                msg!("Please use invoke_cpi instead.");
+                return Err(SystemProgramError::InstructionNotCallable.into());
+            }
+        }
+        process_invoke_cpi(
+            ctx,
+            inputs.invoke_cpi,
+            inputs.read_only_addresses,
+            inputs.read_only_accounts,
+        )
     }
 
     /// This function is a stub to allow Anchor to include the input types in

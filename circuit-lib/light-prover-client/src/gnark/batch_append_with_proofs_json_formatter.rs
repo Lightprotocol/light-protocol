@@ -1,11 +1,15 @@
 use serde::Serialize;
 
-use crate::batch_append_with_proofs::BatchAppendWithProofsCircuitInputs;
+use crate::{
+    batch_append_with_proofs::BatchAppendWithProofsCircuitInputs, prove_utils::CircuitType,
+};
 
 use super::helpers::{big_int_to_string, create_json_from_struct};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendWithProofsInputsJson {
+    #[serde(rename = "circuitType")]
+    circuit_type: String,
     #[serde(rename = "publicInputHash")]
     public_input_hash: String,
     #[serde(rename = "oldRoot")]
@@ -31,6 +35,7 @@ pub struct BatchAppendWithProofsInputsJson {
 impl BatchAppendWithProofsInputsJson {
     pub fn from_inputs(inputs: &BatchAppendWithProofsCircuitInputs) -> Self {
         Self {
+            circuit_type: CircuitType::BatchAppendWithProofs.to_string(),
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             old_root: big_int_to_string(&inputs.old_root),
             new_root: big_int_to_string(&inputs.new_root),

@@ -70,7 +70,7 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		treeDepth := 8
 		batchSize := 4
 		totalLeaves := 1 << treeDepth
-		fmt.Println("totalLeaves", totalLeaves)
+
 		var tree = merkletree.NewTree(int(treeDepth))
 		for i := 0; i < totalLeaves/batchSize; i++ {
 			startIndex := uint32(i * batchSize)

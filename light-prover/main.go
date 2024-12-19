@@ -305,7 +305,7 @@ func runCli() {
 							return err
 						}
 						err = prover.WriteProvingSystem(system, path, "")
-					} else if circuit == "address-append" {
+					} else if circuit == "addressAppend" {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
@@ -489,13 +489,13 @@ func runCli() {
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.BoolFlag{Name: "update", Usage: "Run batch update circuit", Required: false},
-					&cli.BoolFlag{Name: "address-append", Usage: "Run batch address append circuit", Required: false},
+					&cli.BoolFlag{Name: "addressAppend", Usage: "Run batch address append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
 						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-proofs, append-with-subtrees, update, append-with-proofs-test, append-with-subtrees-test, update-test, address-append, address-append-test)",
-						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "append-with-proofs", "append-with-subtrees", "update", "append-with-proofs-test", "append-with-subtrees-test", "update-test", "address-append", "address-append-test"),
+						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "appendWithSubtrees", "update", "append-with-proofs-test", "append-with-subtrees-test", "update-test", "addressAppend", "address-append-test"),
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -528,6 +528,7 @@ func runCli() {
 					}
 					var proof *prover.Proof
 
+					// TODO: differentiate between address circuits by tree height depending on inputs
 					if context.Bool("inclusion") {
 						var params prover.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
@@ -557,7 +558,8 @@ func runCli() {
 
 						treeHeight := params.TreeHeight()
 						compressedAccounts := params.NumberOfCompressedAccounts()
-
+						logging.Logger().Info().Msgf("Tree Height: %d", treeHeight)
+						logging.Logger().Info().Msgf("Compressed Accounts: %d", compressedAccounts)
 						for _, provingSystem := range psv1 {
 							if provingSystem.NonInclusionTreeHeight == treeHeight && provingSystem.NonInclusionNumberOfCompressedAccounts == compressedAccounts {
 								proof, err = provingSystem.ProveNonInclusion(&params)
@@ -623,7 +625,7 @@ func runCli() {
 								break
 							}
 						}
-					} else if context.Bool("address-append") {
+					} else if context.Bool("addressAppend") {
 						var params prover.BatchAddressAppendParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
@@ -683,37 +685,19 @@ func runCli() {
 					var verifyErr error
 					switch s := system.(type) {
 					case *prover.ProvingSystemV1:
-						rootsStr := context.String("roots")
-						roots, err := prover.ParseHexStringList(rootsStr)
+						publicInputsHashStr := context.String("publicInputsHash")
+						publicInputsHash, err := prover.ParseBigInt(publicInputsHashStr)
 						if err != nil {
 							return fmt.Errorf("failed to parse roots: %v", err)
 						}
 
 						switch circuit {
 						case "inclusion":
-							leavesStr := context.String("leaves")
-							leaves, err := prover.ParseHexStringList(leavesStr)
-							if err != nil {
-								return fmt.Errorf("failed to parse leaves: %v", err)
-							}
-
-							verifyErr = s.VerifyInclusion(roots, leaves, &proof)
+							verifyErr = s.VerifyInclusion(*publicInputsHash, &proof)
 						case "non-inclusion":
-							values, err := prover.ParseHexStringList(context.String("values"))
-							if err != nil {
-								return fmt.Errorf("failed to parse values: %v", err)
-							}
-							verifyErr = s.VerifyNonInclusion(roots, values, &proof)
+							verifyErr = s.VerifyNonInclusion(*publicInputsHash, &proof)
 						case "combined":
-							leaves, err := prover.ParseHexStringList(context.String("leaves"))
-							if err != nil {
-								return fmt.Errorf("failed to parse leaves: %v", err)
-							}
-							values, err := prover.ParseHexStringList(context.String("values"))
-							if err != nil {
-								return fmt.Errorf("failed to parse values: %v", err)
-							}
-							verifyErr = s.VerifyCombined(roots, leaves, values, &proof)
+							verifyErr = s.VerifyCombined(*publicInputsHash, &proof)
 						default:
 							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
 						}

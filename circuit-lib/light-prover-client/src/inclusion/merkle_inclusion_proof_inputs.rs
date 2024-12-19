@@ -1,4 +1,5 @@
-use crate::helpers::bigint_to_u8_32;
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
+use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 
 #[derive(Clone, Debug)]
@@ -9,26 +10,36 @@ pub struct InclusionMerkleProofInputs {
     pub path_elements: Vec<BigInt>,
 }
 
-impl InclusionMerkleProofInputs {
-    pub fn public_inputs_arr(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let leaf = bigint_to_u8_32(&self.leaf).unwrap();
-        [root, leaf]
-    }
+#[derive(Clone, Debug)]
+pub struct InclusionProofInputs<'a> {
+    pub public_input_hash: BigInt,
+    pub inputs: &'a [InclusionMerkleProofInputs],
 }
 
-#[derive(Clone, Debug)]
-pub struct InclusionProofInputs<'a>(pub &'a [InclusionMerkleProofInputs]);
-
-impl InclusionProofInputs<'_> {
-    pub fn public_inputs(&self) -> Vec<[u8; 32]> {
-        let mut roots = Vec::new();
-        let mut leaves = Vec::new();
-        for input in self.0 {
-            let input_arr = input.public_inputs_arr();
-            roots.push(input_arr[0]);
-            leaves.push(input_arr[1]);
-        }
-        [roots, leaves].concat()
+impl<'a> InclusionProofInputs<'a> {
+    pub fn new(inputs: &'a [InclusionMerkleProofInputs]) -> Result<Self, ProverClientError> {
+        let public_input_hash = InclusionProofInputs::public_input(inputs)?;
+        Ok(InclusionProofInputs {
+            public_input_hash,
+            inputs,
+        })
+    }
+    pub fn public_input(
+        inputs: &'a [InclusionMerkleProofInputs],
+    ) -> Result<BigInt, ProverClientError> {
+        let public_input_hash = create_two_inputs_hash_chain(
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.root).unwrap())
+                .collect::<Vec<_>>(),
+            &inputs
+                .iter()
+                .map(|x| bigint_to_u8_32(&x.leaf).unwrap())
+                .collect::<Vec<_>>(),
+        )?;
+        Ok(BigInt::from_bytes_be(
+            num_bigint::Sign::Plus,
+            &public_input_hash,
+        ))
     }
 }

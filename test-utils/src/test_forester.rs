@@ -12,10 +12,10 @@ use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
+use light_program_test::test_env::NOOP_PROGRAM_ID;
 
 use forester_utils::indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle};
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
-use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -648,46 +648,4 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         None,
     )
     .await
-}
-
-pub async fn insert_addresses<R: RpcConnection>(
-    context: &mut R,
-    address_queue_pubkey: Pubkey,
-    address_merkle_tree_pubkey: Pubkey,
-    addresses: Vec<[u8; 32]>,
-) -> Result<Signature, RpcError> {
-    let num_addresses = addresses.len();
-    let instruction_data = InsertAddresses { addresses };
-    let accounts = account_compression::accounts::InsertIntoQueues {
-        fee_payer: context.get_payer().pubkey(),
-        authority: context.get_payer().pubkey(),
-        registered_program_pda: None,
-        system_program: system_program::ID,
-    };
-    let insert_ix = Instruction {
-        program_id: ID,
-        accounts: [
-            accounts.to_account_metas(Some(true)),
-            vec![
-                vec![
-                    AccountMeta::new(address_queue_pubkey, false),
-                    AccountMeta::new(address_merkle_tree_pubkey, false)
-                ];
-                num_addresses
-            ]
-            .iter()
-            .flat_map(|x| x.to_vec())
-            .collect::<Vec<AccountMeta>>(),
-        ]
-        .concat(),
-        data: instruction_data.data(),
-    };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
-    let transaction = Transaction::new_signed_with_payer(
-        &[insert_ix],
-        Some(&context.get_payer().pubkey()),
-        &[&context.get_payer()],
-        latest_blockhash,
-    );
-    context.process_transaction(transaction).await
 }

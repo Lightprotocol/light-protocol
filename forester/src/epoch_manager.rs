@@ -68,7 +68,7 @@ impl WorkItem {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum MerkleProofType {
-    AddressProof(NewAddressProofWithContext),
+    AddressProof(NewAddressProofWithContext<16>),
     StateProof(MerkleProof),
 }
 
@@ -1060,6 +1060,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 )
                 .await
             }
+            _ => panic!(
+                "perform rollover: Invalid tree type {:?}",
+                tree_account.tree_type
+            ),
         };
 
         match result {

@@ -53,6 +53,7 @@ warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
 light-client = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
 
 [dev-dependencies]
 function_name = "0.3.0"

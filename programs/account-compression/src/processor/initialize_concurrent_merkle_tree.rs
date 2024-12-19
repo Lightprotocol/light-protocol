@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
+use light_merkle_tree_metadata::{
+    access::AccessMetadata,
+    rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+};
 use light_utils::fee::compute_rollover_fee;
 
-use crate::{
-    initialize_address_queue::check_rollover_fee_sufficient, state::StateMerkleTreeAccount,
-    state_merkle_tree_from_bytes_zero_copy_init, AccessMetadata, RolloverMetadata,
-};
+use crate::{state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init};
 
 #[allow(unused_variables)]
 pub fn process_initialize_state_merkle_tree(
@@ -41,7 +42,8 @@ pub fn process_initialize_state_merkle_tree(
                     merkle_tree_rent,
                     rollover_threshold,
                     *height,
-                )?;
+                )
+                .map_err(ProgramError::from)?;
                 msg!(" state Merkle tree rollover_fee: {}", rollover_fee);
                 rollover_fee
             }

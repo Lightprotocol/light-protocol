@@ -19,6 +19,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
     // Note: message is unimplemented
+    // (if we compute the tx hash in indexer we don't need to modify the event.)
     let event = PublicTransactionEvent {
         input_compressed_account_hashes,
         output_compressed_account_hashes,

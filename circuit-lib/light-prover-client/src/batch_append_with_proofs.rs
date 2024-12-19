@@ -1,11 +1,13 @@
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use light_utils::hashchain::create_hash_chain;
 use num_bigint::{BigInt, Sign};
 
 use serde::Serialize;
 
+use crate::errors::ProverClientError;
+use crate::helpers::bigint_to_u8_32;
 use crate::helpers::compute_root_from_merkle_proof;
-use crate::{batch_append_with_subtrees::calculate_hash_chain, helpers::bigint_to_u8_32};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendWithProofsCircuitInputs {
@@ -41,7 +43,7 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     old_leaves: Vec<[u8; 32]>,
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     batch_size: u32,
-) -> BatchAppendWithProofsCircuitInputs {
+) -> Result<BatchAppendWithProofsCircuitInputs, ProverClientError> {
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
@@ -90,13 +92,8 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     start_index_bytes[28..].copy_from_slice(start_index.to_be_bytes().as_slice());
     // Calculate the public input hash chain with old root, new root, and leaves hash chain
     let public_input_hash =
-        calculate_hash_chain(&[current_root, new_root, leaves_hashchain, start_index_bytes]);
-    println!("public_input_hash: {:?}", public_input_hash);
-    println!("current root {:?}", current_root);
-    println!("new root {:?}", new_root);
-    println!("leaves hashchain {:?}", leaves_hashchain);
-    println!("start index {:?}", start_index_bytes);
-    BatchAppendWithProofsCircuitInputs {
+        create_hash_chain([current_root, new_root, leaves_hashchain, start_index_bytes])?;
+    Ok(BatchAppendWithProofsCircuitInputs {
         public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
         old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
         new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),
@@ -113,5 +110,5 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         merkle_proofs: circuit_merkle_proofs,
         height: HEIGHT as u32,
         batch_size,
-    }
+    })
 }

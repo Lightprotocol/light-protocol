@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
 use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
-use crate::{errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked};
-pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+use crate::{
+    errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress,
+    ReadOnlyAddress,
+};
+
+use super::compressed_account::{
+    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
+};
+pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
@@ -13,6 +20,21 @@ pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u
     }?;
 
     Ok(hash)
+}
+
+pub fn derive_address(
+    seed: &[u8; 32],
+    merkle_tree_pubkey: &[u8; 32],
+    program_id_bytes: &[u8; 32],
+) -> [u8; 32] {
+    hashv_to_bn254_field_size_be(
+        [
+            seed.as_slice(),
+            merkle_tree_pubkey.as_slice(),
+            program_id_bytes.as_slice(),
+        ]
+        .as_slice(),
+    )
 }
 
 pub fn add_and_get_remaining_account_indices(
@@ -77,6 +99,48 @@ pub fn pack_new_address_params(
     new_address_params_packed
 }
 
+pub fn pack_read_only_address_params(
+    new_address_params: &[ReadOnlyAddress],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedReadOnlyAddress> {
+    new_address_params
+        .iter()
+        .map(|x| PackedReadOnlyAddress {
+            address: x.address,
+            address_merkle_tree_root_index: x.address_merkle_tree_root_index,
+            address_merkle_tree_account_index: pack_account(
+                &x.address_merkle_tree_pubkey,
+                remaining_accounts,
+            ),
+        })
+        .collect::<Vec<PackedReadOnlyAddress>>()
+}
+
+pub fn pack_account(pubkey: &Pubkey, remaining_accounts: &mut HashMap<Pubkey, usize>) -> u8 {
+    match remaining_accounts.get(pubkey) {
+        Some(index) => *index as u8,
+        None => {
+            let next_index = remaining_accounts.len();
+            remaining_accounts.insert(*pubkey, next_index);
+            next_index as u8
+        }
+    }
+}
+
+pub fn pack_read_only_accounts(
+    accounts: &[ReadOnlyCompressedAccount],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedReadOnlyCompressedAccount> {
+    accounts
+        .iter()
+        .map(|x| PackedReadOnlyCompressedAccount {
+            account_hash: x.account_hash,
+            merkle_context: pack_merkle_context(&[x.merkle_context], remaining_accounts)[0],
+            root_index: x.root_index,
+        })
+        .collect::<Vec<PackedReadOnlyCompressedAccount>>()
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::{signature::Keypair, signer::Signer};
@@ -87,8 +151,8 @@ mod tests {
     fn test_derive_address_with_valid_input() {
         let merkle_tree_pubkey = Keypair::new().pubkey();
         let seeds = [1u8; 32];
-        let result = derive_address(&merkle_tree_pubkey, &seeds);
-        let result_2 = derive_address(&merkle_tree_pubkey, &seeds);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seeds);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey, &seeds);
         assert_eq!(result, result_2);
     }
 
@@ -98,8 +162,8 @@ mod tests {
         let merkle_tree_pubkey_2 = Keypair::new().pubkey();
         let seed = [2u8; 32];
 
-        let result = derive_address(&merkle_tree_pubkey, &seed);
-        let result_2 = derive_address(&merkle_tree_pubkey_2, &seed);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seed);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey_2, &seed);
         assert_ne!(result, result_2);
     }
 
