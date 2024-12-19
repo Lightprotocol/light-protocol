@@ -310,9 +310,10 @@ async fn test_failing_create_token_pool() {
         let token_pool_pubkey = get_token_pool_pda(&mint.pubkey());
         let token_pool_account = rpc.get_account(token_pool_pubkey).await.unwrap().unwrap();
         spl_token_pool_derivation(
-            &mint.pubkey(),
+            &mint.pubkey().to_bytes(),
             &light_compressed_token::ID,
             &token_pool_pubkey,
+            &[0],
         )
         .unwrap();
         assert_eq!(token_pool_account.data.len(), TokenAccount::LEN);

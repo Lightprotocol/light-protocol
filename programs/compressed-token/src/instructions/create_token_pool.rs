@@ -8,6 +8,9 @@ use spl_token_2022::{
 
 pub const POOL_SEED: &[u8] = b"pool";
 
+/// Maximum number of pool accounts that can be created for each mint.
+pub const NUM_MAX_POOL_ACCOUNTS: u8 = 5;
+
 /// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
 #[derive(Accounts)]
 pub struct CreateTokenPoolInstruction<'info> {
@@ -61,4 +64,33 @@ pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
         return err!(crate::ErrorCode::MintWithInvalidExtension);
     }
     Ok(())
+}
+
+/// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
+#[derive(Accounts)]
+#[instruction(token_pool_bump: u8)]
+pub struct AddTokenPoolInstruction<'info> {
+    /// UNCHECKED: only pays fees.
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+    #[account(
+        init,
+        seeds = [
+        POOL_SEED, &mint.key().to_bytes(), &[token_pool_bump],
+        ],
+        bump,
+        payer = fee_payer,
+          token::mint = mint,
+          token::authority = cpi_authority_pda,
+    )]
+    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub existing_token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: is mint account.
+    #[account(mut)]
+    pub mint: InterfaceAccount<'info, Mint>,
+    pub token_program: Interface<'info, TokenInterface>,
+    /// CHECK: (seeds anchor constraint).
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    pub cpi_authority_pda: AccountInfo<'info>,
 }

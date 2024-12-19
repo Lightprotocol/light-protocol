@@ -33,6 +33,7 @@ pub mod light_compressed_token {
 
     use super::*;
     use constants::NOT_FROZEN;
+    use spl_compression::spl_token_pool_derivation;
 
     /// This instruction creates a token pool for a given mint. Every spl mint
     /// can have one token pool. When a token is compressed the tokens are
@@ -43,6 +44,24 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
+        )
+    }
+
+    /// This instruction creates an additional token pool for a given mint.
+    /// The maximum number of token pools per mint is 5.
+    pub fn add_token_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
+        token_pool_bump: u8,
+    ) -> Result<()> {
+        if token_pool_bump >= NUM_MAX_POOL_ACCOUNTS {
+            return err!(ErrorCode::InvalidTokenPoolBump);
+        }
+        // Check that token pool account with previous bump already exists.
+        spl_token_pool_derivation(
+            &ctx.accounts.mint.key().to_bytes(),
+            &crate::ID,
+            &ctx.accounts.token_pool_pda.key(),
+            &[token_pool_bump.saturating_sub(1)],
         )
     }
 
@@ -209,4 +228,6 @@ pub enum ErrorCode {
     MintWithInvalidExtension,
     #[msg("The token account balance is less than the remaining amount.")]
     InsufficientTokenAccountBalance,
+    #[msg("Max number of token pools reached.")]
+    InvalidTokenPoolBump,
 }
