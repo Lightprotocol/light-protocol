@@ -46,6 +46,57 @@ export type LightCompressedToken = {
             args: [];
         },
         {
+            name: 'addTokenPool';
+            docs: [
+                'This instruction creates an additional token pool for a given mint.',
+                'The maximum number of token pools per mint is 5.',
+            ];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'existingTokenPoolPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'mint';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'tokenPoolBump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
             name: 'mintTo';
             docs: [
                 'Mints tokens from an spl token mint to a list of compressed accounts.',
@@ -1714,6 +1765,57 @@ export const IDL: LightCompressedToken = {
                 },
             ],
             args: [],
+        },
+        {
+            name: 'addTokenPool',
+            docs: [
+                'This instruction creates an additional token pool for a given mint.',
+                'The maximum number of token pools per mint is 5.',
+            ],
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'existingTokenPoolPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'tokenPoolBump',
+                    type: 'u8',
+                },
+            ],
         },
         {
             name: 'mintTo',

@@ -8,13 +8,14 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    constants::NOT_FROZEN,
+    constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS},
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts, get_cpi_signer_seeds,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
+    spl_compression::check_spl_token_pool_derivation,
     BurnInstruction, ErrorCode,
 };
 
@@ -68,10 +69,61 @@ pub fn burn_spl_from_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
-    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let mut token_pool_bumps = (0..NUM_MAX_POOL_ACCOUNTS).collect::<Vec<u8>>();
+    let mut amount = inputs.burn_amount;
+    let mut token_pool_pda = &ctx.accounts.token_pool_pda;
+    let mint_bytes = ctx.accounts.mint.key().to_bytes();
+    for i in 0..NUM_MAX_POOL_ACCOUNTS {
+        if i != 0 {
+            token_pool_pda = &ctx.remaining_accounts[i as usize - 1];
+        }
+        let token_pool_amount =
+            TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])
+                .map_err(|_| crate::ErrorCode::InvalidTokenPoolPda)?
+                .amount;
+        let withdrawal_amount = std::cmp::min(amount, token_pool_amount);
+        if withdrawal_amount == 0 {
+            continue;
+        }
+        let mut remove_index = 0;
+        for (index, i) in token_pool_bumps.iter().enumerate() {
+            match check_spl_token_pool_derivation(
+                mint_bytes.as_slice(),
+                &token_pool_pda.key(),
+                &[*i],
+            ) {
+                true => {
+                    burn(
+                        ctx,
+                        token_pool_pda.to_account_info(),
+                        withdrawal_amount,
+                        token_pool_amount,
+                    )?;
+
+                    remove_index = index;
+                }
+                false => {}
+            }
+        }
+        token_pool_bumps.remove(remove_index);
+
+        amount = amount.saturating_sub(withdrawal_amount);
+        if amount == 0 {
+            return Ok(());
+        }
+    }
+    err!(crate::ErrorCode::FailedToDecompress)
+}
+
+fn burn<'info>(
+    ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
+    token_pool_pda: AccountInfo<'info>,
+    burn_amount: u64,
+    pre_token_balance: u64,
+) -> Result<()> {
     let cpi_accounts = anchor_spl::token_interface::Burn {
         mint: ctx.accounts.mint.to_account_info(),
-        from: ctx.accounts.token_pool_pda.to_account_info(),
+        from: token_pool_pda.to_account_info(),
         authority: ctx.accounts.cpi_authority_pda.to_account_info(),
     };
     let signer_seeds = get_cpi_signer_seeds();
@@ -81,19 +133,15 @@ pub fn burn_spl_from_pool_pda<'info>(
         cpi_accounts,
         signer_seeds_ref,
     );
-    anchor_spl::token_interface::burn(cpi_ctx, inputs.burn_amount)?;
-
-    let post_token_balance = TokenAccount::try_deserialize(
-        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
-    )?
-    .amount;
-    // Guard against unexpected behavior of the SPL token program.
-    if post_token_balance != pre_token_balance - inputs.burn_amount {
+    anchor_spl::token_interface::burn(cpi_ctx, burn_amount)?;
+    let post_token_balance =
+        TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])?.amount;
+    if post_token_balance != pre_token_balance - burn_amount {
         msg!(
             "post_token_balance {} != pre_token_balance {} - burn_amount {}",
             post_token_balance,
             pre_token_balance,
-            inputs.burn_amount
+            burn_amount
         );
         return err!(crate::ErrorCode::SplTokenSupplyMismatch);
     }
@@ -182,7 +230,7 @@ pub mod sdk {
 
     use super::CompressedTokenInstructionDataBurn;
     use crate::{
-        get_token_pool_pda,
+        get_token_pool_pda_with_bump,
         process_transfer::{
             get_cpi_authority_pda,
             transfer_sdk::{
@@ -206,6 +254,8 @@ pub mod sdk {
         pub burn_amount: u64,
         pub signer_is_delegate: bool,
         pub is_token_22: bool,
+        pub token_pool_bump: u8,
+        pub additonal_pool_accounts: Vec<Pubkey>,
     }
 
     pub fn create_burn_instruction(
@@ -213,7 +263,11 @@ pub mod sdk {
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, input_token_data_with_context, _) =
             create_input_output_and_remaining_accounts(
-                &[inputs.change_account_merkle_tree],
+                &[
+                    inputs.additonal_pool_accounts,
+                    vec![inputs.change_account_merkle_tree],
+                ]
+                .concat(),
                 &inputs.input_token_data,
                 &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
@@ -253,7 +307,7 @@ pub mod sdk {
         }
         .data();
 
-        let token_pool_pda = get_token_pool_pda(&inputs.mint);
+        let token_pool_pda = get_token_pool_pda_with_bump(&inputs.mint, inputs.token_pool_bump);
         let token_program = if inputs.is_token_22 {
             anchor_spl::token_2022::ID
         } else {

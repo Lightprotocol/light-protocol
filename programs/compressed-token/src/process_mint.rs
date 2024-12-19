@@ -2,6 +2,9 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
+
+use crate::{is_valid_token_pool_pda, program::LightCompressedToken};
+
 #[cfg(target_os = "solana")]
 use {
     crate::process_transfer::create_output_compressed_accounts,
@@ -274,6 +277,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
 
 #[inline(never)]
 pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -> Result<()> {
+    is_valid_token_pool_pda(&ctx.accounts.token_pool_pda.key(), &ctx.accounts.mint.key())?;
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
         mint_amount = mint_amount
@@ -324,7 +328,8 @@ pub struct MintToInstruction<'info> {
             @ crate::ErrorCode::InvalidAuthorityMint
     )]
     pub mint: InterfaceAccount<'info, Mint>,
-    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
+    /// CHECK: with is_valid_token_pool_pda().
+    #[account(mut)]
     pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
     pub token_program: Interface<'info, TokenInterface>,
     pub light_system_program: Program<'info, LightSystemProgram>,
@@ -351,6 +356,9 @@ pub struct MintToInstruction<'info> {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
+    use crate::{
+        get_token_pool_pda, get_token_pool_pda_with_bump, process_transfer::get_cpi_authority_pda,
+    };
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use light_system_program::sdk::invoke::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -386,6 +394,39 @@ pub mod mint_sdk {
         }
     }
 
+    pub fn create_add_token_pool_instruction(
+        fee_payer: &Pubkey,
+        mint: &Pubkey,
+        token_pool_bump: u8,
+        is_token_22: bool,
+    ) -> Instruction {
+        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
+        let existing_token_pool_pda =
+            get_token_pool_pda_with_bump(mint, token_pool_bump.saturating_sub(1));
+        let instruction_data = crate::instruction::AddTokenPool { token_pool_bump };
+
+        let token_program: Pubkey = if is_token_22 {
+            anchor_spl::token_2022::ID
+        } else {
+            anchor_spl::token::ID
+        };
+        let accounts = crate::accounts::AddTokenPoolInstruction {
+            fee_payer: *fee_payer,
+            token_pool_pda,
+            system_program: system_program::ID,
+            mint: *mint,
+            token_program,
+            cpi_authority_pda: get_cpi_authority_pda().0,
+            existing_token_pool_pda,
+        };
+
+        Instruction {
+            program_id: crate::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_mint_to_instruction(
         fee_payer: &Pubkey,
@@ -396,8 +437,9 @@ pub mod mint_sdk {
         public_keys: Vec<Pubkey>,
         lamports: Option<u64>,
         token_2022: bool,
+        token_pool_bump: u8,
     ) -> Instruction {
-        let token_pool_pda = get_token_pool_pda(mint);
+        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
 
         let instruction_data = crate::instruction::MintTo {
             amounts,
@@ -448,6 +490,7 @@ pub mod mint_sdk {
 }
 
 #[cfg(test)]
+
 mod test {
     use light_hasher::Poseidon;
     use light_system_program::{
@@ -460,6 +503,13 @@ mod test {
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
         token_data::{AccountState, TokenData},
     };
+    use light_hasher::Poseidon;
+
+    use light_system_program::{
+        sdk::compressed_account::{CompressedAccount, CompressedAccountData},
+        OutputCompressedAccountWithPackedContext,
+    };
+
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat() {
         let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];

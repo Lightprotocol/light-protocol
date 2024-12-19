@@ -1839,6 +1839,7 @@ where
             false,
             transaction_paramets,
             false,
+            0,
         )
         .await;
         self.stats.spl_burned += 1;
@@ -1984,6 +1985,8 @@ where
                 &token_account,
                 transaction_paramets,
                 false,
+                0, // TODO: make random
+                None,
             )
             .await;
             self.stats.spl_compress += 1;
@@ -2061,6 +2064,8 @@ where
             &token_account,
             transaction_paramets,
             false,
+            0, // TODO: make random
+            None,
         )
         .await;
         self.stats.spl_decompress += 1;
