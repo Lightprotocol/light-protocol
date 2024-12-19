@@ -17,7 +17,7 @@ use light_merkle_tree_metadata::{
     queue::QueueType,
     rollover::RolloverMetadata,
 };
-use light_utils::{fee::compute_rollover_fee, hashchain::create_hash_chain};
+use light_utils::{fee::compute_rollover_fee, hashchain::create_hash_chain_from_array};
 use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
     CompressedProof,
@@ -425,8 +425,12 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let start_index = self.get_account().next_index;
         let mut start_index_bytes = [0u8; 32];
         start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
-        let public_input_hash =
-            create_hash_chain([*old_root, new_root, *leaves_hashchain, start_index_bytes])?;
+        let public_input_hash = create_hash_chain_from_array([
+            *old_root,
+            new_root,
+            *leaves_hashchain,
+            start_index_bytes,
+        ])?;
 
         self.update::<5>(
             circuit_batch_size as usize,
@@ -502,12 +506,17 @@ impl ZeroCopyBatchedMerkleTreeAccount {
         let new_root = instruction_data.public_inputs.new_root;
 
         let public_input_hash = if QUEUE_TYPE == QueueType::Input as u64 {
-            create_hash_chain([*old_root, new_root, *leaves_hashchain])?
+            create_hash_chain_from_array([*old_root, new_root, *leaves_hashchain])?
         } else if QUEUE_TYPE == QueueType::Address as u64 {
             let mut next_index_bytes = [0u8; 32];
             next_index_bytes[24..]
                 .copy_from_slice(self.get_account().next_index.to_be_bytes().as_slice());
-            create_hash_chain([*old_root, new_root, *leaves_hashchain, next_index_bytes])?
+            create_hash_chain_from_array([
+                *old_root,
+                new_root,
+                *leaves_hashchain,
+                next_index_bytes,
+            ])?
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         };

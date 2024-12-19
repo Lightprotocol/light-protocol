@@ -20,3 +20,4 @@ rand = "0.8"
 [dev-dependencies]
 bytemuck = "1.17"
 memoffset = "0.9"
+light-poseidon = {workspace = true}

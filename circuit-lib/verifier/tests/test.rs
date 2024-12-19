@@ -14,7 +14,7 @@ mod test {
         helpers::init_logger,
     };
     use light_utils::hashchain::{
-        create_hash_chain, create_hash_chain_from_slice, create_two_inputs_hash_chain,
+        create_hash_chain_from_array, create_hash_chain_from_slice, create_two_inputs_hash_chain,
     };
     use light_verifier::{select_verifying_key, verify, CompressedProof};
     use reqwest::Client;
@@ -112,7 +112,7 @@ mod test {
             let roots_hash_chain = create_hash_chain_from_slice(&roots).unwrap();
             let leaves_hash_chain = create_hash_chain_from_slice(&leaves).unwrap();
             let public_input_hash =
-                create_hash_chain([roots_hash_chain, leaves_hash_chain]).unwrap();
+                create_hash_chain_from_array([roots_hash_chain, leaves_hash_chain]).unwrap();
             let vk = select_verifying_key(leaves.len(), 0).unwrap();
             verify::<1>(
                 &[public_input_hash],

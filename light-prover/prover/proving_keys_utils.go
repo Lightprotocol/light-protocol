@@ -134,7 +134,6 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var appendWithProofsKeys []string = []string{
-		keysDir + "append-with-proofs_32_1.key",
 		keysDir + "append-with-proofs_32_10.key",
 		keysDir + "append-with-proofs_32_100.key",
 		keysDir + "append-with-proofs_32_500.key",
@@ -167,7 +166,6 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var addressAppendTestKeys []string = []string{
-		keysDir + "address-append_40_1.key",
 		keysDir + "address-append_40_10.key",
 	}
 
