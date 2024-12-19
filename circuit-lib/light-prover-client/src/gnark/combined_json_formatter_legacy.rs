@@ -1,13 +1,17 @@
 use serde::Serialize;
 
-use crate::gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct;
-use crate::gnark::non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct;
-use crate::{
-    combined_legacy::merkle_combined_proof_inputs::CombinedProofInputs, prove_utils::CircuitType,
+use super::{
+    helpers::create_json_from_struct, inclusion_json_formatter::InclusionJsonStruct,
+    non_inclusion_json_formatter::NonInclusionJsonStruct,
 };
-
-use super::non_inclusion_json_formatter::NonInclusionJsonStruct;
-use super::{helpers::create_json_from_struct, inclusion_json_formatter::InclusionJsonStruct};
+use crate::{
+    combined_legacy::merkle_combined_proof_inputs::CombinedProofInputs,
+    gnark::{
+        inclusion_json_formatter_legacy::BatchInclusionJsonStruct,
+        non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct,
+    },
+    prove_utils::CircuitType,
+};
 
 #[derive(Serialize, Debug)]
 pub struct CombinedJsonStruct {

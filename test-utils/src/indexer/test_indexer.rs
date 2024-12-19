@@ -1,93 +1,97 @@
-use crate::create_address_merkle_tree_and_queue_account_with_assert;
-use crate::e2e_test_env::KeypairActionConfig;
-use crate::spl::create_initialize_mint_instructions;
+use std::{
+    future::Future,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
+    StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
-    IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
+use anchor_lang::AnchorDeserialize;
+use forester_utils::{
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
+        IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult,
+        StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
+    },
+    AccountZeroCopy,
 };
-use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
-use light_batched_merkle_tree::constants::{
-    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
 };
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
-use light_client::rpc::{RpcConnection, RpcError};
-use light_client::transaction_params::FeeConfig;
-use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
-use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_client::{
+    rpc::{RpcConnection, RpcError},
+    transaction_params::FeeConfig,
+};
+use light_compressed_token::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
+    mint_sdk::create_create_token_pool_instruction, TokenData,
+};
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_macros::pubkey;
-use light_program_test::test_batch_forester::create_batched_state_merkle_tree;
-use light_program_test::test_env::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR;
-use light_program_test::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    EnvAccounts,
+use light_merkle_tree_reference::MerkleTree;
+use light_program_test::{
+    test_batch_forester::create_batched_state_merkle_tree,
+    test_env::{
+        create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+        EnvAccounts, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+    },
 };
-use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::helpers::{
-    big_int_to_string, string_to_big_int, ProofType, ProverConfig, ProverMode,
+use light_prover_client::{
+    gnark::{
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
+        combined_json_formatter::CombinedJsonStruct,
+        combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{
+            big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig, ProverMode,
+        },
+        inclusion_json_formatter::BatchInclusionJsonStruct,
+        inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
+        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+        non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+    helpers::bigint_to_u8_32,
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
+    non_inclusion::merkle_non_inclusion_proof_inputs::{
+        get_non_inclusion_proof_inputs, NonInclusionProofInputs,
+    },
+    non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
-use light_prover_client::gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy;
-use light_prover_client::helpers::bigint_to_u8_32;
-use light_prover_client::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy;
-use light_system_program::sdk::compressed_account::QueueIndex;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::{create_hash_chain_from_slice, create_tx_hash};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{
+        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext, QueueIndex},
+        event::PublicTransactionEvent,
+    },
+};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    hashchain::{create_hash_chain_from_slice, create_tx_hash},
+};
 use log::{debug, info, warn};
-use num_bigint::BigUint;
-use solana_sdk::bs58;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
-use {
-    account_compression::{
-        utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-        AddressMerkleTreeAccount, StateMerkleTreeAccount,
-    },
-    anchor_lang::AnchorDeserialize,
-    light_hasher::Poseidon,
-    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
-    light_merkle_tree_reference::MerkleTree,
-    light_prover_client::{
-        gnark::{
-            combined_json_formatter::CombinedJsonStruct,
-            combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
-            constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::spawn_prover,
-            inclusion_json_formatter::BatchInclusionJsonStruct,
-            non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
-            non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
-            proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-        },
-        inclusion::merkle_inclusion_proof_inputs::{
-            InclusionMerkleProofInputs, InclusionProofInputs,
-        },
-        non_inclusion::merkle_non_inclusion_proof_inputs::{
-            get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-        },
-        non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
-    },
-    light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
-        },
-    },
-    num_bigint::BigInt,
-    num_traits::ops::bytes::FromBytes,
-    reqwest::Client,
-    solana_sdk::{
-        instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
-        signer::Signer,
-    },
-    spl_token::instruction::initialize_mint,
-    std::time::Duration,
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::bytes::FromBytes;
+use reqwest::Client;
+use solana_sdk::{
+    bs58, instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
+    signer::Signer,
+};
+use spl_token::instruction::initialize_mint;
+
+use crate::{
+    create_address_merkle_tree_and_queue_account_with_assert, e2e_test_env::KeypairActionConfig,
+    spl::create_initialize_mint_instructions,
 };
 
 #[derive(Debug)]
@@ -187,9 +191,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         merkle_tree_pubkey: [u8; 32],
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
-            let address_tree_bundle = self
-                .address_merkle_trees
-                .iter()
+        let address_tree_bundle = self
+            .address_merkle_trees
+            .iter()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey);
         if let Some(address_tree_bundle) = address_tree_bundle {
             Ok(address_tree_bundle.merkle_tree.merkle_tree.get_subtrees())
@@ -471,7 +475,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         )
                         .await;
                     if let Some(payload) = payload {
-                    (indices, Vec::new(), payload.to_string())
+                        (indices, Vec::new(), payload.to_string())
                     } else {
                         (indices, Vec::new(), payload_legacy.unwrap().to_string())
                     }
@@ -569,8 +573,8 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             state_tree_height: 26,
                             address_tree_height: 26,
                             inclusion: inclusion_payload_legacy.unwrap().inputs,
-                        non_inclusion: non_inclusion_payload.inputs,
-                    }
+                            non_inclusion: non_inclusion_payload.inputs,
+                        }
                         .to_string()
                     } else {
                         panic!("Unsupported tree height")
@@ -760,9 +764,9 @@ impl<R: RpcConnection> TestIndexer<R> {
         Self::new(
             vec![
                 StateMerkleTreeAccounts {
-                merkle_tree: env.merkle_tree_pubkey,
-                nullifier_queue: env.nullifier_queue_pubkey,
-                cpi_context: env.cpi_context_account_pubkey,
+                    merkle_tree: env.merkle_tree_pubkey,
+                    nullifier_queue: env.nullifier_queue_pubkey,
+                    cpi_context: env.cpi_context_account_pubkey,
                 },
                 StateMerkleTreeAccounts {
                     merkle_tree: env.batched_state_merkle_tree,
@@ -772,8 +776,8 @@ impl<R: RpcConnection> TestIndexer<R> {
             ],
             vec![
                 AddressMerkleTreeAccounts {
-                merkle_tree: env.address_merkle_tree_pubkey,
-                queue: env.address_merkle_tree_queue_pubkey,
+                    merkle_tree: env.address_merkle_tree_pubkey,
+                    queue: env.address_merkle_tree_queue_pubkey,
                 },
                 AddressMerkleTreeAccounts {
                     merkle_tree: env.batch_address_merkle_tree,
@@ -812,10 +816,10 @@ impl<R: RpcConnection> TestIndexer<R> {
                 ));
                 (2, merkle_tree)
             } else {
-            let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                STATE_MERKLE_TREE_HEIGHT as usize,
-                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-            ));
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
+                    STATE_MERKLE_TREE_HEIGHT as usize,
+                    STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+                ));
                 (1, merkle_tree)
             };
 
@@ -1010,25 +1014,25 @@ impl<R: RpcConnection> TestIndexer<R> {
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
             let (root_index, root) = if bundle.version == 1 {
-            let fetched_merkle_tree = unsafe {
-                get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-                    rpc,
-                    merkle_tree_pubkeys[i],
-                )
-                .await
-            };
-            for i in 0..fetched_merkle_tree.roots.len() {
-                info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
-            }
-            info!(
-                "sequence number {:?}",
-                fetched_merkle_tree.sequence_number()
-            );
-            info!("root index {:?}", fetched_merkle_tree.root_index());
-            info!("local sequence number {:?}", merkle_tree.sequence_number);
+                let fetched_merkle_tree = unsafe {
+                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                        rpc,
+                        merkle_tree_pubkeys[i],
+                    )
+                    .await
+                };
+                for i in 0..fetched_merkle_tree.roots.len() {
+                    info!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
+                }
+                info!(
+                    "sequence number {:?}",
+                    fetched_merkle_tree.sequence_number()
+                );
+                info!("root index {:?}", fetched_merkle_tree.root_index());
+                info!("local sequence number {:?}", merkle_tree.sequence_number);
                 (
                     fetched_merkle_tree.root_index() as u32,
-                fetched_merkle_tree.root(),
+                    fetched_merkle_tree.root(),
                 )
             } else {
                 let mut merkle_tree_account = rpc
@@ -1135,15 +1139,15 @@ impl<R: RpcConnection> TestIndexer<R> {
                     );
                 }
             } else {
-            let fetched_address_merkle_tree = unsafe {
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
-                    rpc,
-                    address_merkle_tree_pubkeys[i],
-                )
-                .await
-            };
-            address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
-        }
+                let fetched_address_merkle_tree = unsafe {
+                    get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+                        rpc,
+                        address_merkle_tree_pubkeys[i],
+                    )
+                    .await
+                };
+                address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
+            }
         }
         // if tree heights are not the same, panic
         if tree_heights.iter().any(|&x| x != tree_heights[0]) {
@@ -1169,8 +1173,8 @@ impl<R: RpcConnection> TestIndexer<R> {
                     NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
-            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                &non_inclusion_proof_inputs,
+                        BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                            &non_inclusion_proof_inputs,
                         ),
                     ),
                     None,

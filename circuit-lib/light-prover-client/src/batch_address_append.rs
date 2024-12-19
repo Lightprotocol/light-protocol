@@ -1,20 +1,22 @@
-use crate::errors::ProverClientError;
-use crate::helpers::compute_root_from_merkle_proof;
-use crate::indexed_changelog::patch_indexed_changelogs;
-
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_concurrent_merkle_tree::event::RawIndexedElement;
+use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::IndexedElement;
-use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_indexed_merkle_tree::{
+    array::{IndexedArray, IndexedElement},
+    changelog::IndexedChangelogEntry,
+    reference::IndexedMerkleTree,
+};
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::{create_hash_chain, create_hash_chain_from_slice};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    hashchain::{create_hash_chain, create_hash_chain_from_slice},
+};
 use num_bigint::BigUint;
 
-use crate::helpers::{compute_root_from_merkle_proof, hash_chain};
+use crate::{
+    errors::ProverClientError, helpers::compute_root_from_merkle_proof,
+    indexed_changelog::patch_indexed_changelogs,
+};
 
 #[derive(Debug, Clone)]
 pub struct BatchAddressAppendInputs {
@@ -105,8 +107,8 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             .unwrap();
         }
         if i >= inserted_elements {
-        patched_low_element_next_values
-            .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
+            patched_low_element_next_values
+                .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
             patched_low_element_next_indices.push(low_element.next_index());
             patched_low_element_indices.push(low_element.index);
             patched_low_element_values
@@ -143,13 +145,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             );
             changelog.push(changelog_entry);
             if i >= inserted_elements {
-            low_element_circuit_merkle_proofs.push(
-                merkle_proof
-                    .iter()
-                    .map(|hash| BigUint::from_bytes_be(hash))
-                    .collect(),
-            );
-        }
+                low_element_circuit_merkle_proofs.push(
+                    merkle_proof
+                        .iter()
+                        .map(|hash| BigUint::from_bytes_be(hash))
+                        .collect(),
+                );
+            }
         }
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element_raw,
@@ -189,12 +191,12 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
 
             changelog.push(changelog_entry);
             if i >= inserted_elements {
-            new_element_circuit_merkle_proofs.push(
-                merkle_proof_array
-                    .iter()
-                    .map(|hash| BigUint::from_bytes_be(hash))
-                    .collect(),
-            );
+                new_element_circuit_merkle_proofs.push(
+                    merkle_proof_array
+                        .iter()
+                        .map(|hash| BigUint::from_bytes_be(hash))
+                        .collect(),
+                );
             }
             let new_element_raw = RawIndexedElement {
                 value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),

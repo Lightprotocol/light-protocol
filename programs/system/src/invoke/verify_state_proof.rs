@@ -1,10 +1,5 @@
-use crate::{
-    errors::SystemProgramError,
-    sdk::compressed_account::{
-        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
-    },
-    NewAddressParamsPacked,
-};
+use std::mem;
+
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
@@ -15,8 +10,7 @@ use light_batched_merkle_tree::{
     queue::ZeroCopyBatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::Discriminator as LightDiscriminator;
-use light_hasher::Poseidon;
+use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
 use light_utils::{
@@ -27,9 +21,15 @@ use light_verifier::{
     select_verifying_key, verify_create_addresses_and_inclusion_proof,
     verify_create_addresses_proof, verify_inclusion_proof, CompressedProof,
 };
-use std::mem;
 
 use super::PackedReadOnlyAddress;
+use crate::{
+    errors::SystemProgramError,
+    sdk::compressed_account::{
+        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+    },
+    NewAddressParamsPacked,
+};
 
 #[inline(never)]
 #[heap_neutral]
@@ -47,7 +47,7 @@ pub fn fetch_input_roots<'a>(
             .merkle_context
             .queue_index
             .is_some()
-    {
+        {
             continue;
         }
         msg!(
@@ -81,7 +81,7 @@ pub fn fetch_input_roots<'a>(
         }
         let internal_height = fetch_root::<true, true>(
             &remaining_accounts[readonly_input_account
-            .merkle_context
+                .merkle_context
                 .merkle_tree_pubkey_index as usize],
             readonly_input_account.root_index,
             input_roots,
@@ -210,11 +210,11 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
                 );
             }
             let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
-        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-        )
-        .map_err(ProgramError::from)?;
-        let fetched_roots = &merkle_tree.roots;
+            let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+                &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+            )
+            .map_err(ProgramError::from)?;
+            let fetched_roots = &merkle_tree.roots;
 
             (*roots).push(fetched_roots[root_index as usize]);
             height = merkle_tree.height as u8;
@@ -417,13 +417,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         }
         leaves.push(
             input_compressed_account_with_context
-            .compressed_account
-            .hash_with_hashed_values::<Poseidon>(
-                &hashed_owner,
-                &current_hashed_mt,
-                &input_compressed_account_with_context
-                    .merkle_context
-                    .leaf_index,
+                .compressed_account
+                .hash_with_hashed_values::<Poseidon>(
+                    &hashed_owner,
+                    &current_hashed_mt,
+                    &input_compressed_account_with_context
+                        .merkle_context
+                        .leaf_index,
                 )?,
         );
     }

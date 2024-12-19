@@ -1,7 +1,10 @@
-use crate::batch_address_append::BatchAddressAppendInputs;
-use crate::gnark::helpers::{big_uint_to_string, create_json_from_struct};
-use crate::prove_utils::CircuitType;
 use serde::Serialize;
+
+use crate::{
+    batch_address_append::BatchAddressAppendInputs,
+    gnark::helpers::{big_uint_to_string, create_json_from_struct},
+    prove_utils::CircuitType,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAddressAppendInputsJson {

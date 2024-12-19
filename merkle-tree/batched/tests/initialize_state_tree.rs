@@ -1,8 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
-use light_hasher::Discriminator;
-use rand::{rngs::StdRng, Rng};
-
 use light_batched_merkle_tree::{
     batch::Batch,
     initialize_state_tree::{
@@ -20,6 +16,9 @@ use light_batched_merkle_tree::{
     },
     zero_copy::{bytes_to_struct_checked, ZeroCopyError},
 };
+use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
+use light_hasher::Discriminator;
+use rand::{rngs::StdRng, Rng};
 use solana_program::pubkey::Pubkey;
 
 #[test]

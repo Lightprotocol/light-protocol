@@ -1,12 +1,11 @@
-use bytemuck::{Pod, Zeroable};
-
-use crate::errors::MerkleTreeMetadataError;
-use solana_program::msg;
-
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use bytemuck::{Pod, Zeroable};
+use solana_program::msg;
+
+use crate::errors::MerkleTreeMetadataError;
 
 #[repr(C)]
 #[derive(
@@ -63,8 +62,7 @@ impl RolloverMetadata {
 
         #[cfg(target_os = "solana")]
         {
-            use solana_program::clock::Clock;
-            use solana_program::sysvar::Sysvar;
+            use solana_program::{clock::Clock, sysvar::Sysvar};
             self.rolledover_slot = Clock::get().unwrap().slot;
         }
         #[cfg(not(target_os = "solana"))]

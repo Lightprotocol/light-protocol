@@ -114,7 +114,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs_json)
             .send()
@@ -198,7 +198,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let new_root = self.merkle_tree.root();
 
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
@@ -320,7 +320,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         let inputs = to_json(&inputs);
 
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()

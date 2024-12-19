@@ -1,19 +1,19 @@
-use log::info;
-use num_traits::Num;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
-    process::Command,
+    process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
-use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
+use log::info;
 use num_bigint::{BigInt, BigUint};
-use num_traits::ToPrimitive;
+use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 use serde_json::json;
 use sysinfo::{Signal, System};
+
+use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Clone, Copy, PartialEq)]

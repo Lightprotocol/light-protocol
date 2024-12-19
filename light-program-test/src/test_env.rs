@@ -1,42 +1,52 @@
-use crate::env_accounts;
-use crate::test_batch_forester::{
-    create_batch_address_merkle_tree, create_batched_state_merkle_tree,
-};
-use crate::test_rpc::ProgramTestRpcConnection;
-use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
-use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
+use std::path::PathBuf;
+
 use account_compression::{
-    sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
+    sdk::{
+        create_initialize_address_merkle_tree_and_queue_instruction,
+        create_initialize_merkle_tree_instruction,
+    },
+    utils::constants::GROUP_AUTHORITY_SEED,
+    AddressMerkleTreeConfig, AddressQueueConfig, GroupAuthority, NullifierQueueConfig,
+    RegisteredProgram, StateMerkleTreeConfig,
 };
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
-use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeType};
-use forester_utils::registry::register_test_forester;
-use forester_utils::{airdrop_lamports, create_account_instruction};
-use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::solana_rpc::SolanaRpcUrl;
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
-use light_registry::protocol_config::state::ProtocolConfig;
-use light_registry::sdk::{
-    create_deregister_program_instruction, create_finalize_registration_instruction,
-    create_initialize_governance_authority_instruction,
-    create_initialize_group_authority_instruction, create_register_program_instruction,
-    create_update_protocol_config_instruction,
+use forester_utils::{
+    airdrop_lamports, create_account_instruction,
+    forester_epoch::{Epoch, TreeAccounts, TreeType},
+    registry::register_test_forester,
 };
-use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_pda, get_protocol_config_pda_address,
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_registry::ForesterConfig;
+use light_client::rpc::{
+    errors::RpcError, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
+};
+use light_registry::{
+    account_compression_cpi::sdk::get_registered_program_pda,
+    protocol_config::state::ProtocolConfig,
+    sdk::{
+        create_deregister_program_instruction, create_finalize_registration_instruction,
+        create_initialize_governance_authority_instruction,
+        create_initialize_group_authority_instruction, create_register_program_instruction,
+        create_update_protocol_config_instruction,
+    },
+    utils::{get_cpi_authority_pda, get_forester_pda, get_protocol_config_pda_address},
+    ForesterConfig,
+};
 use solana_program_test::{ProgramTest, ProgramTestContext};
-use solana_sdk::signature::{read_keypair_file, Signature};
 use solana_sdk::{
-    pubkey, pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
+    pubkey,
+    pubkey::Pubkey,
+    signature::{read_keypair_file, Keypair, Signature, Signer},
+    system_instruction,
     transaction::Transaction,
 };
-use std::path::PathBuf;
+
+use crate::{
+    env_accounts,
+    test_batch_forester::{create_batch_address_merkle_tree, create_batched_state_merkle_tree},
+    test_rpc::ProgramTestRpcConnection,
+};
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");

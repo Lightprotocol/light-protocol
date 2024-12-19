@@ -1,4 +1,5 @@
 use std::f64::consts::LN_2;
+
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -107,10 +108,11 @@ impl<'a> BloomFilter<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use light_utils::bigint::bigint_to_be_bytes_array;
     use num_bigint::{RandBigInt, ToBigUint};
     use rand::thread_rng;
+
+    use super::*;
 
     #[test]
     fn test_insert_and_contains() -> Result<(), BloomFilterError> {

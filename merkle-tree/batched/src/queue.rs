@@ -1,19 +1,25 @@
-use super::batch::BatchState;
-use crate::batch_metadata::BatchMetadata;
-use crate::constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, TEST_DEFAULT_BATCH_SIZE};
-use crate::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use crate::zero_copy::{bytes_to_struct_checked, ZeroCopyError};
-use crate::{batch::Batch, errors::BatchedMerkleTreeError};
-use crate::{BorshDeserialize, BorshSerialize};
+use std::mem::ManuallyDrop;
+
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
 use light_bounded_vec::{BoundedVec, BoundedVecMetadata};
 use light_hasher::Discriminator;
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
-use solana_program::account_info::AccountInfo;
-use solana_program::msg;
-use std::mem::ManuallyDrop;
+use light_merkle_tree_metadata::{
+    errors::MerkleTreeMetadataError,
+    queue::{QueueMetadata, QueueType},
+};
+use solana_program::{account_info::AccountInfo, msg};
+
+use super::batch::BatchState;
+use crate::{
+    batch::Batch,
+    batch_metadata::BatchMetadata,
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, TEST_DEFAULT_BATCH_SIZE},
+    errors::BatchedMerkleTreeError,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    zero_copy::{bytes_to_struct_checked, ZeroCopyError},
+    BorshDeserialize, BorshSerialize,
+};
 
 #[repr(C)]
 #[derive(
