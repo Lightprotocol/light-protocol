@@ -65,6 +65,8 @@ pub fn decompress_spl_tokens<'info>(
     };
     let mint_bytes = inputs.mint.to_bytes();
 
+    let mut token_pool_bumps = (0..crate::NUM_MAX_POOL_ACCOUNTS).collect::<Vec<u8>>();
+
     for i in 0..crate::NUM_MAX_POOL_ACCOUNTS {
         if i != 0 {
             token_pool_pda = ctx.remaining_accounts[i as usize - 1].to_account_info();
@@ -75,24 +77,32 @@ pub fn decompress_spl_tokens<'info>(
                 .amount;
         let witdrawal_amount = std::cmp::min(amount, token_pool_amount);
 
-        spl_token_pool_derivation(
-            mint_bytes.as_slice(),
-            &crate::ID,
-            &token_pool_pda.key(),
-            &[i],
-        )?;
+        for (index, i) in token_pool_bumps.iter().enumerate() {
+            match check_spl_token_pool_derivation(
+                mint_bytes.as_slice(),
+                &crate::ID,
+                &token_pool_pda.key(),
+                &[*i],
+            ) {
+                true => {
+                    transfer(
+                        token_pool_pda.to_account_info(),
+                        recipient.to_account_info(),
+                        ctx.accounts.cpi_authority_pda.to_account_info(),
+                        ctx.accounts
+                            .token_program
+                            .as_ref()
+                            .unwrap()
+                            .to_account_info(),
+                        witdrawal_amount,
+                    )?;
+                    token_pool_bumps.remove(index);
+                    return Ok(());
+                }
+                false => {}
+            }
+        }
 
-        transfer(
-            token_pool_pda.to_account_info(),
-            recipient.to_account_info(),
-            ctx.accounts.cpi_authority_pda.to_account_info(),
-            ctx.accounts
-                .token_program
-                .as_ref()
-                .unwrap()
-                .to_account_info(),
-            witdrawal_amount,
-        )?;
         amount = amount.saturating_sub(witdrawal_amount);
         msg!("Amount: {}", amount);
         msg!("Witdrawal Amount: {}", witdrawal_amount);
