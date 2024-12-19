@@ -1,7 +1,7 @@
-use crate::{errors::AccountCompressionErrorCode, RegisteredProgram};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use super::constants::CPI_AUTHORITY_PDA_SEED;
+use crate::{errors::AccountCompressionErrorCode, RegisteredProgram};
 
 pub trait GroupAccess {
     fn get_owner(&self) -> &Pubkey;

@@ -1,11 +1,5 @@
-use crate::{
-    batch_metadata::BatchMetadata,
-    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    event::{BatchAppendEvent, BatchNullifyEvent},
-    initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
-    BorshDeserialize, BorshSerialize,
-};
+use std::mem::{size_of, ManuallyDrop};
+
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
@@ -23,7 +17,6 @@ use light_verifier::{
     CompressedProof,
 };
 use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
-use std::mem::{size_of, ManuallyDrop};
 
 use super::{
     batch::Batch,
@@ -31,12 +24,18 @@ use super::{
 };
 use crate::{
     batch::BatchState,
+    batch_metadata::BatchMetadata,
     constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, TEST_DEFAULT_BATCH_SIZE,
+        ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+        TEST_DEFAULT_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
+    event::{BatchAppendEvent, BatchNullifyEvent},
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
     queue::ZeroCopyBatchedQueueAccount,
     zero_copy::{bytes_to_struct_checked, ZeroCopyError},
+    BorshDeserialize, BorshSerialize,
 };
 
 #[repr(C)]

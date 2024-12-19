@@ -1,17 +1,19 @@
-use crate::rpc::errors::RpcError;
-use crate::transaction_params::TransactionParams;
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use solana_program::clock::Slot;
-use solana_program::instruction::Instruction;
-use solana_sdk::account::{Account, AccountSharedData};
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::epoch_info::EpochInfo;
-use solana_sdk::hash::Hash;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signature};
-use solana_sdk::transaction::Transaction;
-use std::fmt::Debug;
+use solana_program::{clock::Slot, instruction::Instruction};
+use solana_sdk::{
+    account::{Account, AccountSharedData},
+    commitment_config::CommitmentConfig,
+    epoch_info::EpochInfo,
+    hash::Hash,
+    pubkey::Pubkey,
+    signature::{Keypair, Signature},
+    transaction::Transaction,
+};
+
+use crate::{rpc::errors::RpcError, transaction_params::TransactionParams};
 
 #[async_trait]
 pub trait RpcConnection: Send + Sync + Debug + 'static {

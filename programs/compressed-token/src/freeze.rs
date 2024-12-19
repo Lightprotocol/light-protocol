@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
-use light_hasher::DataHasher;
-use light_hasher::Poseidon;
+use light_hasher::{DataHasher, Poseidon};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
@@ -206,14 +205,13 @@ pub mod sdk {
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
+    use super::CompressedTokenInstructionDataFreeze;
     use crate::{
         process_transfer::transfer_sdk::{
             create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
         },
         token_data::TokenData,
     };
-
-    use super::CompressedTokenInstructionDataFreeze;
 
     pub struct CreateInstructionInputs {
         pub fee_payer: Pubkey,
@@ -309,16 +307,16 @@ pub mod sdk {
 
 #[cfg(test)]
 pub mod test_freeze {
-    use crate::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::AccountState, TokenData,
-    };
-    use rand::Rng;
-
-    use super::*;
     use anchor_lang::solana_program::account_info::AccountInfo;
     use light_hasher::{DataHasher, Poseidon};
     use light_system_program::sdk::compressed_account::{
         CompressedAccount, CompressedAccountData, PackedMerkleContext,
+    };
+    use rand::Rng;
+
+    use super::*;
+    use crate::{
+        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::AccountState, TokenData,
     };
 
     // TODO: add randomized and edge case tests

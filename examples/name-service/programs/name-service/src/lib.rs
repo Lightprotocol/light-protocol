@@ -4,7 +4,8 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::bytes::AsByteVec;
 use light_sdk::{
-    account::LightAccount, light_account, light_accounts, light_program,
+    account::{LightAccount, LightAccounts},
+    light_account, light_accounts, light_program,
     merkle_context::PackedAddressMerkleContext,
 };
 

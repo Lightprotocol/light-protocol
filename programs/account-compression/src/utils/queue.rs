@@ -22,7 +22,7 @@ pub struct QueueBundle<'a, 'info> {
     pub indices: Vec<u32>,
 }
 
-impl<'a, 'info> QueueBundle<'a, 'info> {
+impl<'info> QueueBundle<'_, 'info> {
     pub fn new(queue_type: QueueType, accounts: Vec<&'info AccountInfo<'info>>) -> Self {
         Self {
             queue_type,

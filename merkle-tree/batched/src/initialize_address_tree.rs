@@ -1,5 +1,3 @@
-use crate::{merkle_tree::get_merkle_tree_account_size, BorshDeserialize, BorshSerialize};
-
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     merkle_tree::{MerkleTreeMetadata, TreeType},
@@ -15,7 +13,8 @@ use crate::{
     },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    merkle_tree::{get_merkle_tree_account_size, ZeroCopyBatchedMerkleTreeAccount},
+    BorshDeserialize, BorshSerialize,
 };
 
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq)]

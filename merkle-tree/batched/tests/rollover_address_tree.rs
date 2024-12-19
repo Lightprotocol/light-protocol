@@ -1,8 +1,3 @@
-use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use rand::thread_rng;
-use solana_program::pubkey::Pubkey;
-
 use light_batched_merkle_tree::{
     batch::Batch,
     initialize_address_tree::{
@@ -15,6 +10,10 @@ use light_batched_merkle_tree::{
     },
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batch_address_tree},
 };
+use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use rand::thread_rng;
+use solana_program::pubkey::Pubkey;
 
 /// Test rollover of address tree
 /// 1. failing: not ready for rollover

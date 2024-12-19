@@ -8,7 +8,6 @@ use std::{
 use ark_ff::PrimeField;
 use light_hasher::HasherError;
 use num_bigint::BigUint;
-
 use solana_program::keccak::hashv;
 use thiserror::Error;
 
@@ -133,9 +132,8 @@ mod tests {
     use num_bigint::ToBigUint;
     use solana_program::pubkey::Pubkey;
 
-    use crate::bigint::bigint_to_be_bytes_array;
-
     use super::*;
+    use crate::bigint::bigint_to_be_bytes_array;
 
     #[test]
     fn test_is_smaller_than_bn254_field_size_be() {
