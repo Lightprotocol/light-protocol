@@ -1,4 +1,4 @@
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 

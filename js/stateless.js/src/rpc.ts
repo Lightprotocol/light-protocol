@@ -1,8 +1,8 @@
 import {
     Connection,
     ConnectionConfig,
-    SolanaJSONRPCError,
     PublicKey,
+    SolanaJSONRPCError,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
@@ -44,6 +44,7 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
+    BaseRpc,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -58,9 +59,19 @@ import {
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+
+type ClientSubscriptionId = number;
+
+// // Define an interface that includes the methods you need from Connection
+// interface ConnectionInterface {
+//     sendTransaction(transaction: any, options?: any): Promise<any>;
+//     getLatestBlockhash(): Promise<BlockhashWithExpiryBlockHeight>;
+//     confirmTransaction(signature: string, commitment?: string): Promise<any>;
+//     commitment: string;
+//     // Add other methods and properties as needed
+// }
 
 import {
     proofFromJsonStruct,
@@ -425,6 +436,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
     return inputs;
 }
 import { LightWasm } from './test-helpers';
+// import { ConnectionInterface } from './connection-interface';
 
 function calculateTwoInputsHashChain(
     hashesFirst: BN[],
@@ -496,6 +508,7 @@ const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
  *
  */
 export class Rpc extends Connection implements CompressionApiInterface {
+    // connection: Connection;
     compressionApiEndpoint: string;
     proverEndpoint: string;
 
@@ -514,9 +527,815 @@ export class Rpc extends Connection implements CompressionApiInterface {
         config?: ConnectionConfig,
     ) {
         super(endpoint, config || 'confirmed');
+
+        // this.connection = new Connection(endpoint, config || 'confirmed');
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
     }
+
+    // get commitment(): Commitment | undefined {
+    //     return this.connection.commitment;
+    // }
+
+    // get rpcEndpoint(): string {
+    //     return this.connection.rpcEndpoint;
+    // }
+
+    // // === Connection Methods Delegated ===
+
+    // async getBalanceAndContext(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetBalanceConfig,
+    // ): Promise<RpcResponseAndContext<number>> {
+    //     return this.connection.getBalanceAndContext(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getBalance(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetBalanceConfig,
+    // ): Promise<number> {
+    //     return this.connection.getBalance(publicKey, commitmentOrConfig);
+    // }
+
+    // async getBlockTime(slot: number): Promise<number | null> {
+    //     return this.connection.getBlockTime(slot);
+    // }
+
+    // async getMinimumLedgerSlot(): Promise<number> {
+    //     return this.connection.getMinimumLedgerSlot();
+    // }
+
+    // async getFirstAvailableBlock(): Promise<number> {
+    //     return this.connection.getFirstAvailableBlock();
+    // }
+
+    // async getSupply(
+    //     config?: GetSupplyConfig | Commitment,
+    // ): Promise<RpcResponseAndContext<Supply>> {
+    //     return this.connection.getSupply(config);
+    // }
+
+    // async getTokenSupply(
+    //     tokenMintAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<TokenAmount>> {
+    //     return this.connection.getTokenSupply(tokenMintAddress, commitment);
+    // }
+
+    // async getTokenAccountBalance(
+    //     tokenAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<TokenAmount>> {
+    //     return this.connection.getTokenAccountBalance(tokenAddress, commitment);
+    // }
+
+    // async getTokenAccountsByOwner(
+    //     ownerAddress: PublicKey,
+    //     filter: TokenAccountsFilter,
+    //     commitmentOrConfig?: Commitment | GetTokenAccountsByOwnerConfig,
+    // ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>> {
+    //     return this.connection.getTokenAccountsByOwner(
+    //         ownerAddress,
+    //         filter,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getParsedTokenAccountsByOwner(
+    //     ownerAddress: PublicKey,
+    //     filter: TokenAccountsFilter,
+    //     commitment?: Commitment,
+    // ): Promise<
+    //     RpcResponseAndContext<
+    //         Array<{
+    //             pubkey: PublicKey;
+    //             account: AccountInfo<ParsedAccountData>;
+    //         }>
+    //     >
+    // > {
+    //     return this.connection.getParsedTokenAccountsByOwner(
+    //         ownerAddress,
+    //         filter,
+    //         commitment,
+    //     );
+    // }
+
+    // async getLargestAccounts(
+    //     config?: GetLargestAccountsConfig,
+    // ): Promise<RpcResponseAndContext<Array<AccountBalancePair>>> {
+    //     return this.connection.getLargestAccounts(config);
+    // }
+
+    // async getTokenLargestAccounts(
+    //     mintAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<Array<TokenAccountBalancePair>>> {
+    //     return this.connection.getTokenLargestAccounts(mintAddress, commitment);
+    // }
+
+    // async getAccountInfoAndContext(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<RpcResponseAndContext<AccountInfo<Buffer> | null>> {
+    //     return this.connection.getAccountInfoAndContext(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getParsedAccountInfo(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<
+    //     RpcResponseAndContext<AccountInfo<Buffer | ParsedAccountData> | null>
+    // > {
+    //     return this.connection.getParsedAccountInfo(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getAccountInfo(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<AccountInfo<Buffer> | null> {
+    //     return this.connection.getAccountInfo(publicKey, commitmentOrConfig);
+    // }
+
+    // async getMultipleParsedAccounts(
+    //     publicKeys: PublicKey[],
+    //     rawConfig?: GetMultipleAccountsConfig,
+    // ): Promise<
+    //     RpcResponseAndContext<
+    //         (AccountInfo<Buffer | ParsedAccountData> | null)[]
+    //     >
+    // > {
+    //     return this.connection.getMultipleParsedAccounts(publicKeys, rawConfig);
+    // }
+
+    // async getMultipleAccountsInfoAndContext(
+    //     publicKeys: PublicKey[],
+    //     commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
+    // ): Promise<RpcResponseAndContext<(AccountInfo<Buffer> | null)[]>> {
+    //     return this.connection.getMultipleAccountsInfoAndContext(
+    //         publicKeys,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getMultipleAccountsInfo(
+    //     publicKeys: PublicKey[],
+    //     commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
+    // ): Promise<(AccountInfo<Buffer> | null)[]> {
+    //     return this.connection.getMultipleAccountsInfo(
+    //         publicKeys,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getStakeActivation(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetStakeActivationConfig,
+    //     epoch?: number,
+    // ): Promise<StakeActivationData> {
+    //     return this.connection.getStakeActivation(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //         epoch,
+    //     );
+    // }
+
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetProgramAccountsConfig | Commitment,
+    // ): Promise<GetProgramAccountsResponse>;
+
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment: GetProgramAccountsConfig & { withContext: true },
+    // ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>>;
+
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetProgramAccountsConfig | Commitment,
+    // ): Promise<
+    //     | GetProgramAccountsResponse
+    //     | RpcResponseAndContext<GetProgramAccountsResponse>
+    // > {
+    //     return this.connection.getProgramAccounts(
+    //         programId,
+    //         configOrCommitment,
+    //     );
+    // }
+
+    // async getParsedProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetParsedProgramAccountsConfig | Commitment,
+    // ): Promise<
+    //     Array<{
+    //         pubkey: PublicKey;
+    //         account: AccountInfo<Buffer | ParsedAccountData>;
+    //     }>
+    // > {
+    //     return this.connection.getParsedProgramAccounts(
+    //         programId,
+    //         configOrCommitment,
+    //     );
+    // }
+
+    // === Subscription Methods ===
+
+    // onAccountChange(
+    //     publicKey: PublicKey,
+    //     callback: AccountChangeCallback,
+    //     config?: AccountSubscriptionConfig,
+    // ): ClientSubscriptionId {
+    //     return this.connection.onAccountChange(publicKey, callback, config);
+    // }
+
+    // async removeAccountChangeListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeAccountChangeListener(
+    //         clientSubscriptionId,
+    //     );
+    // }
+
+    // onProgramAccountChange(
+    //     programId: PublicKey,
+    //     callback: ProgramAccountChangeCallback,
+    //     config?: ProgramAccountSubscriptionConfig,
+    // ): ClientSubscriptionId {
+    //     return this.connection.onProgramAccountChange(
+    //         programId,
+    //         callback,
+    //         config,
+    //     );
+    // }
+
+    // async removeProgramAccountChangeListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeProgramAccountChangeListener(
+    //         clientSubscriptionId,
+    //     );
+    // }
+
+    // onLogs(
+    //     filter: LogsFilter,
+    //     callback: LogsCallback,
+    //     commitment?: Commitment,
+    // ): ClientSubscriptionId {
+    //     return this.connection.onLogs(filter, callback, commitment);
+    // }
+
+    // async removeOnLogsListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeOnLogsListener(clientSubscriptionId);
+    // }
+
+    // onSlotChange(callback: SlotChangeCallback): ClientSubscriptionId {
+    //     return this.connection.onSlotChange(callback);
+    // }
+
+    // async removeSlotChangeListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeSlotChangeListener(clientSubscriptionId);
+    // }
+
+    // onSlotUpdate(callback: SlotUpdateCallback): ClientSubscriptionId {
+    //     return this.connection.onSlotUpdate(callback);
+    // }
+
+    // async removeSlotUpdateListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeSlotUpdateListener(clientSubscriptionId);
+    // }
+
+    // onSignature(
+    //     signature: TransactionSignature,
+    //     callback: SignatureResultCallback,
+    //     commitment?: Commitment,
+    // ): ClientSubscriptionId {
+    //     return this.connection.onSignature(signature, callback, commitment);
+    // }
+
+    // onSignatureWithOptions(
+    //     signature: TransactionSignature,
+    //     callback: SignatureSubscriptionCallback,
+    //     options?: SignatureSubscriptionOptions,
+    // ): ClientSubscriptionId {
+    //     return this.connection.onSignatureWithOptions(
+    //         signature,
+    //         callback,
+    //         options,
+    //     );
+    // }
+
+    // async removeSignatureListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeSignatureListener(clientSubscriptionId);
+    // }
+
+    // onRootChange(callback: RootChangeCallback): ClientSubscriptionId {
+    //     return this.connection.onRootChange(callback);
+    // }
+
+    // async removeRootChangeListener(
+    //     clientSubscriptionId: ClientSubscriptionId,
+    // ): Promise<void> {
+    //     return this.connection.removeRootChangeListener(clientSubscriptionId);
+    // }
+
+    // // === Transaction Methods ===
+
+    // async sendTransaction(
+    //     transaction: VersionedTransaction,
+    //     options?: SendOptions,
+    // ): Promise<TransactionSignature> {
+    //     return this.connection.sendTransaction(transaction, options);
+    // }
+
+    // async sendRawTransaction(
+    //     rawTransaction: Buffer | Uint8Array | Array<number>,
+    //     options?: SendOptions,
+    // ): Promise<TransactionSignature> {
+    //     return this.connection.sendRawTransaction(rawTransaction, options);
+    // }
+
+    // async sendEncodedTransaction(
+    //     encodedTransaction: string,
+    //     options?: SendOptions,
+    // ): Promise<TransactionSignature> {
+    //     return this.connection.sendEncodedTransaction(
+    //         encodedTransaction,
+    //         options,
+    //     );
+    // }
+
+    // async simulateTransaction(
+    //     transaction: VersionedTransaction,
+    //     config?: SimulateTransactionConfig,
+    // ): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
+    //     return this.connection.simulateTransaction(transaction, config);
+    // }
+
+    // async requestAirdrop(
+    //     to: PublicKey,
+    //     lamports: number,
+    // ): Promise<TransactionSignature> {
+    //     return this.connection.requestAirdrop(to, lamports);
+    // }
+
+    // async getStakeMinimumDelegation(
+    //     config?: GetStakeMinimumDelegationConfig,
+    // ): Promise<RpcResponseAndContext<number>> {
+    //     return this.connection.getStakeMinimumDelegation(config);
+    // }
+
+    // async getTransactions(
+    //     signatures: TransactionSignature[],
+    //     commitmentOrConfig?: GetTransactionConfig | Finality,
+    // ): Promise<(VersionedTransactionResponse | null)[]> {
+    //     return this.connection.getTransactions(signatures, commitmentOrConfig);
+    // }
+
+    // async getTransaction(
+    //     signature: string,
+    //     rawConfig?: GetTransactionConfig,
+    // ): Promise<VersionedTransactionResponse | null> {
+    //     return this.connection.getTransaction(signature, rawConfig);
+    // }
+
+    // async getParsedTransaction(
+    //     signature: TransactionSignature,
+    //     commitmentOrConfig?: GetVersionedTransactionConfig | Finality,
+    // ): Promise<ParsedTransactionWithMeta | null> {
+    //     return this.connection.getParsedTransaction(
+    //         signature,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getParsedTransactions(
+    //     signatures: TransactionSignature[],
+    //     commitmentOrConfig?: GetVersionedTransactionConfig | Finality,
+    // ): Promise<(ParsedTransactionWithMeta | null)[]> {
+    //     return this.connection.getParsedTransactions(
+    //         signatures,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getConfirmedBlock(
+    //     slot: number,
+    //     commitment?: Finality,
+    // ): Promise<ConfirmedBlock> {
+    //     return this.connection.getConfirmedBlock(slot, commitment);
+    // }
+
+    // async getBlocks(
+    //     startSlot: number,
+    //     endSlot?: number,
+    //     commitment?: Finality,
+    // ): Promise<Array<number>> {
+    //     return this.connection.getBlocks(startSlot, endSlot, commitment);
+    // }
+
+    // async getBlockSignatures(
+    //     slot: number,
+    //     commitment?: Finality,
+    // ): Promise<BlockSignatures> {
+    //     return this.connection.getBlockSignatures(slot, commitment);
+    // }
+
+    // async getConfirmedBlockSignatures(
+    //     slot: number,
+    //     commitment?: Finality,
+    // ): Promise<BlockSignatures> {
+    //     return this.connection.getConfirmedBlockSignatures(slot, commitment);
+    // }
+
+    // confirmTransaction(
+    //     strategy: TransactionConfirmationStrategy,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<SignatureResult>>;
+
+    // /** @deprecated Instead, call `confirmTransaction` and pass in {@link TransactionConfirmationStrategy} */
+    // // eslint-disable-next-line no-dupe-class-members
+    // confirmTransaction(
+    //     strategy: TransactionSignature,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<SignatureResult>>;
+
+    // async confirmTransaction(
+    //     strategy: TransactionConfirmationStrategy | TransactionSignature,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<SignatureResult>> {
+    //     // @ts-ignore
+    //     return this.connection.confirmTransaction(strategy, commitment);
+    // }
+
+    // // private async getCancellationPromise() {
+    // //     throw new Error(
+    // //         'getCancellationPromise not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+    // //     );
+    // // }
+    // // private async getTransactionConfirmationPromise() {
+    // //     throw new Error(
+    // //         'getTransactionConfirmationPromise not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+    // //     );
+    // // }
+    // // private async confirmTransactionUsingBlockHeightExceedanceStrategy() {
+    // //     throw new Error(
+    // //         'confirmTransactionUsingBlockHeightExceedanceStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+    // //     );
+    // // }
+    // // async confirmTransactionUsingDurableNonceStrategy() {
+    // //     throw new Error(
+    // //         'confirmTransactionUsingDurableNonceStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+    // //     );
+    // // }
+    // // private async confirmTransactionUsingLegacyTimeoutStrategy({
+    // //     commitment,
+    // //     signature,
+    // // }: {
+    // //     commitment?: Commitment;
+    // //     signature: string;
+    // // }): Promise<RpcResponseAndContext<SignatureResult>> {
+    // //     throw new Error(
+    // //         'confirmTransactionUsingLegacyTimeoutStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+    // //     );
+    // // }
+    // // _buildArgs(
+    // //     args: Array<any>,
+    // //     override?: Commitment,
+    // //     encoding?: 'jsonParsed' | 'base64',
+    // //     extra?: any,
+    // // ): Array<any> {
+    // //     const commitment = override || this.connection.commitment;
+    // //     if (commitment || encoding || extra) {
+    // //         let options: any = {};
+    // //         if (encoding) {
+    // //             options.encoding = encoding;
+    // //         }
+    // //         if (commitment) {
+    // //             options.commitment = commitment;
+    // //         }
+    // //         if (extra) {
+    // //             options = Object.assign(options, extra);
+    // //         }
+    // //         args.push(options);
+    // //     }
+    // //     return args;
+    // // }
+
+    // async getClusterNodes(): Promise<Array<ContactInfo>> {
+    //     return this.connection.getClusterNodes();
+    // }
+
+    // async getVoteAccounts(commitment?: Commitment): Promise<VoteAccountStatus> {
+    //     return this.connection.getVoteAccounts(commitment);
+    // }
+
+    // async getSlot(
+    //     commitmentOrConfig?: Commitment | GetSlotConfig,
+    // ): Promise<number> {
+    //     return this.connection.getSlot(commitmentOrConfig);
+    // }
+
+    // async getSlotLeader(
+    //     commitmentOrConfig?: Commitment | GetSlotLeaderConfig,
+    // ): Promise<string> {
+    //     return this.connection.getSlotLeader(commitmentOrConfig);
+    // }
+
+    // async getSlotLeaders(
+    //     startSlot: number,
+    //     limit: number,
+    // ): Promise<Array<PublicKey>> {
+    //     return this.connection.getSlotLeaders(startSlot, limit);
+    // }
+
+    // async getSignatureStatus(
+    //     signature: TransactionSignature,
+    //     config?: SignatureStatusConfig,
+    // ): Promise<RpcResponseAndContext<SignatureStatus | null>> {
+    //     return this.connection.getSignatureStatus(signature, config);
+    // }
+
+    // async getSignatureStatuses(
+    //     signatures: Array<TransactionSignature>,
+    //     config?: SignatureStatusConfig,
+    // ): Promise<RpcResponseAndContext<Array<SignatureStatus | null>>> {
+    //     return this.connection.getSignatureStatuses(signatures, config);
+    // }
+
+    // async getTotalSupply(commitment?: Commitment): Promise<number> {
+    //     return this.connection.getTotalSupply(commitment);
+    // }
+
+    // async getBlockHeight(config?: GetBlockHeightConfig): Promise<number> {
+    //     return this.connection.getBlockHeight(config);
+    // }
+
+    // async getBlockProduction(
+    //     configOrCommitment?: GetBlockProductionConfig | Commitment,
+    // ): Promise<RpcResponseAndContext<BlockProduction>> {
+    //     return this.connection.getBlockProduction(configOrCommitment);
+    // }
+
+    // async getTransactionCount(
+    //     config?: GetTransactionCountConfig,
+    // ): Promise<number> {
+    //     return this.connection.getTransactionCount(config);
+    // }
+
+    // async getInflationGovernor(): Promise<InflationGovernor> {
+    //     return this.connection.getInflationGovernor();
+    // }
+
+    // async getInflationReward(
+    //     addresses: PublicKey[],
+    //     epochs?: number,
+    //     config?: GetInflationRewardConfig,
+    // ): Promise<Array<InflationReward | null>> {
+    //     return this.connection.getInflationReward(addresses, epochs, config);
+    // }
+
+    // async getInflationRate(): Promise<InflationRate> {
+    //     return this.connection.getInflationRate();
+    // }
+
+    // async getEpochInfo(config?: GetEpochInfoConfig): Promise<EpochInfo> {
+    //     return this.connection.getEpochInfo(config);
+    // }
+
+    // async getEpochSchedule(): Promise<EpochSchedule> {
+    //     return this.connection.getEpochSchedule();
+    // }
+
+    // async getLeaderSchedule(): Promise<LeaderSchedule> {
+    //     return this.connection.getLeaderSchedule();
+    // }
+
+    // async getRecentBlockhashAndContext(commitment?: Commitment): Promise<
+    //     RpcResponseAndContext<{
+    //         blockhash: Blockhash;
+    //         feeCalculator: FeeCalculator;
+    //     }>
+    // > {
+    //     return this.connection.getRecentBlockhashAndContext(commitment);
+    // }
+
+    // async getRecentPerformanceSamples(
+    //     limit?: number,
+    // ): Promise<Array<PerfSample>> {
+    //     return this.connection.getRecentPerformanceSamples(limit);
+    // }
+
+    // async getFeeCalculatorForBlockhash(
+    //     blockhash: Blockhash,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<FeeCalculator | null>> {
+    //     return this.connection.getFeeCalculatorForBlockhash(
+    //         blockhash,
+    //         commitment,
+    //     );
+    // }
+
+    // async getFeeForMessage(
+    //     message: VersionedMessage,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<number | null>> {
+    //     return this.connection.getFeeForMessage(message, commitment);
+    // }
+
+    // async getMinimumBalanceForRentExemption(
+    //     dataLength: number,
+    //     commitment?: Commitment,
+    // ): Promise<number> {
+    //     return this.connection.getMinimumBalanceForRentExemption(
+    //         dataLength,
+    //         commitment,
+    //     );
+    // }
+
+    // async getRecentBlockhash(
+    //     commitment?: Commitment,
+    // ): Promise<{ blockhash: Blockhash; feeCalculator: FeeCalculator }> {
+    //     return this.connection.getRecentBlockhash(commitment);
+    // }
+
+    // async getGenesisHash(): Promise<string> {
+    //     return this.connection.getGenesisHash();
+    // }
+    // async getBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<VersionedBlockResponse | null>;
+    // async getBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'accounts' },
+    // ): Promise<VersionedAccountsModeBlockResponse | null>;
+    // async getBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'none' },
+    // ): Promise<VersionedNoneModeBlockResponse | null>;
+    // async getBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<
+    //     | VersionedBlockResponse
+    //     | VersionedAccountsModeBlockResponse
+    //     | VersionedNoneModeBlockResponse
+    //     | null
+    // > {
+    //     return this.connection.getBlock(slot, rawConfig);
+    // }
+
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<ParsedAccountsModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'accounts' },
+    // ): Promise<ParsedAccountsModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'none' },
+    // ): Promise<ParsedNoneModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<
+    //     ParsedAccountsModeBlockResponse | ParsedNoneModeBlockResponse | null
+    // > {
+    //     return this.connection.getParsedBlock(slot, rawConfig);
+    // }
+
+    // async getConfirmedTransaction(
+    //     signature: TransactionSignature,
+    //     commitment?: Finality,
+    // ): Promise<ConfirmedTransaction | null> {
+    //     return this.connection.getConfirmedTransaction(signature, commitment);
+    // }
+
+    // async getParsedConfirmedTransaction(
+    //     signature: TransactionSignature,
+    //     commitment?: Finality,
+    // ): Promise<ParsedConfirmedTransaction | null> {
+    //     return this.connection.getParsedConfirmedTransaction(
+    //         signature,
+    //         commitment,
+    //     );
+    // }
+
+    // async getParsedConfirmedTransactions(
+    //     signatures: TransactionSignature[],
+    //     commitment?: Finality,
+    // ): Promise<(ParsedConfirmedTransaction | null)[]> {
+    //     return this.connection.getParsedConfirmedTransactions(
+    //         signatures,
+    //         commitment,
+    //     );
+    // }
+
+    // async getConfirmedSignaturesForAddress(
+    //     address: PublicKey,
+    //     startSlot: number,
+    //     endSlot: number,
+    // ): Promise<Array<TransactionSignature>> {
+    //     return this.connection.getConfirmedSignaturesForAddress(
+    //         address,
+    //         startSlot,
+    //         endSlot,
+    //     );
+    // }
+
+    // async getConfirmedSignaturesForAddress2(
+    //     address: PublicKey,
+    //     options?: ConfirmedSignaturesForAddress2Options,
+    //     commitment?: Finality,
+    // ): Promise<Array<ConfirmedSignatureInfo>> {
+    //     return this.connection.getConfirmedSignaturesForAddress2(
+    //         address,
+    //         options,
+    //         commitment,
+    //     );
+    // }
+
+    // async getSignaturesForAddress(
+    //     address: PublicKey,
+    //     options?: SignaturesForAddressOptions,
+    //     commitment?: Finality,
+    // ): Promise<Array<ConfirmedSignatureInfo>> {
+    //     return this.connection.getSignaturesForAddress(
+    //         address,
+    //         options,
+    //         commitment,
+    //     );
+    // }
+
+    // async getRecentPrioritizationFees(
+    //     config?: GetRecentPrioritizationFeesConfig,
+    // ): Promise<RecentPrioritizationFees[]> {
+    //     return this.connection.getRecentPrioritizationFees(config);
+    // }
+
+    // async getLatestBlockhash(
+    //     config?: GetLatestBlockhashConfig,
+    // ): Promise<BlockhashWithExpiryBlockHeight> {
+    //     return this.connection.getLatestBlockhash(config);
+    // }
+    // async getLatestBlockhashAndContext(
+    //     commitmentOrConfig?: Commitment | GetLatestBlockhashConfig,
+    // ): Promise<RpcResponseAndContext<BlockhashWithExpiryBlockHeight>> {
+    //     return this.connection.getLatestBlockhashAndContext(commitmentOrConfig);
+    // }
+
+    // async isBlockhashValid(
+    //     blockhash: Blockhash,
+    //     config?: IsBlockhashValidConfig,
+    // ): Promise<RpcResponseAndContext<boolean>> {
+    //     return this.connection.isBlockhashValid(blockhash, config);
+    // }
+
+    // async getVersion(): Promise<Version> {
+    //     return this.connection.getVersion();
+    // }
+
+    // async getAddressLookupTable(
+    //     accountKey: PublicKey,
+    //     config?: GetAccountInfoConfig,
+    // ): Promise<RpcResponseAndContext<AddressLookupTableAccount | null>> {
+    //     return this.connection.getAddressLookupTable(accountKey, config);
+    // }
+
+    // async getNonceAndContext(
+    //     nonceAccount: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetNonceAndContextConfig,
+    // ): Promise<RpcResponseAndContext<NonceAccount | null>> {
+    //     return this.connection.getNonceAndContext(
+    //         nonceAccount,
+    //         commitmentOrConfig,
+    //     );
+    // }
+
+    // async getNonce(
+    //     nonceAccount: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetNonceConfig,
+    // ): Promise<NonceAccount | null> {
+    //     return this.connection.getNonce(nonceAccount, commitmentOrConfig);
+    // }
 
     /**
      * Fetch the compressed account for the specified account address or hash

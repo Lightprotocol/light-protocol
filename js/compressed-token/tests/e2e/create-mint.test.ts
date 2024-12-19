@@ -44,6 +44,7 @@ async function assertCreateMint(
     expect(unpackedPoolAccount.delegate).toBe(null);
 }
 
+console.log('TEST_TOKEN_DECIMALS');
 const TEST_TOKEN_DECIMALS = 2;
 describe('createMint', () => {
     let rpc: Rpc;
@@ -52,12 +53,16 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
+        console.log('beforeAll');
         const lightWasm = await WasmFactory.getInstance();
+        console.log('lightWasm', lightWasm);
         rpc = await getTestRpc(lightWasm);
+        console.log('TESTrpc', rpc);
         payer = await newAccountWithLamports(rpc, 1e9);
+        console.log('payer', payer);
     });
 
-    it('should create mint', async () => {
+    it.only('should create mint', async () => {
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 

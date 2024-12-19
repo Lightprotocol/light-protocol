@@ -15,7 +15,7 @@ const TEST_TOKEN_DECIMALS = 2;
 
 describe('rpc-interop token', () => {
     let rpc: Rpc;
-    let testRpc: TestRpc;
+    let testRpc: TestRpc | Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;

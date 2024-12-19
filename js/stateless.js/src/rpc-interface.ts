@@ -1,4 +1,11 @@
-import { PublicKey, MemcmpFilter, DataSlice } from '@solana/web3.js';
+import {
+    PublicKey,
+    MemcmpFilter,
+    DataSlice,
+    RpcResponseAndContext,
+    Commitment,
+    SignatureResult,
+} from '@solana/web3.js';
 import {
     type as pick,
     number,
@@ -23,7 +30,41 @@ import {
     bn,
     TokenData,
 } from './state';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
+
+export class BaseRpc {
+    private async getCancellationPromise() {
+        throw new Error(
+            'getCancellationPromise not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+        );
+    }
+    private async getTransactionConfirmationPromise() {
+        throw new Error(
+            'getTransactionConfirmationPromise not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+        );
+    }
+    private async confirmTransactionUsingBlockHeightExceedanceStrategy() {
+        throw new Error(
+            'confirmTransactionUsingBlockHeightExceedanceStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+        );
+    }
+    private async confirmTransactionUsingDurableNonceStrategy() {
+        throw new Error(
+            'confirmTransactionUsingDurableNonceStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+        );
+    }
+    private async confirmTransactionUsingLegacyTimeoutStrategy({
+        commitment,
+        signature,
+    }: {
+        commitment?: Commitment;
+        signature: string;
+    }): Promise<RpcResponseAndContext<SignatureResult>> {
+        throw new Error(
+            'confirmTransactionUsingLegacyTimeoutStrategy not supported in rpc. it is a stub that is marked as private in web3.js Connection',
+        );
+    }
+}
 
 export interface LatestNonVotingSignatures {
     context: { slot: number };

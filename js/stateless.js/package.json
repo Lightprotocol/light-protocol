@@ -1,7 +1,7 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.17.1",
-    "description": "JavaScript API for Light and ZK Compression",
+    "version": "0.17.2-alpha.1",
+    "description": "JavaScript API for Light & ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
     "type": "module",
@@ -9,7 +9,7 @@
         ".": {
             "require": "./dist/cjs/node/index.cjs",
             "types": "./dist/types/index.d.ts",
-            "default": "./dist/cjs/node/index.cjs"
+            "import": "./dist/es/browser/index.js"
         },
         "./browser": {
             "import": "./dist/es/browser/index.js",
@@ -34,17 +34,22 @@
         }
     ],
     "license": "Apache-2.0",
+    "peerDependencies": {
+        "@solana/web3.js": ">=1.73.5"
+    },
     "dependencies": {
-        "@coral-xyz/anchor": "0.29.0",
-        "@solana/web3.js": "1.95.3",
+        "@coral-xyz/borsh": "^0.29.0",
         "@noble/hashes": "1.5.0",
+        "bn.js": "^5.2.1",
+        "bs58": "^6.0.0",
         "buffer": "6.0.3",
-        "superstruct": "2.0.2",
-        "tweetnacl": "1.0.3"
+        "buffer-layout": "^1.2.2",
+        "camelcase": "^8.0.0",
+        "superstruct": "2.0.2"
     },
     "devDependencies": {
-        "@lightprotocol/hasher.rs": "0.2.1",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@lightprotocol/hasher.rs": "0.2.1",
         "@lightprotocol/programs": "workspace:*",
         "@playwright/test": "^1.47.1",
         "@rollup/plugin-babel": "^6.0.4",
@@ -54,6 +59,7 @@
         "@rollup/plugin-replace": "^5.0.7",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.6",
+        "@solana/web3.js": "1.98.0",
         "@types/bn.js": "^5.1.5",
         "@types/node": "^22.5.5",
         "@typescript-eslint/eslint-plugin": "^7.13.1",
@@ -71,13 +77,14 @@
         "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-node": "^10.9.2",
         "tslib": "^2.7.0",
+        "tweetnacl": "1.0.3",
         "typescript": "^5.6.2",
         "vitest": "^2.1.1"
     },
     "scripts": {
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test-all": "vitest run",
-        "test:unit:all": "vitest run tests/unit",
+        "test:unit:all": "vitest run tests/unit --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",
@@ -86,11 +93,11 @@
         "test:e2e:browser": "pnpm playwright test",
         "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/rpc-interop.test.ts",
         "test:index": "vitest run tests/e2e/program.test.ts",
-        "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
+        "test:e2e:serde": "vitest run tests/e2e/serde.test.ts --reporter=verbose",
         "test:verbose": "vitest run --reporter=verbose",
         "test:testnet": "vitest run tests/e2e/testnet.test.ts --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",
-        "build": "rimraf dist && pnpm pull-idls && pnpm build:bundle",
+        "build": "rimraf dist && pnpm build:bundle",
         "build:bundle": "rollup -c",
         "format": "prettier --write .",
         "lint": "eslint ."
