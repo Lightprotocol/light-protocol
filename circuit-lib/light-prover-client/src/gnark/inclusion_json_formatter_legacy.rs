@@ -1,13 +1,14 @@
-use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
-use crate::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs;
-use crate::prove_utils::CircuitType;
-use crate::{
-    inclusion::merkle_tree_info::MerkleTreeInfo, init_merkle_tree::inclusion_merkle_tree_inputs,
-};
 use num_traits::ToPrimitive;
 use serde::Serialize;
 
 use super::inclusion_json_formatter::InclusionJsonStruct;
+use crate::{
+    gnark::helpers::{big_int_to_string, create_json_from_struct},
+    inclusion::merkle_tree_info::MerkleTreeInfo,
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs,
+    init_merkle_tree::inclusion_merkle_tree_inputs,
+    prove_utils::CircuitType,
+};
 
 #[derive(Serialize, Debug)]
 pub struct BatchInclusionJsonStruct {

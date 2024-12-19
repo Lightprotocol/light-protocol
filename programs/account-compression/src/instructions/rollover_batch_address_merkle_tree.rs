@@ -1,3 +1,9 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_batched_merkle_tree::{
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    rollover_address_tree::rollover_batch_address_tree,
+};
+
 use crate::{
     utils::{
         check_account::check_account_balance_is_rent_exempt,
@@ -7,11 +13,6 @@ use crate::{
         transfer_lamports::transfer_lamports,
     },
     RegisteredProgram,
-};
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_batched_merkle_tree::{
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
-    rollover_address_tree::rollover_batch_address_tree,
 };
 
 #[derive(Accounts)]

@@ -1,8 +1,9 @@
-use crate::errors::BatchedMerkleTreeError;
 use light_bloom_filter::BloomFilter;
 use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Poseidon};
 use solana_program::msg;
+
+use crate::errors::BatchedMerkleTreeError;
 
 #[repr(u64)]
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]

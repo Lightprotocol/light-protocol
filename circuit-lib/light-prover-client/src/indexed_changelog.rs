@@ -1,7 +1,7 @@
 use light_bounded_vec::BoundedVec;
-use light_indexed_merkle_tree::array::IndexedElement;
-use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
-use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
+use light_indexed_merkle_tree::{
+    array::IndexedElement, changelog::IndexedChangelogEntry, errors::IndexedMerkleTreeError,
+};
 use num_bigint::BigUint;
 
 /// Patch the indexed changelogs.
@@ -95,15 +95,18 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use light_bounded_vec::BoundedVec;
     use light_concurrent_merkle_tree::event::RawIndexedElement;
     use light_hasher::Poseidon;
-    use light_indexed_merkle_tree::array::IndexedElement;
-    use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
-    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+    use light_indexed_merkle_tree::{
+        array::{IndexedArray, IndexedElement},
+        changelog::IndexedChangelogEntry,
+        reference::IndexedMerkleTree,
+    };
     use light_utils::bigint::bigint_to_be_bytes_array;
     use num_bigint::BigUint;
+
+    use super::*;
     /// Performs conflicting Merkle tree updates where multiple actors try to add
     /// add new ranges when using the same (for the most of actors - outdated)
     /// Merkle proofs and changelog indices.

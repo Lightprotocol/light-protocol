@@ -63,81 +63,91 @@
 // second pr
 // refactor sol tests to functions that can be reused
 
-use light_batched_merkle_tree::batch::BatchState;
-use light_batched_merkle_tree::constants::TEST_DEFAULT_BATCH_SIZE;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use account_compression::{
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    SAFETY_MARGIN,
+};
+use forester_utils::{
+    address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
+    airdrop_lamports,
+    forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle, TokenDataWithContext,
+    },
+    registry::register_test_forester,
+    AccountZeroCopy,
+};
+use light_batched_merkle_tree::{
+    batch::BatchState, constants::TEST_DEFAULT_BATCH_SIZE,
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
+};
+use light_client::{
+    rpc::{errors::RpcError, RpcConnection},
+    transaction_params::{FeeConfig, TransactionParams},
+};
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 use light_compressed_token::token_data::AccountState;
-use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{
+    array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
+};
+use light_program_test::{
+    test_batch_forester::{perform_batch_append, perform_batch_nullify},
+    test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
+    test_rpc::ProgramTestRpcConnection,
+};
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
-use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
-use light_registry::sdk::create_finalize_registration_instruction;
-use light_registry::utils::get_protocol_config_pda_address;
-use light_registry::ForesterConfig;
+use light_registry::{
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    sdk::create_finalize_registration_instruction,
+    utils::get_protocol_config_pda_address,
+    ForesterConfig,
+};
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_utils::{bigint::bigint_to_be_bytes_array, rand::gen_prime};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
-use rand::distributions::uniform::{SampleRange, SampleUniform};
-use rand::prelude::SliceRandom;
-use rand::rngs::{StdRng, ThreadRng};
-use rand::{Rng, RngCore, SeedableRng};
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signature::Signature;
-use solana_sdk::signer::{SeedDerivable, Signer};
+use rand::{
+    distributions::uniform::{SampleRange, SampleUniform},
+    prelude::SliceRandom,
+    rngs::{StdRng, ThreadRng},
+    Rng, RngCore, SeedableRng,
+};
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{Keypair, Signature},
+    signer::{SeedDerivable, Signer},
+};
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
-use crate::address_tree_rollover::{
-    assert_rolled_over_address_merkle_tree_and_queue,
-    perform_address_merkle_tree_roll_over_forester, perform_state_merkle_tree_roll_over_forester,
+use crate::{
+    address_tree_rollover::{
+        assert_rolled_over_address_merkle_tree_and_queue,
+        perform_address_merkle_tree_roll_over_forester,
+        perform_state_merkle_tree_roll_over_forester,
+    },
+    assert_epoch::{
+        assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
+    },
+    create_address_merkle_tree_and_queue_account_with_assert,
+    indexer::TestIndexer,
+    spl::{
+        approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
+        create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test,
+        thaw_test,
+    },
+    state_tree_rollover::assert_rolled_over_pair,
+    system_program::{
+        compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
+    },
+    test_forester::{empty_address_queue_test, nullify_compressed_accounts},
 };
-use crate::assert_epoch::{
-    assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
-};
-use crate::spl::{
-    approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
-    create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
-};
-use crate::state_tree_rollover::assert_rolled_over_pair;
-use crate::system_program::{
-    compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
-};
-use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
-use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
-    SAFETY_MARGIN,
-};
-use forester_utils::address_merkle_tree_config::{
-    address_tree_ready_for_rollover, state_tree_ready_for_rollover,
-};
-use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
-};
-use forester_utils::registry::register_test_forester;
-use forester_utils::{airdrop_lamports, AccountZeroCopy};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_program_test::test_batch_forester::{perform_batch_append, perform_batch_nullify};
-use light_program_test::test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::rand::gen_prime;
-
-use crate::create_address_merkle_tree_and_queue_account_with_assert;
-use crate::indexer::TestIndexer;
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::{FeeConfig, TransactionParams};
 
 pub struct User {
     pub keypair: Keypair,
@@ -213,7 +223,7 @@ pub async fn init_program_test_env(
         if skip_prover {
             None
         } else {
-        Some(ProverConfig {
+            Some(ProverConfig {
                 run_mode: None,
                 circuits: vec![
                     ProofType::BatchAppendWithProofsTest,
@@ -480,26 +490,26 @@ where
                 match state_tree_bundle.version {
                     1 => {
                         println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES v1\n --------------------------------------------------");
-                // find forester which is eligible this slot for this tree
-                if let Some(payer) = Self::get_eligible_forester_for_queue(
-                    &state_tree_bundle.accounts.nullifier_queue,
-                    &self.foresters,
-                    self.slot,
-                ) {
-                    // TODO: add newly addeded trees to foresters
-                    nullify_compressed_accounts(
-                        &mut self.rpc,
-                        &payer,
-                        state_tree_bundle,
-                        self.epoch,
-                        false,
-                    )
-                    .await
-                    .unwrap();
-                } else {
-                    println!("No forester found for nullifier queue");
-                };
-            }
+                        // find forester which is eligible this slot for this tree
+                        if let Some(payer) = Self::get_eligible_forester_for_queue(
+                            &state_tree_bundle.accounts.nullifier_queue,
+                            &self.foresters,
+                            self.slot,
+                        ) {
+                            // TODO: add newly addeded trees to foresters
+                            nullify_compressed_accounts(
+                                &mut self.rpc,
+                                &payer,
+                                state_tree_bundle,
+                                self.epoch,
+                                false,
+                            )
+                            .await
+                            .unwrap();
+                        } else {
+                            println!("No forester found for nullifier queue");
+                        };
+                    }
                     2 => {
                         let merkle_tree_pubkey = state_tree_bundle.accounts.merkle_tree;
                         let queue_pubkey = state_tree_bundle.accounts.nullifier_queue;
@@ -874,9 +884,9 @@ where
 
                         TreeAccounts {
                             tree_type,
-                        merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
-                        queue: state_merkle_tree_bundle.accounts.nullifier_queue,
-                        is_rolledover: false,
+                            merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
+                            queue: state_merkle_tree_bundle.accounts.nullifier_queue,
+                            is_rolledover: false,
                         }
                     })
                     .collect::<Vec<TreeAccounts>>();
@@ -1008,10 +1018,10 @@ where
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
         let state_tree_account = AccountZeroCopy::<account_compression::QueueAccount>::new(
-                &mut self.rpc,
-                nullifier_queue_keypair.pubkey(),
-            )
-            .await;
+            &mut self.rpc,
+            nullifier_queue_keypair.pubkey(),
+        )
+        .await;
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
@@ -2226,12 +2236,12 @@ where
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
-            let range_max: usize = std::cmp::min(
-                self.keypair_action_config
-                    .max_output_accounts
-                    .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
-                self.indexer.get_state_merkle_trees().len() as u64,
-            ) as usize;
+        let range_max: usize = std::cmp::min(
+            self.keypair_action_config
+                .max_output_accounts
+                .unwrap_or(self.indexer.get_state_merkle_trees().len() as u64),
+            self.indexer.get_state_merkle_trees().len() as u64,
+        ) as usize;
 
         for _ in 0..num {
             let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);

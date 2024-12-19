@@ -5,8 +5,7 @@ use account_compression::{
 use anchor_lang::Discriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
-use light_hasher::Discriminator as LightDiscriminator;
-use light_hasher::Poseidon;
+use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 

@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, time::Duration};
+
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::Discriminator;
 use borsh::BorshDeserialize;
@@ -17,27 +19,24 @@ use light_client::{
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy;
-use light_prover_client::{
-    gnark::helpers::{big_int_to_string, spawn_prover, string_to_big_int, ProofType, ProverConfig},
-    helpers::bigint_to_u8_32,
-};
-use light_prover_client::{
-    gnark::inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
-    inclusion::merkle_inclusion_proof_inputs::InclusionProofInputs,
-};
 use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
         constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::health_check,
+        helpers::{
+            big_int_to_string, health_check, spawn_prover, string_to_big_int, ProofType,
+            ProverConfig,
+        },
         inclusion_json_formatter::BatchInclusionJsonStruct,
+        inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
         non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
         non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
-    inclusion::merkle_inclusion_proof_inputs::InclusionMerkleProofInputs,
+    helpers::bigint_to_u8_32,
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
     non_inclusion::merkle_non_inclusion_proof_inputs::{
         get_non_inclusion_proof_inputs, NonInclusionProofInputs,
     },
@@ -59,7 +58,6 @@ use num_bigint::BigInt;
 use num_traits::FromBytes;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
-use std::{marker::PhantomData, time::Duration};
 
 #[derive(Debug)]
 pub struct TestIndexer<R>
@@ -256,7 +254,7 @@ where
                         .await;
 
                     if let Some(payload) = payload {
-                    (indices, Vec::new(), payload.to_string())
+                        (indices, Vec::new(), payload.to_string())
                     } else {
                         (indices, Vec::new(), payload_legacy.unwrap().to_string())
                     }
@@ -318,8 +316,8 @@ where
                             address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                             public_input_hash: big_int_to_string(&public_input_hash),
                             inclusion: inclusion_payload.unwrap().inputs,
-                        non_inclusion: non_inclusion_payload.inputs,
-                    }
+                            non_inclusion: non_inclusion_payload.inputs,
+                        }
                         .to_string()
                     } else if let Some(non_inclusion_payload) = non_inclusion_payload_legacy {
                         CombinedJsonStructLegacy {
@@ -538,7 +536,7 @@ where
             } else {
                 let mut merkle_tree_account = rpc
                     .get_account(merkle_tree_pubkeys[i])
-                .await
+                    .await
                     .unwrap()
                     .unwrap();
                 let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
@@ -638,8 +636,8 @@ where
                     NonInclusionProofInputs::new(non_inclusion_proofs.as_slice()).unwrap();
                 (
                     Some(
-            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                &non_inclusion_proof_inputs,
+                        BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                            &non_inclusion_proof_inputs,
                         ),
                     ),
                     None,
