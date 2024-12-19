@@ -10,6 +10,7 @@ pub mod gnark;
 pub mod helpers;
 pub mod inclusion;
 pub mod inclusion_legacy;
+pub mod indexed_changelog;
 pub mod init_merkle_tree;
 pub mod mock_batched_forester;
 pub mod non_inclusion;

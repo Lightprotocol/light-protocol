@@ -41,19 +41,19 @@ jobs:
       matrix:
         include:
           - program: sdk-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-test -- --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p sdk-test"]'
           - program: account-compression
             sub-tests: '["cargo-test-sbf -p account-compression-test"]'
           - program: light-system-program
-            sub-tests: '["cargo-test-sbf -p system-test -- --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p system-test"]'
           - program: light-registry
-            sub-tests: '["cargo-test-sbf -p registry-test -- --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p registry-test"]'
           - program: light-compressed-token
-            sub-tests: '["cargo-test-sbf -p compressed-token-test -- --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p compressed-token-test"]'
           - program: system-cpi-test
-            sub-tests: '["cargo-test-sbf -p system-cpi-test -- --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p system-cpi-test"]'
           - program: random-e2e-test
-            sub-tests: '["RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"]'
+            sub-tests: '["cargo-test-sbf -p e2e-test"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

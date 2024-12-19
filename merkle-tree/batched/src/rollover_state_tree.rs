@@ -166,15 +166,6 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         slot,
     } = params;
 
-    println!(
-        "ref_rolledover_queue
-        .metadata: {:?}",
-        ref_rolledover_queue.metadata
-    );
-    println!("old_queue_pubkey: {:?}", old_queue_pubkey);
-    println!("old_mt_pubkey: {:?}", old_mt_pubkey);
-    println!("new queue pubkey: {:?}", new_queue_pubkey);
-    println!("new mt pubkey: {:?}", new_mt_pubkey);
     ref_rolledover_queue
         .metadata
         .rollover(old_mt_pubkey, new_queue_pubkey)
@@ -185,7 +176,6 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         .rolledover_slot = slot;
 
     assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
-    println!("asserted queue roll over");
 
     let zero_copy_queue =
         ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut queue_account_data).unwrap();

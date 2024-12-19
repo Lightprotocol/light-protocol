@@ -165,21 +165,14 @@ async fn test_read_only_accounts() {
                 .get_account(env.batch_address_merkle_tree)
                 .await
                 .unwrap();
-            let onchain_root = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+            let onchain_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
                 account.unwrap().data_as_mut_slice(),
             )
-            .unwrap()
-            .root_history
-            .last()
-            .unwrap()
-            .clone();
-            if i == 4 {
-                e2e_env.indexer.finalize_batched_address_tree_update(
-                    env.batch_address_merkle_tree,
-                    params.output_queue_batch_size as usize,
-                    onchain_root,
-                );
-            }
+            .unwrap();
+            e2e_env.indexer.finalize_batched_address_tree_update(
+                env.batch_address_merkle_tree,
+                &onchain_account,
+            );
         }
 
         for i in 0..params.output_queue_zkp_batch_size {

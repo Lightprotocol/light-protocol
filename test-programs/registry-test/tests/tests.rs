@@ -1848,7 +1848,7 @@ async fn test_batch_address_tree() {
         )
         .await;
     spawn_prover(
-        true,
+        false,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::NonInclusion, ProofType::BatchAddressAppendTest],
@@ -1874,32 +1874,63 @@ async fn test_batch_address_tree() {
             .await
             .unwrap();
     }
-    println!("pre perform_batch_address_merkle_tree_update");
-    for _ in 0..5 {
-        perform_batch_address_merkle_tree_update(
-            &mut rpc,
-            &mut test_indexer,
-            &env.forester,
-            &env.forester.pubkey(),
-            &env.batch_address_merkle_tree,
-            0,
-        )
-        .await
-        .unwrap();
-    }
-    let mut account = rpc
-        .get_account(env.batch_address_merkle_tree)
-        .await
-        .unwrap()
-        .unwrap();
-    let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
+    {
+        println!("pre perform_batch_address_merkle_tree_update");
+        for _ in 0..1 {
+            perform_batch_address_merkle_tree_update(
+                &mut rpc,
+                &mut test_indexer,
+                &env.forester,
+                &env.forester.pubkey(),
+                &env.batch_address_merkle_tree,
+                0,
+            )
+            .await
             .unwrap();
-    test_indexer.finalize_batched_address_tree_update(
-        env.batch_address_merkle_tree,
-        zero_copy_account.get_account().queue.batch_size as usize,
-        *zero_copy_account.root_history.last().unwrap(),
-    );
+            let mut account = rpc
+                .get_account(env.batch_address_merkle_tree)
+                .await
+                .unwrap()
+                .unwrap();
+            let zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+                account.data.as_mut_slice(),
+            )
+            .unwrap();
+            test_indexer.finalize_batched_address_tree_update(
+                env.batch_address_merkle_tree,
+                &zero_copy_account,
+            );
+        }
+    }
+
+    {
+        println!("pre perform_batch_address_merkle_tree_update");
+        for _ in 0..4 {
+            perform_batch_address_merkle_tree_update(
+                &mut rpc,
+                &mut test_indexer,
+                &env.forester,
+                &env.forester.pubkey(),
+                &env.batch_address_merkle_tree,
+                0,
+            )
+            .await
+            .unwrap();
+        }
+        let mut account = rpc
+            .get_account(env.batch_address_merkle_tree)
+            .await
+            .unwrap()
+            .unwrap();
+        let zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+            account.data.as_mut_slice(),
+        )
+        .unwrap();
+        test_indexer.finalize_batched_address_tree_update(
+            env.batch_address_merkle_tree,
+            &zero_copy_account,
+        );
+    }
 
     // Non eligible forester.
     {
@@ -1944,11 +1975,8 @@ async fn test_batch_address_tree() {
     let zero_copy_account =
         ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
             .unwrap();
-    test_indexer.finalize_batched_address_tree_update(
-        env.batch_address_merkle_tree,
-        zero_copy_account.get_account().queue.batch_size as usize,
-        *zero_copy_account.root_history.last().unwrap(),
-    );
+    test_indexer
+        .finalize_batched_address_tree_update(env.batch_address_merkle_tree, &zero_copy_account);
 }
 
 pub async fn perform_batch_address_merkle_tree_update<R: RpcConnection>(

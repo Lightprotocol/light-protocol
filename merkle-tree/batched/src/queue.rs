@@ -338,7 +338,6 @@ pub fn insert_into_current_batch(
         let mut hashchain_store = hashchain_store.get_mut(currently_processing_batch_index);
 
         let current_batch = batches.get_mut(currently_processing_batch_index).unwrap();
-        println!("current_batch {:?}", current_batch);
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted {
             current_batch.advance_state_to_can_be_filled()?;
@@ -347,7 +346,7 @@ pub fn insert_into_current_batch(
             }
             wipe = true;
         }
-        println!("wipe {:?}", wipe);
+
         // We expect to insert into the current batch.
         if current_batch.get_state() == BatchState::Full {
             for batch in batches.iter_mut() {
@@ -355,9 +354,6 @@ pub fn insert_into_current_batch(
             }
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
-        println!("leaves_hash_value {:?}", leaves_hash_value);
-        println!("value {:?}", value);
-
         if wipe {
             msg!("wipe");
             if let Some(blomfilter_stores) = bloom_filter_stores.as_mut() {

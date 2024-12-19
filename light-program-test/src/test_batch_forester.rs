@@ -102,7 +102,6 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
         )
         .await?
         .unwrap();
-    println!("event {:?}", res.0);
     Ok(res.1)
 }
 
@@ -162,7 +161,6 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                     }
                 }
             }
-            println!("merkle tree height {:?}", bundle.merkle_tree.height);
             let proof = bundle.merkle_tree.get_proof_of_leaf(i, true).unwrap();
             merkle_proofs.push(proof.to_vec());
         }
@@ -608,7 +606,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let protocol_config_account = rpc.get_account(protocol_config_pubkey).await?.unwrap();
     let protocol_config =
         ProtocolConfigPda::deserialize(&mut &protocol_config_account.data[8..]).unwrap();
-    println!(" fetched protocol_config {:?}", protocol_config);
+
     let create_mt_account_ix = create_account_instruction(
         &payer_pubkey,
         mt_account_size,
@@ -820,7 +818,14 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let zkp_batch_index = batch.get_num_inserted_zkps();
     let leaves_hashchain =
         merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
-    let batch_start_index = batch.start_index;
+    let batch_start_index = indexer
+        .get_address_merkle_trees()
+        .iter()
+        .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+        .unwrap()
+        .merkle_tree
+        .merkle_tree
+        .rightmost_index;
 
     let addresses = indexer
         .get_queue_elements(
@@ -831,7 +836,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         )
         .await
         .unwrap();
-    println!("addresses {:?}", addresses);
     // // local_leaves_hashchain is only used for a test assertion.
     // let local_nullifier_hashchain = create_hash_chain(&addresses);
     // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
@@ -841,7 +845,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         "start index should be greater than 2 else tree is not inited"
     );
     let current_root = *merkle_tree.root_history.last().unwrap();
-    println!("addresses {:?}", addresses);
     let mut low_element_values = Vec::new();
     let mut low_element_indices = Vec::new();
     let mut low_element_next_indices = Vec::new();
@@ -859,7 +862,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
 
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
-    println!("start_index {:?}", start_index);
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
@@ -877,7 +879,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
                 .try_into()
                 .unwrap(),
             leaves_hashchain,
-            batch_start_index as usize,
+            batch_start_index,
             batch.zkp_batch_size as usize,
         )
         .unwrap();

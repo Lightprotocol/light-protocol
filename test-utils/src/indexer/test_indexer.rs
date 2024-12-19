@@ -1486,16 +1486,19 @@ impl<R: RpcConnection> TestIndexer<R> {
     pub fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        batch_size: usize,
-        onchain_root: [u8; 32],
+        onchain_account: &ZeroCopyBatchedMerkleTreeAccount,
     ) {
         let address_tree = self
             .address_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
-        let addresses = address_tree.queue_elements[0..batch_size].to_vec();
-        for i in 0..batch_size {
+        let address_tree_index = address_tree.merkle_tree.merkle_tree.rightmost_index;
+        let onchain_next_index = onchain_account.get_account().next_index;
+        let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
+        let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
+
+        for i in 0..diff_onchain_indexer {
             address_tree.queue_elements.remove(0);
         }
         for new_element_value in &addresses {
@@ -1508,8 +1511,9 @@ impl<R: RpcConnection> TestIndexer<R> {
                 .unwrap();
         }
 
+        let onchain_root = onchain_account.root_history.last().unwrap();
         let new_root = address_tree.merkle_tree.root();
-        assert_eq!(onchain_root, new_root);
+        assert_eq!(*onchain_root, new_root);
         println!("finalized batched address tree update");
     }
 }

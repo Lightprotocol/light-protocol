@@ -665,7 +665,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
 
     fn zero_out_roots(&mut self, sequence_number: u64, root_index: Option<u32>) {
         if sequence_number > self.get_account().sequence_number {
-            println!("zeroing out roots");
             // advance root history array current index from latest root
             // to root_index and overwrite all roots with zeros
             if let Some(root_index) = root_index {
@@ -706,15 +705,10 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             .unwrap()
             .get_num_inserted_elements();
         let previous_full_batch = self.batches.get_mut(previous_full_batch_index).unwrap();
-        println!(
-            "wipe_previous_batch_bloom_filter: current_batch: {}, previous_full_batch_index: {}, num_inserted_elements: {}",
-            current_batch, previous_full_batch_index, num_inserted_elements
-        );
         if previous_full_batch.get_state() == BatchState::Inserted
             && batch_size / 2 > num_inserted_elements
             && !previous_full_batch.bloom_filter_is_wiped
         {
-            println!("wiping bloom filter index {}", previous_full_batch_index);
             let bloom_filter = self
                 .bloom_filter_stores
                 .get_mut(previous_full_batch_index)
@@ -724,8 +718,6 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             let seq = previous_full_batch.sequence_number;
             let root_index = previous_full_batch.root_index;
             self.zero_out_roots(seq, Some(root_index));
-        } else {
-            println!("not wiping bloom filter");
         }
 
         Ok(())

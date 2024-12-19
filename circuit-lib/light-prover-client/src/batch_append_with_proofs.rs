@@ -44,7 +44,6 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     batch_size: u32,
 ) -> Result<BatchAppendWithProofsCircuitInputs, ProverClientError> {
-    println!("height: {:?}", HEIGHT);
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
@@ -94,11 +93,6 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     // Calculate the public input hash chain with old root, new root, and leaves hash chain
     let public_input_hash =
         create_hash_chain([current_root, new_root, leaves_hashchain, start_index_bytes])?;
-    println!("public_input_hash: {:?}", public_input_hash);
-    println!("current root {:?}", current_root);
-    println!("new root {:?}", new_root);
-    println!("leaves hashchain {:?}", leaves_hashchain);
-    println!("start index {:?}", start_index_bytes);
     Ok(BatchAppendWithProofsCircuitInputs {
         public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
         old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),

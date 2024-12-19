@@ -261,9 +261,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         batch_start_index: usize,
         current_root: [u8; 32],
     ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
-        println!("batch size {:?}", batch_size);
-        println!("start index {:?}", start_index);
-        println!("batch start index {:?}", batch_start_index);
         let new_element_values = self.queue_leaves[..batch_size as usize].to_vec();
 
         assert_eq!(
@@ -275,7 +272,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             "start index should be greater than 2 else tree is not inited"
         );
 
-        println!("new element values {:?}", new_element_values);
         let mut low_element_values = Vec::new();
         let mut low_element_indices = Vec::new();
         let mut low_element_next_indices = Vec::new();
