@@ -808,17 +808,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake2b_simd"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23285ad32269793932e830392f2fe2f83e26488fd3ec778883a93c8323735780"
-dependencies = [
- "arrayref",
- "arrayvec",
- "constant_time_eq",
-]
-
-[[package]]
 name = "blake3"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3370,23 +3359,6 @@ dependencies = [
  "solana-program",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "light-wasm-hasher"
-version = "1.1.0"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "blake2b_simd",
- "console_error_panic_hook",
- "hex",
- "js-sys",
- "light-poseidon",
- "num-bigint 0.4.6",
- "thiserror",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]

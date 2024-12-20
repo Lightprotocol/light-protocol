@@ -10,7 +10,6 @@ on:
           - all
           - cli
           - compressed-token
-          - hasher.rs
           - stateless.js
       version:
         description: Version to release
