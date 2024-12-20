@@ -11,12 +11,43 @@ use std::{
     ops::{Index, IndexMut},
     ptr::{self},
 };
-pub struct ZeroSlice<'a, T> {
+pub struct ZeroSliceMut<'a, T> {
     ptrs: Vec<*mut T>,
     _marker: std::marker::PhantomData<&'a mut T>,
 }
 
-impl<'a, T> ZeroSlice<'a, T> {
+pub struct ZeroSlice<'a, T> {
+    ptrs: Vec<*const T>,
+    _marker: std::marker::PhantomData<&'a T>,
+}
+
+pub trait Length {
+    fn get_len(bytes: &mut [u8], start_off_set: &mut usize) -> usize;
+}
+
+macro_rules! impl_length_for_integer_type {
+    ($int_ty:ty) => {
+        impl Length for $int_ty {
+            fn get_len(_bytes: &mut [u8], _start_off_set: &mut usize) -> usize {
+                std::mem::size_of::<$int_ty>()
+            }
+        }
+    };
+}
+
+impl_length_for_integer_type!(u8);
+impl_length_for_integer_type!(u16);
+impl_length_for_integer_type!(u32);
+impl_length_for_integer_type!(u64);
+impl_length_for_integer_type!(usize);
+impl_length_for_integer_type!([u8; 32]);
+// impl Length for Vec<T> {
+//     fn get_len() -> usize {
+//         std::mem::size_of::<$int_ty>()
+//     }
+// }
+
+impl<'a, T> ZeroSliceMut<'a, T> {
     // TODO: need to implement a get len method for nested structs
     pub fn get_bytes_len(bytes: &'a mut [u8], start_off_set: &mut usize) -> (usize, usize) {
         msg!("start_off_set{:?}", start_off_set);
@@ -59,7 +90,7 @@ impl<'a, T> ZeroSlice<'a, T> {
 }
 
 // Implement immutable indexing
-impl<'a, T: Copy> Index<usize> for ZeroSlice<'a, T> {
+impl<'a, T: Copy> Index<usize> for ZeroSliceMut<'a, T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -71,7 +102,7 @@ impl<'a, T: Copy> Index<usize> for ZeroSlice<'a, T> {
 }
 
 // Implement mutable indexing
-impl<'a, T: Copy> IndexMut<usize> for ZeroSlice<'a, T> {
+impl<'a, T: Copy> IndexMut<usize> for ZeroSliceMut<'a, T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         if index >= self.ptrs.len() {
             panic!("Index out of bounds");
@@ -80,7 +111,7 @@ impl<'a, T: Copy> IndexMut<usize> for ZeroSlice<'a, T> {
     }
 }
 
-// Iterator for ZeroSlice
+// Iterator for ZeroSliceMut
 pub struct ZeroSliceIter<'a, T> {
     ptrs: std::slice::Iter<'a, *mut T>,
     _marker: PhantomData<&'a T>,
@@ -94,7 +125,7 @@ impl<'a, T> Iterator for ZeroSliceIter<'a, T> {
     }
 }
 
-impl<'a, T> ZeroSlice<'a, T> {
+impl<'a, T> ZeroSliceMut<'a, T> {
     pub fn iter(&'a self) -> ZeroSliceIter<'a, T> {
         ZeroSliceIter {
             ptrs: self.ptrs.iter(),
@@ -103,7 +134,7 @@ impl<'a, T> ZeroSlice<'a, T> {
     }
 }
 
-// Mutable iterator for ZeroSlice
+// Mutable iterator for ZeroSliceMut
 pub struct ZeroSliceIterMut<'a, T> {
     ptrs: std::slice::IterMut<'a, *mut T>,
     _marker: PhantomData<&'a mut T>,
@@ -117,7 +148,7 @@ impl<'a, T> Iterator for ZeroSliceIterMut<'a, T> {
     }
 }
 
-impl<'a, T> ZeroSlice<'a, T> {
+impl<'a, T> ZeroSliceMut<'a, T> {
     pub fn iter_mut(&'a mut self) -> ZeroSliceIterMut<'a, T> {
         ZeroSliceIterMut {
             ptrs: self.ptrs.iter_mut(),
@@ -130,42 +161,38 @@ impl<'a> InstructionDataInvoke<'a> {
         let mut start_off_set = 0;
 
         let split = num_bytes_option::<CompressedProof>(bytes, &mut start_off_set);
-        msg!("proof split{:?}", split);
+        let (proof_bytes, bytes) = bytes.split_at_mut(split);
+        let proof: Option<&mut CompressedProof> =
+            deserialize_option(proof_bytes, &mut start_off_set);
 
-        let (proof_bytes, bytes) = bytes.split_at_mut(start_off_set);
-        let proof: Option<&mut CompressedProof> = option(proof_bytes, &mut 0);
-        msg!("proof {:?}", proof);
-        let (len, size) = ZeroSlice::<PackedCompressedAccountWithMerkleContext>::get_bytes_len(
+        let (len, size) = ZeroSliceMut::<PackedCompressedAccountWithMerkleContext>::get_bytes_len(
             bytes,
             &mut start_off_set,
         );
-        msg!("size {:?}", size);
-        msg!("bytes len{:?}", bytes.len());
         let (proof_bytes, bytes) = bytes.split_at_mut(size);
         let input_compressed_accounts_with_merkle_context =
-            ZeroSlice::deserialize_unaligned(proof_bytes, len);
-        let (len, size) = ZeroSlice::<OutputCompressedAccountWithPackedContext>::get_bytes_len(
+            ZeroSliceMut::deserialize_unaligned(proof_bytes, len);
+
+        let (len, size) = ZeroSliceMut::<OutputCompressedAccountWithPackedContext>::get_bytes_len(
             bytes,
             &mut start_off_set,
         );
-        msg!("bytes len{:?}", bytes.len());
-        msg!("size {:?}", size);
         let (proof_bytes, bytes) = bytes.split_at_mut(size);
-        let output_compressed_accounts = ZeroSlice::deserialize_unaligned(proof_bytes, len);
+        let output_compressed_accounts = ZeroSliceMut::deserialize_unaligned(proof_bytes, len);
+
         let split: usize = num_bytes_option::<u64>(bytes, &mut start_off_set);
-        msg!("bytes len{:?}", bytes.len());
-        msg!("size 2 {:?}", split);
         let (proof_bytes, bytes) = bytes.split_at_mut(split);
-        let relay_fee = option(proof_bytes, &mut start_off_set);
+        let relay_fee = deserialize_option(proof_bytes, &mut start_off_set);
+
         let (len, size) =
-            ZeroSlice::<NewAddressParamsPacked>::get_bytes_len(bytes, &mut start_off_set);
-        msg!("size 3 {:?}", size);
+            ZeroSliceMut::<NewAddressParamsPacked>::get_bytes_len(bytes, &mut start_off_set);
         let (proof_bytes, bytes) = bytes.split_at_mut(size);
-        let new_address_params = ZeroSlice::deserialize_unaligned(proof_bytes, len);
+        let new_address_params = ZeroSliceMut::deserialize_unaligned(proof_bytes, len);
+
         let split: usize = num_bytes_option::<u64>(bytes, &mut start_off_set);
-        msg!("split 4 {:?}", split);
         let (proof_bytes, bytes) = bytes.split_at_mut(split);
-        let compress_or_decompress_lamports = option(proof_bytes, &mut start_off_set);
+        let compress_or_decompress_lamports = deserialize_option(proof_bytes, &mut start_off_set);
+
         let is_compress = bytes_of_mut::<u8>(&mut bytes[0]);
 
         let res = Self {
@@ -181,7 +208,7 @@ impl<'a> InstructionDataInvoke<'a> {
     }
 }
 
-fn option<'a, T: Pod + Zeroable>(
+fn deserialize_option<'a, T: Pod + Zeroable>(
     bytes: &'a mut [u8],
     start_off_set: &mut usize,
 ) -> Option<&'a mut T> {
@@ -206,10 +233,10 @@ fn num_bytes_option<T: Pod + Zeroable>(bytes: &mut [u8], start_off_set: &mut usi
 pub struct InstructionDataInvoke<'a> {
     pub proof: Option<&'a mut CompressedProof>,
     pub input_compressed_accounts_with_merkle_context:
-        ZeroSlice<'a, PackedCompressedAccountWithMerkleContext>,
-    pub output_compressed_accounts: ZeroSlice<'a, OutputCompressedAccountWithPackedContext>,
+        ZeroSliceMut<'a, PackedCompressedAccountWithMerkleContext>,
+    pub output_compressed_accounts: ZeroSliceMut<'a, OutputCompressedAccountWithPackedContext>,
     pub relay_fee: Option<&'a mut u64>,
-    pub new_address_params: ZeroSlice<'a, NewAddressParamsPacked>,
+    pub new_address_params: ZeroSliceMut<'a, NewAddressParamsPacked>,
     pub compress_or_decompress_lamports: Option<&'a mut u64>,
     pub is_compress: &'a mut [u8],
 }
