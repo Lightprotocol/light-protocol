@@ -4,7 +4,6 @@ use forester::metrics::register_metrics;
 use forester::photon_indexer::PhotonIndexer;
 use forester::telemetry::setup_telemetry;
 use forester::ForesterConfig;
-use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_program_test::test_env::get_test_env_accounts;
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
@@ -12,6 +11,7 @@ use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, U
 use light_test_utils::indexer::TestIndexer;
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
+use light_client::indexer::{IndexerError, NewAddressProofWithContext};
 
 #[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {

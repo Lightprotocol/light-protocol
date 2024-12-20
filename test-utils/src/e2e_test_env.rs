@@ -118,12 +118,9 @@ use forester_utils::address_merkle_tree_config::{
     address_tree_ready_for_rollover, state_tree_ready_for_rollover,
 };
 use forester_utils::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
-};
 use forester_utils::registry::register_test_forester;
 use forester_utils::{airdrop_lamports, AccountZeroCopy};
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithMerkleContext};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
@@ -134,10 +131,10 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use light_utils::rand::gen_prime;
 
 use crate::create_address_merkle_tree_and_queue_account_with_assert;
-use crate::indexer::TestIndexer;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_client::transaction_params::{FeeConfig, TransactionParams};
+use light_program_test::indexer::TestIndexer;
 
 pub struct User {
     pub keypair: Keypair,
@@ -2296,7 +2293,7 @@ where
     pub async fn select_random_compressed_token_accounts(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, false)
             .await
     }
@@ -2304,7 +2301,7 @@ where
     pub async fn select_random_compressed_token_accounts_frozen(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, true)
             .await
     }
@@ -2315,7 +2312,7 @@ where
         delegated: bool,
         delegate: Option<Pubkey>,
         frozen: bool,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
@@ -2405,14 +2402,14 @@ where
                     token_account.token_data.mint == mint && tree_version == version
                 })
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if delegated {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.is_some())
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2422,14 +2419,14 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.unwrap() == delegate)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if frozen {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Frozen)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2438,7 +2435,7 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Initialized)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         let range_end = if token_accounts_with_mint.len() == 1 {
             1
