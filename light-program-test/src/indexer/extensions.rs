@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle};
 use light_client::rpc::RpcConnection;
@@ -7,6 +8,7 @@ use light_sdk::proof::ProofRpcResult;
 use light_sdk::token::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
+#[async_trait]
 pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 
@@ -32,14 +34,14 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
 
     fn get_group_pda(&self) -> &Pubkey;
 
-    fn create_proof_for_compressed_accounts(
+    async fn create_proof_for_compressed_accounts(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> impl std::future::Future<Output = ProofRpcResult>;
+    ) -> ProofRpcResult;
 
     fn add_address_merkle_tree_accounts(
         &mut self,

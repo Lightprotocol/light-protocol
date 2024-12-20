@@ -7,7 +7,7 @@ use light_indexed_merkle_tree::{
 };
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    compressed_account::CompressedAccountWithMerkleContext,
     proof::ProofRpcResult
 };
 use num_bigint::BigUint;
@@ -50,13 +50,14 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         merkle_tree_pubkey: [u8; 32],
     ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
-    fn add_event_and_compressed_accounts(
-        &mut self,
-        event: &PublicTransactionEvent,
-    ) -> (
-        Vec<CompressedAccountWithMerkleContext>,
-        Vec<TokenDataWithMerkleContext>,
-    );
+    // fn add_event_and_compressed_accounts(
+    //     &mut self,
+    //     slot: u64,
+    //     event: &PublicTransactionEvent,
+    // ) -> (
+    //     Vec<CompressedAccountWithMerkleContext>,
+    //     Vec<TokenDataWithMerkleContext>,
+    // );
 
     async fn create_proof_for_compressed_accounts(
         &mut self,
