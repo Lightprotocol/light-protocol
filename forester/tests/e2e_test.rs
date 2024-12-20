@@ -271,7 +271,7 @@ pub async fn assert_queue_len(
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 15,
+        wait_time: 40,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
