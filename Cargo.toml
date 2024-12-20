@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "hasher.rs/src/wasm",
     "heap",
     "circuit-lib/light-prover-client",
     "circuit-lib/verifier",
