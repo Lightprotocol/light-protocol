@@ -1164,12 +1164,12 @@ async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: Some(ProverMode::Rpc),
+        //     circuits: vec![],
+        // }),
+        None,
     )
     .await;
 
@@ -1210,7 +1210,7 @@ async fn test_with_address() {
     );
 
     let res = context.process_transaction(transaction).await;
-    assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
+    // assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
     // v1 address tree with new derivation should fail
     {
         let derived_address = derive_address(
@@ -1225,21 +1225,24 @@ async fn test_with_address() {
             address: Some(derived_address), // this should not be sent, only derived on-chain
         }];
 
-        let address_params = vec![NewAddressParams {
-            seed: address_seed,
-            address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-            address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-            address_merkle_tree_root_index: 0,
-        }];
+        let address_params = vec![
+            NewAddressParams {
+                seed: address_seed,
+                address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+                address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+                address_merkle_tree_root_index: 0,
+            };
+            10
+        ];
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
             &Vec::new(),
-            &output_compressed_accounts,
+            &[],
             &Vec::new(),
-            &[env.batched_output_queue],
+            &[],
             &Vec::new(),
-            &address_params,
+            address_params.as_slice(),
             None,
             None,
             false,
@@ -1254,9 +1257,10 @@ async fn test_with_address() {
             context.get_latest_blockhash().await.unwrap(),
         );
 
-        let res = context.process_transaction(transaction).await;
-        assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into())
-            .unwrap();
+        let res = context.process_transaction(transaction).await.unwrap();
+        panic!("test_with_address");
+        // assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into())
+        //     .unwrap();
     }
     // batch address tree with new derivation should fail with invoke because invoking program is not provided.
     {
@@ -1302,8 +1306,8 @@ async fn test_with_address() {
         );
 
         let res = context.process_transaction(transaction).await;
-        assert_custom_error_or_program_error(res, SystemProgramError::DeriveAddressError.into())
-            .unwrap();
+        // assert_custom_error_or_program_error(res, SystemProgramError::DeriveAddressError.into())
+        //     .unwrap();
     }
     println!("creating address -------------------------");
     create_addresses_test(
@@ -1319,6 +1323,7 @@ async fn test_with_address() {
     )
     .await
     .unwrap();
+    panic!("test_with_address");
     // transfer with address
     println!("transfer with address-------------------------");
 

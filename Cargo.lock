@@ -3804,6 +3804,8 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
  "groth16-solana",
  "light-batched-merkle-tree",
  "light-concurrent-merkle-tree",
@@ -3886,6 +3888,7 @@ name = "light-verifier"
 version = "1.1.0"
 dependencies = [
  "borsh 0.10.3",
+ "bytemuck",
  "groth16-solana",
  "light-prover-client",
  "light-utils",

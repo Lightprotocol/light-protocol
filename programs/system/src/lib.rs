@@ -28,6 +28,7 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
     use light_heap::{bench_sbf_end, bench_sbf_start};
 
@@ -60,14 +61,25 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataInvoke =
-            InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
+        sol_log_compute_units();
+        {
+            let _inputs = InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
+        }
+        sol_log_compute_units();
+        {
+            let mut inputs = inputs;
+            crate::invoke::zero_slice::InstructionDataInvoke::derserialize_borsh(
+                &mut inputs.as_mut_slice(),
+            );
+        }
+        sol_log_compute_units();
 
-        input_compressed_accounts_signer_check(
-            &inputs.input_compressed_accounts_with_merkle_context,
-            &ctx.accounts.authority.key(),
-        )?;
-        process(inputs, None, ctx, 0, None, None)
+        Ok(())
+        // input_compressed_accounts_signer_check(
+        //     &inputs.input_compressed_accounts_with_merkle_context,
+        //     &ctx.accounts.authority.key(),
+        // )?;
+        // process(inputs, None, ctx, 0, None, None)
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(

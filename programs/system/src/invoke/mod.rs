@@ -9,3 +9,4 @@ pub mod sol_compression;
 pub mod sum_check;
 pub mod verify_signer;
 pub mod verify_state_proof;
+pub mod zero_slice;

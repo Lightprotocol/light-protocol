@@ -44,9 +44,10 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
-
+use bytemuck::{Pod, Zeroable};
 use VerifierError::*;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize, Pod, Zeroable)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],

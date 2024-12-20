@@ -1,5 +1,6 @@
 use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Bumps};
+use bytemuck::{Pod, Zeroable};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::hashchain::create_tx_hash;
 use light_verifier::CompressedProof as CompressedVerifierProof;
@@ -29,7 +30,8 @@ use crate::{
 use super::PackedReadOnlyAddress;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
-#[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Pod, Zeroable)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
