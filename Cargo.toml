@@ -104,6 +104,7 @@ light-merkle-tree-metadata = { path = "merkle-tree/metadata", version = "0.1.0" 
 aligned-sized = { path = "macros/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "merkle-tree/bloom-filter", version = "0.1.0" }
 light-bounded-vec = { path = "merkle-tree/bounded-vec", version = "1.1.0" }
+light-poseidon = { version = "0.2.0" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"

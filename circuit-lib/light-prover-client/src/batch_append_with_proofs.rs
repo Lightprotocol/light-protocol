@@ -1,6 +1,6 @@
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_utils::hashchain::create_hash_chain;
+use light_utils::hashchain::create_hash_chain_from_array;
 use num_bigint::{BigInt, Sign};
 
 use serde::Serialize;
@@ -91,8 +91,12 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     let mut start_index_bytes = [0u8; 32];
     start_index_bytes[28..].copy_from_slice(start_index.to_be_bytes().as_slice());
     // Calculate the public input hash chain with old root, new root, and leaves hash chain
-    let public_input_hash =
-        create_hash_chain([current_root, new_root, leaves_hashchain, start_index_bytes])?;
+    let public_input_hash = create_hash_chain_from_array([
+        current_root,
+        new_root,
+        leaves_hashchain,
+        start_index_bytes,
+    ])?;
     Ok(BatchAppendWithProofsCircuitInputs {
         public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
         old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),

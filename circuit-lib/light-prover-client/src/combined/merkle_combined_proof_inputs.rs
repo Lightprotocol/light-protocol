@@ -1,4 +1,4 @@
-use light_utils::hashchain::create_hash_chain;
+use light_utils::hashchain::create_hash_chain_from_array;
 use num_bigint::BigInt;
 
 use crate::{
@@ -34,7 +34,7 @@ impl<'a> CombinedProofInputs<'a> {
     ) -> Result<BigInt, ProverClientError> {
         Ok(BigInt::from_bytes_be(
             num_bigint::Sign::Plus,
-            &create_hash_chain([
+            &create_hash_chain_from_array([
                 bigint_to_u8_32(&inclusion_parameters.public_input_hash).unwrap(),
                 bigint_to_u8_32(&non_inclusion_parameters.public_input_hash).unwrap(),
             ])?,

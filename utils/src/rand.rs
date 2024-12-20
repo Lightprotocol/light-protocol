@@ -64,9 +64,8 @@ where
 mod test {
     use rand::Rng;
 
-    use crate::prime::is_prime;
-
     use super::*;
+    use crate::prime::is_prime;
 
     #[test]
     fn test_gen_prime() {

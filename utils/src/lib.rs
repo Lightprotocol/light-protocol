@@ -8,7 +8,6 @@ use std::{
 use ark_ff::PrimeField;
 use light_hasher::HasherError;
 use num_bigint::BigUint;
-
 use solana_program::keccak::hashv;
 use thiserror::Error;
 
@@ -28,6 +27,8 @@ pub enum UtilsError {
     InvalidSeeds,
     #[error("Invalid rollover thresold")]
     InvalidRolloverThreshold,
+    #[error("Invalid input lenght")]
+    InvalidInputLength,
     #[error("Hasher error {0}")]
     HasherError(#[from] HasherError),
 }
@@ -41,6 +42,7 @@ impl From<UtilsError> for u32 {
             UtilsError::InvalidChunkSize => 12002,
             UtilsError::InvalidSeeds => 12003,
             UtilsError::InvalidRolloverThreshold => 12004,
+            UtilsError::InvalidInputLength => 12005,
             UtilsError::HasherError(e) => u32::from(e),
         }
     }
@@ -133,9 +135,8 @@ mod tests {
     use num_bigint::ToBigUint;
     use solana_program::pubkey::Pubkey;
 
-    use crate::bigint::bigint_to_be_bytes_array;
-
     use super::*;
+    use crate::bigint::bigint_to_be_bytes_array;
 
     #[test]
     fn test_is_smaller_than_bn254_field_size_be() {

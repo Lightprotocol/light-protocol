@@ -3874,6 +3874,7 @@ dependencies = [
  "bytemuck",
  "light-bounded-vec",
  "light-hasher",
+ "light-poseidon",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",

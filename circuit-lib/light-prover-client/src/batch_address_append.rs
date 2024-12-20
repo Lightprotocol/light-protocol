@@ -11,7 +11,7 @@ use light_indexed_merkle_tree::changelog::IndexedChangelogEntry;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::{create_hash_chain, create_hash_chain_from_slice};
+use light_utils::hashchain::{create_hash_chain_from_array, create_hash_chain_from_slice};
 use num_bigint::BigUint;
 
 #[derive(Debug, Clone)]
@@ -217,7 +217,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         bigint_to_be_bytes_array::<32>(&next_index.into()).unwrap(),
     ];
 
-    let public_input_hash = create_hash_chain(hash_chain_inputs)?;
+    let public_input_hash = create_hash_chain_from_array(hash_chain_inputs)?;
 
     Ok(BatchAddressAppendInputs {
         batch_size: patched_low_element_values.len(),

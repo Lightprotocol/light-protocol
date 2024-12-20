@@ -14,7 +14,7 @@ use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
     mock_batched_forester::{self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
-use light_utils::hashchain::create_hash_chain_from_vec;
+use light_utils::hashchain::create_hash_chain_from_slice;
 use light_verifier::CompressedProof;
 use serial_test::serial;
 use solana_program::pubkey::Pubkey;
@@ -350,7 +350,7 @@ pub fn simulate_transaction(
         .cloned()
         .chain(instruction_data.outputs.iter().cloned())
         .collect::<Vec<[u8; 32]>>();
-    let tx_hash = create_hash_chain_from_vec(flattened_inputs)?;
+    let tx_hash = create_hash_chain_from_slice(flattened_inputs.as_slice())?;
 
     for input in instruction_data.inputs.iter() {
         // zkp inclusion in Merkle tree
@@ -977,7 +977,7 @@ async fn test_e2e() {
                     .cloned()
                     .collect();
                 let pre_hashchains = merkle_tree_zero_copy_account.hashchain_store.clone();
-                let tx_hash = create_hash_chain_from_vec(vec![leaf].to_vec()).unwrap();
+                let tx_hash = create_hash_chain_from_slice(vec![leaf].as_slice()).unwrap();
                 let leaf_index = mock_indexer.merkle_tree.get_leaf_index(&leaf).unwrap();
                 mock_indexer.input_queue_leaves.push((leaf, leaf_index));
                 mock_indexer.tx_events.push(MockTxEvent {
@@ -1655,7 +1655,7 @@ async fn test_fill_queues_completely() {
                 .cloned()
                 .collect();
             let pre_hashchains = merkle_tree_zero_copy_account.hashchain_store.clone();
-            let tx_hash = create_hash_chain_from_vec(vec![leaf].to_vec()).unwrap();
+            let tx_hash = create_hash_chain_from_slice(vec![leaf].as_slice()).unwrap();
             // Index input queue insert event
             mock_indexer.input_queue_leaves.push((leaf, leaf_index));
             mock_indexer.tx_events.push(MockTxEvent {

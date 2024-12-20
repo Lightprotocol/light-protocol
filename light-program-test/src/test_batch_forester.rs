@@ -837,7 +837,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .await
         .unwrap();
     // // local_leaves_hashchain is only used for a test assertion.
-    // let local_nullifier_hashchain = create_hash_chain(&addresses);
+    // let local_nullifier_hashchain = create_hash_chain_from_array(&addresses);
     // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
     let start_index = merkle_tree.get_account().next_index as usize;
     assert!(
