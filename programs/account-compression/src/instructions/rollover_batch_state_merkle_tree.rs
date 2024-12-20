@@ -10,8 +10,8 @@ use crate::{
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_batched_merkle_tree::{
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
-    queue::ZeroCopyBatchedQueueAccount,
+    merkle_tree::BatchedMerkleTreeAccount,
+    queue::BatchedQueueAccount,
     rollover_state_tree::{rollover_batch_state_tree, RolloverBatchStateTreeParams},
 };
 
@@ -58,18 +58,17 @@ pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<()> {
-    let old_merkle_tree_account =
-        &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-            &ctx.accounts.old_state_merkle_tree,
-        )
-        .map_err(ProgramError::from)?;
-    let old_output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+    let old_merkle_tree_account = &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+        &ctx.accounts.old_state_merkle_tree,
+    )
+    .map_err(ProgramError::from)?;
+    let old_output_queue = &mut BatchedQueueAccount::output_queue_from_account_info_mut(
         &ctx.accounts.old_output_queue,
     )
     .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<
         RolloverBatchStateMerkleTree,
-        ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
     let merkle_tree_rent = check_account_balance_is_rent_exempt(

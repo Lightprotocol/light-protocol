@@ -9,7 +9,7 @@ use crate::{
     RegisteredProgram,
 };
 use anchor_lang::prelude::*;
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_concurrent_merkle_tree::{
     event::{MerkleTreeEvent, NullifierEvent},
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
@@ -72,10 +72,9 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     let mut merkle_tree_data = merkle_tree.try_borrow_mut_data()?;
     let mut zero_copy_merkle_tree =
         state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree_data)?;
-    let output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-        &ctx.accounts.output_queue,
-    )
-    .map_err(ProgramError::from)?;
+    let output_queue =
+        &mut BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
+            .map_err(ProgramError::from)?;
     let nullify_event = migrate_state(
         migrate_leaf_params,
         &mut zero_copy_merkle_tree,
@@ -91,7 +90,7 @@ fn migrate_state(
     migrate_leaf_params: MigrateLeafParams,
     merkle_tree: &mut ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>,
     merkle_tree_pubkey: &Pubkey,
-    output_queue: &mut ZeroCopyBatchedQueueAccount,
+    output_queue: &mut BatchedQueueAccount,
 ) -> Result<MerkleTreeEvent> {
     if migrate_leaf_params.leaf == [0u8; 32] {
         return Err(AccountCompressionErrorCode::EmptyLeaf.into());
@@ -126,7 +125,7 @@ fn migrate_state(
 mod migrate_state_test {
     use light_batched_merkle_tree::{
         batch_metadata::BatchMetadata,
-        queue::{queue_account_size, BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+        queue::{queue_account_size, BatchedQueueAccount, BatchedQueueMetadata},
     };
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
@@ -144,7 +143,7 @@ mod migrate_state_test {
 
     pub struct MockQueueAccount {
         pub account_data: Vec<u8>,
-        pub account: Option<ZeroCopyBatchedQueueAccount>,
+        pub account: Option<BatchedQueueAccount>,
     }
 
     fn get_output_queue() -> MockQueueAccount {
@@ -156,10 +155,10 @@ mod migrate_state_test {
             associated_merkle_tree: Pubkey::new_unique(),
         };
 
-        let account = BatchedQueueAccount {
+        let account = BatchedQueueMetadata {
             metadata: metadata.clone(),
             next_index: 0,
-            queue: BatchMetadata {
+            batch_metadata: BatchMetadata {
                 batch_size: 1000,
                 num_batches: 2,
                 currently_processing_batch_index: 0,
@@ -169,19 +168,22 @@ mod migrate_state_test {
             },
         };
         let account_data: Vec<u8> =
-            vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
+            vec![
+                0;
+                queue_account_size(&account.batch_metadata, account.metadata.queue_type).unwrap()
+            ];
         let mut mock_account = MockQueueAccount {
             account_data,
             account: None,
         };
-        let output_queue = ZeroCopyBatchedQueueAccount::init(
+        let output_queue = BatchedQueueAccount::init(
             metadata,
-            account.queue.num_batches,
-            account.queue.batch_size,
-            account.queue.zkp_batch_size,
+            account.batch_metadata.num_batches,
+            account.batch_metadata.batch_size,
+            account.batch_metadata.zkp_batch_size,
             &mut mock_account.account_data,
             3,
-            account.queue.bloom_filter_capacity,
+            account.batch_metadata.bloom_filter_capacity,
         )
         .unwrap();
         mock_account.account = Some(output_queue);
@@ -401,7 +403,7 @@ mod migrate_state_test {
             light_merkle_tree_reference::MerkleTree::<Poseidon>::new(HEIGHT, 10);
         let mut queue_account = get_output_queue();
         let output_queue = &mut queue_account.account.as_mut().unwrap();
-        let batch_size = output_queue.get_account().queue.batch_size as usize;
+        let batch_size = output_queue.get_metadata().batch_metadata.batch_size as usize;
         // insert two test leaves into the merkle tree
 
         let num_leaves = 2000;
@@ -436,8 +438,8 @@ mod migrate_state_test {
                     .unwrap(),
             };
             let current_batch = output_queue
-                .get_account()
-                .queue
+                .get_metadata()
+                .batch_metadata
                 .currently_processing_batch_index;
 
             let event = migrate_state(

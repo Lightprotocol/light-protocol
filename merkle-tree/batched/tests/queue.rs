@@ -3,7 +3,7 @@ use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     queue::{
         assert_queue_zero_copy_inited, queue_account_size, BatchedQueueAccount,
-        ZeroCopyBatchedQueueAccount,
+        BatchedQueueMetadata,
     },
 };
 use light_merkle_tree_metadata::{
@@ -18,7 +18,7 @@ pub fn get_test_account_and_account_data(
     num_batches: u64,
     queue_type: QueueType,
     bloom_filter_capacity: u64,
-) -> (BatchedQueueAccount, Vec<u8>) {
+) -> (BatchedQueueMetadata, Vec<u8>) {
     let metadata = QueueMetadata {
         next_queue: Pubkey::new_unique(),
         access_metadata: AccessMetadata::default(),
@@ -27,10 +27,10 @@ pub fn get_test_account_and_account_data(
         associated_merkle_tree: Pubkey::new_unique(),
     };
 
-    let account = BatchedQueueAccount {
+    let account = BatchedQueueMetadata {
         metadata: metadata.clone(),
         next_index: 0,
-        queue: BatchMetadata {
+        batch_metadata: BatchMetadata {
             batch_size: batch_size as u64,
             num_batches: num_batches as u64,
             currently_processing_batch_index: 0,
@@ -40,7 +40,7 @@ pub fn get_test_account_and_account_data(
         },
     };
     let account_data: Vec<u8> =
-        vec![0; queue_account_size(&account.queue, account.metadata.queue_type).unwrap()];
+        vec![0; queue_account_size(&account.batch_metadata, account.metadata.queue_type).unwrap()];
     (account, account_data)
 }
 
@@ -58,7 +58,7 @@ fn test_output_queue_account() {
             queue_type,
             bloom_filter_capacity,
         );
-        ZeroCopyBatchedQueueAccount::init(
+        BatchedQueueAccount::init(
             ref_account.metadata,
             num_batches,
             batch_size,
@@ -71,7 +71,7 @@ fn test_output_queue_account() {
 
         assert_queue_zero_copy_inited(&mut account_data, ref_account, bloom_filter_num_iters);
         let mut zero_copy_account =
-            ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut account_data).unwrap();
+            BatchedQueueAccount::from_bytes_unchecked_mut(&mut account_data).unwrap();
         let value = [1u8; 32];
         zero_copy_account.insert_into_current_batch(&value).unwrap();
         // assert!(zero_copy_account.insert_into_current_batch(&value).is_ok());
@@ -85,7 +85,7 @@ fn test_output_queue_account() {
 fn test_value_exists_in_value_vec_present() {
     let (account, mut account_data) =
         get_test_account_and_account_data(100, 2, QueueType::Output, 0);
-    let mut zero_copy_account = ZeroCopyBatchedQueueAccount::init(
+    let mut zero_copy_account = BatchedQueueAccount::init(
         account.metadata.clone(),
         2,
         100,

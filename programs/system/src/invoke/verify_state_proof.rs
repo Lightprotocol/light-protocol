@@ -11,8 +11,8 @@ use account_compression::{
 use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
-    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    queue::ZeroCopyBatchedQueueAccount,
+    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
+    queue::BatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::Discriminator as LightDiscriminator;
@@ -145,11 +145,10 @@ pub fn verify_input_accounts_proof_by_index(
         if account.merkle_context.queue_index.is_some() {
             let output_queue_account_info =
                 &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-            let output_queue =
-                &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-                    output_queue_account_info,
-                )
-                .map_err(ProgramError::from)?;
+            let output_queue = &mut BatchedQueueAccount::output_queue_from_account_info_mut(
+                output_queue_account_info,
+            )
+            .map_err(ProgramError::from)?;
             output_queue
                 .could_exist_in_batches(account.merkle_context.leaf_index as u64)
                 .map_err(ProgramError::from)?;
@@ -183,22 +182,20 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             height = merkle_tree.height as u8;
             (*roots).push(merkle_tree.roots[root_index as usize]);
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+        BatchedMerkleTreeMetadata::DISCRIMINATOR => {
             if IS_STATE {
-                let merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                        merkle_tree_account_info,
-                    )
-                    .map_err(ProgramError::from)?;
+                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                    merkle_tree_account_info,
+                )
+                .map_err(ProgramError::from)?;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
-                height = merkle_tree.get_account().height as u8;
+                height = merkle_tree.get_metadata().height as u8;
             } else {
-                let merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                        merkle_tree_account_info,
-                    )
-                    .map_err(ProgramError::from)?;
-                height = merkle_tree.get_account().height as u8;
+                let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+                    merkle_tree_account_info,
+                )
+                .map_err(ProgramError::from)?;
+                height = merkle_tree.get_metadata().height as u8;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
             }
         }
@@ -250,10 +247,9 @@ pub fn verify_read_only_account_inclusion<'a>(
             .merkle_context
             .nullifier_queue_pubkey_index
             as usize];
-        let output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-            output_queue_account_info,
-        )
-        .map_err(ProgramError::from)?;
+        let output_queue =
+            &mut BatchedQueueAccount::output_queue_from_account_info_mut(output_queue_account_info)
+                .map_err(ProgramError::from)?;
         let proved_inclusion = output_queue
             .prove_inclusion_by_index(
                 read_only_account.merkle_context.leaf_index as u64,
@@ -268,11 +264,10 @@ pub fn verify_read_only_account_inclusion<'a>(
         if !proved_inclusion {
             let merkle_tree_account_info = &remaining_accounts
                 [read_only_account.merkle_context.merkle_tree_pubkey_index as usize];
-            let merkle_tree =
-                &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                    merkle_tree_account_info,
-                )
-                .map_err(ProgramError::from)?;
+            let merkle_tree = &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+                merkle_tree_account_info,
+            )
+            .map_err(ProgramError::from)?;
 
             let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
             for i in 0..num_bloom_filters {
@@ -297,11 +292,10 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
     for read_only_address in read_only_addresses.iter() {
         let merkle_tree_account_info =
             &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize];
-        let merkle_tree =
-            &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                merkle_tree_account_info,
-            )
-            .map_err(ProgramError::from)?;
+        let merkle_tree = &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+            merkle_tree_account_info,
+        )
+        .map_err(ProgramError::from)?;
 
         let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
         for i in 0..num_bloom_filters {

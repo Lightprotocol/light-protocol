@@ -15,7 +15,7 @@ use crate::{
     },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq)]
@@ -125,7 +125,7 @@ pub fn init_batched_address_merkle_tree_account(
         ),
         associated_queue: Pubkey::default(),
     };
-    ZeroCopyBatchedMerkleTreeAccount::init(
+    BatchedMerkleTreeAccount::init(
         metadata,
         params.root_history_capacity,
         num_batches_input_queue,

@@ -11,7 +11,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::assert_address_mt_zero_copy_inited,
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
     },
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batch_address_tree},
 };
@@ -43,7 +43,7 @@ fn test_rollover() {
     let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
 
     let ref_mt_account =
-        BatchedMerkleTreeAccount::get_address_tree_default(create_tree_params, merkle_tree_rent);
+        BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
     assert_address_mt_zero_copy_inited(
         &mut mt_account_data,
         ref_mt_account,
@@ -57,10 +57,8 @@ fn test_rollover() {
     {
         let mut mt_account_data = mt_account_data.clone();
         let result = rollover_batch_address_tree(
-            &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap(),
+            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
+                .unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -74,12 +72,11 @@ fn test_rollover() {
     // 2. Failing rollover threshold not set
     {
         let mut mt_account_data = mt_account_data.clone();
-        let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-            &mut mt_account_data,
-        )
-        .unwrap();
+        let merkle_tree =
+            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
+                .unwrap();
         merkle_tree
-            .get_account_mut()
+            .get_metadata_mut()
             .metadata
             .rollover_metadata
             .rollover_threshold = u64::MAX;
@@ -97,11 +94,10 @@ fn test_rollover() {
     }
     // 3. Functional: rollover address tree
     {
-        let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-            &mut mt_account_data,
-        )
-        .unwrap();
-        merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+        let merkle_tree =
+            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
+                .unwrap();
+        merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
 
         rollover_batch_address_tree(
             merkle_tree,
@@ -130,10 +126,8 @@ fn test_rollover() {
         let mut new_mt_account_data = vec![0; mt_account_size];
 
         let result = rollover_batch_address_tree(
-            &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap(),
+            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
+                .unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -209,7 +203,7 @@ fn test_rnd_rollover() {
             // Output queue
             let ref_account_size =
                 // metadata
-                BatchedMerkleTreeAccount::LEN
+                BatchedMerkleTreeMetadata::LEN
                 + root_history_size
                 + batch_size
                 + bloom_filter_size
@@ -230,10 +224,8 @@ fn test_rnd_rollover() {
         .unwrap();
         let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
 
-        let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(
-            create_tree_params,
-            merkle_tree_rent,
-        );
+        let ref_mt_account =
+            BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
         assert_address_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,
@@ -244,9 +236,8 @@ fn test_rnd_rollover() {
         let network_fee = params.network_fee;
         let new_mt_pubkey = Pubkey::new_unique();
         let mut zero_copy_old_mt =
-            ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap();
-        zero_copy_old_mt.get_account_mut().next_index = 1 << params.height;
+            BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+        zero_copy_old_mt.get_metadata_mut().next_index = 1 << params.height;
         rollover_batch_address_tree(
             &mut zero_copy_old_mt,
             &mut new_mt_data,

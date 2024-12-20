@@ -4,7 +4,8 @@ use light_batched_merkle_tree::{
         init_batched_address_merkle_tree_account, validate_batched_address_tree_params,
         InitAddressTreeAccountsInstructionData,
     },
-    merkle_tree::{get_merkle_tree_account_size, ZeroCopyBatchedMerkleTreeAccount},
+    merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
+    zero_copy::check_account_info_init,
 };
 
 use crate::{
@@ -74,6 +75,8 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
     )?;
 
     let mt_account_info = ctx.accounts.merkle_tree.to_account_info();
+    check_account_info_init::<BatchedMerkleTreeAccount>(crate::ID, &mt_account_info)
+        .map_err(ProgramError::from)?;
     let mt_data = &mut mt_account_info.try_borrow_mut_data()?;
 
     init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)
@@ -82,12 +85,12 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
     Ok(())
 }
 
-impl GroupAccess for ZeroCopyBatchedMerkleTreeAccount {
+impl GroupAccess for BatchedMerkleTreeAccount {
     fn get_owner(&self) -> &Pubkey {
-        &self.get_account().metadata.access_metadata.owner
+        &self.get_metadata().metadata.access_metadata.owner
     }
 
     fn get_program_owner(&self) -> &Pubkey {
-        &self.get_account().metadata.access_metadata.program_owner
+        &self.get_metadata().metadata.access_metadata.program_owner
     }
 }

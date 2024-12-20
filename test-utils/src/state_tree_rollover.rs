@@ -11,7 +11,7 @@ use account_compression::{
 };
 use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
 use forester_utils::{create_account_instruction, get_hash_set};
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
 use light_client::rpc::errors::RpcError;
 use light_client::rpc::RpcConnection;
 use light_concurrent_merkle_tree::{
@@ -148,7 +148,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
                 .unwrap();
             assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {}
+        BatchedMerkleTreeMetadata::DISCRIMINATOR => {}
         _ => panic!("Invalid discriminator"),
     }
 }

@@ -3,7 +3,7 @@ use account_compression::{
 };
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
 use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
 use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
@@ -468,7 +468,7 @@ fn create_compressed_pda_data(
             &new_address_params.seed,
         )
         .map_err(ProgramError::from)?,
-        BatchedMerkleTreeAccount::DISCRIMINATOR => derive_address(
+        BatchedMerkleTreeMetadata::DISCRIMINATOR => derive_address(
             &new_address_params.seed,
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
                 .key()

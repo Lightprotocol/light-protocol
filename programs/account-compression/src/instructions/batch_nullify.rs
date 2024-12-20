@@ -7,7 +7,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+    BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
 };
 
 #[derive(Accounts)]
@@ -35,11 +35,10 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-        &ctx.accounts.merkle_tree,
-    )
-    .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<BatchNullify, ZeroCopyBatchedMerkleTreeAccount>(
+    let merkle_tree =
+        &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+            .map_err(ProgramError::from)?;
+    check_signer_is_registered_or_authority::<BatchNullify, BatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
     )?;
