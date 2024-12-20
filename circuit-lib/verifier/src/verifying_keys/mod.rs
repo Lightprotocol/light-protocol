@@ -1,4 +1,3 @@
-pub mod append_with_proofs_32_1;
 pub mod append_with_proofs_32_10;
 pub mod append_with_proofs_32_100;
 pub mod append_with_proofs_32_1000;
