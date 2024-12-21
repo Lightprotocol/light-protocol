@@ -24,3 +24,9 @@ thiserror = "1.0.64"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(feature, values("console_error_panic_hook"))',
+]

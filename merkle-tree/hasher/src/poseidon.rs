@@ -1,10 +1,11 @@
+use thiserror::{self, Error};
+
 use crate::{
     errors::HasherError,
     zero_bytes::{poseidon::ZERO_BYTES, ZeroBytes},
     zero_indexed_leaf::poseidon::ZERO_INDEXED_LEAF,
     Hash, Hasher,
 };
-use thiserror::{self, Error};
 
 #[derive(Debug, Error, PartialEq)]
 pub enum PoseidonSyscallError {

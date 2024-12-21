@@ -1,34 +1,33 @@
-use account_compression::instruction::UpdateAddressMerkleTree;
-use account_compression::state::QueueAccount;
-use account_compression::utils::constants::{
-    ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS,
+use account_compression::{
+    instruction::{InsertAddresses, UpdateAddressMerkleTree},
+    state::QueueAccount,
+    utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS},
+    AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,
 };
-use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
-use account_compression::{AddressMerkleTreeAccount, SAFETY_MARGIN};
-use anchor_lang::system_program;
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use forester_utils::{
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
+    indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
+};
+use light_client::rpc::{errors::RpcError, RpcConnection};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use light_program_test::test_env::NOOP_PROGRAM_ID;
-
-use forester_utils::indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle};
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
-use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_nullify_instruction, create_update_address_merkle_tree_instruction,
+        CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    },
+    utils::get_forester_epoch_pda_from_authority,
+    ForesterEpochPda, RegisterForester,
 };
-use light_registry::utils::get_forester_epoch_pda_from_authority;
-use light_registry::{ForesterEpochPda, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::debug;
-use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
 use thiserror::Error;

@@ -14,9 +14,10 @@ pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
 pub mod burn;
-use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 pub use burn::*;
 use light_system_program::sdk::CompressedCpiContext;
+
+use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -31,8 +32,9 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod light_compressed_token {
 
-    use super::*;
     use constants::NOT_FROZEN;
+
+    use super::*;
 
     /// This instruction creates a token pool for a given mint. Every spl mint
     /// can have one token pool. When a token is compressed the tokens are

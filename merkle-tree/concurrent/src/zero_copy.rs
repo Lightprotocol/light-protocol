@@ -265,12 +265,12 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     use ark_bn254::Fr;
     use ark_ff::{BigInteger, PrimeField, UniformRand};
     use light_hasher::Poseidon;
     use rand::{thread_rng, Rng};
+
+    use super::*;
 
     fn load_from_bytes<
         const HEIGHT: usize,

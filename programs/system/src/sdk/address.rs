@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
 use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
 
+use super::compressed_account::{
+    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
+};
 use crate::{
     errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress,
     ReadOnlyAddress,
-};
-
-use super::compressed_account::{
-    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
 };
 pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(

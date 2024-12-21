@@ -5,10 +5,8 @@ use forester_utils::{
     indexer::{Indexer, StateMerkleTreeBundle},
     AccountZeroCopy,
 };
-use light_batched_merkle_tree::constants::{
-    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
-};
 use light_batched_merkle_tree::{
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
@@ -193,7 +191,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs_json)
             .send()
@@ -353,7 +351,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let new_root = bundle.merkle_tree.root();
 
     let response_result = client
-        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs)
         .send()
@@ -888,7 +886,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let inputs = to_json(&inputs);
 
     let response_result = client
-        .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs)
         .send()

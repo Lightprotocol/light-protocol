@@ -1,10 +1,5 @@
-use crate::{
-    errors::SystemProgramError,
-    sdk::compressed_account::{
-        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
-    },
-    NewAddressParamsPacked,
-};
+use std::mem;
+
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
@@ -15,8 +10,7 @@ use light_batched_merkle_tree::{
     queue::ZeroCopyBatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::Discriminator as LightDiscriminator;
-use light_hasher::Poseidon;
+use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
 use light_utils::{
@@ -27,9 +21,15 @@ use light_verifier::{
     select_verifying_key, verify_create_addresses_and_inclusion_proof,
     verify_create_addresses_proof, verify_inclusion_proof, CompressedProof,
 };
-use std::mem;
 
 use super::PackedReadOnlyAddress;
+use crate::{
+    errors::SystemProgramError,
+    sdk::compressed_account::{
+        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+    },
+    NewAddressParamsPacked,
+};
 
 #[inline(never)]
 #[heap_neutral]
