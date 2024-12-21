@@ -8,7 +8,7 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
 use light_client::rpc::RpcConnection;
 use light_hasher::Discriminator as LightDiscriminator;
 use light_hasher::Poseidon;
@@ -169,8 +169,8 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
             .await;
             (tree.next_index(), tree_meta_data, 26)
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
-            let account = AccountZeroCopy::<BatchedMerkleTreeAccount>::new(rpc, merkle_tree).await;
+        BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+            let account = AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree).await;
 
             let tree_meta_data = account.deserialized();
 

@@ -5,8 +5,9 @@ use light_batched_merkle_tree::{
         init_batched_state_merkle_tree_accounts, validate_batched_tree_params,
         InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::get_merkle_tree_account_size,
-    queue::get_output_queue_account_size,
+    merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
+    queue::{get_output_queue_account_size, BatchedQueueAccount},
+    zero_copy::check_account_info_init,
 };
 
 use crate::utils::{
@@ -92,12 +93,15 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
 
     let additional_bytes_rent = (Rent::get()?).minimum_balance(params.additional_bytes as usize);
 
+    check_account_info_init::<BatchedQueueAccount>(crate::ID, &ctx.accounts.queue)
+        .map_err(ProgramError::from)?;
     let output_queue_account_data: AccountInfo<'info> = ctx.accounts.queue.to_account_info();
     let queue_data = &mut output_queue_account_data.try_borrow_mut_data()?;
 
+    check_account_info_init::<BatchedMerkleTreeAccount>(crate::ID, &ctx.accounts.merkle_tree)
+        .map_err(ProgramError::from)?;
     let mt_account_info = ctx.accounts.merkle_tree.to_account_info();
     let mt_data = &mut mt_account_info.try_borrow_mut_data()?;
-
     init_batched_state_merkle_tree_accounts(
         owner,
         params,

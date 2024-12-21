@@ -30,7 +30,7 @@ use errors::RegistryError;
 use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_batched_merkle_tree::{
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 
 use protocol_config::state::ProtocolConfig;
@@ -514,17 +514,17 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+            let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let metadata = account.get_account().metadata;
+            let metadata = account.get_metadata().metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                account.get_account().queue.batch_size,
+                account.get_metadata().queue_metadata.batch_size,
             )?;
         }
         process_batch_nullify(&ctx, bump, data)
@@ -536,21 +536,20 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let queue_account = ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
-                &ctx.accounts.output_queue,
-            )
-            .map_err(ProgramError::from)?;
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+            let queue_account =
+                BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
+                    .map_err(ProgramError::from)?;
+            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let metadata = merkle_tree.get_account().metadata;
+            let metadata = merkle_tree.get_metadata().metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                queue_account.get_account().queue.batch_size,
+                queue_account.get_metadata().batch_metadata.batch_size,
             )?;
         }
         process_batch_append(&ctx, bump, data)
@@ -584,18 +583,18 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         {
-            let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+            let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let account = account.get_account();
+            let account = account.get_metadata();
             let metadata = account.metadata;
             check_forester(
                 &metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                account.queue.batch_size,
+                account.queue_metadata.batch_size,
             )?;
         }
         process_batch_update_address_tree(&ctx, bump, data)
@@ -605,12 +604,12 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverBatchAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
-        let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+        let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
             &ctx.accounts.old_address_merkle_tree,
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_account().metadata,
+            &account.get_metadata().metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_address_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
@@ -623,12 +622,12 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverBatchStateMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
-        let account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+        let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
             &ctx.accounts.old_state_merkle_tree,
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_account().metadata,
+            &account.get_metadata().metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_state_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,

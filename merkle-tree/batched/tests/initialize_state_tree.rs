@@ -1,6 +1,4 @@
-use bytemuck::{Pod, Zeroable};
 use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
-use light_hasher::Discriminator;
 use rand::{rngs::StdRng, Rng};
 
 use light_batched_merkle_tree::{
@@ -12,13 +10,12 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, CreateTreeParams,
+        BatchedMerkleTreeMetadata, CreateTreeParams,
     },
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size,
-        get_output_queue_account_size_default, BatchedQueueAccount,
+        get_output_queue_account_size_default, BatchedQueueMetadata,
     },
-    zero_copy::{bytes_to_struct_checked, ZeroCopyError},
 };
 use solana_program::pubkey::Pubkey;
 
@@ -65,8 +62,7 @@ fn test_account_init() {
         0,
     );
     let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
-    let ref_mt_account =
-        BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
+    let ref_mt_account = BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
     assert_state_mt_zero_copy_inited(
         &mut mt_account_data,
         ref_mt_account,
@@ -135,7 +131,7 @@ fn test_rnd_account_init() {
             // Output queue
             let ref_queue_account_size =
                     // metadata
-                    BatchedQueueAccount::LEN
+                    BatchedQueueMetadata::LEN
                     + batch_size
                     // 2 value vecs
                     + value_vec_size
@@ -170,7 +166,7 @@ fn test_rnd_account_init() {
             // Output queue
             let ref_account_size =
                     // metadata
-                    BatchedMerkleTreeAccount::LEN
+                    BatchedMerkleTreeMetadata::LEN
                     + root_history_size
                     + batch_size
                     + bloom_filter_size
@@ -211,59 +207,11 @@ fn test_rnd_account_init() {
         let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
 
         let ref_mt_account =
-            BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
         assert_state_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
     }
-}
-
-/// Tests:
-/// 1. functional init
-/// 2. failing init again
-/// 3. functional deserialize
-/// 4. failing deserialize invalid data
-/// 5. failing deserialize invalid discriminator
-#[test]
-fn test_bytes_to_struct() {
-    #[repr(C)]
-    #[derive(Debug, PartialEq, Copy, Clone, Pod, Zeroable)]
-    pub struct MyStruct {
-        pub data: u64,
-    }
-    impl Discriminator for MyStruct {
-        const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-    }
-    let mut bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
-    let mut empty_bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
-
-    // Test 1 functional init.
-    let inited_struct = bytes_to_struct_checked::<MyStruct, true>(&mut bytes).unwrap();
-    unsafe {
-        (*inited_struct).data = 1;
-    }
-    assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
-    assert_eq!(bytes[8..].to_vec(), vec![1, 0, 0, 0, 0, 0, 0, 0]);
-    // Test 2 failing init again.
-    assert_eq!(
-        bytes_to_struct_checked::<MyStruct, true>(&mut bytes).unwrap_err(),
-        ZeroCopyError::InvalidDiscriminator.into()
-    );
-
-    // Test 3 functional deserialize.
-    let inited_struct = unsafe { *bytes_to_struct_checked::<MyStruct, false>(&mut bytes).unwrap() };
-    assert_eq!(inited_struct, MyStruct { data: 1 });
-    // Test 4 failing deserialize invalid data.
-    assert_eq!(
-        bytes_to_struct_checked::<MyStruct, false>(&mut empty_bytes).unwrap_err(),
-        ZeroCopyError::InvalidDiscriminator.into()
-    );
-    // Test 5 failing deserialize invalid discriminator.
-    bytes[0] = 0;
-    assert_eq!(
-        bytes_to_struct_checked::<MyStruct, false>(&mut bytes).unwrap_err(),
-        ZeroCopyError::InvalidDiscriminator.into()
-    );
 }

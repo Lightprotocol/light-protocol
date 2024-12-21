@@ -5,7 +5,7 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_batched_merkle_tree::zero_copy::ZeroCopyError;
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
@@ -2492,13 +2492,17 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         .unwrap()
         .unwrap();
     let output_queue =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data).unwrap();
+        BatchedQueueAccount::from_bytes_unchecked_mut(&mut output_queue_account.data).unwrap();
     let fullness = output_queue.get_batch_num_inserted_in_current_batch();
-    let remaining_leaves = output_queue.get_account().queue.batch_size - fullness;
+    let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }
-    for i in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+    for i in 0..output_queue
+        .get_metadata()
+        .batch_metadata
+        .get_num_zkp_batches()
+    {
         println!("Performing batch append {}", i);
         let bundle = test_indexer
             .state_merkle_trees

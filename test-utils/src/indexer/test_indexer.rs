@@ -14,8 +14,8 @@ use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_batched_merkle_tree::queue::{BatchedQueueAccount, BatchedQueueMetadata};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_client::transaction_params::FeeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
@@ -365,9 +365,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                     if let Some(accounts) = accounts {
                         let output_queue_pubkey = accounts.accounts.nullifier_queue;
                         let mut queue =
-                            AccountZeroCopy::<BatchedQueueAccount>::new(rpc, output_queue_pubkey)
+                            AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey)
                                 .await;
-                        let queue_zero_copy = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                        let queue_zero_copy = BatchedQueueAccount::from_bytes_unchecked_mut(
                             queue.account.data.as_mut_slice(),
                         )
                         .unwrap();
@@ -1036,7 +1036,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .await
                     .unwrap()
                     .unwrap();
-                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     merkle_tree_account.data.as_mut_slice(),
                 )
                 .unwrap();
@@ -1124,7 +1124,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                     .await
                     .unwrap();
                 if let Some(mut account) = account {
-                    let account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+                    let account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
                         account.data.as_mut_slice(),
                     )
                     .unwrap();
@@ -1486,7 +1486,7 @@ impl<R: RpcConnection> TestIndexer<R> {
     pub fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        onchain_account: &ZeroCopyBatchedMerkleTreeAccount,
+        onchain_account: &BatchedMerkleTreeAccount,
     ) {
         let address_tree = self
             .address_merkle_trees
@@ -1494,7 +1494,7 @@ impl<R: RpcConnection> TestIndexer<R> {
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
         let address_tree_index = address_tree.merkle_tree.merkle_tree.rightmost_index;
-        let onchain_next_index = onchain_account.get_account().next_index;
+        let onchain_next_index = onchain_account.get_metadata().next_index;
         let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
         let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
 

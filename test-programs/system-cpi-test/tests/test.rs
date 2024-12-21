@@ -4,7 +4,7 @@ use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_batched_merkle_tree::zero_copy::ZeroCopyError;
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_compressed_token::token_data::AccountState;
@@ -165,7 +165,7 @@ async fn test_read_only_accounts() {
                 .get_account(env.batch_address_merkle_tree)
                 .await
                 .unwrap();
-            let onchain_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
+            let onchain_account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
                 account.unwrap().data_as_mut_slice(),
             )
             .unwrap();

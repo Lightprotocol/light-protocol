@@ -7,7 +7,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+    BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
 };
 
 #[derive(Accounts)]
@@ -35,14 +35,14 @@ pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+    let merkle_tree = &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
         &ctx.accounts.merkle_tree,
     )
     .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<
-        BatchUpdateAddressTree,
-        ZeroCopyBatchedMerkleTreeAccount,
-    >(ctx, merkle_tree)?;
+    check_signer_is_registered_or_authority::<BatchUpdateAddressTree, BatchedMerkleTreeAccount>(
+        ctx,
+        merkle_tree,
+    )?;
     let event = merkle_tree
         .update_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
         .map_err(ProgramError::from)?;

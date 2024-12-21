@@ -8,7 +8,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount,
+    BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
 };
 
 #[derive(Accounts)]
@@ -39,15 +39,14 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
     instruction_data: InstructionDataBatchAppendInputs,
 ) -> Result<()> {
-    let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-        &ctx.accounts.merkle_tree,
-    )
-    .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<BatchAppend, ZeroCopyBatchedMerkleTreeAccount>(
+    let merkle_tree =
+        &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+            .map_err(ProgramError::from)?;
+    check_signer_is_registered_or_authority::<BatchAppend, BatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
     )?;
-    let associated_queue = merkle_tree.get_account().metadata.associated_queue;
+    let associated_queue = merkle_tree.get_metadata().metadata.associated_queue;
     if ctx.accounts.output_queue.key() != associated_queue {
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
