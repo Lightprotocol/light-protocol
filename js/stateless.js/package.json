@@ -43,7 +43,7 @@
         "tweetnacl": "1.0.3"
     },
     "devDependencies": {
-        "@lightprotocol/hasher.rs": "workspace:*",
+        "@lightprotocol/hasher.rs": "0.2.0",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/programs": "workspace:*",
         "@playwright/test": "^1.47.1",
