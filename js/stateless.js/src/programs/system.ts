@@ -22,10 +22,7 @@ import {
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import {
-    defaultStaticAccountsStruct,
-    defaultTestStateTreeAccounts,
-} from '../constants';
+import { defaultStaticAccountsStruct } from '../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,
@@ -201,7 +198,6 @@ export class LightSystemProgram {
      * Public key that identifies the CompressedPda program
      */
     static programId: PublicKey = new PublicKey(
-        // TODO: can add check to ensure its consistent with the idl
         'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
     );
 
