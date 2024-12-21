@@ -1,7 +1,12 @@
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use light_client::rpc::RpcConnection;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::UNIX_EPOCH;
-use std::{sync::Arc, time::SystemTime};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error};
 

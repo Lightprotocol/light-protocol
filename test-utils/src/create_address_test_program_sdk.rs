@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use std::collections::HashMap;
-
+use light_program_test::test_env::EnvAccounts;
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::address::{derive_address, pack_new_address_params},
@@ -11,9 +12,7 @@ use light_system_program::{
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
-use crate::indexer::TestIndexer;
-use crate::Indexer;
-use light_program_test::test_env::EnvAccounts;
+use crate::{indexer::TestIndexer, Indexer};
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {

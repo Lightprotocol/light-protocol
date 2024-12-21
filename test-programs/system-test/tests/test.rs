@@ -1,32 +1,33 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::errors::AccountCompressionErrorCode;
-use anchor_lang::error::ErrorCode;
-use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
-use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
-use light_batched_merkle_tree::zero_copy::ZeroCopyError;
+use anchor_lang::{error::ErrorCode, AnchorSerialize, InstructionData, ToAccountMetas};
+use light_batched_merkle_tree::{
+    errors::BatchedMerkleTreeError,
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    queue::ZeroCopyBatchedQueueAccount, zero_copy::ZeroCopyError,
+};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_program_test::test_batch_forester::perform_batch_append;
-use light_program_test::test_env::{
-    initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
-    EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
+use light_program_test::{
+    test_batch_forester::perform_batch_append,
+    test_env::{
+        initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
+        EnvAccountKeypairs, EnvAccounts, FORESTER_TEST_KEYPAIR, PAYER_KEYPAIR,
+    },
+    test_rpc::ProgramTestRpcConnection,
 };
-use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
-use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::address::derive_address;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccountWithMerkleContext, QueueIndex,
-};
 use light_system_program::{
     errors::SystemProgramError,
+    invoke::processor::CompressedProof,
     sdk::{
-        address::derive_address_legacy,
-        compressed_account::{CompressedAccount, CompressedAccountData, MerkleContext},
+        address::{derive_address, derive_address_legacy},
+        compressed_account::{
+            CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+            MerkleContext, QueueIndex,
+        },
         invoke::{
             create_invoke_instruction, create_invoke_instruction_data_and_remaining_accounts,
         },
@@ -35,30 +36,27 @@ use light_system_program::{
     InstructionDataInvoke, NewAddressParams,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, FeeConfig, Indexer, RpcConnection, RpcError,
-    TransactionParams,
-};
-use light_test_utils::{
+    airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error,
+    assert_custom_error_or_program_error, assert_rpc_error,
     indexer::TestIndexer,
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
+    FeeConfig, Indexer, RpcConnection, RpcError, TransactionParams,
 };
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
 use quote::format_ident;
 use serial_test::serial;
 use solana_cli_output::CliAccount;
-use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction, InstructionError},
     pubkey::Pubkey,
+    signature::{Keypair, Signature},
     signer::Signer,
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
-use solana_sdk::{signature::Keypair, transaction::TransactionError};
 use tokio::fs::write as async_write;
 // TODO: use lazy_static to spawn the server once
 
@@ -1745,8 +1743,9 @@ async fn regenerate_accounts() {
             rust_file.push_str(&code.to_string());
         }
     }
-    use light_utils::rustfmt;
     use std::io::Write;
+
+    use light_utils::rustfmt;
     let output_path = "../../test-utils/src/env_accounts.rs";
     let mut file = std::fs::File::create(&output_path).unwrap();
     file.write_all(

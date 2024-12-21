@@ -1,15 +1,16 @@
-use crate::errors::ProverClientError;
-use crate::gnark::helpers::big_int_to_string;
-use crate::helpers::bigint_to_u8_32;
-use crate::prove_utils::CircuitType;
-use crate::{
-    gnark::helpers::create_json_from_struct, init_merkle_tree::non_inclusion_merkle_tree_inputs,
-    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
-};
 use light_utils::hashchain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
+
+use crate::{
+    errors::ProverClientError,
+    gnark::helpers::{big_int_to_string, create_json_from_struct},
+    helpers::bigint_to_u8_32,
+    init_merkle_tree::non_inclusion_merkle_tree_inputs,
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
+    prove_utils::CircuitType,
+};
 
 #[derive(Serialize, Debug)]
 pub struct BatchNonInclusionJsonStruct {

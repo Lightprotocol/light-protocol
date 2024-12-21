@@ -1,3 +1,12 @@
+use anchor_lang::prelude::*;
+use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+use light_concurrent_merkle_tree::{
+    event::{MerkleTreeEvent, NullifierEvent},
+    zero_copy::ConcurrentMerkleTreeZeroCopyMut,
+};
+use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
+
+use super::from_vec;
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
@@ -8,15 +17,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::prelude::*;
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
-use light_concurrent_merkle_tree::{
-    event::{MerkleTreeEvent, NullifierEvent},
-    zero_copy::ConcurrentMerkleTreeZeroCopyMut,
-};
-use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
-
-use super::from_vec;
 
 #[derive(Accounts)]
 pub struct MigrateState<'info> {

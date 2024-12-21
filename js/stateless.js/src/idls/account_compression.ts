@@ -940,6 +940,45 @@ export type AccountCompression = {
                 },
             ];
         },
+        {
+            name: 'migrateState';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'outputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'input';
+                    type: {
+                        defined: 'MigrateLeafParams';
+                    };
+                },
+            ];
+        },
     ];
     accounts: [
         {
@@ -1152,6 +1191,39 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'MigrateLeafParams';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'changeLogIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'leaf';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'proof';
+                        type: {
+                            array: [
+                                {
+                                    array: ['u8', 32];
+                                },
+                                16,
+                            ];
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'AddressQueueConfig';
             type: {
                 kind: 'alias';
@@ -1313,6 +1385,14 @@ export type AccountCompression = {
         {
             code: 6031;
             name: 'StateMerkleTreeAccountDiscriminatorMismatch';
+        },
+        {
+            code: 6032;
+            name: 'RegistryProgramIsNone';
+        },
+        {
+            code: 6033;
+            name: 'EmptyLeaf';
         },
     ];
 };
@@ -2259,6 +2339,45 @@ export const IDL: AccountCompression = {
                 },
             ],
         },
+        {
+            name: 'migrateState',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'outputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'input',
+                    type: {
+                        defined: 'MigrateLeafParams',
+                    },
+                },
+            ],
+        },
     ],
     accounts: [
         {
@@ -2471,6 +2590,39 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'MigrateLeafParams',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'changeLogIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'leaf',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'proof',
+                        type: {
+                            array: [
+                                {
+                                    array: ['u8', 32],
+                                },
+                                16,
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'AddressQueueConfig',
             type: {
                 kind: 'alias',
@@ -2632,6 +2784,14 @@ export const IDL: AccountCompression = {
         {
             code: 6031,
             name: 'StateMerkleTreeAccountDiscriminatorMismatch',
+        },
+        {
+            code: 6032,
+            name: 'RegistryProgramIsNone',
+        },
+        {
+            code: 6033,
+            name: 'EmptyLeaf',
         },
     ],
 };

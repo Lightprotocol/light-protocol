@@ -1,10 +1,10 @@
+use anchor_lang::{solana_program::program_error::ProgramError, Result};
+use light_macros::heap_neutral;
+
 use crate::{
     errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
     OutputCompressedAccountWithPackedContext,
 };
-use anchor_lang::solana_program::program_error::ProgramError;
-use anchor_lang::Result;
-use light_macros::heap_neutral;
 
 #[inline(never)]
 #[heap_neutral]
@@ -37,21 +37,18 @@ pub fn sum_check(
             .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
 
-    match compress_or_decompress_lamports {
-        Some(lamports) => {
-            if *is_compress {
-                sum = sum
-                    .checked_add(*lamports)
-                    .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
-            } else {
-                sum = sum
-                    .checked_sub(*lamports)
-                    .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
-            }
+    if let Some(lamports) = compress_or_decompress_lamports {
+        if *is_compress {
+            sum = sum
+                .checked_add(*lamports)
+                .ok_or(ProgramError::ArithmeticOverflow)
+                .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
+        } else {
+            sum = sum
+                .checked_sub(*lamports)
+                .ok_or(ProgramError::ArithmeticOverflow)
+                .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
         }
-        None => (),
     }
 
     for compressed_account in output_compressed_accounts.iter() {

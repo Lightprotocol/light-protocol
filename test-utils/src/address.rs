@@ -1,10 +1,11 @@
 use account_compression::instruction::InsertAddresses;
-use anchor_lang::{prelude::AccountMeta, system_program};
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{prelude::AccountMeta, system_program, InstructionData, ToAccountMetas};
 use light_client::rpc::{RpcConnection, RpcError};
-use solana_sdk::signature::Signer;
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Signature, transaction::Transaction,
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::{Signature, Signer},
+    transaction::Transaction,
 };
 
 pub async fn insert_addresses<R: RpcConnection>(

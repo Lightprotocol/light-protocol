@@ -1,17 +1,16 @@
 #[cfg(test)]
 mod test {
 
-    use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
-    use light_prover_client::inclusion::merkle_tree_info::MerkleTreeInfo;
-    use light_prover_client::init_merkle_tree::inclusion_merkle_tree_inputs;
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_prover, spawn_prover},
+            helpers::{kill_prover, spawn_prover, ProofType, ProverConfig},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
         helpers::init_logger,
+        inclusion::merkle_tree_info::MerkleTreeInfo,
+        init_merkle_tree::inclusion_merkle_tree_inputs,
     };
     use light_utils::hashchain::{
         create_hash_chain_from_array, create_hash_chain_from_slice, create_two_inputs_hash_chain,

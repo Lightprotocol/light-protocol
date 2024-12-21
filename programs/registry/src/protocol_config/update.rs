@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
 
-use crate::errors::RegistryError;
-
 use super::state::{ProtocolConfig, ProtocolConfigPda};
+use crate::errors::RegistryError;
 
 #[derive(Accounts)]
 pub struct UpdateProtocolConfig<'info> {

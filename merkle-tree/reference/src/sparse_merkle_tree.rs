@@ -1,6 +1,7 @@
+use std::marker::PhantomData;
+
 use light_hasher::Hasher;
 use num_bigint::BigUint;
-use std::marker::PhantomData;
 
 #[derive(Clone, Debug)]
 pub struct SparseMerkleTree<H: Hasher, const HEIGHT: usize> {
@@ -87,10 +88,10 @@ pub fn arr_to_string(arr: [u8; 32]) -> String {
 
 #[cfg(test)]
 mod test {
-    use crate::MerkleTree;
+    use light_hasher::Poseidon;
 
     use super::*;
-    use light_hasher::Poseidon;
+    use crate::MerkleTree;
 
     #[test]
     fn test_sparse_merkle_tree() {
