@@ -1,6 +1,7 @@
-use crate::{address_merkle_tree_from_bytes_zero_copy_init, state::AddressMerkleTreeAccount};
 pub use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::{access::AccessMetadata, rollover::RolloverMetadata};
+
+use crate::{address_merkle_tree_from_bytes_zero_copy_init, state::AddressMerkleTreeAccount};
 
 pub fn process_initialize_address_merkle_tree(
     address_merkle_tree_loader: &AccountLoader<'_, AddressMerkleTreeAccount>,

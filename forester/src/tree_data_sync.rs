@@ -1,13 +1,15 @@
-use crate::Result;
-use account_compression::utils::check_discrimininator::check_discriminator;
-use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
+use account_compression::{
+    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
+    StateMerkleTreeAccount,
+};
 use borsh::BorshDeserialize;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_client::rpc::RpcConnection;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
-use solana_sdk::account::Account;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{account::Account, pubkey::Pubkey};
 use tracing::debug;
+
+use crate::Result;
 
 pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Result<Vec<TreeAccounts>> {
     let program_id = account_compression::id();

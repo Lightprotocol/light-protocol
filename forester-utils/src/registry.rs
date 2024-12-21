@@ -1,25 +1,27 @@
-use crate::address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config};
-use crate::create_account_instruction;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
     StateMerkleTreeConfig,
 };
-
-use crate::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use light_client::rpc::{RpcConnection, RpcError};
-use light_registry::account_compression_cpi::sdk::{
-    create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
+    },
+    protocol_config::state::ProtocolConfig,
+    sdk::{create_register_forester_instruction, create_update_forester_pda_instruction},
+    utils::get_forester_pda,
+    ForesterConfig, ForesterPda,
 };
-use light_registry::protocol_config::state::ProtocolConfig;
-use light_registry::sdk::{
-    create_register_forester_instruction, create_update_forester_pda_instruction,
-};
-use light_registry::utils::get_forester_pda;
-use light_registry::{ForesterConfig, ForesterPda};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
+};
+
+use crate::{
+    address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
+    create_account_instruction,
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
 };
 
 /// Creates and asserts forester account creation.

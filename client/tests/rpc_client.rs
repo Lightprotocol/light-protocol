@@ -1,7 +1,5 @@
-use light_client::photon_rpc::Base58Conversions;
-use light_client::photon_rpc::Hash;
 use light_client::{
-    photon_rpc::{AddressWithTree, PhotonClient},
+    photon_rpc::{AddressWithTree, Base58Conversions, Hash, PhotonClient},
     rpc::SolanaRpcConnection,
 };
 use light_compressed_token::mint_sdk::{

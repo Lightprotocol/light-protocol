@@ -1,8 +1,11 @@
-use crate::batch_append_with_subtrees::BatchAppendWithSubtreesCircuitInputs;
-use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
-use crate::prove_utils::CircuitType;
 use num_traits::ToPrimitive;
 use serde::Serialize;
+
+use crate::{
+    batch_append_with_subtrees::BatchAppendWithSubtreesCircuitInputs,
+    gnark::helpers::{big_int_to_string, create_json_from_struct},
+    prove_utils::CircuitType,
+};
 
 #[derive(Serialize, Debug)]
 pub struct BatchAppendWithSubtreesJsonStruct {

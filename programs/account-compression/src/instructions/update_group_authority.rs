@@ -1,5 +1,6 @@
-use crate::GroupAuthority;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
+use crate::GroupAuthority;
 
 #[derive(Accounts)]
 pub struct UpdateGroupAuthority<'info> {

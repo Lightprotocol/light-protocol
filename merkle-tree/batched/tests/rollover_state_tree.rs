@@ -1,7 +1,3 @@
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use rand::{rngs::StdRng, Rng};
-use solana_program::pubkey::Pubkey;
-
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
@@ -23,6 +19,9 @@ use light_batched_merkle_tree::{
     },
     zero_copy::ZeroCopyError,
 };
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use rand::{rngs::StdRng, Rng};
+use solana_program::pubkey::Pubkey;
 
 /// Test rollover of state tree
 /// 1. failing: not ready for rollover

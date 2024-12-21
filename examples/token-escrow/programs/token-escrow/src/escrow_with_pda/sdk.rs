@@ -1,15 +1,13 @@
 #![cfg(not(target_os = "solana"))]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::{
-    process_transfer::get_cpi_authority_pda,
-    process_transfer::{
-        transfer_sdk::{
-            create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
-            to_account_metas,
-        },
-        TokenTransferOutputData,
+use light_compressed_token::process_transfer::{
+    get_cpi_authority_pda,
+    transfer_sdk::{
+        create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
+        to_account_metas,
     },
+    TokenTransferOutputData,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
