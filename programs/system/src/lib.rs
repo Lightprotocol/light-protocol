@@ -68,11 +68,13 @@ pub mod light_system_program {
         sol_log_compute_units();
         {
             let mut inputs = inputs;
-            crate::invoke::zero_slice::InstructionDataInvoke::derserialize_borsh(
-                &mut inputs.as_mut_slice(),
+            let res = crate::invoke::zero_slice::InstructionDataInvoke::derserialize_borsh(
+                inputs.as_mut_slice(),
             );
+            sol_log_compute_units();
+
+            msg!("res: {:?}", res);
         }
-        sol_log_compute_units();
 
         Ok(())
         // input_compressed_accounts_signer_check(

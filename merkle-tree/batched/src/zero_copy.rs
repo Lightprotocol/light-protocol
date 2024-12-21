@@ -101,7 +101,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), ZeroCop
     Ok(())
 }
 
-pub fn bytes_to_struct_unchecked<T: Clone + Copy + Pod + Discriminator>(
+pub fn bytes_to_struct_unchecked<T: Clone + Copy + Pod>(
     bytes: &mut [u8],
 ) -> Result<*mut T, ZeroCopyError> {
     // Base address for alignment check of T.

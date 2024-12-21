@@ -1,5 +1,7 @@
+use crate::invoke::zero_slice::Length;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+use light_macros::DeriveLength;
 
 use super::processor::CompressedProof;
 use crate::{
@@ -106,13 +108,16 @@ pub struct OutputCompressedAccountWithContext {
     pub merkle_tree: Pubkey,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, DeriveLength)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize, DeriveLength,
+)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,

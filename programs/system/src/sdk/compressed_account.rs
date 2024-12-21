@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use super::address::pack_account;
+use crate::invoke::zero_slice::Length;
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
+use light_macros::DeriveLength;
 use light_utils::hash_to_bn254_field_size_be;
 
-use super::address::pack_account;
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, DeriveLength)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -99,7 +100,10 @@ pub struct MerkleContext {
     pub queue_index: Option<QueueIndex>,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default, DeriveLength,
+)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
@@ -107,7 +111,10 @@ pub struct PackedMerkleContext {
     pub queue_index: Option<QueueIndex>,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default, DeriveLength,
+)]
 pub struct QueueIndex {
     /// Id of queue in queue account.
     pub queue_id: u8,
@@ -133,7 +140,7 @@ pub fn pack_merkle_context(
         .collect::<Vec<PackedMerkleContext>>()
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, DeriveLength)]
 pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -141,7 +148,7 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, DeriveLength)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,

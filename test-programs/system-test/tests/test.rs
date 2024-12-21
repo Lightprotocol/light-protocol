@@ -1232,7 +1232,7 @@ async fn test_with_address() {
                 address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
                 address_merkle_tree_root_index: 0,
             };
-            10
+            20
         ];
         let instruction = create_invoke_instruction(
             &payer_pubkey,

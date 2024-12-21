@@ -1,10 +1,4 @@
-use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
-use anchor_lang::{prelude::*, Bumps};
-use bytemuck::{Pod, Zeroable};
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_utils::hashchain::create_tx_hash;
-use light_verifier::CompressedProof as CompressedVerifierProof;
-
+use crate::invoke::zero_slice::Length;
 use crate::{
     errors::SystemProgramError,
     invoke::{
@@ -26,12 +20,30 @@ use crate::{
     },
     InstructionDataInvoke,
 };
+use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
+use anchor_lang::{prelude::*, Bumps};
+use bytemuck::{Pod, Zeroable};
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_macros::DeriveLength;
+use light_utils::hashchain::create_tx_hash;
+use light_verifier::CompressedProof as CompressedVerifierProof;
 
 use super::PackedReadOnlyAddress;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Pod, Zeroable)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    AnchorSerialize,
+    AnchorDeserialize,
+    Pod,
+    Zeroable,
+    DeriveLength,
+)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
