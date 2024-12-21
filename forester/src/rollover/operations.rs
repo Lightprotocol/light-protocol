@@ -1,41 +1,36 @@
 use std::sync::Arc;
 
-use light_registry::account_compression_cpi::sdk::{
-    create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
-    CreateRolloverMerkleTreeInstructionInputs,
-};
-use light_registry::protocol_config::state::ProtocolConfig;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use solana_sdk::transaction::Transaction;
-use tokio::sync::Mutex;
-use tracing::{debug, info};
-
-use crate::errors::ForesterError;
-use crate::ForesterConfig;
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
 use account_compression::{
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use forester_utils::address_merkle_tree_config::{
-    get_address_bundle_config, get_state_bundle_config,
-};
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::{
-    AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-};
-use forester_utils::registry::RentExemption;
 use forester_utils::{
-    create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
+    create_account_instruction,
+    forester_epoch::{TreeAccounts, TreeType},
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
+    registry::RentExemption,
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_rollover_address_merkle_tree_instruction,
+        create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
+    },
+    protocol_config::state::ProtocolConfig,
+};
+use solana_sdk::{
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
+use tokio::sync::Mutex;
+use tracing::{debug, info};
+
+use crate::{errors::ForesterError, ForesterConfig};
 
 enum TreeAccount {
     State(StateMerkleTreeAccount),

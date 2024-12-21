@@ -37,7 +37,7 @@ describe("test-validator command", function () {
       await killProcess("prover");
 
       // Wait for processes to fully terminate
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Verify processes are actually stopped
       try {

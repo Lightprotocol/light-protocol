@@ -1,3 +1,7 @@
+use std::default;
+
+use anchor_lang::prelude::*;
+
 use crate::{
     errors::AccountCompressionErrorCode,
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
@@ -16,8 +20,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::prelude::*;
-use std::default;
 
 #[derive(Accounts)]
 pub struct InitializeStateMerkleTreeAndNullifierQueue<'info> {

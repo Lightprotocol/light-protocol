@@ -18,3 +18,9 @@ bytemuck = "1.17"
 solana-program = { workspace = true }
 anchor-lang = { workspace = true , optional = true }
 aligned-sized = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+]

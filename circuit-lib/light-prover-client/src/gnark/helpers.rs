@@ -1,5 +1,3 @@
-use log::info;
-use num_traits::Num;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -8,12 +6,14 @@ use std::{
     time::Duration,
 };
 
-use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
+use log::info;
 use num_bigint::{BigInt, BigUint};
-use num_traits::ToPrimitive;
+use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 use serde_json::json;
 use sysinfo::{Signal, System};
+
+use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -194,7 +194,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let mut result = false;
     for _ in 0..retries {
         match client
-            .get(&format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
+            .get(format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
             .send()
             .await
         {

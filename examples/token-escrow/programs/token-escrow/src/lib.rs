@@ -1,16 +1,15 @@
 #![allow(clippy::too_many_arguments)]
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_token::process_transfer::InputTokenDataWithContext;
-use light_compressed_token::process_transfer::PackedTokenTransferOutputData;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_compressed_token::process_transfer::{
+    InputTokenDataWithContext, PackedTokenTransferOutputData,
+};
 use light_system_program::invoke::processor::CompressedProof;
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
 
 pub use escrow_with_compressed_pda::escrow::*;
 pub use escrow_with_pda::escrow::*;
-use light_system_program::sdk::CompressedCpiContext;
-use light_system_program::NewAddressParamsPacked;
+use light_system_program::{sdk::CompressedCpiContext, NewAddressParamsPacked};
 
 #[error_code]
 pub enum EscrowError {
@@ -29,7 +28,6 @@ pub mod token_escrow {
         escrow_with_compressed_pda::withdrawal::process_withdraw_compressed_tokens_with_compressed_pda,
         escrow_with_pda::withdrawal::process_withdraw_compressed_escrow_tokens_with_pda,
     };
-
     use super::*;
 
     /// Escrows compressed tokens, for a certain number of slots.

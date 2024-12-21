@@ -1,7 +1,7 @@
-use crate::errors::RegistryError;
+use anchor_lang::prelude::*;
 
 use super::register_epoch::{EpochPda, ForesterEpochPda};
-use anchor_lang::prelude::*;
+use crate::errors::RegistryError;
 /// Report work:
 /// - work is reported so that relative performance of foresters can be assessed
 /// 1. Check that we are in the report work phase

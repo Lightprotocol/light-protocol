@@ -95,15 +95,13 @@ pub fn create_tx_hash(
 
 #[cfg(test)]
 mod hash_chain_tests {
-    use crate::bigint::bigint_to_be_bytes_array;
-
-    use super::*;
     use ark_ff::PrimeField;
-    use light_hasher::Hasher;
-    use light_hasher::HasherError;
-    use light_hasher::Poseidon;
+    use light_hasher::{Hasher, HasherError, Poseidon};
     use light_poseidon::PoseidonError;
     use num_bigint::BigUint;
+
+    use super::*;
+    use crate::bigint::bigint_to_be_bytes_array;
 
     /// Tests for `create_hash_chain_from_slice` function:
     /// Functional tests:

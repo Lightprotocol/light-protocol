@@ -1,15 +1,18 @@
-use crate::InsertIntoQueues;
-use crate::{
-    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
-    RegisteredProgram,
-};
+use std::mem;
+
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
-use light_merkle_tree_metadata::access::AccessMetadata;
-use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
-use light_merkle_tree_metadata::rollover::RolloverMetadata;
-use std::mem;
+use light_merkle_tree_metadata::{
+    access::AccessMetadata,
+    queue::{QueueMetadata, QueueType},
+    rollover::RolloverMetadata,
+};
+
+use crate::{
+    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
+    InsertIntoQueues, RegisteredProgram,
+};
 
 #[account(zero_copy)]
 #[derive(AnchorDeserialize, Debug, PartialEq)]

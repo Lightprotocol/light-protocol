@@ -1,7 +1,12 @@
 use anchor_spl::token::{Mint, TokenAccount};
-use forester_utils::create_account_instruction;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
-use light_compressed_token::process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction;
+use forester_utils::{
+    create_account_instruction,
+    indexer::{Indexer, TokenDataWithContext},
+};
+use light_client::{
+    rpc::{errors::RpcError, RpcConnection},
+    transaction_params::TransactionParams,
+};
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
@@ -11,6 +16,7 @@ use light_compressed_token::{
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction,
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
     token_data::AccountState,
     TokenData,
@@ -33,9 +39,6 @@ use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
 };
-use light_client::rpc::errors::RpcError;
-use light_client::rpc::RpcConnection;
-use light_client::transaction_params::TransactionParams;
 
 pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,

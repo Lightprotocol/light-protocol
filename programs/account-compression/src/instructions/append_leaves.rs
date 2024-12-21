@@ -1,3 +1,7 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
+use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use light_hasher::Discriminator as HasherDiscriminator;
+
 use crate::{
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
@@ -10,9 +14,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
-use light_hasher::Discriminator as HasherDiscriminator;
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {

@@ -98,9 +98,9 @@ install_rust() {
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-        rustup install nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
-        rustup component add clippy rustfmt
+        rustup install nightly
+	rustup component add clippy rustfmt
         cargo install cargo-expand wasm-pack --locked
         cargo +nightly install photon-indexer --git https://github.com/Lightprotocol/photon/ --branch feat/batched-trees #--version $(get_version "photon") --locked
         cargo install --git https://github.com/Lightprotocol/photon.git --branch feat/batched-trees --locked

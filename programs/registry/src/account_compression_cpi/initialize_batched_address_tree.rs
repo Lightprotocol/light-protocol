@@ -1,6 +1,7 @@
-use crate::protocol_config::state::ProtocolConfigPda;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+
+use crate::protocol_config::state::ProtocolConfigPda;
 
 #[derive(Accounts)]
 pub struct InitializeBatchedAddressTree<'info> {

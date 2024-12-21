@@ -1,30 +1,33 @@
-use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
-use account_compression::AddressMerkleTreeAccount;
-use forester::queue_helpers::fetch_queue_item_data;
-use forester::run_pipeline;
-use forester::utils::get_protocol_config;
-use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
-use forester_utils::registry::register_test_forester;
-use light_client::rpc::solana_rpc::SolanaRpcUrl;
-use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
-use light_client::rpc_pool::SolanaRpcPool;
+use std::{collections::HashSet, sync::Arc, time::Duration};
+
+use account_compression::{
+    utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES},
+    AddressMerkleTreeAccount,
+};
+use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_protocol_config};
+use forester_utils::{
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    registry::register_test_forester,
+};
+use light_client::{
+    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc_pool::SolanaRpcPool,
+};
 use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
-use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
-use light_registry::{EpochPda, ForesterEpochPda};
-use light_test_utils::e2e_test_env::E2ETestEnv;
-use light_test_utils::indexer::TestIndexer;
-use light_test_utils::update_test_forester;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::{sleep, timeout};
+use light_registry::{
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
+    EpochPda, ForesterEpochPda,
+};
+use light_test_utils::{e2e_test_env::E2ETestEnv, indexer::TestIndexer, update_test_forester};
+use solana_sdk::{
+    commitment_config::CommitmentConfig, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
+    signature::Keypair, signer::Signer,
+};
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    time::{sleep, timeout},
+};
 
 mod test_utils;
 use test_utils::*;
@@ -34,7 +37,7 @@ use test_utils::*;
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 10,
+        wait_time: 40,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
@@ -268,7 +271,7 @@ pub async fn assert_queue_len(
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 15,
+        wait_time: 40,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
@@ -608,7 +611,7 @@ async fn test_epoch_double_registration() {
     println!("*****************************************************************");
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 10,
+        wait_time: 40,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],

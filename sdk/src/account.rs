@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
-
 use light_hasher::{DataHasher, Discriminator, Poseidon};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 

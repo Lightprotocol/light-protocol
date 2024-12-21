@@ -57,9 +57,3 @@ light-compressed-token = { workspace = true }
 spl-token = { workspace = true }
 rand = "0.8.5"
 light-utils = { workspace = true }
-
-[profile.test]
-overflow-checks = true
-debug = true
-debug-assertions = true
-

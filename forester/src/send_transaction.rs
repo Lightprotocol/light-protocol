@@ -1,37 +1,45 @@
-use crate::config::QueueConfig;
-use crate::epoch_manager::{MerkleProofType, WorkItem};
-use crate::errors::ForesterError;
-use crate::queue_helpers::fetch_queue_item_data;
-use crate::Result;
+use std::{sync::Arc, time::Duration, vec};
+
 use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG, ADDRESS_QUEUE_VALUES,
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::Indexer;
+use forester_utils::{
+    forester_epoch::{TreeAccounts, TreeType},
+    indexer::Indexer,
+};
 use futures::future::join_all;
-use light_client::rpc::{RetryConfig, RpcConnection};
-use light_client::rpc_pool::SolanaRpcPool;
+use light_client::{
+    rpc::{RetryConfig, RpcConnection},
+    rpc_pool::SolanaRpcPool,
+};
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use solana_sdk::compute_budget::ComputeBudgetInstruction;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::transaction::Transaction;
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     hash::Hash,
+    instruction::Instruction,
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
+    transaction::Transaction,
 };
-use std::sync::Arc;
-use std::time::Duration;
-use std::vec;
-use tokio::join;
-use tokio::sync::Mutex;
-use tokio::time::{sleep, Instant};
+use tokio::{
+    join,
+    sync::Mutex,
+    time::{sleep, Instant},
+};
 use tracing::{debug, warn};
+
+use crate::{
+    config::QueueConfig,
+    epoch_manager::{MerkleProofType, WorkItem},
+    errors::ForesterError,
+    queue_helpers::fetch_queue_item_data,
+    Result,
+};
 
 #[async_trait]
 pub trait TransactionBuilder {

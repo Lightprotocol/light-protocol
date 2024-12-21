@@ -1,48 +1,55 @@
-use crate::errors::ForesterError;
-use crate::queue_helpers::QueueItemData;
-use crate::rollover::{
-    is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
 };
-use crate::send_transaction::{
-    send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
-    SendBatchedTransactionsConfig,
-};
-use crate::slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker};
-use crate::tree_data_sync::fetch_trees;
-use crate::Result;
-use crate::{ForesterConfig, ForesterEpochInfo};
-use light_client::rpc_pool::SolanaRpcPool;
 
-use crate::metrics::{push_metrics, queue_metric_update, update_forester_sol_balance};
-use crate::pagerduty::send_pagerduty_alert;
-use crate::tree_finder::TreeFinder;
 use dashmap::DashMap;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
+use forester_utils::{
+    forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType},
+    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
 };
-use forester_utils::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
 use futures::future::join_all;
-use light_client::rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection};
-use light_registry::errors::RegistryError;
-use light_registry::protocol_config::state::ProtocolConfig;
-use light_registry::sdk::{
-    create_finalize_registration_instruction, create_report_work_instruction,
+use light_client::{
+    rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc_pool::SolanaRpcPool,
 };
-use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
-use light_registry::{EpochPda, ForesterEpochPda};
-use solana_program::instruction::InstructionError;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
-use solana_sdk::transaction::TransactionError;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
-use tokio::task::JoinHandle;
-use tokio::time::{sleep, Instant};
+use light_registry::{
+    errors::RegistryError,
+    protocol_config::state::ProtocolConfig,
+    sdk::{create_finalize_registration_instruction, create_report_work_instruction},
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
+    EpochPda, ForesterEpochPda,
+};
+use solana_program::{instruction::InstructionError, pubkey::Pubkey};
+use solana_sdk::{signature::Signer, transaction::TransactionError};
+use tokio::{
+    sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
+    task::JoinHandle,
+    time::{sleep, Instant},
+};
 use tracing::{debug, error, info, info_span, instrument, warn};
+
+use crate::{
+    errors::ForesterError,
+    metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
+    pagerduty::send_pagerduty_alert,
+    queue_helpers::QueueItemData,
+    rollover::{
+        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+    },
+    send_transaction::{
+        send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
+        SendBatchedTransactionsConfig,
+    },
+    slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
+    tree_data_sync::fetch_trees,
+    tree_finder::TreeFinder,
+    ForesterConfig, ForesterEpochInfo, Result,
+};
 
 #[derive(Clone, Debug)]
 pub struct WorkReport {

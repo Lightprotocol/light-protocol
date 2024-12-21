@@ -29,7 +29,7 @@ jobs:
   forester-tests:
     name: forester-tests
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 120
 
     steps:
@@ -39,7 +39,13 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+      
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/forester
+          cd forester
+          RUSTFLAGS="--cfg tokio_unstable -D warnings" cargo test --package forester -- --test-threads=1 --nocapture

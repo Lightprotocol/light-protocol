@@ -1,3 +1,5 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+
 use crate::{
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
@@ -17,7 +19,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {

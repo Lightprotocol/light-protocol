@@ -1,3 +1,5 @@
+use std::mem;
+
 use account_compression::{
     state::queue::QueueAccount,
     utils::constants::{
@@ -8,7 +10,6 @@ use account_compression::{
 };
 use light_utils::fee::compute_rollover_fee;
 use solana_program::rent::Rent;
-use std::mem;
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]

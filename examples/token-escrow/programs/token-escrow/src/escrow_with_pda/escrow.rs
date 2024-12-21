@@ -1,4 +1,3 @@
-use crate::create_change_output_compressed_token_account;
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     process_transfer::{
@@ -9,6 +8,8 @@ use light_compressed_token::{
 };
 use light_sdk::{light_system_accounts, LightTraits};
 use light_system_program::invoke::processor::CompressedProof;
+
+use crate::create_change_output_compressed_token_account;
 
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]

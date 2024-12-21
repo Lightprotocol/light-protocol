@@ -1,17 +1,17 @@
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
 use config::ConfigError;
 use forester_utils::indexer::IndexerError;
-use light_client::rpc::errors::RpcError;
-use light_client::rpc_pool::PoolError;
+use light_client::{rpc::errors::RpcError, rpc_pool::PoolError};
 use light_hash_set::HashSetError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use prometheus::Error as PrometheusError;
 use reqwest::Error as ReqwestError;
 use solana_client::pubsub_client::PubsubClientError;
 use thiserror::Error;
-use tokio::sync::mpsc::error::SendError;
-use tokio::sync::oneshot::error::RecvError;
-use tokio::task::JoinError;
+use tokio::{
+    sync::{mpsc::error::SendError, oneshot::error::RecvError},
+    task::JoinError,
+};
 
 #[derive(Error, Debug)]
 pub enum ForesterError {

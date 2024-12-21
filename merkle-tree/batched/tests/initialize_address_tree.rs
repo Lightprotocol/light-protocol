@@ -1,6 +1,3 @@
-use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
-use rand::{rngs::StdRng, Rng};
-
 use light_batched_merkle_tree::{
     batch::Batch,
     initialize_address_tree::{
@@ -12,6 +9,8 @@ use light_batched_merkle_tree::{
         BatchedMerkleTreeAccount, CreateTreeParams,
     },
 };
+use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
+use rand::{rngs::StdRng, Rng};
 use solana_program::pubkey::Pubkey;
 
 #[test]

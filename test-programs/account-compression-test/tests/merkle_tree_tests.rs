@@ -21,30 +21,29 @@ use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::test_rpc::ProgramTestRpcConnection;
-use light_test_utils::assert_queue::assert_nullifier_queue_initialized;
-use light_test_utils::state_tree_rollover::StateMerkleTreeRolloverMode;
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error, create_account_instruction,
-    create_address_merkle_tree_and_queue_account_with_assert, get_concurrent_merkle_tree,
-    get_hash_set, AccountZeroCopy, RpcConnection, RpcError,
-};
-use light_test_utils::{
+    airdrop_lamports,
     assert_merkle_tree::assert_merkle_tree_initialized,
+    assert_queue::assert_nullifier_queue_initialized,
+    assert_rpc_error, create_account_instruction,
+    create_address_merkle_tree_and_queue_account_with_assert, get_concurrent_merkle_tree,
+    get_hash_set,
     state_tree_rollover::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
-        set_state_merkle_tree_next_index,
+        set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
     },
+    AccountZeroCopy, RpcConnection, RpcError,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
-    account::AccountSharedData,
+    account::{AccountSharedData, WritableAccount},
     instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
-use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
 
 /// Tests:
 /// 1. Functional: Initialize nullifier queue
