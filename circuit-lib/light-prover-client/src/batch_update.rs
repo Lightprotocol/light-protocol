@@ -4,7 +4,7 @@ use crate::helpers::compute_root_from_merkle_proof;
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
-use light_utils::hashchain::create_hash_chain;
+use light_utils::hashchain::create_hash_chain_from_array;
 use num_bigint::{BigInt, Sign};
 use num_traits::FromBytes;
 
@@ -93,7 +93,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         circuit_merkle_proofs.push(merkle_proof);
     }
 
-    let public_input_hash = create_hash_chain([old_root, new_root, leaves_hashchain])?;
+    let public_input_hash = create_hash_chain_from_array([old_root, new_root, leaves_hashchain])?;
 
     Ok(BatchUpdateCircuitInputs {
         public_input_hash: BigInt::from_be_bytes(&public_input_hash),
