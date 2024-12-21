@@ -71,6 +71,7 @@ pub struct CreateTreeParams {
     pub height: u32,
     pub num_batches: u64,
 }
+
 impl CreateTreeParams {
     pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
         CreateTreeParams {
@@ -138,7 +139,7 @@ impl BatchedMerkleTreeAccount {
             Pubkey::default(),
             rollover_fee,
         );
-        // inited address tree contains two elements.
+        // initialized address tree contains two elements.
         tree.next_index = 2;
         tree
     }
@@ -347,7 +348,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
             )?;
             (*account).queue.bloom_filter_capacity = bloom_filter_capacity;
             if account_data.len() != (*account).size()? {
-                msg!("merkle_tree_account: {:?}", (*account));
+                msg!("merkle_tree_account: {:?}", *account);
                 msg!("account_data.len(): {}", account_data.len());
                 msg!("account.size(): {}", (*account).size()?);
                 return Err(ZeroCopyError::InvalidAccountSize.into());
@@ -361,7 +362,7 @@ impl ZeroCopyBatchedMerkleTreeAccount {
                 false,
             )?;
             if tree_type == TreeType::BatchedState {
-                root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
+                root_history.push(Poseidon::zero_bytes()[height as usize]);
             } else if tree_type == TreeType::BatchedAddress {
                 // Initialized indexed Merkle tree root
                 root_history.push(ADDRESS_TREE_INIT_ROOT_40);

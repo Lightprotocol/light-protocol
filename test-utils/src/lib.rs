@@ -17,7 +17,6 @@ pub mod assert_token_tx;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 #[allow(unused)]
-pub mod indexer;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
@@ -30,7 +29,6 @@ pub use forester_utils::{
     airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
-    indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, TokenDataWithContext},
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions, register_test_forester,
