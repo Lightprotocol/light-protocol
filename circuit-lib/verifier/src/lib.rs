@@ -312,11 +312,6 @@ pub fn verify_batch_append_with_proofs(
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
     match batch_size {
-        1 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_proofs_32_1::VERIFYINGKEY,
-        ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
