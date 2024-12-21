@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount};
+use light_batched_merkle_tree::queue::{BatchedQueueAccount, BatchedQueueMetadata};
 use light_hasher::Discriminator as HasherDiscriminator;
 
 use crate::{
@@ -38,7 +38,7 @@ impl GroupAccess for StateMerkleTreeAccount {
     }
 }
 
-impl GroupAccess for BatchedQueueAccount {
+impl GroupAccess for BatchedQueueMetadata {
     fn get_owner(&self) -> &Pubkey {
         &self.metadata.access_metadata.owner
     }
@@ -122,7 +122,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                         .collect::<Vec<&[u8; 32]>>()
                         .as_slice(),
                 )?,
-                BatchedQueueAccount::DISCRIMINATOR => {
+                BatchedQueueMetadata::DISCRIMINATOR => {
                     append_v2(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
                 _ => {
@@ -176,11 +176,11 @@ fn append_v2<'a, 'b, 'c: 'info, 'info>(
     leaves: &[(u8, [u8; 32])],
 ) -> Result<u64> {
     let output_queue_zero_copy =
-        &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
+        &mut BatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
             .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
+    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueMetadata>(
         ctx,
-        output_queue_zero_copy.get_account(),
+        output_queue_zero_copy.get_metadata(),
     )?;
 
     for (_, leaf) in leaves {
@@ -190,7 +190,7 @@ fn append_v2<'a, 'b, 'c: 'info, 'info>(
     }
 
     let rollover_fee = output_queue_zero_copy
-        .get_account()
+        .get_metadata()
         .metadata
         .rollover_metadata
         .rollover_fee

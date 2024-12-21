@@ -1,28 +1,25 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     merkle_tree::{MerkleTreeMetadata, TreeType},
     queue::{QueueMetadata, QueueType},
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
-use light_utils::fee::compute_rollover_fee;
-use solana_program::{msg, pubkey::Pubkey};
+use light_utils::{account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee};
+use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
 use crate::{
     batch_metadata::BatchMetadata,
     constants::{
-        ADDRESS_TREE_INIT_ROOT_40, DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT,
-        DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE, DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE,
-        TEST_DEFAULT_ZKP_BATCH_SIZE,
+        DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+        DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
-    merkle_tree::{
-        get_merkle_tree_account_size, BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount,
-    },
-    queue::{assert_queue_inited, BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+    merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
+    queue::{get_output_queue_account_size, BatchedQueueAccount, BatchedQueueMetadata},
 };
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq)]
 pub struct InitStateTreeAccountsInstructionData {
     pub index: u64,
@@ -114,6 +111,57 @@ impl Default for InitStateTreeAccountsInstructionData {
     }
 }
 
+/// Initializes the state Merkle tree and output queue accounts.
+/// 1. Check rent exemption and that accounts are initialized with the correct size.
+/// 2. Initialize the output queue and state Merkle tree accounts.
+pub fn init_batched_state_merkle_tree_from_account_info(
+    params: InitStateTreeAccountsInstructionData,
+    owner: Pubkey,
+    merkle_tree_account_info: &AccountInfo<'_>,
+    queue_account_info: &AccountInfo<'_>,
+    additional_bytes_rent: u64,
+) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+    // 1. Check rent exemption and that accounts are initialized with the correct size.
+    let queue_rent;
+    let merkle_tree_rent;
+    {
+        let queue_account_size = get_output_queue_account_size(
+            params.output_queue_batch_size,
+            params.output_queue_zkp_batch_size,
+            params.output_queue_num_batches,
+        );
+        let mt_account_size = get_merkle_tree_account_size(
+            params.input_queue_batch_size,
+            params.bloom_filter_capacity,
+            params.input_queue_zkp_batch_size,
+            params.root_history_capacity,
+            params.height,
+            params.input_queue_num_batches,
+        );
+
+        queue_rent = check_account_balance_is_rent_exempt(queue_account_info, queue_account_size)?;
+
+        merkle_tree_rent =
+            check_account_balance_is_rent_exempt(merkle_tree_account_info, mt_account_size)?;
+    }
+
+    // 2. Initialize the output queue and state Merkle tree accounts.
+    let queue_data = &mut queue_account_info.try_borrow_mut_data()?;
+    let mt_data = &mut merkle_tree_account_info.try_borrow_mut_data()?;
+
+    init_batched_state_merkle_tree_accounts(
+        owner,
+        params,
+        queue_data,
+        *queue_account_info.key,
+        queue_rent,
+        mt_data,
+        *merkle_tree_account_info.key,
+        merkle_tree_rent,
+        additional_bytes_rent,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn init_batched_state_merkle_tree_accounts(
     owner: Pubkey,
@@ -125,7 +173,7 @@ pub fn init_batched_state_merkle_tree_accounts(
     mt_pubkey: Pubkey,
     merkle_tree_rent: u64,
     additional_bytes_rent: u64,
-) -> Result<(), BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let num_batches_output_queue = params.output_queue_num_batches;
     let height = params.height;
@@ -158,12 +206,12 @@ pub fn init_batched_state_merkle_tree_accounts(
             associated_merkle_tree: mt_pubkey,
         };
 
-        ZeroCopyBatchedQueueAccount::init(
+        BatchedQueueAccount::init(
+            output_queue_account_data,
             metadata,
             num_batches_output_queue,
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
-            output_queue_account_data,
             0,
             0,
         )?;
@@ -183,20 +231,18 @@ pub fn init_batched_state_merkle_tree_accounts(
         ),
         associated_queue: output_queue_pubkey,
     };
-    msg!("initing mt_account: ");
-    ZeroCopyBatchedMerkleTreeAccount::init(
+    BatchedMerkleTreeAccount::init(
+        mt_account_data,
         metadata,
         params.root_history_capacity,
         num_batches_input_queue,
         params.input_queue_batch_size,
         params.input_queue_zkp_batch_size,
         height,
-        mt_account_data,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
         TreeType::BatchedState,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData) {
@@ -254,76 +300,70 @@ pub fn get_state_merkle_tree_account_size_from_params(
     )
 }
 
+#[cfg(not(target_os = "solana"))]
 pub fn assert_state_mt_zero_copy_inited(
     account_data: &mut [u8],
-    ref_account: BatchedMerkleTreeAccount,
+    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
-    let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data)
-            .expect("from_bytes_mut failed");
+    let account = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data)
+        .expect("from_bytes_unchecked_mut failed");
     _assert_mt_zero_copy_inited(
-        zero_copy_account,
+        account,
         ref_account,
         num_iters,
         TreeType::BatchedState as u64,
     );
 }
 
+#[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_zero_copy_inited(
     account_data: &mut [u8],
-    ref_account: BatchedMerkleTreeAccount,
+    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
-    let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
-            .expect("from_bytes_mut failed");
-    _assert_mt_zero_copy_inited(
-        zero_copy_account,
-        ref_account,
-        num_iters,
-        TreeType::Address as u64,
-    );
+    let account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
+        .expect("from_bytes_unchecked_mut failed");
+    _assert_mt_zero_copy_inited(account, ref_account, num_iters, TreeType::Address as u64);
 }
 
+#[cfg(not(target_os = "solana"))]
 fn _assert_mt_zero_copy_inited(
-    mut zero_copy_account: ZeroCopyBatchedMerkleTreeAccount,
-    ref_account: BatchedMerkleTreeAccount,
+    mut account: BatchedMerkleTreeAccount,
+    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
     tree_type: u64,
 ) {
-    let queue = zero_copy_account.get_account().queue;
-    let ref_queue = ref_account.queue;
+    use light_hasher::Hasher;
+
+    let queue = account.get_metadata().queue_metadata;
+    let ref_queue = ref_account.queue_metadata;
     let num_batches = ref_queue.num_batches as usize;
-    let mut next_index = zero_copy_account.get_account().next_index;
-    assert_eq!(
-        *zero_copy_account.get_account(),
-        ref_account,
-        "metadata mismatch"
-    );
+    let mut next_index = account.get_metadata().next_index;
+    assert_eq!(*account.get_metadata(), ref_account, "metadata mismatch");
 
     assert_eq!(
-        zero_copy_account.root_history.capacity(),
+        account.root_history.capacity(),
         ref_account.root_history_capacity as usize,
         "root_history_capacity mismatch"
     );
     if tree_type == TreeType::BatchedState as u64 {
         assert_eq!(
-            *zero_copy_account.root_history.get(0).unwrap(),
+            *account.root_history.get(0).unwrap(),
             light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
             "root_history not initialized"
         );
     }
     if tree_type == TreeType::BatchedAddress as u64 {
         assert_eq!(
-            *zero_copy_account.root_history.get(0).unwrap(),
-            ADDRESS_TREE_INIT_ROOT_40,
+            *account.root_history.get(0).unwrap(),
+            crate::constants::ADDRESS_TREE_INIT_ROOT_40,
             "root_history not initialized"
         );
     }
     assert_eq!(
-        zero_copy_account.hashchain_store[0].metadata().capacity(),
-        ref_account.queue.get_num_zkp_batches() as usize,
+        account.hashchain_store[0].metadata().capacity(),
+        ref_account.queue_metadata.get_num_zkp_batches() as usize,
         "hashchain_store mismatch"
     );
 
@@ -336,19 +376,20 @@ fn _assert_mt_zero_copy_inited(
     } else {
         QueueType::Address as u64
     };
-    assert_queue_inited(
+    crate::queue::assert_queue_inited(
         queue,
         ref_queue,
         queue_type,
-        &mut zero_copy_account.value_vecs,
-        &mut zero_copy_account.bloom_filter_stores,
-        &mut zero_copy_account.batches,
+        &mut account.value_vecs,
+        &mut account.bloom_filter_stores,
+        &mut account.batches,
         num_batches,
         num_iters,
         next_index,
     );
 }
 
+#[repr(C)]
 pub struct CreateOutputQueueParams {
     pub owner: Pubkey,
     pub program_owner: Option<Pubkey>,
@@ -373,7 +414,7 @@ impl CreateOutputQueueParams {
         associated_merkle_tree: Pubkey,
     ) -> Self {
         Self {
-            owner, // Default value, should be set appropriately
+            owner,
             program_owner: params.program_owner,
             forester: params.forester,
             rollover_threshold: params.rollover_threshold,
@@ -381,8 +422,8 @@ impl CreateOutputQueueParams {
             batch_size: params.output_queue_batch_size,
             zkp_batch_size: params.output_queue_zkp_batch_size,
             additional_bytes: params.additional_bytes,
-            rent,                   // Default value, should be set appropriately
-            associated_merkle_tree, // Default value, should be set appropriately
+            rent,
+            associated_merkle_tree,
             height: params.height,
             num_batches: params.output_queue_num_batches,
             network_fee: params.network_fee.unwrap_or_default(),
@@ -390,7 +431,7 @@ impl CreateOutputQueueParams {
     }
 }
 
-pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQueueAccount {
+pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQueueMetadata {
     let rollover_fee: u64 = match params.rollover_threshold {
         Some(rollover_threshold) => {
             compute_rollover_fee(rollover_threshold, params.height, params.rent).unwrap()
@@ -416,14 +457,14 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         queue_type: QueueType::Output as u64,
         associated_merkle_tree: params.associated_merkle_tree,
     };
-    let queue = BatchMetadata::get_output_queue_default(
+    let batch_metadata = BatchMetadata::new_output_queue(
         params.batch_size,
         params.zkp_batch_size,
         params.num_batches,
     );
-    BatchedQueueAccount {
+    BatchedQueueMetadata {
         metadata,
-        queue,
+        batch_metadata,
         next_index: 0,
     }
 }

@@ -21,3 +21,4 @@ rand = "0.8"
 bytemuck = "1.17"
 memoffset = "0.9"
 light-poseidon = {workspace = true}
+borsh = {workspace = true}

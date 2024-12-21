@@ -1,12 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_batched_merkle_tree::{
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
-    rollover_address_tree::rollover_batch_address_tree,
+    merkle_tree::BatchedMerkleTreeAccount, rollover_address_tree::rollover_batched_address_tree,
 };
+use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     utils::{
-        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
@@ -52,13 +51,13 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     network_fee: Option<u64>,
 ) -> Result<()> {
     let old_merkle_tree_account =
-        &mut ZeroCopyBatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+        &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
             &ctx.accounts.old_address_merkle_tree,
         )
         .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<
         RolloverBatchAddressMerkleTree,
-        ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
@@ -67,9 +66,10 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
             .old_address_merkle_tree
             .to_account_info()
             .data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     let new_mt_data = &mut ctx.accounts.new_address_merkle_tree.try_borrow_mut_data()?;
-    rollover_batch_address_tree(
+    rollover_batched_address_tree(
         old_merkle_tree_account,
         new_mt_data,
         merkle_tree_rent,

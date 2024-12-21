@@ -43,17 +43,17 @@ pub use batch_nullify::*;
 pub mod batch_append;
 pub use batch_append::*;
 
-pub mod rollover_batch_state_merkle_tree;
-pub use rollover_batch_state_merkle_tree::*;
+pub mod rollover_batched_state_merkle_tree;
+pub use rollover_batched_state_merkle_tree::*;
 
-pub mod intialize_batch_address_merkle_tree;
-pub use intialize_batch_address_merkle_tree::*;
+pub mod intialize_batched_address_merkle_tree;
+pub use intialize_batched_address_merkle_tree::*;
 
 pub mod batch_update_address_tree;
 pub use batch_update_address_tree::*;
 
-pub mod rollover_batch_address_merkle_tree;
-pub use rollover_batch_address_merkle_tree::*;
+pub mod rollover_batched_address_merkle_tree;
+pub use rollover_batched_address_merkle_tree::*;
 
 pub mod migrate_state;
 pub use migrate_state::*;

@@ -6,8 +6,8 @@ use forester_utils::{
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
-    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    queue::BatchedQueueAccount,
+    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
+    queue::BatchedQueueMetadata,
 };
 use light_client::rpc::RpcConnection;
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
@@ -145,7 +145,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     .unwrap()
                     .data
                     .clone();
-                let mut merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                let mut merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     &mut merkle_tree_account_data,
                 )
                 .unwrap();
@@ -181,13 +181,11 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            BatchedMerkleTreeMetadata::DISCRIMINATOR => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
-                    ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                        &mut account_data,
-                    )
-                    .unwrap();
+                    BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account_data)
+                        .unwrap();
                 let mut batches = merkle_tree.batches.clone();
                 // Must be included in one batch
                 batches.iter_mut().enumerate().any(|(i, batch)| {
@@ -443,12 +441,11 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     version: 1,
                 });
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            BatchedMerkleTreeMetadata::DISCRIMINATOR => {
                 let merkle_tree_account_lamports = account_data.lamports;
-                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                    &mut account_data.data,
-                )
-                .unwrap();
+                let merkle_tree =
+                    BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account_data.data)
+                        .unwrap();
                 let queue_account_lamports = match rpc
                     .get_account(account_bundle.nullifier_queue)
                     .await
@@ -464,7 +461,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     };
                 let root = *merkle_tree.root_history.last().unwrap();
 
-                let output_queue = AccountZeroCopy::<BatchedQueueAccount>::new(
+                let output_queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
                     rpc,
                     account_bundle.nullifier_queue,
                 )

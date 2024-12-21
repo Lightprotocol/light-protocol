@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use std::{
     env,
     io::{self, prelude::*},
@@ -11,6 +12,7 @@ use num_bigint::BigUint;
 use solana_program::keccak::hashv;
 use thiserror::Error;
 
+pub mod account;
 pub mod bigint;
 pub mod fee;
 pub mod hashchain;
@@ -31,6 +33,24 @@ pub enum UtilsError {
     InvalidInputLength,
     #[error("Hasher error {0}")]
     HasherError(#[from] HasherError),
+    #[error("Invalid Discriminator.")]
+    InvalidDiscriminator,
+    #[error("Account owned by wrong program.")]
+    AccountOwnedByWrongProgram,
+    #[error("Account not mutable.")]
+    AccountNotMutable,
+    #[error("Borrow account data failed.")]
+    BorrowAccountDataFailed,
+    #[error("Invalid Account size.")]
+    InvalidAccountSize,
+    #[error("Account is mutable.")]
+    AccountMutable,
+    #[error("Account is already initialized.")]
+    AlreadyInitialized,
+    #[error("Invalid account balance.")]
+    InvalidAccountBalance,
+    #[error("Failed to borrow rent sysvar.")]
+    FailedBorrowRentSysvar,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -43,6 +63,15 @@ impl From<UtilsError> for u32 {
             UtilsError::InvalidSeeds => 12003,
             UtilsError::InvalidRolloverThreshold => 12004,
             UtilsError::InvalidInputLength => 12005,
+            UtilsError::InvalidDiscriminator => 12006,
+            UtilsError::AccountOwnedByWrongProgram => 12007,
+            UtilsError::AccountNotMutable => 12008,
+            UtilsError::BorrowAccountDataFailed => 12009,
+            UtilsError::InvalidAccountSize => 12010,
+            UtilsError::AccountMutable => 12011,
+            UtilsError::AlreadyInitialized => 12012,
+            UtilsError::InvalidAccountBalance => 12013,
+            UtilsError::FailedBorrowRentSysvar => 12014,
             UtilsError::HasherError(e) => u32::from(e),
         }
     }

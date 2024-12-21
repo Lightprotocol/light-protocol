@@ -1,13 +1,13 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_batched_merkle_tree::{
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
-    queue::ZeroCopyBatchedQueueAccount,
-    rollover_state_tree::{rollover_batch_state_tree, RolloverBatchStateTreeParams},
+    merkle_tree::BatchedMerkleTreeAccount,
+    queue::BatchedQueueAccount,
+    rollover_state_tree::{rollover_batched_state_tree, RolloverBatchStateTreeParams},
 };
+use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     utils::{
-        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
@@ -59,18 +59,17 @@ pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<()> {
-    let old_merkle_tree_account =
-        &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-            &ctx.accounts.old_state_merkle_tree,
-        )
-        .map_err(ProgramError::from)?;
-    let old_output_queue = &mut ZeroCopyBatchedQueueAccount::output_queue_from_account_info_mut(
+    let old_merkle_tree_account = &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
+        &ctx.accounts.old_state_merkle_tree,
+    )
+    .map_err(ProgramError::from)?;
+    let old_output_queue = &mut BatchedQueueAccount::output_queue_from_account_info_mut(
         &ctx.accounts.old_output_queue,
     )
     .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<
         RolloverBatchStateMerkleTree,
-        ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
@@ -79,11 +78,13 @@ pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
             .old_state_merkle_tree
             .to_account_info()
             .data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     let queue_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.new_output_queue.to_account_info(),
         ctx.accounts.old_output_queue.to_account_info().data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     let additional_bytes_rent = Rent::get()?.minimum_balance(additional_bytes as usize);
     let new_mt_data = &mut ctx.accounts.new_state_merkle_tree.try_borrow_mut_data()?;
     let params = RolloverBatchStateTreeParams {
@@ -102,7 +103,7 @@ pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         network_fee,
     };
 
-    rollover_batch_state_tree(params).map_err(ProgramError::from)?;
+    rollover_batched_state_tree(params).map_err(ProgramError::from)?;
 
     transfer_lamports(
         &ctx.accounts.old_output_queue.to_account_info(),

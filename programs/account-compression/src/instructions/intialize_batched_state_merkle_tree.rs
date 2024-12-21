@@ -1,19 +1,12 @@
 use anchor_lang::{prelude::*, solana_program::program_error::ProgramError};
-use light_batched_merkle_tree::{
-    initialize_state_tree::{
-        init_batched_state_merkle_tree_accounts, validate_batched_tree_params,
-        InitStateTreeAccountsInstructionData,
-    },
-    merkle_tree::get_merkle_tree_account_size,
-    queue::get_output_queue_account_size,
+use light_batched_merkle_tree::initialize_state_tree::{
+    init_batched_state_merkle_tree_from_account_info, validate_batched_tree_params,
+    InitStateTreeAccountsInstructionData,
 };
 
 use super::RegisteredProgram;
-use crate::utils::{
-    check_account::check_account_balance_is_rent_exempt,
-    check_signer_is_registered_or_authority::{
-        check_signer_is_registered_or_authority, GroupAccounts,
-    },
+use crate::utils::check_signer_is_registered_or_authority::{
+    check_signer_is_registered_or_authority, GroupAccounts,
 };
 
 #[derive(Accounts)]
@@ -61,50 +54,14 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
         }
         None => ctx.accounts.authority.key(),
     };
-
-    let output_queue_pubkey = ctx.accounts.queue.key();
-    let queue_account_size = get_output_queue_account_size(
-        params.output_queue_batch_size,
-        params.output_queue_zkp_batch_size,
-        params.output_queue_num_batches,
-    );
-    let mt_account_size = get_merkle_tree_account_size(
-        params.input_queue_batch_size,
-        params.bloom_filter_capacity,
-        params.input_queue_zkp_batch_size,
-        params.root_history_capacity,
-        params.height,
-        params.input_queue_num_batches,
-    );
-
-    let queue_rent = check_account_balance_is_rent_exempt(
-        &ctx.accounts.queue.to_account_info(),
-        queue_account_size,
-    )?;
-
-    let mt_pubkey = ctx.accounts.merkle_tree.key();
-    let merkle_tree_rent = check_account_balance_is_rent_exempt(
-        &ctx.accounts.merkle_tree.to_account_info(),
-        mt_account_size,
-    )?;
-
+    let merkle_tree_account_info = ctx.accounts.merkle_tree.to_account_info();
+    let queue_account_info = ctx.accounts.queue.to_account_info();
     let additional_bytes_rent = (Rent::get()?).minimum_balance(params.additional_bytes as usize);
-
-    let output_queue_account_data: AccountInfo<'info> = ctx.accounts.queue.to_account_info();
-    let queue_data = &mut output_queue_account_data.try_borrow_mut_data()?;
-
-    let mt_account_info = ctx.accounts.merkle_tree.to_account_info();
-    let mt_data = &mut mt_account_info.try_borrow_mut_data()?;
-
-    init_batched_state_merkle_tree_accounts(
-        owner,
+    init_batched_state_merkle_tree_from_account_info(
         params,
-        queue_data,
-        output_queue_pubkey,
-        queue_rent,
-        mt_data,
-        mt_pubkey,
-        merkle_tree_rent,
+        owner,
+        &merkle_tree_account_info,
+        &queue_account_info,
         additional_bytes_rent,
     )
     .map_err(ProgramError::from)?;

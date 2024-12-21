@@ -23,10 +23,6 @@ pub enum BatchedMerkleTreeError {
     InvalidNetworkFee,
     #[error("Batch size not divisible by ZKP batch size.")]
     BatchSizeNotDivisibleByZkpBatchSize,
-    #[error("Account owned by wrong program.")]
-    AccountOwnedByWrongProgram,
-    #[error("Account not mutable.")]
-    AccountNotMutable,
     #[error("Inclusion proof by index failed.")]
     InclusionProofByIndexFailed,
     #[error("Hasher error: {0}")]
@@ -57,9 +53,7 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::LeafIndexNotInBatch => 14304,
             BatchedMerkleTreeError::InvalidNetworkFee => 14305,
             BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize => 14306,
-            BatchedMerkleTreeError::AccountOwnedByWrongProgram => 14307,
-            BatchedMerkleTreeError::AccountNotMutable => 14308,
-            BatchedMerkleTreeError::InclusionProofByIndexFailed => 14309,
+            BatchedMerkleTreeError::InclusionProofByIndexFailed => 14307,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::BoundedVec(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),

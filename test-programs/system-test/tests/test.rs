@@ -4,8 +4,8 @@ use anchor_lang::{error::ErrorCode, AnchorSerialize, InstructionData, ToAccountM
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
-    queue::ZeroCopyBatchedQueueAccount, zero_copy::ZeroCopyError,
+    initialize_state_tree::InitStateTreeAccountsInstructionData, queue::BatchedQueueAccount,
+    zero_copy::ZeroCopyError,
 };
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
@@ -45,7 +45,7 @@ use light_test_utils::{
     },
     FeeConfig, Indexer, RpcConnection, RpcError, TransactionParams,
 };
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{hash_to_bn254_field_size_be, UtilsError};
 use light_verifier::VerifierError;
 use quote::format_ident;
 use serial_test::serial;
@@ -2377,7 +2377,7 @@ async fn batch_invoke_test() {
             .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
             .await;
         // Should fail because it tries to deserialize an output queue account from a nullifier queue account
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
 }
 
@@ -2491,13 +2491,17 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         .unwrap()
         .unwrap();
     let output_queue =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut output_queue_account.data).unwrap();
+        BatchedQueueAccount::output_queue_from_bytes_mut(&mut output_queue_account.data).unwrap();
     let fullness = output_queue.get_batch_num_inserted_in_current_batch();
-    let remaining_leaves = output_queue.get_account().queue.batch_size - fullness;
+    let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }
-    for i in 0..output_queue.get_account().queue.get_num_zkp_batches() {
+    for i in 0..output_queue
+        .get_metadata()
+        .batch_metadata
+        .get_num_zkp_batches()
+    {
         println!("Performing batch append {}", i);
         let bundle = test_indexer
             .state_merkle_trees

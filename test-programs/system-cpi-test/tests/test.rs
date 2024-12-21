@@ -3,8 +3,8 @@
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_batched_merkle_tree::{
-    errors::BatchedMerkleTreeError, initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, zero_copy::ZeroCopyError,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_compressed_token::{
     process_transfer::InputTokenDataWithContext, token_data::AccountState,
@@ -39,7 +39,7 @@ use light_test_utils::{
     system_program::transfer_compressed_sol_test,
     Indexer, RpcConnection, RpcError, TokenDataWithContext,
 };
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{hash_to_bn254_field_size_be, UtilsError};
 use light_verifier::VerifierError;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
@@ -176,10 +176,9 @@ async fn test_read_only_accounts() {
                 .unwrap()
                 .unwrap()
                 .data;
-            let onchain_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                account.as_mut_slice(),
-            )
-            .unwrap();
+            let onchain_account =
+                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.as_mut_slice())
+                    .unwrap();
             e2e_env.indexer.finalize_batched_address_tree_update(
                 env.batch_address_merkle_tree,
                 &onchain_account,
@@ -339,7 +338,7 @@ async fn test_read_only_accounts() {
             CreatePdaMode::Functional,
         )
         .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
 
     let seed = [206u8; 32];
@@ -386,7 +385,7 @@ async fn test_read_only_accounts() {
         )
         .await;
 
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     println!("post 6");
     // 7. failing - proof by index for invalidated account
@@ -523,7 +522,7 @@ async fn test_read_only_accounts() {
             CreatePdaMode::InvalidReadOnlyAccountMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     println!("post 13");
     // 14. failing - account marked as proof by index but index cannot be in value vec
@@ -729,7 +728,7 @@ async fn only_test_create_pda() {
         assert_rpc_error(
             result,
             0,
-            BatchedMerkleTreeError::AccountNotMutable.into(),
+            UtilsError::AccountNotMutable.into(),
             // AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();

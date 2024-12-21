@@ -80,8 +80,8 @@ use forester_utils::{
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
-    batch::BatchState, constants::TEST_DEFAULT_BATCH_SIZE,
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
+    batch::BatchState, constants::TEST_DEFAULT_BATCH_SIZE, merkle_tree::BatchedMerkleTreeAccount,
+    queue::BatchedQueueAccount,
 };
 use light_client::{
     rpc::{errors::RpcError, RpcConnection},
@@ -525,13 +525,14 @@ where
                                 .await
                                 .unwrap()
                                 .unwrap();
-                            let merkle_tree =
-                                ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                                    merkle_tree_account.data.as_mut_slice(),
-                                )
-                                .unwrap();
-                            let next_full_batch_index =
-                                merkle_tree.get_account().queue.next_full_batch_index;
+                            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                                merkle_tree_account.data.as_mut_slice(),
+                            )
+                            .unwrap();
+                            let next_full_batch_index = merkle_tree
+                                .get_metadata()
+                                .queue_metadata
+                                .next_full_batch_index;
                             let batch = merkle_tree
                                 .batches
                                 .get(next_full_batch_index as usize)
@@ -570,12 +571,14 @@ where
                             println!("\n --------------------------------------------------\n\t\t Appending LEAVES batched (v2)\n --------------------------------------------------");
                             let mut queue_account =
                                 self.rpc.get_account(queue_pubkey).await.unwrap().unwrap();
-                            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                                 queue_account.data.as_mut_slice(),
                             )
                             .unwrap();
-                            let next_full_batch_index =
-                                output_queue.get_account().queue.next_full_batch_index;
+                            let next_full_batch_index = output_queue
+                                .get_metadata()
+                                .batch_metadata
+                                .next_full_batch_index;
                             let batch = output_queue
                                 .batches
                                 .get(next_full_batch_index as usize)

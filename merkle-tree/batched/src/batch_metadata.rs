@@ -20,11 +20,7 @@ impl BatchMetadata {
         self.batch_size / self.zkp_batch_size
     }
 
-    pub fn get_output_queue_default(
-        batch_size: u64,
-        zkp_batch_size: u64,
-        num_batches: u64,
-    ) -> Self {
+    pub fn new_output_queue(batch_size: u64, zkp_batch_size: u64, num_batches: u64) -> Self {
         BatchMetadata {
             num_batches,
             zkp_batch_size,
@@ -35,7 +31,7 @@ impl BatchMetadata {
         }
     }
 
-    pub fn get_input_queue_default(
+    pub fn new_input_queue(
         batch_size: u64,
         bloom_filter_capacity: u64,
         zkp_batch_size: u64,
