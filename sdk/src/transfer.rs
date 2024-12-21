@@ -2,11 +2,7 @@ use anchor_lang::Result;
 
 use crate::{account_info::LightAccountInfo, error::LightSdkError};
 
-/// Transfers a specified amount of lamports from one account to another.
-///
-/// Attempts to transfer `lamports` from the `from` account to the `to`
-/// account. It will update the lamport balances of both accounts if the
-/// transfer is successful.
+/// Transfers lamports from one compressed account to another.
 pub fn transfer_compressed_sol(
     from: &mut LightAccountInfo,
     to: &mut LightAccountInfo,

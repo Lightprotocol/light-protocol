@@ -14,45 +14,50 @@ use crate::{
     merkle_context::PackedMerkleContext,
 };
 
-/// Information about compressed account which is being initialized.
+/// Read-only information about existing compressed account state.
 #[derive(Debug)]
 pub struct LightInputAccountInfo<'a> {
-    /// Lamports.
+    /// Lamports assigned to the compressed account.
     pub lamports: Option<u64>,
-    /// Address.
+    /// Address of the compressed account.
     pub address: Option<[u8; 32]>,
-    /// Account data.
+    /// The data held in this compressed account.
     pub data: Option<&'a [u8]>,
-    /// Data hash.
+    /// Hash of the data held in this compressed account.
     pub data_hash: Option<[u8; 32]>,
-    /// Merkle tree context.
+    /// Context about the State tree that the compressed account is stored in.
     pub merkle_context: PackedMerkleContext,
-    /// Root index.
+    /// Recent root index of the State tree that the compressed account is
+    /// stored in.
     pub root_index: u16,
 }
 
 /// Information about compressed account which is being mutated.
 #[derive(Debug)]
 pub struct LightAccountInfo<'a> {
-    /// Input account.
+    /// Read-only information about existing compressed account state.
     pub(crate) input: Option<LightInputAccountInfo<'a>>,
-    /// Owner of the account.
-    ///
-    /// Defaults to the program ID.
+    /// Program or user that owns the account.
     pub owner: &'a Pubkey,
-    /// Lamports.
+    /// Lamports assigned to the compressed account.
     pub lamports: Option<u64>,
-    /// Discriminator.
+    /// Account discriminator.
     pub discriminator: Option<[u8; 8]>,
-    /// Account data.
+    /// The data held in this compressed account.
     pub data: Option<Rc<RefCell<Vec<u8>>>>,
-    /// Data hash.
+    /// Hash of the data held in this compressed account.
     pub data_hash: Option<[u8; 32]>,
-    /// Address.
+    /// Address of the compressed account.
     pub address: Option<[u8; 32]>,
-    /// New Merkle tree index. Set `None` for `close` account infos.
+    /// Index of Merkle tree account in account_infos passed to the program.
+    ///
+    /// Index of the Merkle tree account in the program's account_infos array to
+    /// which the compressed account's data will be written.
+    ///
+    /// Set `None` to indicate this is a close operation that will not write
+    /// output data.
     pub output_merkle_tree_index: Option<u8>,
-    /// New address parameters.
+    /// Parameters required when creating a new compressed account address.
     pub new_address_params: Option<PackedNewAddressParams>,
 }
 
@@ -274,19 +279,21 @@ impl<'a> LightAccountInfo<'a> {
         Ok(account_info)
     }
 
+    /// Assigns the provided lamports to the compressed account.
     pub fn compress_and_add_sol(&mut self, lamports: u64) {
         self.lamports = Some(lamports);
     }
 
-    /// Returns the original data sent by the client, before any potential
-    /// modifications made by the program.
-    pub fn initial_data(&self) -> Option<&[u8]> {
+    /// Returns a reference to the original data sent by the client, before any
+    /// potential modifications made by the program.
+    pub fn input_data(&self) -> Option<&[u8]> {
         self.input.as_ref().and_then(|input| input.data)
     }
 
-    /// Converts the given [LightAccountInfo] into a
-    /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
-    /// light-system program.
+    /// Returns the input compressed account data if it exists, otherwise   
+    /// returns None.
+    ///
+    /// To be passed along to the light-system program via `invoke_cpi`.
     pub fn input_compressed_account(
         &self,
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
@@ -322,6 +329,9 @@ impl<'a> LightAccountInfo<'a> {
         }
     }
 
+    /// Returns the output compressed account data to be passed to the
+    /// light-system program via `invoke_cpi` if a merkle tree index was set,
+    /// otherwise returns None.
     pub fn output_compressed_account(
         &self,
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
