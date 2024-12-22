@@ -11,7 +11,15 @@ import {
     createCompressedAccountWithMerkleContext,
     bn,
 } from '../../state';
-import { struct, publicKey, u64, option, vecU8, u8 } from '@coral-xyz/borsh';
+import {
+    struct,
+    publicKey,
+    u64,
+    option,
+    vecU8,
+    u8,
+    Layout,
+} from '@coral-xyz/borsh';
 
 const tokenProgramId: PublicKey = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
@@ -27,7 +35,7 @@ type TokenData = {
 };
 
 // for test-rpc
-export const TokenDataLayout = struct([
+export const TokenDataLayout: Layout<TokenData> = struct([
     publicKey('mint'),
     publicKey('owner'),
     u64('amount'),
