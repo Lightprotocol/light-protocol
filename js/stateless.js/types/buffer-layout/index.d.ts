@@ -1,3 +1,4 @@
+// From https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/types/buffer-layout/index.d.ts
 declare module 'buffer-layout' {
     // TODO: remove `any`.
     export class Layout<T = any> {
