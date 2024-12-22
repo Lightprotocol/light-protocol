@@ -13,7 +13,6 @@ const rolls = (fmt, env) => ({
         sourcemap: true,
     },
     external: [
-        '@coral-xyz/anchor',
         '@solana/web3.js',
         '@noble/hashes',
         'buffer',

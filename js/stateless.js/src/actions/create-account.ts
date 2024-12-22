@@ -19,7 +19,7 @@ import {
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { bn } from '../state';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 
 /**
  * Create compressed account with address

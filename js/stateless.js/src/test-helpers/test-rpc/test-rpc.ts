@@ -1,5 +1,5 @@
 import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,

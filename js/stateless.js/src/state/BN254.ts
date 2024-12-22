@@ -4,7 +4,7 @@
 
 import { FIELD_SIZE } from '../constants';
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
 import { Buffer } from 'buffer';
 

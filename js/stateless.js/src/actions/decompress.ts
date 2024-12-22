@@ -8,7 +8,7 @@ import {
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { CompressedAccountWithMerkleContext, bn } from '../state';
 
 /**
