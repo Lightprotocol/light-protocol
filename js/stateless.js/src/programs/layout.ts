@@ -163,39 +163,40 @@ export const invokeAccountsLayout = (
     ];
 };
 
-export const PublicTransactionEventLayout = struct([
-    vec(array(u8(), 32), 'inputCompressedAccountHashes'),
-    vec(array(u8(), 32), 'outputCompressedAccountHashes'),
-    vec(
-        struct([
-            struct(
-                [
-                    publicKey('owner'),
-                    u64('lamports'),
-                    option(array(u8(), 32), 'address'),
-                    option(
-                        struct([
-                            array(u8(), 8, 'discriminator'),
-                            vecU8('data'),
-                            array(u8(), 32, 'dataHash'),
-                        ]),
-                        'data',
-                    ),
-                ],
-                'compressedAccount',
-            ),
-            u8('merkleTreeIndex'),
-        ]),
-        'outputCompressedAccounts',
-    ),
-    vec(u32(), 'outputLeafIndices'),
-    vec(struct([publicKey('pubkey'), u64('seq')]), 'sequenceNumbers'),
-    option(u64(), 'relayFee'),
-    bool('isCompress'),
-    option(u64(), 'compressOrDecompressLamports'),
-    vec(publicKey(), 'pubkeyArray'),
-    option(vecU8(), 'message'),
-]);
+export const PublicTransactionEventLayout: Layout<PublicTransactionEvent> =
+    struct([
+        vec(array(u8(), 32), 'inputCompressedAccountHashes'),
+        vec(array(u8(), 32), 'outputCompressedAccountHashes'),
+        vec(
+            struct([
+                struct(
+                    [
+                        publicKey('owner'),
+                        u64('lamports'),
+                        option(array(u8(), 32), 'address'),
+                        option(
+                            struct([
+                                array(u8(), 8, 'discriminator'),
+                                vecU8('data'),
+                                array(u8(), 32, 'dataHash'),
+                            ]),
+                            'data',
+                        ),
+                    ],
+                    'compressedAccount',
+                ),
+                u8('merkleTreeIndex'),
+            ]),
+            'outputCompressedAccounts',
+        ),
+        vec(u32(), 'outputLeafIndices'),
+        vec(struct([publicKey('pubkey'), u64('seq')]), 'sequenceNumbers'),
+        option(u64(), 'relayFee'),
+        bool('isCompress'),
+        option(u64(), 'compressOrDecompressLamports'),
+        vec(publicKey(), 'pubkeyArray'),
+        option(vecU8(), 'message'),
+    ]);
 
 export function encodePublicTransactionEvent(
     data: PublicTransactionEvent,
