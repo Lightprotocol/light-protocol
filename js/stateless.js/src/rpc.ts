@@ -58,7 +58,7 @@ import {
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 

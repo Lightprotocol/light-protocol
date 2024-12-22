@@ -23,7 +23,7 @@ import {
     bn,
     TokenData,
 } from './state';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 
 export interface LatestNonVotingSignatures {
     context: { slot: number };
