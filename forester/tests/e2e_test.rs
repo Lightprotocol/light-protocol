@@ -37,7 +37,7 @@ use test_utils::*;
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 40,
+        wait_time: 0,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
@@ -271,7 +271,7 @@ pub async fn assert_queue_len(
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 40,
+        wait_time: 0,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
@@ -611,7 +611,7 @@ async fn test_epoch_double_registration() {
     println!("*****************************************************************");
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 40,
+        wait_time: 0,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
