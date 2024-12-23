@@ -249,8 +249,8 @@ importers:
         specifier: workspace:*
         version: link:../../cli
       '@types/bn.js':
-        specifier: ^5.1.0
-        version: 5.1.5
+        specifier: ^5.1.6
+        version: 5.1.6
       '@types/chai':
         specifier: ^5.0.0
         version: 5.0.0
@@ -299,8 +299,8 @@ importers:
         version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
     devDependencies:
       '@types/bn.js':
-        specifier: ^5.1.5
-        version: 5.1.5
+        specifier: ^5.1.6
+        version: 5.1.6
       '@types/chai':
         specifier: ^5.0.0
         version: 5.0.0
@@ -642,8 +642,8 @@ importers:
         specifier: workspace:*
         version: link:../../cli
       '@types/bn.js':
-        specifier: ^5.1.0
-        version: 5.1.5
+        specifier: ^5.1.6
+        version: 5.1.6
       '@types/chai':
         specifier: ^4.3.0
         version: 4.3.16
@@ -3346,6 +3346,9 @@ packages:
 
   '@types/bn.js@5.1.5':
     resolution: {integrity: sha512-V46N0zwKRF5Q00AZ6hWtN0T8gGmDUaUzLWQvHFo5yThtVwK/VCenFY3wXVbOvNfajEpsTfQM4IN9k/d6gUVX3A==}
+
+  '@types/bn.js@5.1.6':
+    resolution: {integrity: sha512-Xh8vSwUeMKeYYrj3cX4lGQgFSF/N03r+tv4AiLl1SucqV+uTQpxRcnM8AkXKHwYP9ZPXOYXRr2KPXpVlIvqh9w==}
 
   '@types/chai@4.3.16':
     resolution: {integrity: sha512-PatH4iOdyh3MyWtmHVFXLWCCIhUbopaltqddG9BzB+gMIzee2MJrvd+jouii9Z3wzQJruGWAm7WOMjgfG8hQlQ==}
@@ -12095,6 +12098,10 @@ snapshots:
   '@types/bn.js@5.1.5':
     dependencies:
       '@types/node': 22.5.5
+
+  '@types/bn.js@5.1.6':
+    dependencies:
+      '@types/node': 22.10.2
 
   '@types/chai@4.3.16': {}
 
