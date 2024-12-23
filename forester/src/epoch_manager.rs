@@ -21,8 +21,8 @@ use light_registry::{
     errors::RegistryError,
     protocol_config::state::ProtocolConfig,
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
-    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
-    EpochPda, ForesterEpochPda,
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority, get_forester_pda},
+    EpochPda, ForesterEpochPda, ForesterPda,
 };
 use solana_program::{instruction::InstructionError, pubkey::Pubkey};
 use solana_sdk::{signature::Signer, transaction::TransactionError};
@@ -1047,7 +1047,23 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     }
 
     async fn perform_rollover(&self, tree_account: &TreeAccounts) -> Result<()> {
+        info!("Performing rollover for {:?}", tree_account.tree_type);
         let mut rpc = self.rpc_pool.get_connection().await?;
+
+        let (forester_pda_pubkey, _) = get_forester_pda(&self.config.derivation_pubkey);
+        
+        match rpc.get_anchor_account::<ForesterPda>(&forester_pda_pubkey).await {
+            Ok(Some(_)) => info!("ForesterPda found for pubkey: {}", forester_pda_pubkey),
+            Ok(None) => {
+                warn!("ForesterPda not found for pubkey: {}", forester_pda_pubkey);
+                return Err(ForesterError::Custom("ForesterPda not found".to_string()));
+            }
+            Err(e) => {
+                warn!("Error fetching ForesterPda: {:?}", e);
+                return Err(ForesterError::Custom(format!("Error fetching ForesterPda: {:?}", e)));
+            }
+        };
+
         let result = match tree_account.tree_type {
             TreeType::Address => {
                 rollover_address_merkle_tree(
@@ -1074,7 +1090,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         };
 
         match result {
-            Ok(_) => debug!(
+            Ok(_) => info!(
                 "{:?} tree rollover completed successfully",
                 tree_account.tree_type
             ),

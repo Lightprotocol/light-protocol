@@ -28,7 +28,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::{errors::ForesterError, ForesterConfig};
 
@@ -114,7 +114,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    debug!(
+    info!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );
@@ -142,6 +142,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     };
 
     if is_already_rolled_over {
+        info!("Tree {:?} is already rolled over", tree_pubkey);
         return Ok(false);
     }
 
@@ -167,6 +168,7 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R>>(
     indexer: Arc<Mutex<I>>,
     tree_accounts: &TreeAccounts,
 ) -> Result<(), ForesterError> {
+    info!("Rolling over state merkle tree {:?}", tree_accounts.merkle_tree);
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
     let new_cpi_signature_keypair = Keypair::new();
