@@ -112,14 +112,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
-
-    use super::*;
-
     use ark_bn254::Fr;
     use ark_ff::{BigInteger, PrimeField, UniformRand};
     use light_hasher::Poseidon;
     use rand::{thread_rng, Rng};
+
+    use super::*;
+    use crate::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 
     fn from_bytes_copy<
         const HEIGHT: usize,

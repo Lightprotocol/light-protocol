@@ -1,12 +1,13 @@
-use clap::Parser;
-use groth16_solana::groth16::Groth16Verifyingkey;
-use light_utils::rustfmt;
-use quote::quote;
 use std::{
     fs::{self, File},
     io::{self, prelude::*},
     path::{Path, PathBuf},
 };
+
+use clap::Parser;
+use groth16_solana::groth16::Groth16Verifyingkey;
+use light_utils::rustfmt;
+use quote::quote;
 
 #[derive(Debug, Parser)]
 pub struct Options {

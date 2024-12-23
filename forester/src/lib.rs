@@ -18,23 +18,30 @@ pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
 
-use crate::epoch_manager::{run_service, WorkReport};
-use crate::errors::ForesterError;
-use crate::metrics::QUEUE_LENGTH;
-use crate::queue_helpers::fetch_queue_item_data;
-use crate::slot_tracker::SlotTracker;
-use crate::utils::get_protocol_config;
+use std::{sync::Arc, time::Duration};
+
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use forester_utils::indexer::Indexer;
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_client::rpc_pool::SolanaRpcPool;
+use forester_utils::{
+    forester_epoch::{TreeAccounts, TreeType},
+    indexer::Indexer,
+};
+use light_client::{
+    rpc::{RpcConnection, SolanaRpcConnection},
+    rpc_pool::SolanaRpcPool,
+};
 use solana_sdk::commitment_config::CommitmentConfig;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
+
+use crate::{
+    epoch_manager::{run_service, WorkReport},
+    errors::ForesterError,
+    metrics::QUEUE_LENGTH,
+    queue_helpers::fetch_queue_item_data,
+    slot_tracker::SlotTracker,
+    utils::get_protocol_config,
+};
 
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,

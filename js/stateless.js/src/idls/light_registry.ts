@@ -1274,6 +1274,63 @@ export type LightRegistry = {
                 },
             ];
         },
+        {
+            name: 'migrateState';
+            accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'outputQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'inputs';
+                    type: {
+                        defined: 'MigrateLeafParams';
+                    };
+                },
+            ];
+        },
     ];
     accounts: [
         {
@@ -2956,6 +3013,63 @@ export const IDL: LightRegistry = {
                 {
                     name: 'bump',
                     type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'migrateState',
+            accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'outputQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'inputs',
+                    type: {
+                        defined: 'MigrateLeafParams',
+                    },
                 },
             ],
         },

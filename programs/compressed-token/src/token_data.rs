@@ -138,9 +138,10 @@ impl DataHasher for TokenData {
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
     use light_hasher::{Keccak, Poseidon};
     use rand::Rng;
+
+    use super::*;
 
     #[test]
     fn equivalency_of_hash_functions() {

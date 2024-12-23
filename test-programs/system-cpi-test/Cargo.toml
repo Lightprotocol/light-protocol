@@ -46,3 +46,11 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 serial_test = { workspace = true }
+
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

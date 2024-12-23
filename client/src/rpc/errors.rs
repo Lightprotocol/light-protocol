@@ -1,8 +1,9 @@
+use std::io;
+
 use solana_banks_client::BanksClientError;
 use solana_client::client_error::ClientError;
 use solana_program::instruction::InstructionError;
 use solana_sdk::transaction::TransactionError;
-use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

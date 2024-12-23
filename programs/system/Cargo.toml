@@ -41,3 +41,11 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"
+
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

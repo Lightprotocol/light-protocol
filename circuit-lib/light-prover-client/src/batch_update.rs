@@ -1,12 +1,14 @@
-use crate::errors::ProverClientError;
-use crate::helpers::bigint_to_u8_32;
-use crate::helpers::compute_root_from_merkle_proof;
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
 use light_utils::hashchain::create_hash_chain_from_array;
 use num_bigint::{BigInt, Sign};
 use num_traits::FromBytes;
+
+use crate::{
+    errors::ProverClientError,
+    helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
+};
 
 #[derive(Clone, Debug)]
 pub struct BatchUpdateCircuitInputs {

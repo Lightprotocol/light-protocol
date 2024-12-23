@@ -1,33 +1,27 @@
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_update::get_batch_update_inputs;
-use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
-use light_prover_client::gnark::inclusion_json_formatter_legacy;
-use light_prover_client::gnark::non_inclusion_json_formatter_legacy::non_inclusion_inputs_string;
-use light_prover_client::gnark::{
-    combined_json_formatter::combined_inputs_string,
-    combined_json_formatter_legacy::combined_inputs_string as combined_inputs_string_legacy,
-};
 use light_prover_client::{
     batch_address_append::{
         get_batch_address_append_circuit_inputs, get_test_batch_address_append_inputs,
     },
-    gnark::batch_address_append_json_formatter::to_json,
-};
-
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
-use light_prover_client::{
+    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
+    batch_update::get_batch_update_inputs,
     gnark::{
+        batch_address_append_json_formatter::to_json,
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
+        batch_update_json_formatter::update_inputs_string,
+        combined_json_formatter::combined_inputs_string,
+        combined_json_formatter_legacy::combined_inputs_string as combined_inputs_string_legacy,
         constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{spawn_prover, ProofType, ProverConfig},
         inclusion_json_formatter::inclusion_inputs_string,
+        inclusion_json_formatter_legacy,
+        non_inclusion_json_formatter_legacy::non_inclusion_inputs_string,
     },
     helpers::init_logger,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_utils::hashchain::create_hash_chain_from_slice;
+use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use log::info;
 use num_bigint::ToBigUint;
 use reqwest::Client;

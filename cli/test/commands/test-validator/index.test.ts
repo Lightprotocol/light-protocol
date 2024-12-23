@@ -37,7 +37,7 @@ describe("test-validator command", function () {
       await killProcess("prover");
 
       // Wait for processes to fully terminate
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Verify processes are actually stopped
       try {
@@ -74,6 +74,36 @@ describe("test-validator command", function () {
 
   afterEach(async function () {
     await cleanupProcesses();
+  });
+
+  it("should start validator without indexer and prover", async function () {
+    const { stdout } = await exec(
+      "./test_bin/dev test-validator --skip-indexer --skip-prover",
+    );
+    expect(stdout).to.contain("Setup tasks completed successfully");
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Verify validator is running
+    const connection = new Connection(`http://localhost:${defaultRpcPort}`);
+    const version = await connection.getVersion();
+    expect(version).to.have.property("solana-core");
+
+    // Verify indexer is not running
+    try {
+      await fetch(`http://localhost:${defaultIndexerPort}/health`);
+      throw new Error("Indexer should not be running");
+    } catch (error) {
+      expect(error).to.exist;
+    }
+
+    // Verify prover is not running
+    try {
+      await fetch(`http://localhost:${defaultProverPort}/health`);
+      throw new Error("Prover should not be running");
+    } catch (error) {
+      expect(error).to.exist;
+    }
   });
 
   it("should start validator with default settings", async function () {
@@ -147,36 +177,6 @@ describe("test-validator command", function () {
       `http://localhost:${customProverPort}/health`,
     );
     expect(proverResponse.status).to.equal(200);
-  });
-
-  it("should start validator without indexer and prover", async function () {
-    const { stdout } = await exec(
-      "./test_bin/dev test-validator --skip-indexer --skip-prover",
-    );
-    expect(stdout).to.contain("Setup tasks completed successfully");
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Verify validator is running
-    const connection = new Connection(`http://localhost:${defaultRpcPort}`);
-    const version = await connection.getVersion();
-    expect(version).to.have.property("solana-core");
-
-    // Verify indexer is not running
-    try {
-      await fetch(`http://localhost:${defaultIndexerPort}/health`);
-      throw new Error("Indexer should not be running");
-    } catch (error) {
-      expect(error).to.exist;
-    }
-
-    // Verify prover is not running
-    try {
-      await fetch(`http://localhost:${defaultProverPort}/health`);
-      throw new Error("Prover should not be running");
-    } catch (error) {
-      expect(error).to.exist;
-    }
   });
 
   it("should fail with invalid geyser config path", async function () {

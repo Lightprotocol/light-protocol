@@ -1,3 +1,8 @@
+use anchor_lang::prelude::*;
+use light_bounded_vec::BoundedVec;
+use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
+use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
+
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
@@ -11,10 +16,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::prelude::*;
-use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
-use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {

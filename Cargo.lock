@@ -1932,18 +1932,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
 
 [[package]]
-name = "duct"
-version = "0.13.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4ab5718d1224b63252cd0c6f74f6480f9ffeb117438a2e0f5cf6d9a4798929c"
-dependencies = [
- "libc",
- "once_cell",
- "os_pipe",
- "shared_child",
-]
-
-[[package]]
 name = "e2e-test"
 version = "1.1.0"
 dependencies = [
@@ -3502,7 +3490,6 @@ dependencies = [
  "solana-banks-client",
  "solana-client",
  "solana-program",
- "solana-program-test",
  "solana-sdk",
  "solana-transaction-status",
  "spl-token",
@@ -3559,10 +3546,8 @@ version = "1.2.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
- "light-bounded-vec",
  "light-heap",
  "light-utils",
- "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
@@ -3576,7 +3561,6 @@ version = "1.1.0"
 dependencies = [
  "ark-bn254",
  "light-poseidon",
- "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
@@ -3628,7 +3612,6 @@ dependencies = [
 name = "light-merkle-tree-metadata"
 version = "0.1.0"
 dependencies = [
- "aligned-sized",
  "anchor-lang",
  "borsh 0.10.3",
  "bytemuck",
@@ -3698,9 +3681,6 @@ dependencies = [
  "ark-bn254",
  "ark-serialize",
  "ark-std",
- "borsh 0.10.3",
- "bytemuck",
- "duct",
  "env_logger 0.11.5",
  "groth16-solana",
  "light-batched-merkle-tree",
@@ -3722,7 +3702,6 @@ dependencies = [
  "sysinfo",
  "thiserror",
  "tokio",
- "zeroize",
 ]
 
 [[package]]
@@ -3732,20 +3711,12 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
- "anchor-spl",
- "bytemuck",
  "light-batched-merkle-tree",
- "light-hasher",
  "light-heap",
  "light-merkle-tree-metadata",
  "light-system-program",
- "light-utils",
- "num-bigint 0.4.6",
- "num-traits",
- "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
- "tokio",
 ]
 
 [[package]]
@@ -4562,16 +4533,6 @@ checksum = "4ed8acf08e98e744e5384c8bc63ceb0364e68a6854187221c18df61c4797690e"
 dependencies = [
  "dlv-list",
  "hashbrown 0.13.2",
-]
-
-[[package]]
-name = "os_pipe"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ffd2b0a5634335b135d5728d84c5e0fd726954b87111f7506a61c502280d982"
-dependencies = [
- "libc",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6090,16 +6051,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shared_child"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09fa9338aed9a1df411814a5b2252f7cd206c55ae9bf2fa763f8de84603aa60c"
-dependencies = [
- "libc",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8624,12 +8575,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest 0.12.4",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 

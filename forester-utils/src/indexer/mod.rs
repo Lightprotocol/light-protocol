@@ -1,5 +1,3 @@
-use num_bigint::BigUint;
-use solana_sdk::signature::Keypair;
 use std::fmt::Debug;
 
 use account_compression::initialize_address_merkle_tree::{
@@ -9,13 +7,18 @@ use light_client::rpc::RpcConnection;
 use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::{IndexedArray, IndexedElement};
-use light_indexed_merkle_tree::reference::IndexedMerkleTree;
+use light_indexed_merkle_tree::{
+    array::{IndexedArray, IndexedElement},
+    reference::IndexedMerkleTree,
+};
 use light_merkle_tree_reference::MerkleTree;
-use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_system_program::sdk::event::PublicTransactionEvent;
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent},
+};
+use num_bigint::BigUint;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
+use solana_sdk::signature::Keypair;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]

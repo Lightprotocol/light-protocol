@@ -1,3 +1,12 @@
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator, ZeroCopy};
+use light_batched_merkle_tree::{
+    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+};
+use light_hasher::Discriminator as LightDiscriminator;
+use light_merkle_tree_metadata::queue::{check_queue_type, QueueType};
+use num_bigint::BigUint;
+
 use crate::{
     errors::AccountCompressionErrorCode,
     state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
@@ -9,14 +18,6 @@ use crate::{
     },
     RegisteredProgram,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator, ZeroCopy};
-use light_batched_merkle_tree::{
-    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    queue::{BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
-};
-use light_hasher::Discriminator as LightDiscriminator;
-use light_merkle_tree_metadata::queue::{check_queue_type, QueueType};
-use num_bigint::BigUint;
 
 #[derive(Accounts)]
 pub struct InsertIntoQueues<'info> {

@@ -1,3 +1,8 @@
+use anchor_lang::prelude::*;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount,
+};
+
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
@@ -5,10 +10,6 @@ use crate::{
         check_signer_is_registered_or_authority, GroupAccounts,
     },
     RegisteredProgram,
-};
-use anchor_lang::prelude::*;
-use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchAppendInputs, ZeroCopyBatchedMerkleTreeAccount,
 };
 
 #[derive(Accounts)]

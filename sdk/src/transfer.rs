@@ -38,9 +38,8 @@ pub fn transfer_compressed_sol(
 mod tests {
     use solana_program::pubkey::Pubkey;
 
-    use crate::{account_info::LightInputAccountInfo, merkle_context::PackedMerkleContext};
-
     use super::*;
+    use crate::{account_info::LightInputAccountInfo, merkle_context::PackedMerkleContext};
 
     /// Creates a mock account with the given input lamports.
     fn mock_account<'a>(owner: &'a Pubkey, lamports: Option<u64>) -> LightAccountInfo<'a> {

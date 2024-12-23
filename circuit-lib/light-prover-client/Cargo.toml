@@ -26,8 +26,6 @@ ark-bn254 = { version = "0.4" }
 ark-std = { version = "0.4", default-features = false, features = ["parallel"] }
 light-batched-merkle-tree = { workspace = true }
 
-bytemuck = "1.17.0"
-
 # solana
 groth16-solana = "0.0.3"
 solana-program = { workspace = true }
@@ -37,15 +35,18 @@ once_cell = "1.8"
 thiserror = "1.0"
 log = "0.4"
 env_logger = "0.11.2"
-# 1.3.0 required by package `aes-gcm-siv v0.10.3`
-zeroize = "=1.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 num-traits = "0.2.19"
 tokio = { workspace = true, optional = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"], optional = true  }
 sysinfo = "0.33"
-borsh = ">=0.9, <0.11"
 [dev-dependencies]
-duct = "0.13.7"
 serial_test = "3.2.0"
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

@@ -1,85 +1,91 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::errors::AccountCompressionErrorCode;
+use std::collections::HashSet;
+
 use account_compression::{
-    AddressMerkleTreeConfig, AddressQueueConfig, MigrateLeafParams, NullifierQueueConfig,
-    StateMerkleTreeAccount, StateMerkleTreeConfig,
+    errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
+    MigrateLeafParams, NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use forester_utils::forester_epoch::get_epoch_phases;
-use forester_utils::indexer::Indexer;
-use forester_utils::{airdrop_lamports, get_concurrent_merkle_tree};
-use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
-use light_batched_merkle_tree::initialize_state_tree::{
-    assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
+use forester_utils::{
+    airdrop_lamports, forester_epoch::get_epoch_phases, get_concurrent_merkle_tree,
+    indexer::Indexer,
 };
-use light_batched_merkle_tree::merkle_tree::{
-    BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount,
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::{
+        assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
+    },
+    merkle_tree::{BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount},
+    queue::ZeroCopyBatchedQueueAccount,
+    zero_copy::ZeroCopyError,
 };
-
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
-use light_batched_merkle_tree::zero_copy::ZeroCopyError;
 use light_hasher::Poseidon;
-use light_program_test::test_batch_forester::{
-    assert_perform_state_mt_roll_over, create_append_batch_ix_data,
-    create_batch_address_merkle_tree, create_batch_update_address_tree_instruction_data_with_proof,
-    create_batched_state_merkle_tree, perform_batch_append, perform_batch_nullify,
-    perform_rollover_batch_address_merkle_tree, perform_rollover_batch_state_merkle_tree,
+use light_program_test::{
+    test_batch_forester::{
+        assert_perform_state_mt_roll_over, create_append_batch_ix_data,
+        create_batch_address_merkle_tree,
+        create_batch_update_address_tree_instruction_data_with_proof,
+        create_batched_state_merkle_tree, perform_batch_append, perform_batch_nullify,
+        perform_rollover_batch_address_merkle_tree, perform_rollover_batch_state_merkle_tree,
+    },
+    test_env::{
+        create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
+        deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
+        register_program_with_registry_program, setup_accounts, setup_test_programs,
+        setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+        EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, NOOP_PROGRAM_ID,
+        OLD_REGISTRY_ID_TEST_KEYPAIR,
+    },
+    test_rpc::ProgramTestRpcConnection,
 };
-use light_program_test::test_env::{
-    create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
-    register_program_with_registry_program, setup_accounts, setup_test_programs,
-    setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
-    setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-    EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, NOOP_PROGRAM_ID, OLD_REGISTRY_ID_TEST_KEYPAIR,
-};
-use light_program_test::test_rpc::ProgramTestRpcConnection;
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
-use light_registry::account_compression_cpi::sdk::{
-    create_batch_append_instruction, create_batch_nullify_instruction,
-    create_batch_update_address_tree_instruction, create_migrate_state_instruction,
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateMigrateStateInstructionInputs, CreateNullifyInstructionInputs,
-    UpdateAddressMerkleTreeInstructionInputs,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_batch_append_instruction, create_batch_nullify_instruction,
+        create_batch_update_address_tree_instruction, create_migrate_state_instruction,
+        create_nullify_instruction, create_update_address_merkle_tree_instruction,
+        CreateMigrateStateInstructionInputs, CreateNullifyInstructionInputs,
+        UpdateAddressMerkleTreeInstructionInputs,
+    },
+    errors::RegistryError,
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    sdk::{
+        create_finalize_registration_instruction, create_report_work_instruction,
+        create_update_forester_pda_weight_instruction,
+    },
+    utils::{
+        get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_forester_pda,
+        get_protocol_config_pda_address,
+    },
+    ForesterConfig, ForesterEpochPda, ForesterPda,
 };
-use light_registry::errors::RegistryError;
-use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
-use light_registry::sdk::{
-    create_finalize_registration_instruction, create_report_work_instruction,
-    create_update_forester_pda_weight_instruction,
-};
-use light_registry::utils::{
-    get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_forester_pda,
-    get_protocol_config_pda_address,
-};
-use light_registry::{ForesterConfig, ForesterEpochPda, ForesterPda};
-use light_test_utils::assert_epoch::{
-    assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
-    assert_report_work, fetch_epoch_and_forester_pdas,
-};
-use light_test_utils::create_address_test_program_sdk::perform_create_pda_with_event_rnd;
-use light_test_utils::e2e_test_env::{init_program_test_env, init_program_test_env_forester};
-use light_test_utils::indexer::TestIndexer;
-use light_test_utils::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use light_test_utils::{
+    assert_epoch::{
+        assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
+        assert_report_work, fetch_epoch_and_forester_pdas,
+    },
     assert_rpc_error, create_address_merkle_tree_and_queue_account_with_assert,
+    create_address_test_program_sdk::perform_create_pda_with_event_rnd,
     create_rollover_address_merkle_tree_instructions,
-    create_rollover_state_merkle_tree_instructions, register_test_forester, update_test_forester,
-    Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl, TreeAccounts, TreeType,
-    CREATE_ADDRESS_TEST_PROGRAM_ID,
+    create_rollover_state_merkle_tree_instructions,
+    e2e_test_env::{init_program_test_env, init_program_test_env_forester},
+    indexer::TestIndexer,
+    register_test_forester,
+    test_forester::{empty_address_queue_test, nullify_compressed_accounts},
+    update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
+    TreeAccounts, TreeType, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
 use serial_test::serial;
-use solana_sdk::account::WritableAccount;
-use solana_sdk::signature::Signature;
 use solana_sdk::{
+    account::WritableAccount,
     instruction::Instruction,
     native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
-    signature::{read_keypair_file, Keypair},
+    signature::{read_keypair_file, Keypair, Signature},
     signer::Signer,
 };
-use std::collections::HashSet;
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {

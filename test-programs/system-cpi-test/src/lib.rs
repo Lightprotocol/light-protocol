@@ -1,8 +1,6 @@
 #![allow(clippy::too_many_arguments)]
-use account_compression::program::AccountCompression;
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_system_program::invoke::processor::CompressedProof;
 pub mod create_pda;
 pub use create_pda::*;
@@ -13,10 +11,15 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 pub use invalidate_not_owned_account::*;
-use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
-use light_system_program::sdk::compressed_account::PackedReadOnlyCompressedAccount;
-use light_system_program::sdk::CompressedCpiContext;
-use light_system_program::PackedReadOnlyAddress;
+use light_system_program::{
+    sdk::{
+        compressed_account::{
+            PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+        },
+        CompressedCpiContext,
+    },
+    PackedReadOnlyAddress,
+};
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 

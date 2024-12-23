@@ -1,10 +1,11 @@
-use crate::{errors::ForesterError, Result};
-use account_compression::initialize_address_merkle_tree::Pubkey;
-use account_compression::QueueAccount;
+use std::mem;
+
+use account_compression::{initialize_address_merkle_tree::Pubkey, QueueAccount};
 use light_client::rpc::RpcConnection;
 use light_hash_set::HashSet;
-use std::mem;
 use tracing::debug;
+
+use crate::{errors::ForesterError, Result};
 
 #[derive(Debug, Clone)]
 pub struct QueueItemData {

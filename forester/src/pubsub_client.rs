@@ -1,18 +1,17 @@
-use crate::errors::ForesterError;
-use crate::queue_helpers::QueueUpdate;
-use crate::ForesterConfig;
-use crate::Result;
+use std::{str::FromStr, thread};
+
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use futures::StreamExt;
 use solana_account_decoder::UiAccountEncoding;
-use solana_client::nonblocking::pubsub_client::PubsubClient;
-use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
+use solana_client::{
+    nonblocking::pubsub_client::PubsubClient,
+    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
+};
 use solana_sdk::commitment_config::CommitmentConfig;
-use std::str::FromStr;
-use std::thread;
-use tokio::runtime::Builder;
-use tokio::sync::mpsc;
+use tokio::{runtime::Builder, sync::mpsc};
 use tracing::{debug, error};
+
+use crate::{errors::ForesterError, queue_helpers::QueueUpdate, ForesterConfig, Result};
 
 pub async fn setup_pubsub_client(
     config: &ForesterConfig,

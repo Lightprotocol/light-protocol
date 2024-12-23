@@ -1,16 +1,16 @@
-use crate::indexer::{MerkleProof, NewAddressProofWithContext};
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_sdk::{bs58, pubkey::Pubkey};
 
-use super::types::AddressWithTree;
 use super::{
     models::{AccountBalanceResponse, CompressedAccountsResponse},
+    types::AddressWithTree,
     Address, Base58Conversions, CompressedAccountResponse, Hash, PhotonClientError,
     TokenAccountBalanceResponse,
 };
+use crate::indexer::{MerkleProof, NewAddressProofWithContext};
 
 #[derive(Debug)]
 pub struct PhotonClient {

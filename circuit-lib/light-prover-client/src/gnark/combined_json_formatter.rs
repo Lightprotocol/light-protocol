@@ -5,17 +5,19 @@ use light_utils::hashchain::create_hash_chain_from_array;
 use num_bigint::BigInt;
 use serde::Serialize;
 
-use crate::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
-use crate::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
-use crate::prove_utils::CircuitType;
-use crate::{
-    combined::merkle_combined_proof_inputs::CombinedProofInputs, errors::ProverClientError,
-};
-
 use super::{
     helpers::{big_int_to_string, create_json_from_struct},
     inclusion_json_formatter::InclusionJsonStruct,
     non_inclusion_json_formatter::NonInclusionJsonStruct,
+};
+use crate::{
+    combined::merkle_combined_proof_inputs::CombinedProofInputs,
+    errors::ProverClientError,
+    gnark::{
+        inclusion_json_formatter::BatchInclusionJsonStruct,
+        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+    },
+    prove_utils::CircuitType,
 };
 
 #[derive(Serialize, Debug)]

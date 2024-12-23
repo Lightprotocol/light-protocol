@@ -10,12 +10,11 @@ pub mod utils;
 pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
-
 use errors::AccountCompressionErrorCode;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::InstructionDataBatchAppendInputs, merkle_tree::InstructionDataBatchNullifyInputs,
+    merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs},
 };
 
 declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
@@ -34,7 +33,6 @@ pub mod account_compression {
     use light_merkle_tree_metadata::queue::QueueType;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
-
     use super::*;
 
     pub fn initialize_batched_state_merkle_tree<'info>(

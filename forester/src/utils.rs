@@ -1,7 +1,10 @@
-use light_client::rpc::RpcConnection;
-use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
-use light_registry::utils::get_protocol_config_pda_address;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use light_client::rpc::RpcConnection;
+use light_registry::{
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    utils::get_protocol_config_pda_address,
+};
 use tracing::debug;
 
 pub fn decode_hash(account: &str) -> [u8; 32] {

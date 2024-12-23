@@ -1,12 +1,14 @@
-use crate::tree_data_sync::fetch_trees;
-use crate::Result;
-use forester_utils::forester_epoch::TreeAccounts;
-use light_client::rpc::RpcConnection;
-use light_client::rpc_pool::SolanaRpcPool;
 use std::sync::Arc;
-use tokio::sync::broadcast;
-use tokio::time::{interval, Duration};
+
+use forester_utils::forester_epoch::TreeAccounts;
+use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use tokio::{
+    sync::broadcast,
+    time::{interval, Duration},
+};
 use tracing::{debug, error, info};
+
+use crate::{tree_data_sync::fetch_trees, Result};
 
 pub struct TreeFinder<R: RpcConnection> {
     rpc_pool: Arc<SolanaRpcPool<R>>,

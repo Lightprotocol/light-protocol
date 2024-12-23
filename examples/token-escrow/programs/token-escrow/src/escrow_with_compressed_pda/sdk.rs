@@ -1,6 +1,5 @@
 #![cfg(not(target_os = "solana"))]
 
-use crate::escrow_with_compressed_pda::escrow::PackedInputCompressedPda;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_token::process_transfer::{
     get_cpi_authority_pda,
@@ -17,6 +16,8 @@ use light_system_program::{
     NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+
+use crate::escrow_with_compressed_pda::escrow::PackedInputCompressedPda;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {

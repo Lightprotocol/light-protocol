@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
-
 use light_hasher::{DataHasher, Discriminator, Poseidon};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
@@ -157,7 +156,7 @@ where
     }
 }
 
-impl<'a, T> Deref for LightAccount<'a, T>
+impl<T> Deref for LightAccount<'_, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
@@ -168,7 +167,7 @@ where
     }
 }
 
-impl<'a, T> DerefMut for LightAccount<'a, T>
+impl<T> DerefMut for LightAccount<'_, T>
 where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {

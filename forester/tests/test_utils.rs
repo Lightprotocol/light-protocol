@@ -1,15 +1,19 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use forester::config::{ExternalServicesConfig, GeneralConfig};
-use forester::metrics::register_metrics;
-use forester::photon_indexer::PhotonIndexer;
-use forester::telemetry::setup_telemetry;
-use forester::ForesterConfig;
+use forester::{
+    config::{ExternalServicesConfig, GeneralConfig},
+    metrics::register_metrics,
+    photon_indexer::PhotonIndexer,
+    telemetry::setup_telemetry,
+    ForesterConfig,
+};
 use forester_utils::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_program_test::test_env::get_test_env_accounts;
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
-use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
-use light_test_utils::indexer::TestIndexer;
+use light_test_utils::{
+    e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User},
+    indexer::TestIndexer,
+};
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
 

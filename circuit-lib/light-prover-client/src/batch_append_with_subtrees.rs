@@ -1,9 +1,10 @@
-use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
+
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
 
 #[derive(Clone, Debug, Default)]
 pub struct BatchAppendWithSubtreesCircuitInputs {

@@ -1077,13 +1077,14 @@ mod test {
     use std::array;
 
     use rand::{
-        distributions::{Distribution, Standard},
+        distributions::{
+            uniform::{SampleRange, SampleUniform},
+            Distribution, Standard,
+        },
         thread_rng, Rng,
     };
 
     use super::*;
-
-    use rand::distributions::uniform::{SampleRange, SampleUniform};
 
     /// Generates a random value in the given range, excluding the values provided
     /// in `exclude`.

@@ -1,14 +1,21 @@
-use clap::Parser;
-use forester::cli::{Cli, Commands};
-use forester::errors::ForesterError;
-use forester::metrics::register_metrics;
-use forester::photon_indexer::PhotonIndexer;
-use forester::telemetry::setup_telemetry;
-use forester::{forester_status, run_pipeline, ForesterConfig};
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use std::sync::Arc;
-use tokio::signal::ctrl_c;
-use tokio::sync::{mpsc, oneshot};
+
+use clap::Parser;
+use forester::{
+    cli::{Cli, Commands},
+    errors::ForesterError,
+    forester_status,
+    metrics::register_metrics,
+    photon_indexer::PhotonIndexer,
+    run_pipeline,
+    telemetry::setup_telemetry,
+    ForesterConfig,
+};
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use tokio::{
+    signal::ctrl_c,
+    sync::{mpsc, oneshot},
+};
 use tracing::debug;
 
 #[tokio::main]

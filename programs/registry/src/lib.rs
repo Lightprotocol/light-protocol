@@ -1,13 +1,13 @@
 #![allow(clippy::too_many_arguments)]
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
+use account_compression::{
+    utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 pub mod account_compression_cpi;
 pub mod errors;
-pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub use account_compression_cpi::{
     batch_append::*, batch_nullify::*, batch_update_address_tree::*,
     initialize_batched_address_tree::*, initialize_batched_state_tree::*,
@@ -15,25 +15,24 @@ pub use account_compression_cpi::{
     rollover_batch_address_tree::*, rollover_batch_state_tree::*, rollover_state_tree::*,
     update_address_tree::*,
 };
-
 pub use protocol_config::{initialize::*, update::*};
+
+pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
 pub mod constants;
 pub mod epoch;
 pub mod protocol_config;
 pub mod selection;
 pub mod utils;
-pub use selection::forester::*;
-
 use account_compression::MigrateLeafParams;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use errors::RegistryError;
-use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::ZeroCopyBatchedMerkleTreeAccount, queue::ZeroCopyBatchedQueueAccount,
 };
-
 use protocol_config::state::ProtocolConfig;
+pub use selection::forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
 

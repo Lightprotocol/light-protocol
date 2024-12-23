@@ -1,8 +1,9 @@
+use anchor_lang::prelude::*;
+
 use crate::{
     constants::PROTOCOL_CONFIG_PDA_SEED, program::LightRegistry,
     protocol_config::state::ProtocolConfigPda,
 };
-use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(bump: u8)]

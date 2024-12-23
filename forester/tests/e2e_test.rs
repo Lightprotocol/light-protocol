@@ -1,30 +1,36 @@
-use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
-use account_compression::AddressMerkleTreeAccount;
-use forester::queue_helpers::fetch_queue_item_data;
-use forester::run_pipeline;
-use forester::utils::get_protocol_config;
-use forester_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
-use forester_utils::registry::register_test_forester;
-use light_client::rpc::solana_rpc::SolanaRpcUrl;
-use light_client::rpc::{RpcConnection, RpcError, SolanaRpcConnection};
-use light_client::rpc_pool::SolanaRpcPool;
+use std::{collections::HashSet, sync::Arc, time::Duration};
+
+use account_compression::{
+    utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES},
+    AddressMerkleTreeAccount,
+};
+use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_protocol_config};
+use forester_utils::{
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    registry::register_test_forester,
+};
+use light_client::{
+    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc_pool::SolanaRpcPool,
+};
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
-use light_registry::utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority};
-use light_registry::{EpochPda, ForesterEpochPda};
-use light_test_utils::e2e_test_env::E2ETestEnv;
-use light_test_utils::indexer::TestIndexer;
-use light_test_utils::update_test_forester;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::{sleep, timeout};
+use light_prover_client::gnark::helpers::{
+    spawn_prover, LightValidatorConfig, ProverConfig, ProverMode,
+};
+use light_registry::{
+    utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
+    EpochPda, ForesterEpochPda,
+};
+use light_test_utils::{e2e_test_env::E2ETestEnv, indexer::TestIndexer, update_test_forester};
+use serial_test::serial;
+use solana_sdk::{
+    commitment_config::CommitmentConfig, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
+    signature::Keypair, signer::Signer,
+};
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    time::{sleep, timeout},
+};
 
 mod test_utils;
 use test_utils::*;
@@ -32,13 +38,19 @@ use test_utils::*;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        },
+    )
+    .await;
+
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 10,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-        }),
+        prover_config: None,
     }))
     .await;
 
@@ -262,17 +274,25 @@ pub async fn assert_queue_len(
     }
 }
 
+// TODO: extend test to 3 epochs (epoch 0 is skipped for 40s wait time)
 // TODO: add test which asserts epoch registration over many epochs (we need a different protocol config for that)
 // TODO: add test with photon indexer for an infinite local test which performs work over many epochs
+#[serial]
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_monitor_with_2_foresters() {
-    init(Some(LightValidatorConfig {
-        enable_indexer: false,
-        wait_time: 15,
-        prover_config: Some(ProverConfig {
+    spawn_prover(
+        true,
+        ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
-        }),
+        },
+    )
+    .await;
+
+    init(Some(LightValidatorConfig {
+        enable_indexer: false,
+        wait_time: 40,
+        prover_config: None,
     }))
     .await;
     let forester_keypair1 = Keypair::new();
@@ -489,7 +509,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         );
 
         // Verify that we've processed epochs 0 and 1
-        assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
+        // assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
         assert!(processed_epochs.contains(&1), "Epoch 1 was not processed");
     })
     .await;
@@ -512,12 +532,12 @@ async fn test_epoch_monitor_with_2_foresters() {
 
     // assert that foresters registered for epoch 1 and 2 (no new work is emitted after epoch 0)
     // Assert that foresters have registered all processed epochs and the next epoch (+1)
-    for epoch in 0..=EXPECTED_EPOCHS {
+    for epoch in 1..=EXPECTED_EPOCHS {
         let total_processed_work =
             assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
                 .await
                 .unwrap();
-        if epoch == 0 {
+        if epoch == 1 {
             assert_eq!(
                 total_processed_work, total_expected_work,
                 "Not all items were processed."
@@ -603,16 +623,24 @@ async fn assert_foresters_registered(
     Ok(performed_work)
 }
 
+#[serial]
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_double_registration() {
     println!("*****************************************************************");
+
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        },
+    )
+    .await;
+
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 10,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-        }),
+        prover_config: None,
     }))
     .await;
 
