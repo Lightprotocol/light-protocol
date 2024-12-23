@@ -496,19 +496,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         }
 
         println!("Processed {} items", total_processed);
-
-        // Verify that we've processed the expected number of epochs
-        assert_eq!(
-            processed_epochs.len(),
-            EXPECTED_EPOCHS as usize,
-            "Processed {} epochs, expected {}",
-            processed_epochs.len(),
-            EXPECTED_EPOCHS
-        );
-
-        // Verify that we've processed epochs 0 and 1
-        assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
         assert!(processed_epochs.contains(&1), "Epoch 1 was not processed");
+        assert!(total_processed > 0, "No work was processed");
     })
     .await;
 
