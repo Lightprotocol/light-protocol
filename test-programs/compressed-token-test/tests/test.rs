@@ -1,21 +1,22 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
-use anchor_lang::prelude::AccountMeta;
 use anchor_lang::{
-    system_program, AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
+    prelude::AccountMeta, system_program, AnchorDeserialize, AnchorSerialize, InstructionData,
+    ToAccountMetas,
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
 use light_compressed_token::{
+    constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
         CreateRevokeInstructionInputs,
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda,
+    get_token_pool_pda, get_token_pool_pda_with_bump,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
@@ -38,22 +39,22 @@ use light_test_utils::{
     indexer::TestIndexer,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
-        compressed_transfer_test, create_burn_test_instruction, create_mint_22_helper,
-        create_mint_helper, create_token_2022_account, decompress_test, freeze_test,
-        mint_spl_tokens, mint_tokens_22_helper_with_lamports, mint_tokens_helper,
+        compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
+        create_mint_22_helper, create_mint_helper, create_token_2022_account, decompress_test,
+        freeze_test, mint_spl_tokens, mint_tokens_22_helper_with_lamports,
+        mint_tokens_22_helper_with_lamports_and_bump, mint_tokens_helper,
         mint_tokens_helper_with_lamports, mint_wrapped_sol, perform_compress_spl_token_account,
         revoke_test, thaw_test, BurnInstructionMode,
     },
     Indexer, RpcConnection, RpcError, TokenDataWithContext,
 };
 use light_verifier::VerifierError;
-use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
-    signature::Keypair,
+    signature::{Keypair, Signature},
     signer::Signer,
     system_instruction,
     transaction::{Transaction, TransactionError},
@@ -1031,12 +1032,7 @@ async fn test_mint_to_failing() {
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
-            assert_rpc_error(
-                result,
-                0,
-               ErrorCode::InvalidTokenPoolPda.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, ErrorCode::InvalidTokenPoolPda.into()).unwrap();
         }
         // 4. Try to mint token from `mint_2` while using `mint_1` pool.
         {
@@ -1071,12 +1067,7 @@ async fn test_mint_to_failing() {
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
-            assert_rpc_error(
-                result,
-                0,
-                ErrorCode::InvalidTokenPoolPda.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, ErrorCode::InvalidTokenPoolPda.into()).unwrap();
         }
         // 5. Invalid CPI authority.
         {

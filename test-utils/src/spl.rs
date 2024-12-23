@@ -9,19 +9,22 @@ use light_client::{
 };
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
+    constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
         CreateRevokeInstructionInputs,
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda,
-    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    get_token_pool_pda, get_token_pool_pda_with_bump,
+    mint_sdk::{
+        create_add_token_pool_instruction, create_create_token_pool_instruction,
+        create_mint_to_instruction,
+    },
     process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction,
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
     token_data::AccountState,
     TokenData,
 };
-use light_compressed_token::{constants::NUM_MAX_POOL_ACCOUNTS, get_token_pool_pda_with_bump};
 use light_hasher::Poseidon;
 use light_system_program::{
     invoke::processor::CompressedProof,

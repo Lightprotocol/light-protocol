@@ -87,22 +87,16 @@ pub fn burn_spl_from_pool_pda<'info>(
         }
         let mut remove_index = 0;
         for (index, i) in token_pool_bumps.iter().enumerate() {
-            match check_spl_token_pool_derivation(
-                mint_bytes.as_slice(),
-                &token_pool_pda.key(),
-                &[*i],
-            ) {
-                true => {
-                    burn(
-                        ctx,
-                        token_pool_pda.to_account_info(),
-                        withdrawal_amount,
-                        token_pool_amount,
-                    )?;
+            if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
+            {
+                burn(
+                    ctx,
+                    token_pool_pda.to_account_info(),
+                    withdrawal_amount,
+                    token_pool_amount,
+                )?;
 
-                    remove_index = index;
-                }
-                false => {}
+                remove_index = index;
             }
         }
         token_pool_bumps.remove(remove_index);

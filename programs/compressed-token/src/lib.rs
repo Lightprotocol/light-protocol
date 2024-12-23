@@ -32,7 +32,6 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod light_compressed_token {
 
-    use super::*;
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
     use spl_compression::spl_token_pool_derivation;
 

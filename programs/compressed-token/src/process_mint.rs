@@ -2,9 +2,6 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
-
-use crate::{is_valid_token_pool_pda, program::LightCompressedToken};
-
 #[cfg(target_os = "solana")]
 use {
     crate::process_transfer::create_output_compressed_accounts,
@@ -13,7 +10,7 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
-use crate::{program::LightCompressedToken, POOL_SEED};
+use crate::{is_valid_token_pool_pda, program::LightCompressedToken};
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -356,14 +353,13 @@ pub struct MintToInstruction<'info> {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
-    use crate::{
-        get_token_pool_pda, get_token_pool_pda_with_bump, process_transfer::get_cpi_authority_pda,
-    };
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use light_system_program::sdk::invoke::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{get_token_pool_pda, process_transfer::get_cpi_authority_pda};
+    use crate::{
+        get_token_pool_pda, get_token_pool_pda_with_bump, process_transfer::get_cpi_authority_pda,
+    };
 
     pub fn create_create_token_pool_instruction(
         fee_payer: &Pubkey,
@@ -502,12 +498,6 @@ mod test {
     use crate::{
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
         token_data::{AccountState, TokenData},
-    };
-    use light_hasher::Poseidon;
-
-    use light_system_program::{
-        sdk::compressed_account::{CompressedAccount, CompressedAccountData},
-        OutputCompressedAccountWithPackedContext,
     };
 
     #[test]

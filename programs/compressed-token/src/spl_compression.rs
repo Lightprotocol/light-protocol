@@ -80,26 +80,20 @@ pub fn decompress_spl_tokens<'info>(
         }
         let mut remove_index = 0;
         for (index, i) in token_pool_bumps.iter().enumerate() {
-            match check_spl_token_pool_derivation(
-                mint_bytes.as_slice(),
-                &token_pool_pda.key(),
-                &[*i],
-            ) {
-                true => {
-                    transfer(
-                        token_pool_pda.to_account_info(),
-                        recipient.to_account_info(),
-                        ctx.accounts.cpi_authority_pda.to_account_info(),
-                        ctx.accounts
-                            .token_program
-                            .as_ref()
-                            .unwrap()
-                            .to_account_info(),
-                        withdrawal_amount,
-                    )?;
-                    remove_index = index;
-                }
-                false => {}
+            if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
+            {
+                transfer(
+                    token_pool_pda.to_account_info(),
+                    recipient.to_account_info(),
+                    ctx.accounts.cpi_authority_pda.to_account_info(),
+                    ctx.accounts
+                        .token_program
+                        .as_ref()
+                        .unwrap()
+                        .to_account_info(),
+                    withdrawal_amount,
+                )?;
+                remove_index = index;
             }
         }
         token_pool_bumps.remove(remove_index);
@@ -130,30 +124,24 @@ pub fn compress_spl_tokens<'info>(
     let mint_bytes = inputs.mint.to_bytes();
 
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
-        match check_spl_token_pool_derivation(
-            mint_bytes.as_slice(),
-            &recipient_token_pool.key(),
-            &[i],
-        ) {
-            true => {
-                transfer_compress(
-                    ctx.accounts
-                        .compress_or_decompress_token_account
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    recipient_token_pool.to_account_info(),
-                    ctx.accounts.authority.to_account_info(),
-                    ctx.accounts
-                        .token_program
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    amount,
-                )?;
-                return Ok(());
-            }
-            false => {}
+        if check_spl_token_pool_derivation(mint_bytes.as_slice(), &recipient_token_pool.key(), &[i])
+        {
+            transfer_compress(
+                ctx.accounts
+                    .compress_or_decompress_token_account
+                    .as_ref()
+                    .unwrap()
+                    .to_account_info(),
+                recipient_token_pool.to_account_info(),
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts
+                    .token_program
+                    .as_ref()
+                    .unwrap()
+                    .to_account_info(),
+                amount,
+            )?;
+            return Ok(());
         }
     }
     err!(crate::ErrorCode::InvalidTokenPoolPda)

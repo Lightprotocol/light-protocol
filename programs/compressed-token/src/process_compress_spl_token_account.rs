@@ -49,15 +49,12 @@ pub fn process_compress_spl_token_account<'info>(
 
 #[cfg(not(target_os = "solana"))]
 pub mod sdk {
-    use crate::get_token_pool_pda_with_bump;
-    use anchor_lang::prelude::AccountMeta;
-    use anchor_lang::InstructionData;
-    use anchor_lang::ToAccountMetas;
+    use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
     use anchor_spl::token::ID as TokenProgramId;
     use light_system_program::sdk::CompressedCpiContext;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::get_token_pool_pda;
+    use crate::get_token_pool_pda_with_bump;
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_compress_spl_token_account_instruction(
