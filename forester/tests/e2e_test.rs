@@ -14,7 +14,9 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::{spawn_prover, LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{
+    spawn_prover, LightValidatorConfig, ProverConfig, ProverMode,
+};
 use light_registry::{
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
@@ -35,10 +37,14 @@ use test_utils::*;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
-    spawn_prover(true, ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    }).await;
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        },
+    )
+    .await;
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
@@ -271,16 +277,21 @@ pub async fn assert_queue_len(
 // TODO: add test with photon indexer for an infinite local test which performs work over many epochs
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_monitor_with_2_foresters() {
-    spawn_prover(true, ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    }).await;
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        },
+    )
+    .await;
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 0,
-        prover_config: None,    
-    })).await;
+        prover_config: None,
+    }))
+    .await;
 
     let forester_keypair1 = Keypair::new();
     let forester_keypair2 = Keypair::new();
@@ -614,11 +625,15 @@ async fn assert_foresters_registered(
 async fn test_epoch_double_registration() {
     println!("*****************************************************************");
 
-    spawn_prover(true, ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    }).await;
-    
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        },
+    )
+    .await;
+
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 0,

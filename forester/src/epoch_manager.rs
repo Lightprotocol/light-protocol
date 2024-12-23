@@ -1051,8 +1051,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let mut rpc = self.rpc_pool.get_connection().await?;
 
         let (forester_pda_pubkey, _) = get_forester_pda(&self.config.derivation_pubkey);
-        
-        match rpc.get_anchor_account::<ForesterPda>(&forester_pda_pubkey).await {
+        let (_, current_epoch) = self.get_current_slot_and_epoch().await?;
+        match rpc
+            .get_anchor_account::<ForesterPda>(&forester_pda_pubkey)
+            .await
+        {
             Ok(Some(_)) => info!("ForesterPda found for pubkey: {}", forester_pda_pubkey),
             Ok(None) => {
                 warn!("ForesterPda not found for pubkey: {}", forester_pda_pubkey);
@@ -1060,7 +1063,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             }
             Err(e) => {
                 warn!("Error fetching ForesterPda: {:?}", e);
-                return Err(ForesterError::Custom(format!("Error fetching ForesterPda: {:?}", e)));
+                return Err(ForesterError::Custom(format!(
+                    "Error fetching ForesterPda: {:?}",
+                    e
+                )));
             }
         };
 
@@ -1071,6 +1077,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &mut *rpc,
                     self.indexer.clone(),
                     tree_account,
+                    current_epoch,
                 )
                 .await
             }
@@ -1080,6 +1087,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &mut *rpc,
                     self.indexer.clone(),
                     tree_account,
+                    current_epoch,
                 )
                 .await
             }
