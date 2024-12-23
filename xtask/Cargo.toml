@@ -20,5 +20,5 @@ rand = "0.8"
 quote = "1.0"
 sha2 = "0.10"
 solana-program = { workspace = true }
-tabled = "0.15"
+tabled = "0.17"
 
