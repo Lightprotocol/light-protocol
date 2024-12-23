@@ -1,4 +1,4 @@
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
 import { CompressedAccount, CompressedAccountData } from './types';
 import { BN254, bn } from './BN254';

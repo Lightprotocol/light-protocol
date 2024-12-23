@@ -3,7 +3,7 @@ import { bn, createBN254 } from '../state/BN254';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
     return Keypair.fromSecretKey(Uint8Array.from(byteArray));

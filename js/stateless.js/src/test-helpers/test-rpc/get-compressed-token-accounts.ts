@@ -1,8 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
-import { BN, BorshCoder } from '@coral-xyz/anchor';
-
-import { IDL } from '../../idls/light_compressed_token';
+import BN from 'bn.js';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
@@ -13,9 +11,17 @@ import {
     createCompressedAccountWithMerkleContext,
     bn,
 } from '../../state';
+import {
+    struct,
+    publicKey,
+    u64,
+    option,
+    vecU8,
+    u8,
+    Layout,
+} from '@coral-xyz/borsh';
 
 const tokenProgramId: PublicKey = new PublicKey(
-    // TODO: can add check to ensure its consistent with the idl
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
 );
 
@@ -27,6 +33,16 @@ type TokenData = {
     state: number;
     tlv: Buffer | null;
 };
+
+// for test-rpc
+export const TokenDataLayout: Layout<TokenData> = struct([
+    publicKey('mint'),
+    publicKey('owner'),
+    u64('amount'),
+    option(publicKey(), 'delegate'),
+    u8('state'),
+    option(vecU8(), 'tlv'),
+]);
 
 export type EventWithParsedTokenTlvData = {
     inputCompressedAccountHashes: number[][];
@@ -51,12 +67,7 @@ export function parseTokenLayoutWithIdl(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    const decodedLayout = new BorshCoder(IDL).types.decode(
-        'TokenData',
-        Buffer.from(data),
-    );
-
-    return decodedLayout;
+    return TokenDataLayout.decode(Buffer.from(data));
 }
 
 /**

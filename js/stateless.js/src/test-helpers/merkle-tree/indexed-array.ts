@@ -1,5 +1,5 @@
 import { LightWasm } from '../test-rpc/test-rpc';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { bn } from '../../state';
 import { HIGHEST_ADDRESS_PLUS_ONE } from '../../constants';
 
