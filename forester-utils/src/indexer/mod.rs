@@ -1,8 +1,9 @@
 use std::fmt::Debug;
-use async_trait::async_trait;
+
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
+use async_trait::async_trait;
 use light_client::rpc::RpcConnection;
 use light_compressed_token::TokenData;
 use light_hash_set::HashSetError;
@@ -257,7 +258,6 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     ) {
         unimplemented!()
     }
-
 }
 
 #[derive(Debug, Clone)]

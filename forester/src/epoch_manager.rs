@@ -34,6 +34,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
+    batched_ops::process_batched_operations,
     errors::ForesterError,
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
@@ -50,7 +51,6 @@ use crate::{
     tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
-use crate::batched_ops::process_batched_operations;
 
 #[derive(Clone, Debug)]
 pub struct WorkReport {
@@ -854,7 +854,6 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         })?
                 };
 
-
                 if tree.tree_accounts.tree_type == TreeType::BatchedState {
                     let start_time = Instant::now();
                     info!("Processing batched state operations");
@@ -876,13 +875,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         merkle_tree,
                         queue,
                     )
-                        .await?;
+                    .await?;
                     info!("Processed {} batched state operations", processed_count);
                     queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
                     self.increment_processed_items_count(epoch_info.epoch, processed_count)
                         .await;
                 } else {
-
                     // TODO: measure accuracy
                     // Optional replace with shutdown signal for all child processes
                     let batched_tx_config = SendBatchedTransactionsConfig {
@@ -929,7 +927,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         Ok(num_tx_sent) => {
                             debug!("Transactions sent successfully");
                             let chunk_duration = start_time.elapsed();
-                            queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
+                            queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration)
+                                .await;
                             self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
                                 .await;
                         }

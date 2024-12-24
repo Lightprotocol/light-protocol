@@ -16,12 +16,13 @@ use forester_utils::{
     get_concurrent_merkle_tree, get_indexed_merkle_tree,
     indexer::{
         AddressMerkleTreeAccounts, AddressMerkleTreeBundle, BatchedTreeProofRpcResult, Indexer,
-        IndexerError, MerkleProof, NewAddressProofWithContext, ProofRpcResult,
+        IndexerError, MerkleProof, NewAddressProofWithContext, ProofOfLeaf, ProofRpcResult,
         StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
     },
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
+    batch::BatchState,
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
@@ -89,8 +90,7 @@ use solana_sdk::{
     signer::Signer,
 };
 use spl_token::instruction::initialize_mint;
-use forester_utils::indexer::ProofOfLeaf;
-use light_batched_merkle_tree::batch::BatchState;
+
 use crate::{
     create_address_merkle_tree_and_queue_account_with_assert, e2e_test_env::KeypairActionConfig,
     spl::create_initialize_mint_instructions,
@@ -676,7 +676,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                         .unwrap();
                         for value_array in queue_zero_copy.value_vecs.iter() {
                             let index = value_array.iter().position(|x| *x == *compressed_account);
-                            if let Some(_) = index {
+                            if index.is_some() {
                                 indices_to_remove.push(i);
                             }
                         }
@@ -789,7 +789,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         self.get_state_merkle_trees_mut().push(state_bundle);
     }
 
-
     async fn update_test_indexer_after_append(
         &mut self,
         rpc: &mut R,
@@ -885,9 +884,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .unwrap();
 
         let batch = &merkle_tree.batches[batch_index];
-        if batch.get_state() == BatchState::Inserted
-            || batch.get_state() == BatchState::Full
-        {
+        if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
             let batch_size = batch.zkp_batch_size;
             let leaf_indices_tx_hashes =
                 state_merkle_tree_bundle.input_leaf_indices[..batch_size as usize].to_vec();
@@ -918,7 +915,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             .collect()
     }
 
-
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
         let mut bundle = self
             .state_merkle_trees
@@ -946,7 +942,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
 
         ProofOfLeaf { leaf, proof }
     }
-
 }
 
 impl<R: RpcConnection> TestIndexer<R> {
@@ -1272,33 +1267,38 @@ impl<R: RpcConnection> TestIndexer<R> {
             .iter()
             .zip(merkle_tree_pubkeys.iter())
             .map(|(account, &pubkey)| {
-            let bundle = &self
-                .state_merkle_trees
-                .iter()
+                let bundle = &self
+                    .state_merkle_trees
+                    .iter()
                     .find(|x| x.accounts.merkle_tree == pubkey)
-                .unwrap();
-            let merkle_tree = &bundle.merkle_tree;
-            let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
-            let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
+                    .unwrap();
+                let merkle_tree = &bundle.merkle_tree;
+                let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
+                let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
                 // Convert proof to owned data that implements Send
-                let proof: Vec<BigInt> = proof
-                    .iter()
-                    .map(|x| BigInt::from_be_bytes(x))
-                    .collect();
+                let proof: Vec<BigInt> = proof.iter().map(|x| BigInt::from_be_bytes(x)).collect();
 
-            if height == 0 {
-                height = merkle_tree.height;
-            } else {
-                assert_eq!(height, merkle_tree.height);
-            }
+                if height == 0 {
+                    height = merkle_tree.height;
+                } else {
+                    assert_eq!(height, merkle_tree.height);
+                }
 
-                (bundle.version, pubkey, leaf_index, proof, merkle_tree.root())
+                (
+                    bundle.version,
+                    pubkey,
+                    leaf_index,
+                    proof,
+                    merkle_tree.root(),
+                )
             })
             .collect();
 
         // Now handle the async operations with the collected data
-        for (i, (version, pubkey, leaf_index, proof, merkle_root)) in proof_data.into_iter().enumerate() {
+        for (i, (version, pubkey, leaf_index, proof, merkle_root)) in
+            proof_data.into_iter().enumerate()
+        {
             inclusion_proofs.push(InclusionMerkleProofInputs {
                 root: BigInt::from_be_bytes(merkle_root.as_slice()),
                 leaf: BigInt::from_be_bytes(&accounts[i]),
@@ -1309,10 +1309,9 @@ impl<R: RpcConnection> TestIndexer<R> {
             let (root_index, root) = if version == 1 {
                 let fetched_merkle_tree = unsafe {
                     get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-                        rpc,
-                        pubkey,
+                        rpc, pubkey,
                     )
-                    .await
+                        .await
                 };
                 (
                     fetched_merkle_tree.root_index() as u32,
@@ -1323,7 +1322,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     merkle_tree_account.data.as_mut_slice(),
                 )
-                .unwrap();
+                    .unwrap();
                 (
                     merkle_tree.get_root_index(),
                     merkle_tree.get_root().unwrap(),
@@ -1334,8 +1333,11 @@ impl<R: RpcConnection> TestIndexer<R> {
             root_indices.push(root_index as u16);
         }
 
-        let (batch_inclusion_proof_inputs, legacy) = if height == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize {
-            let inclusion_proof_inputs = InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
+        let (batch_inclusion_proof_inputs, legacy) = if height
+            == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
+        {
+            let inclusion_proof_inputs =
+                InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (
                 Some(BatchInclusionJsonStruct::from_inclusion_proof_inputs(
                     &inclusion_proof_inputs,

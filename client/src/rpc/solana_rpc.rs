@@ -328,9 +328,9 @@ impl RpcConnection for SolanaRpcConnection {
             }
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
-                * transaction_params.fee_config.address_queue_rollover as i64
+                    * transaction_params.fee_config.address_queue_rollover as i64
                 - i64::from(transaction_params.num_output_compressed_accounts)
-                * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
                 - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
                 - network_fee;
@@ -485,6 +485,6 @@ impl RpcConnection for SolanaRpcConnection {
                 .map_err(RpcError::from)?
                 .slot)
         })
-            .await
+        .await
     }
 }

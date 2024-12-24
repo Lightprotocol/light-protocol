@@ -1,25 +1,32 @@
-use crate::test_utils::{forester_config, init};
-use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
+use std::{sync::Arc, time::Duration};
+
 use forester::run_pipeline;
 use forester_utils::registry::{register_test_forester, update_test_forester};
-use light_client::rpc::solana_rpc::SolanaRpcUrl;
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_client::rpc_pool::SolanaRpcPool;
-use light_prover_client::gnark::helpers::LightValidatorConfig;
-use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
-use light_test_utils::indexer::TestIndexer;
-use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::timeout;
-use tracing::log::info;
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::{
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+};
+use light_client::{
+    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
+    rpc_pool::SolanaRpcPool,
+};
 use light_program_test::test_env::EnvAccounts;
+use light_prover_client::gnark::helpers::LightValidatorConfig;
+use light_test_utils::{
+    e2e_test_env::{init_program_test_env, E2ETestEnv},
+    indexer::TestIndexer,
+};
+use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::{
+    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
+};
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    time::timeout,
+};
+use tracing::log::info;
+
+use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
@@ -37,7 +44,7 @@ async fn test_batched() {
         wait_time: 15,
         prover_config: None,
     }))
-        .await;
+    .await;
 
     let forester_keypair = Keypair::new();
     let mut env = EnvAccounts::get_local_test_validator_accounts();
@@ -51,8 +58,8 @@ async fn test_batched() {
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
@@ -66,8 +73,8 @@ async fn test_batched() {
         &env.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100_000,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     register_test_forester(
         &mut rpc,
@@ -75,8 +82,8 @@ async fn test_batched() {
         &forester_keypair.pubkey(),
         light_registry::ForesterConfig::default(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     let new_forester_keypair = Keypair::new();
     rpc.airdrop_lamports(&new_forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -90,8 +97,8 @@ async fn test_batched() {
         Some(&new_forester_keypair),
         light_registry::ForesterConfig::default(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
@@ -102,7 +109,7 @@ async fn test_batched() {
 
     let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>;
 
-    e2e_env = init_program_test_env(rpc, &env, true).await;
+    e2e_env = init_program_test_env(rpc, &env, false).await;
     e2e_env.indexer.state_merkle_trees.clear();
     e2e_env
         .indexer
@@ -124,7 +131,8 @@ async fn test_batched() {
         .unwrap()
         .unwrap();
     let merkle_tree =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data).unwrap();
+        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data)
+            .unwrap();
     for i in 0..merkle_tree.get_account().queue.batch_size {
         println!("\ntx {}", i);
 
@@ -185,9 +193,10 @@ async fn test_batched() {
         .unwrap()
         .unwrap();
 
-    let merkle_tree =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(merkle_tree_account.data.as_mut_slice())
-            .unwrap();
+    let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+        merkle_tree_account.data.as_mut_slice(),
+    )
+    .unwrap();
 
     assert!(
         merkle_tree.get_account().queue.next_full_batch_index > 0,

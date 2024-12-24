@@ -1,16 +1,27 @@
-use crate::errors::ForesterError;
-use crate::Result;
+use std::sync::Arc;
+
+use borsh::BorshSerialize;
 use forester_utils::indexer::Indexer;
-use light_client::rpc::RpcConnection;
-use light_client::rpc_pool::SolanaRpcPool;
+use light_batched_merkle_tree::{
+    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
+    event::{BatchAppendEvent, BatchNullifyEvent},
+    merkle_tree::{
+        AppendBatchProofInputsIx, BatchProofInputsIx, InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+    },
+    queue::ZeroCopyBatchedQueueAccount,
+};
+use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
 use light_hasher::{Hasher, Poseidon};
-use light_prover_client::batch_append_with_proofs::get_batch_append_with_proofs_inputs;
-use light_prover_client::batch_update::get_batch_update_inputs;
-use light_prover_client::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson;
-use light_prover_client::gnark::batch_update_json_formatter::update_inputs_string;
-use light_prover_client::gnark::constants::{PROVE_PATH, SERVER_ADDRESS};
-use light_prover_client::gnark::proof_helpers::{
-    compress_proof, deserialize_gnark_proof_json, proof_from_json_struct,
+use light_prover_client::{
+    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
+    batch_update::get_batch_update_inputs,
+    gnark::{
+        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
+        batch_update_json_formatter::update_inputs_string,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
 };
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
@@ -19,15 +30,11 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::CompressedProof;
 use reqwest::Client;
 use solana_program::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use std::sync::Arc;
-use borsh::BorshSerialize;
+use solana_sdk::{signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::error;
-use light_batched_merkle_tree::event::{BatchAppendEvent, BatchNullifyEvent};
-use light_batched_merkle_tree::merkle_tree::{AppendBatchProofInputsIx, BatchProofInputsIx, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount};
-use light_batched_merkle_tree::queue::ZeroCopyBatchedQueueAccount;
+
+use crate::{errors::ForesterError, Result};
 
 pub struct BatchedOperations<R: RpcConnection, I: Indexer<R>> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -61,7 +68,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
             output_queue.get_batch_num_inserted_in_current_batch() > 0
         };
         is_batch_ready
@@ -76,7 +83,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
             let queue_account = output_queue.get_account();
             let batch_index = queue_account.queue.next_full_batch_index;
             let num_inserted_zkps =
@@ -96,14 +103,13 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             instruction_data?.try_to_vec()?,
         );
 
-        rpc
-            .create_and_send_transaction_with_event::<BatchAppendEvent>(
-                &[instruction],
-                &self.authority.pubkey(),
-                &[&self.authority],
-                None,
-            )
-            .await?;
+        rpc.create_and_send_transaction_with_event::<BatchAppendEvent>(
+            &[instruction],
+            &self.authority.pubkey(),
+            &[&self.authority],
+            None,
+        )
+        .await?;
 
         self.indexer
             .lock()
@@ -131,20 +137,20 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             instruction_data.try_to_vec()?,
         );
 
-        rpc
-            .create_and_send_transaction_with_event::<BatchNullifyEvent>(
-                &[instruction],
-                &self.authority.pubkey(),
-                &[&self.authority],
-                None,
-            )
-            .await?;
+        rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
+            &[instruction],
+            &self.authority.pubkey(),
+            &[&self.authority],
+            None,
+        )
+        .await?;
 
         let (batch_index, batch_size) = {
             let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
-            let merkle_tree =
-                ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
-                    .unwrap();
+            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                account.data.as_mut_slice(),
+            )
+            .unwrap();
             (
                 merkle_tree.get_account().queue.next_full_batch_index,
                 merkle_tree.get_account().queue.zkp_batch_size,
@@ -171,7 +177,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                 merkle_tree_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
             (
                 merkle_tree.get_account().next_index,
                 *merkle_tree.root_history.last().unwrap(),
@@ -184,7 +190,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
 
             let queue_account = output_queue.get_account();
             let full_batch_index = queue_account.queue.next_full_batch_index;
@@ -210,7 +216,12 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             .indexer
             .lock()
             .await
-            .get_queue_elements(self.merkle_tree.to_bytes(), full_batch_index, start as u64, end as u64)
+            .get_queue_elements(
+                self.merkle_tree.to_bytes(),
+                full_batch_index,
+                start as u64,
+                end as u64,
+            )
             .await
             .unwrap();
 
@@ -233,7 +244,9 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
         };
 
         let (proof, new_root) = {
-            let circuit_inputs = get_batch_append_with_proofs_inputs::<26>(
+            let circuit_inputs = get_batch_append_with_proofs_inputs::<
+                { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
+            >(
                 current_root,
                 merkle_tree_next_index as u32,
                 leaves,
@@ -241,14 +254,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
                 old_leaves,
                 merkle_proofs,
                 zkp_batch_size as u32,
-            ).unwrap();
+            )
+            .unwrap();
 
             let client = Client::new();
             let inputs_json =
                 BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
             let response = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs_json)
                 .send()
@@ -291,9 +305,10 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
 
         let (zkp_batch_size, old_root, old_root_index, leaves_hashchain) = {
             let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
-            let merkle_tree =
-                ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
-                    .unwrap();
+            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                account.data.as_mut_slice(),
+            )
+            .unwrap();
             let account = merkle_tree.get_account();
             let batch_idx = account.queue.next_full_batch_index as usize;
             let zkp_size = account.queue.zkp_batch_size;
@@ -337,7 +352,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             nullifiers.push(nullifier);
         }
 
-        let inputs = get_batch_update_inputs::<26>(
+        let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             old_root,
             tx_hashes,
             leaves.to_vec(),
@@ -346,14 +361,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
             merkle_proofs,
             path_indices,
             zkp_batch_size as u32,
-        ).unwrap();
+        )
+        .unwrap();
 
         let new_root =
             bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
 
         let client = Client::new();
         let response = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(update_inputs_string(&inputs))
             .send()
