@@ -166,6 +166,21 @@ async fn test_batched() {
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
+    let pre_root = {
+        let mut rpc = pool.get_connection().await.unwrap();
+        let mut merkle_tree_account = rpc
+            .get_account(merkle_tree_keypair.pubkey())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+            merkle_tree_account.data.as_mut_slice(),
+        )
+        .unwrap();
+        merkle_tree.get_root().unwrap()
+    };
+
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
@@ -202,6 +217,23 @@ async fn test_batched() {
         merkle_tree.get_account().queue.next_full_batch_index > 0,
         "No batches were processed"
     );
+
+    let post_root = {
+        let mut rpc = pool.get_connection().await.unwrap();
+        let mut merkle_tree_account = rpc
+            .get_account(merkle_tree_keypair.pubkey())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+            merkle_tree_account.data.as_mut_slice(),
+        )
+        .unwrap();
+        merkle_tree.get_root().unwrap()
+    };
+
+    assert_ne!(pre_root, post_root, "Roots are the same");
 
     shutdown_sender
         .send(())

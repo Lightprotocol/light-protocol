@@ -315,7 +315,6 @@ impl RpcConnection for SolanaRpcConnection {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();
             let post_balance = self.get_account(*payer).await?.unwrap().lamports;
-
             // a network_fee is charged if there are input compressed accounts or new addresses
             let mut network_fee: i64 = 0;
             if transaction_params.num_input_compressed_accounts != 0
@@ -336,32 +335,8 @@ impl RpcConnection for SolanaRpcConnection {
                 - network_fee;
 
             if post_balance as i64 != expected_post_balance {
-                println!("transaction_params: {:?}", transaction_params);
-                println!("pre_balance: {}", pre_balance);
-                println!("post_balance: {}", post_balance);
-                println!("expected post_balance: {}", expected_post_balance);
-                println!(
-                    "diff post_balance: {}",
-                    post_balance as i64 - expected_post_balance
-                );
-                println!(
-                    "rollover fee: {}",
-                    transaction_params.fee_config.state_merkle_tree_rollover
-                );
-                println!(
-                    "address_network_fee: {}",
-                    transaction_params.fee_config.address_network_fee
-                );
-                println!("network_fee: {}", network_fee);
-                println!("num signers {}", deduped_signers.len());
-                // return Err(RpcError::from(BanksClientError::TransactionError(
-                //     TransactionError::InstructionError(0, InstructionError::Custom(11111)),
-                // )));
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
-            // if post_balance as i64 != expected_post_balance {
-            //     return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
-            // }
         }
 
         let result = parsed_event.map(|e| (e, signature, slot));
@@ -474,8 +449,6 @@ impl RpcConnection for SolanaRpcConnection {
                 .client
                 .get_transaction_with_config(
                     signature,
-                    // UiTransactionEncoding::Json,
-                    // self.client.commitment(),
                     RpcTransactionConfig {
                         encoding: Some(UiTransactionEncoding::Base64),
                         commitment: Some(self.client.commitment()),

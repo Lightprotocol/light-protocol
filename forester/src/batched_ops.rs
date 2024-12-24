@@ -48,20 +48,6 @@ pub struct BatchedOperations<R: RpcConnection, I: Indexer<R>> {
 impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
     async fn is_batch_ready(&self) -> bool {
         let mut rpc = self.rpc_pool.get_connection().await.unwrap();
-        // let is_batch_ready = {
-        //     let mut output_queue_account =
-        //         rpc.get_account(self.output_queue).await.unwrap().unwrap();
-        //     let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
-        //         output_queue_account.data.as_mut_slice(),
-        //     )
-        //     .unwrap();
-        //     let idx = output_queue.get_account().queue.next_full_batch_index;
-        //     let batch = &output_queue.batches[idx as usize];
-        //     println!("is_batch_ready: batch: {:?}", batch);
-        //     batch.get_state() == BatchState::ReadyToUpdateTree
-        // };
-        // is_batch_ready
-
         let is_batch_ready = {
             let mut output_queue_account =
                 rpc.get_account(self.output_queue).await.unwrap().unwrap();
