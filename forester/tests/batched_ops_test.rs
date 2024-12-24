@@ -4,7 +4,7 @@ use forester::run_pipeline;
 use forester_utils::registry::{register_test_forester, update_test_forester};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::ZeroCopyBatchedMerkleTreeAccount,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
@@ -131,9 +131,8 @@ async fn test_batched() {
         .unwrap()
         .unwrap();
     let merkle_tree =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data)
-            .unwrap();
-    for i in 0..merkle_tree.get_account().queue.batch_size {
+        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data).unwrap();
+    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
         println!("\ntx {}", i);
 
         e2e_env
@@ -174,7 +173,7 @@ async fn test_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+        let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),
         )
         .unwrap();
@@ -208,13 +207,17 @@ async fn test_batched() {
         .unwrap()
         .unwrap();
 
-    let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+    let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
         merkle_tree_account.data.as_mut_slice(),
     )
     .unwrap();
 
     assert!(
-        merkle_tree.get_account().queue.next_full_batch_index > 0,
+        merkle_tree
+            .get_metadata()
+            .queue_metadata
+            .next_full_batch_index
+            > 0,
         "No batches were processed"
     );
 
@@ -226,7 +229,7 @@ async fn test_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+        let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),
         )
         .unwrap();

@@ -345,7 +345,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
     fn get_group_pda(&self) -> &Pubkey {
         &self.group_pda
     }
-    
+
     /// leaf index, leaf, tx hash
     fn get_leaf_indices_tx_hashes(
         &mut self,
@@ -393,9 +393,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
                             queue.account.data.as_mut_slice(),
                         )
                         .unwrap();
-                        for (j, value_array) in queue_zero_copy.value_vecs.iter().enumerate() {
+                        for value_array in queue_zero_copy.value_vecs.iter() {
                             let index = value_array.iter().position(|x| *x == *compressed_account);
-                            if let Some(index) = index {
+                            if index.is_some() {
                                 indices_to_remove.push(i);
                             }
                         }
@@ -642,106 +642,6 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         panic!("Failed to get proof from server");
     }
 
-    async fn create_proof_for_compressed_accounts2(
-        &mut self,
-        compressed_accounts: Option<Vec<[u8; 32]>>,
-        state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
-    ) -> BatchedTreeProofRpcResult {
-        let mut indices_to_remove = Vec::new();
-
-        // for all accounts in batched trees, check whether values are in tree or queue
-        let (compressed_accounts, state_merkle_tree_pubkeys) =
-            if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
-                compressed_accounts.zip(state_merkle_tree_pubkeys)
-            {
-                for (i, (compressed_account, state_merkle_tree_pubkey)) in compressed_accounts
-                    .iter()
-                    .zip(state_merkle_tree_pubkeys.iter())
-                    .enumerate()
-                {
-                    let accounts = self.state_merkle_trees.iter().find(|x| {
-                        x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
-                    });
-                    if let Some(accounts) = accounts {
-                        let output_queue_pubkey = accounts.accounts.nullifier_queue;
-                        let mut queue =
-                            AccountZeroCopy::<BatchedQueueAccount>::new(rpc, output_queue_pubkey)
-                                .await;
-                        let queue_zero_copy = ZeroCopyBatchedQueueAccount::from_bytes_mut(
-                            queue.account.data.as_mut_slice(),
-                        )
-                        .unwrap();
-                        for value_array in queue_zero_copy.value_vecs.iter() {
-                            let index = value_array.iter().position(|x| *x == *compressed_account);
-                            if index.is_some() {
-                                indices_to_remove.push(i);
-                            }
-                        }
-                    }
-                }
-                let compress_accounts = compressed_accounts
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, _)| !indices_to_remove.contains(i))
-                    .map(|(_, x)| *x)
-                    .collect::<Vec<_>>();
-                let state_merkle_tree_pubkeys = state_merkle_tree_pubkeys
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, _)| !indices_to_remove.contains(i))
-                    .map(|(_, x)| *x)
-                    .collect::<Vec<_>>();
-                if compress_accounts.is_empty() {
-                    (None, None)
-                } else {
-                    (Some(compress_accounts), Some(state_merkle_tree_pubkeys))
-                }
-            } else {
-                (None, None)
-            };
-        let rpc_result = if (compressed_accounts.is_some()
-            && !compressed_accounts.as_ref().unwrap().is_empty())
-            || address_merkle_tree_pubkeys.is_some()
-        {
-            Some(
-                self.create_proof_for_compressed_accounts(
-                    compressed_accounts,
-                    state_merkle_tree_pubkeys,
-                    new_addresses,
-                    address_merkle_tree_pubkeys,
-                    rpc,
-                )
-                .await,
-            )
-        } else {
-            None
-        };
-        let address_root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-            rpc_result.address_root_indices.clone()
-        } else {
-            Vec::new()
-        };
-        let root_indices = {
-            let mut root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-                rpc_result.root_indices.clone()
-            } else {
-                Vec::new()
-            };
-            for index in indices_to_remove {
-                root_indices.insert(index, None);
-            }
-            root_indices
-        };
-        BatchedTreeProofRpcResult {
-            proof: rpc_result.map(|x| x.proof),
-            root_indices,
-            address_root_indices,
-        }
-    }
-
     fn add_address_merkle_tree_accounts(
         &mut self,
         merkle_tree_keypair: &Keypair,
@@ -808,9 +708,9 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                 merkle_tree_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
             (
-                merkle_tree.get_account().next_index as usize,
+                merkle_tree.get_metadata().next_index as usize,
                 *merkle_tree.root_history.last().unwrap(),
             )
         };
@@ -818,14 +718,14 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let (max_num_zkp_updates, zkp_batch_size) = {
             let mut output_queue_account =
                 rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
-            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
-                .unwrap();
+            .unwrap();
 
-            let output_queue_account = output_queue.get_account();
-            let max_num_zkp_updates = output_queue_account.queue.get_num_zkp_batches();
-            let zkp_batch_size = output_queue_account.queue.zkp_batch_size;
+            let output_queue_account = output_queue.get_metadata();
+            let max_num_zkp_updates = output_queue_account.batch_metadata.get_num_zkp_batches();
+            let zkp_batch_size = output_queue_account.batch_metadata.zkp_batch_size;
             (max_num_zkp_updates, zkp_batch_size)
         };
 
@@ -881,7 +781,7 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
         let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),
         )
-            .unwrap();
+        .unwrap();
 
         let batch = &merkle_tree.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
@@ -1311,7 +1211,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                     get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
                         rpc, pubkey,
                     )
-                        .await
+                    .await
                 };
                 (
                     fetched_merkle_tree.root_index() as u32,
@@ -1322,7 +1222,7 @@ impl<R: RpcConnection> TestIndexer<R> {
                 let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     merkle_tree_account.data.as_mut_slice(),
                 )
-                    .unwrap();
+                .unwrap();
                 (
                     merkle_tree.get_root_index(),
                     merkle_tree.get_root().unwrap(),

@@ -6,10 +6,10 @@ use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     event::{BatchAppendEvent, BatchNullifyEvent},
     merkle_tree::{
-        AppendBatchProofInputsIx, BatchProofInputsIx, InstructionDataBatchAppendInputs,
-        InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+        AppendBatchProofInputsIx, BatchProofInputsIx, BatchedMerkleTreeAccount,
+        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
-    queue::ZeroCopyBatchedQueueAccount,
+    queue::BatchedQueueAccount,
 };
 use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
 use light_hasher::{Hasher, Poseidon};
@@ -51,7 +51,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
         let is_batch_ready = {
             let mut output_queue_account =
                 rpc.get_account(self.output_queue).await.unwrap().unwrap();
-            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
             .unwrap();
@@ -66,15 +66,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
         let (num_inserted_zkps, batch_size) = {
             let mut output_queue_account =
                 rpc.get_account(self.output_queue).await.unwrap().unwrap();
-            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
             .unwrap();
-            let queue_account = output_queue.get_account();
-            let batch_index = queue_account.queue.next_full_batch_index;
+            let queue_metadata = output_queue.get_metadata();
+            let batch_index = queue_metadata.batch_metadata.next_full_batch_index;
             let num_inserted_zkps =
                 output_queue.batches[batch_index as usize].get_num_inserted_zkps();
-            let zkp_batch_size = queue_account.queue.zkp_batch_size;
+            let zkp_batch_size = queue_metadata.batch_metadata.zkp_batch_size;
 
             (num_inserted_zkps, zkp_batch_size)
         };
@@ -133,13 +133,15 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
 
         let (batch_index, batch_size) = {
             let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                account.data.as_mut_slice(),
-            )
-            .unwrap();
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+                    .unwrap();
             (
-                merkle_tree.get_account().queue.next_full_batch_index,
-                merkle_tree.get_account().queue.zkp_batch_size,
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .next_full_batch_index,
+                merkle_tree.get_metadata().queue_metadata.zkp_batch_size,
             )
         };
 
@@ -160,12 +162,12 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
 
         let (merkle_tree_next_index, current_root) = {
             let mut merkle_tree_account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                 merkle_tree_account.data.as_mut_slice(),
             )
             .unwrap();
             (
-                merkle_tree.get_account().next_index,
+                merkle_tree.get_metadata().next_index,
                 *merkle_tree.root_history.last().unwrap(),
             )
         };
@@ -173,14 +175,14 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
         let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hashchain) = {
             let mut output_queue_account =
                 rpc.get_account(self.output_queue).await.unwrap().unwrap();
-            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                 output_queue_account.data.as_mut_slice(),
             )
             .unwrap();
 
-            let queue_account = output_queue.get_account();
-            let full_batch_index = queue_account.queue.next_full_batch_index;
-            let zkp_batch_size = queue_account.queue.zkp_batch_size;
+            let queue_metadata = output_queue.get_metadata();
+            let full_batch_index = queue_metadata.batch_metadata.next_full_batch_index;
+            let zkp_batch_size = queue_metadata.batch_metadata.zkp_batch_size;
 
             let num_inserted_zkps =
                 output_queue.batches[full_batch_index as usize].get_num_inserted_zkps();
@@ -291,13 +293,12 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
 
         let (zkp_batch_size, old_root, old_root_index, leaves_hashchain) = {
             let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                account.data.as_mut_slice(),
-            )
-            .unwrap();
-            let account = merkle_tree.get_account();
-            let batch_idx = account.queue.next_full_batch_index as usize;
-            let zkp_size = account.queue.zkp_batch_size;
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+                    .unwrap();
+            let metadata = merkle_tree.get_metadata();
+            let batch_idx = metadata.queue_metadata.next_full_batch_index as usize;
+            let zkp_size = metadata.queue_metadata.zkp_batch_size;
             let batch = &merkle_tree.batches[batch_idx];
             let zkp_idx = batch.get_num_inserted_zkps();
             let hashchain = merkle_tree.hashchain_store[batch_idx][zkp_idx as usize];

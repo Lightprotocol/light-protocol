@@ -4,7 +4,7 @@ use account_compression::{
 };
 use borsh::BorshDeserialize;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use solana_sdk::{account::Account, pubkey::Pubkey};
@@ -41,13 +41,13 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
 }
 
 fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
-    let tree_account =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data).map_err(
-            |e| ForesterError::Custom(format!("Failed to deserialize state tree account: {:?}", e)),
-        )?;
+    let tree_account = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data)
+        .map_err(|e| {
+            ForesterError::Custom(format!("Failed to deserialize state tree account: {:?}", e))
+        })?;
     Ok(create_tree_accounts(
         pubkey,
-        &tree_account.get_account().metadata,
+        &tree_account.get_metadata().metadata,
         TreeType::BatchedState,
     ))
 }

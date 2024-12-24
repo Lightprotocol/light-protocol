@@ -13,7 +13,7 @@ use forester_utils::{
     indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
     registry::RentExemption,
 };
-use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
@@ -109,47 +109,52 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedState => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data)
-                    .unwrap();
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data).unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.get_account().queue.batch_size
+                merkle_tree.get_metadata().queue_metadata.batch_size
             );
 
             println!(
                 "queue currently_processing_batch_index: {:?}",
                 merkle_tree
-                    .get_account()
-                    .queue
+                    .get_metadata()
+                    .queue_metadata
                     .currently_processing_batch_index as usize
             );
 
             println!(
                 "queue batch_size: {:?}",
-                merkle_tree.get_account().queue.batch_size
+                merkle_tree.get_metadata().queue_metadata.batch_size
             );
             println!(
                 "queue zkp_batch_size: {:?}",
-                merkle_tree.get_account().queue.zkp_batch_size
+                merkle_tree.get_metadata().queue_metadata.zkp_batch_size
             );
             println!(
                 "queue next_full_batch_index: {:?}",
-                merkle_tree.get_account().queue.next_full_batch_index
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .next_full_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
-                merkle_tree.get_account().queue.bloom_filter_capacity
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .bloom_filter_capacity
             );
             println!(
                 "queue num_batches: {:?}",
-                merkle_tree.get_account().queue.num_batches
+                merkle_tree.get_metadata().queue_metadata.num_batches
             );
 
             println!(
                 "tree next_index: {:?}",
-                merkle_tree.get_account().next_index
+                merkle_tree.get_metadata().next_index
             );
-            println!("tree height: {:?}", merkle_tree.get_account().height);
+            println!("tree height: {:?}", merkle_tree.get_metadata().height);
 
             // TODO: implement
             let threshold = 0;
@@ -549,7 +554,7 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnecti
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
         .unwrap();
-    let tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+    let tree_size = AddressMerkleTreeAccount::size(
         address_merkle_tree_config.height as usize,
         address_merkle_tree_config.changelog_size as usize,
         address_merkle_tree_config.roots_size as usize,
