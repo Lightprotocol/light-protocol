@@ -39,6 +39,18 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Clean build artifacts before tests
+        shell: bash
+        run: |
+          cargo clean
+          rm -rf target/debug/deps/*
+
+      - name: Check available disk space
+        shell: bash
+        run: |
+          df -h /
+          du -sh /home/runner/work/* | sort -hr | head -n 10
+
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh

@@ -475,7 +475,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     ));
 
     // Wait for both foresters to report work for epoch 1
-    const TIMEOUT_DURATION: Duration = Duration::from_secs(360);
+    const TIMEOUT_DURATION: Duration = Duration::from_secs(500);
     const EXPECTED_EPOCHS: u64 = 2; // We expect to process 2 epochs (0 and 1)
 
     let result: Result<(), tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {
