@@ -139,6 +139,7 @@ async fn test_all_endpoints() {
         vec![payer_pubkey],
         None,
         false,
+        0,
     );
 
     let tx = Transaction::new_signed_with_payer(
