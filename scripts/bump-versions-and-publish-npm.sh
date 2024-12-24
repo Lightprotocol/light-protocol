@@ -9,7 +9,6 @@ fi
 
 get_package_dir() {
     case "$1" in
-        "@lightprotocol/hasher.rs") echo "hasher.rs" ;;
         "@lightprotocol/stateless.js") echo "js/stateless.js" ;;
         "@lightprotocol/compressed-token") echo "js/compressed-token" ;;
         "@lightprotocol/zk-compression-cli") echo "cli" ;;
