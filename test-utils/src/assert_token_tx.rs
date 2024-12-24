@@ -1,10 +1,7 @@
 use anchor_lang::AnchorSerialize;
 use forester_utils::indexer::{Indexer, TokenDataWithContext};
 use light_client::rpc::RpcConnection;
-use light_compressed_token::{
-    get_token_pool_pda,
-    process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
-};
+use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
@@ -201,6 +198,7 @@ pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
     created_token_accounts: &[TokenDataWithContext],
     previous_mint_supply: u64,
     previous_sol_pool_amount: u64,
+    token_pool_pda: Pubkey,
 ) {
     let mut created_token_accounts = created_token_accounts.to_vec();
     for (recipient, amount) in recipients.iter().zip(amounts) {
@@ -222,10 +220,10 @@ pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
     let sum_amounts = amounts.iter().sum::<u64>();
     assert_eq!(mint_account.supply, previous_mint_supply + sum_amounts);
 
-    let pool = get_token_pool_pda(&mint);
-    let pool_account =
-        spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
-            .unwrap();
+    let pool_account = spl_token::state::Account::unpack(
+        &rpc.get_account(token_pool_pda).await.unwrap().unwrap().data,
+    )
+    .unwrap();
     assert_eq!(pool_account.amount, previous_sol_pool_amount + sum_amounts);
 }
 

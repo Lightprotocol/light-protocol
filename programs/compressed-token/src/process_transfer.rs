@@ -643,6 +643,7 @@ pub mod transfer_sdk {
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
         is_token_22: bool,
+        additional_token_pools: &[Pubkey],
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
@@ -657,6 +658,7 @@ pub mod transfer_sdk {
             compress_or_decompress_amount,
             delegate_change_account_index,
             lamports_change_account_merkle_tree,
+            additional_token_pools,
         );
         if sort {
             inputs_struct
@@ -759,6 +761,7 @@ pub mod transfer_sdk {
                 compress_or_decompress_amount,
                 delegate_change_account_index,
                 lamports_change_account_merkle_tree,
+                &[],
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
@@ -777,13 +780,15 @@ pub mod transfer_sdk {
         compress_or_decompress_amount: Option<u64>,
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
+        accounts: &[Pubkey],
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
     ) {
-        let mut additonal_accounts = Vec::new();
+        let mut additional_accounts = Vec::new();
+        additional_accounts.extend_from_slice(accounts);
         if let Some(delegate) = delegate {
-            additonal_accounts.push(delegate);
+            additional_accounts.push(delegate);
             for account in input_token_data.iter() {
                 if account.delegate.is_some() && delegate != account.delegate.unwrap() {
                     println!("delegate: {:?}", delegate);
@@ -796,14 +801,14 @@ pub mod transfer_sdk {
             lamports_change_account_merkle_tree,
         ) = lamports_change_account_merkle_tree
         {
-            additonal_accounts.push(lamports_change_account_merkle_tree);
-            Some(additonal_accounts.len() as u8 - 1)
+            additional_accounts.push(lamports_change_account_merkle_tree);
+            Some(additional_accounts.len() as u8 - 1)
         } else {
             None
         };
         let (remaining_accounts, input_token_data_with_context, _output_compressed_accounts) =
             create_input_output_and_remaining_accounts(
-                additonal_accounts.as_slice(),
+                additional_accounts.as_slice(),
                 input_token_data,
                 input_compressed_accounts,
                 input_merkle_context,

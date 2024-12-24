@@ -1,12 +1,12 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token_interface::{Mint, TokenInterface};
 use light_system_program::{
     program::LightSystemProgram,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
-use crate::{program::LightCompressedToken, POOL_SEED};
+use crate::program::LightCompressedToken;
 
 #[derive(Accounts)]
 pub struct BurnInstruction<'info> {
@@ -24,9 +24,9 @@ pub struct BurnInstruction<'info> {
     /// CHECK: is used to burn tokens.
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
-    /// CHECK: (seed constraint) is derived from mint account.
-    #[account(mut, seeds = [POOL_SEED, mint.key().as_ref()], bump)]
-    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: in burn_spl_from_pool_pda.
+    #[account(mut)]
+    pub token_pool_pda: AccountInfo<'info>,
     pub token_program: Interface<'info, TokenInterface>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).

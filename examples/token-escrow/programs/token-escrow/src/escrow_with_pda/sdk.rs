@@ -130,6 +130,7 @@ pub fn create_withdrawal_escrow_instruction(
         None,
         None,
         None,
+        &[],
     );
 
     let merkle_tree_indices = add_and_get_remaining_account_indices(
