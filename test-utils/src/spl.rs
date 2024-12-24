@@ -9,13 +9,17 @@ use light_client::{
 };
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
+    constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
         CreateRevokeInstructionInputs,
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda,
-    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    get_token_pool_pda, get_token_pool_pda_with_bump,
+    mint_sdk::{
+        create_add_token_pool_instruction, create_create_token_pool_instruction,
+        create_mint_to_instruction,
+    },
     process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction,
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
     token_data::AccountState,
@@ -136,6 +140,34 @@ pub async fn mint_tokens_22_helper_with_lamports<R: RpcConnection, I: Indexer<R>
     lamports: Option<u64>,
     token_22: bool,
 ) {
+    mint_tokens_22_helper_with_lamports_and_bump(
+        rpc,
+        test_indexer,
+        merkle_tree_pubkey,
+        mint_authority,
+        mint,
+        amounts,
+        recipients,
+        lamports,
+        token_22,
+        0,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn mint_tokens_22_helper_with_lamports_and_bump<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    test_indexer: &mut I,
+    merkle_tree_pubkey: &Pubkey,
+    mint_authority: &Keypair,
+    mint: &Pubkey,
+    amounts: Vec<u64>,
+    recipients: Vec<Pubkey>,
+    lamports: Option<u64>,
+    token_22: bool,
+    token_pool_bump: u8,
+) {
     let payer_pubkey = mint_authority.pubkey();
     let instruction = create_mint_to_instruction(
         &payer_pubkey,
@@ -146,6 +178,7 @@ pub async fn mint_tokens_22_helper_with_lamports<R: RpcConnection, I: Indexer<R>
         recipients.clone(),
         lamports,
         token_22,
+        token_pool_bump,
     );
 
     let output_merkle_tree_accounts =
@@ -157,7 +190,7 @@ pub async fn mint_tokens_22_helper_with_lamports<R: RpcConnection, I: Indexer<R>
             .unwrap()
             .supply;
 
-    let pool: Pubkey = get_token_pool_pda(mint);
+    let pool: Pubkey = get_token_pool_pda_with_bump(mint, token_pool_bump);
     let previous_pool_amount =
         spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
             .unwrap()
@@ -185,6 +218,7 @@ pub async fn mint_tokens_22_helper_with_lamports<R: RpcConnection, I: Indexer<R>
         &created_token_accounts,
         previous_mint_supply,
         previous_pool_amount,
+        pool,
     )
     .await;
 }
@@ -339,6 +373,40 @@ pub fn create_initialize_mint_22_instructions(
         ],
         pool_pubkey,
     )
+}
+
+pub async fn create_additional_token_pools<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Pubkey,
+    is_token_22: bool,
+    num: u8,
+) -> Result<Vec<Pubkey>, RpcError> {
+    let mut instructions = Vec::new();
+    let mut created_token_pools = Vec::new();
+
+    for token_pool_bump in 0..NUM_MAX_POOL_ACCOUNTS {
+        if instructions.len() == num as usize {
+            break;
+        }
+        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
+        let account = rpc.get_account(token_pool_pda).await.unwrap();
+        println!("bump {}", token_pool_bump);
+        println!("account exists {:?}", account.is_some());
+        if account.is_none() {
+            created_token_pools.push(token_pool_pda);
+            let instruction = create_add_token_pool_instruction(
+                &payer.pubkey(),
+                mint,
+                token_pool_bump,
+                is_token_22,
+            );
+            instructions.push(instruction);
+        }
+    }
+    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+        .await?;
+    Ok(created_token_pools)
 }
 
 /// Creates a spl token account and initializes it with the given mint and owner.
@@ -571,6 +639,7 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
         delegate_change_account_index,
         None,
         token_22,
+        &[],
     )
     .unwrap();
     let sum_input_lamports = input_compressed_accounts
@@ -664,13 +733,18 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     recipient_token_account: &Pubkey,
     transaction_params: Option<TransactionParams>,
     is_token_22: bool,
+    token_pool_bump: u8,
+    additonal_pool_accounts: Option<Vec<Pubkey>>,
 ) {
     let max_amount: u64 = input_compressed_accounts
         .iter()
         .map(|x| x.token_data.amount)
         .sum();
+    println!("max_amount: {}", max_amount);
+    println!("amount: {}", amount);
+    let output_amount = max_amount - amount;
     let change_out_compressed_account = TokenTransferOutputData {
-        amount: max_amount - amount,
+        amount: output_amount,
         owner: payer.pubkey(),
         lamports: None,
         merkle_tree: *output_merkle_tree_pubkey,
@@ -693,6 +767,8 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let token_pool_pda = get_token_pool_pda_with_bump(&mint, token_pool_bump);
+
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
         &payer.pubkey(), // authority
@@ -713,16 +789,20 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
             .map(|x| &x.compressed_account.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
-        mint,                            // mint
-        None,                            // owner_if_delegate_change_account_index
-        false,                           // is_compress
-        Some(amount),                    // compression_amount
-        Some(get_token_pool_pda(&mint)), // token_pool_pda
-        Some(*recipient_token_account),  // compress_or_decompress_token_account
+        mint,                           // mint
+        None,                           // owner_if_delegate_change_account_index
+        false,                          // is_compress
+        Some(amount),                   // compression_amount
+        Some(token_pool_pda),           // token_pool_pda
+        Some(*recipient_token_account), // compress_or_decompress_token_account
         true,
         None,
         None,
         is_token_22,
+        additonal_pool_accounts
+            .clone()
+            .unwrap_or_default()
+            .as_slice(),
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -742,6 +822,30 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
             .data,
     )
     .unwrap();
+    let mut token_pool_pre_balances = vec![
+        spl_token::state::Account::unpack(
+            &rpc.get_account(token_pool_pda).await.unwrap().unwrap().data,
+        )
+        .unwrap()
+        .amount,
+    ];
+    for additional_pool_account in additonal_pool_accounts
+        .clone()
+        .unwrap_or_default()
+        .as_slice()
+    {
+        token_pool_pre_balances.push(
+            spl_token::state::Account::unpack(
+                &rpc.get_account(*additional_pool_account)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .data,
+            )
+            .unwrap()
+            .amount,
+        );
+    }
     let context_payer = rpc.get_payer().insecure_clone();
     let (event, _signature, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
@@ -772,7 +876,6 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         None,
     )
     .await;
-
     let recipient_token_account_data = spl_token::state::Account::unpack(
         &rpc.get_account(*recipient_token_account)
             .await
@@ -781,10 +884,44 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
             .data,
     )
     .unwrap();
+    println!("amount: {}", amount);
     assert_eq!(
         recipient_token_account_data.amount,
         recipient_token_account_data_pre.amount + amount
     );
+    let token_pool_post_balance = spl_token::state::Account::unpack(
+        &rpc.get_account(token_pool_pda).await.unwrap().unwrap().data,
+    )
+    .unwrap()
+    .amount;
+    assert_eq!(
+        token_pool_post_balance,
+        token_pool_pre_balances[0].saturating_sub(amount)
+    );
+    let mut amount = amount - token_pool_pre_balances[0];
+    for (i, additional_account) in additonal_pool_accounts
+        .unwrap_or_default()
+        .iter()
+        .enumerate()
+    {
+        let post_balance = spl_token::state::Account::unpack(
+            &rpc.get_account(*additional_account)
+                .await
+                .unwrap()
+                .unwrap()
+                .data,
+        )
+        .unwrap()
+        .amount;
+        amount -= token_pool_pre_balances[i + 1];
+        if amount == 0 {
+            break;
+        }
+        assert_eq!(
+            post_balance,
+            token_pool_pre_balances[i + 1].saturating_sub(amount)
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -798,6 +935,7 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
     merkle_tree_pubkey: &Pubkey,
     remaining_amount: Option<u64>,
     is_token_22: bool,
+    token_pool_bump: u8,
 ) -> Result<(), RpcError> {
     let pre_token_account_amount = spl_token::state::Account::unpack(
         &rpc.get_account(*token_account).await.unwrap().unwrap().data,
@@ -814,6 +952,7 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
         merkle_tree_pubkey,
         token_account,
         is_token_22,
+        token_pool_bump,
     );
     let (event, _, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
@@ -870,6 +1009,8 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     sender_token_account: &Pubkey,
     transaction_params: Option<TransactionParams>,
     is_token_22: bool,
+    token_pool_bump: u8,
+    additonal_pool_accounts: Option<Vec<Pubkey>>,
 ) {
     let output_compressed_account = TokenTransferOutputData {
         amount,
@@ -885,18 +1026,19 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         &[output_compressed_account], // output_compressed_accounts
         &Vec::new(),                  // root_indices
         &None,
-        &Vec::new(),                    // input_token_data
-        &Vec::new(),                    // input_compressed_accounts
-        *mint,                          // mint
-        None,                           // owner_if_delegate_is_signer
-        true,                           // is_compress
-        Some(amount),                   // compression_amount
-        Some(get_token_pool_pda(mint)), // token_pool_pda
-        Some(*sender_token_account),    // compress_or_decompress_token_account
+        &Vec::new(),                                               // input_token_data
+        &Vec::new(),                                               // input_compressed_accounts
+        *mint,                                                     // mint
+        None,                                                      // owner_if_delegate_is_signer
+        true,                                                      // is_compress
+        Some(amount),                                              // compression_amount
+        Some(get_token_pool_pda_with_bump(mint, token_pool_bump)), // token_pool_pda
+        Some(*sender_token_account), // compress_or_decompress_token_account
         true,
         None,
         None,
         is_token_22,
+        additonal_pool_accounts.unwrap_or_default().as_slice(),
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -1427,6 +1569,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
     signer_is_delegate: bool,
     transaction_params: Option<TransactionParams>,
     is_token_22: bool,
+    token_pool_bump: u8,
 ) {
     let (
         input_compressed_account_hashes,
@@ -1444,6 +1587,8 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
         signer_is_delegate,
         BurnInstructionMode::Normal,
         is_token_22,
+        token_pool_bump,
+        None,
     )
     .await;
     let output_merkle_tree_pubkeys = vec![*change_account_merkle_tree; 1];
@@ -1456,7 +1601,7 @@ pub async fn burn_test<R: RpcConnection, I: Indexer<R>>(
         Vec::new()
     };
 
-    let token_pool_pda_address = get_token_pool_pda(&mint);
+    let token_pool_pda_address = get_token_pool_pda_with_bump(&mint, token_pool_bump);
     let pre_token_pool_account = rpc
         .get_account(token_pool_pda_address)
         .await
@@ -1567,6 +1712,8 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     signer_is_delegate: bool,
     mode: BurnInstructionMode,
     is_token_22: bool,
+    token_pool_bump: u8,
+    additonal_pool_accounts: Option<Vec<Pubkey>>,
 ) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -1622,6 +1769,8 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
         signer_is_delegate,
         burn_amount,
         is_token_22,
+        token_pool_bump,
+        additonal_pool_accounts: additonal_pool_accounts.unwrap_or_default(),
     };
     let input_amount_sum = input_compressed_accounts
         .iter()

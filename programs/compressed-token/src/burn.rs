@@ -15,6 +15,7 @@ use crate::{
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
+    spl_compression::invoke_token_program_with_multiple_token_pool_accounts,
     BurnInstruction, ErrorCode,
 };
 
@@ -68,32 +69,46 @@ pub fn burn_spl_from_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
-    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let amount = inputs.burn_amount;
+    let token_pool_pda = &ctx.accounts.token_pool_pda;
+
+    invoke_token_program_with_multiple_token_pool_accounts::<true>(
+        ctx.remaining_accounts,
+        &ctx.accounts.mint.key().to_bytes(),
+        Some(ctx.accounts.mint.to_account_info()),
+        None,
+        ctx.accounts.cpi_authority_pda.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        token_pool_pda.to_account_info(),
+        amount,
+    )
+}
+
+pub fn spl_burn_cpi<'info>(
+    mint: AccountInfo<'info>,
+    cpi_authority_pda: AccountInfo<'info>,
+    token_pool_pda: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
+    burn_amount: u64,
+    pre_token_balance: u64,
+) -> Result<()> {
     let cpi_accounts = anchor_spl::token_interface::Burn {
-        mint: ctx.accounts.mint.to_account_info(),
-        from: ctx.accounts.token_pool_pda.to_account_info(),
-        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
+        mint,
+        from: token_pool_pda.to_account_info(),
+        authority: cpi_authority_pda,
     };
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        cpi_accounts,
-        signer_seeds_ref,
-    );
-    anchor_spl::token_interface::burn(cpi_ctx, inputs.burn_amount)?;
-
-    let post_token_balance = TokenAccount::try_deserialize(
-        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
-    )?
-    .amount;
-    // Guard against unexpected behavior of the SPL token program.
-    if post_token_balance != pre_token_balance - inputs.burn_amount {
+    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds_ref);
+    anchor_spl::token_interface::burn(cpi_ctx, burn_amount)?;
+    let post_token_balance =
+        TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])?.amount;
+    if post_token_balance != pre_token_balance - burn_amount {
         msg!(
             "post_token_balance {} != pre_token_balance {} - burn_amount {}",
             post_token_balance,
             pre_token_balance,
-            inputs.burn_amount
+            burn_amount
         );
         return err!(crate::ErrorCode::SplTokenSupplyMismatch);
     }
@@ -182,7 +197,7 @@ pub mod sdk {
 
     use super::CompressedTokenInstructionDataBurn;
     use crate::{
-        get_token_pool_pda,
+        get_token_pool_pda_with_bump,
         process_transfer::{
             get_cpi_authority_pda,
             transfer_sdk::{
@@ -206,6 +221,8 @@ pub mod sdk {
         pub burn_amount: u64,
         pub signer_is_delegate: bool,
         pub is_token_22: bool,
+        pub token_pool_bump: u8,
+        pub additonal_pool_accounts: Vec<Pubkey>,
     }
 
     pub fn create_burn_instruction(
@@ -213,7 +230,11 @@ pub mod sdk {
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, input_token_data_with_context, _) =
             create_input_output_and_remaining_accounts(
-                &[inputs.change_account_merkle_tree],
+                &[
+                    inputs.additonal_pool_accounts,
+                    vec![inputs.change_account_merkle_tree],
+                ]
+                .concat(),
                 &inputs.input_token_data,
                 &inputs.input_compressed_accounts,
                 &inputs.input_merkle_contexts,
@@ -253,7 +274,7 @@ pub mod sdk {
         }
         .data();
 
-        let token_pool_pda = get_token_pool_pda(&inputs.mint);
+        let token_pool_pda = get_token_pool_pda_with_bump(&inputs.mint, inputs.token_pool_bump);
         let token_program = if inputs.is_token_22 {
             anchor_spl::token_2022::ID
         } else {
