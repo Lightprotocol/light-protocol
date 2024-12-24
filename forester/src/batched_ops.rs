@@ -3,6 +3,7 @@ use std::sync::Arc;
 use borsh::BorshSerialize;
 use forester_utils::indexer::Indexer;
 use light_batched_merkle_tree::{
+    batch::BatchState,
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     event::{BatchAppendEvent, BatchNullifyEvent},
     merkle_tree::{
@@ -49,13 +50,18 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedOperations<R, I> {
     async fn is_batch_ready(&self) -> bool {
         let mut rpc = self.rpc_pool.get_connection().await.unwrap();
         let is_batch_ready = {
-            let mut output_queue_account =
-                rpc.get_account(self.output_queue).await.unwrap().unwrap();
-            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-                output_queue_account.data.as_mut_slice(),
-            )
-            .unwrap();
-            output_queue.get_batch_num_inserted_in_current_batch() > 0
+            let mut account = rpc.get_account(self.merkle_tree).await.unwrap().unwrap();
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+                    .unwrap();
+            let batch_index = merkle_tree
+                .get_metadata()
+                .queue_metadata
+                .next_full_batch_index;
+            let full_batch = merkle_tree.batches.get(batch_index as usize).unwrap();
+
+            full_batch.get_state() != BatchState::Inserted
+                && full_batch.get_current_zkp_batch_index() > full_batch.get_num_inserted_zkps()
         };
         is_batch_ready
     }
