@@ -429,8 +429,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
         .await?
         .unwrap();
 
-    // TODO: replace with get_transaction_slot
-    let slot = inputs.rpc.get_slot().await.unwrap();
+    let slot = inputs.rpc.get_transaction_slot(&event.1).await.unwrap();
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(slot, &event.0);
@@ -457,7 +456,6 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
             .map(|x| x.address_queue_pubkey)
             .collect::<Vec<Pubkey>>(),
     };
-    println!("here1");
     assert_compressed_transaction(input).await;
     Ok(event.1)
 }

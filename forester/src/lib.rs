@@ -1,5 +1,6 @@
 pub type Result<T> = std::result::Result<T, ForesterError>;
 
+pub mod batched_ops;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -56,6 +57,10 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
+        if tree_data.tree_type == TreeType::BatchedState {
+            continue;
+        }
+
         let length = if tree_data.tree_type == TreeType::State {
             STATE_NULLIFIER_QUEUE_VALUES
         } else {
