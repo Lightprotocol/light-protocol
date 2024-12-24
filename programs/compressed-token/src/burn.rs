@@ -8,14 +8,14 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS},
+    constants::NOT_FROZEN,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts, get_cpi_signer_seeds,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
-    spl_compression::check_spl_token_pool_derivation,
+    spl_compression::invoke_token_program_with_multiple_token_pool_accounts,
     BurnInstruction, ErrorCode,
 };
 
@@ -69,64 +69,37 @@ pub fn burn_spl_from_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
     inputs: &CompressedTokenInstructionDataBurn,
 ) -> Result<()> {
-    let mut token_pool_bumps = (0..NUM_MAX_POOL_ACCOUNTS).collect::<Vec<u8>>();
-    let mut amount = inputs.burn_amount;
-    let mut token_pool_pda = &ctx.accounts.token_pool_pda;
-    let mint_bytes = ctx.accounts.mint.key().to_bytes();
-    for i in 0..NUM_MAX_POOL_ACCOUNTS {
-        if i != 0 {
-            token_pool_pda = &ctx.remaining_accounts[i as usize - 1];
-        }
-        let token_pool_amount =
-            TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])
-                .map_err(|_| crate::ErrorCode::InvalidTokenPoolPda)?
-                .amount;
-        let withdrawal_amount = std::cmp::min(amount, token_pool_amount);
-        if withdrawal_amount == 0 {
-            continue;
-        }
-        let mut remove_index = 0;
-        for (index, i) in token_pool_bumps.iter().enumerate() {
-            if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
-            {
-                burn(
-                    ctx,
-                    token_pool_pda.to_account_info(),
-                    withdrawal_amount,
-                    token_pool_amount,
-                )?;
+    let amount = inputs.burn_amount;
+    let token_pool_pda = &ctx.accounts.token_pool_pda;
 
-                remove_index = index;
-            }
-        }
-        token_pool_bumps.remove(remove_index);
-
-        amount = amount.saturating_sub(withdrawal_amount);
-        if amount == 0 {
-            return Ok(());
-        }
-    }
-    err!(crate::ErrorCode::FailedToDecompress)
+    invoke_token_program_with_multiple_token_pool_accounts::<true>(
+        ctx.remaining_accounts,
+        &ctx.accounts.mint.key().to_bytes(),
+        Some(ctx.accounts.mint.to_account_info()),
+        None,
+        ctx.accounts.cpi_authority_pda.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        token_pool_pda.to_account_info(),
+        amount,
+    )
 }
 
-fn burn<'info>(
-    ctx: &Context<'_, '_, '_, 'info, BurnInstruction<'info>>,
+pub fn spl_burn_cpi<'info>(
+    mint: AccountInfo<'info>,
+    cpi_authority_pda: AccountInfo<'info>,
     token_pool_pda: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
     burn_amount: u64,
     pre_token_balance: u64,
 ) -> Result<()> {
     let cpi_accounts = anchor_spl::token_interface::Burn {
-        mint: ctx.accounts.mint.to_account_info(),
+        mint,
         from: token_pool_pda.to_account_info(),
-        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
+        authority: cpi_authority_pda,
     };
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        cpi_accounts,
-        signer_seeds_ref,
-    );
+    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds_ref);
     anchor_spl::token_interface::burn(cpi_ctx, burn_amount)?;
     let post_token_balance =
         TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])?.amount;

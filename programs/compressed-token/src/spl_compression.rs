@@ -54,58 +54,99 @@ pub fn decompress_spl_tokens<'info>(
         Some(compression_recipient) => compression_recipient.to_account_info(),
         None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompress),
     };
-    let mut token_pool_pda = match ctx.accounts.token_pool_pda.as_ref() {
+    let token_pool_pda = match ctx.accounts.token_pool_pda.as_ref() {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
     };
-    let mut amount = match inputs.compress_or_decompress_amount {
+    let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
     };
-    let mint_bytes = inputs.mint.to_bytes();
+    invoke_token_program_with_multiple_token_pool_accounts::<false>(
+        ctx.remaining_accounts,
+        &inputs.mint.key().to_bytes(),
+        None,
+        Some(recipient),
+        ctx.accounts.cpi_authority_pda.to_account_info(),
+        ctx.accounts
+            .token_program
+            .as_ref()
+            .unwrap()
+            .to_account_info(),
+        token_pool_pda,
+        amount,
+    )
+}
 
+/// Executes a token program instruction with multiple token pool accounts.
+/// Supported instructions are burn and transfer to decompress spl tokens.
+#[allow(clippy::too_many_arguments)]
+pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BURN: bool>(
+    remaining_accounts: &[AccountInfo<'info>],
+    mint_bytes: &[u8; 32],
+    mint: Option<AccountInfo<'info>>,
+    recipient: Option<AccountInfo<'info>>,
+    cpi_authority_pda: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
+    mut token_pool_pda: AccountInfo<'info>,
+    mut amount: u64,
+) -> std::result::Result<(), Error> {
     let mut token_pool_bumps = (0..NUM_MAX_POOL_ACCOUNTS).collect::<Vec<u8>>();
 
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
         if i != 0 {
-            token_pool_pda = ctx.remaining_accounts[i as usize - 1].to_account_info();
+            token_pool_pda = remaining_accounts[i as usize - 1].to_account_info();
         }
         let token_pool_amount =
             TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])
                 .map_err(|_| crate::ErrorCode::InvalidTokenPoolPda)?
                 .amount;
-        let withdrawal_amount = std::cmp::min(amount, token_pool_amount);
-        if withdrawal_amount == 0 {
+        let action_amount = std::cmp::min(amount, token_pool_amount);
+        if action_amount == 0 {
             continue;
         }
         let mut remove_index = 0;
         for (index, i) in token_pool_bumps.iter().enumerate() {
             if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
             {
-                transfer(
-                    token_pool_pda.to_account_info(),
-                    recipient.to_account_info(),
-                    ctx.accounts.cpi_authority_pda.to_account_info(),
-                    ctx.accounts
-                        .token_program
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    withdrawal_amount,
-                )?;
+                if IS_BURN {
+                    crate::burn::spl_burn_cpi(
+                        mint.clone().unwrap(),
+                        cpi_authority_pda.to_account_info(),
+                        token_pool_pda.to_account_info(),
+                        token_program.to_account_info(),
+                        action_amount,
+                        token_pool_amount,
+                    )?;
+                } else {
+                    crate::spl_compression::spl_token_transfer_cpi_with_signer(
+                        token_pool_pda.to_account_info(),
+                        recipient.clone().unwrap(),
+                        cpi_authority_pda.to_account_info(),
+                        token_program.to_account_info(),
+                        action_amount,
+                    )?;
+                }
+
                 remove_index = index;
             }
         }
         token_pool_bumps.remove(remove_index);
 
-        amount = amount.saturating_sub(withdrawal_amount);
+        amount = amount.saturating_sub(action_amount);
         if amount == 0 {
             return Ok(());
         }
     }
+
     msg!("Remaining amount: {}.", amount);
-    msg!("Token pool account balance insufficient for decompression. \nTry to pass more token pool accounts.");
-    err!(crate::ErrorCode::FailedToDecompress)
+    if IS_BURN {
+        msg!("Token pool account balances insufficient for burn. \nTry to pass more token pool accounts.");
+        err!(crate::ErrorCode::FailedToBurnSplTokensFromTokenPool)
+    } else {
+        msg!("Token pool account balances insufficient for decompression. \nTry to pass more token pool accounts.");
+        err!(crate::ErrorCode::FailedToDecompress)
+    }
 }
 
 pub fn compress_spl_tokens<'info>(
@@ -126,7 +167,7 @@ pub fn compress_spl_tokens<'info>(
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
         if check_spl_token_pool_derivation(mint_bytes.as_slice(), &recipient_token_pool.key(), &[i])
         {
-            transfer_compress(
+            spl_token_transfer(
                 ctx.accounts
                     .compress_or_decompress_token_account
                     .as_ref()
@@ -147,7 +188,9 @@ pub fn compress_spl_tokens<'info>(
     err!(crate::ErrorCode::InvalidTokenPoolPda)
 }
 
-pub fn transfer<'info>(
+/// Invoke the spl token burn instruction with cpi authority pda as signer.
+/// Used to decompress spl tokens.
+pub fn spl_token_transfer_cpi_with_signer<'info>(
     from: AccountInfo<'info>,
     to: AccountInfo<'info>,
     authority: AccountInfo<'info>,
@@ -166,7 +209,9 @@ pub fn transfer<'info>(
     anchor_spl::token_interface::transfer(cpi_ctx, amount)
 }
 
-pub fn transfer_compress<'info>(
+/// Invoke the spl token transfer instruction with transaction signer.
+/// Used to compress spl tokens.
+pub fn spl_token_transfer<'info>(
     from: AccountInfo<'info>,
     to: AccountInfo<'info>,
     authority: AccountInfo<'info>,

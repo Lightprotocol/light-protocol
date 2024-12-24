@@ -232,4 +232,5 @@ pub enum ErrorCode {
     #[msg("Max number of token pools reached.")]
     InvalidTokenPoolBump,
     FailedToDecompress,
+    FailedToBurnSplTokensFromTokenPool,
 }
