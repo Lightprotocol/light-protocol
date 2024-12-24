@@ -46,5 +46,5 @@ num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = "0.8"
-spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false}
+spl-concurrent-merkle-tree = { version = "0.3.0", default-features = false}
 light-batched-merkle-tree = { workspace = true }
