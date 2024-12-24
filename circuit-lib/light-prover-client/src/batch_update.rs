@@ -60,7 +60,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     // get from account (every mt account has a hardcoded batch size)
     batch_size: u32,
 ) -> Result<BatchUpdateCircuitInputs, ProverClientError> {
-    let mut new_root = [0u8; 32];
+        let mut new_root = [0u8; 32];
     let old_root = current_root;
     // We need a changelog because all subsequent proofs change after one update.
     // Hence, we patch the proofs with the changelog.

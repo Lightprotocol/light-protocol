@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-
+use async_trait::async_trait;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use light_client::rpc::RpcConnection;
@@ -41,6 +41,7 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
     }
 }
 
+#[async_trait]
 impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_queue_elements(
         &self,

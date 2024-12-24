@@ -212,12 +212,12 @@ impl Stats {
         println!("Finalized registrations {}", self.finalized_registrations);
     }
 }
-pub async fn init_program_test_env(
-    rpc: ProgramTestRpcConnection,
+pub async fn init_program_test_env<R: RpcConnection>(
+    rpc: R,
     env_accounts: &EnvAccounts,
     skip_prover: bool,
-) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+) -> E2ETestEnv<R, TestIndexer<R>> {
+    let indexer: TestIndexer<R> = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         if skip_prover {
@@ -238,7 +238,7 @@ pub async fn init_program_test_env(
     )
     .await;
 
-    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+    E2ETestEnv::<R, TestIndexer<R>>::new(
         rpc,
         indexer,
         env_accounts,

@@ -8,7 +8,8 @@ use light_client::rpc::RpcConnection;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use tracing::debug;
-
+use light_batched_merkle_tree::merkle_tree::ZeroCopyBatchedMerkleTreeAccount;
+use crate::errors::ForesterError;
 use crate::Result;
 
 pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Result<Vec<TreeAccounts>> {
@@ -22,8 +23,9 @@ pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Result<Vec<TreeAccounts>>
         .collect())
 }
 
-fn process_account(pubkey: Pubkey, account: Account) -> Option<TreeAccounts> {
+fn process_account(pubkey: Pubkey, mut account: Account) -> Option<TreeAccounts> {
     process_state_account(&account, pubkey)
+        .or_else(|_| process_batch_state_account(&mut account, pubkey))
         .or_else(|_| process_address_account(&account, pubkey))
         .ok()
 }
@@ -35,6 +37,16 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
         pubkey,
         &tree_account.metadata,
         TreeType::State,
+    ))
+}
+
+fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+    let tree_account = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data)
+        .map_err(|e| ForesterError::Custom(format!("Failed to deserialize state tree account: {:?}", e)))?;
+    Ok(create_tree_accounts(
+        pubkey,
+        &tree_account.get_account().metadata,
+        TreeType::BatchedState,
     ))
 }
 
