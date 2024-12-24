@@ -25,7 +25,7 @@ solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 
 [dev-dependencies]
-ark-bn254 = "0.4"
+ark-bn254 = "0.5"
 ark-ff = "0.4"
 light-merkle-tree-reference = { path = "../reference", version = "1.1.0" }
 light-hash-set = { workspace = true, features = ["solana"] }
