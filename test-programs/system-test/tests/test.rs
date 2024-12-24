@@ -5,7 +5,6 @@ use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData, queue::BatchedQueueAccount,
-    zero_copy::ZeroCopyError,
 };
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
