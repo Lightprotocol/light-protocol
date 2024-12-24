@@ -3842,6 +3842,7 @@ dependencies = [
  "anyhow",
  "ark-bn254",
  "ark-ff",
+ "borsh 0.10.3",
  "bytemuck",
  "light-bounded-vec",
  "light-hasher",

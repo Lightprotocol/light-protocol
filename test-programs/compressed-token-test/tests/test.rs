@@ -1207,7 +1207,7 @@ async fn perform_transfer_22_test(
 #[tokio::test]
 async fn test_decompression() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],

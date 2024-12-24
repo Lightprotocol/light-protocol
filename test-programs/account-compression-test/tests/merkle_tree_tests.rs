@@ -34,7 +34,7 @@ use light_test_utils::{
     },
     AccountZeroCopy, RpcConnection, RpcError,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
@@ -705,12 +705,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(
-        result,
-        2,
-        AccountCompressionErrorCode::InvalidAccountSize.into(),
-    )
-    .unwrap();
+    assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
     let result = perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
@@ -723,12 +718,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(
-        result,
-        2,
-        AccountCompressionErrorCode::InvalidAccountSize.into(),
-    )
-    .unwrap();
+    assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
 
     set_state_merkle_tree_next_index(
         &mut context,
@@ -1527,12 +1517,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
                 None,
             )
             .await;
-            assert_rpc_error(
-                result,
-                2,
-                AccountCompressionErrorCode::InvalidAccountSize.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
         }
     }
 }

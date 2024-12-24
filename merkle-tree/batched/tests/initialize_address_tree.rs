@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::assert_address_mt_zero_copy_inited,
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, CreateTreeParams,
+        BatchedMerkleTreeMetadata, CreateTreeParams,
     },
 };
 use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
@@ -31,8 +31,7 @@ fn test_account_init() {
     )
     .unwrap();
     let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
-    let ref_mt_account =
-        BatchedMerkleTreeAccount::get_address_tree_default(mt_params, merkle_tree_rent);
+    let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
     assert_address_mt_zero_copy_inited(
         &mut mt_account_data,
         ref_mt_account,
@@ -101,7 +100,7 @@ fn test_rnd_account_init() {
             // Output queue
             let ref_account_size =
                     // metadata
-                    BatchedMerkleTreeAccount::LEN
+                    BatchedMerkleTreeMetadata::LEN
                     + root_history_size
                     + batch_size
                     + bloom_filter_size
@@ -122,7 +121,7 @@ fn test_rnd_account_init() {
         .unwrap();
         let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
         let ref_mt_account =
-            BatchedMerkleTreeAccount::get_address_tree_default(mt_params, merkle_tree_rent);
+            BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
         assert_address_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,

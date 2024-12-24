@@ -30,7 +30,7 @@ use light_test_utils::{
     test_forester::{empty_address_queue_test, update_merkle_tree},
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, FeeConfig, RpcConnection, RpcError,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::ToBigUint;
 use rand::thread_rng;
 use solana_program_test::ProgramTest;
@@ -266,12 +266,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
                 queue_size,
             )
             .await;
-            assert_rpc_error(
-                result,
-                2,
-                AccountCompressionErrorCode::InvalidAccountSize.into(),
-            )
-            .unwrap()
+            assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
         }
     }
     // Invalid MT size + valid queue size.
@@ -289,12 +284,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             valid_queue_size,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            AccountCompressionErrorCode::InvalidAccountSize.into(),
-        )
-        .unwrap()
+        assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
     }
     // Valid MT size + invalid queue size.
     for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
@@ -309,12 +299,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             queue_size,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            AccountCompressionErrorCode::InvalidAccountSize.into(),
-        )
-        .unwrap()
+        assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
     }
 }
 

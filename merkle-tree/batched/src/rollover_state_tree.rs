@@ -4,20 +4,20 @@ use solana_program::{msg, pubkey::Pubkey};
 use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
-        assert_state_mt_zero_copy_inited, init_batched_state_merkle_tree_accounts,
-        InitStateTreeAccountsInstructionData,
+        init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
-    queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, ZeroCopyBatchedQueueAccount},
+    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
+    queue::{BatchedQueueAccount, BatchedQueueMetadata},
 };
 
+#[repr(C)]
 pub struct RolloverBatchStateTreeParams<'a> {
-    pub old_merkle_tree: &'a mut ZeroCopyBatchedMerkleTreeAccount,
+    pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount,
     pub old_mt_pubkey: Pubkey,
     pub new_mt_data: &'a mut [u8],
     pub new_mt_rent: u64,
     pub new_mt_pubkey: Pubkey,
-    pub old_output_queue: &'a mut ZeroCopyBatchedQueueAccount,
+    pub old_output_queue: &'a mut BatchedQueueAccount,
     pub old_queue_pubkey: Pubkey,
     pub new_output_queue_data: &'a mut [u8],
     pub new_output_queue_rent: u64,
@@ -27,127 +27,141 @@ pub struct RolloverBatchStateTreeParams<'a> {
     pub network_fee: Option<u64>,
 }
 
-pub fn rollover_batch_state_tree(
+pub fn rollover_batched_state_tree(
     params: RolloverBatchStateTreeParams,
 ) -> Result<(), BatchedMerkleTreeError> {
-    let RolloverBatchStateTreeParams {
-        old_merkle_tree,
-        old_mt_pubkey,
-        new_mt_data,
-        new_mt_rent,
-        new_mt_pubkey,
-        old_output_queue,
-        old_queue_pubkey,
-        new_output_queue_data,
-        new_output_queue_rent,
-        new_output_queue_pubkey,
-        additional_bytes_rent,
-        additional_bytes,
-        network_fee,
-    } = params;
-    old_merkle_tree
-        .get_account_mut()
+    // Check that old merkle tree is ready for rollover.
+    batched_tree_is_ready_for_rollover(
+        params.old_merkle_tree.get_metadata_mut(),
+        &params.network_fee,
+    )?;
+    // Rollover the old merkle tree.
+    params
+        .old_merkle_tree
+        .get_metadata_mut()
         .metadata
-        .rollover(old_queue_pubkey, new_mt_pubkey)?;
-
-    old_output_queue
-        .get_account_mut()
+        .rollover(params.old_queue_pubkey, params.new_mt_pubkey)?;
+    // Rollover the old output queue.
+    params
+        .old_output_queue
+        .get_metadata_mut()
         .metadata
-        .rollover(old_mt_pubkey, new_output_queue_pubkey)?;
-    let old_merkle_tree_account = old_merkle_tree.get_account();
+        .rollover(params.old_mt_pubkey, params.new_output_queue_pubkey)?;
+    let init_params = InitStateTreeAccountsInstructionData::from(&params);
+    let owner = params
+        .old_merkle_tree
+        .get_metadata()
+        .metadata
+        .access_metadata
+        .owner;
 
-    if old_merkle_tree_account.next_index
-        < ((1 << old_merkle_tree_account.height)
-            * old_merkle_tree_account
-                .metadata
-                .rollover_metadata
-                .rollover_threshold
-            / 100)
+    // Initialize the new merkle tree and output queue.
+    init_batched_state_merkle_tree_accounts(
+        owner,
+        init_params,
+        params.new_output_queue_data,
+        params.new_output_queue_pubkey,
+        params.new_output_queue_rent,
+        params.new_mt_data,
+        params.new_mt_pubkey,
+        params.new_mt_rent,
+        params.additional_bytes_rent,
+    )?;
+    Ok(())
+}
+
+impl<'a> From<&'a RolloverBatchStateTreeParams<'a>> for InitStateTreeAccountsInstructionData {
+    #[inline(always)]
+    fn from(params: &'a RolloverBatchStateTreeParams<'a>) -> Self {
+        let old_merkle_tree_account = params.old_merkle_tree.get_metadata();
+
+        InitStateTreeAccountsInstructionData {
+            index: old_merkle_tree_account.metadata.rollover_metadata.index,
+            program_owner: if_equals_none(
+                old_merkle_tree_account
+                    .metadata
+                    .access_metadata
+                    .program_owner,
+                Pubkey::default(),
+            ),
+            forester: if_equals_none(
+                old_merkle_tree_account.metadata.access_metadata.forester,
+                Pubkey::default(),
+            ),
+            height: old_merkle_tree_account.height,
+            input_queue_batch_size: old_merkle_tree_account.queue_metadata.batch_size,
+            input_queue_zkp_batch_size: old_merkle_tree_account.queue_metadata.zkp_batch_size,
+            bloom_filter_capacity: old_merkle_tree_account.queue_metadata.bloom_filter_capacity,
+            bloom_filter_num_iters: params.old_merkle_tree.batches[0].num_iters,
+            root_history_capacity: old_merkle_tree_account.root_history_capacity,
+            network_fee: params.network_fee,
+            rollover_threshold: if_equals_none(
+                old_merkle_tree_account
+                    .metadata
+                    .rollover_metadata
+                    .rollover_threshold,
+                u64::MAX,
+            ),
+            close_threshold: if_equals_none(
+                old_merkle_tree_account
+                    .metadata
+                    .rollover_metadata
+                    .close_threshold,
+                u64::MAX,
+            ),
+            input_queue_num_batches: old_merkle_tree_account.queue_metadata.num_batches,
+            additional_bytes: params.additional_bytes,
+            output_queue_batch_size: params
+                .old_output_queue
+                .get_metadata()
+                .batch_metadata
+                .batch_size,
+            output_queue_zkp_batch_size: params
+                .old_output_queue
+                .get_metadata()
+                .batch_metadata
+                .zkp_batch_size,
+            output_queue_num_batches: params.old_output_queue.batches.len() as u64,
+        }
+    }
+}
+
+// TODO: add unit test
+pub fn batched_tree_is_ready_for_rollover(
+    metadata: &BatchedMerkleTreeMetadata,
+    network_fee: &Option<u64>,
+) -> Result<(), BatchedMerkleTreeError> {
+    if metadata.next_index
+        < ((1 << metadata.height) * metadata.metadata.rollover_metadata.rollover_threshold / 100)
     {
         return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
     }
-    if old_merkle_tree_account
-        .metadata
-        .rollover_metadata
-        .network_fee
-        == 0
-        && network_fee.is_some()
-    {
+    if metadata.metadata.rollover_metadata.network_fee == 0 && network_fee.is_some() {
         msg!("Network fee must be 0 for manually forested trees.");
         return Err(BatchedMerkleTreeError::InvalidNetworkFee);
     }
-
-    let params = InitStateTreeAccountsInstructionData {
-        index: old_merkle_tree_account.metadata.rollover_metadata.index,
-        program_owner: if_equals_none(
-            old_merkle_tree_account
-                .metadata
-                .access_metadata
-                .program_owner,
-            Pubkey::default(),
-        ),
-        forester: if_equals_none(
-            old_merkle_tree_account.metadata.access_metadata.forester,
-            Pubkey::default(),
-        ),
-        height: old_merkle_tree_account.height,
-        input_queue_batch_size: old_merkle_tree_account.queue.batch_size,
-        input_queue_zkp_batch_size: old_merkle_tree_account.queue.zkp_batch_size,
-        bloom_filter_capacity: old_merkle_tree_account.queue.bloom_filter_capacity,
-        bloom_filter_num_iters: old_merkle_tree.batches[0].num_iters,
-        root_history_capacity: old_merkle_tree_account.root_history_capacity,
-        network_fee,
-        rollover_threshold: if_equals_none(
-            old_merkle_tree_account
-                .metadata
-                .rollover_metadata
-                .rollover_threshold,
-            u64::MAX,
-        ),
-        close_threshold: if_equals_none(
-            old_merkle_tree_account
-                .metadata
-                .rollover_metadata
-                .close_threshold,
-            u64::MAX,
-        ),
-        input_queue_num_batches: old_merkle_tree_account.queue.num_batches,
-        additional_bytes,
-        output_queue_batch_size: old_output_queue.get_account().queue.batch_size,
-        output_queue_zkp_batch_size: old_output_queue.get_account().queue.zkp_batch_size,
-        output_queue_num_batches: old_output_queue.batches.len() as u64,
-    };
-
-    init_batched_state_merkle_tree_accounts(
-        old_merkle_tree_account.metadata.access_metadata.owner,
-        params,
-        new_output_queue_data,
-        new_output_queue_pubkey,
-        new_output_queue_rent,
-        new_mt_data,
-        new_mt_pubkey,
-        new_mt_rent,
-        additional_bytes_rent,
-    )
+    Ok(())
 }
 
+#[repr(C)]
 pub struct StateMtRollOverAssertParams {
     pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeAccount,
+    pub ref_mt_account: BatchedMerkleTreeMetadata,
     pub new_mt_account_data: Vec<u8>,
     pub old_mt_pubkey: Pubkey,
     pub new_mt_pubkey: Pubkey,
     pub bloom_filter_num_iters: u64,
-    pub ref_rolledover_mt: BatchedMerkleTreeAccount,
+    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
     pub queue_account_data: Vec<u8>,
-    pub ref_queue_account: BatchedQueueAccount,
+    pub ref_queue_account: BatchedQueueMetadata,
     pub new_queue_account_data: Vec<u8>,
     pub new_queue_pubkey: Pubkey,
-    pub ref_rolledover_queue: BatchedQueueAccount,
+    pub ref_rolledover_queue: BatchedQueueMetadata,
     pub old_queue_pubkey: Pubkey,
     pub slot: u64,
 }
 
+#[cfg(not(target_os = "solana"))]
 pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
     let StateMtRollOverAssertParams {
         mt_account_data,
@@ -175,12 +189,12 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         .rollover_metadata
         .rolledover_slot = slot;
 
-    assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
+    crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
 
     let zero_copy_queue =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(&mut queue_account_data).unwrap();
+        BatchedQueueAccount::output_queue_from_bytes_mut(&mut queue_account_data).unwrap();
     assert_eq!(
-        zero_copy_queue.get_account().metadata,
+        zero_copy_queue.get_metadata().metadata,
         ref_rolledover_queue.metadata
     );
     let params = MtRollOverAssertParams {
@@ -198,17 +212,19 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
 }
 
 // TODO: assert that the rest of the rolled over account didn't change
+#[repr(C)]
 pub struct MtRollOverAssertParams {
     pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeAccount,
+    pub ref_mt_account: BatchedMerkleTreeMetadata,
     pub new_mt_account_data: Vec<u8>,
     pub new_mt_pubkey: Pubkey,
     pub bloom_filter_num_iters: u64,
-    pub ref_rolledover_mt: BatchedMerkleTreeAccount,
+    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
     pub old_queue_pubkey: Pubkey,
     pub slot: u64,
 }
 
+#[cfg(not(target_os = "solana"))]
 pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
     let MtRollOverAssertParams {
         mut mt_account_data,
@@ -227,10 +243,10 @@ pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
         .unwrap();
     ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
     let zero_copy_mt =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data).unwrap();
-    assert_eq!(*zero_copy_mt.get_account(), ref_rolledover_mt);
+        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+    assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
 
-    assert_state_mt_zero_copy_inited(
+    crate::initialize_state_tree::assert_state_mt_zero_copy_inited(
         &mut new_mt_account_data,
         ref_mt_account,
         bloom_filter_num_iters,

@@ -16,6 +16,7 @@ pub enum BatchState {
     Full,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Batch {
     /// Number of inserted elements in the zkp batch.

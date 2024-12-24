@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     processor::{
@@ -11,7 +12,6 @@ use crate::{
     },
     state_merkle_tree_from_bytes_zero_copy,
     utils::{
-        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
@@ -64,7 +64,8 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             .old_state_merkle_tree
             .to_account_info()
             .data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     let new_queue_account_info = ctx.accounts.new_nullifier_queue.to_account_info();
     let queue_rent = check_account_balance_is_rent_exempt(
         &new_queue_account_info,
@@ -72,7 +73,8 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             .old_nullifier_queue
             .to_account_info()
             .data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
 
     let queue_metadata = {
         let (merkle_tree_metadata, queue_metadata) = {

@@ -6,7 +6,7 @@ use borsh::BorshDeserialize;
 use forester_utils::get_concurrent_merkle_tree;
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
-    merkle_tree::{BatchedMerkleTreeAccount, ZeroCopyBatchedMerkleTreeAccount},
+    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
 };
 use light_client::{
     indexer::{
@@ -426,7 +426,7 @@ where
             prover_config.circuits.push(ProofType::NonInclusion);
         }
 
-        spawn_prover(false, prover_config).await;
+        spawn_prover(true, prover_config).await;
 
         health_check(20, 1).await;
 
@@ -498,7 +498,7 @@ where
             let discriminator = merkle_tree_account.data[0..8].try_into().unwrap();
             let version = match discriminator {
                 StateMerkleTreeAccount::DISCRIMINATOR => 1,
-                BatchedMerkleTreeAccount::DISCRIMINATOR => 2,
+                BatchedMerkleTreeMetadata::DISCRIMINATOR => 2,
                 _ => panic!("Unsupported discriminator"),
             };
             println!("bundle.version {:?}", version);
@@ -539,7 +539,7 @@ where
                     .await
                     .unwrap()
                     .unwrap();
-                let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     merkle_tree_account.data.as_mut_slice(),
                 )
                 .unwrap();

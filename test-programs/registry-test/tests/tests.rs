@@ -16,9 +16,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::{
         assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount},
-    queue::ZeroCopyBatchedQueueAccount,
-    zero_copy::ZeroCopyError,
+    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams},
+    queue::BatchedQueueAccount,
 };
 use light_hasher::Poseidon;
 use light_program_test::{
@@ -77,6 +76,7 @@ use light_test_utils::{
     update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
     TreeAccounts, TreeType, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
+use light_utils::UtilsError;
 use serial_test::serial;
 use solana_sdk::{
     account::WritableAccount,
@@ -668,12 +668,11 @@ async fn test_custom_forester_batched() {
                 .await
                 .unwrap()
                 .unwrap();
-            let merkle_tree = ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut merkle_tree_account.data,
-            )
-            .unwrap();
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data)
+                    .unwrap();
             // fill two output and one input batch
-            for i in 0..merkle_tree.get_account().queue.batch_size {
+            for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
                 println!("\ntx {}", i);
 
                 e2e_env
@@ -687,7 +686,7 @@ async fn test_custom_forester_batched() {
                     )
                     .await
                     .unwrap();
-                if i == merkle_tree.get_account().queue.batch_size / 2 {
+                if i == merkle_tree.get_metadata().queue_metadata.batch_size / 2 {
                     instruction_data = Some(
                         create_append_batch_ix_data(
                             &mut e2e_env.rpc,
@@ -1497,7 +1496,7 @@ async fn test_migrate_state() {
                 .await
                 .unwrap()
                 .unwrap();
-            let output_queue = ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
                 output_queue_account.data_as_mut_slice(),
             )
             .unwrap();
@@ -1567,7 +1566,7 @@ async fn test_migrate_state() {
                 &[&env_accounts.forester],
             )
             .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     // 4. Failing - invalid state Merkle tree
     {
@@ -1854,7 +1853,7 @@ async fn test_batch_address_tree() {
         )
         .await;
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::NonInclusion, ProofType::BatchAddressAppendTest],
@@ -1898,10 +1897,9 @@ async fn test_batch_address_tree() {
                 .await
                 .unwrap()
                 .unwrap();
-            let zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                account.data.as_mut_slice(),
-            )
-            .unwrap();
+            let zero_copy_account =
+                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
+                    .unwrap();
             test_indexer.finalize_batched_address_tree_update(
                 env.batch_address_merkle_tree,
                 &zero_copy_account,
@@ -1928,10 +1926,9 @@ async fn test_batch_address_tree() {
             .await
             .unwrap()
             .unwrap();
-        let zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-            account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let zero_copy_account =
+            BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
+                .unwrap();
         test_indexer.finalize_batched_address_tree_update(
             env.batch_address_merkle_tree,
             &zero_copy_account,
@@ -1979,8 +1976,7 @@ async fn test_batch_address_tree() {
         .unwrap()
         .unwrap();
     let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
-            .unwrap();
+        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice()).unwrap();
     test_indexer
         .finalize_batched_address_tree_update(env.batch_address_merkle_tree, &zero_copy_account);
 }
@@ -2031,7 +2027,7 @@ async fn test_rollover_batch_address_tree() {
         )
         .await;
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::NonInclusion],
@@ -2063,7 +2059,7 @@ async fn test_rollover_batch_address_tree() {
         .unwrap();
     let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda);
     let zero_copy_account =
-        BatchedMerkleTreeAccount::get_address_tree_default(mt_params, account.lamports);
+        BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
     assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account, 3);
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)

@@ -3,8 +3,10 @@ use light_merkle_tree_metadata::{
     merkle_tree::{MerkleTreeMetadata, TreeType},
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
-use light_utils::fee::compute_rollover_fee;
-use solana_program::pubkey::Pubkey;
+use light_utils::{
+    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, UtilsError,
+};
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::{
     constants::{
@@ -13,10 +15,11 @@ use crate::{
     },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
-    merkle_tree::{get_merkle_tree_account_size, ZeroCopyBatchedMerkleTreeAccount},
+    merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     BorshDeserialize, BorshSerialize,
 };
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq)]
 pub struct InitAddressTreeAccountsInstructionData {
     pub index: u64,
@@ -92,12 +95,38 @@ impl Default for InitAddressTreeAccountsInstructionData {
     }
 }
 
+/// Initializes a batched address Merkle tree account.
+/// 1. Check rent exemption and that accounts are initialized with the correct size.
+/// 2. Initialized the address Merkle tree account.
+pub fn init_batched_address_merkle_tree_from_account_info(
+    params: InitAddressTreeAccountsInstructionData,
+    owner: Pubkey,
+    mt_account_info: &AccountInfo<'_>,
+) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+    // 1. Check rent exemption and that accounts are initialized with the correct size.
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(mt_account_info, mt_account_size)?;
+
+    // 2. Initialized the address Merkle tree account.
+    let mt_data = &mut mt_account_info
+        .try_borrow_mut_data()
+        .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
+    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)
+}
+
 pub fn init_batched_address_merkle_tree_account(
     owner: Pubkey,
     params: InitAddressTreeAccountsInstructionData,
     mt_account_data: &mut [u8],
     merkle_tree_rent: u64,
-) -> Result<(), BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let height = params.height;
 
@@ -124,19 +153,18 @@ pub fn init_batched_address_merkle_tree_account(
         ),
         associated_queue: Pubkey::default(),
     };
-    ZeroCopyBatchedMerkleTreeAccount::init(
+    BatchedMerkleTreeAccount::init(
+        mt_account_data,
         metadata,
         params.root_history_capacity,
         num_batches_input_queue,
         params.input_queue_batch_size,
         params.input_queue_zkp_batch_size,
         height,
-        mt_account_data,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
         TreeType::BatchedAddress,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstructionData) {

@@ -14,14 +14,13 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{
         get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
-        BatchedMerkleTreeAccount, CreateTreeParams, InstructionDataBatchAppendInputs,
-        InstructionDataBatchNullifyInputs, ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
+        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
-        ZeroCopyBatchedQueueAccount,
+        BatchedQueueMetadata,
     },
-    zero_copy::ZeroCopyError,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
@@ -36,7 +35,7 @@ use light_test_utils::{
     address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
     spl::create_initialize_mint_instructions, AccountZeroCopy, RpcConnection, RpcError,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_tx_hash};
+use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_tx_hash, UtilsError};
 use light_verifier::{CompressedProof, VerifierError};
 use num_bigint::ToBigUint;
 use serial_test::serial;
@@ -157,16 +156,16 @@ async fn test_batch_state_merkle_tree() {
             .await
             .unwrap();
         let mut merkle_tree =
-            AccountZeroCopy::<BatchedMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey)
+            AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
                 .await;
 
         let mut queue =
-            AccountZeroCopy::<BatchedQueueAccount>::new(&mut context, output_queue_pubkey).await;
+            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
 
         let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
         let ref_mt_account =
-            BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
 
         assert_state_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
@@ -285,7 +284,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     // 7. Failing Invalid Registered Program (batch append)
     {
@@ -410,7 +409,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     // 14. Failing Invalid registered program (batch nullify)
     {
@@ -664,14 +663,14 @@ pub async fn create_append_batch_ix_data(
     output_queue_account_data: &mut [u8],
 ) -> InstructionDataBatchAppendInputs {
     let zero_copy_account =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(mt_account_data).unwrap();
+        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(mt_account_data).unwrap();
     let output_zero_copy_account =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(output_queue_account_data).unwrap();
+        BatchedQueueAccount::output_queue_from_bytes_mut(output_queue_account_data).unwrap();
 
-    let next_index = zero_copy_account.get_account().next_index;
+    let next_index = zero_copy_account.get_metadata().next_index;
     let next_full_batch = output_zero_copy_account
-        .get_account()
-        .queue
+        .get_metadata()
+        .batch_metadata
         .next_full_batch_index;
     let batch = output_zero_copy_account
         .batches
@@ -708,12 +707,15 @@ pub async fn create_nullify_batch_ix_data(
     mock_indexer: &mut MockBatchedForester<32>,
     account_data: &mut [u8],
 ) -> InstructionDataBatchNullifyInputs {
-    let zero_copy_account: ZeroCopyBatchedMerkleTreeAccount =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data).unwrap();
+    let zero_copy_account: BatchedMerkleTreeAccount =
+        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data).unwrap();
     println!("batches {:?}", zero_copy_account.batches);
 
     let old_root_index = zero_copy_account.root_history.last_index();
-    let next_full_batch = zero_copy_account.get_account().queue.next_full_batch_index;
+    let next_full_batch = zero_copy_account
+        .get_metadata()
+        .queue_metadata
+        .next_full_batch_index;
     let batch = zero_copy_account
         .batches
         .get(next_full_batch as usize)
@@ -739,7 +741,10 @@ pub async fn create_nullify_batch_ix_data(
         .unwrap();
     let (proof, new_root) = mock_indexer
         .get_batched_update_proof(
-            zero_copy_account.get_account().queue.zkp_batch_size as u32,
+            zero_copy_account
+                .get_metadata()
+                .queue_metadata
+                .zkp_batch_size as u32,
             *leaves_hashchain,
         )
         .await
@@ -793,16 +798,16 @@ async fn test_init_batch_state_merkle_trees() {
         .await
         .unwrap();
         let merkle_tree =
-            AccountZeroCopy::<BatchedMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey)
+            AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
                 .await;
 
         let mut queue =
-            AccountZeroCopy::<BatchedQueueAccount>::new(&mut context, output_queue_pubkey).await;
+            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
         let mt_params = CreateTreeParams::from_state_ix_params(*params, owner);
 
         let ref_mt_account =
-            BatchedMerkleTreeAccount::get_state_tree_default(mt_params, output_queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
 
         let mut tree_data = merkle_tree.account.data.clone();
         assert_state_mt_zero_copy_inited(
@@ -990,12 +995,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerMerkleTree,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 3. failing - queue invalid program owner
     {
@@ -1011,12 +1011,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerQueue,
         )
         .await;
-        assert_rpc_error(
-            result,
-            2,
-            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 2, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 4. failing - state tree invalid discriminator
     {
@@ -1032,7 +1027,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 2, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 2, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     // 5. failing - queue invalid discriminator
     {
@@ -1048,7 +1043,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorQueue,
         )
         .await;
-        assert_rpc_error(result, 2, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 2, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     // 6. failing -  merkle tree and queue not associated
     {
@@ -1138,11 +1133,10 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let payer_pubkey = payer.pubkey();
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
-        ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
-            .unwrap();
+        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice()).unwrap();
     let batch_zero = &old_merkle_tree.batches[0];
     let num_batches = old_merkle_tree.batches.len();
-    let old_merkle_tree = old_merkle_tree.get_account();
+    let old_merkle_tree = old_merkle_tree.get_metadata();
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
         batch_zero.bloom_filter_capacity,
@@ -1159,7 +1153,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
 
     let mut account = rpc.get_account(old_output_queue_pubkey).await?.unwrap();
     let old_queue_account =
-        ZeroCopyBatchedQueueAccount::from_bytes_mut(account.data.as_mut_slice()).unwrap();
+        BatchedQueueAccount::output_queue_from_bytes_mut(account.data.as_mut_slice()).unwrap();
     let batch_zero = &old_queue_account.batches[0];
     let queue_account_size = get_output_queue_account_size(
         batch_zero.batch_size,
@@ -1341,11 +1335,11 @@ async fn test_init_batch_address_merkle_trees() {
                 .await
                 .unwrap();
         let merkle_tree =
-            AccountZeroCopy::<BatchedMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey)
+            AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
                 .await;
         let mt_params = CreateTreeParams::from_address_ix_params(*params, owner);
 
-        let ref_mt_account = BatchedMerkleTreeAccount::get_address_tree_default(mt_params, mt_rent);
+        let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
         assert_address_mt_zero_copy_inited(
@@ -1596,7 +1590,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(result, 0, ZeroCopyError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
     }
     let mint = Keypair::new();
     // 11. Failing: invalid tree account (invalid program owner)
@@ -1625,12 +1619,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            BatchedMerkleTreeError::AccountOwnedByWrongProgram.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 12. functional: rollover
     let (_, new_address_merkle_tree) = {
@@ -1688,12 +1677,7 @@ async fn test_batch_address_merkle_trees() {
             RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeSmall,
         )
         .await;
-        assert_rpc_error(
-            result,
-            1,
-            AccountCompressionErrorCode::InvalidAccountSize.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 1, UtilsError::InvalidAccountSize.into()).unwrap();
     }
     // 15. Failing: Account too large
     {
@@ -1704,12 +1688,7 @@ async fn test_batch_address_merkle_trees() {
             RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeLarge,
         )
         .await;
-        assert_rpc_error(
-            result,
-            1,
-            AccountCompressionErrorCode::InvalidAccountSize.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 1, UtilsError::InvalidAccountSize.into()).unwrap();
     }
     // 16. invalid network fee
     {
@@ -1832,18 +1811,20 @@ pub async fn update_batch_address_tree(
         .unwrap()
         .data;
 
-    let zero_copy_account = ZeroCopyBatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-        &mut merkle_tree_account_data,
-    )
-    .unwrap();
-    let start_index = zero_copy_account.get_account().next_index;
+    let zero_copy_account =
+        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut merkle_tree_account_data)
+            .unwrap();
+    let start_index = zero_copy_account.get_metadata().next_index;
 
     let mut old_root_index = zero_copy_account.root_history.last_index();
     let current_root = zero_copy_account
         .root_history
         .get(old_root_index as usize)
         .unwrap();
-    let next_full_batch = zero_copy_account.get_account().queue.next_full_batch_index;
+    let next_full_batch = zero_copy_account
+        .get_metadata()
+        .queue_metadata
+        .next_full_batch_index;
 
     let batch = zero_copy_account
         .batches
@@ -1858,8 +1839,11 @@ pub async fn update_batch_address_tree(
         .unwrap();
     let (mut proof, mut new_root) = mock_indexer
         .get_batched_address_proof(
-            zero_copy_account.get_account().queue.batch_size as u32,
-            zero_copy_account.get_account().queue.zkp_batch_size as u32,
+            zero_copy_account.get_metadata().queue_metadata.batch_size as u32,
+            zero_copy_account
+                .get_metadata()
+                .queue_metadata
+                .zkp_batch_size as u32,
             *leaves_hashchain,
             start_index as usize,
             batch_start_index as usize,

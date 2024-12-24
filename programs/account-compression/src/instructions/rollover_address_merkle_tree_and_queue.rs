@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,
@@ -6,7 +7,6 @@ use crate::{
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
-        check_account::check_account_balance_is_rent_exempt,
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
         },
@@ -60,12 +60,14 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             .old_address_merkle_tree
             .to_account_info()
             .data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
     let new_queue_account_info = ctx.accounts.new_queue.to_account_info();
     let queue_rent = check_account_balance_is_rent_exempt(
         &new_queue_account_info,
         ctx.accounts.old_queue.to_account_info().data_len(),
-    )?;
+    )
+    .map_err(ProgramError::from)?;
 
     let (queue_metadata, height) = {
         let (merkle_tree_metadata, queue_metadata) = {

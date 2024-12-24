@@ -1,5 +1,6 @@
 use crate::{BorshDeserialize, BorshSerialize};
 
+#[repr(C)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct BatchAppendEvent {
     pub id: [u8; 32],
@@ -13,6 +14,7 @@ pub struct BatchAppendEvent {
     pub sequence_number: u64,
 }
 
+#[repr(C)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct BatchNullifyEvent {
     pub id: [u8; 32],

@@ -7,14 +7,14 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, CreateTreeParams, ZeroCopyBatchedMerkleTreeAccount,
+        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
     },
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size,
-        get_output_queue_account_size_default, ZeroCopyBatchedQueueAccount,
+        get_output_queue_account_size_default, BatchedQueueAccount,
     },
     rollover_state_tree::{
-        assert_state_mt_roll_over, rollover_batch_state_tree, RolloverBatchStateTreeParams,
+        assert_state_mt_roll_over, rollover_batched_state_tree, RolloverBatchStateTreeParams,
         StateMtRollOverAssertParams,
     },
     zero_copy::ZeroCopyError,
@@ -67,7 +67,7 @@ fn test_rollover() {
 
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
         let ref_mt_account =
-            BatchedMerkleTreeAccount::get_state_tree_default(create_tree_params, queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
         assert_state_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,
@@ -93,7 +93,7 @@ fn test_rollover() {
             let mut mt_account_data = mt_account_data.clone();
             let mut queue_account_data = queue_account_data.clone();
             let params = RolloverBatchStateTreeParams {
-                old_merkle_tree: &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                old_merkle_tree: &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     &mut mt_account_data,
                 )
                 .unwrap(),
@@ -101,7 +101,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey: new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -113,7 +113,7 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
 
             assert_eq!(
                 result,
@@ -123,18 +123,17 @@ fn test_rollover() {
         // 2. Failing rollover threshold not set
         {
             let mut mt_account_data = mt_account_data.clone();
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
             merkle_tree
-                .get_account_mut()
+                .get_metadata_mut()
                 .metadata
                 .rollover_metadata
                 .rollover_threshold = u64::MAX;
             let mut queue_account_data = queue_account_data.clone();
             let params = RolloverBatchStateTreeParams {
-                old_merkle_tree: &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                old_merkle_tree: &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     &mut mt_account_data,
                 )
                 .unwrap(),
@@ -142,7 +141,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey: new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -154,7 +153,7 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
             assert_eq!(
                 result,
                 Err(MerkleTreeMetadataError::RolloverNotConfigured.into())
@@ -164,11 +163,10 @@ fn test_rollover() {
         {
             let mut mt_account_data = mt_account_data.clone();
             let mut queue_account_data = queue_account_data.clone();
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
-            merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
+            merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
             let mut new_mt_account_data = vec![0; mt_account_size - 1];
             let mut new_queue_account_data = vec![0; queue_account_size];
 
@@ -178,7 +176,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -190,18 +188,17 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
             assert_eq!(result, Err(ZeroCopyError::InvalidAccountSize.into()));
         }
         // 4. Failing: invalid queue size
         {
             let mut mt_account_data = mt_account_data.clone();
             let mut queue_account_data = queue_account_data.clone();
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
-            merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
+            merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
             let mut new_mt_account_data = vec![0; mt_account_size];
             let mut new_queue_account_data = vec![0; queue_account_size - 1];
 
@@ -211,7 +208,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -223,16 +220,15 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
             assert_eq!(result, Err(ZeroCopyError::InvalidAccountSize.into()));
         }
         // 5. Functional: rollover address tree
         {
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
-            merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
+            merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
             println!("new_mt_pubkey {:?}", new_mt_pubkey);
             println!("new_output_queue_pubkey {:?}", new_output_queue_pubkey);
             let rollover_batch_state_tree_params = RolloverBatchStateTreeParams {
@@ -241,7 +237,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -253,10 +249,10 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            rollover_batch_state_tree(rollover_batch_state_tree_params).unwrap();
+            rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
             let mut ref_rolledover_mt = ref_mt_account.clone();
-            ref_rolledover_mt.next_index = 1 << merkle_tree.get_account().height;
+            ref_rolledover_mt.next_index = 1 << merkle_tree.get_metadata().height;
             let mut new_ref_output_queue_account = ref_output_queue_account.clone();
             new_ref_output_queue_account
                 .metadata
@@ -293,7 +289,7 @@ fn test_rollover() {
             let mut new_queue_account_data = vec![0; queue_account_size];
 
             let params = RolloverBatchStateTreeParams {
-                old_merkle_tree: &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                old_merkle_tree: &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
                     &mut mt_account_data,
                 )
                 .unwrap(),
@@ -301,7 +297,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey: new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -313,7 +309,7 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
             assert_eq!(
                 result,
                 Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into())
@@ -356,11 +352,10 @@ fn test_rollover() {
         {
             let mut mt_account_data = mt_account_data.clone();
             let mut queue_account_data = queue_account_data.clone();
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
-            merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
+            merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
             let mut new_mt_account_data = vec![0; mt_account_size];
             let mut new_queue_account_data = vec![0; queue_account_size];
 
@@ -370,7 +365,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -382,7 +377,7 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: Some(1),
             };
-            let result = rollover_batch_state_tree(params);
+            let result = rollover_batched_state_tree(params);
             assert_eq!(
                 result,
                 Err(BatchedMerkleTreeError::InvalidNetworkFee.into())
@@ -393,7 +388,7 @@ fn test_rollover() {
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
 
         let mut ref_mt_account =
-            BatchedMerkleTreeAccount::get_state_tree_default(create_tree_params, queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
         ref_mt_account.metadata.access_metadata.forester = forester;
         let total_rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
         let output_queue_params =
@@ -411,11 +406,10 @@ fn test_rollover() {
         );
         // 8. Functional: rollover address tree with network fee 0 additional bytes 0
         {
-            let merkle_tree = &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                &mut mt_account_data,
-            )
-            .unwrap();
-            merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
+                    .unwrap();
+            merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
             println!("new_mt_pubkey {:?}", new_mt_pubkey);
             println!("new_output_queue_pubkey {:?}", new_output_queue_pubkey);
             let rollover_batch_state_tree_params = RolloverBatchStateTreeParams {
@@ -424,7 +418,7 @@ fn test_rollover() {
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
                 new_mt_pubkey,
-                old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+                old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
                 .unwrap(),
@@ -436,10 +430,10 @@ fn test_rollover() {
                 additional_bytes,
                 network_fee: params.network_fee,
             };
-            rollover_batch_state_tree(rollover_batch_state_tree_params).unwrap();
+            rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
             let mut ref_rolledover_mt = ref_mt_account.clone();
-            ref_rolledover_mt.next_index = 1 << merkle_tree.get_account().height;
+            ref_rolledover_mt.next_index = 1 << merkle_tree.get_metadata().height;
             let mut new_ref_output_queue_account = ref_output_queue_account.clone();
             new_ref_output_queue_account
                 .metadata
@@ -569,10 +563,8 @@ fn test_rnd_rollover() {
         );
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
 
-        let ref_mt_account = BatchedMerkleTreeAccount::get_state_tree_default(
-            create_tree_params,
-            output_queue_pubkey,
-        );
+        let ref_mt_account =
+            BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, output_queue_pubkey);
         assert_state_mt_zero_copy_inited(
             &mut mt_account_data,
             ref_mt_account,
@@ -586,16 +578,15 @@ fn test_rnd_rollover() {
         let new_output_queue_pubkey = Pubkey::new_unique();
 
         let merkle_tree =
-            &mut ZeroCopyBatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap();
-        merkle_tree.get_account_mut().next_index = 1 << merkle_tree.get_account().height;
+            &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+        merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
         let rollover_batch_state_tree_params = RolloverBatchStateTreeParams {
             old_merkle_tree: merkle_tree,
             old_mt_pubkey: mt_pubkey,
             new_mt_data: &mut new_mt_account_data,
             new_mt_rent: merkle_tree_rent,
             new_mt_pubkey,
-            old_output_queue: &mut ZeroCopyBatchedQueueAccount::from_bytes_mut(
+            old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                 &mut output_queue_account_data,
             )
             .unwrap(),
@@ -607,10 +598,10 @@ fn test_rnd_rollover() {
             additional_bytes,
             network_fee: params.network_fee,
         };
-        rollover_batch_state_tree(rollover_batch_state_tree_params).unwrap();
+        rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
         let mut ref_rolledover_mt = ref_mt_account.clone();
-        ref_rolledover_mt.next_index = 1 << merkle_tree.get_account().height;
+        ref_rolledover_mt.next_index = 1 << merkle_tree.get_metadata().height;
         let mut new_ref_output_queue_account = ref_output_queue_account.clone();
         new_ref_output_queue_account
             .metadata

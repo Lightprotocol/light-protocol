@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 pub mod batch;
 pub mod batch_metadata;
 pub mod constants;
