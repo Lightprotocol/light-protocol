@@ -9,25 +9,21 @@ anchor-lang = { workspace = true }
 clap = {version = "4.5.9", features = ["derive", "env"]}
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
-solana-transaction-status = { workspace = true }
 solana-account-decoder = { workspace = true }
-solana-rpc = { workspace = true }
 solana-program = { workspace = true }
-tiny-bip39 = "0.8.2"
-chrono = "0.4.37"
-time = "0.3.34"
 account-compression = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+light-prover-client = { workspace = true }
 light-system-program = { path = "../programs/system", features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { path = "../merkle-tree/hasher" }
-light-concurrent-merkle-tree = {path = "../merkle-tree/concurrent"}
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed" }
 light-merkle-tree-reference = { path = "../merkle-tree/reference" }
 light-registry = { workspace = true}
+light-utils = { workspace = true }
+light-verifier = { workspace = true }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-tokio-util = "0.7"
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "blocking"]  }
 futures = "0.3.31"
 thiserror = "1"
@@ -35,14 +31,8 @@ borsh = "0.10.3"
 bs58 = "0.5.1"
 photon-api = { workspace=true }
 bincode = "1.3"
-sysinfo = "0.33"
 forester-utils = { workspace=true }
 env_logger = "0.11"
-rand = "0.8.5"
-dotenvy = "0.15.7"
-crossbeam-channel = "0.5.14"
-tokio-stream = "0.1.16"
-base64 = "0.22.0"
 async-trait = "0.1.81"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
@@ -56,16 +46,9 @@ light-client = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 
 [dev-dependencies]
-function_name = "0.3.0"
 serial_test = "3.2.0"
-rstest = "0.23.0"
 light-prover-client = {path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = {path = "../merkle-tree/reference"}
 light-hasher = {path = "../merkle-tree/hasher"}
-light-bounded-vec = {path = "../merkle-tree/bounded-vec"}
 light-test-utils = {path = "../test-utils" }
 light-program-test = { workspace = true, features = ["devenv"] }
-num-bigint = "0.4"
-num-traits = "0.2"
-rand = "0.8.5"
-once_cell = "1.19.0"
