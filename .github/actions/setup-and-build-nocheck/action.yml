@@ -64,7 +64,6 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        npx nx build @lightprotocol/hasher.rs
         npx nx build @lightprotocol/programs
         npx nx build @lightprotocol/zk-compression-cli
 
