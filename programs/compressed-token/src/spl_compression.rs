@@ -5,7 +5,7 @@ use anchor_spl::{token::TokenAccount, token_interface};
 use crate::{
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
     process_transfer::get_cpi_signer_seeds,
-    CompressedTokenInstructionDataTransfer, TransferInstruction,
+    CompressedTokenInstructionDataTransfer, ErrorCode, TransferInstruction,
 };
 
 pub fn process_compression_or_decompression<'info>(
@@ -27,7 +27,7 @@ pub fn spl_token_pool_derivation(
     if check_spl_token_pool_derivation(mint_bytes, token_pool_pubkey, bump) {
         Ok(())
     } else {
-        err!(crate::ErrorCode::InvalidTokenPoolPda)
+        err!(ErrorCode::InvalidTokenPoolPda)
     }
 }
 
@@ -52,15 +52,15 @@ pub fn decompress_spl_tokens<'info>(
 ) -> Result<()> {
     let recipient = match ctx.accounts.compress_or_decompress_token_account.as_ref() {
         Some(compression_recipient) => compression_recipient.to_account_info(),
-        None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompress),
+        None => return err!(ErrorCode::DecompressRecipientUndefinedForDecompress),
     };
     let token_pool_pda = match ctx.accounts.token_pool_pda.as_ref() {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
-        None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
+        None => return err!(ErrorCode::CompressedPdaUndefinedForDecompress),
     };
     let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
-        None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
+        None => return err!(ErrorCode::DeCompressAmountUndefinedForDecompress),
     };
     invoke_token_program_with_multiple_token_pool_accounts::<false>(
         ctx.remaining_accounts,
@@ -80,6 +80,20 @@ pub fn decompress_spl_tokens<'info>(
 
 /// Executes a token program instruction with multiple token pool accounts.
 /// Supported instructions are burn and transfer to decompress spl tokens.
+/// Logic:
+/// 1. iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
+/// 2. start with passed in token pool account.
+/// 3. determine whether complete amount can be transferred or burned.
+/// 4. Skip if action amount is zero.
+/// 5. check if the token pool account is derived from the mint.
+/// 6. return error if the token pool account is not derived
+///     from any combination of mint and bump.
+/// 7. burn or transfer the amount from the token pool account.
+/// 8. remove bump from the list of bumps.
+/// 9. reduce the amount by the transferred or burned amount.
+/// 10. continue until the amount is zero.
+/// 11. Return if complete amount has been transferred or burned.
+/// 12. return error if the amount is not zero and the number of accounts has been exhausted.
 #[allow(clippy::too_many_arguments)]
 pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BURN: bool>(
     remaining_accounts: &[AccountInfo<'info>],
@@ -90,22 +104,25 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
     token_program: AccountInfo<'info>,
     mut token_pool_pda: AccountInfo<'info>,
     mut amount: u64,
-) -> std::result::Result<(), Error> {
-    let mut token_pool_bumps = (0..NUM_MAX_POOL_ACCOUNTS).collect::<Vec<u8>>();
-
+) -> Result<()> {
+    let mut token_pool_bumps: Vec<u8> = (0..NUM_MAX_POOL_ACCOUNTS).collect();
+    // 1. iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
+        // 2. start with passed in token pool account.token_pool_bumps
         if i != 0 {
             token_pool_pda = remaining_accounts[i as usize - 1].to_account_info();
         }
         let token_pool_amount =
             TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])
-                .map_err(|_| crate::ErrorCode::InvalidTokenPoolPda)?
+                .map_err(|_| ErrorCode::InvalidTokenPoolPda)?
                 .amount;
+        // 3. determine whether complete amount can be transferred or burned.
         let action_amount = std::cmp::min(amount, token_pool_amount);
+        // 4. Skip if action amount is zero.
         if action_amount == 0 {
             continue;
         }
-        let mut remove_index = 0;
+        // 5. check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_bumps.iter().enumerate() {
             if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
             {
@@ -127,25 +144,30 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
                         action_amount,
                     )?;
                 }
-
-                remove_index = index;
+                token_pool_bumps.remove(index);
+                amount = amount.saturating_sub(action_amount);
+                break;
+            } else if index == token_pool_bumps.len() - 1 {
+                // 6. return error if the token pool account is not derived
+                //      from any combination of mint and bump.
+                return err!(crate::ErrorCode::NoMatchingBumpFound);
             }
         }
-        token_pool_bumps.remove(remove_index);
 
-        amount = amount.saturating_sub(action_amount);
+        // 11. Return if complete amount has been transferred or burned.
         if amount == 0 {
             return Ok(());
         }
     }
 
+    // 12. return error if the amount is not zero and the number of accounts has been exhausted.
     msg!("Remaining amount: {}.", amount);
     if IS_BURN {
         msg!("Token pool account balances insufficient for burn. \nTry to pass more token pool accounts.");
-        err!(crate::ErrorCode::FailedToBurnSplTokensFromTokenPool)
+        err!(ErrorCode::FailedToBurnSplTokensFromTokenPool)
     } else {
         msg!("Token pool account balances insufficient for decompression. \nTry to pass more token pool accounts.");
-        err!(crate::ErrorCode::FailedToDecompress)
+        err!(ErrorCode::FailedToDecompress)
     }
 }
 
@@ -155,11 +177,11 @@ pub fn compress_spl_tokens<'info>(
 ) -> Result<()> {
     let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
-        None => return err!(crate::ErrorCode::CompressedPdaUndefinedForCompress),
+        None => return err!(ErrorCode::CompressedPdaUndefinedForCompress),
     };
     let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
-        None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForCompress),
+        None => return err!(ErrorCode::DeCompressAmountUndefinedForCompress),
     };
 
     let mint_bytes = inputs.mint.to_bytes();
@@ -185,7 +207,7 @@ pub fn compress_spl_tokens<'info>(
             return Ok(());
         }
     }
-    err!(crate::ErrorCode::InvalidTokenPoolPda)
+    err!(ErrorCode::InvalidTokenPoolPda)
 }
 
 /// Invoke the spl token burn instruction with cpi authority pda as signer.
