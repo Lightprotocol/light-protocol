@@ -22,7 +22,7 @@ pub struct FeeConfig {
 impl Default for FeeConfig {
     fn default() -> Self {
         Self {
-            // rollover fee plus additonal lamports for the cpi account
+            // rollover fee plus additional lamports for the cpi account
             state_merkle_tree_rollover: 300,
             address_queue_rollover: 392,
             // TODO: refactor to allow multiple state and address tree configs
@@ -38,7 +38,7 @@ impl Default for FeeConfig {
 impl FeeConfig {
     pub fn test_batched() -> Self {
         Self {
-            // rollover fee plus additonal lamports for the cpi account
+            // rollover fee plus additional lamports for the cpi account
             state_merkle_tree_rollover: 1,
             address_queue_rollover: 392, // not batched
             network_fee: 5000,

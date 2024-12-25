@@ -222,7 +222,7 @@ pub mod sdk {
         pub signer_is_delegate: bool,
         pub is_token_22: bool,
         pub token_pool_bump: u8,
-        pub additonal_pool_accounts: Vec<Pubkey>,
+        pub additional_pool_accounts: Vec<Pubkey>,
     }
 
     pub fn create_burn_instruction(
@@ -231,7 +231,7 @@ pub mod sdk {
         let (remaining_accounts, input_token_data_with_context, _) =
             create_input_output_and_remaining_accounts(
                 &[
-                    inputs.additonal_pool_accounts,
+                    inputs.additional_pool_accounts,
                     vec![inputs.change_account_merkle_tree],
                 ]
                 .concat(),

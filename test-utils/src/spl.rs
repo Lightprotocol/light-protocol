@@ -734,7 +734,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     transaction_params: Option<TransactionParams>,
     is_token_22: bool,
     token_pool_bump: u8,
-    additonal_pool_accounts: Option<Vec<Pubkey>>,
+    additional_pool_accounts: Option<Vec<Pubkey>>,
 ) {
     let max_amount: u64 = input_compressed_accounts
         .iter()
@@ -799,7 +799,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         None,
         None,
         is_token_22,
-        additonal_pool_accounts
+        additional_pool_accounts
             .clone()
             .unwrap_or_default()
             .as_slice(),
@@ -829,7 +829,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         .unwrap()
         .amount,
     ];
-    for additional_pool_account in additonal_pool_accounts
+    for additional_pool_account in additional_pool_accounts
         .clone()
         .unwrap_or_default()
         .as_slice()
@@ -899,7 +899,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         token_pool_pre_balances[0].saturating_sub(amount)
     );
     let mut amount = amount - token_pool_pre_balances[0];
-    for (i, additional_account) in additonal_pool_accounts
+    for (i, additional_account) in additional_pool_accounts
         .unwrap_or_default()
         .iter()
         .enumerate()
@@ -1010,7 +1010,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     transaction_params: Option<TransactionParams>,
     is_token_22: bool,
     token_pool_bump: u8,
-    additonal_pool_accounts: Option<Vec<Pubkey>>,
+    additional_pool_accounts: Option<Vec<Pubkey>>,
 ) {
     let output_compressed_account = TokenTransferOutputData {
         amount,
@@ -1038,7 +1038,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
         None,
         None,
         is_token_22,
-        additonal_pool_accounts.unwrap_or_default().as_slice(),
+        additional_pool_accounts.unwrap_or_default().as_slice(),
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -1713,7 +1713,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     mode: BurnInstructionMode,
     is_token_22: bool,
     token_pool_bump: u8,
-    additonal_pool_accounts: Option<Vec<Pubkey>>,
+    additional_pool_accounts: Option<Vec<Pubkey>>,
 ) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -1770,7 +1770,7 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
         burn_amount,
         is_token_22,
         token_pool_bump,
-        additonal_pool_accounts: additonal_pool_accounts.unwrap_or_default(),
+        additional_pool_accounts: additional_pool_accounts.unwrap_or_default(),
     };
     let input_amount_sum = input_compressed_accounts
         .iter()
