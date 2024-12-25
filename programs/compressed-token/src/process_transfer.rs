@@ -785,10 +785,10 @@ pub mod transfer_sdk {
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
     ) {
-        let mut additonal_accounts = Vec::new();
-        additonal_accounts.extend_from_slice(accounts);
+        let mut additional_accounts = Vec::new();
+        additional_accounts.extend_from_slice(accounts);
         if let Some(delegate) = delegate {
-            additonal_accounts.push(delegate);
+            additional_accounts.push(delegate);
             for account in input_token_data.iter() {
                 if account.delegate.is_some() && delegate != account.delegate.unwrap() {
                     println!("delegate: {:?}", delegate);
@@ -801,14 +801,14 @@ pub mod transfer_sdk {
             lamports_change_account_merkle_tree,
         ) = lamports_change_account_merkle_tree
         {
-            additonal_accounts.push(lamports_change_account_merkle_tree);
-            Some(additonal_accounts.len() as u8 - 1)
+            additional_accounts.push(lamports_change_account_merkle_tree);
+            Some(additional_accounts.len() as u8 - 1)
         } else {
             None
         };
         let (remaining_accounts, input_token_data_with_context, _output_compressed_accounts) =
             create_input_output_and_remaining_accounts(
-                additonal_accounts.as_slice(),
+                additional_accounts.as_slice(),
                 input_token_data,
                 input_compressed_accounts,
                 input_merkle_context,
