@@ -36,7 +36,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
     "@lightprotocol/compressed-token": "workspace:*",
-    "@lightprotocol/hasher.rs": "workspace:*",
+    "@lightprotocol/hasher.rs": "0.2.1",
     "@lightprotocol/stateless.js": "workspace:*",
     "@oclif/core": "^3.26.2",
     "@oclif/plugin-autocomplete": "^3.0.13",

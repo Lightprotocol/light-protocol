@@ -2,7 +2,6 @@ packages:
   - "tsconfig/**"
   - "programs/**"
   - "circuit-lib/**"
-  - "hasher.rs/**"
   - "cli/**"
   - "account-compression/programs/**"
   - "sdk/**"
