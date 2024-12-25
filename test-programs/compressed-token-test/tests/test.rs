@@ -4112,6 +4112,7 @@ async fn test_failing_thaw() {
 /// 6: invalid token recipient
 /// 7. invalid token pool pda (in struct)
 /// 8. invalid token pool pda (in remaining accounts)
+/// 8.1. invalid derived token pool pda (in struct and remaining accounts)
 /// 9. FailedToDecompress pass multiple correct token accounts with insufficient balance
 /// 10. invalid token pool pda from invalid mint (in struct)
 /// 11. invalid token pool pda from invalid mint (in remaining accounts)
@@ -4390,17 +4391,69 @@ async fn test_failing_decompression() {
             )
             .await
             .unwrap();
+        } // Test 8.1: invalid derived token pool pda (in struct and remaining accounts)
+        {
+            let token_account_keypair_2 = Keypair::new();
+            create_token_2022_account(
+                &mut context,
+                &mint,
+                &token_account_keypair_2,
+                &sender,
+                is_token_22,
+            )
+            .await
+            .unwrap();
+            mint_spl_tokens(
+                &mut context,
+                &mint,
+                &token_account_keypair_2.pubkey(),
+                &payer.pubkey(),
+                &payer,
+                amount,
+                is_token_22,
+            )
+            .await
+            .unwrap();
+            failing_compress_decompress(
+                &sender,
+                &mut context,
+                &mut test_indexer,
+                input_compressed_account.clone(),
+                decompress_amount, // needs to be consistent with compression amount
+                &merkle_tree_pubkey,
+                decompress_amount,
+                false,
+                &token_account_keypair.pubkey(),
+                Some(token_account_keypair_2.pubkey()),
+                &mint,
+                ErrorCode::NoMatchingBumpFound.into(),
+                is_token_22,
+                Some(vec![token_account_keypair_2.pubkey()]),
+            )
+            .await
+            .unwrap();
+            failing_compress_decompress(
+                &sender,
+                &mut context,
+                &mut test_indexer,
+                input_compressed_account.clone(),
+                decompress_amount, // needs to be consistent with compression amount
+                &merkle_tree_pubkey,
+                decompress_amount,
+                false,
+                &token_account_keypair.pubkey(),
+                Some(get_token_pool_pda_with_bump(&mint, 4)),
+                &mint,
+                ErrorCode::NoMatchingBumpFound.into(),
+                is_token_22,
+                Some(vec![token_account_keypair_2.pubkey()]),
+            )
+            .await
+            .unwrap();
         }
         // Test 9: FailedToDecompress pass multiple correct token accounts with insufficient balance
         {
             let token_pool = get_token_pool_pda_with_bump(&mint, 3);
-            let mut account = context.get_account(token_pool).await.unwrap().unwrap();
-            println!("token pool account {:?}", token_pool);
-            let amount =
-                TokenAccount::try_deserialize_unchecked(&mut &*account.data.as_mut_slice())
-                    .unwrap()
-                    .amount;
-            println!("{:?}", amount);
             failing_compress_decompress(
                 &sender,
                 &mut context,

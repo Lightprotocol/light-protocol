@@ -233,4 +233,5 @@ pub enum ErrorCode {
     InvalidTokenPoolBump,
     FailedToDecompress,
     FailedToBurnSplTokensFromTokenPool,
+    NoMatchingBumpFound,
 }
